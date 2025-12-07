@@ -32,3 +32,13 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# macOS files
+.DS_Store
+
+# Other
+.externalNativeBuild/
+
+# Claude Code
+.claude/
+CLAUDE.md
