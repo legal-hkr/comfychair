@@ -43,6 +43,10 @@ class ComfyUIClient(
     // Store the active WebSocket connection
     private var webSocket: WebSocket? = null
 
+    // Client ID for tracking WebSocket messages
+    // This must match the client_id used when submitting prompts
+    private val clientId = "comfychair_android"
+
     /**
      * Test connection to the ComfyUI server
      * Tries HTTPS first, then falls back to HTTP if HTTPS fails
@@ -122,6 +126,9 @@ class ComfyUIClient(
      * WebSocket allows real-time bi-directional communication
      * ComfyUI uses it to send progress updates and receive commands
      *
+     * IMPORTANT: The client_id query parameter is required to receive
+     * progress and preview events for this client's jobs
+     *
      * @param listener WebSocket event listener
      * @return true if connection attempt started, false if no working protocol found
      */
@@ -132,10 +139,13 @@ class ComfyUIClient(
             return false
         }
 
-        // Build WebSocket URL
+        // Build WebSocket URL with client_id parameter
+        // This is crucial - ComfyUI only sends progress/preview events to the matching client_id
         // ws:// for http, wss:// for https
         val wsProtocol = if (protocol == "https") "wss" else "ws"
-        val wsUrl = "$wsProtocol://$hostname:$port/ws"
+        val wsUrl = "$wsProtocol://$hostname:$port/ws?clientId=$clientId"
+
+        println("Opening WebSocket with URL: $wsUrl")
 
         // Create WebSocket request
         val request = Request.Builder()
@@ -348,9 +358,10 @@ class ComfyUIClient(
         val nodesObject = workflowObject.optJSONObject("nodes")
 
         // Create the prompt request
+        // The client_id here must match the clientId used in the WebSocket connection
         val promptRequest = JSONObject().apply {
             put("prompt", nodesObject)
-            put("client_id", "comfychair_android")
+            put("client_id", clientId)
         }
 
         val requestBody = promptRequest.toString()
@@ -530,6 +541,45 @@ class ComfyUIClient(
                     } else {
                         println("Server returned error when fetching image: ${response.code}")
                         callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Interrupt/cancel the currently running execution
+     * Posts to the /interrupt endpoint to stop the current generation
+     *
+     * @param callback Called with the result: success true/false
+     */
+    fun interruptExecution(callback: (success: Boolean) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false)
+            return
+        }
+
+        val url = "$baseUrl/interrupt"
+
+        val request = Request.Builder()
+            .url(url)
+            .post("{}".toRequestBody("application/json".toMediaType()))
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to interrupt execution: ${e.message}")
+                callback(false)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        println("Execution interrupted successfully")
+                        callback(true)
+                    } else {
+                        println("Server returned error when interrupting: ${response.code}")
+                        callback(false)
                     }
                 }
             }

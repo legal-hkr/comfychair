@@ -4,6 +4,7 @@ import android.app.Dialog
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -46,6 +47,9 @@ class QueryFragment : Fragment() {
     private lateinit var promptInput: TextInputEditText
     private lateinit var generateButton: Button
     private lateinit var settingsButton: Button
+    // Progress overlay elements
+    private lateinit var progressOverlay: View
+    private lateinit var progressBar: android.widget.ProgressBar
 
     // Modal bottom sheet for configuration
     private var configBottomSheet: BottomSheetDialog? = null
@@ -86,6 +90,9 @@ class QueryFragment : Fragment() {
 
     // Store current generated image
     private var currentBitmap: Bitmap? = null
+
+    // Track if generation is in progress
+    private var isGenerating = false
 
     // Filename for persisting last generated image
     private val LAST_IMAGE_FILENAME = "last_generated_image.png"
@@ -204,6 +211,9 @@ class QueryFragment : Fragment() {
         promptInput = view.findViewById(R.id.promptInput)
         generateButton = view.findViewById(R.id.generateButton)
         settingsButton = view.findViewById(R.id.settingsButton)
+        // Progress overlay elements
+        progressOverlay = view.findViewById(R.id.progressOverlay)
+        progressBar = view.findViewById(R.id.progressBar)
 
         setupTopAppBar()
     }
@@ -321,7 +331,11 @@ class QueryFragment : Fragment() {
     private fun setupButtonListeners() {
         generateButton.setOnClickListener {
             hideKeyboard()
-            startImageGeneration()
+            if (isGenerating) {
+                cancelImageGeneration()
+            } else {
+                startImageGeneration()
+            }
         }
 
         settingsButton.setOnClickListener {
@@ -351,11 +365,33 @@ class QueryFragment : Fragment() {
         }
     }
 
+    private fun cancelImageGeneration() {
+        println("Canceling image generation...")
+
+        comfyUIClient.interruptExecution { success ->
+            activity?.runOnUiThread {
+                if (success) {
+                    println("Generation canceled successfully")
+                } else {
+                    println("Failed to cancel generation")
+                }
+
+                // Reset UI state regardless of success
+                resetGenerateButton()
+                hideProgressOverlay()
+                currentPromptId = null
+            }
+        }
+    }
+
     private fun startImageGeneration() {
         val prompt = promptInput.text.toString()
 
-        generateButton.isEnabled = false
-        generateButton.text = getString(R.string.button_generating)
+        // Update button to show cancel state
+        setGeneratingState()
+
+        // Show progress overlay
+        showProgressOverlay()
 
         val workflowJson = if (isCheckpointMode) {
             // Checkpoint mode - use checkpoint parameters
@@ -415,15 +451,15 @@ class QueryFragment : Fragment() {
                         currentPromptId = promptId
                     } else {
                         println("Failed to submit workflow: $errorMessage")
-                        generateButton.isEnabled = true
-                        generateButton.text = getString(R.string.button_generate)
+                        resetGenerateButton()
+                        hideProgressOverlay()
                     }
                 }
             }
         } else {
             println("Error: Could not load workflow")
-            generateButton.isEnabled = true
-            generateButton.text = getString(R.string.button_generate)
+            resetGenerateButton()
+            hideProgressOverlay()
         }
     }
 
@@ -450,13 +486,9 @@ class QueryFragment : Fragment() {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                println("WebSocket message: $text")
-
                 try {
                     val message = JSONObject(text)
                     val messageType = message.optString("type")
-
-                    println("Message type: $messageType")
 
                     when (messageType) {
                         "executing" -> {
@@ -473,14 +505,18 @@ class QueryFragment : Fragment() {
                         }
                         "progress" -> {
                             val data = message.optJSONObject("data")
-                            val value = data?.optInt("value", 0)
-                            val max = data?.optInt("max", 0)
-                            println("Progress: $value/$max")
+                            val value = data?.optInt("value", 0) ?: 0
+                            val max = data?.optInt("max", 0) ?: 0
+
+                            // Update progress bar
+                            if (max > 0) {
+                                updateProgress(value, max)
+                            }
                         }
                         "execution_error" -> {
                             activity?.runOnUiThread {
-                                generateButton.isEnabled = true
-                                generateButton.text = getString(R.string.button_generate)
+                                resetGenerateButton()
+                                hideProgressOverlay()
                             }
                             println("Execution error: $text")
                         }
@@ -499,8 +535,12 @@ class QueryFragment : Fragment() {
                                 }, 1000)
                             }
                         }
+                        "previewing", "execution_cached", "execution_start", "execution_success", "progress_state", "executed" -> {
+                            // Known message types that we don't need to handle
+                        }
                         else -> {
-                            println("Unknown message type: $messageType")
+                            // Unknown message type - log for debugging
+                            println("Unknown WebSocket message type: $messageType")
                         }
                     }
                 } catch (e: Exception) {
@@ -593,8 +633,8 @@ class QueryFragment : Fragment() {
                                 println("fetchGeneratedImage: Received bitmap: ${bitmap != null}")
                                 activity?.runOnUiThread {
                                     displayImage(bitmap)
-                                    generateButton.isEnabled = true
-                                    generateButton.text = getString(R.string.button_generate)
+                                    resetGenerateButton()
+                                    hideProgressOverlay()
                                 }
                             }
                             return@fetchHistory
@@ -603,22 +643,22 @@ class QueryFragment : Fragment() {
 
                     println("fetchGeneratedImage: No images found in any node output")
                     activity?.runOnUiThread {
-                        generateButton.isEnabled = true
-                        generateButton.text = getString(R.string.button_generate)
+                        resetGenerateButton()
+                        hideProgressOverlay()
                     }
                 } catch (e: Exception) {
                     println("fetchGeneratedImage: Failed to parse history: ${e.message}")
                     e.printStackTrace()
                     activity?.runOnUiThread {
-                        generateButton.isEnabled = true
-                        generateButton.text = getString(R.string.button_generate)
+                        resetGenerateButton()
+                        hideProgressOverlay()
                     }
                 }
             } else {
                 println("fetchGeneratedImage: Failed to fetch history - historyJson is null")
                 activity?.runOnUiThread {
-                    generateButton.isEnabled = true
-                    generateButton.text = getString(R.string.button_generate)
+                    resetGenerateButton()
+                    hideProgressOverlay()
                 }
             }
         }
@@ -636,6 +676,56 @@ class QueryFragment : Fragment() {
             saveLastGeneratedImage(bitmap)
         } else {
             println("Failed to load image")
+        }
+    }
+
+    /**
+     * Show progress overlay with initial state
+     */
+    private fun showProgressOverlay() {
+        progressOverlay.visibility = View.VISIBLE
+        progressBar.progress = 0
+        progressBar.max = 100
+    }
+
+    /**
+     * Hide progress overlay
+     */
+    private fun hideProgressOverlay() {
+        progressOverlay.visibility = View.GONE
+    }
+
+    /**
+     * Update Generate button to show "generating" state
+     */
+    private fun setGeneratingState() {
+        isGenerating = true
+        generateButton.text = "Cancel generation"
+        // Set red background tint for Material button
+        generateButton.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            android.graphics.Color.parseColor("#D32F2F")
+        )
+    }
+
+    /**
+     * Reset Generate button to normal state
+     */
+    private fun resetGenerateButton() {
+        isGenerating = false
+        generateButton.text = getString(R.string.button_generate)
+        // Reset to default Material button style
+        val typedValue = TypedValue()
+        requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, typedValue, true)
+        generateButton.backgroundTintList = android.content.res.ColorStateList.valueOf(typedValue.data)
+    }
+
+    /**
+     * Update progress bar with current progress
+     */
+    private fun updateProgress(current: Int, max: Int) {
+        activity?.runOnUiThread {
+            progressBar.max = max
+            progressBar.progress = current
         }
     }
 

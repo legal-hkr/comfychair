@@ -18,7 +18,11 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Dual Workflow Support**:
   - Checkpoint-based workflows (traditional ComfyUI models)
   - Diffusers workflows (Flux, Z-Image, and other UNET-based models)
-- **Image Generation**: Mobile-optimized interface with real-time progress updates via WebSocket
+- **Image Generation**:
+  - Mobile-optimized interface with real-time progress tracking
+  - Visual progress bar overlay showing generation progress
+  - Cancel generation at any time with one-tap interrupt
+  - WebSocket-based live updates (step-by-step progress)
 - **Image Gallery**: View all generated images with thumbnail grid layout
 - **Image Management**: Save to device gallery, save as file, or share images
 - **Configuration Persistence**: Automatically saves and restores all settings including prompts, models, and generation parameters
