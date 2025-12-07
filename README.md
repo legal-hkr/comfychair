@@ -92,13 +92,13 @@ To connect to your ComfyUI server, you'll need:
 app/src/main/
 ├── java/sh/hnet/comfychair/
 │   ├── MainActivity.kt              # Login/connection screen
-│   ├── MainContainerActivity.kt    # Fragment container with persistent navigation
-│   ├── QueryFragment.kt            # Image generation screen (fragment)
-│   ├── GalleryFragment.kt          # Image gallery screen (fragment)
-│   ├── GalleryAdapter.kt           # RecyclerView adapter for gallery grid
-│   ├── ComfyUIClient.kt            # API client for ComfyUI server
-│   ├── WorkflowManager.kt          # Workflow JSON management
-│   └── SelfSignedCertHelper.kt     # SSL certificate handling
+│   ├── MainContainerActivity.kt     # Fragment container with persistent navigation
+│   ├── QueryFragment.kt             # Image generation screen (fragment)
+│   ├── GalleryFragment.kt           # Image gallery screen (fragment)
+│   ├── GalleryAdapter.kt            # RecyclerView adapter for gallery grid
+│   ├── ComfyUIClient.kt             # API client for ComfyUI server
+│   ├── WorkflowManager.kt           # Workflow JSON management
+│   └── SelfSignedCertHelper.kt      # SSL certificate handling
 ├── res/
 │   ├── layout/                      # UI layouts
 │   │   ├── activity_main.xml        # Login screen layout
@@ -124,7 +124,7 @@ This project follows standard Android development practices:
 
 ## License
 
-[GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
+[GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
 ## Acknowledgments
 
