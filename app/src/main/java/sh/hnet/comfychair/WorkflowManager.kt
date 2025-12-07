@@ -38,8 +38,6 @@ class WorkflowManager(private val context: Context) {
         // List of workflow resource IDs
         val workflowResources = listOf(
             R.raw.checkpoint_default,
-            R.raw.checkpoint_fast,
-            R.raw.checkpoint_sdxl,
             R.raw.diffusers_zimage
         )
 
