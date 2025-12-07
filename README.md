@@ -8,10 +8,9 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-![Login Screen](screenshots/login.png)
-![Query Screen](screenshots/query.png)
-![Image Generation Settings](screenshots/settings.png)
-![Image Gallery](screenshots/gallery.png)
+| Login | Query  | Settings | Gallery |
+|-------|--------|----------|---------|
+| <img src="screenshots/login.png" width="200"/> | <img src="screenshots/query.png" width="200"/> | <img src="screenshots/settings.png" width="200"/> | <img src="screenshots/gallery.png" width="200"/> |
 
 ## Features
 
