@@ -118,7 +118,7 @@ This project follows standard Android development practices:
 
 ## License
 
-[GPLv3](www.gnu.org/licenses/gpl-3.0.en.html)
+[GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
 ## Acknowledgments
 
