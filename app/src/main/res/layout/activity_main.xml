@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Login Screen Layout
+    This layout is divided into 3 vertical sections:
+    1. Welcome message (app name)
+    2. Login form (hostname and port input fields)
+    3. Connect button
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    tools:context=".MainActivity">
+
+    <!-- Section 1: Welcome Message -->
+    <!-- This TextView displays the app name at the top -->
+    <TextView
+        android:id="@+id/welcomeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="48dp"
+        android:textColor="?attr/colorPrimary" />
+
+    <!-- Section 2: Login Details -->
+    <!-- Container for hostname and port input fields -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="32dp">
+
+        <!-- Hostname Input Field -->
+        <!-- User enters the ComfyUI server hostname here (e.g., 192.168.1.100) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/hostnameInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/hostname_hint"
+            android:layout_marginBottom="16dp"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/hostnameInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Port Input Field -->
+        <!-- User enters the port number (pre-filled with 8188) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/portInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/port_hint"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/portInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="@string/default_port"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+    </LinearLayout>
+
+    <!-- Section 3: Connect Button -->
+    <!--
+        This button changes text and color based on connection state:
+        - "Connect" (default accent color)
+        - "Connecting..." (yellow)
+        - "Failed" (red)
+        - "Connected" (green)
+    -->
+    <Button
+        android:id="@+id/connectButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/button_connect"
+        android:textSize="18sp"
+        android:paddingVertical="16dp" />
+
+    <!-- Warning message for self-signed certificates -->
+    <!-- Hidden by default, shown when self-signed cert is detected -->
+    <TextView
+        android:id="@+id/warningText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/warning_self_signed_cert"
+        android:textColor="@color/connecting_yellow"
+        android:textSize="14sp"
+        android:visibility="gone"
+        android:layout_gravity="center_horizontal" />
+
+</LinearLayout>

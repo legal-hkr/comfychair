@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FileProvider paths configuration
+    Defines which directories can be shared via FileProvider
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cache directory for temporary share files -->
+    <cache-path name="shared_images" path="." />
+</paths>

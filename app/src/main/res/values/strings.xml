@@ -1,0 +1,55 @@
+<resources>
+    <string name="app_name">ComfyChair</string>
+
+    <!-- Login screen strings -->
+    <string name="hostname_hint">Hostname</string>
+    <string name="port_hint">Port</string>
+    <string name="default_port">8188</string>
+
+    <!-- Connection button states -->
+    <string name="button_connect">Connect</string>
+    <string name="button_connecting">Connecting…</string>
+    <string name="button_failed">Failed</string>
+    <string name="button_connected">Connected</string>
+
+    <!-- Validation error messages -->
+    <string name="error_required">Required</string>
+    <string name="error_invalid_port">Invalid port number</string>
+
+    <!-- SSL certificate warnings -->
+    <string name="warning_self_signed_cert">Cannot validate the certificate, connecting anyway</string>
+    <string name="warning_unknown_ca">Unknown certificate issuer, connecting anyway</string>
+
+    <!-- Query screen strings -->
+    <string name="prompt_hint">Prompt</string>
+    <string name="default_prompt">Beautiful scenery, nature, glass bottle, landscape, purple galaxy bottle</string>
+    <string name="button_generate">Generate</string>
+    <string name="button_generating">Generating…</string>
+    <string name="settings_button_description">Settings</string>
+    <string name="placeholder_image_description">Generated image will appear here</string>
+
+    <!-- Configuration panel strings -->
+    <string name="config_panel_title">Configuration</string>
+    <string name="workflow_label">Workflow</string>
+    <string name="checkpoint_label">Checkpoint</string>
+    <string name="width_label">Width</string>
+    <string name="height_label">Height</string>
+    <string name="steps_label">Steps</string>
+    <string name="default_width">1024</string>
+    <string name="default_height">1024</string>
+    <string name="default_steps">9</string>
+
+    <!-- Gallery screen strings -->
+    <string name="gallery_title">Gallery</string>
+    <string name="query_title">Query</string>
+    <string name="gallery_thumbnail_description">Generated image thumbnail</string>
+
+    <!-- Navigation strings -->
+    <string name="nav_query">Query</string>
+    <string name="nav_gallery">Gallery</string>
+
+    <!-- Configuration mode strings -->
+    <string name="checkpoint_mode">Checkpoint</string>
+    <string name="diffusers_mode">Diffusers</string>
+    <string name="diffusers_placeholder">Diffusers configuration coming soon...</string>
+</resources>

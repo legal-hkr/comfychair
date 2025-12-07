@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Bottom Sheet Handle
+    The small bar at the top that users can drag
+    Uses theme color for consistency
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Theme-aware color for the handle -->
+    <solid android:color="?attr/colorOnSurfaceVariant" />
+
+    <!-- Fully rounded corners -->
+    <corners android:radius="2dp" />
+
+</shape>
