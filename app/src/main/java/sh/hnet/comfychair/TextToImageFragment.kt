@@ -27,16 +27,12 @@ import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.textfield.TextInputEditText
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import org.json.JSONObject
 import java.io.IOException
 
 /**
  * TextToImageFragment - Main screen for interacting with ComfyUI
  */
-class TextToImageFragment : Fragment() {
+class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateListener {
 
     // UI element references
     private lateinit var topAppBar: MaterialToolbar
@@ -70,7 +66,7 @@ class TextToImageFragment : Fragment() {
     // Workflow manager
     private lateinit var workflowManager: WorkflowManager
 
-    // ComfyUI client
+    // ComfyUI client - obtained from activity
     private lateinit var comfyUIClient: ComfyUIClient
 
     // Connection information
@@ -85,14 +81,12 @@ class TextToImageFragment : Fragment() {
     // Flag to prevent auto-save during initialization
     private var isLoadingConfiguration = false
 
-    // Track current prompt ID
-    private var currentPromptId: String? = null
-
     // Store current generated image
     private var currentBitmap: Bitmap? = null
 
-    // Track if generation is in progress
+    // Track if generation is in progress (synced from activity)
     private var isGenerating = false
+    private var currentPromptId: String? = null
 
     // Filename for persisting last generated image
     private val LAST_IMAGE_FILENAME = "last_generated_image.png"
@@ -168,8 +162,9 @@ class TextToImageFragment : Fragment() {
             insets
         }
 
-        // Initialize ComfyUI client
-        comfyUIClient = ComfyUIClient(hostname, port)
+        // Get ComfyUI client from activity
+        val activity = requireActivity() as MainContainerActivity
+        comfyUIClient = activity.getComfyUIClient()
 
         // Initialize workflow manager
         workflowManager = WorkflowManager(requireContext())
@@ -189,8 +184,9 @@ class TextToImageFragment : Fragment() {
         // Setup image view listeners
         setupImageViewListeners()
 
-        // Connect to server
-        connectToServer()
+        // Fetch server data (checkpoints and diffusers)
+        fetchCheckpoints()
+        fetchDiffusers()
 
         // Restore last generated image if available
         restoreLastGeneratedImage()
@@ -200,6 +196,50 @@ class TextToImageFragment : Fragment() {
 
         // Setup auto-save listeners
         setupAutoSaveListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Register as generation state listener when fragment becomes visible
+        val activity = requireActivity() as MainContainerActivity
+        activity.setGenerationStateListener(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Unregister listener when fragment is no longer visible
+        val activity = requireActivity() as MainContainerActivity
+        activity.setGenerationStateListener(null)
+    }
+
+    // Implementation of GenerationStateListener interface
+
+    override fun onGenerationStateChanged(isGenerating: Boolean, promptId: String?) {
+        this.isGenerating = isGenerating
+        this.currentPromptId = promptId
+
+        if (isGenerating) {
+            setGeneratingState()
+            showProgressOverlay()
+        } else {
+            resetGenerateButton()
+            hideProgressOverlay()
+        }
+    }
+
+    override fun onProgressUpdate(current: Int, max: Int) {
+        updateProgress(current, max)
+    }
+
+    override fun onImageGenerated(promptId: String) {
+        println("TextToImageFragment: Image generated for prompt: $promptId")
+        fetchGeneratedImage(promptId)
+    }
+
+    override fun onGenerationError(message: String) {
+        println("TextToImageFragment: Generation error: $message")
+        resetGenerateButton()
+        hideProgressOverlay()
     }
 
     private fun initializeViews(view: View) {
@@ -366,32 +406,19 @@ class TextToImageFragment : Fragment() {
     }
 
     private fun cancelImageGeneration() {
-        println("Canceling image generation...")
-
-        comfyUIClient.interruptExecution { success ->
-            activity?.runOnUiThread {
-                if (success) {
-                    println("Generation canceled successfully")
-                } else {
-                    println("Failed to cancel generation")
-                }
-
-                // Reset UI state regardless of success
-                resetGenerateButton()
-                hideProgressOverlay()
-                currentPromptId = null
+        println("TextToImageFragment: Canceling image generation...")
+        val activity = requireActivity() as MainContainerActivity
+        activity.cancelGeneration { success ->
+            if (success) {
+                println("TextToImageFragment: Generation canceled successfully")
+            } else {
+                println("TextToImageFragment: Failed to cancel generation")
             }
         }
     }
 
     private fun startImageGeneration() {
         val prompt = promptInput.text.toString()
-
-        // Update button to show cancel state
-        setGeneratingState()
-
-        // Show progress overlay
-        showProgressOverlay()
 
         val workflowJson = if (isCheckpointMode) {
             // Checkpoint mode - use checkpoint parameters
@@ -401,7 +428,7 @@ class TextToImageFragment : Fragment() {
             val height = heightInput.text.toString().toIntOrNull() ?: 1024
             val steps = stepsInput.text.toString().toIntOrNull() ?: 9
 
-            println("Starting generation with:")
+            println("TextToImageFragment: Starting generation with:")
             println("  Mode: Checkpoint")
             println("  Prompt: $prompt")
             println("  Workflow: $workflowName")
@@ -425,7 +452,7 @@ class TextToImageFragment : Fragment() {
             val height = diffusersHeightInput.text.toString().toIntOrNull() ?: 1024
             val steps = diffusersStepsInput.text.toString().toIntOrNull() ?: 9
 
-            println("Starting generation with:")
+            println("TextToImageFragment: Starting generation with:")
             println("  Mode: Diffusers")
             println("  Prompt: $prompt")
             println("  Workflow: $workflowName")
@@ -444,121 +471,24 @@ class TextToImageFragment : Fragment() {
         }
 
         if (workflowJson != null) {
-            comfyUIClient.submitPrompt(workflowJson) { success, promptId, errorMessage ->
-                activity?.runOnUiThread {
-                    if (success && promptId != null) {
-                        println("Workflow submitted successfully. Prompt ID: $promptId")
-                        currentPromptId = promptId
-                    } else {
-                        println("Failed to submit workflow: $errorMessage")
-                        resetGenerateButton()
-                        hideProgressOverlay()
-                    }
+            val activity = requireActivity() as MainContainerActivity
+            activity.startGeneration(workflowJson) { success, promptId, errorMessage ->
+                if (success && promptId != null) {
+                    println("TextToImageFragment: Workflow submitted successfully. Prompt ID: $promptId")
+                    // UI will be updated by onGenerationStateChanged callback
+                } else {
+                    println("TextToImageFragment: Failed to submit workflow: $errorMessage")
+                    // Error already shown by activity via Snackbar
                 }
             }
         } else {
-            println("Error: Could not load workflow")
-            resetGenerateButton()
-            hideProgressOverlay()
+            println("TextToImageFragment: Error: Could not load workflow")
+            com.google.android.material.snackbar.Snackbar.make(
+                requireView(),
+                "Failed to load workflow",
+                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+            ).show()
         }
-    }
-
-    private fun connectToServer() {
-        println("TextToImageFragment: Connecting to ComfyUI server at $hostname:$port")
-        comfyUIClient.testConnection { success, errorMessage, certIssue ->
-            if (success) {
-                println("TextToImageFragment: Connection successful! Base URL: ${comfyUIClient.getBaseUrl()}")
-                activity?.runOnUiThread {
-                    openWebSocketConnection()
-                    fetchCheckpoints()
-                    fetchDiffusers()
-                }
-            } else {
-                println("TextToImageFragment: Failed to connect to server: $errorMessage")
-            }
-        }
-    }
-
-    private fun openWebSocketConnection() {
-        val webSocketListener = object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                println("WebSocket connected to ComfyUI server")
-            }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                try {
-                    val message = JSONObject(text)
-                    val messageType = message.optString("type")
-
-                    when (messageType) {
-                        "executing" -> {
-                            val data = message.optJSONObject("data")
-                            val promptId = data?.optString("prompt_id")
-                            val isComplete = data?.isNull("node") == true
-
-                            println("Executing: node=${if (isComplete) "null (complete)" else data?.optString("node")}, promptId=$promptId, currentPromptId=$currentPromptId")
-
-                            if (isComplete && promptId == currentPromptId) {
-                                println("Generation complete for prompt: $promptId")
-                                fetchGeneratedImage(promptId)
-                            }
-                        }
-                        "progress" -> {
-                            val data = message.optJSONObject("data")
-                            val value = data?.optInt("value", 0) ?: 0
-                            val max = data?.optInt("max", 0) ?: 0
-
-                            // Update progress bar
-                            if (max > 0) {
-                                updateProgress(value, max)
-                            }
-                        }
-                        "execution_error" -> {
-                            activity?.runOnUiThread {
-                                resetGenerateButton()
-                                hideProgressOverlay()
-                            }
-                            println("Execution error: $text")
-                        }
-                        "status" -> {
-                            val data = message.optJSONObject("data")
-                            val status = data?.optJSONObject("status")
-                            val execInfo = status?.optJSONObject("exec_info")
-                            val queueRemaining = execInfo?.optInt("queue_remaining", -1)
-
-                            println("Status: queue_remaining=$queueRemaining")
-
-                            if (queueRemaining == 0 && currentPromptId != null) {
-                                println("Queue empty, attempting to fetch image for prompt: $currentPromptId")
-                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                    fetchGeneratedImage(currentPromptId)
-                                }, 1000)
-                            }
-                        }
-                        "previewing", "execution_cached", "execution_start", "execution_success", "progress_state", "executed" -> {
-                            // Known message types that we don't need to handle
-                        }
-                        else -> {
-                            // Unknown message type - log for debugging
-                            println("Unknown WebSocket message type: $messageType")
-                        }
-                    }
-                } catch (e: Exception) {
-                    println("Failed to parse WebSocket message: ${e.message}")
-                    e.printStackTrace()
-                }
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                println("WebSocket failed: ${t.message}")
-            }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                println("WebSocket closed: $code - $reason")
-            }
-        }
-
-        comfyUIClient.openWebSocket(webSocketListener)
     }
 
     private fun fetchCheckpoints() {
@@ -633,8 +563,8 @@ class TextToImageFragment : Fragment() {
                                 println("fetchGeneratedImage: Received bitmap: ${bitmap != null}")
                                 activity?.runOnUiThread {
                                     displayImage(bitmap)
-                                    resetGenerateButton()
-                                    hideProgressOverlay()
+                                    // Notify activity that generation is complete
+                                    (requireActivity() as MainContainerActivity).completeGeneration()
                                 }
                             }
                             return@fetchHistory
@@ -643,22 +573,34 @@ class TextToImageFragment : Fragment() {
 
                     println("fetchGeneratedImage: No images found in any node output")
                     activity?.runOnUiThread {
-                        resetGenerateButton()
-                        hideProgressOverlay()
+                        (requireActivity() as MainContainerActivity).completeGeneration()
+                        com.google.android.material.snackbar.Snackbar.make(
+                            requireView(),
+                            "No images found in generation output",
+                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                        ).show()
                     }
                 } catch (e: Exception) {
                     println("fetchGeneratedImage: Failed to parse history: ${e.message}")
                     e.printStackTrace()
                     activity?.runOnUiThread {
-                        resetGenerateButton()
-                        hideProgressOverlay()
+                        (requireActivity() as MainContainerActivity).completeGeneration()
+                        com.google.android.material.snackbar.Snackbar.make(
+                            requireView(),
+                            "Failed to fetch generated image",
+                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                        ).show()
                     }
                 }
             } else {
                 println("fetchGeneratedImage: Failed to fetch history - historyJson is null")
                 activity?.runOnUiThread {
-                    resetGenerateButton()
-                    hideProgressOverlay()
+                    (requireActivity() as MainContainerActivity).completeGeneration()
+                    com.google.android.material.snackbar.Snackbar.make(
+                        requireView(),
+                        "Failed to fetch generation history",
+                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    ).show()
                 }
             }
         }
@@ -1120,7 +1062,7 @@ class TextToImageFragment : Fragment() {
         // Save configuration before destroying view
         saveConfiguration()
 
-        comfyUIClient.shutdown()
+        // Don't shutdown the client - it's managed by the activity
         configBottomSheet?.dismiss()
         // Don't recycle bitmap - it's persisted to storage and will be restored
         // Just clear the reference
