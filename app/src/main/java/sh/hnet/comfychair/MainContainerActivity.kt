@@ -10,7 +10,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.snackbar.Snackbar
+import android.widget.Toast
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -174,7 +174,7 @@ class MainContainerActivity : AppCompatActivity() {
                             runOnUiThread {
                                 resetGenerationState()
                                 generationStateListener?.onGenerationError("Image generation failed")
-                                showErrorSnackbar("Image generation failed")
+                                Toast.makeText(this@MainContainerActivity, "Image generation failed", Toast.LENGTH_LONG).show()
                             }
                         }
                         "status" -> {
@@ -207,7 +207,7 @@ class MainContainerActivity : AppCompatActivity() {
                     if (isGenerating) {
                         resetGenerationState()
                         generationStateListener?.onGenerationError("Connection lost during generation")
-                        showErrorSnackbar("Connection lost during generation")
+                        Toast.makeText(this@MainContainerActivity, "Connection lost during generation", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -236,7 +236,7 @@ class MainContainerActivity : AppCompatActivity() {
                     callback(true, promptId, null)
                 } else {
                     println("MainContainerActivity: Failed to submit workflow: $errorMessage")
-                    showErrorSnackbar("Failed to start generation: $errorMessage")
+                    Toast.makeText(this@MainContainerActivity, "Failed to start generation: $errorMessage", Toast.LENGTH_LONG).show()
                     callback(false, null, errorMessage)
                 }
             }
@@ -339,15 +339,6 @@ class MainContainerActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    /**
-     * Show error snackbar
-     */
-    private fun showErrorSnackbar(message: String) {
-        val rootView = findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(R.id.main)
-            ?: findViewById(android.R.id.content)
-        Snackbar.make(rootView, message, Snackbar.LENGTH_LONG).show()
     }
 
     override fun onDestroy() {

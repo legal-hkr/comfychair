@@ -518,16 +518,12 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                     // UI will be updated by onGenerationStateChanged callback
                 } else {
                     println("TextToImageFragment: Failed to submit workflow: $errorMessage")
-                    // Error already shown by activity via Snackbar
+                    // Error already shown by activity via Toast
                 }
             }
         } else {
             println("TextToImageFragment: Error: Could not load workflow")
-            com.google.android.material.snackbar.Snackbar.make(
-                requireView(),
-                "Failed to load workflow",
-                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
-            ).show()
+            Toast.makeText(requireContext(), "Failed to load workflow", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -650,33 +646,21 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                     println("fetchGeneratedImage: No images found in any node output")
                     activity?.runOnUiThread {
                         (requireActivity() as MainContainerActivity).completeGeneration()
-                        com.google.android.material.snackbar.Snackbar.make(
-                            requireView(),
-                            "No images found in generation output",
-                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(requireContext(), "No images found in generation output", Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {
                     println("fetchGeneratedImage: Failed to parse history: ${e.message}")
                     e.printStackTrace()
                     activity?.runOnUiThread {
                         (requireActivity() as MainContainerActivity).completeGeneration()
-                        com.google.android.material.snackbar.Snackbar.make(
-                            requireView(),
-                            "Failed to fetch generated image",
-                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(requireContext(), "Failed to fetch generated image", Toast.LENGTH_LONG).show()
                     }
                 }
             } else {
                 println("fetchGeneratedImage: Failed to fetch history - historyJson is null")
                 activity?.runOnUiThread {
                     (requireActivity() as MainContainerActivity).completeGeneration()
-                    com.google.android.material.snackbar.Snackbar.make(
-                        requireView(),
-                        "Failed to fetch generation history",
-                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(requireContext(), "Failed to fetch generation history", Toast.LENGTH_LONG).show()
                 }
             }
         }

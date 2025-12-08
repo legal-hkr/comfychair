@@ -5,16 +5,14 @@ plugins {
 
 android {
     namespace = "sh.hnet.comfychair"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "sh.hnet.comfychair"
         minSdk = 34
         targetSdk = 36
-        versionCode = 3
-        versionName = "v0.1.2"
+        versionCode = 4
+        versionName = "v0.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
