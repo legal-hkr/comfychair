@@ -15,12 +15,12 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Save Image"
+        android:text="Save image"
         android:textSize="20sp"
         android:textStyle="bold"
         android:layout_marginBottom="16dp" />
 
-    <!-- Store in Gallery -->
+    <!-- Save to gallery -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/saveToGallery"
         android:layout_width="match_parent"
@@ -42,20 +42,20 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_gallery"
+                android:src="@drawable/save_24px"
                 android:contentDescription="Gallery icon" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Store in Gallery"
+                android:text="Save to gallery"
                 android:textSize="16sp"
                 android:layout_marginStart="16dp" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Save As... -->
+    <!-- Save as... -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/saveAs"
         android:layout_width="match_parent"
@@ -77,7 +77,7 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_save"
+                android:src="@drawable/save_as_24px"
                 android:contentDescription="Save icon" />
 
             <TextView
@@ -112,7 +112,7 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_share"
+                android:src="@drawable/share_24px"
                 android:contentDescription="Share icon" />
 
             <TextView

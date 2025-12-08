@@ -321,7 +321,7 @@ class GalleryFragment : Fragment() {
                 requireContext().contentResolver.openOutputStream(it)?.use { outputStream ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
                 }
-                Toast.makeText(requireContext(), "Image stored in gallery", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Image saved to gallery", Toast.LENGTH_SHORT).show()
             } catch (e: IOException) {
                 println("Failed to save to gallery: ${e.message}")
                 Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()

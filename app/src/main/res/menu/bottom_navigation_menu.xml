@@ -2,14 +2,14 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_text_to_image"
-        android:icon="@android:drawable/ic_menu_edit"
+        android:icon="@drawable/image_24px"
         android:title="@string/nav_text_to_image" />
     <item
         android:id="@+id/nav_gallery"
-        android:icon="@android:drawable/ic_menu_gallery"
+        android:icon="@drawable/gallery_thumbnail_24px"
         android:title="@string/nav_gallery" />
     <item
         android:id="@+id/nav_configuration"
-        android:icon="@android:drawable/ic_menu_manage"
+        android:icon="@drawable/settings_24px"
         android:title="@string/nav_configuration" />
 </menu>

@@ -29,7 +29,7 @@
     <string name="placeholder_image_description">Generated image will appear here</string>
 
     <!-- Configuration panel strings -->
-    <string name="config_panel_title">Configuration</string>
+    <string name="config_panel_title">Settings</string>
     <string name="workflow_label">Workflow</string>
     <string name="checkpoint_label">Checkpoint</string>
     <string name="width_label">Width</string>

@@ -33,7 +33,7 @@
             android:background="?attr/colorSurface"
             android:elevation="4dp"
             app:title="@string/text_to_image_title"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationIcon="@drawable/logout_24px"
             app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
         <!-- Content area with flexible image sizing -->
@@ -183,7 +183,7 @@
                 android:insetBottom="0dp"
                 android:padding="0dp"
                 android:contentDescription="@string/settings_button_description"
-                app:icon="@android:drawable/ic_menu_manage"
+                app:icon="@drawable/manufacturing_24px"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
                 app:iconSize="24dp"
