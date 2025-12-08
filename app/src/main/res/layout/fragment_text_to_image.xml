@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    QueryFragment Layout
+    TextToImageFragment Layout
     Main screen for image generation with ComfyUI
     Features:
     - Square image preview area
@@ -15,7 +15,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".QueryFragment">
+    tools:context=".TextToImageFragment">
 
     <!-- Main content area -->
     <LinearLayout
@@ -32,7 +32,7 @@
             android:minHeight="?attr/actionBarSize"
             android:background="?attr/colorSurface"
             android:elevation="4dp"
-            app:title="@string/query_title"
+            app:title="@string/text_to_image_title"
             app:navigationIcon="@android:drawable/ic_menu_revert"
             app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 

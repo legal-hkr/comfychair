@@ -32,21 +32,25 @@ class MainContainerActivity : AppCompatActivity() {
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation)
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_query -> {
-                    switchFragment(QueryFragment.newInstance(hostname, port))
+                R.id.nav_text_to_image -> {
+                    switchFragment(TextToImageFragment.newInstance(hostname, port))
                     true
                 }
                 R.id.nav_gallery -> {
                     switchFragment(GalleryFragment.newInstance(hostname, port))
                     true
                 }
+                R.id.nav_configuration -> {
+                    switchFragment(ConfigurationFragment.newInstance(hostname, port))
+                    true
+                }
                 else -> false
             }
         }
 
-        // Load initial fragment (Query) if this is the first creation
+        // Load initial fragment (TextToImage) if this is the first creation
         if (savedInstanceState == null) {
-            bottomNav.selectedItemId = R.id.nav_query
+            bottomNav.selectedItemId = R.id.nav_text_to_image
         }
     }
 

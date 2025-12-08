@@ -41,15 +41,32 @@
 
     <!-- Gallery screen strings -->
     <string name="gallery_title">Gallery</string>
-    <string name="query_title">Query</string>
+    <string name="text_to_image_title">Text to image</string>
     <string name="gallery_thumbnail_description">Generated image thumbnail</string>
 
     <!-- Navigation strings -->
-    <string name="nav_query">Query</string>
+    <string name="nav_text_to_image">Text to image</string>
     <string name="nav_gallery">Gallery</string>
 
     <!-- Configuration mode strings -->
     <string name="checkpoint_mode">Checkpoint</string>
     <string name="diffusers_mode">Diffusers</string>
     <string name="diffusers_placeholder">Diffusers configuration coming soon...</string>
+
+    <!-- Configuration fragment strings -->
+    <string name="configuration_title">Configuration</string>
+    <string name="server_info_title">Server information</string>
+    <string name="hostname_label">Hostname:</string>
+    <string name="port_label">Port:</string>
+    <string name="server_management_title">Server management</string>
+    <string name="server_management_warning">Warning: These actions cannot be undone</string>
+    <string name="clear_queue_button">Clear queue</string>
+    <string name="clear_history_button">Clear history</string>
+    <string name="nav_configuration">Configuration</string>
+
+    <!-- Toast messages -->
+    <string name="queue_cleared_success">Queue cleared successfully</string>
+    <string name="queue_cleared_failed">Failed to clear queue</string>
+    <string name="history_cleared_success">History cleared successfully</string>
+    <string name="history_cleared_failed">Failed to clear history</string>
 </resources>

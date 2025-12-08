@@ -34,9 +34,9 @@ import org.json.JSONObject
 import java.io.IOException
 
 /**
- * QueryFragment - Main screen for interacting with ComfyUI
+ * TextToImageFragment - Main screen for interacting with ComfyUI
  */
-class QueryFragment : Fragment() {
+class TextToImageFragment : Fragment() {
 
     // UI element references
     private lateinit var topAppBar: MaterialToolbar
@@ -109,7 +109,7 @@ class QueryFragment : Fragment() {
         private const val ARG_PORT = "port"
 
         // SharedPreferences constants for configuration preservation
-        private const val PREFS_NAME = "QueryFragmentPrefs"
+        private const val PREFS_NAME = "TextToImageFragmentPrefs"
         private const val PREF_IS_CHECKPOINT_MODE = "isCheckpointMode"
         private const val PREF_PROMPT = "prompt"
 
@@ -127,8 +127,8 @@ class QueryFragment : Fragment() {
         private const val PREF_DIFFUSERS_HEIGHT = "diffusersHeight"
         private const val PREF_DIFFUSERS_STEPS = "diffusersSteps"
 
-        fun newInstance(hostname: String, port: Int): QueryFragment {
-            val fragment = QueryFragment()
+        fun newInstance(hostname: String, port: Int): TextToImageFragment {
+            val fragment = TextToImageFragment()
             val args = Bundle()
             args.putString(ARG_HOSTNAME, hostname)
             args.putInt(ARG_PORT, port)
@@ -152,7 +152,7 @@ class QueryFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_query, container, false)
+        return inflater.inflate(R.layout.fragment_text_to_image, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -464,17 +464,17 @@ class QueryFragment : Fragment() {
     }
 
     private fun connectToServer() {
-        println("QueryFragment: Connecting to ComfyUI server at $hostname:$port")
+        println("TextToImageFragment: Connecting to ComfyUI server at $hostname:$port")
         comfyUIClient.testConnection { success, errorMessage, certIssue ->
             if (success) {
-                println("QueryFragment: Connection successful! Base URL: ${comfyUIClient.getBaseUrl()}")
+                println("TextToImageFragment: Connection successful! Base URL: ${comfyUIClient.getBaseUrl()}")
                 activity?.runOnUiThread {
                     openWebSocketConnection()
                     fetchCheckpoints()
                     fetchDiffusers()
                 }
             } else {
-                println("QueryFragment: Failed to connect to server: $errorMessage")
+                println("TextToImageFragment: Failed to connect to server: $errorMessage")
             }
         }
     }
@@ -562,17 +562,17 @@ class QueryFragment : Fragment() {
     }
 
     private fun fetchCheckpoints() {
-        println("QueryFragment: Fetching checkpoints from server...")
+        println("TextToImageFragment: Fetching checkpoints from server...")
         comfyUIClient.fetchCheckpoints { checkpoints ->
-            println("QueryFragment: Received ${checkpoints.size} checkpoints")
+            println("TextToImageFragment: Received ${checkpoints.size} checkpoints")
             checkpoints.forEach { println("  - $it") }
 
             activity?.runOnUiThread {
                 availableCheckpoints.clear()
                 availableCheckpoints.addAll(checkpoints)
-                println("QueryFragment: Updated availableCheckpoints list, size=${availableCheckpoints.size}")
+                println("TextToImageFragment: Updated availableCheckpoints list, size=${availableCheckpoints.size}")
                 updateCheckpointDropdown()
-                println("QueryFragment: Checkpoint dropdown updated")
+                println("TextToImageFragment: Checkpoint dropdown updated")
                 // Restore saved checkpoint model after populating
                 restoreCheckpointConfiguration()
             }
@@ -580,17 +580,17 @@ class QueryFragment : Fragment() {
     }
 
     private fun fetchDiffusers() {
-        println("QueryFragment: Fetching diffusers from server...")
+        println("TextToImageFragment: Fetching diffusers from server...")
         comfyUIClient.fetchDiffusers { diffusers ->
-            println("QueryFragment: Received ${diffusers.size} diffusers")
+            println("TextToImageFragment: Received ${diffusers.size} diffusers")
             diffusers.forEach { println("  - $it") }
 
             activity?.runOnUiThread {
                 availableDiffusers.clear()
                 availableDiffusers.addAll(diffusers)
-                println("QueryFragment: Updated availableDiffusers list, size=${availableDiffusers.size}")
+                println("TextToImageFragment: Updated availableDiffusers list, size=${availableDiffusers.size}")
                 updateDiffusersDropdown()
-                println("QueryFragment: Diffusers dropdown updated")
+                println("TextToImageFragment: Diffusers dropdown updated")
                 // Restore saved diffuser model after populating
                 restoreDiffusersConfiguration()
             }
@@ -1127,5 +1127,4 @@ class QueryFragment : Fragment() {
         currentBitmap = null
     }
 }
-
 

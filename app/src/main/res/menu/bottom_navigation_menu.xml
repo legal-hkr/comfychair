@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/nav_query"
+        android:id="@+id/nav_text_to_image"
         android:icon="@android:drawable/ic_menu_edit"
-        android:title="@string/nav_query" />
+        android:title="@string/nav_text_to_image" />
     <item
         android:id="@+id/nav_gallery"
         android:icon="@android:drawable/ic_menu_gallery"
         android:title="@string/nav_gallery" />
+    <item
+        android:id="@+id/nav_configuration"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="@string/nav_configuration" />
 </menu>

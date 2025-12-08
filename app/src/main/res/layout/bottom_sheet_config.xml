@@ -195,7 +195,7 @@
         android:id="@+id/diffuserInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Diffuser"
+        android:hint="Diffusers"
         android:layout_marginBottom="16dp"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 

@@ -587,6 +587,137 @@ class ComfyUIClient(
     }
 
     /**
+     * Get system stats from the ComfyUI server
+     * Returns server information like device name, OS, etc.
+     *
+     * @param callback Called with the result:
+     *                 - statsJson: The system stats JSON object, or null on error
+     */
+    fun getSystemStats(callback: (statsJson: JSONObject?) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(null)
+            return
+        }
+
+        val url = "$baseUrl/system_stats"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to fetch system stats: ${e.message}")
+                callback(null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val statsJson = JSONObject(response.body?.string() ?: "{}")
+                            callback(statsJson)
+                        } catch (e: Exception) {
+                            println("Failed to parse system stats: ${e.message}")
+                            callback(null)
+                        }
+                    } else {
+                        println("Server returned error when fetching system stats: ${response.code}")
+                        callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Clear all tasks from the queue
+     * Removes all pending tasks from the execution queue
+     *
+     * @param callback Called with the result: success true/false
+     */
+    fun clearQueue(callback: (success: Boolean) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false)
+            return
+        }
+
+        val url = "$baseUrl/queue"
+
+        val requestBody = JSONObject().apply {
+            put("clear", true)
+        }.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to clear queue: ${e.message}")
+                callback(false)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        println("Queue cleared successfully")
+                        callback(true)
+                    } else {
+                        println("Server returned error when clearing queue: ${response.code}")
+                        callback(false)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Clear the history of generated images
+     * Removes all history entries
+     *
+     * @param callback Called with the result: success true/false
+     */
+    fun clearHistory(callback: (success: Boolean) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false)
+            return
+        }
+
+        val url = "$baseUrl/history"
+
+        val requestBody = JSONObject().apply {
+            put("clear", true)
+        }.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to clear history: ${e.message}")
+                callback(false)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        println("History cleared successfully")
+                        callback(true)
+                    } else {
+                        println("Server returned error when clearing history: ${response.code}")
+                        callback(false)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Clean up resources
      * Should be called when done with the client
      */

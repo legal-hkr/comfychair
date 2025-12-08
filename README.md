@@ -8,26 +8,30 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-| Login | Query  | Settings | Gallery |
-|-------|--------|----------|---------|
+| Login | Text to Image  | Settings | Gallery |
+|-------|----------------|----------|---------|
 | <img src="screenshots/login.png" width="200"/> | <img src="screenshots/query.png" width="200"/> | <img src="screenshots/settings.png" width="200"/> | <img src="screenshots/gallery.png" width="200"/> |
 
 ## Features
 
-- **Server Connection**: Connect to remote or local ComfyUI servers with automatic HTTP/HTTPS detection and self-signed certificate support
-- **Dual Workflow Support**:
+- **Server connection**: Connect to remote or local ComfyUI servers with automatic HTTP/HTTPS detection and self-signed certificate support
+- **Dual workflow support**:
   - Checkpoint-based workflows (traditional ComfyUI models)
   - Diffusers workflows (Flux, Z-Image, and other UNET-based models)
-- **Image Generation**:
+- **Image generation**:
   - Mobile-optimized interface with real-time progress tracking
   - Visual progress bar overlay showing generation progress
   - Cancel generation at any time with one-tap interrupt
   - WebSocket-based live updates (step-by-step progress)
-- **Image Gallery**: View all generated images with thumbnail grid layout
-- **Image Management**: Save to device gallery, save as file, or share images
-- **Configuration Persistence**: Automatically saves and restores all settings including prompts, models, and generation parameters
-- **Persistent Navigation**: Bottom navigation bar for seamless switching between generation and gallery screens
-- **Native Android Experience**: Built with Kotlin and Material Design 3
+- **Image gallery**: View all generated images with thumbnail grid layout
+- **Image management**: Save to device gallery, save as file, or share images
+- **Server configuration**:
+  - View detailed server information (ComfyUI version, OS, Python, PyTorch versions)
+  - Monitor hardware resources (RAM and GPU VRAM usage)
+  - Server management actions (clear queue, clear history)
+- **Configuration persistence**: Automatically saves and restores all settings including prompts, models, and generation parameters
+- **Persistent navigation**: Bottom navigation bar for seamless switching between text-to-image, gallery, and configuration screens
+- **Native Android experience**: Built with Kotlin and Material Design 3
 
 ## Requirements
 
@@ -35,7 +39,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - Access to a running ComfyUI server instance
 - Network connectivity to reach your ComfyUI server
 
-## Development Setup
+## Development setup
 
 ### Prerequisites
 
@@ -43,7 +47,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 2. **JDK 11** or higher
 3. **Android SDK** with API level 36
 
-### Building the Project
+### Building the project
 
 1. Clone the repository:
    ```bash
@@ -65,7 +69,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
    ./gradlew installDebug
    ```
 
-### Running Tests
+### Running tests
 
 ```bash
 # Unit tests
@@ -81,24 +85,25 @@ To connect to your ComfyUI server, you'll need:
 - ComfyUI server URL (e.g., `http://192.168.1.100:8188`)
 - Network access between your Android device and the ComfyUI server
 
-## Tech Stack
+## Tech stack
 
 - **Language**: Kotlin 2.0.21
 - **Min SDK**: Android 14 (API 34)
 - **Target SDK**: Android 15 (API 36)
 - **Architecture**: Modern Android with AndroidX components
 - **UI**: Material Design 3
-- **Build System**: Gradle with Kotlin DSL
+- **Build system**: Gradle with Kotlin DSL
 
-## Project Structure
+## Project structure
 
 ```
 app/src/main/
 ├── java/sh/hnet/comfychair/
 │   ├── MainActivity.kt              # Login/connection screen
 │   ├── MainContainerActivity.kt     # Fragment container with persistent navigation
-│   ├── QueryFragment.kt             # Image generation screen (fragment)
+│   ├── TextToImageFragment.kt       # Image generation screen (fragment)
 │   ├── GalleryFragment.kt           # Image gallery screen (fragment)
+│   ├── ConfigurationFragment.kt     # Server configuration and management (fragment)
 │   ├── GalleryAdapter.kt            # RecyclerView adapter for gallery grid
 │   ├── ComfyUIClient.kt             # API client for ComfyUI server
 │   ├── WorkflowManager.kt           # Workflow JSON management
@@ -107,9 +112,10 @@ app/src/main/
 │   ├── layout/                      # UI layouts
 │   │   ├── activity_main.xml        # Login screen layout
 │   │   ├── activity_main_container.xml  # Container with bottom navigation
-│   │   ├── fragment_query.xml       # Generation screen layout
+│   │   ├── fragment_text_to_image.xml   # Generation screen layout
 │   │   ├── fragment_gallery.xml     # Gallery screen layout
-│   │   └── bottom_sheet_config.xml  # Configuration panel
+│   │   ├── fragment_configuration.xml   # Configuration screen layout
+│   │   └── bottom_sheet_config.xml  # Generation configuration panel
 │   ├── raw/                         # Workflow JSON files
 │   │   ├── checkpoint_*.json        # Checkpoint-based workflows
 │   │   └── diffusers_*.json         # Diffusers workflows
