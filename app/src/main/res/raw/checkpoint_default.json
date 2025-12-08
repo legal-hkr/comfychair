@@ -1,6 +1,6 @@
 {
-  "name": "Default Workflow",
-  "description": "Standard text-to-image generation workflow",
+  "name": "Default",
+  "description": "Standard workflow for SD and SDXL",
   "nodes": {
     "4": {
       "class_type": "CheckpointLoaderSimple",

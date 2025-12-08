@@ -32,13 +32,13 @@ class WorkflowManager(private val context: Context) {
 
     /**
      * Load all workflow JSON files from res/raw
-     * Files should be named: checkpoint_*.json or diffusers_*.json
+     * Files should be named: checkpoint_*.json or unet_*.json
      */
     private fun loadWorkflows() {
         // List of workflow resource IDs
         val workflowResources = listOf(
             R.raw.checkpoint_default,
-            R.raw.diffusers_zimage
+            R.raw.unet_zimage
         )
 
         for (resId in workflowResources) {
@@ -74,10 +74,10 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Get list of diffusers workflow names for dropdown
+     * Get list of UNET workflow names for dropdown
      */
-    fun getDiffusersWorkflowNames(): List<String> {
-        return workflows.filter { it.id.startsWith("diffusers_") }.map { it.name }
+    fun getUNETWorkflowNames(): List<String> {
+        return workflows.filter { it.id.startsWith("unet_") }.map { it.name }
     }
 
     /**
@@ -96,11 +96,11 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Check if a workflow is a diffusers workflow
+     * Check if a workflow is a UNET workflow
      */
-    fun isDiffusersWorkflow(workflowName: String): Boolean {
+    fun isUNETWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.id?.startsWith("diffusers_") == true
+        return workflow?.id?.startsWith("unet_") == true
     }
 
     /**
@@ -110,7 +110,9 @@ class WorkflowManager(private val context: Context) {
      * @param workflowName The name of the workflow to use
      * @param prompt User's text prompt
      * @param checkpoint Selected checkpoint model (for checkpoint workflows)
-     * @param diffuser Selected diffuser model (for diffusers workflows)
+     * @param unet Selected UNET model (for UNET workflows)
+     * @param vae Selected VAE model (for UNET workflows)
+     * @param clip Selected CLIP model (for UNET workflows)
      * @param width Image width
      * @param height Image height
      * @param steps Number of generation steps
@@ -120,7 +122,9 @@ class WorkflowManager(private val context: Context) {
         workflowName: String,
         prompt: String,
         checkpoint: String = "",
-        diffuser: String = "",
+        unet: String = "",
+        vae: String = "",
+        clip: String = "",
         width: Int,
         height: Int,
         steps: Int
@@ -134,7 +138,9 @@ class WorkflowManager(private val context: Context) {
         var processedJson = workflow.jsonContent
         processedJson = processedJson.replace("{{prompt}}", prompt)
         processedJson = processedJson.replace("{{checkpoint}}", checkpoint)
-        processedJson = processedJson.replace("{{diffuser}}", diffuser)
+        processedJson = processedJson.replace("{{unet_name}}", unet)
+        processedJson = processedJson.replace("{{vae_name}}", vae)
+        processedJson = processedJson.replace("{{clip_name}}", clip)
         processedJson = processedJson.replace("{{width}}", width.toString())
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
@@ -152,12 +158,14 @@ class WorkflowManager(private val context: Context) {
         workflowName: String,
         prompt: String,
         checkpoint: String = "",
-        diffuser: String = "",
+        unet: String = "",
+        vae: String = "",
+        clip: String = "",
         width: Int,
         height: Int,
         steps: Int
     ): JSONObject? {
-        val processedJson = prepareWorkflow(workflowName, prompt, checkpoint, diffuser, width, height, steps)
+        val processedJson = prepareWorkflow(workflowName, prompt, checkpoint, unet, vae, clip, width, height, steps)
             ?: return null
 
         val jsonObject = JSONObject(processedJson)

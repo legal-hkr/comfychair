@@ -50,8 +50,8 @@
 
     <!-- Configuration mode strings -->
     <string name="checkpoint_mode">Checkpoint</string>
-    <string name="diffusers_mode">Diffusers</string>
-    <string name="diffusers_placeholder">Diffusers configuration coming soon...</string>
+    <string name="unet_mode">UNET</string>
+    <string name="unet_placeholder">UNET configuration coming soon...</string>
 
     <!-- Configuration fragment strings -->
     <string name="configuration_title">Configuration</string>

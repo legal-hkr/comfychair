@@ -1,6 +1,6 @@
 {
-  "name": "Z-Image Flux",
-  "description": "Diffusers workflow using Flux UNET model for Z-Image generation",
+  "name": "Z-Image",
+  "description": "UNET workflow for Z-Image generation (Flux VAE)",
   "nodes": {
     "3": {
       "inputs": {
@@ -87,7 +87,7 @@
     },
     "16": {
       "inputs": {
-        "unet_name": "{{diffuser}}",
+        "unet_name": "{{unet_name}}",
         "weight_dtype": "default"
       },
       "class_type": "UNETLoader",
@@ -97,7 +97,7 @@
     },
     "17": {
       "inputs": {
-        "vae_name": "Flux1-VAE.safetensors"
+        "vae_name": "{{vae_name}}"
       },
       "class_type": "VAELoader",
       "_meta": {
@@ -106,7 +106,7 @@
     },
     "18": {
       "inputs": {
-        "clip_name": "Qwen3_4B.safetensors",
+        "clip_name": "{{clip_name}}",
         "type": "lumina2",
         "device": "default"
       },

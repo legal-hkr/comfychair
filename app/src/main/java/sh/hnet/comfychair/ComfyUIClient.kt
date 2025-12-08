@@ -266,9 +266,9 @@ class ComfyUIClient(
      * Retrieves the list of diffusion models that can be used for generation
      *
      * @param callback Called with the result:
-     *                 - diffusers: List of diffuser model filenames, or empty list on error
+     *                 - unets: List of UNET model filenames, or empty list on error
      */
-    fun fetchDiffusers(callback: (diffusers: List<String>) -> Unit) {
+    fun fetchUNETs(callback: (unets: List<String>) -> Unit) {
         val baseUrl = getBaseUrl() ?: run {
             callback(emptyList())
             return
@@ -283,7 +283,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch diffusers: ${e.message}")
+                println("Failed to fetch UNETs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -292,7 +292,7 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body?.string() ?: "{}"
-                            println("Diffusers response: $responseBody")
+                            println("UNET response: $responseBody")
 
                             val json = JSONObject(responseBody)
                             // Get the UNETLoader object
@@ -301,30 +301,172 @@ class ComfyUIClient(
                             val requiredJson = inputJson?.optJSONObject("required")
                             val unetNameArray = requiredJson?.optJSONArray("unet_name")
 
-                            println("Diffusers parsing: UNETLoader=${unetLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, unet_name=${unetNameArray != null}")
+                            println("UNET parsing: UNETLoader=${unetLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, unet_name=${unetNameArray != null}")
 
-                            // The first element is the array of diffuser model names
+                            // The first element is the array of UNET model names
                             val optionsArray = unetNameArray?.optJSONArray(0)
 
                             println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
 
-                            val diffusers = mutableListOf<String>()
+                            val unets = mutableListOf<String>()
                             if (optionsArray != null) {
                                 for (i in 0 until optionsArray.length()) {
-                                    val diffuser = optionsArray.getString(i)
-                                    println("Found diffuser: $diffuser")
-                                    diffusers.add(diffuser)
+                                    val unet = optionsArray.getString(i)
+                                    println("Found UNET: $unet")
+                                    unets.add(unet)
                                 }
                             }
-                            println("Total diffusers found: ${diffusers.size}")
-                            callback(diffusers)
+                            println("Total UNETs found: ${unets.size}")
+                            callback(unets)
                         } catch (e: Exception) {
-                            println("Failed to parse diffusers: ${e.message}")
+                            println("Failed to parse UNETs: ${e.message}")
                             e.printStackTrace()
                             callback(emptyList())
                         }
                     } else {
-                        println("Server returned error when fetching diffusers: ${response.code}")
+                        println("Server returned error when fetching UNETs: ${response.code}")
+                        callback(emptyList())
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Fetch available VAE models from the ComfyUI server
+     * Retrieves the list of VAE models that can be used for generation
+     *
+     * @param callback Called with the result:
+     *                 - vaes: List of VAE model filenames, or empty list on error
+     */
+    fun fetchVAEs(callback: (vaes: List<String>) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(emptyList())
+            return
+        }
+
+        val url = "$baseUrl/object_info/VAELoader"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to fetch VAEs: ${e.message}")
+                callback(emptyList())
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val responseBody = response.body?.string() ?: "{}"
+                            println("VAE response: $responseBody")
+
+                            val json = JSONObject(responseBody)
+                            // Get the VAELoader object
+                            val vaeLoaderJson = json.optJSONObject("VAELoader")
+                            val inputJson = vaeLoaderJson?.optJSONObject("input")
+                            val requiredJson = inputJson?.optJSONObject("required")
+                            val vaeNameArray = requiredJson?.optJSONArray("vae_name")
+
+                            println("VAE parsing: VAELoader=${vaeLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, vae_name=${vaeNameArray != null}")
+
+                            // The first element is the array of VAE model names
+                            val optionsArray = vaeNameArray?.optJSONArray(0)
+
+                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
+
+                            val vaes = mutableListOf<String>()
+                            if (optionsArray != null) {
+                                for (i in 0 until optionsArray.length()) {
+                                    val vae = optionsArray.getString(i)
+                                    println("Found VAE: $vae")
+                                    vaes.add(vae)
+                                }
+                            }
+                            println("Total VAEs found: ${vaes.size}")
+                            callback(vaes)
+                        } catch (e: Exception) {
+                            println("Failed to parse VAEs: ${e.message}")
+                            e.printStackTrace()
+                            callback(emptyList())
+                        }
+                    } else {
+                        println("Server returned error when fetching VAEs: ${response.code}")
+                        callback(emptyList())
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Fetch available CLIP models from the ComfyUI server
+     * Retrieves the list of CLIP models that can be used for generation
+     *
+     * @param callback Called with the result:
+     *                 - clips: List of CLIP model filenames, or empty list on error
+     */
+    fun fetchCLIPs(callback: (clips: List<String>) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(emptyList())
+            return
+        }
+
+        val url = "$baseUrl/object_info/CLIPLoader"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to fetch CLIPs: ${e.message}")
+                callback(emptyList())
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val responseBody = response.body?.string() ?: "{}"
+                            println("CLIP response: $responseBody")
+
+                            val json = JSONObject(responseBody)
+                            // Get the CLIPLoader object
+                            val clipLoaderJson = json.optJSONObject("CLIPLoader")
+                            val inputJson = clipLoaderJson?.optJSONObject("input")
+                            val requiredJson = inputJson?.optJSONObject("required")
+                            val clipNameArray = requiredJson?.optJSONArray("clip_name")
+
+                            println("CLIP parsing: CLIPLoader=${clipLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, clip_name=${clipNameArray != null}")
+
+                            // The first element is the array of CLIP model names
+                            val optionsArray = clipNameArray?.optJSONArray(0)
+
+                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
+
+                            val clips = mutableListOf<String>()
+                            if (optionsArray != null) {
+                                for (i in 0 until optionsArray.length()) {
+                                    val clip = optionsArray.getString(i)
+                                    println("Found CLIP: $clip")
+                                    clips.add(clip)
+                                }
+                            }
+                            println("Total CLIPs found: ${clips.size}")
+                            callback(clips)
+                        } catch (e: Exception) {
+                            println("Failed to parse CLIPs: ${e.message}")
+                            e.printStackTrace()
+                            callback(emptyList())
+                        }
+                    } else {
+                        println("Server returned error when fetching CLIPs: ${response.code}")
                         callback(emptyList())
                     }
                 }

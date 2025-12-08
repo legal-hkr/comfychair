@@ -25,7 +25,7 @@
         android:textStyle="bold"
         android:layout_marginBottom="16dp" />
 
-    <!-- Segmented Button for Checkpoint/Diffusers -->
+    <!-- Segmented Button for Checkpoint/UNET -->
     <com.google.android.material.button.MaterialButtonToggleGroup
         android:id="@+id/configModeToggle"
         android:layout_width="match_parent"
@@ -43,11 +43,11 @@
             style="@style/Widget.Material3.Button.OutlinedButton" />
 
         <Button
-            android:id="@+id/diffusersModeButton"
+            android:id="@+id/unetModeButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/diffusers_mode"
+            android:text="@string/unet_mode"
             style="@style/Widget.Material3.Button.OutlinedButton" />
 
     </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -166,17 +166,17 @@
 
     </LinearLayout>
 
-    <!-- Diffusers Configuration Content -->
+    <!-- UNET Configuration Content -->
     <LinearLayout
-        android:id="@+id/diffusersContent"
+        android:id="@+id/unetContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
 
-    <!-- Workflow Selection (Diffusers only) -->
+    <!-- Workflow Selection (UNET only) -->
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/diffusersWorkflowInputLayout"
+        android:id="@+id/unetWorkflowInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/workflow_label"
@@ -184,23 +184,55 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
         <AutoCompleteTextView
-            android:id="@+id/diffusersWorkflowDropdown"
+            android:id="@+id/unetWorkflowDropdown"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="none" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Diffuser Model Selection -->
+    <!-- UNET Model Selection -->
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/diffuserInputLayout"
+        android:id="@+id/unetInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Diffusers"
+        android:hint="UNET"
         android:layout_marginBottom="16dp"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
         <AutoCompleteTextView
-            android:id="@+id/diffuserDropdown"
+            android:id="@+id/unetDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- VAE Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/vaeInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="VAE"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/vaeDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- CLIP Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/clipInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="CLIP"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/clipDropdown"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="none" />
@@ -226,7 +258,7 @@
 
         <!-- Width -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/diffusersWidthInputLayout"
+            android:id="@+id/unetWidthInputLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -235,7 +267,7 @@
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/diffusersWidthInput"
+                android:id="@+id/unetWidthInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/default_width"
@@ -244,7 +276,7 @@
 
         <!-- Height -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/diffusersHeightInputLayout"
+            android:id="@+id/unetHeightInputLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -253,7 +285,7 @@
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/diffusersHeightInput"
+                android:id="@+id/unetHeightInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/default_height"
@@ -264,7 +296,7 @@
 
     <!-- Steps -->
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/diffusersStepsInputLayout"
+        android:id="@+id/unetStepsInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/steps_label"
@@ -272,7 +304,7 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/diffusersStepsInput"
+            android:id="@+id/unetStepsInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/default_steps"

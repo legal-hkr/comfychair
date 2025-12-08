@@ -56,12 +56,14 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     private lateinit var widthInput: TextInputEditText
     private lateinit var heightInput: TextInputEditText
     private lateinit var stepsInput: TextInputEditText
-    // Diffusers mode UI elements
-    private lateinit var diffusersWorkflowDropdown: AutoCompleteTextView
-    private lateinit var diffuserDropdown: AutoCompleteTextView
-    private lateinit var diffusersWidthInput: TextInputEditText
-    private lateinit var diffusersHeightInput: TextInputEditText
-    private lateinit var diffusersStepsInput: TextInputEditText
+    // UNET mode UI elements
+    private lateinit var unetWorkflowDropdown: AutoCompleteTextView
+    private lateinit var unetDropdown: AutoCompleteTextView
+    private lateinit var vaeDropdown: AutoCompleteTextView
+    private lateinit var clipDropdown: AutoCompleteTextView
+    private lateinit var unetWidthInput: TextInputEditText
+    private lateinit var unetHeightInput: TextInputEditText
+    private lateinit var unetStepsInput: TextInputEditText
 
     // Workflow manager
     private lateinit var workflowManager: WorkflowManager
@@ -75,7 +77,9 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
     // Configuration values
     private val availableCheckpoints = mutableListOf<String>()
-    private val availableDiffusers = mutableListOf<String>()
+    private val availableUNETs = mutableListOf<String>()
+    private val availableVAEs = mutableListOf<String>()
+    private val availableCLIPs = mutableListOf<String>()
     // Track which mode is currently active
     private var isCheckpointMode = true
     // Flag to prevent auto-save during initialization
@@ -114,12 +118,14 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         private const val PREF_CHECKPOINT_HEIGHT = "checkpointHeight"
         private const val PREF_CHECKPOINT_STEPS = "checkpointSteps"
 
-        // Diffusers mode preferences
-        private const val PREF_DIFFUSERS_WORKFLOW = "diffusersWorkflow"
-        private const val PREF_DIFFUSERS_MODEL = "diffusersModel"
-        private const val PREF_DIFFUSERS_WIDTH = "diffusersWidth"
-        private const val PREF_DIFFUSERS_HEIGHT = "diffusersHeight"
-        private const val PREF_DIFFUSERS_STEPS = "diffusersSteps"
+        // UNET mode preferences
+        private const val PREF_UNET_WORKFLOW = "unetWorkflow"
+        private const val PREF_UNET_MODEL = "unetModel"
+        private const val PREF_UNET_VAE = "unetVAE"
+        private const val PREF_UNET_CLIP = "unetCLIP"
+        private const val PREF_UNET_WIDTH = "unetWidth"
+        private const val PREF_UNET_HEIGHT = "unetHeight"
+        private const val PREF_UNET_STEPS = "unetSteps"
 
         fun newInstance(hostname: String, port: Int): TextToImageFragment {
             val fragment = TextToImageFragment()
@@ -184,9 +190,11 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         // Setup image view listeners
         setupImageViewListeners()
 
-        // Fetch server data (checkpoints and diffusers)
+        // Fetch server data (checkpoints, UNETs, VAEs, and CLIPs)
         fetchCheckpoints()
-        fetchDiffusers()
+        fetchUNETs()
+        fetchVAEs()
+        fetchCLIPs()
 
         // Restore last generated image if available
         restoreLastGeneratedImage()
@@ -277,17 +285,19 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         heightInput = bottomSheetView.findViewById(R.id.heightInput)
         stepsInput = bottomSheetView.findViewById(R.id.stepsInput)
 
-        // Initialize diffusers mode UI elements
-        diffusersWorkflowDropdown = bottomSheetView.findViewById(R.id.diffusersWorkflowDropdown)
-        diffuserDropdown = bottomSheetView.findViewById(R.id.diffuserDropdown)
-        diffusersWidthInput = bottomSheetView.findViewById(R.id.diffusersWidthInput)
-        diffusersHeightInput = bottomSheetView.findViewById(R.id.diffusersHeightInput)
-        diffusersStepsInput = bottomSheetView.findViewById(R.id.diffusersStepsInput)
+        // Initialize UNET mode UI elements
+        unetWorkflowDropdown = bottomSheetView.findViewById(R.id.unetWorkflowDropdown)
+        unetDropdown = bottomSheetView.findViewById(R.id.unetDropdown)
+        vaeDropdown = bottomSheetView.findViewById(R.id.vaeDropdown)
+        clipDropdown = bottomSheetView.findViewById(R.id.clipDropdown)
+        unetWidthInput = bottomSheetView.findViewById(R.id.unetWidthInput)
+        unetHeightInput = bottomSheetView.findViewById(R.id.unetHeightInput)
+        unetStepsInput = bottomSheetView.findViewById(R.id.unetStepsInput)
 
         // Set up segmented button toggle
         configModeToggle = bottomSheetView.findViewById(R.id.configModeToggle)
         val checkpointContent = bottomSheetView.findViewById<android.widget.LinearLayout>(R.id.checkpointContent)
-        val diffusersContent = bottomSheetView.findViewById<android.widget.LinearLayout>(R.id.diffusersContent)
+        val unetContent = bottomSheetView.findViewById<android.widget.LinearLayout>(R.id.unetContent)
 
         // Set initial mode (will be updated by loadConfiguration later)
         configModeToggle.check(R.id.checkpointModeButton)
@@ -297,14 +307,14 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 when (checkedId) {
                     R.id.checkpointModeButton -> {
                         checkpointContent.visibility = View.VISIBLE
-                        diffusersContent.visibility = View.GONE
+                        unetContent.visibility = View.GONE
                         isCheckpointMode = true
                         // Save configuration when mode changes
                         saveConfiguration()
                     }
-                    R.id.diffusersModeButton -> {
+                    R.id.unetModeButton -> {
                         checkpointContent.visibility = View.GONE
-                        diffusersContent.visibility = View.VISIBLE
+                        unetContent.visibility = View.VISIBLE
                         isCheckpointMode = false
                         // Save configuration when mode changes
                         saveConfiguration()
@@ -331,16 +341,16 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             workflowDropdown.setText(checkpointWorkflowNames[0], false)
         }
 
-        // Setup diffusers workflows dropdown
-        val diffusersWorkflowNames = workflowManager.getDiffusersWorkflowNames()
-        val diffusersWorkflowAdapter = ArrayAdapter(
+        // Setup UNET workflows dropdown
+        val unetWorkflowNames = workflowManager.getUNETWorkflowNames()
+        val unetWorkflowAdapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
-            diffusersWorkflowNames
+            unetWorkflowNames
         )
-        diffusersWorkflowDropdown.setAdapter(diffusersWorkflowAdapter)
-        if (diffusersWorkflowNames.isNotEmpty()) {
-            diffusersWorkflowDropdown.setText(diffusersWorkflowNames[0], false)
+        unetWorkflowDropdown.setAdapter(unetWorkflowAdapter)
+        if (unetWorkflowNames.isNotEmpty()) {
+            unetWorkflowDropdown.setText(unetWorkflowNames[0], false)
         }
     }
 
@@ -356,15 +366,39 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
-    private fun updateDiffusersDropdown() {
-        val diffusersAdapter = ArrayAdapter(
+    private fun updateUNETDropdown() {
+        val unetAdapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
-            availableDiffusers
+            availableUNETs
         )
-        diffuserDropdown.setAdapter(diffusersAdapter)
-        if (availableDiffusers.isNotEmpty()) {
-            diffuserDropdown.setText(availableDiffusers[0], false)
+        unetDropdown.setAdapter(unetAdapter)
+        if (availableUNETs.isNotEmpty()) {
+            unetDropdown.setText(availableUNETs[0], false)
+        }
+    }
+
+    private fun updateVAEDropdown() {
+        val vaeAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_dropdown_item_1line,
+            availableVAEs
+        )
+        vaeDropdown.setAdapter(vaeAdapter)
+        if (availableVAEs.isNotEmpty()) {
+            vaeDropdown.setText(availableVAEs[0], false)
+        }
+    }
+
+    private fun updateCLIPDropdown() {
+        val clipAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_dropdown_item_1line,
+            availableCLIPs
+        )
+        clipDropdown.setAdapter(clipAdapter)
+        if (availableCLIPs.isNotEmpty()) {
+            clipDropdown.setText(availableCLIPs[0], false)
         }
     }
 
@@ -445,25 +479,31 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 steps = steps
             )
         } else {
-            // Diffusers mode - use diffuser parameters
-            val workflowName = diffusersWorkflowDropdown.text.toString()
-            val diffuser = diffuserDropdown.text.toString()
-            val width = diffusersWidthInput.text.toString().toIntOrNull() ?: 1024
-            val height = diffusersHeightInput.text.toString().toIntOrNull() ?: 1024
-            val steps = diffusersStepsInput.text.toString().toIntOrNull() ?: 9
+            // UNET mode - use UNET parameters
+            val workflowName = unetWorkflowDropdown.text.toString()
+            val unet = unetDropdown.text.toString()
+            val vae = vaeDropdown.text.toString()
+            val clip = clipDropdown.text.toString()
+            val width = unetWidthInput.text.toString().toIntOrNull() ?: 1024
+            val height = unetHeightInput.text.toString().toIntOrNull() ?: 1024
+            val steps = unetStepsInput.text.toString().toIntOrNull() ?: 9
 
             println("TextToImageFragment: Starting generation with:")
-            println("  Mode: Diffusers")
+            println("  Mode: UNET")
             println("  Prompt: $prompt")
             println("  Workflow: $workflowName")
-            println("  Diffuser: $diffuser")
+            println("  UNET: $unet")
+            println("  VAE: $vae")
+            println("  CLIP: $clip")
             println("  Size: ${width}x${height}")
             println("  Steps: $steps")
 
             workflowManager.prepareWorkflow(
                 workflowName = workflowName,
                 prompt = prompt,
-                diffuser = diffuser,
+                unet = unet,
+                vae = vae,
+                clip = clip,
                 width = width,
                 height = height,
                 steps = steps
@@ -509,20 +549,56 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
-    private fun fetchDiffusers() {
-        println("TextToImageFragment: Fetching diffusers from server...")
-        comfyUIClient.fetchDiffusers { diffusers ->
-            println("TextToImageFragment: Received ${diffusers.size} diffusers")
-            diffusers.forEach { println("  - $it") }
+    private fun fetchUNETs() {
+        println("TextToImageFragment: Fetching UNETs from server...")
+        comfyUIClient.fetchUNETs { unets ->
+            println("TextToImageFragment: Received ${unets.size} UNETs")
+            unets.forEach { println("  - $it") }
 
             activity?.runOnUiThread {
-                availableDiffusers.clear()
-                availableDiffusers.addAll(diffusers)
-                println("TextToImageFragment: Updated availableDiffusers list, size=${availableDiffusers.size}")
-                updateDiffusersDropdown()
-                println("TextToImageFragment: Diffusers dropdown updated")
-                // Restore saved diffuser model after populating
-                restoreDiffusersConfiguration()
+                availableUNETs.clear()
+                availableUNETs.addAll(unets)
+                println("TextToImageFragment: Updated availableUNETs list, size=${availableUNETs.size}")
+                updateUNETDropdown()
+                println("TextToImageFragment: UNET dropdown updated")
+                // Restore saved UNET model after populating
+                restoreUNETConfiguration()
+            }
+        }
+    }
+
+    private fun fetchVAEs() {
+        println("TextToImageFragment: Fetching VAEs from server...")
+        comfyUIClient.fetchVAEs { vaes ->
+            println("TextToImageFragment: Received ${vaes.size} VAEs")
+            vaes.forEach { println("  - $it") }
+
+            activity?.runOnUiThread {
+                availableVAEs.clear()
+                availableVAEs.addAll(vaes)
+                println("TextToImageFragment: Updated availableVAEs list, size=${availableVAEs.size}")
+                updateVAEDropdown()
+                println("TextToImageFragment: VAE dropdown updated")
+                // Restore saved VAE after populating
+                restoreVAEConfiguration()
+            }
+        }
+    }
+
+    private fun fetchCLIPs() {
+        println("TextToImageFragment: Fetching CLIPs from server...")
+        comfyUIClient.fetchCLIPs { clips ->
+            println("TextToImageFragment: Received ${clips.size} CLIPs")
+            clips.forEach { println("  - $it") }
+
+            activity?.runOnUiThread {
+                availableCLIPs.clear()
+                availableCLIPs.addAll(clips)
+                println("TextToImageFragment: Updated availableCLIPs list, size=${availableCLIPs.size}")
+                updateCLIPDropdown()
+                println("TextToImageFragment: CLIP dropdown updated")
+                // Restore saved CLIP after populating
+                restoreCLIPConfiguration()
             }
         }
     }
@@ -854,24 +930,26 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             }
         })
 
-        // Diffusers mode listeners
-        diffusersWorkflowDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
-        diffuserDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
-        diffusersWidthInput.addTextChangedListener(object : android.text.TextWatcher {
+        // UNET mode listeners
+        unetWorkflowDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
+        unetDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
+        vaeDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
+        clipDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
+        unetWidthInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 saveConfiguration()
             }
         })
-        diffusersHeightInput.addTextChangedListener(object : android.text.TextWatcher {
+        unetHeightInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 saveConfiguration()
             }
         })
-        diffusersStepsInput.addTextChangedListener(object : android.text.TextWatcher {
+        unetStepsInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
@@ -914,18 +992,22 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 putString(PREF_CHECKPOINT_HEIGHT, checkpointHeight)
                 putString(PREF_CHECKPOINT_STEPS, checkpointSteps)
 
-                // Save diffusers mode configuration
-                val diffusersWorkflow = diffusersWorkflowDropdown.text.toString()
-                val diffusersModel = diffuserDropdown.text.toString()
-                val diffusersWidth = diffusersWidthInput.text.toString()
-                val diffusersHeight = diffusersHeightInput.text.toString()
-                val diffusersSteps = diffusersStepsInput.text.toString()
+                // Save UNET mode configuration
+                val unetWorkflow = unetWorkflowDropdown.text.toString()
+                val unetModel = unetDropdown.text.toString()
+                val unetVAE = vaeDropdown.text.toString()
+                val unetCLIP = clipDropdown.text.toString()
+                val unetWidth = unetWidthInput.text.toString()
+                val unetHeight = unetHeightInput.text.toString()
+                val unetSteps = unetStepsInput.text.toString()
 
-                putString(PREF_DIFFUSERS_WORKFLOW, diffusersWorkflow)
-                putString(PREF_DIFFUSERS_MODEL, diffusersModel)
-                putString(PREF_DIFFUSERS_WIDTH, diffusersWidth)
-                putString(PREF_DIFFUSERS_HEIGHT, diffusersHeight)
-                putString(PREF_DIFFUSERS_STEPS, diffusersSteps)
+                putString(PREF_UNET_WORKFLOW, unetWorkflow)
+                putString(PREF_UNET_MODEL, unetModel)
+                putString(PREF_UNET_VAE, unetVAE)
+                putString(PREF_UNET_CLIP, unetCLIP)
+                putString(PREF_UNET_WIDTH, unetWidth)
+                putString(PREF_UNET_HEIGHT, unetHeight)
+                putString(PREF_UNET_STEPS, unetSteps)
 
                 apply()
             }
@@ -959,7 +1041,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             if (savedMode) {
                 configModeToggle.check(R.id.checkpointModeButton)
             } else {
-                configModeToggle.check(R.id.diffusersModeButton)
+                configModeToggle.check(R.id.unetModeButton)
             }
 
             // Restore prompt
@@ -987,21 +1069,21 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 println("Loaded checkpoint steps: $it")
             }
 
-            prefs.getString(PREF_DIFFUSERS_WORKFLOW, null)?.let {
-                diffusersWorkflowDropdown.setText(it, false)
-                println("Loaded diffusers workflow: $it")
+            prefs.getString(PREF_UNET_WORKFLOW, null)?.let {
+                unetWorkflowDropdown.setText(it, false)
+                println("Loaded UNET workflow: $it")
             }
-            prefs.getString(PREF_DIFFUSERS_WIDTH, null)?.let {
-                diffusersWidthInput.setText(it)
-                println("Loaded diffusers width: $it")
+            prefs.getString(PREF_UNET_WIDTH, null)?.let {
+                unetWidthInput.setText(it)
+                println("Loaded UNET width: $it")
             }
-            prefs.getString(PREF_DIFFUSERS_HEIGHT, null)?.let {
-                diffusersHeightInput.setText(it)
-                println("Loaded diffusers height: $it")
+            prefs.getString(PREF_UNET_HEIGHT, null)?.let {
+                unetHeightInput.setText(it)
+                println("Loaded UNET height: $it")
             }
-            prefs.getString(PREF_DIFFUSERS_STEPS, null)?.let {
-                diffusersStepsInput.setText(it)
-                println("Loaded diffusers steps: $it")
+            prefs.getString(PREF_UNET_STEPS, null)?.let {
+                unetStepsInput.setText(it)
+                println("Loaded UNET steps: $it")
             }
 
             println("Configuration loading completed")
@@ -1038,16 +1120,56 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     /**
-     * Restore diffuser model selection after server data is loaded
+     * Restore UNET model selection after server data is loaded
      */
-    private fun restoreDiffusersConfiguration() {
+    private fun restoreUNETConfiguration() {
         isLoadingConfiguration = true
         try {
             val prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.getString(PREF_DIFFUSERS_MODEL, null)?.let { savedModel ->
-                if (availableDiffusers.contains(savedModel)) {
-                    diffuserDropdown.setText(savedModel, false)
-                    println("Restored diffuser model: $savedModel")
+            prefs.getString(PREF_UNET_MODEL, null)?.let { savedModel ->
+                if (availableUNETs.contains(savedModel)) {
+                    unetDropdown.setText(savedModel, false)
+                    println("Restored UNET model: $savedModel")
+                }
+            }
+        } finally {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                isLoadingConfiguration = false
+            }, 100)
+        }
+    }
+
+    /**
+     * Restore VAE selection after server data is loaded
+     */
+    private fun restoreVAEConfiguration() {
+        isLoadingConfiguration = true
+        try {
+            val prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.getString(PREF_UNET_VAE, null)?.let { savedVAE ->
+                if (availableVAEs.contains(savedVAE)) {
+                    vaeDropdown.setText(savedVAE, false)
+                    println("Restored VAE: $savedVAE")
+                }
+            }
+        } finally {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                isLoadingConfiguration = false
+            }, 100)
+        }
+    }
+
+    /**
+     * Restore CLIP selection after server data is loaded
+     */
+    private fun restoreCLIPConfiguration() {
+        isLoadingConfiguration = true
+        try {
+            val prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.getString(PREF_UNET_CLIP, null)?.let { savedCLIP ->
+                if (availableCLIPs.contains(savedCLIP)) {
+                    clipDropdown.setText(savedCLIP, false)
+                    println("Restored CLIP: $savedCLIP")
                 }
             }
         } finally {
