@@ -29,6 +29,10 @@ class MainContainerActivity : AppCompatActivity() {
     // ComfyUI client - persists across fragment switches
     private lateinit var comfyUIClient: ComfyUIClient
 
+    // Connection state
+    private var isConnectionReady = false
+    private val connectionReadyListeners = mutableListOf<() -> Unit>()
+
     // Generation state
     private var isGenerating = false
     private var currentPromptId: String? = null
@@ -98,9 +102,14 @@ class MainContainerActivity : AppCompatActivity() {
             }
         }
 
-        // Load initial fragment (TextToImage) if this is the first creation
+        // Load initial fragment (TextToImage) AFTER connection is ready
         if (savedInstanceState == null) {
-            bottomNav.selectedItemId = R.id.nav_text_to_image
+            // Wait for connection before loading fragment
+            onConnectionReady {
+                runOnUiThread {
+                    bottomNav.selectedItemId = R.id.nav_text_to_image
+                }
+            }
         }
     }
 
@@ -115,13 +124,44 @@ class MainContainerActivity : AppCompatActivity() {
             if (success) {
                 println("MainContainerActivity: Connection successful!")
                 runOnUiThread {
+                    isConnectionReady = true
                     openWebSocketConnection()
+                    // Notify all waiting listeners
+                    notifyConnectionReady()
                 }
             } else {
                 println("MainContainerActivity: Failed to connect to server: $errorMessage")
+                runOnUiThread {
+                    Toast.makeText(this@MainContainerActivity, "Failed to connect: $errorMessage", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
+
+    /**
+     * Register a callback to be notified when connection is ready
+     * If already connected, callback is invoked immediately
+     */
+    fun onConnectionReady(callback: () -> Unit) {
+        if (isConnectionReady) {
+            callback()
+        } else {
+            connectionReadyListeners.add(callback)
+        }
+    }
+
+    /**
+     * Notify all registered listeners that connection is ready
+     */
+    private fun notifyConnectionReady() {
+        connectionReadyListeners.forEach { it() }
+        connectionReadyListeners.clear()
+    }
+
+    /**
+     * Check if connection is ready
+     */
+    fun isConnected(): Boolean = isConnectionReady
 
     private fun openWebSocketConnection() {
         val webSocketListener = object : WebSocketListener() {

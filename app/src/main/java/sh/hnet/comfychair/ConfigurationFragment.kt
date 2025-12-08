@@ -75,13 +75,14 @@ class ConfigurationFragment : Fragment() {
             insets
         }
 
-        // Initialize ComfyUI client
-        comfyUIClient = ComfyUIClient(hostname, port)
+        // Get ComfyUI client from activity (reuse the connected client)
+        val activity = requireActivity() as MainContainerActivity
+        comfyUIClient = activity.getComfyUIClient()
 
         // Initialize UI components
         initializeViews(view)
 
-        // Load server information
+        // Load server information (wait for connection to be ready)
         loadServerInfo()
 
         // Setup button listeners
@@ -110,14 +111,11 @@ class ConfigurationFragment : Fragment() {
         hostnameValue.text = hostname
         portValue.text = port.toString()
 
-        // Fetch system stats
-        comfyUIClient.testConnection { success, errorMessage, certIssue ->
-            if (success) {
+        // Fetch system stats when connection is ready
+        val activity = requireActivity() as MainContainerActivity
+        activity.onConnectionReady {
+            activity.runOnUiThread {
                 fetchSystemStats()
-            } else {
-                activity?.runOnUiThread {
-                    systemStatsValue.text = "Failed to connect: $errorMessage"
-                }
             }
         }
     }
@@ -250,6 +248,6 @@ class ConfigurationFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        comfyUIClient.shutdown()
+        // Don't shutdown client - it's managed by MainContainerActivity
     }
 }

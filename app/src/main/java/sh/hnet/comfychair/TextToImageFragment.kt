@@ -92,6 +92,9 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     private var isGenerating = false
     private var currentPromptId: String? = null
 
+    // Track if data has been fetched from server
+    private var dataFetched = false
+
     // Filename for persisting last generated image
     private val LAST_IMAGE_FILENAME = "last_generated_image.png"
 
@@ -190,12 +193,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         // Setup image view listeners
         setupImageViewListeners()
 
-        // Fetch server data (checkpoints, UNETs, VAEs, and CLIPs)
-        fetchCheckpoints()
-        fetchUNETs()
-        fetchVAEs()
-        fetchCLIPs()
-
         // Restore last generated image if available
         restoreLastGeneratedImage()
 
@@ -204,6 +201,28 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
         // Setup auto-save listeners
         setupAutoSaveListeners()
+
+        // Fetch server data only when connection is ready
+        fetchServerData()
+    }
+
+    /**
+     * Fetch server data (checkpoints, UNETs, VAEs, CLIPs) when connection is ready
+     */
+    private fun fetchServerData() {
+        val activity = requireActivity() as MainContainerActivity
+        activity.onConnectionReady {
+            if (!dataFetched) {
+                println("TextToImageFragment: Connection ready, fetching server data...")
+                activity.runOnUiThread {
+                    fetchCheckpoints()
+                    fetchUNETs()
+                    fetchVAEs()
+                    fetchCLIPs()
+                    dataFetched = true
+                }
+            }
+        }
     }
 
     override fun onResume() {
@@ -241,7 +260,12 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
     override fun onImageGenerated(promptId: String) {
         println("TextToImageFragment: Image generated for prompt: $promptId")
-        fetchGeneratedImage(promptId)
+        // Only fetch if fragment is still added and view is created
+        if (isAdded && view != null) {
+            fetchGeneratedImage(promptId)
+        } else {
+            println("TextToImageFragment: Fragment not in valid state to fetch image")
+        }
     }
 
     override fun onGenerationError(message: String) {
@@ -634,9 +658,15 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                             comfyUIClient.fetchImage(filename, subfolder, type) { bitmap ->
                                 println("fetchGeneratedImage: Received bitmap: ${bitmap != null}")
                                 activity?.runOnUiThread {
-                                    displayImage(bitmap)
-                                    // Notify activity that generation is complete
-                                    (requireActivity() as MainContainerActivity).completeGeneration()
+                                    // Verify fragment is still in valid state
+                                    if (isAdded && view != null) {
+                                        displayImage(bitmap)
+                                        // Notify activity that generation is complete
+                                        (requireActivity() as MainContainerActivity).completeGeneration()
+                                    } else {
+                                        println("fetchGeneratedImage: Fragment no longer valid, skipping image display")
+                                        (activity as? MainContainerActivity)?.completeGeneration()
+                                    }
                                 }
                             }
                             return@fetchHistory
@@ -645,28 +675,40 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
                     println("fetchGeneratedImage: No images found in any node output")
                     activity?.runOnUiThread {
-                        (requireActivity() as MainContainerActivity).completeGeneration()
-                        Toast.makeText(requireContext(), "No images found in generation output", Toast.LENGTH_LONG).show()
+                        (activity as? MainContainerActivity)?.completeGeneration()
+                        if (isAdded && context != null) {
+                            Toast.makeText(requireContext(), "No images found in generation output", Toast.LENGTH_LONG).show()
+                        }
                     }
                 } catch (e: Exception) {
                     println("fetchGeneratedImage: Failed to parse history: ${e.message}")
                     e.printStackTrace()
                     activity?.runOnUiThread {
-                        (requireActivity() as MainContainerActivity).completeGeneration()
-                        Toast.makeText(requireContext(), "Failed to fetch generated image", Toast.LENGTH_LONG).show()
+                        (activity as? MainContainerActivity)?.completeGeneration()
+                        if (isAdded && context != null) {
+                            Toast.makeText(requireContext(), "Failed to fetch generated image", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             } else {
                 println("fetchGeneratedImage: Failed to fetch history - historyJson is null")
                 activity?.runOnUiThread {
-                    (requireActivity() as MainContainerActivity).completeGeneration()
-                    Toast.makeText(requireContext(), "Failed to fetch generation history", Toast.LENGTH_LONG).show()
+                    (activity as? MainContainerActivity)?.completeGeneration()
+                    if (isAdded && context != null) {
+                        Toast.makeText(requireContext(), "Failed to fetch generation history", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
     }
 
     private fun displayImage(bitmap: Bitmap?) {
+        // Ensure view is still valid
+        if (!isAdded || view == null) {
+            println("displayImage: Fragment not in valid state")
+            return
+        }
+
         if (bitmap != null) {
             currentBitmap = bitmap
             imagePreview.background = null
