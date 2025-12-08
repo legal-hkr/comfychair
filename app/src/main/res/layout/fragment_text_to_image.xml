@@ -78,8 +78,8 @@
                 <!-- Placeholder icon (shown initially) -->
                 <ImageView
                     android:id="@+id/placeholderIcon"
-                    android:layout_width="120dp"
-                    android:layout_height="120dp"
+                    android:layout_width="240dp"
+                    android:layout_height="240dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_placeholder"
                     android:contentDescription="@string/placeholder_image_description" />
