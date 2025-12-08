@@ -5,6 +5,10 @@
         android:icon="@drawable/image_24px"
         android:title="@string/nav_text_to_image" />
     <item
+        android:id="@+id/nav_inpainting"
+        android:icon="@drawable/brush_24px"
+        android:title="@string/nav_inpainting" />
+    <item
         android:id="@+id/nav_gallery"
         android:icon="@drawable/gallery_thumbnail_24px"
         android:title="@string/nav_gallery" />

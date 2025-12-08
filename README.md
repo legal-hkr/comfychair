@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.1.4
+**Current version**: v0.2.0
 
 ## Overview
 
@@ -10,7 +10,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png"  width="200"/> <img src="screenshots/progressbar.png" width="200"/> <img src="screenshots/settings-checkpoint.png" width="200"/> <img src="screenshots/settings-unet.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/configuration.png" width="200"/> <img src="screenshots/error.png" width="200"/>
+<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png"  width="200"/> <img src="screenshots/progressbar.png" width="200"/> <img src="screenshots/settings-checkpoint.png" width="200"/> <img src="screenshots/settings-unet.png" width="200"/> <img src="screenshots/texttoimage-contextmenu.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-sourceimage.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/>  <img src="screenshots/configuration.png" width="200"/> <img src="screenshots/error.png" width="200"/>
 
 ## Features
 
@@ -18,13 +18,19 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Dual workflow support**:
   - **Checkpoint mode**: Traditional CheckpointLoaderSimple workflows
   - **UNET mode**: Modern diffusion workflows (Flux, Z-Image, etc.) with separate UNET, VAE, and CLIP model selection
-- **Image generation**:
+- **Text-to-image generation**:
   - Mobile-optimized interface with real-time progress tracking
-  - Visual progress bar overlay at bottom of image preview (square corners, fills left-to-right)
+  - Visual progress bar overlay at bottom of image preview
   - Cancel generation at any time with one-tap interrupt
   - WebSocket-based live updates showing step-by-step progress
-  - Auto-clears prompt after successful generation
   - Error notifications via Toast messages
+- **Inpainting**:
+  - Upload source images for selective regeneration
+  - Intuitive mask painting with adjustable brush size
+  - Mask inversion and clearing tools
+  - Feathered mask edges for smooth blending
+  - Megapixels-based sizing for checkpoint workflows
+  - Real-time preview of inpainted results
 - **Image preview**:
   - Persistent image display across app sessions
   - App logo placeholder when no image is present
@@ -40,7 +46,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Monitor hardware resources (RAM and GPU VRAM usage with free/total display)
   - Server management actions (clear queue, clear history)
 - **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters for both modes
-- **Persistent navigation**: Bottom navigation bar for seamless switching between text-to-image, gallery, and configuration screens
+- **Persistent navigation**: Bottom navigation bar for seamless switching between screens
 - **Native Android experience**: Built with Kotlin and Material Design 3
 
 ## Requirements
@@ -111,10 +117,12 @@ app/src/main/
 ├── java/sh/hnet/comfychair/
 │   ├── MainActivity.kt              # Login/connection screen
 │   ├── MainContainerActivity.kt     # Fragment container with persistent navigation
-│   ├── TextToImageFragment.kt       # Image generation screen (fragment)
-│   ├── GalleryFragment.kt           # Image gallery screen (fragment)
-│   ├── ConfigurationFragment.kt     # Server configuration and management (fragment)
+│   ├── TextToImageFragment.kt       # Text-to-image generation screen
+│   ├── InpaintingFragment.kt        # Inpainting screen with mask editor
+│   ├── GalleryFragment.kt           # Image gallery screen
+│   ├── ConfigurationFragment.kt     # Server configuration and management
 │   ├── GalleryAdapter.kt            # RecyclerView adapter for gallery grid
+│   ├── MaskPaintView.kt             # Custom view for mask painting
 │   ├── ComfyUIClient.kt             # API client for ComfyUI server
 │   ├── WorkflowManager.kt           # Workflow JSON management
 │   └── SelfSignedCertHelper.kt      # SSL certificate handling
@@ -122,16 +130,22 @@ app/src/main/
 │   ├── layout/                      # UI layouts
 │   │   ├── activity_main.xml        # Login screen layout
 │   │   ├── activity_main_container.xml  # Container with bottom navigation
-│   │   ├── fragment_text_to_image.xml   # Generation screen layout
+│   │   ├── fragment_text_to_image.xml   # Text-to-image screen layout
+│   │   ├── fragment_inpainting.xml  # Inpainting screen layout
 │   │   ├── fragment_gallery.xml     # Gallery screen layout
 │   │   ├── fragment_configuration.xml   # Configuration screen layout
-│   │   ├── bottom_sheet_config.xml  # Dual-mode generation configuration panel
+│   │   ├── bottom_sheet_config.xml  # Generation configuration panel
+│   │   ├── bottom_sheet_inpainting_config.xml  # Inpainting configuration panel
 │   │   ├── bottom_sheet_save_options.xml  # Save/share image options
+│   │   ├── bottom_sheet_source_image.xml  # Source image options
+│   │   ├── dialog_mask_editor.xml   # Mask painting dialog
 │   │   ├── item_gallery_thumbnail.xml     # Gallery thumbnail item
 │   │   └── dialog_fullscreen_image.xml    # Fullscreen image viewer
 │   ├── raw/                         # Workflow JSON files
 │   │   ├── checkpoint_default.json  # Default checkpoint workflow
-│   │   └── unet_zimage.json         # Z-Image UNET workflow
+│   │   ├── unet_zimage.json         # Z-Image UNET workflow
+│   │   ├── i_checkpoint_default.json  # Default inpainting checkpoint workflow
+│   │   └── i_unet_zimage.json       # Z-Image inpainting UNET workflow
 │   ├── values/                      # Strings, themes, colors
 │   ├── drawable/                    # Icons and graphics
 │   └── xml/                         # Backup rules, file provider paths

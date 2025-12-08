@@ -31,6 +31,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
             android:elevation="8dp"
+            app:labelVisibilityMode="labeled"
             app:menu="@menu/bottom_navigation_menu" />
 
     </LinearLayout>

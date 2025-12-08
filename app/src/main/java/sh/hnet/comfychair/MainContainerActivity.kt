@@ -97,6 +97,10 @@ class MainContainerActivity : AppCompatActivity() {
                     switchFragment(TextToImageFragment.newInstance(hostname, port))
                     true
                 }
+                R.id.nav_inpainting -> {
+                    switchFragment(InpaintingFragment.newInstance(hostname, port))
+                    true
+                }
                 R.id.nav_gallery -> {
                     switchFragment(GalleryFragment.newInstance(hostname, port))
                     true

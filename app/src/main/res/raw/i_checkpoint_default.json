@@ -1,0 +1,144 @@
+{
+  "name": "Inpaint Default",
+  "description": "Standard inpainting workflow for SD and SDXL",
+  "nodes": {
+    "3": {
+      "inputs": {
+        "seed": 42,
+        "steps": "{{steps}}",
+        "cfg": 8,
+        "sampler_name": "uni_pc_bh2",
+        "scheduler": "normal",
+        "denoise": 0.8,
+        "model": [
+          "29",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "26",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "6": {
+      "inputs": {
+        "text": "{{prompt}}",
+        "clip": [
+          "29",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "7": {
+      "inputs": {
+        "text": "",
+        "clip": [
+          "29",
+          1
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "8": {
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "29",
+          2
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "inputs": {
+        "filename_prefix": "ComfyUI",
+        "images": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    },
+    "20": {
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "26": {
+      "inputs": {
+        "grow_mask_by": 14,
+        "pixels": [
+          "33",
+          0
+        ],
+        "vae": [
+          "29",
+          2
+        ],
+        "mask": [
+          "20",
+          1
+        ]
+      },
+      "class_type": "VAEEncodeForInpaint",
+      "_meta": {
+        "title": "VAE Encode (for Inpainting)"
+      }
+    },
+    "29": {
+      "inputs": {
+        "ckpt_name": "{{checkpoint}}"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "33": {
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": "{{megapixels}}",
+        "image": [
+          "20",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    }
+  }
+}

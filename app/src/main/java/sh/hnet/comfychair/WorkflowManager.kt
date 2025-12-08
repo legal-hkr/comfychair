@@ -32,13 +32,15 @@ class WorkflowManager(private val context: Context) {
 
     /**
      * Load all workflow JSON files from res/raw
-     * Files should be named: checkpoint_*.json or unet_*.json
+     * Files should be named: checkpoint_*.json, unet_*.json, i_checkpoint_*.json, or i_unet_*.json
      */
     private fun loadWorkflows() {
         // List of workflow resource IDs
         val workflowResources = listOf(
             R.raw.checkpoint_default,
-            R.raw.unet_zimage
+            R.raw.unet_zimage,
+            R.raw.i_checkpoint_default,
+            R.raw.i_unet_zimage
         )
 
         for (resId in workflowResources) {
@@ -81,6 +83,20 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
+     * Get list of inpainting checkpoint workflow names for dropdown
+     */
+    fun getInpaintingCheckpointWorkflowNames(): List<String> {
+        return workflows.filter { it.id.startsWith("i_checkpoint_") }.map { it.name }
+    }
+
+    /**
+     * Get list of inpainting UNET workflow names for dropdown
+     */
+    fun getInpaintingUNETWorkflowNames(): List<String> {
+        return workflows.filter { it.id.startsWith("i_unet_") }.map { it.name }
+    }
+
+    /**
      * Get workflow by name
      */
     fun getWorkflowByName(name: String): Workflow? {
@@ -101,6 +117,22 @@ class WorkflowManager(private val context: Context) {
     fun isUNETWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
         return workflow?.id?.startsWith("unet_") == true
+    }
+
+    /**
+     * Check if a workflow is an inpainting checkpoint workflow
+     */
+    fun isInpaintingCheckpointWorkflow(workflowName: String): Boolean {
+        val workflow = getWorkflowByName(workflowName)
+        return workflow?.id?.startsWith("i_checkpoint_") == true
+    }
+
+    /**
+     * Check if a workflow is an inpainting UNET workflow
+     */
+    fun isInpaintingUNETWorkflow(workflowName: String): Boolean {
+        val workflow = getWorkflowByName(workflowName)
+        return workflow?.id?.startsWith("i_unet_") == true
     }
 
     /**
@@ -145,6 +177,55 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
         // Replace seed with random value (workflows use 0 as placeholder)
+        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
+
+        return processedJson
+    }
+
+    /**
+     * Prepare inpainting workflow JSON with actual parameter values
+     * Replaces template variables including image filename and megapixels
+     *
+     * @param workflowName The name of the workflow to use
+     * @param prompt User's text prompt
+     * @param checkpoint Selected checkpoint model (for checkpoint workflows)
+     * @param unet Selected UNET model (for UNET workflows)
+     * @param vae Selected VAE model (for UNET workflows)
+     * @param clip Selected CLIP model (for UNET workflows)
+     * @param megapixels Target megapixels for image scaling (for checkpoint inpainting)
+     * @param steps Number of generation steps
+     * @param imageFilename The uploaded image filename in ComfyUI input folder
+     * @return JSON string ready to send to ComfyUI API
+     */
+    fun prepareInpaintingWorkflow(
+        workflowName: String,
+        prompt: String,
+        checkpoint: String = "",
+        unet: String = "",
+        vae: String = "",
+        clip: String = "",
+        megapixels: Float = 1.0f,
+        steps: Int,
+        imageFilename: String
+    ): String? {
+        val workflow = getWorkflowByName(workflowName) ?: return null
+
+        // Generate a random seed for each image generation
+        val randomSeed = (0..999999999999).random()
+
+        // Replace template variables with actual values
+        var processedJson = workflow.jsonContent
+        processedJson = processedJson.replace("{{prompt}}", prompt)
+        processedJson = processedJson.replace("{{checkpoint}}", checkpoint)
+        processedJson = processedJson.replace("{{unet_name}}", unet)
+        processedJson = processedJson.replace("{{vae_name}}", vae)
+        processedJson = processedJson.replace("{{clip_name}}", clip)
+        processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
+        processedJson = processedJson.replace("{{steps}}", steps.toString())
+        // Replace uploaded image placeholder with actual filename
+        processedJson = processedJson.replace("uploaded_image.png [input]", "$imageFilename [input]")
+        // Replace seed with random value (workflows use 42 as placeholder in inpainting)
+        processedJson = processedJson.replace("\"seed\": 42", "\"seed\": $randomSeed")
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
         return processedJson

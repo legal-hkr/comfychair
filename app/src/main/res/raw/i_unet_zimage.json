@@ -1,0 +1,182 @@
+{
+  "name": "Inpaint Z-Image",
+  "description": "Fast inpainting workflow using Z-Image turbo model",
+  "nodes": {
+    "13": {
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "14": {
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "stable_diffusion",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "15": {
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "16": {
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "17": {
+      "inputs": {
+        "text": "{{prompt}}",
+        "clip": [
+          "14",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "18": {
+      "inputs": {
+        "text": "",
+        "clip": [
+          "14",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "19": {
+      "inputs": {
+        "noise_mask": true,
+        "positive": [
+          "17",
+          0
+        ],
+        "negative": [
+          "18",
+          0
+        ],
+        "vae": [
+          "15",
+          0
+        ],
+        "pixels": [
+          "16",
+          0
+        ],
+        "mask": [
+          "16",
+          1
+        ]
+      },
+      "class_type": "InpaintModelConditioning",
+      "_meta": {
+        "title": "InpaintModelConditioning"
+      }
+    },
+    "20": {
+      "inputs": {
+        "seed": 42,
+        "steps": "{{steps}}",
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0,
+        "model": [
+          "13",
+          0
+        ],
+        "positive": [
+          "19",
+          0
+        ],
+        "negative": [
+          "19",
+          1
+        ],
+        "latent_image": [
+          "19",
+          2
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "23": {
+      "inputs": {
+        "samples": [
+          "20",
+          0
+        ],
+        "vae": [
+          "15",
+          0
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "24": {
+      "inputs": {
+        "x": 0,
+        "y": 0,
+        "resize_source": false,
+        "destination": [
+          "16",
+          0
+        ],
+        "source": [
+          "23",
+          0
+        ],
+        "mask": [
+          "16",
+          1
+        ]
+      },
+      "class_type": "ImageCompositeMasked",
+      "_meta": {
+        "title": "ImageCompositeMasked"
+      }
+    },
+    "25": {
+      "inputs": {
+        "filename_prefix": "ComfyUI",
+        "images": [
+          "24",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

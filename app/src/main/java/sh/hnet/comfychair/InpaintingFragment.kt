@@ -2,9 +2,13 @@ package sh.hnet.comfychair
 
 import android.app.Dialog
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -12,7 +16,6 @@ import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.content.Context
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -26,42 +29,54 @@ import androidx.fragment.app.Fragment
 import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 
 /**
- * TextToImageFragment - Main screen for interacting with ComfyUI
+ * InpaintingFragment - Inpainting screen for ComfyUI
+ * Allows users to select a source image, paint a mask, and generate inpainted images
  */
-class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateListener {
+class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateListener {
 
     // UI element references
     private lateinit var topAppBar: MaterialToolbar
-    private lateinit var imagePreview: ImageView
-    private lateinit var placeholderIcon: ImageView
+    private lateinit var viewModeToggle: MaterialButtonToggleGroup
+
+    // Source image view elements
+    private lateinit var sourceImageContainer: View
+    private lateinit var sourceImageView: ImageView
+    private lateinit var maskOverlayView: ImageView
+    private lateinit var sourcePlaceholderIcon: ImageView
+
+    // Preview elements
+    private lateinit var previewContainer: View
+    private lateinit var previewImageView: ImageView
+    private lateinit var previewPlaceholderIcon: ImageView
+    private lateinit var progressOverlay: View
+    private lateinit var progressBar: android.widget.ProgressBar
+
+    private lateinit var imageInstructionText: android.widget.TextView
     private lateinit var promptInputLayout: com.google.android.material.textfield.TextInputLayout
     private lateinit var promptInput: TextInputEditText
     private lateinit var generateButton: Button
     private lateinit var settingsButton: Button
-    // Progress overlay elements
-    private lateinit var progressOverlay: View
-    private lateinit var progressBar: android.widget.ProgressBar
 
     // Modal bottom sheet for configuration
     private var configBottomSheet: BottomSheetDialog? = null
-    private lateinit var configModeToggle: com.google.android.material.button.MaterialButtonToggleGroup
+    private lateinit var configModeToggle: MaterialButtonToggleGroup
     // Checkpoint mode UI elements
     private lateinit var workflowDropdown: AutoCompleteTextView
     private lateinit var checkpointDropdown: AutoCompleteTextView
-    private lateinit var widthInput: TextInputEditText
-    private lateinit var heightInput: TextInputEditText
+    private lateinit var megapixelsInput: TextInputEditText
     private lateinit var stepsInput: TextInputEditText
     // UNET mode UI elements
     private lateinit var unetWorkflowDropdown: AutoCompleteTextView
     private lateinit var unetDropdown: AutoCompleteTextView
     private lateinit var vaeDropdown: AutoCompleteTextView
     private lateinit var clipDropdown: AutoCompleteTextView
-    private lateinit var unetWidthInput: TextInputEditText
-    private lateinit var unetHeightInput: TextInputEditText
     private lateinit var unetStepsInput: TextInputEditText
 
     // Workflow manager
@@ -84,18 +99,32 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     // Flag to prevent auto-save during initialization
     private var isLoadingConfiguration = false
 
-    // Store current generated image
-    private var currentBitmap: Bitmap? = null
+    // Source image and mask
+    private var sourceImageBitmap: Bitmap? = null
+    private var maskBitmap: Bitmap? = null
+    private var currentPreviewBitmap: Bitmap? = null
 
-    // Track if generation is in progress (synced from activity)
+    // Track if generation is in progress
     private var isGenerating = false
     private var currentPromptId: String? = null
 
     // Track if data has been fetched from server
     private var dataFetched = false
 
-    // Filename for persisting last generated image
-    private val LAST_IMAGE_FILENAME = "last_generated_image.png"
+    // Track which view is showing (source or preview)
+    private var isShowingSource = true
+
+    // Filename for persisting images
+    private val LAST_PREVIEW_FILENAME = "inpainting_last_preview.png"
+    private val LAST_SOURCE_FILENAME = "inpainting_last_source.png"
+    private val LAST_MASK_FILENAME = "inpainting_last_mask.png"
+
+    // Activity result launcher for picking source image
+    private val pickImageLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { loadSourceImage(it) }
+    }
 
     // Activity result launcher for "Save as..."
     private val saveImageLauncher = registerForActivityResult(
@@ -108,16 +137,15 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         private const val ARG_HOSTNAME = "hostname"
         private const val ARG_PORT = "port"
 
-        // SharedPreferences constants for configuration preservation
-        private const val PREFS_NAME = "TextToImageFragmentPrefs"
+        // SharedPreferences constants
+        private const val PREFS_NAME = "InpaintingFragmentPrefs"
         private const val PREF_IS_CHECKPOINT_MODE = "isCheckpointMode"
         private const val PREF_PROMPT = "prompt"
 
         // Checkpoint mode preferences
         private const val PREF_CHECKPOINT_WORKFLOW = "checkpointWorkflow"
         private const val PREF_CHECKPOINT_MODEL = "checkpointModel"
-        private const val PREF_CHECKPOINT_WIDTH = "checkpointWidth"
-        private const val PREF_CHECKPOINT_HEIGHT = "checkpointHeight"
+        private const val PREF_CHECKPOINT_MEGAPIXELS = "checkpointMegapixels"
         private const val PREF_CHECKPOINT_STEPS = "checkpointSteps"
 
         // UNET mode preferences
@@ -125,12 +153,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         private const val PREF_UNET_MODEL = "unetModel"
         private const val PREF_UNET_VAE = "unetVAE"
         private const val PREF_UNET_CLIP = "unetCLIP"
-        private const val PREF_UNET_WIDTH = "unetWidth"
-        private const val PREF_UNET_HEIGHT = "unetHeight"
         private const val PREF_UNET_STEPS = "unetSteps"
 
-        fun newInstance(hostname: String, port: Int): TextToImageFragment {
-            val fragment = TextToImageFragment()
+        fun newInstance(hostname: String, port: Int): InpaintingFragment {
+            val fragment = InpaintingFragment()
             val args = Bundle()
             args.putString(ARG_HOSTNAME, hostname)
             args.putInt(ARG_PORT, port)
@@ -142,7 +168,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Get connection information from arguments
         arguments?.let {
             hostname = it.getString(ARG_HOSTNAME) ?: ""
             port = it.getInt(ARG_PORT, 8188)
@@ -154,65 +179,41 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_text_to_image, container, false)
+        return inflater.inflate(R.layout.fragment_inpainting, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Handle window insets - only apply padding for system bars
         ViewCompat.setOnApplyWindowInsetsListener(view.findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-
-            // Don't apply any padding - the layout will handle resizing naturally
             v.setPadding(0, 0, 0, 0)
-
             insets
         }
 
-        // Get ComfyUI client from activity
         val activity = requireActivity() as MainContainerActivity
         comfyUIClient = activity.getComfyUIClient()
 
-        // Initialize workflow manager
         workflowManager = WorkflowManager(requireContext())
 
-        // Initialize UI components
         initializeViews(view)
-
-        // Initialize configuration bottom sheet
         initializeConfigBottomSheet()
-
-        // Setup dropdowns
         setupDropdowns()
-
-        // Setup button listeners
         setupButtonListeners()
-
-        // Setup image view listeners
         setupImageViewListeners()
+        setupViewModeToggle()
 
-        // Restore last generated image if available
-        restoreLastGeneratedImage()
-
-        // Load saved configuration (after all UI elements are initialized)
+        restoreLastImages()
         loadConfiguration()
-
-        // Setup auto-save listeners
         setupAutoSaveListeners()
-
-        // Fetch server data only when connection is ready
         fetchServerData()
     }
 
-    /**
-     * Fetch server data (checkpoints, UNETs, VAEs, CLIPs) when connection is ready
-     */
     private fun fetchServerData() {
         val activity = requireActivity() as MainContainerActivity
         activity.onConnectionReady {
             if (!dataFetched) {
-                println("TextToImageFragment: Connection ready, fetching server data...")
+                println("InpaintingFragment: Connection ready, fetching server data...")
                 activity.runOnUiThread {
                     fetchCheckpoints()
                     fetchUNETs()
@@ -226,14 +227,12 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
     override fun onResume() {
         super.onResume()
-        // Register as generation state listener when fragment becomes visible
         val activity = requireActivity() as MainContainerActivity
         activity.setGenerationStateListener(this)
     }
 
     override fun onPause() {
         super.onPause()
-        // Unregister listener when fragment is no longer visible
         val activity = requireActivity() as MainContainerActivity
         activity.setGenerationStateListener(null)
     }
@@ -247,6 +246,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         if (isGenerating) {
             setGeneratingState()
             showProgressOverlay()
+            // Switch to preview tab when generation starts
+            if (isShowingSource) {
+                viewModeToggle.check(R.id.previewButton)
+            }
         } else {
             resetGenerateButton()
             hideProgressOverlay()
@@ -258,32 +261,40 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     override fun onImageGenerated(promptId: String) {
-        println("TextToImageFragment: Image generated for prompt: $promptId")
-        // Only fetch if fragment is still added and view is created
+        println("InpaintingFragment: Image generated for prompt: $promptId")
         if (isAdded && view != null) {
             fetchGeneratedImage(promptId)
-        } else {
-            println("TextToImageFragment: Fragment not in valid state to fetch image")
         }
     }
 
     override fun onGenerationError(message: String) {
-        println("TextToImageFragment: Generation error: $message")
+        println("InpaintingFragment: Generation error: $message")
         resetGenerateButton()
         hideProgressOverlay()
     }
 
     private fun initializeViews(view: View) {
         topAppBar = view.findViewById(R.id.topAppBar)
-        imagePreview = view.findViewById(R.id.imagePreview)
-        placeholderIcon = view.findViewById(R.id.placeholderIcon)
+        viewModeToggle = view.findViewById(R.id.viewModeToggle)
+
+        // Source image views
+        sourceImageContainer = view.findViewById(R.id.sourceImageContainer)
+        sourceImageView = view.findViewById(R.id.sourceImageView)
+        maskOverlayView = view.findViewById(R.id.maskOverlayView)
+        sourcePlaceholderIcon = view.findViewById(R.id.sourcePlaceholderIcon)
+
+        // Preview views
+        previewContainer = view.findViewById(R.id.previewContainer)
+        previewImageView = view.findViewById(R.id.previewImageView)
+        previewPlaceholderIcon = view.findViewById(R.id.previewPlaceholderIcon)
+        progressOverlay = view.findViewById(R.id.progressOverlay)
+        progressBar = view.findViewById(R.id.progressBar)
+
+        imageInstructionText = view.findViewById(R.id.imageInstructionText)
         promptInputLayout = view.findViewById(R.id.promptInputLayout)
         promptInput = view.findViewById(R.id.promptInput)
         generateButton = view.findViewById(R.id.generateButton)
         settingsButton = view.findViewById(R.id.settingsButton)
-        // Progress overlay elements
-        progressOverlay = view.findViewById(R.id.progressOverlay)
-        progressBar = view.findViewById(R.id.progressBar)
 
         setupTopAppBar()
     }
@@ -294,17 +305,39 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
+    private fun setupViewModeToggle() {
+        viewModeToggle.check(R.id.sourceImageButton)
+
+        viewModeToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                when (checkedId) {
+                    R.id.sourceImageButton -> {
+                        isShowingSource = true
+                        sourceImageContainer.visibility = View.VISIBLE
+                        previewContainer.visibility = View.GONE
+                        imageInstructionText.text = getString(R.string.long_press_hint)
+                    }
+                    R.id.previewButton -> {
+                        isShowingSource = false
+                        sourceImageContainer.visibility = View.GONE
+                        previewContainer.visibility = View.VISIBLE
+                        imageInstructionText.text = "Tap image to view, long press to save"
+                    }
+                }
+            }
+        }
+    }
+
     private fun initializeConfigBottomSheet() {
         configBottomSheet = BottomSheetDialog(requireContext())
 
-        val bottomSheetView = layoutInflater.inflate(R.layout.bottom_sheet_config, null)
+        val bottomSheetView = layoutInflater.inflate(R.layout.bottom_sheet_inpainting_config, null)
         configBottomSheet?.setContentView(bottomSheetView)
 
         // Initialize checkpoint mode UI elements
         workflowDropdown = bottomSheetView.findViewById(R.id.workflowDropdown)
         checkpointDropdown = bottomSheetView.findViewById(R.id.checkpointDropdown)
-        widthInput = bottomSheetView.findViewById(R.id.widthInput)
-        heightInput = bottomSheetView.findViewById(R.id.heightInput)
+        megapixelsInput = bottomSheetView.findViewById(R.id.megapixelsInput)
         stepsInput = bottomSheetView.findViewById(R.id.stepsInput)
 
         // Initialize UNET mode UI elements
@@ -312,8 +345,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         unetDropdown = bottomSheetView.findViewById(R.id.unetDropdown)
         vaeDropdown = bottomSheetView.findViewById(R.id.vaeDropdown)
         clipDropdown = bottomSheetView.findViewById(R.id.clipDropdown)
-        unetWidthInput = bottomSheetView.findViewById(R.id.unetWidthInput)
-        unetHeightInput = bottomSheetView.findViewById(R.id.unetHeightInput)
         unetStepsInput = bottomSheetView.findViewById(R.id.unetStepsInput)
 
         // Set up segmented button toggle
@@ -321,7 +352,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         val checkpointContent = bottomSheetView.findViewById<android.widget.LinearLayout>(R.id.checkpointContent)
         val unetContent = bottomSheetView.findViewById<android.widget.LinearLayout>(R.id.unetContent)
 
-        // Set initial mode (will be updated by loadConfiguration later)
         configModeToggle.check(R.id.checkpointModeButton)
 
         configModeToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
@@ -331,14 +361,12 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                         checkpointContent.visibility = View.VISIBLE
                         unetContent.visibility = View.GONE
                         isCheckpointMode = true
-                        // Save configuration when mode changes
                         saveConfiguration()
                     }
                     R.id.unetModeButton -> {
                         checkpointContent.visibility = View.GONE
                         unetContent.visibility = View.VISIBLE
                         isCheckpointMode = false
-                        // Save configuration when mode changes
                         saveConfiguration()
                     }
                 }
@@ -351,8 +379,8 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     private fun setupDropdowns() {
-        // Setup checkpoint workflows dropdown
-        val checkpointWorkflowNames = workflowManager.getCheckpointWorkflowNames()
+        // Setup inpainting checkpoint workflows dropdown
+        val checkpointWorkflowNames = workflowManager.getInpaintingCheckpointWorkflowNames()
         val checkpointWorkflowAdapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
@@ -363,8 +391,8 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             workflowDropdown.setText(checkpointWorkflowNames[0], false)
         }
 
-        // Setup UNET workflows dropdown
-        val unetWorkflowNames = workflowManager.getUNETWorkflowNames()
+        // Setup inpainting UNET workflows dropdown
+        val unetWorkflowNames = workflowManager.getInpaintingUNETWorkflowNames()
         val unetWorkflowAdapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
@@ -447,88 +475,355 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     private fun setupImageViewListeners() {
-        imagePreview.setOnClickListener {
-            currentBitmap?.let { bitmap ->
+        // Source image long press for options menu
+        sourceImageView.setOnLongClickListener {
+            showSourceImageOptions()
+            true
+        }
+
+        // Preview image tap to view fullscreen
+        previewImageView.setOnClickListener {
+            currentPreviewBitmap?.let { bitmap ->
                 showFullscreenImageViewer(bitmap)
             }
         }
 
-        imagePreview.setOnLongClickListener {
-            currentBitmap?.let {
+        // Preview image long press for save options
+        previewImageView.setOnLongClickListener {
+            currentPreviewBitmap?.let {
                 showSaveOptions()
                 true
             } ?: false
         }
     }
 
+    private fun showSourceImageOptions() {
+        val bottomSheetDialog = BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_source_image, null)
+        bottomSheetDialog.setContentView(view)
+
+        val uploadOption = view.findViewById<View>(R.id.uploadSourceImage)
+        val editMaskOption = view.findViewById<View>(R.id.editMask)
+        val clearMaskOption = view.findViewById<View>(R.id.clearMask)
+
+        // Show edit/clear mask options only if source image exists
+        if (sourceImageBitmap != null) {
+            editMaskOption.visibility = View.VISIBLE
+            clearMaskOption.visibility = View.VISIBLE
+        }
+
+        uploadOption.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            pickSourceImage()
+        }
+
+        editMaskOption.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            showMaskEditor()
+        }
+
+        clearMaskOption.setOnClickListener {
+            bottomSheetDialog.dismiss()
+            clearMask()
+        }
+
+        bottomSheetDialog.show()
+    }
+
+    private fun pickSourceImage() {
+        pickImageLauncher.launch("image/*")
+    }
+
+    private fun loadSourceImage(uri: Uri) {
+        try {
+            val inputStream = requireContext().contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+
+            if (bitmap != null) {
+                sourceImageBitmap = bitmap
+                sourceImageView.setImageBitmap(bitmap)
+                sourcePlaceholderIcon.visibility = View.GONE
+
+                // Clear existing mask when new image is loaded
+                maskBitmap = null
+                maskOverlayView.setImageBitmap(null)
+
+                // Save source image
+                saveSourceImage(bitmap)
+
+                println("Source image loaded: ${bitmap.width}x${bitmap.height}")
+            }
+        } catch (e: Exception) {
+            println("Failed to load source image: ${e.message}")
+            Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showMaskEditor() {
+        val sourceBitmap = sourceImageBitmap ?: run {
+            Toast.makeText(requireContext(), getString(R.string.no_source_image), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val dialog = Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.setContentView(R.layout.dialog_mask_editor)
+
+        val toolbar = dialog.findViewById<MaterialToolbar>(R.id.maskEditorToolbar)
+        val backgroundImage = dialog.findViewById<ImageView>(R.id.backgroundImage)
+        val maskPaintView = dialog.findViewById<MaskPaintView>(R.id.maskPaintView)
+        val brushSizeSlider = dialog.findViewById<Slider>(R.id.brushSizeSlider)
+        val clearMaskButton = dialog.findViewById<Button>(R.id.clearMaskButton)
+        val invertMaskButton = dialog.findViewById<Button>(R.id.invertMaskButton)
+        val doneButton = dialog.findViewById<Button>(R.id.doneButton)
+
+        // Set up background image
+        backgroundImage.setImageBitmap(sourceBitmap)
+
+        // Set up mask paint view
+        maskPaintView.setSourceImageSize(sourceBitmap.width, sourceBitmap.height)
+
+        // Restore existing mask if any
+        maskBitmap?.let { maskPaintView.setMaskBitmap(it) }
+
+        // Brush size slider
+        brushSizeSlider.addOnChangeListener { _, value, _ ->
+            maskPaintView.brushSize = value
+        }
+
+        // Clear mask button
+        clearMaskButton.setOnClickListener {
+            maskPaintView.clearMask()
+        }
+
+        // Invert mask button
+        invertMaskButton.setOnClickListener {
+            maskPaintView.invertMask()
+        }
+
+        // Done button - save mask and close
+        doneButton.setOnClickListener {
+            val newMask = maskPaintView.getMaskBitmap()
+            if (newMask != null) {
+                maskBitmap = newMask
+                updateMaskOverlay()
+                saveMaskImage(newMask)
+            }
+            maskPaintView.recycle()
+            dialog.dismiss()
+        }
+
+        // Close button (X)
+        toolbar.setNavigationOnClickListener {
+            maskPaintView.recycle()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun updateMaskOverlay() {
+        val mask = maskBitmap ?: return
+
+        // Create a semi-transparent red overlay from the mask
+        val overlayBitmap = Bitmap.createBitmap(mask.width, mask.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(overlayBitmap)
+
+        val pixels = IntArray(mask.width * mask.height)
+        mask.getPixels(pixels, 0, mask.width, 0, 0, mask.width, mask.height)
+
+        for (i in pixels.indices) {
+            val brightness = Color.red(pixels[i])
+            if (brightness > 128) {
+                // White area (inpaint) -> semi-transparent red
+                pixels[i] = Color.argb(128, 255, 0, 0)
+            } else {
+                // Black area -> transparent
+                pixels[i] = Color.TRANSPARENT
+            }
+        }
+
+        overlayBitmap.setPixels(pixels, 0, mask.width, 0, 0, mask.width, mask.height)
+        maskOverlayView.setImageBitmap(overlayBitmap)
+    }
+
+    private fun clearMask() {
+        maskBitmap = null
+        maskOverlayView.setImageBitmap(null)
+        deleteMaskImage()
+    }
+
     private fun cancelImageGeneration() {
-        println("TextToImageFragment: Canceling image generation...")
         val activity = requireActivity() as MainContainerActivity
         activity.cancelGeneration { success ->
             if (success) {
-                println("TextToImageFragment: Generation canceled successfully")
+                println("InpaintingFragment: Generation canceled successfully")
             } else {
-                println("TextToImageFragment: Failed to cancel generation")
+                println("InpaintingFragment: Failed to cancel generation")
             }
         }
     }
 
     private fun startImageGeneration() {
+        // Validate inputs
+        if (sourceImageBitmap == null) {
+            Toast.makeText(requireContext(), getString(R.string.no_source_image), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (maskBitmap == null || !hasMaskContent()) {
+            Toast.makeText(requireContext(), "Please paint a mask area for inpainting", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Clear preview image before starting generation
+        currentPreviewBitmap = null
+        previewImageView.setImageDrawable(null)
+        previewPlaceholderIcon.visibility = View.VISIBLE
+
         val prompt = promptInput.text.toString()
 
+        // Combine source image with mask (RGBA where A is mask)
+        val combinedImage = createImageWithMask()
+        if (combinedImage == null) {
+            Toast.makeText(requireContext(), "Failed to prepare image", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Convert to PNG bytes
+        val outputStream = ByteArrayOutputStream()
+        combinedImage.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        val imageBytes = outputStream.toByteArray()
+
+        // Generate unique filename
+        val filename = "comfychair_inpaint_${System.currentTimeMillis()}.png"
+
+        // Upload image to server
+        Toast.makeText(requireContext(), "Uploading image...", Toast.LENGTH_SHORT).show()
+
+        comfyUIClient.uploadImage(imageBytes, filename) { success, uploadedFilename, errorMessage ->
+            activity?.runOnUiThread {
+                if (success && uploadedFilename != null) {
+                    println("InpaintingFragment: Image uploaded: $uploadedFilename")
+                    submitInpaintingWorkflow(prompt, uploadedFilename)
+                } else {
+                    println("InpaintingFragment: Upload failed: $errorMessage")
+                    Toast.makeText(requireContext(), "Failed to upload image: $errorMessage", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun hasMaskContent(): Boolean {
+        val mask = maskBitmap ?: return false
+        val pixels = IntArray(mask.width * mask.height)
+        mask.getPixels(pixels, 0, mask.width, 0, 0, mask.width, mask.height)
+
+        for (pixel in pixels) {
+            if (Color.red(pixel) > 128) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun createImageWithMask(): Bitmap? {
+        val source = sourceImageBitmap ?: return null
+        val mask = maskBitmap ?: return null
+
+        // Create RGBA image where alpha channel contains the mask
+        val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(result)
+
+        // Draw source image
+        canvas.drawBitmap(source, 0f, 0f, null)
+
+        // Scale mask if needed
+        val scaledMask = if (mask.width != source.width || mask.height != source.height) {
+            Bitmap.createScaledBitmap(mask, source.width, source.height, true)
+        } else {
+            mask
+        }
+
+        // Combine RGB from source with mask as alpha
+        val sourcePixels = IntArray(source.width * source.height)
+        val maskPixels = IntArray(source.width * source.height)
+        result.getPixels(sourcePixels, 0, source.width, 0, 0, source.width, source.height)
+        scaledMask.getPixels(maskPixels, 0, source.width, 0, 0, source.width, source.height)
+
+        for (i in sourcePixels.indices) {
+            val r = Color.red(sourcePixels[i])
+            val g = Color.green(sourcePixels[i])
+            val b = Color.blue(sourcePixels[i])
+            // Mask logic for ComfyUI:
+            // - LoadImage extracts mask from alpha: transparent (alpha=0) becomes WHITE (1.0) in mask
+            // - White mask = area to inpaint
+            // - So painted areas (maskValue=255) need alpha=0 to become white in ComfyUI mask
+            val maskValue = Color.red(maskPixels[i])
+            // Painted area (white=255) -> alpha=0 (transparent) -> white in ComfyUI mask (inpaint)
+            // Unpainted area (black=0) -> alpha=255 (opaque) -> black in ComfyUI mask (keep)
+            val alpha = 255 - maskValue
+            sourcePixels[i] = Color.argb(alpha, r, g, b)
+        }
+
+        result.setPixels(sourcePixels, 0, source.width, 0, 0, source.width, source.height)
+
+        if (scaledMask != mask) {
+            scaledMask.recycle()
+        }
+
+        return result
+    }
+
+    private fun submitInpaintingWorkflow(prompt: String, imageFilename: String) {
         val workflowJson = if (isCheckpointMode) {
-            // Checkpoint mode - use checkpoint parameters
             val workflowName = workflowDropdown.text.toString()
             val checkpoint = checkpointDropdown.text.toString()
-            val width = widthInput.text.toString().toIntOrNull() ?: 1024
-            val height = heightInput.text.toString().toIntOrNull() ?: 1024
-            val steps = stepsInput.text.toString().toIntOrNull() ?: 9
+            val megapixels = megapixelsInput.text.toString().toFloatOrNull() ?: 1.0f
+            val steps = stepsInput.text.toString().toIntOrNull() ?: 20
 
-            println("TextToImageFragment: Starting generation with:")
+            println("InpaintingFragment: Starting inpainting with:")
             println("  Mode: Checkpoint")
             println("  Prompt: $prompt")
             println("  Workflow: $workflowName")
             println("  Checkpoint: $checkpoint")
-            println("  Size: ${width}x${height}")
+            println("  Megapixels: $megapixels")
             println("  Steps: $steps")
+            println("  Image: $imageFilename")
 
-            workflowManager.prepareWorkflow(
+            workflowManager.prepareInpaintingWorkflow(
                 workflowName = workflowName,
                 prompt = prompt,
                 checkpoint = checkpoint,
-                width = width,
-                height = height,
-                steps = steps
+                megapixels = megapixels,
+                steps = steps,
+                imageFilename = imageFilename
             )
         } else {
-            // UNET mode - use UNET parameters
             val workflowName = unetWorkflowDropdown.text.toString()
             val unet = unetDropdown.text.toString()
             val vae = vaeDropdown.text.toString()
             val clip = clipDropdown.text.toString()
-            val width = unetWidthInput.text.toString().toIntOrNull() ?: 1024
-            val height = unetHeightInput.text.toString().toIntOrNull() ?: 1024
             val steps = unetStepsInput.text.toString().toIntOrNull() ?: 9
 
-            println("TextToImageFragment: Starting generation with:")
+            println("InpaintingFragment: Starting inpainting with:")
             println("  Mode: UNET")
             println("  Prompt: $prompt")
             println("  Workflow: $workflowName")
             println("  UNET: $unet")
             println("  VAE: $vae")
             println("  CLIP: $clip")
-            println("  Size: ${width}x${height}")
             println("  Steps: $steps")
+            println("  Image: $imageFilename")
 
-            workflowManager.prepareWorkflow(
+            workflowManager.prepareInpaintingWorkflow(
                 workflowName = workflowName,
                 prompt = prompt,
                 unet = unet,
                 vae = vae,
                 clip = clip,
-                width = width,
-                height = height,
-                steps = steps
+                steps = steps,
+                imageFilename = imageFilename
             )
         }
 
@@ -536,114 +831,73 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             val activity = requireActivity() as MainContainerActivity
             activity.startGeneration(workflowJson) { success, promptId, errorMessage ->
                 if (success && promptId != null) {
-                    println("TextToImageFragment: Workflow submitted successfully. Prompt ID: $promptId")
-                    // UI will be updated by onGenerationStateChanged callback
+                    println("InpaintingFragment: Workflow submitted successfully. Prompt ID: $promptId")
                 } else {
-                    println("TextToImageFragment: Failed to submit workflow: $errorMessage")
-                    // Error already shown by activity via Toast
+                    println("InpaintingFragment: Failed to submit workflow: $errorMessage")
                 }
             }
         } else {
-            println("TextToImageFragment: Error: Could not load workflow")
+            println("InpaintingFragment: Error: Could not load workflow")
             Toast.makeText(requireContext(), "Failed to load workflow", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun fetchCheckpoints() {
-        println("TextToImageFragment: Fetching checkpoints from server...")
         comfyUIClient.fetchCheckpoints { checkpoints ->
-            println("TextToImageFragment: Received ${checkpoints.size} checkpoints")
-            checkpoints.forEach { println("  - $it") }
-
             activity?.runOnUiThread {
                 availableCheckpoints.clear()
                 availableCheckpoints.addAll(checkpoints)
-                println("TextToImageFragment: Updated availableCheckpoints list, size=${availableCheckpoints.size}")
                 updateCheckpointDropdown()
-                println("TextToImageFragment: Checkpoint dropdown updated")
-                // Restore saved checkpoint model after populating
                 restoreCheckpointConfiguration()
             }
         }
     }
 
     private fun fetchUNETs() {
-        println("TextToImageFragment: Fetching UNETs from server...")
         comfyUIClient.fetchUNETs { unets ->
-            println("TextToImageFragment: Received ${unets.size} UNETs")
-            unets.forEach { println("  - $it") }
-
             activity?.runOnUiThread {
                 availableUNETs.clear()
                 availableUNETs.addAll(unets)
-                println("TextToImageFragment: Updated availableUNETs list, size=${availableUNETs.size}")
                 updateUNETDropdown()
-                println("TextToImageFragment: UNET dropdown updated")
-                // Restore saved UNET model after populating
                 restoreUNETConfiguration()
             }
         }
     }
 
     private fun fetchVAEs() {
-        println("TextToImageFragment: Fetching VAEs from server...")
         comfyUIClient.fetchVAEs { vaes ->
-            println("TextToImageFragment: Received ${vaes.size} VAEs")
-            vaes.forEach { println("  - $it") }
-
             activity?.runOnUiThread {
                 availableVAEs.clear()
                 availableVAEs.addAll(vaes)
-                println("TextToImageFragment: Updated availableVAEs list, size=${availableVAEs.size}")
                 updateVAEDropdown()
-                println("TextToImageFragment: VAE dropdown updated")
-                // Restore saved VAE after populating
                 restoreVAEConfiguration()
             }
         }
     }
 
     private fun fetchCLIPs() {
-        println("TextToImageFragment: Fetching CLIPs from server...")
         comfyUIClient.fetchCLIPs { clips ->
-            println("TextToImageFragment: Received ${clips.size} CLIPs")
-            clips.forEach { println("  - $it") }
-
             activity?.runOnUiThread {
                 availableCLIPs.clear()
                 availableCLIPs.addAll(clips)
-                println("TextToImageFragment: Updated availableCLIPs list, size=${availableCLIPs.size}")
                 updateCLIPDropdown()
-                println("TextToImageFragment: CLIP dropdown updated")
-                // Restore saved CLIP after populating
                 restoreCLIPConfiguration()
             }
         }
     }
 
     private fun fetchGeneratedImage(promptId: String?) {
-        if (promptId == null) {
-            println("fetchGeneratedImage: promptId is null!")
-            return
-        }
-
-        println("fetchGeneratedImage: Fetching history for prompt $promptId")
+        if (promptId == null) return
 
         comfyUIClient.fetchHistory(promptId) { historyJson ->
             if (historyJson != null) {
-                println("fetchGeneratedImage: Received history JSON")
                 try {
                     val promptData = historyJson.optJSONObject(promptId)
                     val outputs = promptData?.optJSONObject("outputs")
 
-                    println("fetchGeneratedImage: promptData=${promptData != null}, outputs=${outputs != null}")
-
                     outputs?.keys()?.forEach { nodeId ->
-                        println("fetchGeneratedImage: Checking node $nodeId")
                         val nodeOutput = outputs.getJSONObject(nodeId)
                         val images = nodeOutput.optJSONArray("images")
-
-                        println("fetchGeneratedImage: Node $nodeId has ${images?.length() ?: 0} images")
 
                         if (images != null && images.length() > 0) {
                             val imageInfo = images.getJSONObject(0)
@@ -651,19 +905,11 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                             val subfolder = imageInfo.optString("subfolder", "")
                             val type = imageInfo.optString("type", "output")
 
-                            println("fetchGeneratedImage: Fetching image - filename=$filename, subfolder=$subfolder, type=$type")
-
                             comfyUIClient.fetchImage(filename, subfolder, type) { bitmap ->
-                                println("fetchGeneratedImage: Received bitmap: ${bitmap != null}")
                                 activity?.runOnUiThread {
-                                    // Verify fragment is still in valid state
                                     if (isAdded && view != null) {
-                                        displayImage(bitmap)
-                                        // Notify activity that generation is complete
+                                        displayPreviewImage(bitmap)
                                         (requireActivity() as MainContainerActivity).completeGeneration()
-                                    } else {
-                                        println("fetchGeneratedImage: Fragment no longer valid, skipping image display")
-                                        (activity as? MainContainerActivity)?.completeGeneration()
                                     }
                                 }
                             }
@@ -671,16 +917,13 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                         }
                     }
 
-                    println("fetchGeneratedImage: No images found in any node output")
                     activity?.runOnUiThread {
                         (activity as? MainContainerActivity)?.completeGeneration()
                         if (isAdded && context != null) {
-                            Toast.makeText(requireContext(), "No images found in generation output", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), "No images found in output", Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
-                    println("fetchGeneratedImage: Failed to parse history: ${e.message}")
-                    e.printStackTrace()
                     activity?.runOnUiThread {
                         (activity as? MainContainerActivity)?.completeGeneration()
                         if (isAdded && context != null) {
@@ -689,80 +932,57 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                     }
                 }
             } else {
-                println("fetchGeneratedImage: Failed to fetch history - historyJson is null")
                 activity?.runOnUiThread {
                     (activity as? MainContainerActivity)?.completeGeneration()
                     if (isAdded && context != null) {
-                        Toast.makeText(requireContext(), "Failed to fetch generation history", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), "Failed to fetch history", Toast.LENGTH_LONG).show()
                     }
                 }
             }
         }
     }
 
-    private fun displayImage(bitmap: Bitmap?) {
-        // Ensure view is still valid
-        if (!isAdded || view == null) {
-            println("displayImage: Fragment not in valid state")
-            return
-        }
+    private fun displayPreviewImage(bitmap: Bitmap?) {
+        if (!isAdded || view == null) return
 
         if (bitmap != null) {
-            currentBitmap = bitmap
-            imagePreview.background = null
-            imagePreview.setImageBitmap(bitmap)
-            placeholderIcon.visibility = View.GONE
+            currentPreviewBitmap = bitmap
+            previewImageView.setImageBitmap(bitmap)
+            previewPlaceholderIcon.visibility = View.GONE
 
-            // Save image to internal storage for persistence
-            saveLastGeneratedImage(bitmap)
-        } else {
-            println("Failed to load image")
+            // Switch to preview tab
+            viewModeToggle.check(R.id.previewButton)
+
+            savePreviewImage(bitmap)
         }
     }
 
-    /**
-     * Show progress overlay with initial state
-     */
     private fun showProgressOverlay() {
         progressOverlay.visibility = View.VISIBLE
         progressBar.progress = 0
         progressBar.max = 100
     }
 
-    /**
-     * Hide progress overlay
-     */
     private fun hideProgressOverlay() {
         progressOverlay.visibility = View.GONE
     }
 
-    /**
-     * Update Generate button to show "generating" state
-     */
     private fun setGeneratingState() {
         isGenerating = true
         generateButton.text = "Cancel generation"
-        // Set red background tint for Material button
         generateButton.backgroundTintList = android.content.res.ColorStateList.valueOf(
             androidx.core.content.ContextCompat.getColor(requireContext(), R.color.cancel_red)
         )
     }
 
-    /**
-     * Reset Generate button to normal state
-     */
     private fun resetGenerateButton() {
         isGenerating = false
         generateButton.text = getString(R.string.button_generate)
-        // Reset to default Material button style
         val typedValue = TypedValue()
         requireContext().theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, typedValue, true)
         generateButton.backgroundTintList = android.content.res.ColorStateList.valueOf(typedValue.data)
     }
 
-    /**
-     * Update progress bar with current progress
-     */
     private fun updateProgress(current: Int, max: Int) {
         activity?.runOnUiThread {
             progressBar.max = max
@@ -770,39 +990,95 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
-    /**
-     * Save the last generated image to internal storage
-     * This allows the image to persist when fragment is destroyed and recreated
-     */
-    private fun saveLastGeneratedImage(bitmap: Bitmap) {
+    // Image persistence methods
+
+    private fun saveSourceImage(bitmap: Bitmap) {
         try {
-            requireContext().openFileOutput(LAST_IMAGE_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
+            requireContext().openFileOutput(LAST_SOURCE_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             }
-            println("Saved last generated image to internal storage")
         } catch (e: Exception) {
-            println("Failed to save last generated image: ${e.message}")
+            println("Failed to save source image: ${e.message}")
         }
     }
 
-    /**
-     * Restore the last generated image from internal storage
-     * Called when fragment is created to restore previously generated image
-     */
-    private fun restoreLastGeneratedImage() {
+    private fun saveMaskImage(bitmap: Bitmap) {
         try {
-            val file = requireContext().getFileStreamPath(LAST_IMAGE_FILENAME)
-            if (file.exists()) {
-                requireContext().openFileInput(LAST_IMAGE_FILENAME).use { inputStream ->
-                    val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+            requireContext().openFileOutput(LAST_MASK_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+        } catch (e: Exception) {
+            println("Failed to save mask image: ${e.message}")
+        }
+    }
+
+    private fun deleteMaskImage() {
+        try {
+            requireContext().deleteFile(LAST_MASK_FILENAME)
+        } catch (e: Exception) {
+            println("Failed to delete mask image: ${e.message}")
+        }
+    }
+
+    private fun savePreviewImage(bitmap: Bitmap) {
+        try {
+            requireContext().openFileOutput(LAST_PREVIEW_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+        } catch (e: Exception) {
+            println("Failed to save preview image: ${e.message}")
+        }
+    }
+
+    private fun restoreLastImages() {
+        // Restore source image
+        try {
+            val sourceFile = requireContext().getFileStreamPath(LAST_SOURCE_FILENAME)
+            if (sourceFile.exists()) {
+                requireContext().openFileInput(LAST_SOURCE_FILENAME).use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
                     if (bitmap != null) {
-                        displayImage(bitmap)
-                        println("Restored last generated image from internal storage")
+                        sourceImageBitmap = bitmap
+                        sourceImageView.setImageBitmap(bitmap)
+                        sourcePlaceholderIcon.visibility = View.GONE
                     }
                 }
             }
         } catch (e: Exception) {
-            println("Failed to restore last generated image: ${e.message}")
+            println("Failed to restore source image: ${e.message}")
+        }
+
+        // Restore mask
+        try {
+            val maskFile = requireContext().getFileStreamPath(LAST_MASK_FILENAME)
+            if (maskFile.exists()) {
+                requireContext().openFileInput(LAST_MASK_FILENAME).use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    if (bitmap != null) {
+                        maskBitmap = bitmap
+                        updateMaskOverlay()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            println("Failed to restore mask: ${e.message}")
+        }
+
+        // Restore preview
+        try {
+            val previewFile = requireContext().getFileStreamPath(LAST_PREVIEW_FILENAME)
+            if (previewFile.exists()) {
+                requireContext().openFileInput(LAST_PREVIEW_FILENAME).use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    if (bitmap != null) {
+                        currentPreviewBitmap = bitmap
+                        previewImageView.setImageBitmap(bitmap)
+                        previewPlaceholderIcon.visibility = View.GONE
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            println("Failed to restore preview: ${e.message}")
         }
     }
 
@@ -844,7 +1120,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     private fun saveToGallery() {
-        val bitmap = currentBitmap ?: return
+        val bitmap = currentPreviewBitmap ?: return
 
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.png")
@@ -860,7 +1136,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 }
                 Toast.makeText(requireContext(), "Image stored in gallery", Toast.LENGTH_SHORT).show()
             } catch (e: IOException) {
-                println("Failed to save to gallery: ${e.message}")
                 Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
             }
         }
@@ -872,20 +1147,19 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     private fun saveImageToUri(uri: Uri) {
-        val bitmap = currentBitmap ?: return
+        val bitmap = currentPreviewBitmap ?: return
 
         try {
             requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             }
         } catch (e: IOException) {
-            println("Failed to save image: ${e.message}")
             Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun shareImage() {
-        val bitmap = currentBitmap ?: return
+        val bitmap = currentPreviewBitmap ?: return
 
         val cachePath = requireContext().cacheDir
         val filename = "share_image_${System.currentTimeMillis()}.png"
@@ -910,16 +1184,11 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
             startActivity(Intent.createChooser(shareIntent, "Share image"))
         } catch (e: Exception) {
-            println("Failed to share image: ${e.message}")
             Toast.makeText(requireContext(), "Failed to share image", Toast.LENGTH_SHORT).show()
         }
     }
 
-    /**
-     * Setup listeners to auto-save configuration when values change
-     */
     private fun setupAutoSaveListeners() {
-        // Prompt text changes
         promptInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -928,203 +1197,91 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             }
         })
 
-        // Checkpoint mode listeners
         workflowDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
         checkpointDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
-        widthInput.addTextChangedListener(object : android.text.TextWatcher {
+        megapixelsInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveConfiguration()
-            }
-        })
-        heightInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveConfiguration()
-            }
+            override fun afterTextChanged(s: android.text.Editable?) { saveConfiguration() }
         })
         stepsInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveConfiguration()
-            }
+            override fun afterTextChanged(s: android.text.Editable?) { saveConfiguration() }
         })
 
-        // UNET mode listeners
         unetWorkflowDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
         unetDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
         vaeDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
         clipDropdown.setOnItemClickListener { _, _, _, _ -> saveConfiguration() }
-        unetWidthInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveConfiguration()
-            }
-        })
-        unetHeightInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveConfiguration()
-            }
-        })
         unetStepsInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveConfiguration()
-            }
+            override fun afterTextChanged(s: android.text.Editable?) { saveConfiguration() }
         })
     }
 
-    /**
-     * Save current configuration to SharedPreferences
-     * Called when configuration values change
-     */
     private fun saveConfiguration() {
-        // Don't save during initialization to avoid overwriting saved values
-        if (isLoadingConfiguration) {
-            println("Skipping save during configuration load")
-            return
-        }
+        if (isLoadingConfiguration) return
 
         try {
             val prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().apply {
-                // Save mode
                 putBoolean(PREF_IS_CHECKPOINT_MODE, isCheckpointMode)
+                putString(PREF_PROMPT, promptInput.text.toString())
 
-                // Save prompt
-                val prompt = promptInput.text.toString()
-                putString(PREF_PROMPT, prompt)
+                putString(PREF_CHECKPOINT_WORKFLOW, workflowDropdown.text.toString())
+                putString(PREF_CHECKPOINT_MODEL, checkpointDropdown.text.toString())
+                putString(PREF_CHECKPOINT_MEGAPIXELS, megapixelsInput.text.toString())
+                putString(PREF_CHECKPOINT_STEPS, stepsInput.text.toString())
 
-                // Save checkpoint mode configuration
-                val checkpointWorkflow = workflowDropdown.text.toString()
-                val checkpointModel = checkpointDropdown.text.toString()
-                val checkpointWidth = widthInput.text.toString()
-                val checkpointHeight = heightInput.text.toString()
-                val checkpointSteps = stepsInput.text.toString()
-
-                putString(PREF_CHECKPOINT_WORKFLOW, checkpointWorkflow)
-                putString(PREF_CHECKPOINT_MODEL, checkpointModel)
-                putString(PREF_CHECKPOINT_WIDTH, checkpointWidth)
-                putString(PREF_CHECKPOINT_HEIGHT, checkpointHeight)
-                putString(PREF_CHECKPOINT_STEPS, checkpointSteps)
-
-                // Save UNET mode configuration
-                val unetWorkflow = unetWorkflowDropdown.text.toString()
-                val unetModel = unetDropdown.text.toString()
-                val unetVAE = vaeDropdown.text.toString()
-                val unetCLIP = clipDropdown.text.toString()
-                val unetWidth = unetWidthInput.text.toString()
-                val unetHeight = unetHeightInput.text.toString()
-                val unetSteps = unetStepsInput.text.toString()
-
-                putString(PREF_UNET_WORKFLOW, unetWorkflow)
-                putString(PREF_UNET_MODEL, unetModel)
-                putString(PREF_UNET_VAE, unetVAE)
-                putString(PREF_UNET_CLIP, unetCLIP)
-                putString(PREF_UNET_WIDTH, unetWidth)
-                putString(PREF_UNET_HEIGHT, unetHeight)
-                putString(PREF_UNET_STEPS, unetSteps)
+                putString(PREF_UNET_WORKFLOW, unetWorkflowDropdown.text.toString())
+                putString(PREF_UNET_MODEL, unetDropdown.text.toString())
+                putString(PREF_UNET_VAE, vaeDropdown.text.toString())
+                putString(PREF_UNET_CLIP, clipDropdown.text.toString())
+                putString(PREF_UNET_STEPS, unetStepsInput.text.toString())
 
                 apply()
             }
-
-            println("Configuration saved successfully")
         } catch (e: Exception) {
             println("Failed to save configuration: ${e.message}")
-            e.printStackTrace()
         }
     }
 
-    /**
-     * Load saved configuration from SharedPreferences
-     * Called when fragment is created to restore previous configuration
-     */
     private fun loadConfiguration() {
-        // Set flag to prevent auto-save during load
         isLoadingConfiguration = true
 
         try {
             val prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-            println("Loading configuration from SharedPreferences...")
-
-            // Restore mode
             val savedMode = prefs.getBoolean(PREF_IS_CHECKPOINT_MODE, true)
             isCheckpointMode = savedMode
-            println("Loaded mode: $savedMode (checkpoint=$isCheckpointMode)")
 
-            // Update toggle to reflect saved mode
             if (savedMode) {
                 configModeToggle.check(R.id.checkpointModeButton)
             } else {
                 configModeToggle.check(R.id.unetModeButton)
             }
 
-            // Restore prompt
-            val savedPrompt = prefs.getString(PREF_PROMPT, "")
-            if (!savedPrompt.isNullOrEmpty()) {
-                promptInput.setText(savedPrompt)
-                println("Loaded prompt: $savedPrompt")
+            prefs.getString(PREF_PROMPT, "")?.let {
+                if (it.isNotEmpty()) promptInput.setText(it)
             }
 
-            // Restore workflow and parameters (models will be restored after server data arrives)
-            prefs.getString(PREF_CHECKPOINT_WORKFLOW, null)?.let {
-                workflowDropdown.setText(it, false)
-                println("Loaded checkpoint workflow: $it")
-            }
-            prefs.getString(PREF_CHECKPOINT_WIDTH, null)?.let {
-                widthInput.setText(it)
-                println("Loaded checkpoint width: $it")
-            }
-            prefs.getString(PREF_CHECKPOINT_HEIGHT, null)?.let {
-                heightInput.setText(it)
-                println("Loaded checkpoint height: $it")
-            }
-            prefs.getString(PREF_CHECKPOINT_STEPS, null)?.let {
-                stepsInput.setText(it)
-                println("Loaded checkpoint steps: $it")
-            }
+            prefs.getString(PREF_CHECKPOINT_WORKFLOW, null)?.let { workflowDropdown.setText(it, false) }
+            prefs.getString(PREF_CHECKPOINT_MEGAPIXELS, null)?.let { megapixelsInput.setText(it) }
+            prefs.getString(PREF_CHECKPOINT_STEPS, null)?.let { stepsInput.setText(it) }
 
-            prefs.getString(PREF_UNET_WORKFLOW, null)?.let {
-                unetWorkflowDropdown.setText(it, false)
-                println("Loaded UNET workflow: $it")
-            }
-            prefs.getString(PREF_UNET_WIDTH, null)?.let {
-                unetWidthInput.setText(it)
-                println("Loaded UNET width: $it")
-            }
-            prefs.getString(PREF_UNET_HEIGHT, null)?.let {
-                unetHeightInput.setText(it)
-                println("Loaded UNET height: $it")
-            }
-            prefs.getString(PREF_UNET_STEPS, null)?.let {
-                unetStepsInput.setText(it)
-                println("Loaded UNET steps: $it")
-            }
-
-            println("Configuration loading completed")
+            prefs.getString(PREF_UNET_WORKFLOW, null)?.let { unetWorkflowDropdown.setText(it, false) }
+            prefs.getString(PREF_UNET_STEPS, null)?.let { unetStepsInput.setText(it) }
         } catch (e: Exception) {
             println("Failed to load configuration: ${e.message}")
-            e.printStackTrace()
         } finally {
-            // Clear the flag after a short delay to allow UI to settle
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 isLoadingConfiguration = false
-                println("Configuration loading flag cleared - auto-save now enabled")
             }, 500)
         }
     }
 
-    /**
-     * Restore checkpoint model selection after server data is loaded
-     */
     private fun restoreCheckpointConfiguration() {
         isLoadingConfiguration = true
         try {
@@ -1132,7 +1289,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             prefs.getString(PREF_CHECKPOINT_MODEL, null)?.let { savedModel ->
                 if (availableCheckpoints.contains(savedModel)) {
                     checkpointDropdown.setText(savedModel, false)
-                    println("Restored checkpoint model: $savedModel")
                 }
             }
         } finally {
@@ -1142,9 +1298,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
-    /**
-     * Restore UNET model selection after server data is loaded
-     */
     private fun restoreUNETConfiguration() {
         isLoadingConfiguration = true
         try {
@@ -1152,7 +1305,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             prefs.getString(PREF_UNET_MODEL, null)?.let { savedModel ->
                 if (availableUNETs.contains(savedModel)) {
                     unetDropdown.setText(savedModel, false)
-                    println("Restored UNET model: $savedModel")
                 }
             }
         } finally {
@@ -1162,9 +1314,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
-    /**
-     * Restore VAE selection after server data is loaded
-     */
     private fun restoreVAEConfiguration() {
         isLoadingConfiguration = true
         try {
@@ -1172,7 +1321,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             prefs.getString(PREF_UNET_VAE, null)?.let { savedVAE ->
                 if (availableVAEs.contains(savedVAE)) {
                     vaeDropdown.setText(savedVAE, false)
-                    println("Restored VAE: $savedVAE")
                 }
             }
         } finally {
@@ -1182,9 +1330,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
-    /**
-     * Restore CLIP selection after server data is loaded
-     */
     private fun restoreCLIPConfiguration() {
         isLoadingConfiguration = true
         try {
@@ -1192,7 +1337,6 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             prefs.getString(PREF_UNET_CLIP, null)?.let { savedCLIP ->
                 if (availableCLIPs.contains(savedCLIP)) {
                     clipDropdown.setText(savedCLIP, false)
-                    println("Restored CLIP: $savedCLIP")
                 }
             }
         } finally {
@@ -1204,14 +1348,8 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // Save configuration before destroying view
         saveConfiguration()
-
-        // Don't shutdown the client - it's managed by the activity
         configBottomSheet?.dismiss()
-        // Don't recycle bitmap - it's persisted to storage and will be restored
-        // Just clear the reference
-        currentBitmap = null
+        currentPreviewBitmap = null
     }
 }
-

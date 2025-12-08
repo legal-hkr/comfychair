@@ -3,6 +3,7 @@ package sh.hnet.comfychair
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -857,6 +858,78 @@ class ComfyUIClient(
                     } else {
                         println("Server returned error when clearing history: ${response.code}")
                         callback(false)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Upload an image to the ComfyUI server input folder
+     * Used for inpainting to upload the source image with mask
+     *
+     * @param imageData The PNG image data as byte array
+     * @param filename The desired filename for the uploaded image
+     * @param subfolder The subfolder to upload to (default empty = root input folder)
+     * @param overwrite Whether to overwrite existing file (default true)
+     * @param callback Called with the result:
+     *                 - success: true if uploaded successfully
+     *                 - filename: The actual filename saved on the server
+     *                 - errorMessage: error message if failed
+     */
+    fun uploadImage(
+        imageData: ByteArray,
+        filename: String,
+        subfolder: String = "",
+        overwrite: Boolean = true,
+        callback: (success: Boolean, filename: String?, errorMessage: String?) -> Unit
+    ) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false, null, "No connection to server")
+            return
+        }
+
+        val url = "$baseUrl/upload/image"
+
+        // Build multipart form data request
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "image",
+                filename,
+                imageData.toRequestBody("image/png".toMediaType())
+            )
+            .addFormDataPart("subfolder", subfolder)
+            .addFormDataPart("overwrite", overwrite.toString())
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to upload image: ${e.message}")
+                callback(false, null, "Upload failed: ${e.message}")
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val json = JSONObject(response.body?.string() ?: "{}")
+                            val savedFilename = json.optString("name", filename)
+                            println("Image uploaded successfully: $savedFilename")
+                            callback(true, savedFilename, null)
+                        } catch (e: Exception) {
+                            println("Failed to parse upload response: ${e.message}")
+                            callback(false, null, "Failed to parse response: ${e.message}")
+                        }
+                    } else {
+                        val errorBody = response.body?.string() ?: "Unknown error"
+                        println("Server returned error when uploading: ${response.code} - $errorBody")
+                        callback(false, null, "Server error: ${response.code}")
                     }
                 }
             }

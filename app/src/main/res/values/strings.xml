@@ -46,12 +46,12 @@
 
     <!-- Navigation strings -->
     <string name="nav_text_to_image">Text to image</string>
+    <string name="nav_inpainting">Inpainting</string>
     <string name="nav_gallery">Gallery</string>
 
     <!-- Configuration mode strings -->
     <string name="checkpoint_mode">Checkpoint</string>
     <string name="unet_mode">UNET</string>
-    <string name="unet_placeholder">UNET configuration coming soon...</string>
 
     <!-- Configuration fragment strings -->
     <string name="configuration_title">Configuration</string>
@@ -69,4 +69,19 @@
     <string name="queue_cleared_failed">Failed to clear queue</string>
     <string name="history_cleared_success">History cleared successfully</string>
     <string name="history_cleared_failed">Failed to clear history</string>
+
+    <!-- Inpainting fragment strings -->
+    <string name="inpainting_title">Inpainting</string>
+    <string name="source_image_tab">Source image</string>
+    <string name="preview_tab">Preview</string>
+    <string name="megapixels_label">Megapixels</string>
+    <string name="default_megapixels">1.0</string>
+    <string name="source_image_title">Source image</string>
+    <string name="upload_source_image">Upload source image</string>
+    <string name="edit_mask">Edit mask</string>
+    <string name="clear_mask">Clear mask</string>
+    <string name="long_press_hint">Long press for options</string>
+    <string name="no_source_image">No source image selected</string>
+    <string name="mask_editor_title">Mask editor</string>
+    <string name="done">Done</string>
 </resources>

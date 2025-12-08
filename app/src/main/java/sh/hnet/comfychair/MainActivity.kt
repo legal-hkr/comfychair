@@ -342,11 +342,10 @@ class MainActivity : AppCompatActivity() {
             /**
              * Called when a text message is received from the server
              * ComfyUI sends JSON messages with progress updates and events
+             * Note: Actual message handling is done in MainContainerActivity after login
              */
             override fun onMessage(webSocket: WebSocket, text: String) {
-                println("WebSocket message received: $text")
-                // TODO: Parse and handle ComfyUI messages
-                // Messages include: execution progress, queue updates, etc.
+                println("WebSocket connection test - message received")
             }
 
             /**

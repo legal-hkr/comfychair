@@ -61,7 +61,8 @@
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/imageCard"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:layout_gravity="center"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp">
@@ -125,7 +126,7 @@
                 android:layout_marginTop="8dp"
                 android:text="Tap image to view, long press to save"
                 android:textSize="12sp"
-                android:visibility="gone"
+                android:visibility="visible"
                 android:alpha="0.7" />
 
         </LinearLayout>
