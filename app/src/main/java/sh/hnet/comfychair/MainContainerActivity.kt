@@ -33,6 +33,13 @@ class MainContainerActivity : AppCompatActivity() {
     private var isConnectionReady = false
     private val connectionReadyListeners = mutableListOf<() -> Unit>()
 
+    // WebSocket state tracking
+    private var isWebSocketConnected = false
+    private val reconnectHandler = Handler(Looper.getMainLooper())
+    private val keepaliveHandler = Handler(Looper.getMainLooper())
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 5
+
     // Generation state
     private var isGenerating = false
     private var currentPromptId: String? = null
@@ -167,6 +174,10 @@ class MainContainerActivity : AppCompatActivity() {
         val webSocketListener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 println("MainContainerActivity: WebSocket connected")
+                isWebSocketConnected = true
+                reconnectAttempts = 0
+                // Start keepalive ping mechanism
+                startKeepalive()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -243,17 +254,32 @@ class MainContainerActivity : AppCompatActivity() {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 println("MainContainerActivity: WebSocket failed: ${t.message}")
+                isWebSocketConnected = false
+                stopKeepalive()
+
                 runOnUiThread {
                     if (isGenerating) {
                         resetGenerationState()
                         generationStateListener?.onGenerationError("Connection lost during generation")
                         Toast.makeText(this@MainContainerActivity, "Connection lost during generation", Toast.LENGTH_LONG).show()
                     }
+
+                    // Attempt to reconnect
+                    scheduleReconnect()
                 }
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 println("MainContainerActivity: WebSocket closed: $code - $reason")
+                isWebSocketConnected = false
+                stopKeepalive()
+
+                // Attempt to reconnect if not a normal closure
+                if (code != 1000) {
+                    runOnUiThread {
+                        scheduleReconnect()
+                    }
+                }
             }
         }
 
@@ -265,6 +291,34 @@ class MainContainerActivity : AppCompatActivity() {
      * Called by TextToImageFragment
      */
     fun startGeneration(workflowJson: String, callback: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit) {
+        // Verify WebSocket is connected before starting generation
+        if (!isWebSocketConnected) {
+            println("MainContainerActivity: WebSocket not connected, attempting to reconnect...")
+            Toast.makeText(this, "Reconnecting to server...", Toast.LENGTH_SHORT).show()
+
+            // Try to reconnect immediately
+            reconnectWebSocket()
+
+            // Wait a bit for reconnection, then try submission
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (isWebSocketConnected) {
+                    submitWorkflow(workflowJson, callback)
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this@MainContainerActivity, "Connection lost. Please try again.", Toast.LENGTH_LONG).show()
+                        callback(false, null, "WebSocket not connected")
+                    }
+                }
+            }, 2000)
+        } else {
+            submitWorkflow(workflowJson, callback)
+        }
+    }
+
+    /**
+     * Submit workflow to server (internal method)
+     */
+    private fun submitWorkflow(workflowJson: String, callback: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit) {
         comfyUIClient.submitPrompt(workflowJson) { success, promptId, errorMessage ->
             runOnUiThread {
                 if (success && promptId != null) {
@@ -381,8 +435,90 @@ class MainContainerActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Start keepalive ping mechanism
+     * Sends a ping every 30 seconds to keep WebSocket connection alive
+     */
+    private fun startKeepalive() {
+        stopKeepalive() // Clear any existing keepalive
+
+        val keepaliveRunnable = object : Runnable {
+            override fun run() {
+                if (isWebSocketConnected) {
+                    // Send ping to keep connection alive
+                    val pingSuccess = comfyUIClient.sendWebSocketMessage("{\"type\":\"ping\"}")
+                    if (!pingSuccess) {
+                        println("MainContainerActivity: Failed to send keepalive ping")
+                    }
+                    // Schedule next ping in 30 seconds
+                    keepaliveHandler.postDelayed(this, 30000)
+                }
+            }
+        }
+
+        // Start first ping after 30 seconds
+        keepaliveHandler.postDelayed(keepaliveRunnable, 30000)
+    }
+
+    /**
+     * Stop keepalive ping mechanism
+     */
+    private fun stopKeepalive() {
+        keepaliveHandler.removeCallbacksAndMessages(null)
+    }
+
+    /**
+     * Schedule WebSocket reconnection with exponential backoff
+     */
+    private fun scheduleReconnect() {
+        // Don't reconnect if we've exceeded max attempts
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            println("MainContainerActivity: Max reconnection attempts reached")
+            Toast.makeText(this, "Connection lost. Please restart the app.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        // Cancel any pending reconnection attempts
+        reconnectHandler.removeCallbacksAndMessages(null)
+
+        // Calculate delay with exponential backoff: 2^attempts seconds
+        val delayMs = (Math.pow(2.0, reconnectAttempts.toDouble()) * 1000).toLong()
+        reconnectAttempts++
+
+        println("MainContainerActivity: Scheduling reconnection attempt $reconnectAttempts in ${delayMs}ms")
+
+        reconnectHandler.postDelayed({
+            reconnectWebSocket()
+        }, delayMs)
+    }
+
+    /**
+     * Reconnect WebSocket connection
+     */
+    private fun reconnectWebSocket() {
+        println("MainContainerActivity: Attempting to reconnect WebSocket...")
+
+        // Close existing connection if any
+        comfyUIClient.closeWebSocket()
+
+        // Test connection and reopen WebSocket
+        comfyUIClient.testConnection { success, errorMessage, _ ->
+            if (success) {
+                runOnUiThread {
+                    openWebSocketConnection()
+                    println("MainContainerActivity: WebSocket reconnected successfully")
+                }
+            } else {
+                println("MainContainerActivity: Reconnection failed: $errorMessage")
+                // Will retry via scheduleReconnect if needed
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        stopKeepalive()
+        reconnectHandler.removeCallbacksAndMessages(null)
         comfyUIClient.shutdown()
     }
 

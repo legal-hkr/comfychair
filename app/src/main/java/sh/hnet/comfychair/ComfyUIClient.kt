@@ -11,6 +11,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
 import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
@@ -45,7 +46,10 @@ class ComfyUIClient(
 
     // Client ID for tracking WebSocket messages
     // This must match the client_id used when submitting prompts
-    private val clientId = "comfychair_android"
+    // Generate a unique ID for each client instance to support multiple concurrent users
+    private val clientId = "comfychair_android_${UUID.randomUUID()}".also {
+        println("ComfyUIClient: Generated unique client ID: $it")
+    }
 
     /**
      * Test connection to the ComfyUI server
