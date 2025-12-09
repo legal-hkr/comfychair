@@ -265,6 +265,14 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         updateProgress(current, max)
     }
 
+    override fun onPreviewImage(bitmap: Bitmap) {
+        // Display preview image during generation
+        if (isAdded && view != null) {
+            imagePreview.setImageBitmap(bitmap)
+            placeholderIcon.visibility = View.GONE
+        }
+    }
+
     override fun onImageGenerated(promptId: String) {
         println("TextToImageFragment: Image generated for prompt: $promptId")
         // Only fetch if fragment is still added and view is created
@@ -620,6 +628,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         if (!validateConfiguration()) {
             return
         }
+
+        // Clear preview image before starting generation
+        imagePreview.setImageDrawable(null)
+        placeholderIcon.visibility = View.VISIBLE
 
         val prompt = promptInput.text.toString()
 

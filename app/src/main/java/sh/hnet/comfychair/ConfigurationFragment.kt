@@ -1,5 +1,6 @@
 package sh.hnet.comfychair
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -25,6 +26,8 @@ class ConfigurationFragment : Fragment() {
     private lateinit var systemStatsValue: TextView
     private lateinit var clearQueueButton: Button
     private lateinit var clearHistoryButton: Button
+    private lateinit var clearCacheButton: Button
+    private lateinit var restoreDefaultsButton: Button
 
     // ComfyUI client
     private lateinit var comfyUIClient: ComfyUIClient
@@ -96,6 +99,8 @@ class ConfigurationFragment : Fragment() {
         systemStatsValue = view.findViewById(R.id.systemStatsValue)
         clearQueueButton = view.findViewById(R.id.clearQueueButton)
         clearHistoryButton = view.findViewById(R.id.clearHistoryButton)
+        clearCacheButton = view.findViewById(R.id.clearCacheButton)
+        restoreDefaultsButton = view.findViewById(R.id.restoreDefaultsButton)
 
         setupTopAppBar()
     }
@@ -200,6 +205,14 @@ class ConfigurationFragment : Fragment() {
         clearHistoryButton.setOnClickListener {
             clearHistory()
         }
+
+        clearCacheButton.setOnClickListener {
+            clearCache()
+        }
+
+        restoreDefaultsButton.setOnClickListener {
+            restoreDefaults()
+        }
     }
 
     private fun clearQueue() {
@@ -244,6 +257,57 @@ class ConfigurationFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun clearCache() {
+        // List of cached image files to delete
+        val cachedFiles = listOf(
+            "last_generated_image.png",           // TextToImageFragment
+            "inpainting_last_preview.png",        // InpaintingFragment preview
+            "inpainting_last_source.png",         // InpaintingFragment source
+            "inpainting_last_mask.png"            // InpaintingFragment mask
+        )
+
+        // Delete each cached file
+        cachedFiles.forEach { filename ->
+            try {
+                requireContext().deleteFile(filename)
+            } catch (e: Exception) {
+                println("Failed to delete $filename: ${e.message}")
+            }
+        }
+
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.cache_cleared_success),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun restoreDefaults() {
+        // List of SharedPreferences to clear
+        val prefsToDelete = listOf(
+            "TextToImageFragmentPrefs",
+            "InpaintingFragmentPrefs"
+        )
+
+        // Delete each SharedPreferences file
+        prefsToDelete.forEach { prefsName ->
+            try {
+                requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+                    .edit()
+                    .clear()
+                    .apply()
+            } catch (e: Exception) {
+                println("Failed to clear $prefsName: ${e.message}")
+            }
+        }
+
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.defaults_restored_success),
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     override fun onDestroyView() {

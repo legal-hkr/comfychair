@@ -73,7 +73,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:background="@drawable/placeholder_image"
                     android:contentDescription="@string/placeholder_image_description" />
 
                 <!-- Placeholder icon (shown initially) -->

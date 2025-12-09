@@ -265,6 +265,14 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         updateProgress(current, max)
     }
 
+    override fun onPreviewImage(bitmap: Bitmap) {
+        // Display preview image during generation
+        if (isAdded && view != null) {
+            previewImageView.setImageBitmap(bitmap)
+            previewPlaceholderIcon.visibility = View.GONE
+        }
+    }
+
     override fun onImageGenerated(promptId: String) {
         println("InpaintingFragment: Image generated for prompt: $promptId")
         if (isAdded && view != null) {

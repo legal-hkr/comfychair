@@ -76,6 +76,14 @@
     <string name="history_cleared_failed">Failed to clear history</string>
     <string name="history_item_deleted_success">Item deleted successfully</string>
     <string name="history_item_deleted_failed">Failed to delete item</string>
+    <string name="cache_cleared_success">Cache cleared successfully</string>
+    <string name="defaults_restored_success">Defaults restored successfully</string>
+
+    <!-- App management strings -->
+    <string name="app_management_title">App management</string>
+    <string name="app_management_description">Manage local app data and settings</string>
+    <string name="clear_cache_button">Clear cache</string>
+    <string name="restore_defaults_button">Restore defaults</string>
 
     <!-- Gallery item strings -->
     <string name="delete_history_item">Delete from history</string>

@@ -2,6 +2,7 @@ package sh.hnet.comfychair
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +15,7 @@ import android.widget.Toast
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString
 import org.json.JSONObject
 
 /**
@@ -53,6 +55,7 @@ class MainContainerActivity : AppCompatActivity() {
     interface GenerationStateListener {
         fun onGenerationStateChanged(isGenerating: Boolean, promptId: String?)
         fun onProgressUpdate(current: Int, max: Int)
+        fun onPreviewImage(bitmap: Bitmap)
         fun onImageGenerated(promptId: String)
         fun onGenerationError(message: String)
     }
@@ -253,6 +256,26 @@ class MainContainerActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     println("MainContainerActivity: Failed to parse WebSocket message: ${e.message}")
                     e.printStackTrace()
+                }
+            }
+
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                // Binary messages contain preview images
+                // Format: 8 bytes header + PNG image data
+                if (bytes.size > 8 && isGenerating) {
+                    try {
+                        // Skip the 8-byte header and decode the PNG image
+                        val pngBytes = bytes.substring(8).toByteArray()
+                        val bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
+
+                        if (bitmap != null) {
+                            runOnUiThread {
+                                generationStateListener?.onPreviewImage(bitmap)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        println("MainContainerActivity: Failed to decode preview image: ${e.message}")
+                    }
                 }
             }
 
