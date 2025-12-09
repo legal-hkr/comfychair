@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.2.0
+**Current version**: v0.2.1
 
 ## Overview
 
@@ -10,7 +10,18 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png"  width="200"/> <img src="screenshots/progressbar.png" width="200"/> <img src="screenshots/settings-checkpoint.png" width="200"/> <img src="screenshots/settings-unet.png" width="200"/> <img src="screenshots/texttoimage-contextmenu.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-sourceimage.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/>  <img src="screenshots/configuration.png" width="200"/> <img src="screenshots/error.png" width="200"/>
+<img src="screenshots/login.png" width="200"/>
+<img src="screenshots/texttoimage.png" width="200"/>
+<img src="screenshots/settings-checkpoint.png" width="200"/>
+<img src="screenshots/settings-unet.png" width="200"/>
+<img src="screenshots/texttoimage-livepreview.png" width="200"/>
+<img src="screenshots/texttoimage-contextmenu.png" width="200"/>
+<img src="screenshots/inpainting-maskeditor.png" width="200"/>
+<img src="screenshots/inpainting-sourceimage.png" width="200"/>
+<img src="screenshots/inpainting-preview.png" width="200"/>
+<img src="screenshots/gallery.png" width="200"/>
+<img src="screenshots/configuration.png" width="200"/>
+<img src="screenshots/error.png" width="200"/>
 
 ## Features
 
@@ -19,32 +30,35 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - **Checkpoint mode**: Traditional CheckpointLoaderSimple workflows
   - **UNET mode**: Modern diffusion workflows (Flux, Z-Image, etc.) with separate UNET, VAE, and CLIP model selection
 - **Text-to-image generation**:
-  - Mobile-optimized interface with real-time progress tracking
-  - Visual progress bar overlay at bottom of image preview
+  - Mobile-optimized interface
   - Cancel generation at any time with one-tap interrupt
   - WebSocket-based live updates showing step-by-step progress
+  - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
 - **Inpainting**:
-  - Upload source images for selective regeneration
+  - Upload source images for selective inpainting
   - Intuitive mask painting with adjustable brush size
   - Mask inversion and clearing tools
   - Feathered mask edges for smooth blending
   - Megapixels-based sizing for checkpoint workflows
-  - Real-time preview of inpainted results
+  - WebSocket-based live updates showing step-by-step progress
+  - Live preview images during generation (when supported by server)
+  - Error notifications via Toast messages
 - **Image preview**:
-  - Persistent image display across app sessions
-  - App logo placeholder when no image is present
   - Tap to view fullscreen with pinch-to-zoom
   - Long press for save/share options
 - **Image gallery**:
   - View all generated images with 2-column grid layout
   - Pull-to-refresh to update gallery
-  - Newest images first
+  - Delete individual images from server history
 - **Image management**: Save to device gallery (Pictures/ComfyChair), save as file, or share images
 - **Server configuration**:
   - View detailed server information (ComfyUI version, OS, Python, PyTorch versions)
   - Monitor hardware resources (RAM and GPU VRAM usage with free/total display)
   - Server management actions (clear queue, clear history)
+- **App management**:
+  - Clear local cache (generated images, source images, masks)
+  - Restore default settings
 - **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters for both modes
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
 - **Native Android experience**: Built with Kotlin and Material Design 3
@@ -142,10 +156,10 @@ app/src/main/
 │   │   ├── item_gallery_thumbnail.xml     # Gallery thumbnail item
 │   │   └── dialog_fullscreen_image.xml    # Fullscreen image viewer
 │   ├── raw/                         # Workflow JSON files
-│   │   ├── checkpoint_default.json  # Default checkpoint workflow
-│   │   ├── unet_zimage.json         # Z-Image UNET workflow
-│   │   ├── i_checkpoint_default.json  # Default inpainting checkpoint workflow
-│   │   └── i_unet_zimage.json       # Z-Image inpainting UNET workflow
+│   │   ├── tti_checkpoint_default.json  # Default text to image checkpoint workflow
+│   │   ├── tti_unet_zimage.json         # Z-Image text to image UNET workflow
+│   │   ├── iip_checkpoint_default.json  # Default inpainting checkpoint workflow
+│   │   └── iip_unet_zimage.json         # Z-Image inpainting UNET workflow
 │   ├── values/                      # Strings, themes, colors
 │   ├── drawable/                    # Icons and graphics
 │   └── xml/                         # Backup rules, file provider paths
