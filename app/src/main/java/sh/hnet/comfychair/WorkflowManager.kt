@@ -136,6 +136,24 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
+     * Escape special characters in a string for safe JSON insertion
+     * This ensures prompts with special characters don't break the workflow JSON
+     *
+     * @param input The string to escape
+     * @return The escaped string safe for JSON
+     */
+    private fun escapeForJson(input: String): String {
+        return input
+            .replace("\\", "\\\\")  // Backslash must be first
+            .replace("\"", "\\\"")  // Double quote
+            .replace("\n", "\\n")   // Newline
+            .replace("\r", "\\r")   // Carriage return
+            .replace("\t", "\\t")   // Tab
+            .replace("\b", "\\b")   // Backspace
+            .replace("\u000C", "\\f") // Form feed
+    }
+
+    /**
      * Prepare workflow JSON with actual parameter values
      * Replaces template variables like {{prompt}}, {{width}}, etc.
      *
@@ -166,9 +184,12 @@ class WorkflowManager(private val context: Context) {
         // Generate a random seed for each image generation
         val randomSeed = (0..999999999999).random()
 
+        // Escape special characters in prompt for safe JSON insertion
+        val escapedPrompt = escapeForJson(prompt)
+
         // Replace template variables with actual values
         var processedJson = workflow.jsonContent
-        processedJson = processedJson.replace("{{prompt}}", prompt)
+        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
         processedJson = processedJson.replace("{{checkpoint}}", checkpoint)
         processedJson = processedJson.replace("{{unet_name}}", unet)
         processedJson = processedJson.replace("{{vae_name}}", vae)
@@ -213,9 +234,12 @@ class WorkflowManager(private val context: Context) {
         // Generate a random seed for each image generation
         val randomSeed = (0..999999999999).random()
 
+        // Escape special characters in prompt for safe JSON insertion
+        val escapedPrompt = escapeForJson(prompt)
+
         // Replace template variables with actual values
         var processedJson = workflow.jsonContent
-        processedJson = processedJson.replace("{{prompt}}", prompt)
+        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
         processedJson = processedJson.replace("{{checkpoint}}", checkpoint)
         processedJson = processedJson.replace("{{unet_name}}", unet)
         processedJson = processedJson.replace("{{vae_name}}", vae)

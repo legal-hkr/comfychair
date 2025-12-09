@@ -72,12 +72,17 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
     private lateinit var checkpointDropdown: AutoCompleteTextView
     private lateinit var megapixelsInput: TextInputEditText
     private lateinit var stepsInput: TextInputEditText
+    // Checkpoint mode TextInputLayout wrappers for validation
+    private lateinit var megapixelsInputLayout: com.google.android.material.textfield.TextInputLayout
+    private lateinit var stepsInputLayout: com.google.android.material.textfield.TextInputLayout
     // UNET mode UI elements
     private lateinit var unetWorkflowDropdown: AutoCompleteTextView
     private lateinit var unetDropdown: AutoCompleteTextView
     private lateinit var vaeDropdown: AutoCompleteTextView
     private lateinit var clipDropdown: AutoCompleteTextView
     private lateinit var unetStepsInput: TextInputEditText
+    // UNET mode TextInputLayout wrappers for validation
+    private lateinit var unetStepsInputLayout: com.google.android.material.textfield.TextInputLayout
 
     // Workflow manager
     private lateinit var workflowManager: WorkflowManager
@@ -339,6 +344,9 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         checkpointDropdown = bottomSheetView.findViewById(R.id.checkpointDropdown)
         megapixelsInput = bottomSheetView.findViewById(R.id.megapixelsInput)
         stepsInput = bottomSheetView.findViewById(R.id.stepsInput)
+        // Initialize checkpoint mode TextInputLayout wrappers for validation
+        megapixelsInputLayout = bottomSheetView.findViewById(R.id.megapixelsInputLayout)
+        stepsInputLayout = bottomSheetView.findViewById(R.id.stepsInputLayout)
 
         // Initialize UNET mode UI elements
         unetWorkflowDropdown = bottomSheetView.findViewById(R.id.unetWorkflowDropdown)
@@ -346,6 +354,8 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         vaeDropdown = bottomSheetView.findViewById(R.id.vaeDropdown)
         clipDropdown = bottomSheetView.findViewById(R.id.clipDropdown)
         unetStepsInput = bottomSheetView.findViewById(R.id.unetStepsInput)
+        // Initialize UNET mode TextInputLayout wrappers for validation
+        unetStepsInputLayout = bottomSheetView.findViewById(R.id.unetStepsInputLayout)
 
         // Set up segmented button toggle
         configModeToggle = bottomSheetView.findViewById(R.id.configModeToggle)
@@ -372,6 +382,75 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                 }
             }
         }
+
+        // Set up live validation for input fields
+        setupLiveValidation()
+    }
+
+    /**
+     * Set up live input validation for configuration fields
+     * Validates as user types and shows errors in real-time
+     */
+    private fun setupLiveValidation() {
+        // Megapixels validation
+        megapixelsInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val value = s.toString().trim()
+                megapixelsInputLayout.error = when {
+                    value.isEmpty() -> null
+                    else -> {
+                        val floatValue = value.toFloatOrNull()
+                        if (floatValue == null || floatValue < 0.1f || floatValue > 8.3f) {
+                            getString(R.string.error_invalid_megapixels)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+        })
+
+        // Steps validation (checkpoint mode)
+        stepsInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val value = s.toString().trim()
+                stepsInputLayout.error = when {
+                    value.isEmpty() -> null
+                    else -> {
+                        val intValue = value.toIntOrNull()
+                        if (intValue == null || intValue !in 1..255) {
+                            getString(R.string.error_invalid_steps)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+        })
+
+        // Steps validation (UNET mode)
+        unetStepsInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val value = s.toString().trim()
+                unetStepsInputLayout.error = when {
+                    value.isEmpty() -> null
+                    else -> {
+                        val intValue = value.toIntOrNull()
+                        if (intValue == null || intValue !in 1..255) {
+                            getString(R.string.error_invalid_steps)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+        })
     }
 
     private fun showConfigBottomSheet() {
@@ -664,6 +743,48 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         }
     }
 
+    /**
+     * Validate configuration inputs before starting generation
+     * @return true if all inputs are valid, false otherwise
+     */
+    private fun validateConfiguration(): Boolean {
+        var isValid = true
+
+        // Clear previous errors
+        megapixelsInputLayout.error = null
+        stepsInputLayout.error = null
+        unetStepsInputLayout.error = null
+
+        if (isCheckpointMode) {
+            // Validate checkpoint mode fields
+            val megapixels = megapixelsInput.text.toString().toFloatOrNull()
+            if (megapixels == null || megapixels < 0.1f || megapixels > 8.3f) {
+                megapixelsInputLayout.error = getString(R.string.error_invalid_megapixels)
+                isValid = false
+            }
+
+            val steps = stepsInput.text.toString().toIntOrNull()
+            if (steps == null || steps !in 1..255) {
+                stepsInputLayout.error = getString(R.string.error_invalid_steps)
+                isValid = false
+            }
+        } else {
+            // Validate UNET mode fields
+            val steps = unetStepsInput.text.toString().toIntOrNull()
+            if (steps == null || steps !in 1..255) {
+                unetStepsInputLayout.error = getString(R.string.error_invalid_steps)
+                isValid = false
+            }
+        }
+
+        // Show the config bottom sheet if validation failed so user can see errors
+        if (!isValid) {
+            showConfigBottomSheet()
+        }
+
+        return isValid
+    }
+
     private fun startImageGeneration() {
         // Validate inputs
         if (sourceImageBitmap == null) {
@@ -673,6 +794,11 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
 
         if (maskBitmap == null || !hasMaskContent()) {
             Toast.makeText(requireContext(), "Please paint a mask area for inpainting", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Validate configuration before starting
+        if (!validateConfiguration()) {
             return
         }
 

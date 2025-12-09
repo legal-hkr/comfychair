@@ -15,6 +15,11 @@
     <!-- Validation error messages -->
     <string name="error_required">Required</string>
     <string name="error_invalid_port">Invalid port number</string>
+    <string name="error_invalid_hostname">Invalid hostname or IP address</string>
+    <string name="error_invalid_width">Width must be 1-4096</string>
+    <string name="error_invalid_height">Height must be 1-4096</string>
+    <string name="error_invalid_steps">Steps must be 1-255</string>
+    <string name="error_invalid_megapixels">Megapixels must be 0.1-8.3</string>
 
     <!-- SSL certificate warnings -->
     <string name="warning_self_signed_cert">Cannot validate the certificate, connecting anyway</string>

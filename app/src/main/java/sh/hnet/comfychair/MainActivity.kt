@@ -32,6 +32,16 @@ class MainActivity : AppCompatActivity() {
     // TextInputLayout is the wrapper that can display error messages
     private lateinit var hostnameInputLayout: TextInputLayout
     private lateinit var portInputLayout: TextInputLayout
+
+    // Regex patterns for hostname validation
+    // IP address pattern: matches valid IPv4 addresses (0-255 in each octet)
+    private val ipAddressPattern = Regex(
+        "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
+    )
+    // Hostname pattern: matches valid hostnames (alphanumeric with optional hyphens)
+    private val hostnamePattern = Regex(
+        "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$"
+    )
     // TextInputEditText is the actual text input field
     private lateinit var hostnameInput: TextInputEditText
     private lateinit var portInput: TextInputEditText
@@ -110,6 +120,9 @@ class MainActivity : AppCompatActivity() {
         // Set up button click listener
         setupConnectButton()
 
+        // Set up live input validation
+        setupLiveValidation()
+
         // Load saved connection info and auto-connect
         loadSavedConnectionAndAutoConnect()
     }
@@ -140,6 +153,46 @@ class MainActivity : AppCompatActivity() {
                 attemptConnection()
             }
         }
+    }
+
+    /**
+     * Set up live input validation for hostname and port fields
+     * Validates as user types and shows errors in real-time
+     */
+    private fun setupLiveValidation() {
+        // Hostname validation on text change
+        hostnameInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val hostname = s.toString().trim()
+                hostnameInputLayout.error = when {
+                    hostname.isEmpty() -> null // Don't show error for empty field while typing
+                    !isValidHostname(hostname) -> getString(R.string.error_invalid_hostname)
+                    else -> null
+                }
+            }
+        })
+
+        // Port validation on text change
+        portInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val portString = s.toString().trim()
+                portInputLayout.error = when {
+                    portString.isEmpty() -> null // Don't show error for empty field while typing
+                    else -> {
+                        val port = portString.toIntOrNull()
+                        if (port == null || port !in 1..65535) {
+                            getString(R.string.error_invalid_port)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+        })
     }
 
     /**
@@ -201,6 +254,10 @@ class MainActivity : AppCompatActivity() {
             // 3. Show an error icon
             hostnameInputLayout.error = getString(R.string.error_required)
             isValid = false
+        } else if (!isValidHostname(hostname)) {
+            // Hostname doesn't match IP address or hostname pattern
+            hostnameInputLayout.error = getString(R.string.error_invalid_hostname)
+            isValid = false
         }
 
         // Validate port number field
@@ -229,6 +286,15 @@ class MainActivity : AppCompatActivity() {
         // Simulate connection test (replace with actual API call later)
         // We can safely use !! here because we validated the port above
         testConnection(hostname, portString.toInt())
+    }
+
+    /**
+     * Validate hostname against IP address or hostname regex patterns
+     * @param hostname The hostname string to validate
+     * @return true if valid IP address or hostname, false otherwise
+     */
+    private fun isValidHostname(hostname: String): Boolean {
+        return ipAddressPattern.matches(hostname) || hostnamePattern.matches(hostname)
     }
 
     /**

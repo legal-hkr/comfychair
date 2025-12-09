@@ -55,6 +55,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     private lateinit var widthInput: TextInputEditText
     private lateinit var heightInput: TextInputEditText
     private lateinit var stepsInput: TextInputEditText
+    // Checkpoint mode TextInputLayout wrappers for validation
+    private lateinit var widthInputLayout: com.google.android.material.textfield.TextInputLayout
+    private lateinit var heightInputLayout: com.google.android.material.textfield.TextInputLayout
+    private lateinit var stepsInputLayout: com.google.android.material.textfield.TextInputLayout
     // UNET mode UI elements
     private lateinit var unetWorkflowDropdown: AutoCompleteTextView
     private lateinit var unetDropdown: AutoCompleteTextView
@@ -63,6 +67,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
     private lateinit var unetWidthInput: TextInputEditText
     private lateinit var unetHeightInput: TextInputEditText
     private lateinit var unetStepsInput: TextInputEditText
+    // UNET mode TextInputLayout wrappers for validation
+    private lateinit var unetWidthInputLayout: com.google.android.material.textfield.TextInputLayout
+    private lateinit var unetHeightInputLayout: com.google.android.material.textfield.TextInputLayout
+    private lateinit var unetStepsInputLayout: com.google.android.material.textfield.TextInputLayout
 
     // Workflow manager
     private lateinit var workflowManager: WorkflowManager
@@ -306,6 +314,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         widthInput = bottomSheetView.findViewById(R.id.widthInput)
         heightInput = bottomSheetView.findViewById(R.id.heightInput)
         stepsInput = bottomSheetView.findViewById(R.id.stepsInput)
+        // Initialize checkpoint mode TextInputLayout wrappers for validation
+        widthInputLayout = bottomSheetView.findViewById(R.id.widthInputLayout)
+        heightInputLayout = bottomSheetView.findViewById(R.id.heightInputLayout)
+        stepsInputLayout = bottomSheetView.findViewById(R.id.stepsInputLayout)
 
         // Initialize UNET mode UI elements
         unetWorkflowDropdown = bottomSheetView.findViewById(R.id.unetWorkflowDropdown)
@@ -315,6 +327,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         unetWidthInput = bottomSheetView.findViewById(R.id.unetWidthInput)
         unetHeightInput = bottomSheetView.findViewById(R.id.unetHeightInput)
         unetStepsInput = bottomSheetView.findViewById(R.id.unetStepsInput)
+        // Initialize UNET mode TextInputLayout wrappers for validation
+        unetWidthInputLayout = bottomSheetView.findViewById(R.id.unetWidthInputLayout)
+        unetHeightInputLayout = bottomSheetView.findViewById(R.id.unetHeightInputLayout)
+        unetStepsInputLayout = bottomSheetView.findViewById(R.id.unetStepsInputLayout)
 
         // Set up segmented button toggle
         configModeToggle = bottomSheetView.findViewById(R.id.configModeToggle)
@@ -344,6 +360,69 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 }
             }
         }
+
+        // Set up live validation for input fields
+        setupLiveValidation()
+    }
+
+    /**
+     * Set up live input validation for configuration fields
+     * Validates as user types and shows errors in real-time
+     */
+    private fun setupLiveValidation() {
+        // Helper function to validate dimension (width/height)
+        fun validateDimension(input: TextInputEditText, layout: com.google.android.material.textfield.TextInputLayout, errorStringId: Int) {
+            input.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    val value = s.toString().trim()
+                    layout.error = when {
+                        value.isEmpty() -> null
+                        else -> {
+                            val intValue = value.toIntOrNull()
+                            if (intValue == null || intValue !in 1..4096) {
+                                getString(errorStringId)
+                            } else {
+                                null
+                            }
+                        }
+                    }
+                }
+            })
+        }
+
+        // Helper function to validate steps
+        fun validateSteps(input: TextInputEditText, layout: com.google.android.material.textfield.TextInputLayout) {
+            input.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    val value = s.toString().trim()
+                    layout.error = when {
+                        value.isEmpty() -> null
+                        else -> {
+                            val intValue = value.toIntOrNull()
+                            if (intValue == null || intValue !in 1..255) {
+                                getString(R.string.error_invalid_steps)
+                            } else {
+                                null
+                            }
+                        }
+                    }
+                }
+            })
+        }
+
+        // Checkpoint mode validation
+        validateDimension(widthInput, widthInputLayout, R.string.error_invalid_width)
+        validateDimension(heightInput, heightInputLayout, R.string.error_invalid_height)
+        validateSteps(stepsInput, stepsInputLayout)
+
+        // UNET mode validation
+        validateDimension(unetWidthInput, unetWidthInputLayout, R.string.error_invalid_width)
+        validateDimension(unetHeightInput, unetHeightInputLayout, R.string.error_invalid_height)
+        validateSteps(unetStepsInput, unetStepsInputLayout)
     }
 
     private fun showConfigBottomSheet() {
@@ -473,7 +552,75 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         }
     }
 
+    /**
+     * Validate configuration inputs before starting generation
+     * @return true if all inputs are valid, false otherwise
+     */
+    private fun validateConfiguration(): Boolean {
+        var isValid = true
+
+        // Clear previous errors
+        widthInputLayout.error = null
+        heightInputLayout.error = null
+        stepsInputLayout.error = null
+        unetWidthInputLayout.error = null
+        unetHeightInputLayout.error = null
+        unetStepsInputLayout.error = null
+
+        if (isCheckpointMode) {
+            // Validate checkpoint mode fields
+            val width = widthInput.text.toString().toIntOrNull()
+            if (width == null || width !in 1..4096) {
+                widthInputLayout.error = getString(R.string.error_invalid_width)
+                isValid = false
+            }
+
+            val height = heightInput.text.toString().toIntOrNull()
+            if (height == null || height !in 1..4096) {
+                heightInputLayout.error = getString(R.string.error_invalid_height)
+                isValid = false
+            }
+
+            val steps = stepsInput.text.toString().toIntOrNull()
+            if (steps == null || steps !in 1..255) {
+                stepsInputLayout.error = getString(R.string.error_invalid_steps)
+                isValid = false
+            }
+        } else {
+            // Validate UNET mode fields
+            val width = unetWidthInput.text.toString().toIntOrNull()
+            if (width == null || width !in 1..4096) {
+                unetWidthInputLayout.error = getString(R.string.error_invalid_width)
+                isValid = false
+            }
+
+            val height = unetHeightInput.text.toString().toIntOrNull()
+            if (height == null || height !in 1..4096) {
+                unetHeightInputLayout.error = getString(R.string.error_invalid_height)
+                isValid = false
+            }
+
+            val steps = unetStepsInput.text.toString().toIntOrNull()
+            if (steps == null || steps !in 1..255) {
+                unetStepsInputLayout.error = getString(R.string.error_invalid_steps)
+                isValid = false
+            }
+        }
+
+        // Show the config bottom sheet if validation failed so user can see errors
+        if (!isValid) {
+            showConfigBottomSheet()
+        }
+
+        return isValid
+    }
+
     private fun startImageGeneration() {
+        // Validate configuration before starting
+        if (!validateConfiguration()) {
+            return
+        }
+
         val prompt = promptInput.text.toString()
 
         val workflowJson = if (isCheckpointMode) {
