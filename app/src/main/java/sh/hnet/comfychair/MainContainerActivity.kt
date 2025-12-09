@@ -100,6 +100,10 @@ class MainContainerActivity : AppCompatActivity() {
                     switchFragment(TextToImageFragment.newInstance(hostname, port))
                     true
                 }
+                R.id.nav_text_to_video -> {
+                    switchFragment(TextToVideoFragment.newInstance(hostname, port))
+                    true
+                }
                 R.id.nav_inpainting -> {
                     switchFragment(InpaintingFragment.newInstance(hostname, port))
                     true
@@ -146,7 +150,7 @@ class MainContainerActivity : AppCompatActivity() {
             } else {
                 println("MainContainerActivity: Failed to connect to server: $errorMessage")
                 runOnUiThread {
-                    Toast.makeText(this@MainContainerActivity, "Failed to connect: $errorMessage", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainContainerActivity, getString(R.string.error_failed_to_connect, errorMessage), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -231,8 +235,8 @@ class MainContainerActivity : AppCompatActivity() {
                             println("MainContainerActivity: Execution error: $text")
                             runOnUiThread {
                                 resetGenerationState()
-                                generationStateListener?.onGenerationError("Image generation failed")
-                                Toast.makeText(this@MainContainerActivity, "Image generation failed", Toast.LENGTH_LONG).show()
+                                generationStateListener?.onGenerationError(getString(R.string.error_generation_failed))
+                                Toast.makeText(this@MainContainerActivity, R.string.error_generation_failed, Toast.LENGTH_LONG).show()
                             }
                         }
                         "status" -> {
@@ -287,8 +291,8 @@ class MainContainerActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (isGenerating) {
                         resetGenerationState()
-                        generationStateListener?.onGenerationError("Connection lost during generation")
-                        Toast.makeText(this@MainContainerActivity, "Connection lost during generation", Toast.LENGTH_LONG).show()
+                        generationStateListener?.onGenerationError(getString(R.string.error_connection_lost))
+                        Toast.makeText(this@MainContainerActivity, R.string.error_connection_lost, Toast.LENGTH_LONG).show()
                     }
 
                     // Attempt to reconnect
@@ -321,7 +325,7 @@ class MainContainerActivity : AppCompatActivity() {
         // Verify WebSocket is connected before starting generation
         if (!isWebSocketConnected) {
             println("MainContainerActivity: WebSocket not connected, attempting to reconnect...")
-            Toast.makeText(this, "Reconnecting to server...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.reconnecting_to_server, Toast.LENGTH_SHORT).show()
 
             // Try to reconnect immediately
             reconnectWebSocket()
@@ -332,7 +336,7 @@ class MainContainerActivity : AppCompatActivity() {
                     submitWorkflow(workflowJson, callback)
                 } else {
                     runOnUiThread {
-                        Toast.makeText(this@MainContainerActivity, "Connection lost. Please try again.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainContainerActivity, R.string.error_connection_lost_retry, Toast.LENGTH_LONG).show()
                         callback(false, null, "WebSocket not connected")
                     }
                 }
@@ -357,7 +361,7 @@ class MainContainerActivity : AppCompatActivity() {
                     callback(true, promptId, null)
                 } else {
                     println("MainContainerActivity: Failed to submit workflow: $errorMessage")
-                    Toast.makeText(this@MainContainerActivity, "Failed to start generation: $errorMessage", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainContainerActivity, getString(R.string.error_failed_start_generation, errorMessage), Toast.LENGTH_LONG).show()
                     callback(false, null, errorMessage)
                 }
             }
@@ -501,7 +505,7 @@ class MainContainerActivity : AppCompatActivity() {
         // Don't reconnect if we've exceeded max attempts
         if (reconnectAttempts >= maxReconnectAttempts) {
             println("MainContainerActivity: Max reconnection attempts reached")
-            Toast.makeText(this, "Connection lost. Please restart the app.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.error_connection_lost_restart, Toast.LENGTH_LONG).show()
             return
         }
 

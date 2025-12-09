@@ -32,7 +32,7 @@ class WorkflowManager(private val context: Context) {
 
     /**
      * Load all workflow JSON files from res/raw
-     * Files should be named: tti_checkpoint_*.json, tti_unet_*.json, iip_checkpoint_*.json, or iip_unet_*.json
+     * Files should be named: tti_checkpoint_*.json, tti_unet_*.json, iip_checkpoint_*.json, iip_unet_*.json, or ttv_unet_*.json
      */
     private fun loadWorkflows() {
         // List of workflow resource IDs
@@ -40,7 +40,8 @@ class WorkflowManager(private val context: Context) {
             R.raw.tti_checkpoint_default,
             R.raw.tti_unet_zimage,
             R.raw.iip_checkpoint_default,
-            R.raw.iip_unet_zimage
+            R.raw.iip_unet_zimage,
+            R.raw.ttv_unet_wan22_lightx2v
         )
 
         for (resId in workflowResources) {
@@ -94,6 +95,13 @@ class WorkflowManager(private val context: Context) {
      */
     fun getInpaintingUNETWorkflowNames(): List<String> {
         return workflows.filter { it.id.startsWith("iip_unet_") }.map { it.name }
+    }
+
+    /**
+     * Get list of text-to-video UNET workflow names for dropdown
+     */
+    fun getVideoUNETWorkflowNames(): List<String> {
+        return workflows.filter { it.id.startsWith("ttv_unet_") }.map { it.name }
     }
 
     /**
@@ -251,6 +259,66 @@ class WorkflowManager(private val context: Context) {
         // Replace seed with random value (workflows use 42 as placeholder in inpainting)
         processedJson = processedJson.replace("\"seed\": 42", "\"seed\": $randomSeed")
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
+
+        return processedJson
+    }
+
+    /**
+     * Prepare video workflow JSON with actual parameter values
+     * Replaces template variables for video generation
+     *
+     * @param workflowName The name of the workflow to use
+     * @param prompt User's text prompt
+     * @param highnoiseUnet High noise UNET model
+     * @param lownoiseUnet Low noise UNET model
+     * @param highnoiseLora High noise LoRA model
+     * @param lownoiseLora Low noise LoRA model
+     * @param vae Selected VAE model
+     * @param clip Selected CLIP model
+     * @param width Video width
+     * @param height Video height
+     * @param length Video length in frames
+     * @param fps Frames per second (1-120)
+     * @return JSON string ready to send to ComfyUI API
+     */
+    fun prepareVideoWorkflow(
+        workflowName: String,
+        prompt: String,
+        highnoiseUnet: String,
+        lownoiseUnet: String,
+        highnoiseLora: String,
+        lownoiseLora: String,
+        vae: String,
+        clip: String,
+        width: Int,
+        height: Int,
+        length: Int,
+        fps: Int = 16
+    ): String? {
+        val workflow = getWorkflowByName(workflowName) ?: return null
+
+        // Generate a random seed for each video generation
+        val randomSeed = (0..999999999999).random()
+
+        // Escape special characters in prompt for safe JSON insertion
+        val escapedPrompt = escapeForJson(prompt)
+
+        // Replace template variables with actual values
+        var processedJson = workflow.jsonContent
+        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
+        processedJson = processedJson.replace("{{highnoise_unet_name}}", highnoiseUnet)
+        processedJson = processedJson.replace("{{lownoise_unet_name}}", lownoiseUnet)
+        processedJson = processedJson.replace("{{highnoise_lora_name}}", highnoiseLora)
+        processedJson = processedJson.replace("{{lownoise_lora_name}}", lownoiseLora)
+        processedJson = processedJson.replace("{{vae_name}}", vae)
+        processedJson = processedJson.replace("{{clip_name}}", clip)
+        processedJson = processedJson.replace("{{width}}", width.toString())
+        processedJson = processedJson.replace("{{height}}", height.toString())
+        processedJson = processedJson.replace("{{length}}", length.toString())
+        processedJson = processedJson.replace("{{fps}}", fps.toString())
+        // Replace seed with random value (workflows use 42 as placeholder)
+        processedJson = processedJson.replace("\"noise_seed\": 42", "\"noise_seed\": $randomSeed")
+        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
         return processedJson
     }

@@ -103,7 +103,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Image Parameters"
+                android:text="@string/image_parameters_title"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginTop="8dp"
@@ -139,7 +139,7 @@
                     android:id="@+id/stepsInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="20"
+                    android:text="@string/default_steps"
                     android:inputType="number" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -221,7 +221,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Image Parameters"
+                android:text="@string/image_parameters_title"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginTop="8dp"

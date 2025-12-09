@@ -2,15 +2,16 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.2.1
+**Current version**: v0.3.0
 
 ## Overview
 
-ComfyChair provides a streamlined mobile interface for interacting with ComfyUI servers, allowing you to generate and manage AI images directly from your Android device. The app communicates with your ComfyUI server via its API, bringing the power of node-based AI image generation to your mobile workflow.
+ComfyChair provides a streamlined mobile interface for interacting with ComfyUI servers, allowing you to generate and manage AI images and videos directly from your Android device. The app communicates with your ComfyUI server via its API, bringing the power of node-based AI generation to your mobile workflow.
 
 ## Screenshots
 
-<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/settings-checkpoint.png" width="200"/> <img src="screenshots/settings-unet.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-contextmenu.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-sourceimage.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/configuration.png" width="200"/> <img src="screenshots/error.png" width="200"/>
+<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-settingsunet.png" width="200"/> <img src="screenshots/texttoimage-contextmenu.png" width="200"/> <img src="screenshots/texttovideo.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-sourceimage.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/>
+<img src="screenshots/toast.png" width="200"/> <img src="screenshots/configuration.png" width="200"/>
 
 ## Features
 
@@ -24,6 +25,12 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - WebSocket-based live updates showing step-by-step progress
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
+- **Text-to-video generation**:
+  - Generate AI videos with customizable parameters
+  - High/low noise UNET and LoRA model selection
+  - Live preview during generation
+  - In-loop video playback with center-crop scaling
+  - Save videos to device gallery or share
 - **Inpainting**:
   - Upload source images for selective inpainting
   - Intuitive mask painting with adjustable brush size
@@ -33,22 +40,23 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - WebSocket-based live updates showing step-by-step progress
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
-- **Image preview**:
-  - Tap to view fullscreen with pinch-to-zoom
+- **Image/Video preview**:
+  - Tap to view fullscreen with pinch-to-zoom (images) or play (videos)
   - Long press for save/share options
-- **Image gallery**:
-  - View all generated images with 2-column grid layout
+- **Gallery**:
+  - View all generated images and videos with 2-column grid layout
+  - Video indicator on thumbnails
   - Pull-to-refresh to update gallery
-  - Delete individual images from server history
-- **Image management**: Save to device gallery (Pictures/ComfyChair), save as file, or share images
+  - Delete individual items from server history
+- **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair), save as file, or share
 - **Server configuration**:
   - View detailed server information (ComfyUI version, OS, Python, PyTorch versions)
   - Monitor hardware resources (RAM and GPU VRAM usage with free/total display)
   - Server management actions (clear queue, clear history)
 - **App management**:
-  - Clear local cache (generated images, source images, masks)
+  - Clear local cache (generated images, videos, source images, masks)
   - Restore default settings
-- **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters for both modes
+- **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
 - **Native Android experience**: Built with Kotlin and Material Design 3
 
@@ -121,8 +129,9 @@ app/src/main/
 │   ├── MainActivity.kt              # Login/connection screen
 │   ├── MainContainerActivity.kt     # Fragment container with persistent navigation
 │   ├── TextToImageFragment.kt       # Text-to-image generation screen
+│   ├── TextToVideoFragment.kt       # Text-to-video generation screen
 │   ├── InpaintingFragment.kt        # Inpainting screen with mask editor
-│   ├── GalleryFragment.kt           # Image gallery screen
+│   ├── GalleryFragment.kt           # Image/video gallery screen
 │   ├── ConfigurationFragment.kt     # Server configuration and management
 │   ├── GalleryAdapter.kt            # RecyclerView adapter for gallery grid
 │   ├── MaskPaintView.kt             # Custom view for mask painting
@@ -134,21 +143,25 @@ app/src/main/
 │   │   ├── activity_main.xml        # Login screen layout
 │   │   ├── activity_main_container.xml  # Container with bottom navigation
 │   │   ├── fragment_text_to_image.xml   # Text-to-image screen layout
+│   │   ├── fragment_text_to_video.xml   # Text-to-video screen layout
 │   │   ├── fragment_inpainting.xml  # Inpainting screen layout
 │   │   ├── fragment_gallery.xml     # Gallery screen layout
 │   │   ├── fragment_configuration.xml   # Configuration screen layout
-│   │   ├── bottom_sheet_config.xml  # Generation configuration panel
+│   │   ├── bottom_sheet_config.xml  # Text-to-image configuration panel
+│   │   ├── bottom_sheet_video_config.xml  # Text-to-video configuration panel
 │   │   ├── bottom_sheet_inpainting_config.xml  # Inpainting configuration panel
-│   │   ├── bottom_sheet_save_options.xml  # Save/share image options
+│   │   ├── bottom_sheet_save_options.xml  # Save/share options
 │   │   ├── bottom_sheet_source_image.xml  # Source image options
 │   │   ├── dialog_mask_editor.xml   # Mask painting dialog
-│   │   ├── item_gallery_thumbnail.xml     # Gallery thumbnail item
-│   │   └── dialog_fullscreen_image.xml    # Fullscreen image viewer
+│   │   ├── dialog_fullscreen_image.xml    # Fullscreen image viewer
+│   │   ├── dialog_fullscreen_video.xml    # Fullscreen video player
+│   │   └── item_gallery_thumbnail.xml     # Gallery thumbnail item
 │   ├── raw/                         # Workflow JSON files
-│   │   ├── tti_checkpoint_default.json  # Default text to image checkpoint workflow
-│   │   ├── tti_unet_zimage.json         # Z-Image text to image UNET workflow
+│   │   ├── tti_checkpoint_default.json  # Default text-to-image checkpoint workflow
+│   │   ├── tti_unet_zimage.json         # Z-Image text-to-image UNET workflow
 │   │   ├── iip_checkpoint_default.json  # Default inpainting checkpoint workflow
-│   │   └── iip_unet_zimage.json         # Z-Image inpainting UNET workflow
+│   │   ├── iip_unet_zimage.json         # Z-Image inpainting UNET workflow
+│   │   └── ttv_unet_wan22_lightx2v.json # WAN 2.2 text-to-video UNET workflow
 │   ├── values/                      # Strings, themes, colors
 │   ├── drawable/                    # Icons and graphics
 │   └── xml/                         # Backup rules, file provider paths

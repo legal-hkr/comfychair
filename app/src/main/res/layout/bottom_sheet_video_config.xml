@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Bottom Sheet Configuration Panel (Modal)
-    Contains all configuration options for image generation:
+    Bottom Sheet Configuration Panel for Text to Video
+    Contains all configuration options for video generation:
     - Workflow selection
-    - Checkpoint selection
-    - Width, Height, Steps parameters
+    - High/Low noise UNET and LoRA selection
+    - VAE, CLIP selection
+    - Width, Height, Length parameters
 -->
 <androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -32,40 +33,6 @@
         android:textStyle="bold"
         android:layout_marginBottom="16dp" />
 
-    <!-- Segmented Button for Checkpoint/UNET -->
-    <com.google.android.material.button.MaterialButtonToggleGroup
-        android:id="@+id/configModeToggle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        app:singleSelection="true"
-        app:selectionRequired="true">
-
-        <Button
-            android:id="@+id/checkpointModeButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/checkpoint_mode"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
-
-        <Button
-            android:id="@+id/unetModeButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/unet_mode"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
-
-    </com.google.android.material.button.MaterialButtonToggleGroup>
-
-    <!-- Checkpoint Configuration Content -->
-    <LinearLayout
-        android:id="@+id/checkpointContent"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
     <!-- Workflow Selection -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/workflowInputLayout"
@@ -82,27 +49,107 @@
             android:inputType="none" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Checkpoint Selection -->
+    <!-- High Noise UNET Selection -->
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/checkpointInputLayout"
+        android:id="@+id/highnoiseUnetInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/checkpoint_label"
+        android:hint="@string/highnoise_unet_label"
         android:layout_marginBottom="16dp"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
         <AutoCompleteTextView
-            android:id="@+id/checkpointDropdown"
+            android:id="@+id/highnoiseUnetDropdown"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="none" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Image Generation Parameters -->
+    <!-- Low Noise UNET Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/lownoiseUnetInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/lownoise_unet_label"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/lownoiseUnetDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- High Noise LoRA Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/highnoiseLoraInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/highnoise_lora_label"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/highnoiseLoraDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Low Noise LoRA Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/lownoiseLoraInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/lownoise_lora_label"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/lownoiseLoraDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- VAE Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/vaeInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="VAE"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/vaeDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- CLIP Selection -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/clipInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="CLIP"
+        android:layout_marginBottom="16dp"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+        <AutoCompleteTextView
+            android:id="@+id/clipDropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Video Generation Parameters -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/image_parameters_title"
+        android:text="@string/video_parameters_title"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginTop="8dp"
@@ -154,108 +201,7 @@
 
     </LinearLayout>
 
-    <!-- Steps -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/stepsInputLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/steps_label"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/stepsInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/default_steps"
-            android:inputType="number" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    </LinearLayout>
-
-    <!-- UNET Configuration Content -->
-    <LinearLayout
-        android:id="@+id/unetContent"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-    <!-- Workflow Selection (UNET only) -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/unetWorkflowInputLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/workflow_label"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
-
-        <AutoCompleteTextView
-            android:id="@+id/unetWorkflowDropdown"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- UNET Model Selection -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/unetInputLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="UNET"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
-
-        <AutoCompleteTextView
-            android:id="@+id/unetDropdown"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- VAE Selection -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/vaeInputLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="VAE"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
-
-        <AutoCompleteTextView
-            android:id="@+id/vaeDropdown"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- CLIP Selection -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/clipInputLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="CLIP"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
-
-        <AutoCompleteTextView
-            android:id="@+id/clipDropdown"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="none" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- Image Generation Parameters -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/image_parameters_title"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Width and Height in a row -->
+    <!-- Length and FPS in a row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -263,60 +209,41 @@
         android:weightSum="2"
         android:layout_marginBottom="16dp">
 
-        <!-- Width -->
+        <!-- Length -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/unetWidthInputLayout"
+            android:id="@+id/lengthInputLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:hint="@string/width_label"
+            android:hint="@string/length_label"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/unetWidthInput"
+                android:id="@+id/lengthInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/default_width"
+                android:text="@string/default_length"
                 android:inputType="number" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Height -->
+        <!-- FPS -->
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/unetHeightInputLayout"
+            android:id="@+id/fpsInputLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:hint="@string/height_label"
+            android:hint="@string/fps_label"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/unetHeightInput"
+                android:id="@+id/fpsInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/default_height"
+                android:text="@string/default_fps"
                 android:inputType="number" />
         </com.google.android.material.textfield.TextInputLayout>
-
-    </LinearLayout>
-
-    <!-- Steps -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/unetStepsInputLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/steps_label"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/unetStepsInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/default_steps"
-            android:inputType="number" />
-    </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>
 

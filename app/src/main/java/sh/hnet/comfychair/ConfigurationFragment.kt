@@ -260,9 +260,10 @@ class ConfigurationFragment : Fragment() {
     }
 
     private fun clearCache() {
-        // List of cached image files to delete
+        // List of cached image/video files to delete
         val cachedFiles = listOf(
             "last_generated_image.png",           // TextToImageFragment
+            "last_generated_video.mp4",           // TextToVideoFragment
             "inpainting_last_preview.png",        // InpaintingFragment preview
             "inpainting_last_source.png",         // InpaintingFragment source
             "inpainting_last_mask.png"            // InpaintingFragment mask
@@ -288,6 +289,7 @@ class ConfigurationFragment : Fragment() {
         // List of SharedPreferences to clear
         val prefsToDelete = listOf(
             "TextToImageFragmentPrefs",
+            "TextToVideoFragmentPrefs",
             "InpaintingFragmentPrefs"
         )
 

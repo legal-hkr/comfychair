@@ -480,6 +480,77 @@ class ComfyUIClient(
     }
 
     /**
+     * Fetch available LoRA models from the ComfyUI server
+     * Retrieves the list of LoRA models that can be used for generation
+     *
+     * @param callback Called with the result:
+     *                 - loras: List of LoRA model filenames, or empty list on error
+     */
+    fun fetchLoRAs(callback: (loras: List<String>) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(emptyList())
+            return
+        }
+
+        val url = "$baseUrl/object_info/LoraLoaderModelOnly"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to fetch LoRAs: ${e.message}")
+                callback(emptyList())
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val responseBody = response.body?.string() ?: "{}"
+                            println("LoRA response: $responseBody")
+
+                            val json = JSONObject(responseBody)
+                            // Get the LoraLoaderModelOnly object
+                            val loraLoaderJson = json.optJSONObject("LoraLoaderModelOnly")
+                            val inputJson = loraLoaderJson?.optJSONObject("input")
+                            val requiredJson = inputJson?.optJSONObject("required")
+                            val loraNameArray = requiredJson?.optJSONArray("lora_name")
+
+                            println("LoRA parsing: LoraLoaderModelOnly=${loraLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, lora_name=${loraNameArray != null}")
+
+                            // The first element is the array of LoRA model names
+                            val optionsArray = loraNameArray?.optJSONArray(0)
+
+                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
+
+                            val loras = mutableListOf<String>()
+                            if (optionsArray != null) {
+                                for (i in 0 until optionsArray.length()) {
+                                    val lora = optionsArray.getString(i)
+                                    println("Found LoRA: $lora")
+                                    loras.add(lora)
+                                }
+                            }
+                            println("Total LoRAs found: ${loras.size}")
+                            callback(loras)
+                        } catch (e: Exception) {
+                            println("Failed to parse LoRAs: ${e.message}")
+                            e.printStackTrace()
+                            callback(emptyList())
+                        }
+                    } else {
+                        println("Server returned error when fetching LoRAs: ${response.code}")
+                        callback(emptyList())
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Submit a workflow (prompt) to the ComfyUI server for execution
      * This queues the workflow for generation
      *
@@ -687,6 +758,59 @@ class ComfyUIClient(
                         }
                     } else {
                         println("Server returned error when fetching image: ${response.code}")
+                        callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Fetch a generated video from the ComfyUI server
+     * Downloads the video as raw bytes
+     *
+     * @param filename The filename of the generated video
+     * @param subfolder The subfolder where the video is stored (usually empty or "video")
+     * @param type The video type (usually "output" or "temp")
+     * @param callback Called with the result:
+     *                 - bytes: The raw video bytes, or null on error
+     */
+    fun fetchVideo(
+        filename: String,
+        subfolder: String = "",
+        type: String = "output",
+        callback: (bytes: ByteArray?) -> Unit
+    ) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(null)
+            return
+        }
+
+        val url = "$baseUrl/view?filename=$filename&subfolder=$subfolder&type=$type"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to fetch video: ${e.message}")
+                callback(null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val bytes = response.body?.bytes()
+                            callback(bytes)
+                        } catch (e: Exception) {
+                            println("Failed to read video bytes: ${e.message}")
+                            callback(null)
+                        }
+                    } else {
+                        println("Server returned error when fetching video: ${response.code}")
                         callback(null)
                     }
                 }

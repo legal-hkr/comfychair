@@ -334,7 +334,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                         isShowingSource = false
                         sourceImageContainer.visibility = View.GONE
                         previewContainer.visibility = View.VISIBLE
-                        imageInstructionText.text = "Tap image to view, long press to save"
+                        imageInstructionText.text = getString(R.string.tap_image_hint)
                     }
                 }
             }
@@ -643,7 +643,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
             }
         } catch (e: Exception) {
             println("Failed to load source image: ${e.message}")
-            Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.error_failed_load_image, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -801,7 +801,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         }
 
         if (maskBitmap == null || !hasMaskContent()) {
-            Toast.makeText(requireContext(), "Please paint a mask area for inpainting", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.paint_mask_hint, Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -820,7 +820,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         // Combine source image with mask (RGBA where A is mask)
         val combinedImage = createImageWithMask()
         if (combinedImage == null) {
-            Toast.makeText(requireContext(), "Failed to prepare image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.error_failed_prepare_image, Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -833,7 +833,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         val filename = "comfychair_inpaint_${System.currentTimeMillis()}.png"
 
         // Upload image to server
-        Toast.makeText(requireContext(), "Uploading image...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), R.string.uploading_image, Toast.LENGTH_SHORT).show()
 
         comfyUIClient.uploadImage(imageBytes, filename) { success, uploadedFilename, errorMessage ->
             activity?.runOnUiThread {
@@ -842,7 +842,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                     submitInpaintingWorkflow(prompt, uploadedFilename)
                 } else {
                     println("InpaintingFragment: Upload failed: $errorMessage")
-                    Toast.makeText(requireContext(), "Failed to upload image: $errorMessage", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), getString(R.string.error_failed_upload_image, errorMessage), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -972,7 +972,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
             }
         } else {
             println("InpaintingFragment: Error: Could not load workflow")
-            Toast.makeText(requireContext(), "Failed to load workflow", Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), R.string.error_failed_load_workflow, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1054,14 +1054,14 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                     activity?.runOnUiThread {
                         (activity as? MainContainerActivity)?.completeGeneration()
                         if (isAdded && context != null) {
-                            Toast.makeText(requireContext(), "No images found in output", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), R.string.error_no_images_found, Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
                     activity?.runOnUiThread {
                         (activity as? MainContainerActivity)?.completeGeneration()
                         if (isAdded && context != null) {
-                            Toast.makeText(requireContext(), "Failed to fetch generated image", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), R.string.error_failed_fetch_image, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -1069,7 +1069,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                 activity?.runOnUiThread {
                     (activity as? MainContainerActivity)?.completeGeneration()
                     if (isAdded && context != null) {
-                        Toast.makeText(requireContext(), "Failed to fetch history", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), R.string.error_failed_fetch_history, Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -1103,7 +1103,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
 
     private fun setGeneratingState() {
         isGenerating = true
-        generateButton.text = "Cancel generation"
+        generateButton.text = getString(R.string.button_cancel_generation)
         generateButton.backgroundTintList = android.content.res.ColorStateList.valueOf(
             androidx.core.content.ContextCompat.getColor(requireContext(), R.color.cancel_red)
         )
@@ -1268,9 +1268,9 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                 requireContext().contentResolver.openOutputStream(it)?.use { outputStream ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
                 }
-                Toast.makeText(requireContext(), "Image stored in gallery", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.image_saved_to_gallery, Toast.LENGTH_SHORT).show()
             } catch (e: IOException) {
-                Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.failed_save_image, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1288,7 +1288,7 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             }
         } catch (e: IOException) {
-            Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.failed_save_image, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1316,9 +1316,9 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            startActivity(Intent.createChooser(shareIntent, "Share image"))
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_image)))
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Failed to share image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.failed_share_image, Toast.LENGTH_SHORT).show()
         }
     }
 

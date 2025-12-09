@@ -4,13 +4,17 @@ import android.app.Dialog
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.MediaController
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -21,10 +25,11 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.github.chrisbanes.photoview.PhotoView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import java.io.File
 import java.io.IOException
 
 /**
- * GalleryFragment - Displays a gallery of all generated images
+ * GalleryFragment - Displays a gallery of all generated images and videos
  */
 class GalleryFragment : Fragment() {
 
@@ -46,14 +51,22 @@ class GalleryFragment : Fragment() {
     // Gallery items list
     private val galleryItems = mutableListOf<GalleryItem>()
 
-    // Store current selected bitmap for save operations
+    // Store current selected item for save operations
     private var currentBitmap: Bitmap? = null
+    private var currentVideoItem: GalleryItem? = null
 
-    // Activity result launcher for "Save as..."
+    // Activity result launcher for "Save as..." image
     private val saveImageLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("image/png")
     ) { uri ->
         uri?.let { saveImageToUri(it) }
+    }
+
+    // Activity result launcher for "Save as..." video
+    private val saveVideoLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("video/mp4")
+    ) { uri ->
+        uri?.let { saveVideoToUri(it) }
     }
 
     companion object {
@@ -134,11 +147,24 @@ class GalleryFragment : Fragment() {
         galleryAdapter = GalleryAdapter(
             items = galleryItems,
             onItemClick = { galleryItem ->
-                showFullscreenImageViewer(galleryItem.bitmap)
+                when (galleryItem.type) {
+                    GalleryItemType.IMAGE -> showFullscreenImageViewer(galleryItem.bitmap)
+                    GalleryItemType.VIDEO -> showFullscreenVideoViewer(galleryItem)
+                }
             },
             onItemLongClick = { galleryItem ->
-                currentBitmap = galleryItem.bitmap
-                showSaveOptions()
+                when (galleryItem.type) {
+                    GalleryItemType.IMAGE -> {
+                        currentBitmap = galleryItem.bitmap
+                        currentVideoItem = null
+                        showSaveOptions()
+                    }
+                    GalleryItemType.VIDEO -> {
+                        currentBitmap = null
+                        currentVideoItem = galleryItem
+                        showVideoSaveOptions()
+                    }
+                }
             },
             onDeleteClick = { galleryItem ->
                 deleteHistoryItem(galleryItem.promptId)
@@ -222,56 +248,111 @@ class GalleryFragment : Fragment() {
                 val promptData = historyJson.optJSONObject(promptId)
                 val outputs = promptData?.optJSONObject("outputs")
 
-                var foundImage = false
+                var foundMedia = false
                 outputs?.keys()?.forEach { nodeId ->
                     val nodeOutput = outputs.getJSONObject(nodeId)
-                    val images = nodeOutput.optJSONArray("images")
 
-                    if (images != null && images.length() > 0 && !foundImage) {
-                        foundImage = true
+                    // Check for images first
+                    val images = nodeOutput.optJSONArray("images")
+                    if (images != null && images.length() > 0 && !foundMedia) {
+                        foundMedia = true
                         val imageInfo = images.getJSONObject(0)
                         val filename = imageInfo.optString("filename")
                         val subfolder = imageInfo.optString("subfolder", "")
                         val type = imageInfo.optString("type", "output")
 
-                        comfyUIClient.fetchImage(filename, subfolder, type) { bitmap ->
+                        // Check if this is actually a video file based on extension
+                        val isVideoFile = filename.lowercase().let {
+                            it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".gif") || it.endsWith(".avi")
+                        }
+
+                        if (isVideoFile) {
+                            // Treat as video
+                            comfyUIClient.fetchVideo(filename, subfolder, type) { videoBytes ->
+                                synchronized(itemsWithIndex) {
+                                    if (videoBytes != null) {
+                                        val thumbnail = extractVideoThumbnail(videoBytes)
+                                        itemsWithIndex.add(Pair(index, GalleryItem(
+                                            promptId = promptId,
+                                            filename = filename,
+                                            bitmap = thumbnail,
+                                            type = GalleryItemType.VIDEO,
+                                            subfolder = subfolder,
+                                            outputType = type
+                                        )))
+                                    }
+
+                                    loadedCount++
+                                    if (loadedCount == totalCount) {
+                                        updateGalleryUI(itemsWithIndex)
+                                    }
+                                }
+                            }
+                        } else {
+                            // Treat as image
+                            comfyUIClient.fetchImage(filename, subfolder, type) { bitmap ->
+                                synchronized(itemsWithIndex) {
+                                    if (bitmap != null) {
+                                        itemsWithIndex.add(Pair(index, GalleryItem(
+                                            promptId = promptId,
+                                            filename = filename,
+                                            bitmap = bitmap,
+                                            type = GalleryItemType.IMAGE,
+                                            subfolder = subfolder,
+                                            outputType = type
+                                        )))
+                                    }
+
+                                    loadedCount++
+                                    if (loadedCount == totalCount) {
+                                        updateGalleryUI(itemsWithIndex)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Check for videos if no images found (also check gifs array)
+                    var videos = nodeOutput.optJSONArray("videos")
+                    if (videos == null || videos.length() == 0) {
+                        videos = nodeOutput.optJSONArray("gifs")
+                    }
+                    if (videos != null && videos.length() > 0 && !foundMedia) {
+                        foundMedia = true
+                        val videoInfo = videos.getJSONObject(0)
+                        val filename = videoInfo.optString("filename")
+                        val subfolder = videoInfo.optString("subfolder", "")
+                        val type = videoInfo.optString("type", "output")
+
+                        // Fetch video to extract thumbnail
+                        comfyUIClient.fetchVideo(filename, subfolder, type) { videoBytes ->
                             synchronized(itemsWithIndex) {
-                                if (bitmap != null) {
-                                    itemsWithIndex.add(Pair(index, GalleryItem(promptId, filename, bitmap)))
+                                if (videoBytes != null) {
+                                    val thumbnail = extractVideoThumbnail(videoBytes)
+                                    itemsWithIndex.add(Pair(index, GalleryItem(
+                                        promptId = promptId,
+                                        filename = filename,
+                                        bitmap = thumbnail,
+                                        type = GalleryItemType.VIDEO,
+                                        subfolder = subfolder,
+                                        outputType = type
+                                    )))
                                 }
 
                                 loadedCount++
                                 if (loadedCount == totalCount) {
-                                    activity?.runOnUiThread {
-                                        galleryItems.clear()
-                                        // Sort by index (descending) to ensure newest to oldest
-                                        val sortedItems = itemsWithIndex
-                                            .sortedByDescending { it.first }
-                                            .map { it.second }
-                                        galleryItems.addAll(sortedItems)
-                                        galleryAdapter.notifyDataSetChanged()
-                                        swipeRefresh.isRefreshing = false
-                                    }
+                                    updateGalleryUI(itemsWithIndex)
                                 }
                             }
                         }
                     }
                 }
 
-                if (!foundImage) {
+                if (!foundMedia) {
                     synchronized(itemsWithIndex) {
                         loadedCount++
                         if (loadedCount == totalCount) {
-                            activity?.runOnUiThread {
-                                galleryItems.clear()
-                                // Sort by index (descending) to ensure newest to oldest
-                                val sortedItems = itemsWithIndex
-                                    .sortedByDescending { it.first }
-                                    .map { it.second }
-                                galleryItems.addAll(sortedItems)
-                                galleryAdapter.notifyDataSetChanged()
-                                swipeRefresh.isRefreshing = false
-                            }
+                            updateGalleryUI(itemsWithIndex)
                         }
                     }
                 }
@@ -283,6 +364,66 @@ class GalleryFragment : Fragment() {
                 swipeRefresh.isRefreshing = false
             }
         }
+    }
+
+    private fun updateGalleryUI(itemsWithIndex: List<Pair<Int, GalleryItem>>) {
+        activity?.runOnUiThread {
+            galleryItems.clear()
+            // Sort by index (descending) to ensure newest to oldest
+            val sortedItems = itemsWithIndex
+                .sortedByDescending { it.first }
+                .map { it.second }
+            galleryItems.addAll(sortedItems)
+            galleryAdapter.notifyDataSetChanged()
+            swipeRefresh.isRefreshing = false
+        }
+    }
+
+    private fun extractVideoThumbnail(videoBytes: ByteArray): Bitmap {
+        // Check if fragment is attached before accessing context
+        if (!isAdded || context == null) {
+            return createVideoPlaceholderBitmap()
+        }
+
+        var tempFile: File? = null
+        var retriever: MediaMetadataRetriever? = null
+        return try {
+            // Save video to temporary file to extract thumbnail
+            val cacheDir = context?.cacheDir ?: return createVideoPlaceholderBitmap()
+            tempFile = File.createTempFile("thumb_", ".mp4", cacheDir)
+            tempFile.writeBytes(videoBytes)
+
+            retriever = MediaMetadataRetriever()
+            retriever.setDataSource(tempFile.absolutePath)
+            val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+
+            // If bitmap extraction fails, return placeholder
+            bitmap ?: createVideoPlaceholderBitmap()
+        } catch (e: Exception) {
+            println("Failed to extract video thumbnail: ${e.message}")
+            e.printStackTrace()
+            // Return a placeholder bitmap for videos that can't have thumbnails extracted
+            createVideoPlaceholderBitmap()
+        } finally {
+            try {
+                retriever?.release()
+            } catch (e: Exception) {
+                // Ignore release errors
+            }
+            try {
+                tempFile?.delete()
+            } catch (e: Exception) {
+                // Ignore delete errors
+            }
+        }
+    }
+
+    private fun createVideoPlaceholderBitmap(): Bitmap {
+        // Create a simple gray placeholder bitmap for videos without thumbnails
+        val bitmap = Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        canvas.drawColor(android.graphics.Color.DKGRAY)
+        return bitmap
     }
 
     private fun showFullscreenImageViewer(bitmap: Bitmap) {
@@ -297,6 +438,54 @@ class GalleryFragment : Fragment() {
         }
 
         dialog.show()
+    }
+
+    private fun showFullscreenVideoViewer(item: GalleryItem) {
+        // Fetch video and display in fullscreen
+        comfyUIClient.fetchVideo(item.filename, item.subfolder, item.outputType) { videoBytes ->
+            activity?.runOnUiThread {
+                if (videoBytes != null && isAdded && context != null) {
+                    try {
+                        // Save video to temp file for playback
+                        val tempFile = File.createTempFile("playback_", ".mp4", requireContext().cacheDir)
+                        tempFile.writeBytes(videoBytes)
+
+                        val dialog = Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+                        dialog.setContentView(R.layout.dialog_fullscreen_video)
+
+                        val videoView = dialog.findViewById<VideoView>(R.id.fullscreenVideoView)
+                        videoView.setVideoPath(tempFile.absolutePath)
+
+                        val mediaController = MediaController(requireContext())
+                        mediaController.setAnchorView(videoView)
+                        videoView.setMediaController(mediaController)
+
+                        videoView.setOnPreparedListener { mp ->
+                            mp.isLooping = true
+                            mp.start()
+                        }
+
+                        videoView.setOnClickListener {
+                            dialog.dismiss()
+                            tempFile.delete()
+                        }
+
+                        dialog.setOnDismissListener {
+                            tempFile.delete()
+                        }
+
+                        dialog.show()
+                    } catch (e: Exception) {
+                        println("Failed to show video: ${e.message}")
+                        Toast.makeText(requireContext(), R.string.error_failed_play_video, Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    if (isAdded && context != null) {
+                        Toast.makeText(requireContext(), R.string.error_failed_load_video, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
     }
 
     private fun showSaveOptions() {
@@ -337,10 +526,10 @@ class GalleryFragment : Fragment() {
                 requireContext().contentResolver.openOutputStream(it)?.use { outputStream ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
                 }
-                Toast.makeText(requireContext(), "Image saved to gallery", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.image_saved_to_gallery, Toast.LENGTH_SHORT).show()
             } catch (e: IOException) {
                 println("Failed to save to gallery: ${e.message}")
-                Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.failed_save_image, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -359,7 +548,7 @@ class GalleryFragment : Fragment() {
             }
         } catch (e: IOException) {
             println("Failed to save image: ${e.message}")
-            Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.failed_save_image, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -387,10 +576,134 @@ class GalleryFragment : Fragment() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            startActivity(Intent.createChooser(shareIntent, "Share image"))
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_image)))
         } catch (e: Exception) {
             println("Failed to share image: ${e.message}")
-            Toast.makeText(requireContext(), "Failed to share image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.failed_share_image, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Video save methods
+
+    private fun showVideoSaveOptions() {
+        val bottomSheetDialog = BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_save_options, null)
+        bottomSheetDialog.setContentView(view)
+
+        view.findViewById<View>(R.id.saveToGallery).setOnClickListener {
+            saveVideoToGallery()
+            bottomSheetDialog.dismiss()
+        }
+
+        view.findViewById<View>(R.id.saveAs).setOnClickListener {
+            saveVideoAsFile()
+            bottomSheetDialog.dismiss()
+        }
+
+        view.findViewById<View>(R.id.share).setOnClickListener {
+            shareVideo()
+            bottomSheetDialog.dismiss()
+        }
+
+        bottomSheetDialog.show()
+    }
+
+    private fun saveVideoToGallery() {
+        val item = currentVideoItem ?: return
+
+        comfyUIClient.fetchVideo(item.filename, item.subfolder, item.outputType) { videoBytes ->
+            activity?.runOnUiThread {
+                if (videoBytes != null && isAdded && context != null) {
+                    val contentValues = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.mp4")
+                        put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/ComfyChair")
+                    }
+
+                    val uri = requireContext().contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
+                    uri?.let {
+                        try {
+                            requireContext().contentResolver.openOutputStream(it)?.use { outputStream ->
+                                outputStream.write(videoBytes)
+                            }
+                            Toast.makeText(requireContext(), R.string.video_saved_to_gallery, Toast.LENGTH_SHORT).show()
+                        } catch (e: IOException) {
+                            println("Failed to save video to gallery: ${e.message}")
+                            Toast.makeText(requireContext(), R.string.failed_save_video, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    if (isAdded && context != null) {
+                        Toast.makeText(requireContext(), R.string.error_failed_download_video, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun saveVideoAsFile() {
+        val filename = "ComfyChair_${System.currentTimeMillis()}.mp4"
+        saveVideoLauncher.launch(filename)
+    }
+
+    private fun saveVideoToUri(uri: Uri) {
+        val item = currentVideoItem ?: return
+
+        comfyUIClient.fetchVideo(item.filename, item.subfolder, item.outputType) { videoBytes ->
+            activity?.runOnUiThread {
+                if (videoBytes != null && isAdded && context != null) {
+                    try {
+                        requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            outputStream.write(videoBytes)
+                        }
+                    } catch (e: IOException) {
+                        println("Failed to save video: ${e.message}")
+                        Toast.makeText(requireContext(), R.string.failed_save_video, Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    if (isAdded && context != null) {
+                        Toast.makeText(requireContext(), R.string.error_failed_download_video, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun shareVideo() {
+        val item = currentVideoItem ?: return
+
+        comfyUIClient.fetchVideo(item.filename, item.subfolder, item.outputType) { videoBytes ->
+            activity?.runOnUiThread {
+                if (videoBytes != null && isAdded && context != null) {
+                    try {
+                        val cachePath = requireContext().cacheDir
+                        val filename = "share_video_${System.currentTimeMillis()}.mp4"
+                        val file = File(cachePath, filename)
+                        file.writeBytes(videoBytes)
+
+                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                            requireContext(),
+                            "${requireContext().applicationContext.packageName}.fileprovider",
+                            file
+                        )
+
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "video/mp4"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+
+                        startActivity(Intent.createChooser(shareIntent, getString(R.string.share_video)))
+                    } catch (e: Exception) {
+                        println("Failed to share video: ${e.message}")
+                        Toast.makeText(requireContext(), R.string.failed_share_video, Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    if (isAdded && context != null) {
+                        Toast.makeText(requireContext(), R.string.error_failed_download_video, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         }
     }
 
@@ -398,6 +711,7 @@ class GalleryFragment : Fragment() {
         super.onDestroyView()
         comfyUIClient.shutdown()
         currentBitmap = null
+        currentVideoItem = null
         galleryItems.forEach { it.bitmap.recycle() }
         galleryItems.clear()
     }

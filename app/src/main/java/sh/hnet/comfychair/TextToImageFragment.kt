@@ -704,7 +704,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             }
         } else {
             println("TextToImageFragment: Error: Could not load workflow")
-            Toast.makeText(requireContext(), "Failed to load workflow", Toast.LENGTH_LONG).show()
+            Toast.makeText(requireContext(), R.string.error_failed_load_workflow, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -834,7 +834,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                     activity?.runOnUiThread {
                         (activity as? MainContainerActivity)?.completeGeneration()
                         if (isAdded && context != null) {
-                            Toast.makeText(requireContext(), "No images found in generation output", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), R.string.error_no_images_found, Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
@@ -843,7 +843,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                     activity?.runOnUiThread {
                         (activity as? MainContainerActivity)?.completeGeneration()
                         if (isAdded && context != null) {
-                            Toast.makeText(requireContext(), "Failed to fetch generated image", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), R.string.error_failed_fetch_image, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -852,7 +852,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 activity?.runOnUiThread {
                     (activity as? MainContainerActivity)?.completeGeneration()
                     if (isAdded && context != null) {
-                        Toast.makeText(requireContext(), "Failed to fetch generation history", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), R.string.error_failed_fetch_history, Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -900,7 +900,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
      */
     private fun setGeneratingState() {
         isGenerating = true
-        generateButton.text = "Cancel generation"
+        generateButton.text = getString(R.string.button_cancel_generation)
         // Set red background tint for Material button
         generateButton.backgroundTintList = android.content.res.ColorStateList.valueOf(
             androidx.core.content.ContextCompat.getColor(requireContext(), R.color.cancel_red)
@@ -1017,10 +1017,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 requireContext().contentResolver.openOutputStream(it)?.use { outputStream ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
                 }
-                Toast.makeText(requireContext(), "Image stored in gallery", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.image_saved_to_gallery, Toast.LENGTH_SHORT).show()
             } catch (e: IOException) {
                 println("Failed to save to gallery: ${e.message}")
-                Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.failed_save_image, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1039,7 +1039,7 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
             }
         } catch (e: IOException) {
             println("Failed to save image: ${e.message}")
-            Toast.makeText(requireContext(), "Failed to save image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.failed_save_image, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1067,10 +1067,10 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            startActivity(Intent.createChooser(shareIntent, "Share image"))
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_image)))
         } catch (e: Exception) {
             println("Failed to share image: ${e.message}")
-            Toast.makeText(requireContext(), "Failed to share image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.failed_share_image, Toast.LENGTH_SHORT).show()
         }
     }
 

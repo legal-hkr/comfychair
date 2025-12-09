@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Gallery Thumbnail Item
-    Represents a single image in the 2-column grid
+    Represents a single image or video in the 2-column grid
 -->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -23,6 +23,19 @@
             android:layout_height="200dp"
             android:scaleType="centerCrop"
             android:contentDescription="@string/gallery_thumbnail_description" />
+
+        <!-- Video indicator icon (shown for video items) -->
+        <ImageView
+            android:id="@+id/videoIndicator"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:src="@drawable/videocam_24px"
+            android:background="@drawable/delete_button_background"
+            android:padding="8dp"
+            app:tint="@android:color/white"
+            android:visibility="gone"
+            android:contentDescription="@string/gallery_video_thumbnail_description" />
 
         <ImageView
             android:id="@+id/deleteButton"

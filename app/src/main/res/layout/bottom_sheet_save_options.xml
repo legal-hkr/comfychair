@@ -15,7 +15,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Save image"
+        android:text="@string/save_image_title"
         android:textSize="20sp"
         android:textStyle="bold"
         android:layout_marginBottom="16dp" />
@@ -48,7 +48,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Save to gallery"
+                android:text="@string/save_to_gallery"
                 android:textSize="16sp"
                 android:layout_marginStart="16dp" />
 
@@ -83,7 +83,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Save as..."
+                android:text="@string/save_as"
                 android:textSize="16sp"
                 android:layout_marginStart="16dp" />
 
@@ -118,7 +118,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Share..."
+                android:text="@string/share"
                 android:textSize="16sp"
                 android:layout_marginStart="16dp" />
 

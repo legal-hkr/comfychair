@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    TextToImageFragment Layout
-    Main screen for image generation with ComfyUI
+    TextToVideoFragment Layout
+    Main screen for video generation with ComfyUI
     Features:
-    - Square image preview area
+    - Video preview area with looping playback
     - Prompt input field
     - Generate button
     - Modal bottom sheet for configuration
@@ -15,7 +15,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".TextToImageFragment">
+    tools:context=".TextToVideoFragment">
 
     <!-- Main content area -->
     <LinearLayout
@@ -32,11 +32,11 @@
             android:minHeight="?attr/actionBarSize"
             android:background="?attr/colorSurface"
             android:elevation="4dp"
-            app:title="@string/text_to_image_title"
+            app:title="@string/text_to_video_title"
             app:navigationIcon="@drawable/logout_24px"
             app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
-        <!-- Content area with flexible image sizing -->
+        <!-- Content area with flexible video sizing -->
         <LinearLayout
             android:id="@+id/contentArea"
             android:layout_width="match_parent"
@@ -46,10 +46,10 @@
             android:padding="16dp"
             android:clipToPadding="false">
 
-        <!-- Section 1: Image Preview -->
-        <!-- Image preview with flexible height -->
+        <!-- Section 1: Video Preview -->
+        <!-- Video preview with flexible height -->
         <LinearLayout
-            android:id="@+id/imagePreviewContainer"
+            android:id="@+id/videoPreviewContainer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -57,9 +57,9 @@
             android:orientation="vertical"
             android:layout_marginBottom="16dp">
 
-            <!-- Card for image preview with shadow -->
+            <!-- Card for video preview with shadow -->
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/imageCard"
+                android:id="@+id/videoCard"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
@@ -67,63 +67,84 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp">
 
-                <!-- ImageView for displaying generated images -->
-                <ImageView
-                    android:id="@+id/imagePreview"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:contentDescription="@string/placeholder_image_description" />
-
-                <!-- Placeholder icon (shown initially) -->
-                <ImageView
-                    android:id="@+id/placeholderIcon"
-                    android:layout_width="240dp"
-                    android:layout_height="240dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_placeholder"
-                    android:contentDescription="@string/placeholder_image_description" />
-
-                <!-- Progress overlay (shown during generation) -->
+                <!-- FrameLayout to hold video and placeholder -->
                 <FrameLayout
-                    android:id="@+id/progressOverlay"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:visibility="gone">
+                    android:layout_height="match_parent">
 
-                    <!-- Progress indicator container -->
-                    <LinearLayout
+                    <!-- TextureView for displaying generated videos (supports centerCrop scaling) -->
+                    <TextureView
+                        android:id="@+id/videoPreview"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:orientation="vertical">
+                        android:layout_height="match_parent" />
 
-                        <!-- Progress bar -->
-                        <ProgressBar
-                            android:id="@+id/progressBar"
-                            style="@android:style/Widget.ProgressBar.Horizontal"
+                    <!-- ImageView for live preview during generation (covers TextureView) -->
+                    <ImageView
+                        android:id="@+id/previewImage"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone"
+                        android:contentDescription="@string/placeholder_video_description" />
+
+                    <!-- Placeholder background (covers TextureView's black background) -->
+                    <View
+                        android:id="@+id/placeholderBackground"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="?attr/colorSurfaceVariant" />
+
+                    <!-- Placeholder icon (shown initially) -->
+                    <ImageView
+                        android:id="@+id/placeholderIcon"
+                        android:layout_width="240dp"
+                        android:layout_height="240dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_placeholder"
+                        android:contentDescription="@string/placeholder_video_description" />
+
+                    <!-- Progress overlay (shown during generation) -->
+                    <FrameLayout
+                        android:id="@+id/progressOverlay"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone">
+
+                        <!-- Progress indicator container -->
+                        <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="8dp"
-                            android:max="100"
-                            android:progress="0"
-                            android:progressDrawable="@drawable/progress_bar_square"
-                            android:minHeight="8dp"
-                            android:maxHeight="8dp" />
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="bottom"
+                            android:orientation="vertical">
 
-                    </LinearLayout>
+                            <!-- Progress bar -->
+                            <ProgressBar
+                                android:id="@+id/progressBar"
+                                style="@android:style/Widget.ProgressBar.Horizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="8dp"
+                                android:max="100"
+                                android:progress="0"
+                                android:progressDrawable="@drawable/progress_bar_square"
+                                android:minHeight="8dp"
+                                android:maxHeight="8dp" />
+
+                        </LinearLayout>
+
+                    </FrameLayout>
 
                 </FrameLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Instruction text below image -->
+            <!-- Instruction text below video -->
             <TextView
-                android:id="@+id/imageInstructionText"
+                android:id="@+id/videoInstructionText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginTop="8dp"
-                android:text="@string/tap_image_hint"
+                android:text="@string/tap_video_hint"
                 android:textSize="12sp"
                 android:visibility="visible"
                 android:alpha="0.7" />
