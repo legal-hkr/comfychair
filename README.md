@@ -10,18 +10,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-<img src="screenshots/login.png" width="200"/>
-<img src="screenshots/texttoimage.png" width="200"/>
-<img src="screenshots/settings-checkpoint.png" width="200"/>
-<img src="screenshots/settings-unet.png" width="200"/>
-<img src="screenshots/texttoimage-livepreview.png" width="200"/>
-<img src="screenshots/texttoimage-contextmenu.png" width="200"/>
-<img src="screenshots/inpainting-maskeditor.png" width="200"/>
-<img src="screenshots/inpainting-sourceimage.png" width="200"/>
-<img src="screenshots/inpainting-preview.png" width="200"/>
-<img src="screenshots/gallery.png" width="200"/>
-<img src="screenshots/configuration.png" width="200"/>
-<img src="screenshots/error.png" width="200"/>
+<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/settings-checkpoint.png" width="200"/> <img src="screenshots/settings-unet.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-contextmenu.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-sourceimage.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/configuration.png" width="200"/> <img src="screenshots/error.png" width="200"/>
 
 ## Features
 
