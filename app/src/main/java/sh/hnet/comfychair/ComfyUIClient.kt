@@ -865,6 +865,50 @@ class ComfyUIClient(
     }
 
     /**
+     * Delete a single history item by prompt ID
+     * Removes the specified entry from execution history
+     *
+     * @param promptId The prompt ID of the history item to delete
+     * @param callback Called with the result: success true/false
+     */
+    fun deleteHistoryItem(promptId: String, callback: (success: Boolean) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false)
+            return
+        }
+
+        val url = "$baseUrl/history"
+
+        val requestBody = JSONObject().apply {
+            put("delete", org.json.JSONArray().put(promptId))
+        }.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                println("Failed to delete history item: ${e.message}")
+                callback(false)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        println("History item deleted successfully: $promptId")
+                        callback(true)
+                    } else {
+                        println("Server returned error when deleting history item: ${response.code}")
+                        callback(false)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Upload an image to the ComfyUI server input folder
      * Used for inpainting to upload the source image with mask
      *

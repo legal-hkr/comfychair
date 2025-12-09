@@ -74,6 +74,11 @@
     <string name="queue_cleared_failed">Failed to clear queue</string>
     <string name="history_cleared_success">History cleared successfully</string>
     <string name="history_cleared_failed">Failed to clear history</string>
+    <string name="history_item_deleted_success">Item deleted successfully</string>
+    <string name="history_item_deleted_failed">Failed to delete item</string>
+
+    <!-- Gallery item strings -->
+    <string name="delete_history_item">Delete from history</string>
 
     <!-- Inpainting fragment strings -->
     <string name="inpainting_title">Inpainting</string>

@@ -22,11 +22,13 @@ data class GalleryItem(
 class GalleryAdapter(
     private val items: List<GalleryItem>,
     private val onItemClick: (GalleryItem) -> Unit,
-    private val onItemLongClick: (GalleryItem) -> Unit
+    private val onItemLongClick: (GalleryItem) -> Unit,
+    private val onDeleteClick: (GalleryItem) -> Unit
 ) : RecyclerView.Adapter<GalleryAdapter.GalleryViewHolder>() {
 
     class GalleryViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.thumbnailImage)
+        val deleteButton: ImageView = view.findViewById(R.id.deleteButton)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GalleryViewHolder {
@@ -46,6 +48,10 @@ class GalleryAdapter(
         holder.itemView.setOnLongClickListener {
             onItemLongClick(item)
             true
+        }
+
+        holder.deleteButton.setOnClickListener {
+            onDeleteClick(item)
         }
     }
 

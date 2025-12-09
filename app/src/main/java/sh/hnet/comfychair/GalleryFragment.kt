@@ -139,11 +139,27 @@ class GalleryFragment : Fragment() {
             onItemLongClick = { galleryItem ->
                 currentBitmap = galleryItem.bitmap
                 showSaveOptions()
+            },
+            onDeleteClick = { galleryItem ->
+                deleteHistoryItem(galleryItem.promptId)
             }
         )
 
         galleryGrid.layoutManager = GridLayoutManager(requireContext(), 2)
         galleryGrid.adapter = galleryAdapter
+    }
+
+    private fun deleteHistoryItem(promptId: String) {
+        comfyUIClient.deleteHistoryItem(promptId) { success ->
+            activity?.runOnUiThread {
+                if (success) {
+                    Toast.makeText(requireContext(), R.string.history_item_deleted_success, Toast.LENGTH_SHORT).show()
+                    loadGallery()
+                } else {
+                    Toast.makeText(requireContext(), R.string.history_item_deleted_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun setupSwipeRefresh() {
