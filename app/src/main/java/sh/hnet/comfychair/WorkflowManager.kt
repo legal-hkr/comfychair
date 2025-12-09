@@ -32,15 +32,15 @@ class WorkflowManager(private val context: Context) {
 
     /**
      * Load all workflow JSON files from res/raw
-     * Files should be named: checkpoint_*.json, unet_*.json, i_checkpoint_*.json, or i_unet_*.json
+     * Files should be named: tti_checkpoint_*.json, tti_unet_*.json, iip_checkpoint_*.json, or iip_unet_*.json
      */
     private fun loadWorkflows() {
         // List of workflow resource IDs
         val workflowResources = listOf(
-            R.raw.checkpoint_default,
-            R.raw.unet_zimage,
-            R.raw.i_checkpoint_default,
-            R.raw.i_unet_zimage
+            R.raw.tti_checkpoint_default,
+            R.raw.tti_unet_zimage,
+            R.raw.iip_checkpoint_default,
+            R.raw.iip_unet_zimage
         )
 
         for (resId in workflowResources) {
@@ -69,31 +69,31 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Get list of checkpoint workflow names for dropdown
+     * Get list of text-to-image checkpoint workflow names for dropdown
      */
     fun getCheckpointWorkflowNames(): List<String> {
-        return workflows.filter { it.id.startsWith("checkpoint_") }.map { it.name }
+        return workflows.filter { it.id.startsWith("tti_checkpoint_") }.map { it.name }
     }
 
     /**
-     * Get list of UNET workflow names for dropdown
+     * Get list of text-to-image UNET workflow names for dropdown
      */
     fun getUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.id.startsWith("unet_") }.map { it.name }
+        return workflows.filter { it.id.startsWith("tti_unet_") }.map { it.name }
     }
 
     /**
      * Get list of inpainting checkpoint workflow names for dropdown
      */
     fun getInpaintingCheckpointWorkflowNames(): List<String> {
-        return workflows.filter { it.id.startsWith("i_checkpoint_") }.map { it.name }
+        return workflows.filter { it.id.startsWith("iip_checkpoint_") }.map { it.name }
     }
 
     /**
      * Get list of inpainting UNET workflow names for dropdown
      */
     fun getInpaintingUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.id.startsWith("i_unet_") }.map { it.name }
+        return workflows.filter { it.id.startsWith("iip_unet_") }.map { it.name }
     }
 
     /**
@@ -104,19 +104,19 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Check if a workflow is a checkpoint workflow
+     * Check if a workflow is a text-to-image checkpoint workflow
      */
     fun isCheckpointWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.id?.startsWith("checkpoint_") == true
+        return workflow?.id?.startsWith("tti_checkpoint_") == true
     }
 
     /**
-     * Check if a workflow is a UNET workflow
+     * Check if a workflow is a text-to-image UNET workflow
      */
     fun isUNETWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.id?.startsWith("unet_") == true
+        return workflow?.id?.startsWith("tti_unet_") == true
     }
 
     /**
@@ -124,7 +124,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun isInpaintingCheckpointWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.id?.startsWith("i_checkpoint_") == true
+        return workflow?.id?.startsWith("iip_checkpoint_") == true
     }
 
     /**
@@ -132,7 +132,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun isInpaintingUNETWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.id?.startsWith("i_unet_") == true
+        return workflow?.id?.startsWith("iip_unet_") == true
     }
 
     /**
