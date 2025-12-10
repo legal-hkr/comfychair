@@ -1,0 +1,341 @@
+package sh.hnet.comfychair.ui.components
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import sh.hnet.comfychair.R
+import sh.hnet.comfychair.viewmodel.TextToImageUiState
+
+/**
+ * Content for the configuration bottom sheet
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConfigBottomSheetContent(
+    uiState: TextToImageUiState,
+    onModeChange: (Boolean) -> Unit,
+    onCheckpointWorkflowChange: (String) -> Unit,
+    onCheckpointChange: (String) -> Unit,
+    onCheckpointWidthChange: (String) -> Unit,
+    onCheckpointHeightChange: (String) -> Unit,
+    onCheckpointStepsChange: (String) -> Unit,
+    onUnetWorkflowChange: (String) -> Unit,
+    onUnetChange: (String) -> Unit,
+    onVaeChange: (String) -> Unit,
+    onClipChange: (String) -> Unit,
+    onUnetWidthChange: (String) -> Unit,
+    onUnetHeightChange: (String) -> Unit,
+    onUnetStepsChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Mode Toggle
+        Text(
+            text = stringResource(R.string.label_mode),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            SegmentedButton(
+                selected = uiState.isCheckpointMode,
+                onClick = { onModeChange(true) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+            ) {
+                Text(stringResource(R.string.mode_checkpoint))
+            }
+            SegmentedButton(
+                selected = !uiState.isCheckpointMode,
+                onClick = { onModeChange(false) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+            ) {
+                Text(stringResource(R.string.mode_unet))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (uiState.isCheckpointMode) {
+            // Checkpoint mode configuration
+            CheckpointModeContent(
+                uiState = uiState,
+                onWorkflowChange = onCheckpointWorkflowChange,
+                onCheckpointChange = onCheckpointChange,
+                onWidthChange = onCheckpointWidthChange,
+                onHeightChange = onCheckpointHeightChange,
+                onStepsChange = onCheckpointStepsChange
+            )
+        } else {
+            // UNET mode configuration
+            UnetModeContent(
+                uiState = uiState,
+                onWorkflowChange = onUnetWorkflowChange,
+                onUnetChange = onUnetChange,
+                onVaeChange = onVaeChange,
+                onClipChange = onClipChange,
+                onWidthChange = onUnetWidthChange,
+                onHeightChange = onUnetHeightChange,
+                onStepsChange = onUnetStepsChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun CheckpointModeContent(
+    uiState: TextToImageUiState,
+    onWorkflowChange: (String) -> Unit,
+    onCheckpointChange: (String) -> Unit,
+    onWidthChange: (String) -> Unit,
+    onHeightChange: (String) -> Unit,
+    onStepsChange: (String) -> Unit
+) {
+    // Workflow dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_workflow),
+        selectedValue = uiState.checkpointWorkflow,
+        options = uiState.availableCheckpointWorkflows,
+        onValueChange = onWorkflowChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Checkpoint dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_checkpoint),
+        selectedValue = uiState.selectedCheckpoint,
+        options = uiState.availableCheckpoints,
+        onValueChange = onCheckpointChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Width and Height
+    Row(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = uiState.checkpointWidth,
+            onValueChange = onWidthChange,
+            label = { Text(stringResource(R.string.label_width)) },
+            isError = uiState.widthError != null && uiState.isCheckpointMode,
+            supportingText = if (uiState.widthError != null && uiState.isCheckpointMode) {
+                { Text(uiState.widthError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = uiState.checkpointHeight,
+            onValueChange = onHeightChange,
+            label = { Text(stringResource(R.string.label_height)) },
+            isError = uiState.heightError != null && uiState.isCheckpointMode,
+            supportingText = if (uiState.heightError != null && uiState.isCheckpointMode) {
+                { Text(uiState.heightError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Steps
+    OutlinedTextField(
+        value = uiState.checkpointSteps,
+        onValueChange = onStepsChange,
+        label = { Text(stringResource(R.string.label_steps)) },
+        isError = uiState.stepsError != null && uiState.isCheckpointMode,
+        supportingText = if (uiState.stepsError != null && uiState.isCheckpointMode) {
+            { Text(uiState.stepsError!!) }
+        } else null,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
+}
+
+@Composable
+private fun UnetModeContent(
+    uiState: TextToImageUiState,
+    onWorkflowChange: (String) -> Unit,
+    onUnetChange: (String) -> Unit,
+    onVaeChange: (String) -> Unit,
+    onClipChange: (String) -> Unit,
+    onWidthChange: (String) -> Unit,
+    onHeightChange: (String) -> Unit,
+    onStepsChange: (String) -> Unit
+) {
+    // Workflow dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_workflow),
+        selectedValue = uiState.unetWorkflow,
+        options = uiState.availableUnetWorkflows,
+        onValueChange = onWorkflowChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // UNET dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_unet),
+        selectedValue = uiState.selectedUnet,
+        options = uiState.availableUnets,
+        onValueChange = onUnetChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // VAE dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_vae),
+        selectedValue = uiState.selectedVae,
+        options = uiState.availableVaes,
+        onValueChange = onVaeChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // CLIP dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_clip),
+        selectedValue = uiState.selectedClip,
+        options = uiState.availableClips,
+        onValueChange = onClipChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Width and Height
+    Row(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = uiState.unetWidth,
+            onValueChange = onWidthChange,
+            label = { Text(stringResource(R.string.label_width)) },
+            isError = uiState.widthError != null && !uiState.isCheckpointMode,
+            supportingText = if (uiState.widthError != null && !uiState.isCheckpointMode) {
+                { Text(uiState.widthError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = uiState.unetHeight,
+            onValueChange = onHeightChange,
+            label = { Text(stringResource(R.string.label_height)) },
+            isError = uiState.heightError != null && !uiState.isCheckpointMode,
+            supportingText = if (uiState.heightError != null && !uiState.isCheckpointMode) {
+                { Text(uiState.heightError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Steps
+    OutlinedTextField(
+        value = uiState.unetSteps,
+        onValueChange = onStepsChange,
+        label = { Text(stringResource(R.string.label_steps)) },
+        isError = uiState.stepsError != null && !uiState.isCheckpointMode,
+        supportingText = if (uiState.stepsError != null && !uiState.isCheckpointMode) {
+            { Text(uiState.stepsError!!) }
+        } else null,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
+}
+
+/**
+ * Reusable dropdown component for model selection
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModelDropdown(
+    label: String,
+    selectedValue: String,
+    options: List<String>,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedValue,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+            singleLine = true
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onValueChange(option)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+            }
+        }
+    }
+}

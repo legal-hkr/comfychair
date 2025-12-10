@@ -4,7 +4,6 @@
     <!-- Login screen strings -->
     <string name="hostname_hint">Hostname</string>
     <string name="port_hint">Port</string>
-    <string name="default_port" translatable="false">8188</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>
@@ -16,10 +15,6 @@
     <string name="error_required">Required</string>
     <string name="error_invalid_port">Invalid port number</string>
     <string name="error_invalid_hostname">Invalid hostname or IP address</string>
-    <string name="error_invalid_width">Width must be 1-4096</string>
-    <string name="error_invalid_height">Height must be 1-4096</string>
-    <string name="error_invalid_steps">Steps must be 1-255</string>
-    <string name="error_invalid_megapixels">Megapixels must be 0.1-8.3</string>
 
     <!-- SSL certificate warnings -->
     <string name="warning_self_signed_cert">Cannot validate the certificate, connecting anyway</string>
@@ -27,25 +22,13 @@
 
     <!-- Query screen strings -->
     <string name="prompt_hint">Prompt</string>
-    <string name="default_prompt" translatable="false">Beautiful scenery, nature, glass bottle, landscape, purple galaxy bottle</string>
     <string name="button_generate">Generate</string>
-    <string name="settings_button_description">Settings</string>
-    <string name="placeholder_image_description">Generated image will appear here</string>
 
     <!-- Configuration panel strings -->
     <string name="config_panel_title">Settings</string>
-    <string name="workflow_label">Workflow</string>
-    <string name="checkpoint_label" translatable="false">Checkpoint</string>
-    <string name="width_label">Width</string>
-    <string name="height_label">Height</string>
-    <string name="steps_label">Steps</string>
-    <string name="default_width" translatable="false">1024</string>
-    <string name="default_height" translatable="false">1024</string>
-    <string name="default_steps" translatable="false">9</string>
 
     <!-- Gallery screen strings -->
     <string name="gallery_title">Gallery</string>
-    <string name="text_to_image_title">Text to image</string>
     <string name="gallery_thumbnail_description">Generated image thumbnail</string>
 
     <!-- Navigation strings -->
@@ -53,12 +36,7 @@
     <string name="nav_inpainting">Inpainting</string>
     <string name="nav_gallery">Gallery</string>
 
-    <!-- Configuration mode strings -->
-    <string name="checkpoint_mode" translatable="false">Checkpoint</string>
-    <string name="unet_mode" translatable="false">UNET</string>
-
     <!-- Configuration fragment strings -->
-    <string name="configuration_title">Configuration</string>
     <string name="server_info_title">Server information</string>
     <string name="hostname_label">Hostname:</string>
     <string name="port_label">Port:</string>
@@ -95,11 +73,8 @@
     <string name="highnoise_lora_label" translatable="false">High noise LoRA</string>
     <string name="lownoise_lora_label" translatable="false">Low noise LoRA</string>
     <string name="length_label">Length</string>
-    <string name="default_length" translatable="false">33</string>
     <string name="error_invalid_length">Length must be 1, 5, 9, 13… up to 129</string>
     <string name="fps_label" translatable="false">FPS</string>
-    <string name="default_fps" translatable="false">16</string>
-    <string name="error_invalid_fps">FPS must be between 1 and 120</string>
     <string name="video_parameters_title">Video parameters</string>
     <string name="placeholder_video_description">Generated video will appear here</string>
 
@@ -108,40 +83,22 @@
     <string name="source_image_tab">Source image</string>
     <string name="preview_tab">Preview</string>
     <string name="megapixels_label">Megapixels</string>
-    <string name="default_megapixels" translatable="false">1.0</string>
-    <string name="source_image_title">Source image</string>
     <string name="upload_source_image">Upload source image</string>
     <string name="edit_mask">Edit mask</string>
     <string name="clear_mask">Clear mask</string>
-    <string name="long_press_hint">Long press for options</string>
     <string name="no_source_image">No source image selected</string>
-    <string name="mask_editor_title">Mask editor</string>
-    <string name="done">Done</string>
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">Cancel generation</string>
 
     <!-- Error and status messages -->
-    <string name="error_failed_to_connect">Failed to connect: %s</string>
+    <string name="error_failed_load_image">Failed to load image</string>
+    <string name="error_failed_fetch_history">Failed to fetch generation history</string>
     <string name="error_failed_load_workflow">Failed to load workflow</string>
     <string name="error_failed_start_generation">Failed to start generation: %s</string>
     <string name="error_image_generation_failed">Image generation failed</string>
     <string name="error_video_generation_failed">Video generation failed</string>
-    <string name="error_connection_lost">Connection lost during generation</string>
-    <string name="error_connection_lost_restart">Connection lost. Please restart the app.</string>
-    <string name="error_connection_lost_retry">Connection lost. Please try again.</string>
-    <string name="error_no_images_found">No images found in generation output</string>
-    <string name="error_no_videos_found">No videos found in generation output</string>
-    <string name="error_failed_fetch_image">Failed to fetch generated image</string>
-    <string name="error_failed_fetch_video">Failed to fetch generated video</string>
-    <string name="error_failed_fetch_history">Failed to fetch generation history</string>
-    <string name="error_failed_display_video">Failed to display video</string>
-    <string name="error_failed_load_image">Failed to load image</string>
-    <string name="error_failed_prepare_image">Failed to prepare image</string>
-    <string name="error_failed_upload_image">Failed to upload image: %s</string>
-    <string name="error_failed_play_video">Failed to play video</string>
     <string name="error_failed_load_video">Failed to load video</string>
-    <string name="error_failed_download_video">Failed to download video</string>
 
     <!-- Save/share messages -->
     <string name="image_saved_to_gallery">Image saved to gallery</string>
@@ -155,39 +112,59 @@
     <string name="share_image">Share image</string>
     <string name="share_video">Share video</string>
 
-    <!-- Connection messages -->
-    <string name="reconnecting_to_server">Reconnecting to server…</string>
-
     <!-- Inpainting messages -->
-    <string name="uploading_image">Uploading image…</string>
     <string name="paint_mask_hint">Please paint a mask area for inpainting</string>
-
-    <!-- Preview instruction text -->
-    <string name="tap_image_hint">Tap image to view, long press to save</string>
-    <string name="tap_video_hint">Tap video to view, long press to save</string>
 
     <!-- Image/Video parameters section -->
     <string name="image_parameters_title">Image parameters</string>
 
     <!-- Save options bottom sheet -->
-    <string name="save_image_title">Save image</string>
     <string name="save_to_gallery">Save to gallery</string>
     <string name="save_as">Save as…</string>
     <string name="share">Share…</string>
 
     <!-- Mask editor strings -->
-    <string name="brush_size">Brush size</string>
-    <string name="invert">Invert</string>
+    <string name="invert_mask">Invert mask</string>
+    <string name="paint_mode">Paint</string>
+    <string name="eraser_mode">Eraser</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generation</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_logout">Log out</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_logout">Log out</string>
+    <string name="button_options">Options</string>
+
+    <!-- Configuration bottom sheet labels -->
+    <string name="label_mode">Mode</string>
+    <string name="mode_checkpoint" translatable="false">Checkpoint</string>
+    <string name="mode_unet" translatable="false">UNET</string>
+    <string name="label_workflow">Workflow</string>
+    <string name="label_checkpoint" translatable="false">Checkpoint</string>
+    <string name="label_unet" translatable="false">UNET</string>
+    <string name="label_vae" translatable="false">VAE</string>
+    <string name="label_clip" translatable="false">CLIP</string>
+    <string name="label_width">Width</string>
+    <string name="label_height">Height</string>
+    <string name="label_steps">Steps</string>
 
     <!-- Settings screen strings -->
-    <string name="settings_title">Settings</string>
     <string name="nav_application_settings">Application</string>
     <string name="nav_server_settings">Server</string>
     <string name="application_settings_title">Application settings</string>
     <string name="server_settings_title">Server settings</string>
+
+    <!-- Content descriptions for accessibility -->
+    <string name="content_description_menu">Menu</string>
+    <string name="content_description_back">Back</string>
+    <string name="content_description_close">Close</string>
+    <string name="content_description_video">Video</string>
+    <string name="content_description_clear">Clear</string>
+
+    <!-- Empty state messages -->
+    <string name="gallery_empty">No images yet</string>
+
+    <!-- Section titles -->
+    <string name="model_selection_title">Model selection</string>
 </resources>

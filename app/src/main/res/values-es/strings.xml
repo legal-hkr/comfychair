@@ -13,10 +13,6 @@
     <string name="error_required">Requerido</string>
     <string name="error_invalid_port">Número de puerto inválido</string>
     <string name="error_invalid_hostname">Nombre de host o dirección IP inválida</string>
-    <string name="error_invalid_width">El ancho debe ser 1-4096</string>
-    <string name="error_invalid_height">La altura debe ser 1-4096</string>
-    <string name="error_invalid_steps">Los pasos deben ser 1-255</string>
-    <string name="error_invalid_megapixels">Los megapíxeles deben ser 0.1-8.3</string>
 
     <!-- SSL certificate warnings -->
     <string name="warning_self_signed_cert">No se puede validar el certificado, conectando de todos modos</string>
@@ -25,19 +21,12 @@
     <!-- Query screen strings -->
     <string name="prompt_hint">Prompt</string>
     <string name="button_generate">Generar</string>
-    <string name="settings_button_description">Configuración</string>
-    <string name="placeholder_image_description">La imagen generada aparecerá aquí</string>
 
     <!-- Configuration panel strings -->
     <string name="config_panel_title">Configuración</string>
-    <string name="workflow_label">Workflow</string>
-    <string name="width_label">Ancho</string>
-    <string name="height_label">Altura</string>
-    <string name="steps_label">Pasos</string>
 
     <!-- Gallery screen strings -->
     <string name="gallery_title">Galería</string>
-    <string name="text_to_image_title">Texto a imagen</string>
     <string name="gallery_thumbnail_description">Miniatura de imagen generada</string>
 
     <!-- Navigation strings -->
@@ -46,7 +35,6 @@
     <string name="nav_gallery">Galería</string>
 
     <!-- Configuration fragment strings -->
-    <string name="configuration_title">Configuración</string>
     <string name="server_info_title">Información del servidor</string>
     <string name="hostname_label">Nombre de host:</string>
     <string name="port_label">Puerto:</string>
@@ -80,7 +68,6 @@
     <string name="nav_text_to_video">Texto a vídeo</string>
     <string name="length_label">Duración</string>
     <string name="error_invalid_length">La duración debe ser 1, 5, 9, 13… hasta 129</string>
-    <string name="error_invalid_fps">FPS debe estar entre 1 y 120</string>
     <string name="video_parameters_title">Parámetros de vídeo</string>
     <string name="placeholder_video_description">El vídeo generado aparecerá aquí</string>
 
@@ -89,39 +76,22 @@
     <string name="source_image_tab">Imagen origen</string>
     <string name="preview_tab">Vista previa</string>
     <string name="megapixels_label">Megapíxeles</string>
-    <string name="source_image_title">Imagen origen</string>
     <string name="upload_source_image">Subir imagen origen</string>
     <string name="edit_mask">Editar máscara</string>
     <string name="clear_mask">Borrar máscara</string>
-    <string name="long_press_hint">Mantén pulsado para opciones</string>
     <string name="no_source_image">No hay imagen origen seleccionada</string>
-    <string name="mask_editor_title">Editor de máscara</string>
-    <string name="done">Hecho</string>
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">Cancelar generación</string>
 
     <!-- Error and status messages -->
-    <string name="error_failed_to_connect">Error de conexión: %s</string>
+    <string name="error_failed_load_image">Error al cargar la imagen</string>
+    <string name="error_failed_fetch_history">Error al obtener el historial de generación</string>
     <string name="error_failed_load_workflow">Error al cargar el workflow</string>
     <string name="error_failed_start_generation">Error al iniciar la generación: %s</string>
     <string name="error_image_generation_failed">Error en la generación de imagen</string>
     <string name="error_video_generation_failed">Error en la generación de vídeo</string>
-    <string name="error_connection_lost">Conexión perdida durante la generación</string>
-    <string name="error_connection_lost_restart">Conexión perdida. Por favor, reinicia la aplicación.</string>
-    <string name="error_connection_lost_retry">Conexión perdida. Por favor, inténtalo de nuevo.</string>
-    <string name="error_no_images_found">No se encontraron imágenes en el resultado de generación</string>
-    <string name="error_no_videos_found">No se encontraron vídeos en el resultado de generación</string>
-    <string name="error_failed_fetch_image">Error al obtener la imagen generada</string>
-    <string name="error_failed_fetch_video">Error al obtener el vídeo generado</string>
-    <string name="error_failed_fetch_history">Error al obtener el historial de generación</string>
-    <string name="error_failed_display_video">Error al mostrar el vídeo</string>
-    <string name="error_failed_load_image">Error al cargar la imagen</string>
-    <string name="error_failed_prepare_image">Error al preparar la imagen</string>
-    <string name="error_failed_upload_image">Error al subir la imagen: %s</string>
-    <string name="error_failed_play_video">Error al reproducir el vídeo</string>
     <string name="error_failed_load_video">Error al cargar el vídeo</string>
-    <string name="error_failed_download_video">Error al descargar el vídeo</string>
 
     <!-- Save/share messages -->
     <string name="image_saved_to_gallery">Imagen guardada en la galería</string>
@@ -135,39 +105,53 @@
     <string name="share_image">Compartir imagen</string>
     <string name="share_video">Compartir vídeo</string>
 
-    <!-- Connection messages -->
-    <string name="reconnecting_to_server">Reconectando al servidor…</string>
-
     <!-- Inpainting messages -->
-    <string name="uploading_image">Subiendo imagen…</string>
     <string name="paint_mask_hint">Por favor, pinta un área de máscara para inpainting</string>
-
-    <!-- Preview instruction text -->
-    <string name="tap_image_hint">Toca la imagen para ver, mantén pulsado para guardar</string>
-    <string name="tap_video_hint">Toca el vídeo para ver, mantén pulsado para guardar</string>
 
     <!-- Image/Video parameters section -->
     <string name="image_parameters_title">Parámetros de imagen</string>
 
     <!-- Save options bottom sheet -->
-    <string name="save_image_title">Guardar imagen</string>
     <string name="save_to_gallery">Guardar en galería</string>
     <string name="save_as">Guardar como…</string>
     <string name="share">Compartir…</string>
 
     <!-- Mask editor strings -->
-    <string name="brush_size">Tamaño del pincel</string>
-    <string name="invert">Invertir</string>
+    <string name="invert_mask">Invertir máscara</string>
+    <string name="paint_mode">Pintar</string>
+    <string name="eraser_mode">Borrador</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generación</string>
     <string name="menu_settings">Configuración</string>
     <string name="menu_logout">Cerrar sesión</string>
+    <string name="action_settings">Configuración</string>
+    <string name="action_logout">Cerrar sesión</string>
+    <string name="button_options">Opciones</string>
+
+    <!-- Configuration bottom sheet labels -->
+    <string name="label_mode">Modo</string>
+    <string name="label_workflow">Workflow</string>
+    <string name="label_width">Ancho</string>
+    <string name="label_height">Alto</string>
+    <string name="label_steps">Pasos</string>
 
     <!-- Settings screen strings -->
-    <string name="settings_title">Configuración</string>
     <string name="nav_application_settings">Aplicación</string>
     <string name="nav_server_settings">Servidor</string>
     <string name="application_settings_title">Configuración de la aplicación</string>
     <string name="server_settings_title">Configuración del servidor</string>
+
+    <!-- Content descriptions for accessibility -->
+    <string name="content_description_menu">Menú</string>
+    <string name="content_description_back">Atrás</string>
+    <string name="content_description_close">Cerrar</string>
+    <string name="content_description_video">Vídeo</string>
+    <string name="content_description_clear">Borrar</string>
+
+    <!-- Empty state messages -->
+    <string name="gallery_empty">Sin imágenes aún</string>
+
+    <!-- Section titles -->
+    <string name="model_selection_title">Selección de modelo</string>
 </resources>

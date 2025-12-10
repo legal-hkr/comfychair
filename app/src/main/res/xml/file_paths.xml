@@ -6,4 +6,6 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Cache directory for temporary share files -->
     <cache-path name="shared_images" path="." />
+    <!-- Files directory for saved videos and images -->
+    <files-path name="internal_files" path="." />
 </paths>

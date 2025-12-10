@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -34,6 +35,9 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    buildFeatures {
+        compose = true
+    }
 }
 
 dependencies {
@@ -41,16 +45,31 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
 
     // OkHttp for HTTP/HTTPS requests and WebSocket communication
     implementation(libs.okhttp)
 
-    // PhotoView for image zoom and pan
-    implementation(libs.photoview)
+    // Jetpack Compose
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.extended)
+    implementation(libs.compose.runtime)
+    implementation(libs.androidx.activity.compose)
+    debugImplementation(libs.compose.ui.tooling)
 
-    // SwipeRefreshLayout for pull-to-refresh
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    // Lifecycle and ViewModel for Compose
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
+
+    // Navigation Compose
+    implementation(libs.navigation.compose)
+
+    // Media3 for video playback
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

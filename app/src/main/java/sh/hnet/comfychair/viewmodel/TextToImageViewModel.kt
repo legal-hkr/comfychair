@@ -1,0 +1,614 @@
+package sh.hnet.comfychair.viewmodel
+
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.core.content.FileProvider
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.WorkflowManager
+import java.io.File
+import java.io.IOException
+
+/**
+ * UI state for the Text-to-Image screen
+ */
+data class TextToImageUiState(
+    // Mode selection
+    val isCheckpointMode: Boolean = true,
+
+    // Prompt
+    val prompt: String = "",
+
+    // Checkpoint mode configuration
+    val checkpointWorkflow: String = "",
+    val selectedCheckpoint: String = "",
+    val checkpointWidth: String = "1024",
+    val checkpointHeight: String = "1024",
+    val checkpointSteps: String = "9",
+
+    // UNET mode configuration
+    val unetWorkflow: String = "",
+    val selectedUnet: String = "",
+    val selectedVae: String = "",
+    val selectedClip: String = "",
+    val unetWidth: String = "1024",
+    val unetHeight: String = "1024",
+    val unetSteps: String = "9",
+
+    // Available models (loaded from server)
+    val availableCheckpointWorkflows: List<String> = emptyList(),
+    val availableUnetWorkflows: List<String> = emptyList(),
+    val availableCheckpoints: List<String> = emptyList(),
+    val availableUnets: List<String> = emptyList(),
+    val availableVaes: List<String> = emptyList(),
+    val availableClips: List<String> = emptyList(),
+
+    // Generated image
+    val currentBitmap: Bitmap? = null,
+
+    // Loading states
+    val isLoadingModels: Boolean = false,
+    val modelsLoaded: Boolean = false,
+
+    // Validation errors
+    val widthError: String? = null,
+    val heightError: String? = null,
+    val stepsError: String? = null
+)
+
+/**
+ * ViewModel for the Text-to-Image screen.
+ * Manages configuration state, model selection, and image generation.
+ */
+class TextToImageViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(TextToImageUiState())
+    val uiState: StateFlow<TextToImageUiState> = _uiState.asStateFlow()
+
+    private var workflowManager: WorkflowManager? = null
+    private var comfyUIClient: ComfyUIClient? = null
+    private var context: Context? = null
+
+    companion object {
+        private const val PREFS_NAME = "TextToImageFragmentPrefs"
+        private const val PREF_IS_CHECKPOINT_MODE = "isCheckpointMode"
+        private const val PREF_PROMPT = "prompt"
+
+        // Checkpoint mode preferences
+        private const val PREF_CHECKPOINT_WORKFLOW = "checkpointWorkflow"
+        private const val PREF_CHECKPOINT_MODEL = "checkpointModel"
+        private const val PREF_CHECKPOINT_WIDTH = "checkpointWidth"
+        private const val PREF_CHECKPOINT_HEIGHT = "checkpointHeight"
+        private const val PREF_CHECKPOINT_STEPS = "checkpointSteps"
+
+        // UNET mode preferences
+        private const val PREF_UNET_WORKFLOW = "unetWorkflow"
+        private const val PREF_UNET_MODEL = "unetModel"
+        private const val PREF_UNET_VAE = "unetVAE"
+        private const val PREF_UNET_CLIP = "unetCLIP"
+        private const val PREF_UNET_WIDTH = "unetWidth"
+        private const val PREF_UNET_HEIGHT = "unetHeight"
+        private const val PREF_UNET_STEPS = "unetSteps"
+
+        private const val LAST_IMAGE_FILENAME = "last_generated_image.png"
+    }
+
+    /**
+     * Initialize the ViewModel with dependencies
+     */
+    fun initialize(context: Context, client: ComfyUIClient) {
+        if (this.workflowManager != null) return // Already initialized
+
+        this.context = context.applicationContext
+        this.comfyUIClient = client
+        this.workflowManager = WorkflowManager(context)
+
+        // Load workflows from resources
+        loadWorkflows()
+
+        // Load saved configuration
+        loadConfiguration()
+
+        // Restore last generated image
+        restoreLastGeneratedImage()
+    }
+
+    /**
+     * Load available workflows from WorkflowManager
+     */
+    private fun loadWorkflows() {
+        val manager = workflowManager ?: return
+
+        val checkpointWorkflows = manager.getCheckpointWorkflowNames()
+        val unetWorkflows = manager.getUNETWorkflowNames()
+
+        _uiState.value = _uiState.value.copy(
+            availableCheckpointWorkflows = checkpointWorkflows,
+            availableUnetWorkflows = unetWorkflows,
+            checkpointWorkflow = if (_uiState.value.checkpointWorkflow.isEmpty() && checkpointWorkflows.isNotEmpty())
+                checkpointWorkflows[0] else _uiState.value.checkpointWorkflow,
+            unetWorkflow = if (_uiState.value.unetWorkflow.isEmpty() && unetWorkflows.isNotEmpty())
+                unetWorkflows[0] else _uiState.value.unetWorkflow
+        )
+    }
+
+    /**
+     * Fetch models from the server
+     */
+    fun fetchModels() {
+        val client = comfyUIClient ?: return
+
+        if (_uiState.value.modelsLoaded) return
+
+        _uiState.value = _uiState.value.copy(isLoadingModels = true)
+
+        // Fetch all model types
+        fetchCheckpoints(client)
+        fetchUnets(client)
+        fetchVaes(client)
+        fetchClips(client)
+    }
+
+    private fun fetchCheckpoints(client: ComfyUIClient) {
+        client.fetchCheckpoints { checkpoints ->
+            viewModelScope.launch {
+                val state = _uiState.value
+                _uiState.value = state.copy(
+                    availableCheckpoints = checkpoints,
+                    selectedCheckpoint = restoreModelSelection(
+                        PREF_CHECKPOINT_MODEL,
+                        state.selectedCheckpoint,
+                        checkpoints
+                    ),
+                    isLoadingModels = false,
+                    modelsLoaded = true
+                )
+            }
+        }
+    }
+
+    private fun fetchUnets(client: ComfyUIClient) {
+        client.fetchUNETs { unets ->
+            viewModelScope.launch {
+                val state = _uiState.value
+                _uiState.value = state.copy(
+                    availableUnets = unets,
+                    selectedUnet = restoreModelSelection(
+                        PREF_UNET_MODEL,
+                        state.selectedUnet,
+                        unets
+                    )
+                )
+            }
+        }
+    }
+
+    private fun fetchVaes(client: ComfyUIClient) {
+        client.fetchVAEs { vaes ->
+            viewModelScope.launch {
+                val state = _uiState.value
+                _uiState.value = state.copy(
+                    availableVaes = vaes,
+                    selectedVae = restoreModelSelection(
+                        PREF_UNET_VAE,
+                        state.selectedVae,
+                        vaes
+                    )
+                )
+            }
+        }
+    }
+
+    private fun fetchClips(client: ComfyUIClient) {
+        client.fetchCLIPs { clips ->
+            viewModelScope.launch {
+                val state = _uiState.value
+                _uiState.value = state.copy(
+                    availableClips = clips,
+                    selectedClip = restoreModelSelection(
+                        PREF_UNET_CLIP,
+                        state.selectedClip,
+                        clips
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Restore model selection from preferences if available in list
+     */
+    private fun restoreModelSelection(prefKey: String, current: String, available: List<String>): String {
+        val ctx = context ?: return current
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val saved = prefs.getString(prefKey, null)
+
+        return when {
+            saved != null && available.contains(saved) -> saved
+            current.isNotEmpty() && available.contains(current) -> current
+            available.isNotEmpty() -> available[0]
+            else -> ""
+        }
+    }
+
+    // Update functions for UI state
+
+    fun updateMode(isCheckpointMode: Boolean) {
+        _uiState.value = _uiState.value.copy(isCheckpointMode = isCheckpointMode)
+        saveConfiguration()
+    }
+
+    fun updatePrompt(prompt: String) {
+        _uiState.value = _uiState.value.copy(prompt = prompt)
+        saveConfiguration()
+    }
+
+    fun updateCheckpointWorkflow(workflow: String) {
+        _uiState.value = _uiState.value.copy(checkpointWorkflow = workflow)
+        saveConfiguration()
+    }
+
+    fun updateSelectedCheckpoint(checkpoint: String) {
+        _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoint)
+        saveConfiguration()
+    }
+
+    fun updateCheckpointWidth(width: String) {
+        val error = validateDimension(width)
+        _uiState.value = _uiState.value.copy(
+            checkpointWidth = width,
+            widthError = if (_uiState.value.isCheckpointMode) error else _uiState.value.widthError
+        )
+        saveConfiguration()
+    }
+
+    fun updateCheckpointHeight(height: String) {
+        val error = validateDimension(height)
+        _uiState.value = _uiState.value.copy(
+            checkpointHeight = height,
+            heightError = if (_uiState.value.isCheckpointMode) error else _uiState.value.heightError
+        )
+        saveConfiguration()
+    }
+
+    fun updateCheckpointSteps(steps: String) {
+        val error = validateSteps(steps)
+        _uiState.value = _uiState.value.copy(
+            checkpointSteps = steps,
+            stepsError = if (_uiState.value.isCheckpointMode) error else _uiState.value.stepsError
+        )
+        saveConfiguration()
+    }
+
+    fun updateUnetWorkflow(workflow: String) {
+        _uiState.value = _uiState.value.copy(unetWorkflow = workflow)
+        saveConfiguration()
+    }
+
+    fun updateSelectedUnet(unet: String) {
+        _uiState.value = _uiState.value.copy(selectedUnet = unet)
+        saveConfiguration()
+    }
+
+    fun updateSelectedVae(vae: String) {
+        _uiState.value = _uiState.value.copy(selectedVae = vae)
+        saveConfiguration()
+    }
+
+    fun updateSelectedClip(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip = clip)
+        saveConfiguration()
+    }
+
+    fun updateUnetWidth(width: String) {
+        val error = validateDimension(width)
+        _uiState.value = _uiState.value.copy(
+            unetWidth = width,
+            widthError = if (!_uiState.value.isCheckpointMode) error else _uiState.value.widthError
+        )
+        saveConfiguration()
+    }
+
+    fun updateUnetHeight(height: String) {
+        val error = validateDimension(height)
+        _uiState.value = _uiState.value.copy(
+            unetHeight = height,
+            heightError = if (!_uiState.value.isCheckpointMode) error else _uiState.value.heightError
+        )
+        saveConfiguration()
+    }
+
+    fun updateUnetSteps(steps: String) {
+        val error = validateSteps(steps)
+        _uiState.value = _uiState.value.copy(
+            unetSteps = steps,
+            stepsError = if (!_uiState.value.isCheckpointMode) error else _uiState.value.stepsError
+        )
+        saveConfiguration()
+    }
+
+    /**
+     * Update the current bitmap (e.g., from preview or final image)
+     */
+    fun updateCurrentBitmap(bitmap: Bitmap?) {
+        _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
+        bitmap?.let { saveLastGeneratedImage(it) }
+    }
+
+    // Validation
+
+    private fun validateDimension(value: String): String? {
+        if (value.isEmpty()) return null
+        val intValue = value.toIntOrNull()
+        return if (intValue == null || intValue !in 1..4096) {
+            "Must be 1-4096"
+        } else null
+    }
+
+    private fun validateSteps(value: String): String? {
+        if (value.isEmpty()) return null
+        val intValue = value.toIntOrNull()
+        return if (intValue == null || intValue !in 1..255) {
+            "Must be 1-255"
+        } else null
+    }
+
+    /**
+     * Validate current configuration before generation
+     */
+    fun validateConfiguration(): Boolean {
+        val state = _uiState.value
+
+        if (state.prompt.isBlank()) return false
+
+        return if (state.isCheckpointMode) {
+            state.selectedCheckpoint.isNotEmpty() &&
+            validateDimension(state.checkpointWidth) == null &&
+            validateDimension(state.checkpointHeight) == null &&
+            validateSteps(state.checkpointSteps) == null
+        } else {
+            state.selectedUnet.isNotEmpty() &&
+            state.selectedVae.isNotEmpty() &&
+            state.selectedClip.isNotEmpty() &&
+            validateDimension(state.unetWidth) == null &&
+            validateDimension(state.unetHeight) == null &&
+            validateSteps(state.unetSteps) == null
+        }
+    }
+
+    /**
+     * Prepare workflow JSON for generation
+     */
+    fun prepareWorkflowJson(): String? {
+        val manager = workflowManager ?: return null
+        val state = _uiState.value
+
+        return if (state.isCheckpointMode) {
+            manager.prepareWorkflow(
+                workflowName = state.checkpointWorkflow,
+                prompt = state.prompt,
+                checkpoint = state.selectedCheckpoint,
+                width = state.checkpointWidth.toIntOrNull() ?: 1024,
+                height = state.checkpointHeight.toIntOrNull() ?: 1024,
+                steps = state.checkpointSteps.toIntOrNull() ?: 9
+            )
+        } else {
+            manager.prepareWorkflow(
+                workflowName = state.unetWorkflow,
+                prompt = state.prompt,
+                unet = state.selectedUnet,
+                vae = state.selectedVae,
+                clip = state.selectedClip,
+                width = state.unetWidth.toIntOrNull() ?: 1024,
+                height = state.unetHeight.toIntOrNull() ?: 1024,
+                steps = state.unetSteps.toIntOrNull() ?: 9
+            )
+        }
+    }
+
+    /**
+     * Fetch the generated image after completion
+     */
+    fun fetchGeneratedImage(promptId: String, onComplete: () -> Unit) {
+        val client = comfyUIClient ?: return
+
+        client.fetchHistory(promptId) { historyJson ->
+            if (historyJson != null) {
+                try {
+                    val promptData = historyJson.optJSONObject(promptId)
+                    val outputs = promptData?.optJSONObject("outputs")
+
+                    outputs?.keys()?.forEach { nodeId ->
+                        val nodeOutput = outputs.getJSONObject(nodeId)
+                        val images = nodeOutput.optJSONArray("images")
+
+                        if (images != null && images.length() > 0) {
+                            val imageInfo = images.getJSONObject(0)
+                            val filename = imageInfo.optString("filename")
+                            val subfolder = imageInfo.optString("subfolder", "")
+                            val type = imageInfo.optString("type", "output")
+
+                            client.fetchImage(filename, subfolder, type) { bitmap ->
+                                viewModelScope.launch {
+                                    if (bitmap != null) {
+                                        updateCurrentBitmap(bitmap)
+                                    }
+                                    onComplete()
+                                }
+                            }
+                            return@fetchHistory
+                        }
+                    }
+                    onComplete()
+                } catch (e: Exception) {
+                    println("TextToImageViewModel: Failed to parse history: ${e.message}")
+                    onComplete()
+                }
+            } else {
+                onComplete()
+            }
+        }
+    }
+
+    // Persistence
+
+    private fun saveConfiguration() {
+        val ctx = context ?: return
+        val state = _uiState.value
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        prefs.edit().apply {
+            putBoolean(PREF_IS_CHECKPOINT_MODE, state.isCheckpointMode)
+            putString(PREF_PROMPT, state.prompt)
+
+            // Checkpoint mode
+            putString(PREF_CHECKPOINT_WORKFLOW, state.checkpointWorkflow)
+            putString(PREF_CHECKPOINT_MODEL, state.selectedCheckpoint)
+            putString(PREF_CHECKPOINT_WIDTH, state.checkpointWidth)
+            putString(PREF_CHECKPOINT_HEIGHT, state.checkpointHeight)
+            putString(PREF_CHECKPOINT_STEPS, state.checkpointSteps)
+
+            // UNET mode
+            putString(PREF_UNET_WORKFLOW, state.unetWorkflow)
+            putString(PREF_UNET_MODEL, state.selectedUnet)
+            putString(PREF_UNET_VAE, state.selectedVae)
+            putString(PREF_UNET_CLIP, state.selectedClip)
+            putString(PREF_UNET_WIDTH, state.unetWidth)
+            putString(PREF_UNET_HEIGHT, state.unetHeight)
+            putString(PREF_UNET_STEPS, state.unetSteps)
+
+            apply()
+        }
+    }
+
+    private fun loadConfiguration() {
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        _uiState.value = _uiState.value.copy(
+            isCheckpointMode = prefs.getBoolean(PREF_IS_CHECKPOINT_MODE, true),
+            prompt = prefs.getString(PREF_PROMPT, "") ?: "",
+
+            // Checkpoint mode
+            checkpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.checkpointWorkflow) ?: _uiState.value.checkpointWorkflow,
+            checkpointWidth = prefs.getString(PREF_CHECKPOINT_WIDTH, "1024") ?: "1024",
+            checkpointHeight = prefs.getString(PREF_CHECKPOINT_HEIGHT, "1024") ?: "1024",
+            checkpointSteps = prefs.getString(PREF_CHECKPOINT_STEPS, "9") ?: "9",
+
+            // UNET mode
+            unetWorkflow = prefs.getString(PREF_UNET_WORKFLOW, _uiState.value.unetWorkflow) ?: _uiState.value.unetWorkflow,
+            unetWidth = prefs.getString(PREF_UNET_WIDTH, "1024") ?: "1024",
+            unetHeight = prefs.getString(PREF_UNET_HEIGHT, "1024") ?: "1024",
+            unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9"
+        )
+    }
+
+    private fun saveLastGeneratedImage(bitmap: Bitmap) {
+        val ctx = context ?: return
+        try {
+            ctx.openFileOutput(LAST_IMAGE_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+        } catch (e: Exception) {
+            println("TextToImageViewModel: Failed to save image: ${e.message}")
+        }
+    }
+
+    private fun restoreLastGeneratedImage() {
+        val ctx = context ?: return
+        try {
+            val file = ctx.getFileStreamPath(LAST_IMAGE_FILENAME)
+            if (file.exists()) {
+                ctx.openFileInput(LAST_IMAGE_FILENAME).use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    if (bitmap != null) {
+                        _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            println("TextToImageViewModel: Failed to restore image: ${e.message}")
+        }
+    }
+
+    // Image save/share operations
+
+    fun saveToGallery(onResult: (success: Boolean) -> Unit) {
+        val ctx = context ?: run { onResult(false); return }
+        val bitmap = _uiState.value.currentBitmap ?: run { onResult(false); return }
+
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.png")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/ComfyChair")
+        }
+
+        val uri = ctx.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        uri?.let {
+            try {
+                ctx.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                }
+                onResult(true)
+            } catch (e: IOException) {
+                println("TextToImageViewModel: Failed to save to gallery: ${e.message}")
+                onResult(false)
+            }
+        } ?: onResult(false)
+    }
+
+    fun saveToUri(uri: Uri, onResult: (success: Boolean) -> Unit) {
+        val ctx = context ?: run { onResult(false); return }
+        val bitmap = _uiState.value.currentBitmap ?: run { onResult(false); return }
+
+        try {
+            ctx.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+            onResult(true)
+        } catch (e: IOException) {
+            println("TextToImageViewModel: Failed to save image: ${e.message}")
+            onResult(false)
+        }
+    }
+
+    fun getShareIntent(): Intent? {
+        val ctx = context ?: return null
+        val bitmap = _uiState.value.currentBitmap ?: return null
+
+        val cachePath = ctx.cacheDir
+        val filename = "share_image_${System.currentTimeMillis()}.png"
+        val file = File(cachePath, filename)
+
+        return try {
+            file.outputStream().use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+
+            val uri = FileProvider.getUriForFile(
+                ctx,
+                "${ctx.packageName}.fileprovider",
+                file
+            )
+
+            Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        } catch (e: Exception) {
+            println("TextToImageViewModel: Failed to create share intent: ${e.message}")
+            null
+        }
+    }
+}

@@ -1,0 +1,712 @@
+package sh.hnet.comfychair.viewmodel
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
+import sh.hnet.comfychair.WorkflowManager
+import java.io.File
+import java.io.FileOutputStream
+
+/**
+ * Data class representing a path drawn on the mask canvas
+ */
+data class MaskPathData(
+    val path: Path,
+    val isEraser: Boolean,
+    val brushSize: Float
+)
+
+/**
+ * UI state for inpainting configuration mode
+ */
+enum class InpaintingConfigMode {
+    CHECKPOINT,
+    UNET
+}
+
+/**
+ * UI state for the view mode toggle
+ */
+enum class InpaintingViewMode {
+    SOURCE,
+    PREVIEW
+}
+
+/**
+ * UI state for the Inpainting screen
+ */
+data class InpaintingUiState(
+    // View state
+    val viewMode: InpaintingViewMode = InpaintingViewMode.SOURCE,
+    val sourceImage: Bitmap? = null,
+    val previewImage: Bitmap? = null,
+    val maskPaths: List<MaskPathData> = emptyList(),
+    val brushSize: Float = 50f,
+    val isEraserMode: Boolean = false,
+
+    // Configuration mode
+    val configMode: InpaintingConfigMode = InpaintingConfigMode.CHECKPOINT,
+
+    // Checkpoint mode settings
+    val checkpointWorkflows: List<String> = emptyList(),
+    val selectedCheckpointWorkflow: String = "",
+    val checkpoints: List<String> = emptyList(),
+    val selectedCheckpoint: String = "",
+    val megapixels: String = "1.0",
+    val checkpointSteps: String = "20",
+
+    // UNET mode settings
+    val unetWorkflows: List<String> = emptyList(),
+    val selectedUnetWorkflow: String = "",
+    val unets: List<String> = emptyList(),
+    val selectedUnet: String = "",
+    val vaes: List<String> = emptyList(),
+    val selectedVae: String = "",
+    val clips: List<String> = emptyList(),
+    val selectedClip: String = "",
+    val unetSteps: String = "20",
+
+    // Prompt
+    val prompt: String = "",
+
+    // Validation errors
+    val megapixelsError: String? = null
+)
+
+/**
+ * Events emitted by the inpainting screen
+ */
+sealed class InpaintingEvent {
+    data class ShowToast(val messageResId: Int) : InpaintingEvent()
+    data class ShowToastMessage(val message: String) : InpaintingEvent()
+}
+
+/**
+ * ViewModel for the Inpainting screen
+ */
+class InpaintingViewModel : ViewModel() {
+
+    private var comfyUIClient: ComfyUIClient? = null
+    private var applicationContext: Context? = null
+    private var workflowManager: WorkflowManager? = null
+
+    private val _uiState = MutableStateFlow(InpaintingUiState())
+    val uiState: StateFlow<InpaintingUiState> = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<InpaintingEvent>()
+    val events: SharedFlow<InpaintingEvent> = _events.asSharedFlow()
+
+    companion object {
+        private const val PREFS_NAME = "InpaintingFragmentPrefs"
+        private const val PREF_CONFIG_MODE = "config_mode"
+        private const val PREF_CHECKPOINT_WORKFLOW = "checkpoint_workflow"
+        private const val PREF_CHECKPOINT = "checkpoint"
+        private const val PREF_MEGAPIXELS = "megapixels"
+        private const val PREF_CHECKPOINT_STEPS = "checkpoint_steps"
+        private const val PREF_UNET_WORKFLOW = "unet_workflow"
+        private const val PREF_UNET = "unet"
+        private const val PREF_VAE = "vae"
+        private const val PREF_CLIP = "clip"
+        private const val PREF_UNET_STEPS = "unet_steps"
+        private const val PREF_PROMPT = "prompt"
+        private const val FEATHER_RADIUS = 8
+    }
+
+    fun initialize(context: Context, client: ComfyUIClient) {
+        applicationContext = context.applicationContext
+        comfyUIClient = client
+        workflowManager = WorkflowManager(context)
+
+        loadWorkflowOptions()
+        restorePreferences()
+        loadSavedImages()
+    }
+
+    private fun loadWorkflowOptions() {
+        val wm = workflowManager ?: return
+
+        val checkpointWorkflows = wm.getInpaintingCheckpointWorkflowNames()
+        val unetWorkflows = wm.getInpaintingUNETWorkflowNames()
+
+        _uiState.value = _uiState.value.copy(
+            checkpointWorkflows = checkpointWorkflows,
+            selectedCheckpointWorkflow = if (_uiState.value.selectedCheckpointWorkflow.isEmpty() && checkpointWorkflows.isNotEmpty()) {
+                checkpointWorkflows.first()
+            } else {
+                _uiState.value.selectedCheckpointWorkflow
+            },
+            unetWorkflows = unetWorkflows,
+            selectedUnetWorkflow = if (_uiState.value.selectedUnetWorkflow.isEmpty() && unetWorkflows.isNotEmpty()) {
+                unetWorkflows.first()
+            } else {
+                _uiState.value.selectedUnetWorkflow
+            }
+        )
+    }
+
+    private fun restorePreferences() {
+        val context = applicationContext ?: return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        val configModeStr = prefs.getString(PREF_CONFIG_MODE, "CHECKPOINT") ?: "CHECKPOINT"
+        val configMode = try {
+            InpaintingConfigMode.valueOf(configModeStr)
+        } catch (e: Exception) {
+            InpaintingConfigMode.CHECKPOINT
+        }
+
+        _uiState.value = _uiState.value.copy(
+            configMode = configMode,
+            selectedCheckpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow) ?: _uiState.value.selectedCheckpointWorkflow,
+            selectedCheckpoint = prefs.getString(PREF_CHECKPOINT, "") ?: "",
+            megapixels = prefs.getString(PREF_MEGAPIXELS, "1.0") ?: "1.0",
+            checkpointSteps = prefs.getString(PREF_CHECKPOINT_STEPS, "20") ?: "20",
+            selectedUnetWorkflow = prefs.getString(PREF_UNET_WORKFLOW, _uiState.value.selectedUnetWorkflow) ?: _uiState.value.selectedUnetWorkflow,
+            selectedUnet = prefs.getString(PREF_UNET, "") ?: "",
+            selectedVae = prefs.getString(PREF_VAE, "") ?: "",
+            selectedClip = prefs.getString(PREF_CLIP, "") ?: "",
+            unetSteps = prefs.getString(PREF_UNET_STEPS, "20") ?: "20",
+            prompt = prefs.getString(PREF_PROMPT, "") ?: ""
+        )
+    }
+
+    private fun savePreferences() {
+        val context = applicationContext ?: return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        prefs.edit()
+            .putString(PREF_CONFIG_MODE, _uiState.value.configMode.name)
+            .putString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow)
+            .putString(PREF_CHECKPOINT, _uiState.value.selectedCheckpoint)
+            .putString(PREF_MEGAPIXELS, _uiState.value.megapixels)
+            .putString(PREF_CHECKPOINT_STEPS, _uiState.value.checkpointSteps)
+            .putString(PREF_UNET_WORKFLOW, _uiState.value.selectedUnetWorkflow)
+            .putString(PREF_UNET, _uiState.value.selectedUnet)
+            .putString(PREF_VAE, _uiState.value.selectedVae)
+            .putString(PREF_CLIP, _uiState.value.selectedClip)
+            .putString(PREF_UNET_STEPS, _uiState.value.unetSteps)
+            .putString(PREF_PROMPT, _uiState.value.prompt)
+            .apply()
+    }
+
+    private fun loadSavedImages() {
+        val context = applicationContext ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            // Load source image
+            val sourceFile = File(context.filesDir, "inpainting_last_source.png")
+            if (sourceFile.exists()) {
+                val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath)
+                _uiState.value = _uiState.value.copy(sourceImage = bitmap)
+            }
+
+            // Load preview image
+            val previewFile = File(context.filesDir, "inpainting_last_preview.png")
+            if (previewFile.exists()) {
+                val bitmap = BitmapFactory.decodeFile(previewFile.absolutePath)
+                _uiState.value = _uiState.value.copy(previewImage = bitmap)
+            }
+        }
+    }
+
+    fun fetchModels() {
+        val client = comfyUIClient ?: return
+
+        viewModelScope.launch {
+            // Fetch checkpoints
+            client.fetchCheckpoints { checkpoints ->
+                _uiState.value = _uiState.value.copy(
+                    checkpoints = checkpoints ?: emptyList()
+                )
+                // Auto-select first if none selected
+                if (_uiState.value.selectedCheckpoint.isEmpty() && checkpoints?.isNotEmpty() == true) {
+                    _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoints.first())
+                }
+            }
+
+            // Fetch UNETs
+            client.fetchUNETs { unets ->
+                _uiState.value = _uiState.value.copy(
+                    unets = unets ?: emptyList()
+                )
+                if (_uiState.value.selectedUnet.isEmpty() && unets?.isNotEmpty() == true) {
+                    _uiState.value = _uiState.value.copy(selectedUnet = unets.first())
+                }
+            }
+
+            // Fetch VAEs
+            client.fetchVAEs { vaes ->
+                _uiState.value = _uiState.value.copy(
+                    vaes = vaes ?: emptyList()
+                )
+                if (_uiState.value.selectedVae.isEmpty() && vaes?.isNotEmpty() == true) {
+                    _uiState.value = _uiState.value.copy(selectedVae = vaes.first())
+                }
+            }
+
+            // Fetch CLIPs
+            client.fetchCLIPs { clips ->
+                _uiState.value = _uiState.value.copy(
+                    clips = clips ?: emptyList()
+                )
+                if (_uiState.value.selectedClip.isEmpty() && clips?.isNotEmpty() == true) {
+                    _uiState.value = _uiState.value.copy(selectedClip = clips.first())
+                }
+            }
+        }
+    }
+
+    // View mode
+    fun onViewModeChange(mode: InpaintingViewMode) {
+        _uiState.value = _uiState.value.copy(viewMode = mode)
+    }
+
+    // Source image
+    fun setSourceImage(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                if (bitmap != null) {
+                    // Save to file
+                    val file = File(context.filesDir, "inpainting_last_source.png")
+                    FileOutputStream(file).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+
+                    _uiState.value = _uiState.value.copy(
+                        sourceImage = bitmap,
+                        maskPaths = emptyList() // Clear mask when new image is loaded
+                    )
+                }
+            } catch (e: Exception) {
+                _events.emit(InpaintingEvent.ShowToast(R.string.failed_save_image))
+            }
+        }
+    }
+
+    // Mask operations
+    fun addMaskPath(path: Path, isEraser: Boolean, brushSize: Float) {
+        val pathData = MaskPathData(path, isEraser, brushSize)
+        _uiState.value = _uiState.value.copy(
+            maskPaths = _uiState.value.maskPaths + pathData
+        )
+    }
+
+    fun setBrushSize(size: Float) {
+        _uiState.value = _uiState.value.copy(brushSize = size)
+    }
+
+    fun setEraserMode(isEraser: Boolean) {
+        _uiState.value = _uiState.value.copy(isEraserMode = isEraser)
+    }
+
+    fun clearMask() {
+        _uiState.value = _uiState.value.copy(maskPaths = emptyList())
+    }
+
+    fun invertMask() {
+        // Mark that mask is inverted - actual inversion happens when generating mask bitmap
+        // For visual feedback, we'll use a special flag
+        val sourceImage = _uiState.value.sourceImage ?: return
+
+        viewModelScope.launch {
+            // Create a full-coverage path and toggle all existing paths
+            val fullPath = Path().apply {
+                addRect(RectF(0f, 0f, sourceImage.width.toFloat(), sourceImage.height.toFloat()), Path.Direction.CW)
+            }
+
+            // Add inverted background
+            val invertedPaths = mutableListOf<MaskPathData>()
+            invertedPaths.add(MaskPathData(fullPath, false, 1f))
+
+            // Add existing paths as erasers (to remove painted areas)
+            _uiState.value.maskPaths.forEach { pathData ->
+                invertedPaths.add(pathData.copy(isEraser = !pathData.isEraser))
+            }
+
+            _uiState.value = _uiState.value.copy(maskPaths = invertedPaths)
+        }
+    }
+
+    fun hasMask(): Boolean {
+        return _uiState.value.maskPaths.isNotEmpty()
+    }
+
+    /**
+     * Generate the mask bitmap from current paths
+     * Returns black/white bitmap where white = inpaint area
+     */
+    fun generateMaskBitmap(): Bitmap? {
+        val sourceImage = _uiState.value.sourceImage ?: return null
+        if (_uiState.value.maskPaths.isEmpty()) return null
+
+        // Create mask at source image size
+        val maskBitmap = Bitmap.createBitmap(sourceImage.width, sourceImage.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(maskBitmap)
+
+        // Start with black background
+        canvas.drawColor(Color.BLACK)
+
+        // Draw white for painted areas
+        val paintPaint = Paint().apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.ROUND
+            isAntiAlias = true
+        }
+
+        val erasePaint = Paint().apply {
+            color = Color.BLACK
+            style = Paint.Style.STROKE
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.ROUND
+            isAntiAlias = true
+        }
+
+        _uiState.value.maskPaths.forEach { pathData ->
+            val paint = if (pathData.isEraser) erasePaint else paintPaint
+            paint.strokeWidth = pathData.brushSize
+            canvas.drawPath(pathData.path, paint)
+        }
+
+        // Apply feathering
+        return applyFeathering(maskBitmap, FEATHER_RADIUS)
+    }
+
+    private fun applyFeathering(mask: Bitmap, radius: Int): Bitmap {
+        if (radius <= 0) return mask
+
+        val width = mask.width
+        val height = mask.height
+        val pixels = IntArray(width * height)
+        mask.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        // Convert to grayscale values (0-255)
+        val values = IntArray(width * height) { i ->
+            Color.red(pixels[i]) // Since it's black/white, R=G=B
+        }
+
+        // Horizontal pass
+        val tempValues = IntArray(width * height)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                var sum = 0
+                var count = 0
+                for (dx in -radius..radius) {
+                    val nx = x + dx
+                    if (nx in 0 until width) {
+                        sum += values[y * width + nx]
+                        count++
+                    }
+                }
+                tempValues[y * width + x] = sum / count
+            }
+        }
+
+        // Vertical pass
+        val blurredValues = IntArray(width * height)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                var sum = 0
+                var count = 0
+                for (dy in -radius..radius) {
+                    val ny = y + dy
+                    if (ny in 0 until height) {
+                        sum += tempValues[ny * width + x]
+                        count++
+                    }
+                }
+                blurredValues[y * width + x] = sum / count
+            }
+        }
+
+        // Convert back to pixels
+        for (i in pixels.indices) {
+            val v = blurredValues[i]
+            pixels[i] = Color.rgb(v, v, v)
+        }
+
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        result.setPixels(pixels, 0, width, 0, 0, width, height)
+
+        return result
+    }
+
+    // Config mode
+    fun onConfigModeChange(mode: InpaintingConfigMode) {
+        _uiState.value = _uiState.value.copy(configMode = mode)
+        savePreferences()
+    }
+
+    // Checkpoint mode settings
+    fun onCheckpointWorkflowChange(workflow: String) {
+        _uiState.value = _uiState.value.copy(selectedCheckpointWorkflow = workflow)
+        savePreferences()
+    }
+
+    fun onCheckpointChange(checkpoint: String) {
+        _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoint)
+        savePreferences()
+    }
+
+    fun onMegapixelsChange(megapixels: String) {
+        val error = validateMegapixels(megapixels)
+        _uiState.value = _uiState.value.copy(
+            megapixels = megapixels,
+            megapixelsError = error
+        )
+        savePreferences()
+    }
+
+    fun onCheckpointStepsChange(steps: String) {
+        _uiState.value = _uiState.value.copy(checkpointSteps = steps)
+        savePreferences()
+    }
+
+    // UNET mode settings
+    fun onUnetWorkflowChange(workflow: String) {
+        _uiState.value = _uiState.value.copy(selectedUnetWorkflow = workflow)
+        savePreferences()
+    }
+
+    fun onUnetChange(unet: String) {
+        _uiState.value = _uiState.value.copy(selectedUnet = unet)
+        savePreferences()
+    }
+
+    fun onVaeChange(vae: String) {
+        _uiState.value = _uiState.value.copy(selectedVae = vae)
+        savePreferences()
+    }
+
+    fun onClipChange(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip = clip)
+        savePreferences()
+    }
+
+    fun onUnetStepsChange(steps: String) {
+        _uiState.value = _uiState.value.copy(unetSteps = steps)
+        savePreferences()
+    }
+
+    // Prompt
+    fun onPromptChange(prompt: String) {
+        _uiState.value = _uiState.value.copy(prompt = prompt)
+        savePreferences()
+    }
+
+    private fun validateMegapixels(value: String): String? {
+        val mp = value.toFloatOrNull() ?: return "Invalid number"
+        return if (mp < 0.1f || mp > 8.3f) "Must be 0.1-8.3" else null
+    }
+
+    fun hasValidConfiguration(): Boolean {
+        val state = _uiState.value
+
+        return when (state.configMode) {
+            InpaintingConfigMode.CHECKPOINT -> {
+                state.selectedCheckpointWorkflow.isNotEmpty() &&
+                state.selectedCheckpoint.isNotEmpty() &&
+                state.megapixels.toFloatOrNull() != null &&
+                state.megapixelsError == null &&
+                state.checkpointSteps.toIntOrNull() != null
+            }
+            InpaintingConfigMode.UNET -> {
+                state.selectedUnetWorkflow.isNotEmpty() &&
+                state.selectedUnet.isNotEmpty() &&
+                state.selectedVae.isNotEmpty() &&
+                state.selectedClip.isNotEmpty() &&
+                state.unetSteps.toIntOrNull() != null
+            }
+        }
+    }
+
+    /**
+     * Upload source image with mask to ComfyUI and prepare workflow
+     */
+    suspend fun prepareWorkflow(): String? {
+        val client = comfyUIClient ?: return null
+        val wm = workflowManager ?: return null
+        val context = applicationContext ?: return null
+        val state = _uiState.value
+
+        val sourceImage = state.sourceImage ?: return null
+
+        // Generate mask
+        val maskBitmap = generateMaskBitmap()
+        if (maskBitmap == null) {
+            _events.emit(InpaintingEvent.ShowToast(R.string.paint_mask_hint))
+            return null
+        }
+
+        // Combine source image with mask in alpha channel
+        val imageWithMask = combineImageWithMask(sourceImage, maskBitmap)
+        maskBitmap.recycle()
+
+        // Convert bitmap to PNG byte array
+        val imageBytes = withContext(Dispatchers.IO) {
+            val outputStream = java.io.ByteArrayOutputStream()
+            imageWithMask.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            outputStream.toByteArray()
+        }
+
+        imageWithMask.recycle()
+
+        // Upload to ComfyUI
+        val uploadedFilename: String? = withContext(Dispatchers.IO) {
+            kotlin.coroutines.suspendCoroutine { continuation ->
+                client.uploadImage(imageBytes, "inpaint_source.png") { success, filename, errorMessage ->
+                    continuation.resumeWith(Result.success(if (success) filename else null))
+                }
+            }
+        }
+
+        if (uploadedFilename == null) {
+            _events.emit(InpaintingEvent.ShowToast(R.string.failed_save_image))
+            return null
+        }
+
+        // Prepare workflow JSON
+        return when (state.configMode) {
+            InpaintingConfigMode.CHECKPOINT -> {
+                wm.prepareInpaintingWorkflow(
+                    workflowName = state.selectedCheckpointWorkflow,
+                    prompt = state.prompt,
+                    checkpoint = state.selectedCheckpoint,
+                    megapixels = state.megapixels.toFloatOrNull() ?: 1.0f,
+                    steps = state.checkpointSteps.toIntOrNull() ?: 20,
+                    imageFilename = uploadedFilename
+                )
+            }
+            InpaintingConfigMode.UNET -> {
+                wm.prepareInpaintingWorkflow(
+                    workflowName = state.selectedUnetWorkflow,
+                    prompt = state.prompt,
+                    unet = state.selectedUnet,
+                    vae = state.selectedVae,
+                    clip = state.selectedClip,
+                    steps = state.unetSteps.toIntOrNull() ?: 20,
+                    imageFilename = uploadedFilename
+                )
+            }
+        }
+    }
+
+    /**
+     * Combine source image with mask in alpha channel (mask white = transparent)
+     */
+    private fun combineImageWithMask(source: Bitmap, mask: Bitmap): Bitmap {
+        val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+
+        val sourcePixels = IntArray(source.width * source.height)
+        val maskPixels = IntArray(mask.width * mask.height)
+
+        source.getPixels(sourcePixels, 0, source.width, 0, 0, source.width, source.height)
+        mask.getPixels(maskPixels, 0, mask.width, 0, 0, mask.width, mask.height)
+
+        for (i in sourcePixels.indices) {
+            val r = Color.red(sourcePixels[i])
+            val g = Color.green(sourcePixels[i])
+            val b = Color.blue(sourcePixels[i])
+
+            // Mask brightness - white = inpaint area = transparent alpha
+            val maskBrightness = Color.red(maskPixels[i])
+            val alpha = 255 - maskBrightness // Invert: white mask -> 0 alpha (transparent)
+
+            sourcePixels[i] = Color.argb(alpha, r, g, b)
+        }
+
+        result.setPixels(sourcePixels, 0, source.width, 0, 0, source.width, source.height)
+        return result
+    }
+
+    /**
+     * Fetch and save generated image from history
+     */
+    fun fetchGeneratedImage(promptId: String, onComplete: () -> Unit) {
+        val client = comfyUIClient ?: return
+        val context = applicationContext ?: return
+
+        client.fetchHistory(promptId) { historyJson ->
+            if (historyJson == null) {
+                onComplete()
+                return@fetchHistory
+            }
+
+            val promptHistory = historyJson.optJSONObject(promptId)
+            val outputs = promptHistory?.optJSONObject("outputs")
+
+            if (outputs == null) {
+                onComplete()
+                return@fetchHistory
+            }
+
+            // Find image in outputs
+            val outputKeys = outputs.keys()
+            while (outputKeys.hasNext()) {
+                val nodeId = outputKeys.next()
+                val nodeOutput = outputs.optJSONObject(nodeId)
+                val images = nodeOutput?.optJSONArray("images")
+
+                if (images != null && images.length() > 0) {
+                    val imageInfo = images.optJSONObject(0)
+                    val filename = imageInfo?.optString("filename") ?: continue
+                    val subfolder = imageInfo.optString("subfolder", "")
+                    val type = imageInfo.optString("type", "output")
+
+                    client.fetchImage(filename, subfolder, type) { bitmap ->
+                        if (bitmap != null) {
+                            // Save to file
+                            viewModelScope.launch(Dispatchers.IO) {
+                                val file = File(context.filesDir, "inpainting_last_preview.png")
+                                FileOutputStream(file).use { out ->
+                                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                }
+
+                                _uiState.value = _uiState.value.copy(
+                                    previewImage = bitmap,
+                                    viewMode = InpaintingViewMode.PREVIEW
+                                )
+                            }
+                        }
+                        onComplete()
+                    }
+                    return@fetchHistory
+                }
+            }
+
+            onComplete()
+        }
+    }
+
+    fun updatePreviewBitmap(bitmap: Bitmap) {
+        _uiState.value = _uiState.value.copy(previewImage = bitmap)
+    }
+
+    fun clearPreview() {
+        _uiState.value = _uiState.value.copy(previewImage = null)
+    }
+}
