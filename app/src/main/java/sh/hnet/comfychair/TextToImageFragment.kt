@@ -287,6 +287,9 @@ class TextToImageFragment : Fragment(), MainContainerActivity.GenerationStateLis
         println("TextToImageFragment: Generation error: $message")
         resetGenerateButton()
         hideProgressOverlay()
+        if (isAdded && context != null) {
+            Toast.makeText(requireContext(), R.string.error_image_generation_failed, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun initializeViews(view: View) {

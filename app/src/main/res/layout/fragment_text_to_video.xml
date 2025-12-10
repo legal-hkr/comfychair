@@ -76,7 +76,8 @@
                     <TextureView
                         android:id="@+id/videoPreview"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
+                        android:layout_height="match_parent"
+                        android:visibility="gone" />
 
                     <!-- ImageView for live preview during generation (covers TextureView) -->
                     <ImageView
@@ -86,13 +87,6 @@
                         android:scaleType="centerCrop"
                         android:visibility="gone"
                         android:contentDescription="@string/placeholder_video_description" />
-
-                    <!-- Placeholder background (covers TextureView's black background) -->
-                    <View
-                        android:id="@+id/placeholderBackground"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="?attr/colorSurfaceVariant" />
 
                     <!-- Placeholder icon (shown initially) -->
                     <ImageView

@@ -1,0 +1,162 @@
+<resources>
+    <!-- Login screen strings -->
+    <string name="hostname_hint">Hostname</string>
+    <string name="port_hint">Port</string>
+
+    <!-- Connection button states -->
+    <string name="button_connect">Verbinden</string>
+    <string name="button_connecting">Verbinde…</string>
+    <string name="button_failed">Fehlgeschlagen</string>
+    <string name="button_connected">Verbunden</string>
+
+    <!-- Validation error messages -->
+    <string name="error_required">Erforderlich</string>
+    <string name="error_invalid_port">Ungültige Portnummer</string>
+    <string name="error_invalid_hostname">Ungültiger Hostname oder IP-Adresse</string>
+    <string name="error_invalid_width">Breite muss 1-4096 sein</string>
+    <string name="error_invalid_height">Höhe muss 1-4096 sein</string>
+    <string name="error_invalid_steps">Schritte müssen 1-255 sein</string>
+    <string name="error_invalid_megapixels">Megapixel müssen 0.1-8.3 sein</string>
+
+    <!-- SSL certificate warnings -->
+    <string name="warning_self_signed_cert">Zertifikat kann nicht überprüft werden, verbinde trotzdem</string>
+    <string name="warning_unknown_ca">Unbekannter Zertifikatsaussteller, verbinde trotzdem</string>
+
+    <!-- Query screen strings -->
+    <string name="prompt_hint">Prompt</string>
+    <string name="button_generate">Generieren</string>
+    <string name="settings_button_description">Einstellungen</string>
+    <string name="placeholder_image_description">Generiertes Bild erscheint hier</string>
+
+    <!-- Configuration panel strings -->
+    <string name="config_panel_title">Einstellungen</string>
+    <string name="workflow_label">Workflow</string>
+    <string name="width_label">Breite</string>
+    <string name="height_label">Höhe</string>
+    <string name="steps_label">Schritte</string>
+
+    <!-- Gallery screen strings -->
+    <string name="gallery_title">Galerie</string>
+    <string name="text_to_image_title">Text zu Bild</string>
+    <string name="gallery_thumbnail_description">Miniaturansicht des generierten Bildes</string>
+
+    <!-- Navigation strings -->
+    <string name="nav_text_to_image">Text zu Bild</string>
+    <string name="nav_inpainting">Inpainting</string>
+    <string name="nav_gallery">Galerie</string>
+
+    <!-- Configuration fragment strings -->
+    <string name="configuration_title">Konfiguration</string>
+    <string name="server_info_title">Server-Informationen</string>
+    <string name="hostname_label">Hostname:</string>
+    <string name="port_label">Port:</string>
+    <string name="server_management_title">Server-Verwaltung</string>
+    <string name="server_management_warning">Warnung: Diese Aktionen können nicht rückgängig gemacht werden</string>
+    <string name="clear_queue_button">Warteschlange leeren</string>
+    <string name="clear_history_button">Verlauf löschen</string>
+    <string name="nav_configuration">Konfiguration</string>
+
+    <!-- Toast messages -->
+    <string name="queue_cleared_success">Warteschlange erfolgreich geleert</string>
+    <string name="queue_cleared_failed">Warteschlange konnte nicht geleert werden</string>
+    <string name="history_cleared_success">Verlauf erfolgreich gelöscht</string>
+    <string name="history_cleared_failed">Verlauf konnte nicht gelöscht werden</string>
+    <string name="history_item_deleted_success">Element erfolgreich gelöscht</string>
+    <string name="history_item_deleted_failed">Element konnte nicht gelöscht werden</string>
+    <string name="cache_cleared_success">Cache erfolgreich geleert</string>
+    <string name="defaults_restored_success">Standardeinstellungen erfolgreich wiederhergestellt</string>
+
+    <!-- App management strings -->
+    <string name="app_management_title">App-Verwaltung</string>
+    <string name="app_management_description">Lokale App-Daten und Einstellungen verwalten</string>
+    <string name="clear_cache_button">Cache leeren</string>
+    <string name="restore_defaults_button">Standardeinstellungen wiederherstellen</string>
+
+    <!-- Gallery item strings -->
+    <string name="delete_history_item">Aus Verlauf löschen</string>
+    <string name="gallery_video_thumbnail_description">Miniaturansicht des generierten Videos</string>
+
+    <!-- Text to Video fragment strings -->
+    <string name="text_to_video_title">Text zu Video</string>
+    <string name="nav_text_to_video">Text zu Video</string>
+    <string name="length_label">Länge</string>
+    <string name="error_invalid_length">Länge muss 1, 5, 9, 13… bis 129 sein</string>
+    <string name="error_invalid_fps">FPS muss zwischen 1 und 120 sein</string>
+    <string name="video_parameters_title">Video-Parameter</string>
+    <string name="placeholder_video_description">Generiertes Video erscheint hier</string>
+
+    <!-- Inpainting fragment strings -->
+    <string name="inpainting_title">Inpainting</string>
+    <string name="source_image_tab">Quellbild</string>
+    <string name="preview_tab">Vorschau</string>
+    <string name="megapixels_label">Megapixel</string>
+    <string name="source_image_title">Quellbild</string>
+    <string name="upload_source_image">Quellbild hochladen</string>
+    <string name="edit_mask">Maske bearbeiten</string>
+    <string name="clear_mask">Maske löschen</string>
+    <string name="long_press_hint">Lange drücken für Optionen</string>
+    <string name="no_source_image">Kein Quellbild ausgewählt</string>
+    <string name="mask_editor_title">Masken-Editor</string>
+    <string name="done">Fertig</string>
+
+    <!-- Generation button states -->
+    <string name="button_cancel_generation">Generierung abbrechen</string>
+
+    <!-- Error and status messages -->
+    <string name="error_failed_to_connect">Verbindung fehlgeschlagen: %s</string>
+    <string name="error_failed_load_workflow">Workflow konnte nicht geladen werden</string>
+    <string name="error_failed_start_generation">Generierung konnte nicht gestartet werden: %s</string>
+    <string name="error_image_generation_failed">Bildgenerierung fehlgeschlagen</string>
+    <string name="error_video_generation_failed">Videogenerierung fehlgeschlagen</string>
+    <string name="error_connection_lost">Verbindung während der Generierung verloren</string>
+    <string name="error_connection_lost_restart">Verbindung verloren. Bitte App neu starten.</string>
+    <string name="error_connection_lost_retry">Verbindung verloren. Bitte erneut versuchen.</string>
+    <string name="error_no_images_found">Keine Bilder in der Generierungsausgabe gefunden</string>
+    <string name="error_no_videos_found">Keine Videos in der Generierungsausgabe gefunden</string>
+    <string name="error_failed_fetch_image">Generiertes Bild konnte nicht abgerufen werden</string>
+    <string name="error_failed_fetch_video">Generiertes Video konnte nicht abgerufen werden</string>
+    <string name="error_failed_fetch_history">Generierungsverlauf konnte nicht abgerufen werden</string>
+    <string name="error_failed_display_video">Video konnte nicht angezeigt werden</string>
+    <string name="error_failed_load_image">Bild konnte nicht geladen werden</string>
+    <string name="error_failed_prepare_image">Bild konnte nicht vorbereitet werden</string>
+    <string name="error_failed_upload_image">Bild konnte nicht hochgeladen werden: %s</string>
+    <string name="error_failed_play_video">Video konnte nicht abgespielt werden</string>
+    <string name="error_failed_load_video">Video konnte nicht geladen werden</string>
+    <string name="error_failed_download_video">Video konnte nicht heruntergeladen werden</string>
+
+    <!-- Save/share messages -->
+    <string name="image_saved_to_gallery">Bild in Galerie gespeichert</string>
+    <string name="video_saved_to_gallery">Video in Galerie gespeichert</string>
+    <string name="failed_save_image">Bild konnte nicht gespeichert werden</string>
+    <string name="failed_save_video">Video konnte nicht gespeichert werden</string>
+    <string name="failed_share_image">Bild konnte nicht geteilt werden</string>
+    <string name="failed_share_video">Video konnte nicht geteilt werden</string>
+
+    <!-- Share chooser titles -->
+    <string name="share_image">Bild teilen</string>
+    <string name="share_video">Video teilen</string>
+
+    <!-- Connection messages -->
+    <string name="reconnecting_to_server">Verbinde erneut mit Server…</string>
+
+    <!-- Inpainting messages -->
+    <string name="uploading_image">Bild wird hochgeladen…</string>
+    <string name="paint_mask_hint">Bitte Maskenbereich für Inpainting malen</string>
+
+    <!-- Preview instruction text -->
+    <string name="tap_image_hint">Tippen zum Ansehen, lange drücken zum Speichern</string>
+    <string name="tap_video_hint">Tippen zum Ansehen, lange drücken zum Speichern</string>
+
+    <!-- Image/Video parameters section -->
+    <string name="image_parameters_title">Bild-Parameter</string>
+
+    <!-- Save options bottom sheet -->
+    <string name="save_image_title">Bild speichern</string>
+    <string name="save_to_gallery">In Galerie speichern</string>
+    <string name="save_as">Speichern unter…</string>
+    <string name="share">Teilen…</string>
+
+    <!-- Mask editor strings -->
+    <string name="brush_size">Pinselgröße</string>
+    <string name="invert">Invertieren</string>
+</resources>

@@ -1,0 +1,162 @@
+<resources>
+    <!-- Login screen strings -->
+    <string name="hostname_hint">Nom d\'hôte</string>
+    <string name="port_hint">Port</string>
+
+    <!-- Connection button states -->
+    <string name="button_connect">Connecter</string>
+    <string name="button_connecting">Connexion…</string>
+    <string name="button_failed">Échec</string>
+    <string name="button_connected">Connecté</string>
+
+    <!-- Validation error messages -->
+    <string name="error_required">Requis</string>
+    <string name="error_invalid_port">Numéro de port invalide</string>
+    <string name="error_invalid_hostname">Nom d\'hôte ou adresse IP invalide</string>
+    <string name="error_invalid_width">La largeur doit être entre 1 et 4096</string>
+    <string name="error_invalid_height">La hauteur doit être entre 1 et 4096</string>
+    <string name="error_invalid_steps">Les étapes doivent être entre 1 et 255</string>
+    <string name="error_invalid_megapixels">Les mégapixels doivent être entre 0.1 et 8.3</string>
+
+    <!-- SSL certificate warnings -->
+    <string name="warning_self_signed_cert">Impossible de valider le certificat, connexion quand même</string>
+    <string name="warning_unknown_ca">Émetteur de certificat inconnu, connexion quand même</string>
+
+    <!-- Query screen strings -->
+    <string name="prompt_hint">Prompt</string>
+    <string name="button_generate">Générer</string>
+    <string name="settings_button_description">Paramètres</string>
+    <string name="placeholder_image_description">L\'image générée apparaîtra ici</string>
+
+    <!-- Configuration panel strings -->
+    <string name="config_panel_title">Paramètres</string>
+    <string name="workflow_label">Workflow</string>
+    <string name="width_label">Largeur</string>
+    <string name="height_label">Hauteur</string>
+    <string name="steps_label">Étapes</string>
+
+    <!-- Gallery screen strings -->
+    <string name="gallery_title">Galerie</string>
+    <string name="text_to_image_title">Texte vers image</string>
+    <string name="gallery_thumbnail_description">Miniature de l\'image générée</string>
+
+    <!-- Navigation strings -->
+    <string name="nav_text_to_image">Texte vers image</string>
+    <string name="nav_inpainting">Inpainting</string>
+    <string name="nav_gallery">Galerie</string>
+
+    <!-- Configuration fragment strings -->
+    <string name="configuration_title">Configuration</string>
+    <string name="server_info_title">Informations serveur</string>
+    <string name="hostname_label">Nom d\'hôte :</string>
+    <string name="port_label">Port :</string>
+    <string name="server_management_title">Gestion du serveur</string>
+    <string name="server_management_warning">Attention : Ces actions sont irréversibles</string>
+    <string name="clear_queue_button">Vider la file d\'attente</string>
+    <string name="clear_history_button">Effacer l\'historique</string>
+    <string name="nav_configuration">Configuration</string>
+
+    <!-- Toast messages -->
+    <string name="queue_cleared_success">File d\'attente vidée avec succès</string>
+    <string name="queue_cleared_failed">Échec du vidage de la file d\'attente</string>
+    <string name="history_cleared_success">Historique effacé avec succès</string>
+    <string name="history_cleared_failed">Échec de l\'effacement de l\'historique</string>
+    <string name="history_item_deleted_success">Élément supprimé avec succès</string>
+    <string name="history_item_deleted_failed">Échec de la suppression de l\'élément</string>
+    <string name="cache_cleared_success">Cache vidé avec succès</string>
+    <string name="defaults_restored_success">Paramètres par défaut restaurés avec succès</string>
+
+    <!-- App management strings -->
+    <string name="app_management_title">Gestion de l\'application</string>
+    <string name="app_management_description">Gérer les données et paramètres locaux de l\'application</string>
+    <string name="clear_cache_button">Vider le cache</string>
+    <string name="restore_defaults_button">Restaurer les paramètres par défaut</string>
+
+    <!-- Gallery item strings -->
+    <string name="delete_history_item">Supprimer de l\'historique</string>
+    <string name="gallery_video_thumbnail_description">Miniature de la vidéo générée</string>
+
+    <!-- Text to Video fragment strings -->
+    <string name="text_to_video_title">Texte vers vidéo</string>
+    <string name="nav_text_to_video">Texte vers vidéo</string>
+    <string name="length_label">Durée</string>
+    <string name="error_invalid_length">La durée doit être 1, 5, 9, 13… jusqu\'à 129</string>
+    <string name="error_invalid_fps">FPS doit être entre 1 et 120</string>
+    <string name="video_parameters_title">Paramètres vidéo</string>
+    <string name="placeholder_video_description">La vidéo générée apparaîtra ici</string>
+
+    <!-- Inpainting fragment strings -->
+    <string name="inpainting_title">Inpainting</string>
+    <string name="source_image_tab">Image source</string>
+    <string name="preview_tab">Aperçu</string>
+    <string name="megapixels_label">Mégapixels</string>
+    <string name="source_image_title">Image source</string>
+    <string name="upload_source_image">Télécharger l\'image source</string>
+    <string name="edit_mask">Modifier le masque</string>
+    <string name="clear_mask">Effacer le masque</string>
+    <string name="long_press_hint">Appui long pour les options</string>
+    <string name="no_source_image">Aucune image source sélectionnée</string>
+    <string name="mask_editor_title">Éditeur de masque</string>
+    <string name="done">Terminé</string>
+
+    <!-- Generation button states -->
+    <string name="button_cancel_generation">Annuler la génération</string>
+
+    <!-- Error and status messages -->
+    <string name="error_failed_to_connect">Échec de la connexion : %s</string>
+    <string name="error_failed_load_workflow">Échec du chargement du workflow</string>
+    <string name="error_failed_start_generation">Échec du démarrage de la génération : %s</string>
+    <string name="error_image_generation_failed">Échec de la génération d\'image</string>
+    <string name="error_video_generation_failed">Échec de la génération vidéo</string>
+    <string name="error_connection_lost">Connexion perdue pendant la génération</string>
+    <string name="error_connection_lost_restart">Connexion perdue. Veuillez redémarrer l\'application.</string>
+    <string name="error_connection_lost_retry">Connexion perdue. Veuillez réessayer.</string>
+    <string name="error_no_images_found">Aucune image trouvée dans le résultat de génération</string>
+    <string name="error_no_videos_found">Aucune vidéo trouvée dans le résultat de génération</string>
+    <string name="error_failed_fetch_image">Échec de la récupération de l\'image générée</string>
+    <string name="error_failed_fetch_video">Échec de la récupération de la vidéo générée</string>
+    <string name="error_failed_fetch_history">Échec de la récupération de l\'historique de génération</string>
+    <string name="error_failed_display_video">Échec de l\'affichage de la vidéo</string>
+    <string name="error_failed_load_image">Échec du chargement de l\'image</string>
+    <string name="error_failed_prepare_image">Échec de la préparation de l\'image</string>
+    <string name="error_failed_upload_image">Échec du téléchargement de l\'image : %s</string>
+    <string name="error_failed_play_video">Échec de la lecture de la vidéo</string>
+    <string name="error_failed_load_video">Échec du chargement de la vidéo</string>
+    <string name="error_failed_download_video">Échec du téléchargement de la vidéo</string>
+
+    <!-- Save/share messages -->
+    <string name="image_saved_to_gallery">Image enregistrée dans la galerie</string>
+    <string name="video_saved_to_gallery">Vidéo enregistrée dans la galerie</string>
+    <string name="failed_save_image">Échec de l\'enregistrement de l\'image</string>
+    <string name="failed_save_video">Échec de l\'enregistrement de la vidéo</string>
+    <string name="failed_share_image">Échec du partage de l\'image</string>
+    <string name="failed_share_video">Échec du partage de la vidéo</string>
+
+    <!-- Share chooser titles -->
+    <string name="share_image">Partager l\'image</string>
+    <string name="share_video">Partager la vidéo</string>
+
+    <!-- Connection messages -->
+    <string name="reconnecting_to_server">Reconnexion au serveur…</string>
+
+    <!-- Inpainting messages -->
+    <string name="uploading_image">Téléchargement de l\'image…</string>
+    <string name="paint_mask_hint">Veuillez peindre une zone de masque pour l\'inpainting</string>
+
+    <!-- Preview instruction text -->
+    <string name="tap_image_hint">Appuyez sur l\'image pour voir, appui long pour enregistrer</string>
+    <string name="tap_video_hint">Appuyez sur la vidéo pour voir, appui long pour enregistrer</string>
+
+    <!-- Image/Video parameters section -->
+    <string name="image_parameters_title">Paramètres d\'image</string>
+
+    <!-- Save options bottom sheet -->
+    <string name="save_image_title">Enregistrer l\'image</string>
+    <string name="save_to_gallery">Enregistrer dans la galerie</string>
+    <string name="save_as">Enregistrer sous…</string>
+    <string name="share">Partager…</string>
+
+    <!-- Mask editor strings -->
+    <string name="brush_size">Taille du pinceau</string>
+    <string name="invert">Inverser</string>
+</resources>

@@ -45,7 +45,6 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
     private lateinit var topAppBar: MaterialToolbar
     private lateinit var videoPreview: TextureView
     private lateinit var previewImage: ImageView
-    private lateinit var placeholderBackground: View
     private lateinit var placeholderIcon: ImageView
     // MediaPlayer for video playback with TextureView
     private var mediaPlayer: MediaPlayer? = null
@@ -282,7 +281,6 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
         if (isAdded && view != null) {
             previewImage.setImageBitmap(bitmap)
             previewImage.visibility = View.VISIBLE
-            placeholderBackground.visibility = View.GONE
             placeholderIcon.visibility = View.GONE
         }
     }
@@ -301,13 +299,15 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
         println("TextToVideoFragment: Generation error: $message")
         resetGenerateButton()
         hideProgressOverlay()
+        if (isAdded && context != null) {
+            Toast.makeText(requireContext(), R.string.error_video_generation_failed, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun initializeViews(view: View) {
         topAppBar = view.findViewById(R.id.topAppBar)
         videoPreview = view.findViewById(R.id.videoPreview)
         previewImage = view.findViewById(R.id.previewImage)
-        placeholderBackground = view.findViewById(R.id.placeholderBackground)
         placeholderIcon = view.findViewById(R.id.placeholderIcon)
         promptInputLayout = view.findViewById(R.id.promptInputLayout)
         promptInput = view.findViewById(R.id.promptInput)
@@ -581,6 +581,9 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
             println("Error releasing MediaPlayer: ${e.message}")
         }
 
+        // Make TextureView visible to get surface texture
+        videoPreview.visibility = View.VISIBLE
+
         if (!videoPreview.isAvailable) {
             println("TextureView not available yet, will play when ready")
             return
@@ -592,9 +595,9 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
                 setDataSource(videoPath)
                 isLooping = true
                 setOnPreparedListener { mp ->
-                    // Hide all overlays to show the video
+                    // Show TextureView and hide all overlays to show the video
+                    videoPreview.visibility = View.VISIBLE
                     previewImage.visibility = View.GONE
-                    placeholderBackground.visibility = View.GONE
                     placeholderIcon.visibility = View.GONE
                     updateTextureViewTransform(mp.videoWidth, mp.videoHeight)
                     mp.start()
@@ -643,7 +646,7 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     /**
-     * Release MediaPlayer resources and show placeholder background
+     * Release MediaPlayer resources and hide TextureView
      */
     private fun releaseMediaPlayer() {
         try {
@@ -654,8 +657,8 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
             println("Error releasing MediaPlayer: ${e.message}")
         }
 
-        // Show placeholder background to cover the TextureView's black surface
-        placeholderBackground.visibility = View.VISIBLE
+        // Hide TextureView to show the card background
+        videoPreview.visibility = View.GONE
     }
 
     private fun cancelVideoGeneration() {
@@ -728,7 +731,6 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
         releaseMediaPlayer()
         previewImage.setImageBitmap(null)
         previewImage.visibility = View.GONE
-        placeholderBackground.visibility = View.VISIBLE
         placeholderIcon.visibility = View.VISIBLE
 
         val prompt = promptInput.text.toString()
@@ -1027,6 +1029,9 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
             val videoFile = File(requireContext().filesDir, LAST_VIDEO_FILENAME)
             if (videoFile.exists()) {
                 currentVideoPath = videoFile.absolutePath
+                // Make TextureView visible so surface texture becomes available
+                videoPreview.visibility = View.VISIBLE
+                placeholderIcon.visibility = View.GONE
                 // Video will start playing when TextureView surface becomes available
                 // (handled in surfaceTextureListener)
                 println("Restored last generated video path from internal storage")

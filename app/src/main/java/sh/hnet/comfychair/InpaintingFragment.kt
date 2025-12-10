@@ -284,6 +284,9 @@ class InpaintingFragment : Fragment(), MainContainerActivity.GenerationStateList
         println("InpaintingFragment: Generation error: $message")
         resetGenerateButton()
         hideProgressOverlay()
+        if (isAdded && context != null) {
+            Toast.makeText(requireContext(), R.string.error_image_generation_failed, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun initializeViews(view: View) {

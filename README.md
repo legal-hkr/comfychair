@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.3.0
+**Current version**: v0.3.1
 
 ## Overview
 
@@ -58,6 +58,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Restore default settings
 - **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
+- **Localization**: Available in English (default), German, French, Polish, and Spanish
 - **Native Android experience**: Built with Kotlin and Material Design 3
 
 ## Requirements
@@ -162,7 +163,11 @@ app/src/main/
 │   │   ├── iip_checkpoint_default.json  # Default inpainting checkpoint workflow
 │   │   ├── iip_unet_zimage.json         # Z-Image inpainting UNET workflow
 │   │   └── ttv_unet_wan22_lightx2v.json # WAN 2.2 text-to-video UNET workflow
-│   ├── values/                      # Strings, themes, colors
+│   ├── values/                      # Strings, themes, colors (English default)
+│   ├── values-de/                   # German translations
+│   ├── values-fr/                   # French translations
+│   ├── values-pl/                   # Polish translations
+│   ├── values-es/                   # Spanish translations
 │   ├── drawable/                    # Icons and graphics
 │   └── xml/                         # Backup rules, file provider paths
 └── AndroidManifest.xml

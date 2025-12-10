@@ -235,8 +235,8 @@ class MainContainerActivity : AppCompatActivity() {
                             println("MainContainerActivity: Execution error: $text")
                             runOnUiThread {
                                 resetGenerationState()
-                                generationStateListener?.onGenerationError(getString(R.string.error_generation_failed))
-                                Toast.makeText(this@MainContainerActivity, R.string.error_generation_failed, Toast.LENGTH_LONG).show()
+                                // Pass null to let each fragment show its own appropriate error message
+                                generationStateListener?.onGenerationError("")
                             }
                         }
                         "status" -> {
