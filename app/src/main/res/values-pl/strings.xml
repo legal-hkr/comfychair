@@ -54,7 +54,6 @@
     <string name="server_management_warning">Ostrzeżenie: Tych akcji nie można cofnąć</string>
     <string name="clear_queue_button">Wyczyść kolejkę</string>
     <string name="clear_history_button">Wyczyść historię</string>
-    <string name="nav_configuration">Konfiguracja</string>
 
     <!-- Toast messages -->
     <string name="queue_cleared_success">Kolejka wyczyszczona pomyślnie</string>
@@ -159,4 +158,16 @@
     <!-- Mask editor strings -->
     <string name="brush_size">Rozmiar pędzla</string>
     <string name="invert">Odwróć</string>
+
+    <!-- Top app bar menu strings -->
+    <string name="menu_generation">Generowanie</string>
+    <string name="menu_settings">Ustawienia</string>
+    <string name="menu_logout">Wyloguj</string>
+
+    <!-- Settings screen strings -->
+    <string name="settings_title">Ustawienia</string>
+    <string name="nav_application_settings">Aplikacja</string>
+    <string name="nav_server_settings">Serwer</string>
+    <string name="application_settings_title">Ustawienia aplikacji</string>
+    <string name="server_settings_title">Ustawienia serwera</string>
 </resources>

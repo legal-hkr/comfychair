@@ -54,7 +54,6 @@
     <string name="server_management_warning">Advertencia: Estas acciones no se pueden deshacer</string>
     <string name="clear_queue_button">Vaciar cola</string>
     <string name="clear_history_button">Borrar historial</string>
-    <string name="nav_configuration">Configuración</string>
 
     <!-- Toast messages -->
     <string name="queue_cleared_success">Cola vaciada correctamente</string>
@@ -159,4 +158,16 @@
     <!-- Mask editor strings -->
     <string name="brush_size">Tamaño del pincel</string>
     <string name="invert">Invertir</string>
+
+    <!-- Top app bar menu strings -->
+    <string name="menu_generation">Generación</string>
+    <string name="menu_settings">Configuración</string>
+    <string name="menu_logout">Cerrar sesión</string>
+
+    <!-- Settings screen strings -->
+    <string name="settings_title">Configuración</string>
+    <string name="nav_application_settings">Aplicación</string>
+    <string name="nav_server_settings">Servidor</string>
+    <string name="application_settings_title">Configuración de la aplicación</string>
+    <string name="server_settings_title">Configuración del servidor</string>
 </resources>

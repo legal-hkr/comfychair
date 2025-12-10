@@ -1,6 +1,5 @@
 package sh.hnet.comfychair
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,9 +14,9 @@ import com.google.android.material.appbar.MaterialToolbar
 import org.json.JSONObject
 
 /**
- * ConfigurationFragment - Configuration and server management screen
+ * ServerSettingsFragment - Server information and management settings screen
  */
-class ConfigurationFragment : Fragment() {
+class ServerSettingsFragment : Fragment() {
 
     // UI element references
     private lateinit var topAppBar: MaterialToolbar
@@ -26,8 +25,6 @@ class ConfigurationFragment : Fragment() {
     private lateinit var systemStatsValue: TextView
     private lateinit var clearQueueButton: Button
     private lateinit var clearHistoryButton: Button
-    private lateinit var clearCacheButton: Button
-    private lateinit var restoreDefaultsButton: Button
 
     // ComfyUI client
     private lateinit var comfyUIClient: ComfyUIClient
@@ -40,8 +37,8 @@ class ConfigurationFragment : Fragment() {
         private const val ARG_HOSTNAME = "hostname"
         private const val ARG_PORT = "port"
 
-        fun newInstance(hostname: String, port: Int): ConfigurationFragment {
-            val fragment = ConfigurationFragment()
+        fun newInstance(hostname: String, port: Int): ServerSettingsFragment {
+            val fragment = ServerSettingsFragment()
             val args = Bundle()
             args.putString(ARG_HOSTNAME, hostname)
             args.putInt(ARG_PORT, port)
@@ -65,7 +62,7 @@ class ConfigurationFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_configuration, container, false)
+        return inflater.inflate(R.layout.fragment_server_settings, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -78,14 +75,13 @@ class ConfigurationFragment : Fragment() {
             insets
         }
 
-        // Get ComfyUI client from activity (reuse the connected client)
-        val activity = requireActivity() as MainContainerActivity
-        comfyUIClient = activity.getComfyUIClient()
+        // Create a new ComfyUI client for this fragment
+        comfyUIClient = ComfyUIClient(hostname, port)
 
         // Initialize UI components
         initializeViews(view)
 
-        // Load server information (wait for connection to be ready)
+        // Load server information
         loadServerInfo()
 
         // Setup button listeners
@@ -99,15 +95,33 @@ class ConfigurationFragment : Fragment() {
         systemStatsValue = view.findViewById(R.id.systemStatsValue)
         clearQueueButton = view.findViewById(R.id.clearQueueButton)
         clearHistoryButton = view.findViewById(R.id.clearHistoryButton)
-        clearCacheButton = view.findViewById(R.id.clearCacheButton)
-        restoreDefaultsButton = view.findViewById(R.id.restoreDefaultsButton)
 
         setupTopAppBar()
     }
 
     private fun setupTopAppBar() {
+        // Back button - navigate to previous fragment
         topAppBar.setNavigationOnClickListener {
-            requireActivity().finish()
+            val activity = requireActivity() as? SettingsContainerActivity
+            if (activity?.navigateBack() != true) {
+                // No history - finish the activity
+                activity?.finish()
+            }
+        }
+
+        // Menu item click handler
+        topAppBar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_generation -> {
+                    (requireActivity() as? SettingsContainerActivity)?.navigateToGeneration()
+                    true
+                }
+                R.id.action_logout -> {
+                    (requireActivity() as? SettingsContainerActivity)?.logout()
+                    true
+                }
+                else -> false
+            }
         }
     }
 
@@ -116,13 +130,8 @@ class ConfigurationFragment : Fragment() {
         hostnameValue.text = hostname
         portValue.text = port.toString()
 
-        // Fetch system stats when connection is ready
-        val activity = requireActivity() as MainContainerActivity
-        activity.onConnectionReady {
-            activity.runOnUiThread {
-                fetchSystemStats()
-            }
-        }
+        // Fetch system stats
+        fetchSystemStats()
     }
 
     private fun fetchSystemStats() {
@@ -205,14 +214,6 @@ class ConfigurationFragment : Fragment() {
         clearHistoryButton.setOnClickListener {
             clearHistory()
         }
-
-        clearCacheButton.setOnClickListener {
-            clearCache()
-        }
-
-        restoreDefaultsButton.setOnClickListener {
-            restoreDefaults()
-        }
     }
 
     private fun clearQueue() {
@@ -259,61 +260,8 @@ class ConfigurationFragment : Fragment() {
         }
     }
 
-    private fun clearCache() {
-        // List of cached image/video files to delete
-        val cachedFiles = listOf(
-            "last_generated_image.png",           // TextToImageFragment
-            "last_generated_video.mp4",           // TextToVideoFragment
-            "inpainting_last_preview.png",        // InpaintingFragment preview
-            "inpainting_last_source.png",         // InpaintingFragment source
-            "inpainting_last_mask.png"            // InpaintingFragment mask
-        )
-
-        // Delete each cached file
-        cachedFiles.forEach { filename ->
-            try {
-                requireContext().deleteFile(filename)
-            } catch (e: Exception) {
-                println("Failed to delete $filename: ${e.message}")
-            }
-        }
-
-        Toast.makeText(
-            requireContext(),
-            getString(R.string.cache_cleared_success),
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    private fun restoreDefaults() {
-        // List of SharedPreferences to clear
-        val prefsToDelete = listOf(
-            "TextToImageFragmentPrefs",
-            "TextToVideoFragmentPrefs",
-            "InpaintingFragmentPrefs"
-        )
-
-        // Delete each SharedPreferences file
-        prefsToDelete.forEach { prefsName ->
-            try {
-                requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-                    .edit()
-                    .clear()
-                    .apply()
-            } catch (e: Exception) {
-                println("Failed to clear $prefsName: ${e.message}")
-            }
-        }
-
-        Toast.makeText(
-            requireContext(),
-            getString(R.string.defaults_restored_success),
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
-        // Don't shutdown client - it's managed by MainContainerActivity
+        comfyUIClient.shutdown()
     }
 }

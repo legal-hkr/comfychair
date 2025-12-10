@@ -66,7 +66,6 @@
     <string name="server_management_warning">Warning: These actions cannot be undone</string>
     <string name="clear_queue_button">Clear queue</string>
     <string name="clear_history_button">Clear history</string>
-    <string name="nav_configuration">Configuration</string>
 
     <!-- Toast messages -->
     <string name="queue_cleared_success">Queue cleared successfully</string>
@@ -179,4 +178,16 @@
     <!-- Mask editor strings -->
     <string name="brush_size">Brush size</string>
     <string name="invert">Invert</string>
+
+    <!-- Top app bar menu strings -->
+    <string name="menu_generation">Generation</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_logout">Log out</string>
+
+    <!-- Settings screen strings -->
+    <string name="settings_title">Settings</string>
+    <string name="nav_application_settings">Application</string>
+    <string name="nav_server_settings">Server</string>
+    <string name="application_settings_title">Application settings</string>
+    <string name="server_settings_title">Server settings</string>
 </resources>

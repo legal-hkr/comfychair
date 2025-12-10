@@ -30,6 +30,12 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- SettingsContainerActivity - Container for settings fragments -->
+        <activity
+            android:name=".SettingsContainerActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- FileProvider for sharing images -->
         <provider
             android:name="androidx.core.content.FileProvider"

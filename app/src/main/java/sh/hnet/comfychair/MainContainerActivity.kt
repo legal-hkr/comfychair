@@ -1,6 +1,7 @@
 package sh.hnet.comfychair
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -30,6 +31,12 @@ class MainContainerActivity : AppCompatActivity() {
 
     // ComfyUI client - persists across fragment switches
     private lateinit var comfyUIClient: ComfyUIClient
+
+    // Navigation history stack for back button support
+    private val navigationHistory = mutableListOf<Int>()
+    private var currentNavItemId: Int = R.id.nav_text_to_image
+    private var isNavigatingBack = false
+    private lateinit var bottomNav: BottomNavigationView
 
     // Connection state
     private var isConnectionReady = false
@@ -93,30 +100,27 @@ class MainContainerActivity : AppCompatActivity() {
         connectToServer()
 
         // Setup bottom navigation
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation)
+        bottomNav = findViewById(R.id.bottomNavigation)
         bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_text_to_image -> {
-                    switchFragment(TextToImageFragment.newInstance(hostname, port))
-                    true
+            val fragment = when (item.itemId) {
+                R.id.nav_text_to_image -> TextToImageFragment.newInstance(hostname, port)
+                R.id.nav_text_to_video -> TextToVideoFragment.newInstance(hostname, port)
+                R.id.nav_inpainting -> InpaintingFragment.newInstance(hostname, port)
+                R.id.nav_gallery -> GalleryFragment.newInstance(hostname, port)
+                else -> null
+            }
+
+            if (fragment != null) {
+                // Add current item to history before switching (if different from new item)
+                // Don't add to history if we're navigating back
+                if (!isNavigatingBack && currentNavItemId != item.itemId) {
+                    navigationHistory.add(currentNavItemId)
+                    currentNavItemId = item.itemId
                 }
-                R.id.nav_text_to_video -> {
-                    switchFragment(TextToVideoFragment.newInstance(hostname, port))
-                    true
-                }
-                R.id.nav_inpainting -> {
-                    switchFragment(InpaintingFragment.newInstance(hostname, port))
-                    true
-                }
-                R.id.nav_gallery -> {
-                    switchFragment(GalleryFragment.newInstance(hostname, port))
-                    true
-                }
-                R.id.nav_configuration -> {
-                    switchFragment(ConfigurationFragment.newInstance(hostname, port))
-                    true
-                }
-                else -> false
+                switchFragment(fragment)
+                true
+            } else {
+                false
             }
         }
 
@@ -135,6 +139,25 @@ class MainContainerActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment)
             .commit()
+    }
+
+    /**
+     * Navigate back to the previous fragment in history
+     * Returns true if navigation occurred, false if at the start of history
+     */
+    fun navigateBack(): Boolean {
+        if (navigationHistory.isNotEmpty()) {
+            val previousNavItemId = navigationHistory.removeAt(navigationHistory.lastIndex)
+            currentNavItemId = previousNavItemId
+
+            // Use a flag to prevent adding to history when navigating back
+            isNavigatingBack = true
+            bottomNav.selectedItemId = previousNavItemId
+            isNavigatingBack = false
+
+            return true
+        }
+        return false
     }
 
     private fun connectToServer() {
@@ -551,6 +574,42 @@ class MainContainerActivity : AppCompatActivity() {
         stopKeepalive()
         reconnectHandler.removeCallbacksAndMessages(null)
         comfyUIClient.shutdown()
+    }
+
+    /**
+     * Log out from the server and return to MainActivity
+     * Closes WebSocket connection and finishes this activity
+     */
+    fun logout() {
+        // Stop any keepalive pings
+        stopKeepalive()
+
+        // Cancel any pending reconnection attempts
+        reconnectHandler.removeCallbacksAndMessages(null)
+
+        // Close WebSocket and shutdown client
+        comfyUIClient.closeWebSocket()
+        comfyUIClient.shutdown()
+
+        // Clear connection state
+        isWebSocketConnected = false
+        isConnectionReady = false
+
+        // Reset generation state
+        resetGenerationState()
+
+        // Finish this activity to return to MainActivity
+        finish()
+    }
+
+    /**
+     * Open the Settings activity
+     */
+    fun openSettings() {
+        val intent = Intent(this, SettingsContainerActivity::class.java)
+        intent.putExtra("hostname", hostname)
+        intent.putExtra("port", port)
+        startActivity(intent)
     }
 
     /**

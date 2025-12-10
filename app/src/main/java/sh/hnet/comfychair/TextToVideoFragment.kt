@@ -321,8 +321,32 @@ class TextToVideoFragment : Fragment(), MainContainerActivity.GenerationStateLis
     }
 
     private fun setupTopAppBar() {
+        // Back button - navigate to previous fragment
         topAppBar.setNavigationOnClickListener {
-            requireActivity().finish()
+            val activity = requireActivity() as? MainContainerActivity
+            if (activity?.navigateBack() != true) {
+                // No history - finish the activity
+                activity?.finish()
+            }
+        }
+
+        // Menu item click handler
+        topAppBar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_generation -> {
+                    // Already in generation mode, do nothing
+                    true
+                }
+                R.id.action_settings -> {
+                    (requireActivity() as? MainContainerActivity)?.openSettings()
+                    true
+                }
+                R.id.action_logout -> {
+                    (requireActivity() as? MainContainerActivity)?.logout()
+                    true
+                }
+                else -> false
+            }
         }
     }
 

@@ -16,8 +16,4 @@
         android:id="@+id/nav_gallery"
         android:icon="@drawable/gallery_thumbnail_24px"
         android:title="@string/nav_gallery" />
-    <item
-        android:id="@+id/nav_configuration"
-        android:icon="@drawable/settings_24px"
-        android:title="@string/nav_configuration" />
 </menu>

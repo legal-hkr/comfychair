@@ -54,7 +54,6 @@
     <string name="server_management_warning">Attention : Ces actions sont irréversibles</string>
     <string name="clear_queue_button">Vider la file d\'attente</string>
     <string name="clear_history_button">Effacer l\'historique</string>
-    <string name="nav_configuration">Configuration</string>
 
     <!-- Toast messages -->
     <string name="queue_cleared_success">File d\'attente vidée avec succès</string>
@@ -159,4 +158,16 @@
     <!-- Mask editor strings -->
     <string name="brush_size">Taille du pinceau</string>
     <string name="invert">Inverser</string>
+
+    <!-- Top app bar menu strings -->
+    <string name="menu_generation">Génération</string>
+    <string name="menu_settings">Paramètres</string>
+    <string name="menu_logout">Déconnexion</string>
+
+    <!-- Settings screen strings -->
+    <string name="settings_title">Paramètres</string>
+    <string name="nav_application_settings">Application</string>
+    <string name="nav_server_settings">Serveur</string>
+    <string name="application_settings_title">Paramètres de l\'application</string>
+    <string name="server_settings_title">Paramètres du serveur</string>
 </resources>

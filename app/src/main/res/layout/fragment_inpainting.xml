@@ -25,17 +25,15 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- Top App Bar -->
+        <!-- Top App Bar (Material 3 small) -->
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="?attr/actionBarSize"
+            android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorSurface"
-            android:elevation="4dp"
             app:title="@string/inpainting_title"
-            app:navigationIcon="@drawable/logout_24px"
-            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+            app:navigationIcon="@drawable/arrow_back_24px"
+            app:menu="@menu/top_app_bar_menu" />
 
         <!-- Content area with flexible image sizing -->
         <LinearLayout
