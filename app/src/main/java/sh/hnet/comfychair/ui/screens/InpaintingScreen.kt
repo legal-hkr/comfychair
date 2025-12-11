@@ -43,6 +43,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -162,6 +163,7 @@ fun InpaintingScreen(
         // Top App Bar with image options
         TopAppBar(
             title = { Text(stringResource(R.string.inpainting_title)) },
+            windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
                 // Upload image button
                 IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {

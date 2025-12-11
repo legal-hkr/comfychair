@@ -42,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -125,6 +126,7 @@ fun GalleryScreen(
                     Text(stringResource(R.string.gallery_title))
                 }
             },
+            windowInsets = WindowInsets(0, 0, 0, 0),
             navigationIcon = {
                 if (uiState.isSelectionMode) {
                     IconButton(onClick = { galleryViewModel.clearSelection() }) {

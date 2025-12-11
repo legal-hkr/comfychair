@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +68,7 @@ fun ApplicationSettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.application_settings_title)) },
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {

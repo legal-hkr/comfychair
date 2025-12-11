@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -79,6 +80,7 @@ fun ServerSettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.server_settings_title)) },
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {

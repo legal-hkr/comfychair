@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -132,6 +133,7 @@ fun TextToImageScreen(
         // Top App Bar with save/share actions
         TopAppBar(
             title = { Text(stringResource(R.string.nav_text_to_image)) },
+            windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
                 // Save to gallery button (only when image exists)
                 if (uiState.currentBitmap != null) {
