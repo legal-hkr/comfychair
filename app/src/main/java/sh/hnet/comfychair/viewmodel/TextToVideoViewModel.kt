@@ -71,7 +71,13 @@ class TextToVideoViewModel : ViewModel() {
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
 
+    // Reference to GenerationViewModel and callbacks for event handling
+    private var generationViewModelRef: GenerationViewModel? = null
+    private var previewBitmapCallback: ((android.graphics.Bitmap) -> Unit)? = null
+    private var videoFetchedCallback: ((promptId: String) -> Unit)? = null
+
     companion object {
+        const val OWNER_ID = "TEXT_TO_VIDEO"
         private const val PREFS_NAME = "TextToVideoFragmentPrefs"
         private const val KEY_WORKFLOW = "workflow"
         private const val KEY_HIGHNOISE_UNET = "highnoise_unet"
@@ -398,5 +404,65 @@ class TextToVideoViewModel : ViewModel() {
                 state.heightError == null &&
                 state.lengthError == null &&
                 state.fpsError == null
+    }
+
+    // Event listener management
+
+    /**
+     * Start listening for generation events from the GenerationViewModel.
+     * This registers this ViewModel as the active event handler.
+     * @param generationViewModel The shared GenerationViewModel
+     * @param onPreviewBitmap Callback for preview image updates
+     * @param onVideoFetched Callback when video generation is complete (provides promptId)
+     */
+    fun startListening(
+        generationViewModel: GenerationViewModel,
+        onPreviewBitmap: (android.graphics.Bitmap) -> Unit,
+        onVideoFetched: (promptId: String) -> Unit
+    ) {
+        generationViewModelRef = generationViewModel
+        previewBitmapCallback = onPreviewBitmap
+        videoFetchedCallback = onVideoFetched
+
+        generationViewModel.registerEventHandler(OWNER_ID) { event ->
+            handleGenerationEvent(event)
+        }
+    }
+
+    /**
+     * Stop listening for generation events.
+     * Note: We keep the refs if generation is still running,
+     * as the handler may still be called for completion events.
+     */
+    fun stopListening(generationViewModel: GenerationViewModel) {
+        generationViewModel.unregisterEventHandler(OWNER_ID)
+        // Only clear refs if no generation is active (handler was actually unregistered)
+        // If generation is running, the handler is kept and needs the refs
+        if (!generationViewModel.generationState.value.isGenerating) {
+            if (generationViewModelRef == generationViewModel) {
+                generationViewModelRef = null
+                previewBitmapCallback = null
+                videoFetchedCallback = null
+            }
+        }
+    }
+
+    /**
+     * Handle generation events from the GenerationViewModel.
+     */
+    private fun handleGenerationEvent(event: GenerationEvent) {
+        when (event) {
+            is GenerationEvent.PreviewImage -> {
+                previewBitmapCallback?.invoke(event.bitmap)
+            }
+            is GenerationEvent.ImageGenerated -> {
+                // For video, ImageGenerated event is used since we parse history the same way
+                videoFetchedCallback?.invoke(event.promptId)
+            }
+            is GenerationEvent.Error -> {
+                generationViewModelRef?.completeGeneration()
+            }
+            else -> {}
+        }
     }
 }

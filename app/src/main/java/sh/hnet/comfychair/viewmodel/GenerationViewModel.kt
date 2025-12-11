@@ -28,7 +28,8 @@ data class GenerationState(
     val isGenerating: Boolean = false,
     val promptId: String? = null,
     val progress: Int = 0,
-    val maxProgress: Int = 100
+    val maxProgress: Int = 100,
+    val ownerId: String? = null
 )
 
 /**
@@ -85,6 +86,12 @@ class GenerationViewModel : ViewModel() {
     private val _events = MutableSharedFlow<GenerationEvent>()
     val events: SharedFlow<GenerationEvent> = _events.asSharedFlow()
 
+    // Active event handler for screen-specific event delivery
+    private var activeEventHandler: ((GenerationEvent) -> Unit)? = null
+    private var activeEventHandlerOwnerId: String? = null  // Track who registered the handler
+    private var generationOwnerId: String? = null
+    private var pendingCompletion: GenerationEvent.ImageGenerated? = null
+
     // Pending image (generated while no collector was active)
     private var pendingImagePromptId: String? = null
 
@@ -135,6 +142,70 @@ class GenerationViewModel : ViewModel() {
     fun getPort(): Int = port
 
     /**
+     * Register an event handler for a specific owner (screen).
+     * Only the owner that started generation will receive events.
+     * If there's a pending completion from when the screen was away, it will be delivered.
+     */
+    fun registerEventHandler(ownerId: String, handler: (GenerationEvent) -> Unit) {
+        // Only allow registration if this owner started generation OR no generation is active
+        if (ownerId == generationOwnerId || generationOwnerId == null) {
+            activeEventHandler = handler
+            activeEventHandlerOwnerId = ownerId  // Track who registered the handler
+
+            // If there's a pending completion for this owner, dispatch it now
+            pendingCompletion?.let { completion ->
+                viewModelScope.launch { handler(completion) }
+                pendingCompletion = null
+            }
+        }
+    }
+
+    /**
+     * Unregister the event handler for a specific owner.
+     * Only clears the handler if this owner actually registered it.
+     * If the owner started generation that's still running, keep handler active for pending completion.
+     */
+    fun unregisterEventHandler(ownerId: String) {
+        // Only clear handler if THIS owner registered it
+        // This prevents race conditions where a new screen's handler gets cleared
+        // by the old screen's onDispose
+        if (activeEventHandlerOwnerId != ownerId) {
+            return  // Another screen registered the handler, don't clear it
+        }
+
+        // Don't clear handler if this owner started generation that's still running
+        // This ensures completion events aren't lost when user navigates away
+        if (generationOwnerId == ownerId && _generationState.value.isGenerating) {
+            return
+        }
+
+        activeEventHandler = null
+        activeEventHandlerOwnerId = null
+    }
+
+    /**
+     * Dispatch event to active handler, falling back to SharedFlow.
+     * If no handler is active and this is a completion event, store it for later.
+     * Handler is invoked on the main thread to ensure proper UI state updates.
+     */
+    private fun dispatchEvent(event: GenerationEvent) {
+        val handler = activeEventHandler
+        if (handler != null) {
+            // Invoke handler on main thread for proper Compose state updates
+            viewModelScope.launch {
+                handler(event)
+            }
+        } else if (event is GenerationEvent.ImageGenerated) {
+            // Store completion for when owner screen returns
+            pendingCompletion = event
+        }
+        // Also emit to SharedFlow for backwards compatibility
+        viewModelScope.launch {
+            _events.emit(event)
+        }
+    }
+
+    /**
      * Connect to the ComfyUI server
      */
     private fun connectToServer() {
@@ -149,9 +220,7 @@ class GenerationViewModel : ViewModel() {
             } else {
                 println("GenerationViewModel: Failed to connect: $errorMessage")
                 _connectionStatus.value = ConnectionStatus.FAILED
-                viewModelScope.launch {
-                    _events.emit(GenerationEvent.Error("Failed to connect: $errorMessage"))
-                }
+                dispatchEvent(GenerationEvent.Error("Failed to connect: $errorMessage"))
             }
         }
     }
@@ -190,9 +259,7 @@ class GenerationViewModel : ViewModel() {
 
                 if (_generationState.value.isGenerating) {
                     resetGenerationState()
-                    viewModelScope.launch {
-                        _events.emit(GenerationEvent.Error("Connection lost during generation"))
-                    }
+                    dispatchEvent(GenerationEvent.Error("Connection lost during generation"))
                 }
 
                 scheduleReconnect()
@@ -228,9 +295,7 @@ class GenerationViewModel : ViewModel() {
 
                     if (isComplete && promptId == currentState.promptId && promptId != null) {
                         println("GenerationViewModel: Generation complete for prompt: $promptId")
-                        viewModelScope.launch {
-                            _events.emit(GenerationEvent.ImageGenerated(promptId))
-                        }
+                        dispatchEvent(GenerationEvent.ImageGenerated(promptId))
                         // Trigger gallery refresh to include the new item
                         GalleryRepository.getInstance().refresh()
                     }
@@ -250,9 +315,7 @@ class GenerationViewModel : ViewModel() {
                 "execution_error" -> {
                     println("GenerationViewModel: Execution error: $text")
                     resetGenerationState()
-                    viewModelScope.launch {
-                        _events.emit(GenerationEvent.Error("Generation failed"))
-                    }
+                    dispatchEvent(GenerationEvent.Error("Generation failed"))
                 }
                 "status", "previewing", "execution_cached", "execution_start",
                 "execution_success", "progress_state", "executed" -> {
@@ -277,9 +340,7 @@ class GenerationViewModel : ViewModel() {
                 val bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
 
                 if (bitmap != null) {
-                    viewModelScope.launch {
-                        _events.emit(GenerationEvent.PreviewImage(bitmap))
-                    }
+                    dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
             } catch (e: Exception) {
                 println("GenerationViewModel: Failed to decode preview image: ${e.message}")
@@ -289,15 +350,22 @@ class GenerationViewModel : ViewModel() {
 
     /**
      * Start generation with the given workflow JSON
+     * @param workflowJson The workflow JSON to submit
+     * @param ownerId The ID of the screen/ViewModel that owns this generation (e.g., "TEXT_TO_IMAGE")
+     * @param onResult Callback with result
      */
     fun startGeneration(
         workflowJson: String,
+        ownerId: String,
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
         val client = comfyUIClient ?: run {
             onResult(false, null, "Client not initialized")
             return
         }
+
+        // Store the owner before starting generation
+        generationOwnerId = ownerId
 
         if (!isWebSocketConnected) {
             println("GenerationViewModel: WebSocket not connected, attempting reconnect...")
@@ -332,7 +400,8 @@ class GenerationViewModel : ViewModel() {
                     isGenerating = true,
                     promptId = promptId,
                     progress = 0,
-                    maxProgress = 100
+                    maxProgress = 100,
+                    ownerId = generationOwnerId
                 )
                 onResult(true, promptId, null)
             } else {
@@ -356,9 +425,7 @@ class GenerationViewModel : ViewModel() {
                 println("GenerationViewModel: Generation cancelled")
             }
             resetGenerationState()
-            viewModelScope.launch {
-                _events.emit(GenerationEvent.GenerationCancelled)
-            }
+            dispatchEvent(GenerationEvent.GenerationCancelled)
             onResult(success)
         }
     }
@@ -375,6 +442,8 @@ class GenerationViewModel : ViewModel() {
      */
     private fun resetGenerationState() {
         _generationState.value = GenerationState()
+        generationOwnerId = null
+        pendingCompletion = null
         pendingImagePromptId = null
     }
 

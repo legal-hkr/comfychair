@@ -80,7 +80,11 @@ class TextToImageViewModel : ViewModel() {
     private var comfyUIClient: ComfyUIClient? = null
     private var context: Context? = null
 
+    // Reference to GenerationViewModel for event handling
+    private var generationViewModelRef: GenerationViewModel? = null
+
     companion object {
+        const val OWNER_ID = "TEXT_TO_IMAGE"
         private const val PREFS_NAME = "TextToImageFragmentPrefs"
         private const val PREF_IS_CHECKPOINT_MODE = "isCheckpointMode"
         private const val PREF_PROMPT = "prompt"
@@ -344,6 +348,55 @@ class TextToImageViewModel : ViewModel() {
     fun updateCurrentBitmap(bitmap: Bitmap?) {
         _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
         bitmap?.let { saveLastGeneratedImage(it) }
+    }
+
+    // Event listener management
+
+    /**
+     * Start listening for generation events from the GenerationViewModel.
+     * This registers this ViewModel as the active event handler.
+     */
+    fun startListening(generationViewModel: GenerationViewModel) {
+        generationViewModelRef = generationViewModel
+        generationViewModel.registerEventHandler(OWNER_ID) { event ->
+            handleGenerationEvent(event)
+        }
+    }
+
+    /**
+     * Stop listening for generation events.
+     * Note: We keep the generationViewModelRef if generation is still running,
+     * as the handler may still be called for completion events.
+     */
+    fun stopListening(generationViewModel: GenerationViewModel) {
+        generationViewModel.unregisterEventHandler(OWNER_ID)
+        // Only clear ref if no generation is active (handler was actually unregistered)
+        // If generation is running, the handler is kept and needs the ref
+        if (!generationViewModel.generationState.value.isGenerating) {
+            if (generationViewModelRef == generationViewModel) {
+                generationViewModelRef = null
+            }
+        }
+    }
+
+    /**
+     * Handle generation events from the GenerationViewModel.
+     */
+    private fun handleGenerationEvent(event: GenerationEvent) {
+        when (event) {
+            is GenerationEvent.PreviewImage -> {
+                updateCurrentBitmap(event.bitmap)
+            }
+            is GenerationEvent.ImageGenerated -> {
+                fetchGeneratedImage(event.promptId) {
+                    generationViewModelRef?.completeGeneration()
+                }
+            }
+            is GenerationEvent.Error -> {
+                generationViewModelRef?.completeGeneration()
+            }
+            else -> {}
+        }
     }
 
     // Validation

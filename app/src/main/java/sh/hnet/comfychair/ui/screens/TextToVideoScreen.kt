@@ -77,7 +77,6 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.VideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
-import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 import java.io.File
@@ -97,6 +96,10 @@ fun TextToVideoScreen(
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val uiState by textToVideoViewModel.uiState.collectAsState()
+
+    // Check if THIS screen owns the current generation
+    val isThisScreenGenerating = generationState.isGenerating &&
+        generationState.ownerId == TextToVideoViewModel.OWNER_ID
 
     var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by remember { mutableStateOf(false) }
@@ -139,38 +142,22 @@ fun TextToVideoScreen(
         }
     }
 
-    // Handle generation events
-    LaunchedEffect(Unit) {
-        generationViewModel.events.collect { event ->
-            when (event) {
-                is GenerationEvent.ImageGenerated -> {
-                    // For video, ImageGenerated event is used since we parse history the same way
-                    fetchVideoFromHistory(context, generationViewModel, event.promptId) { uri ->
-                        videoUri = uri
-                        generationViewModel.completeGeneration()
-                    }
-                }
-                is GenerationEvent.VideoGenerated -> {
-                    fetchVideoFromHistory(context, generationViewModel, event.promptId) { uri ->
-                        videoUri = uri
-                        generationViewModel.completeGeneration()
-                    }
-                }
-                is GenerationEvent.PreviewImage -> {
-                    previewBitmap = event.bitmap
-                }
-                is GenerationEvent.Error -> {
+    // Register event handler when screen is active
+    DisposableEffect(Unit) {
+        textToVideoViewModel.startListening(
+            generationViewModel,
+            onPreviewBitmap = { bitmap ->
+                previewBitmap = bitmap
+            },
+            onVideoFetched = { promptId ->
+                fetchVideoFromHistory(context, generationViewModel, promptId) { uri ->
+                    videoUri = uri
                     generationViewModel.completeGeneration()
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.error_video_generation_failed),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                is GenerationEvent.GenerationCancelled -> {
-                    previewBitmap = null
                 }
             }
+        )
+        onDispose {
+            textToVideoViewModel.stopListening(generationViewModel)
         }
     }
 
@@ -282,8 +269,8 @@ fun TextToVideoScreen(
                 }
             }
 
-            // Progress indicator
-            if (generationState.isGenerating && generationState.maxProgress > 0) {
+            // Progress indicator - only show if THIS screen started generation
+            if (isThisScreenGenerating && generationState.maxProgress > 0) {
                 val progress = generationState.progress.toFloat() / generationState.maxProgress.toFloat()
                 LinearProgressIndicator(
                     progress = { progress },
@@ -324,12 +311,17 @@ fun TextToVideoScreen(
         ) {
             ElevatedButton(
                 onClick = {
-                    if (generationState.isGenerating) {
+                    if (isThisScreenGenerating) {
+                        // Cancel generation (only if this screen started it)
                         generationViewModel.cancelGeneration { }
-                    } else {
+                    } else if (!generationState.isGenerating) {
+                        // Start generation (only if no generation is running)
                         val workflowJson = textToVideoViewModel.prepareWorkflow()
                         if (workflowJson != null) {
-                            generationViewModel.startGeneration(workflowJson) { success, _, errorMessage ->
+                            generationViewModel.startGeneration(
+                                workflowJson,
+                                TextToVideoViewModel.OWNER_ID
+                            ) { success, _, errorMessage ->
                                 if (!success) {
                                     Toast.makeText(
                                         context,
@@ -350,8 +342,9 @@ fun TextToVideoScreen(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                enabled = generationState.isGenerating || (textToVideoViewModel.hasValidConfiguration() && uiState.prompt.isNotBlank()),
-                colors = if (generationState.isGenerating) {
+                enabled = isThisScreenGenerating ||
+                    (!generationState.isGenerating && textToVideoViewModel.hasValidConfiguration() && uiState.prompt.isNotBlank()),
+                colors = if (isThisScreenGenerating) {
                     ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
                     ButtonDefaults.elevatedButtonColors(
@@ -361,7 +354,7 @@ fun TextToVideoScreen(
                 }
             ) {
                 Text(
-                    text = if (generationState.isGenerating) {
+                    text = if (isThisScreenGenerating) {
                         stringResource(R.string.button_cancel_generation)
                     } else {
                         stringResource(R.string.button_generate)

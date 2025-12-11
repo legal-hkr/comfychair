@@ -115,7 +115,11 @@ class InpaintingViewModel : ViewModel() {
     private val _events = MutableSharedFlow<InpaintingEvent>()
     val events: SharedFlow<InpaintingEvent> = _events.asSharedFlow()
 
+    // Reference to GenerationViewModel for event handling
+    private var generationViewModelRef: GenerationViewModel? = null
+
     companion object {
+        const val OWNER_ID = "INPAINTING"
         private const val PREFS_NAME = "InpaintingFragmentPrefs"
         private const val PREF_CONFIG_MODE = "config_mode"
         private const val PREF_CHECKPOINT_WORKFLOW = "checkpoint_workflow"
@@ -709,5 +713,54 @@ class InpaintingViewModel : ViewModel() {
 
     fun clearPreview() {
         _uiState.value = _uiState.value.copy(previewImage = null)
+    }
+
+    // Event listener management
+
+    /**
+     * Start listening for generation events from the GenerationViewModel.
+     * This registers this ViewModel as the active event handler.
+     */
+    fun startListening(generationViewModel: GenerationViewModel) {
+        generationViewModelRef = generationViewModel
+        generationViewModel.registerEventHandler(OWNER_ID) { event ->
+            handleGenerationEvent(event)
+        }
+    }
+
+    /**
+     * Stop listening for generation events.
+     * Note: We keep the generationViewModelRef if generation is still running,
+     * as the handler may still be called for completion events.
+     */
+    fun stopListening(generationViewModel: GenerationViewModel) {
+        generationViewModel.unregisterEventHandler(OWNER_ID)
+        // Only clear ref if no generation is active (handler was actually unregistered)
+        // If generation is running, the handler is kept and needs the ref
+        if (!generationViewModel.generationState.value.isGenerating) {
+            if (generationViewModelRef == generationViewModel) {
+                generationViewModelRef = null
+            }
+        }
+    }
+
+    /**
+     * Handle generation events from the GenerationViewModel.
+     */
+    private fun handleGenerationEvent(event: GenerationEvent) {
+        when (event) {
+            is GenerationEvent.PreviewImage -> {
+                updatePreviewBitmap(event.bitmap)
+            }
+            is GenerationEvent.ImageGenerated -> {
+                fetchGeneratedImage(event.promptId) {
+                    generationViewModelRef?.completeGeneration()
+                }
+            }
+            is GenerationEvent.Error -> {
+                generationViewModelRef?.completeGeneration()
+            }
+            else -> {}
+        }
     }
 }

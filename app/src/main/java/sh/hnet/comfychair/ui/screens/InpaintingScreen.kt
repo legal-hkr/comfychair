@@ -46,6 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -68,7 +69,6 @@ import sh.hnet.comfychair.ui.components.InpaintingConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.MaskEditorDialog
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
-import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.InpaintingEvent
 import sh.hnet.comfychair.viewmodel.InpaintingViewMode
@@ -89,6 +89,10 @@ fun InpaintingScreen(
     val generationState by generationViewModel.generationState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
     val uiState by inpaintingViewModel.uiState.collectAsState()
+
+    // Check if THIS screen owns the current generation
+    val isThisScreenGenerating = generationState.isGenerating &&
+        generationState.ownerId == InpaintingViewModel.OWNER_ID
 
     var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by remember { mutableStateOf(false) }
@@ -133,28 +137,11 @@ fun InpaintingScreen(
         }
     }
 
-    // Handle generation events
-    LaunchedEffect(Unit) {
-        generationViewModel.events.collect { event ->
-            when (event) {
-                is GenerationEvent.ImageGenerated -> {
-                    inpaintingViewModel.fetchGeneratedImage(event.promptId) {
-                        generationViewModel.completeGeneration()
-                    }
-                }
-                is GenerationEvent.PreviewImage -> {
-                    inpaintingViewModel.updatePreviewBitmap(event.bitmap)
-                }
-                is GenerationEvent.Error -> {
-                    generationViewModel.completeGeneration()
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.error_image_generation_failed),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                else -> {}
-            }
+    // Register event handler when screen is active
+    DisposableEffect(Unit) {
+        inpaintingViewModel.startListening(generationViewModel)
+        onDispose {
+            inpaintingViewModel.stopListening(generationViewModel)
         }
     }
 
@@ -278,8 +265,8 @@ fun InpaintingScreen(
                         )
                     }
 
-                    // Progress indicator
-                    if (generationState.isGenerating) {
+                    // Progress indicator - only show if THIS screen started generation
+                    if (isThisScreenGenerating) {
                         LinearProgressIndicator(
                             progress = {
                                 if (generationState.maxProgress > 0) {
@@ -348,9 +335,11 @@ fun InpaintingScreen(
         ) {
             ElevatedButton(
                 onClick = {
-                    if (generationState.isGenerating) {
+                    if (isThisScreenGenerating) {
+                        // Cancel generation (only if this screen started it)
                         generationViewModel.cancelGeneration { }
-                    } else {
+                    } else if (!generationState.isGenerating) {
+                        // Start generation (only if no generation is running)
                         scope.launch {
                             if (!inpaintingViewModel.hasMask()) {
                                 Toast.makeText(
@@ -367,7 +356,10 @@ fun InpaintingScreen(
                                 inpaintingViewModel.clearPreview()
                                 inpaintingViewModel.onViewModeChange(InpaintingViewMode.PREVIEW)
 
-                                generationViewModel.startGeneration(workflowJson) { _, _, _ ->
+                                generationViewModel.startGeneration(
+                                    workflowJson,
+                                    InpaintingViewModel.OWNER_ID
+                                ) { _, _, _ ->
                                     // Generation started
                                 }
                             }
@@ -377,12 +369,13 @@ fun InpaintingScreen(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                enabled = generationState.isGenerating || (
+                enabled = isThisScreenGenerating || (
+                    !generationState.isGenerating &&
                     inpaintingViewModel.hasValidConfiguration() &&
                     uiState.prompt.isNotBlank() &&
                     uiState.sourceImage != null
                 ),
-                colors = if (generationState.isGenerating) {
+                colors = if (isThisScreenGenerating) {
                     ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
                     ButtonDefaults.elevatedButtonColors(
@@ -392,7 +385,7 @@ fun InpaintingScreen(
                 }
             ) {
                 Text(
-                    text = if (generationState.isGenerating) {
+                    text = if (isThisScreenGenerating) {
                         stringResource(R.string.button_cancel_generation)
                     } else {
                         stringResource(R.string.button_generate)

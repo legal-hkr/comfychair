@@ -40,12 +40,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,12 +55,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
-import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 
@@ -76,7 +74,6 @@ fun TextToImageScreen(
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Initialize ViewModels
     LaunchedEffect(Unit) {
@@ -91,6 +88,10 @@ fun TextToImageScreen(
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
     val uiState by textToImageViewModel.uiState.collectAsState()
 
+    // Check if THIS screen owns the current generation
+    val isThisScreenGenerating = generationState.isGenerating &&
+        generationState.ownerId == TextToImageViewModel.OWNER_ID
+
     // Fetch models when connected
     LaunchedEffect(connectionStatus) {
         if (connectionStatus == ConnectionStatus.CONNECTED) {
@@ -98,24 +99,11 @@ fun TextToImageScreen(
         }
     }
 
-    // Handle generation events
-    LaunchedEffect(Unit) {
-        generationViewModel.events.collect { event ->
-            when (event) {
-                is GenerationEvent.ImageGenerated -> {
-                    textToImageViewModel.fetchGeneratedImage(event.promptId) {
-                        generationViewModel.completeGeneration()
-                    }
-                }
-                is GenerationEvent.PreviewImage -> {
-                    textToImageViewModel.updateCurrentBitmap(event.bitmap)
-                }
-                is GenerationEvent.Error -> {
-                    // Handle error - could show snackbar
-                    generationViewModel.completeGeneration()
-                }
-                else -> {}
-            }
+    // Register event handler when screen is active
+    DisposableEffect(Unit) {
+        textToImageViewModel.startListening(generationViewModel)
+        onDispose {
+            textToImageViewModel.stopListening(generationViewModel)
         }
     }
 
@@ -217,8 +205,8 @@ fun TextToImageScreen(
                 )
             }
 
-            // Progress indicator
-            if (generationState.isGenerating) {
+            // Progress indicator - only show if THIS screen started generation
+            if (isThisScreenGenerating) {
                 LinearProgressIndicator(
                     progress = {
                         if (generationState.maxProgress > 0) {
@@ -262,15 +250,18 @@ fun TextToImageScreen(
         ) {
             ElevatedButton(
                 onClick = {
-                    if (generationState.isGenerating) {
-                        // Cancel generation
+                    if (isThisScreenGenerating) {
+                        // Cancel generation (only if this screen started it)
                         generationViewModel.cancelGeneration { }
-                    } else {
-                        // Start generation
+                    } else if (!generationState.isGenerating) {
+                        // Start generation (only if no generation is running)
                         if (textToImageViewModel.validateConfiguration()) {
                             val workflowJson = textToImageViewModel.prepareWorkflowJson()
                             if (workflowJson != null) {
-                                generationViewModel.startGeneration(workflowJson) { success, _, _ ->
+                                generationViewModel.startGeneration(
+                                    workflowJson,
+                                    TextToImageViewModel.OWNER_ID
+                                ) { success, _, _ ->
                                     // Generation started or failed
                                 }
                             }
@@ -280,8 +271,9 @@ fun TextToImageScreen(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                enabled = generationState.isGenerating || uiState.prompt.isNotBlank(),
-                colors = if (generationState.isGenerating) {
+                enabled = isThisScreenGenerating ||
+                    (!generationState.isGenerating && uiState.prompt.isNotBlank()),
+                colors = if (isThisScreenGenerating) {
                     ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
                     ButtonDefaults.elevatedButtonColors(
@@ -291,7 +283,7 @@ fun TextToImageScreen(
                 }
             ) {
                 Text(
-                    text = if (generationState.isGenerating) {
+                    text = if (isThisScreenGenerating) {
                         stringResource(R.string.button_cancel_generation)
                     } else {
                         stringResource(R.string.button_generate)
