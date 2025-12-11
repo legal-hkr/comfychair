@@ -174,6 +174,7 @@ class InpaintingViewModel : ViewModel() {
             InpaintingConfigMode.CHECKPOINT
         }
 
+        val defaultPrompt = context.getString(R.string.default_prompt_inpainting)
         _uiState.value = _uiState.value.copy(
             configMode = configMode,
             selectedCheckpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow) ?: _uiState.value.selectedCheckpointWorkflow,
@@ -185,7 +186,7 @@ class InpaintingViewModel : ViewModel() {
             selectedVae = prefs.getString(PREF_VAE, "") ?: "",
             selectedClip = prefs.getString(PREF_CLIP, "") ?: "",
             unetSteps = prefs.getString(PREF_UNET_STEPS, "20") ?: "20",
-            prompt = prefs.getString(PREF_PROMPT, "") ?: ""
+            prompt = prefs.getString(PREF_PROMPT, null) ?: defaultPrompt
         )
     }
 

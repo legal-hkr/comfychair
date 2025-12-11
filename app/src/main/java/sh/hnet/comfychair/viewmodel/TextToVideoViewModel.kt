@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 
 /**
@@ -115,7 +116,8 @@ class TextToVideoViewModel : ViewModel() {
         val savedHeight = prefs.getString(KEY_HEIGHT, "480") ?: "480"
         val savedLength = prefs.getString(KEY_LENGTH, "33") ?: "33"
         val savedFps = prefs.getString(KEY_FPS, "16") ?: "16"
-        val savedPrompt = prefs.getString(KEY_PROMPT, "") ?: ""
+        val defaultPrompt = context.getString(R.string.default_prompt_image)
+        val savedPrompt = prefs.getString(KEY_PROMPT, null) ?: defaultPrompt
 
         // Deferred model selections
         val deferredHighnoiseUnet = prefs.getString(KEY_HIGHNOISE_UNET, null)

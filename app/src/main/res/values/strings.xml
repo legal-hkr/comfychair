@@ -22,6 +22,8 @@
 
     <!-- Query screen strings -->
     <string name="prompt_hint">Prompt</string>
+    <string name="default_prompt_image">A warm and cozy photo of a woman sitting in a comfy chair, sipping coffee</string>
+    <string name="default_prompt_inpainting">A woman with green, wavy hair</string>
     <string name="button_generate">Generate</string>
 
     <!-- Configuration panel strings -->

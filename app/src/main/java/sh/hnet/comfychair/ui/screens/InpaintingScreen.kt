@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.ui.res.painterResource
@@ -331,7 +332,7 @@ fun InpaintingScreen(
             trailingIcon = {
                 if (uiState.prompt.isNotEmpty()) {
                     IconButton(onClick = { inpaintingViewModel.onPromptChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.content_description_clear))
+                        Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
             }

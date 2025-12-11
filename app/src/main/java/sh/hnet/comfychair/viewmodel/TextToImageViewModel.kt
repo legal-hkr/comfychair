@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import java.io.File
 import java.io.IOException
@@ -495,9 +496,10 @@ class TextToImageViewModel : ViewModel() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        val defaultPrompt = ctx.getString(R.string.default_prompt_image)
         _uiState.value = _uiState.value.copy(
             isCheckpointMode = prefs.getBoolean(PREF_IS_CHECKPOINT_MODE, true),
-            prompt = prefs.getString(PREF_PROMPT, "") ?: "",
+            prompt = prefs.getString(PREF_PROMPT, null) ?: defaultPrompt,
 
             // Checkpoint mode
             checkpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.checkpointWorkflow) ?: _uiState.value.checkpointWorkflow,
