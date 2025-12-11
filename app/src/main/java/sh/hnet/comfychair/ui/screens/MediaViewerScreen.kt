@@ -47,8 +47,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.FullscreenVideoPlayer
 import sh.hnet.comfychair.ui.components.ImageViewer
+import sh.hnet.comfychair.ui.components.VideoPlayer
+import sh.hnet.comfychair.ui.components.VideoScaleMode
 import sh.hnet.comfychair.viewmodel.MediaViewerEvent
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
@@ -326,10 +327,13 @@ private fun MediaContent(
         if (isLoading && bitmap == null && videoUri == null) {
             CircularProgressIndicator(color = Color.White)
         } else if (isVideo && videoUri != null) {
-            FullscreenVideoPlayer(
+            VideoPlayer(
                 videoUri = videoUri,
                 modifier = Modifier.fillMaxSize(),
-                onDismiss = null // No dismiss button, use top bar
+                showController = false,
+                scaleMode = VideoScaleMode.FIT,
+                enableZoom = true,
+                onSingleTap = onSingleTap
             )
         } else if (!isVideo && bitmap != null) {
             ImageViewer(
