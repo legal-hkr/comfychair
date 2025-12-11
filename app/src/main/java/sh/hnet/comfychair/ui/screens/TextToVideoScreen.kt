@@ -73,7 +73,6 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.FullscreenVideoPlayer
 import sh.hnet.comfychair.ui.components.VideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
-import sh.hnet.comfychair.ui.theme.CancelRed
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
@@ -328,7 +327,7 @@ fun TextToVideoScreen(
                     .height(56.dp),
                 enabled = generationState.isGenerating || (textToVideoViewModel.hasValidConfiguration() && uiState.prompt.isNotBlank()),
                 colors = if (generationState.isGenerating) {
-                    ButtonDefaults.elevatedButtonColors(containerColor = CancelRed)
+                    ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
                     ButtonDefaults.elevatedButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,

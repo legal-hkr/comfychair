@@ -111,10 +111,20 @@
     <!-- Image/Video parameters section -->
     <string name="image_parameters_title">Parametry obrazu</string>
 
-    <!-- Save options bottom sheet -->
+    <!-- Save options -->
     <string name="save_to_gallery">Zapisz do galerii</string>
-    <string name="save_as">Zapisz jako…</string>
     <string name="share">Udostępnij…</string>
+    <string name="save_image">Zapisz</string>
+
+    <!-- Gallery selection mode strings -->
+    <string name="gallery_selected_count">Zaznaczono: %d</string>
+    <string name="cancel_selection">Anuluj zaznaczenie</string>
+    <string name="item_selected">Zaznaczono</string>
+    <string name="items_saved_to_gallery">Elementy zapisane do galerii</string>
+    <string name="some_items_failed_to_save">Niektóre elementy nie zostały zapisane</string>
+    <string name="failed_share_items">Nie udało się udostępnić elementów</string>
+    <string name="items_deleted_success">Elementy usunięte pomyślnie</string>
+    <string name="some_items_failed_to_delete">Niektóre elementy nie zostały usunięte</string>
 
     <!-- Mask editor strings -->
     <string name="invert_mask">Odwróć maskę</string>

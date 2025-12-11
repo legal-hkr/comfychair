@@ -61,7 +61,6 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.FullscreenImageDialog
-import sh.hnet.comfychair.ui.theme.CancelRed
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -281,7 +280,7 @@ fun TextToImageScreen(
                     .height(56.dp),
                 enabled = generationState.isGenerating || uiState.prompt.isNotBlank(),
                 colors = if (generationState.isGenerating) {
-                    ButtonDefaults.elevatedButtonColors(containerColor = CancelRed)
+                    ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
                     ButtonDefaults.elevatedButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,

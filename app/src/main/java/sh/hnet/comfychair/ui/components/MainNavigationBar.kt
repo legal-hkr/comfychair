@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -19,9 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -29,28 +25,22 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
 
 /**
- * Main navigation bar for the app with 4 destinations:
+ * Main navigation bar for the app with 3 destinations:
  * - Text-to-Image (icon button)
  * - Text-to-Video (icon button)
  * - Inpainting (icon button)
- * - Gallery (FAB) - toggles back to previous screen when tapped again
+ *
+ * FAB launches Gallery activity.
  *
  * Uses BottomAppBar with navigation buttons on left and FAB on right.
  */
 @Composable
 fun MainNavigationBar(
-    navController: NavController
+    navController: NavController,
+    onNavigateToGallery: () -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    // Track the previous route before navigating to Gallery
-    var previousRoute by rememberSaveable { mutableStateOf(MainRoute.TextToImage.route) }
-
-    // Update previous route when we're not in Gallery
-    if (currentRoute != MainRoute.Gallery.route && currentRoute != null) {
-        previousRoute = currentRoute
-    }
 
     BottomAppBar(
         actions = {
@@ -147,35 +137,13 @@ fun MainNavigationBar(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    if (currentRoute == MainRoute.Gallery.route) {
-                        // Toggle back to previous screen
-                        navController.navigate(previousRoute) {
-                            popUpTo(MainRoute.TextToImage.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    } else {
-                        // Navigate to Gallery
-                        navController.navigate(MainRoute.Gallery.route) {
-                            popUpTo(MainRoute.TextToImage.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                containerColor = if (currentRoute == MainRoute.Gallery.route)
-                    MaterialTheme.colorScheme.primaryContainer
-                else
-                    MaterialTheme.colorScheme.secondaryContainer
+                onClick = onNavigateToGallery,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Icon(
                     Icons.Filled.Collections,
                     contentDescription = stringResource(R.string.nav_gallery),
-                    tint = if (currentRoute == MainRoute.Gallery.route)
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    else
-                        MaterialTheme.colorScheme.onSecondaryContainer
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }

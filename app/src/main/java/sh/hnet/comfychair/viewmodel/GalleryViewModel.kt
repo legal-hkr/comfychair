@@ -45,7 +45,8 @@ data class GalleryUiState(
     val items: List<GalleryItem> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
-    val selectedItem: GalleryItem? = null
+    val selectedItems: Set<String> = emptySet(), // Set of "${promptId}_${filename}" keys
+    val isSelectionMode: Boolean = false
 )
 
 /**
@@ -501,6 +502,284 @@ class GalleryViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 _events.emit(GalleryEvent.ShowToast(R.string.failed_share_video))
+            }
+        }
+    }
+
+    // Selection mode functions
+
+    private fun getItemKey(item: GalleryItem): String = "${item.promptId}_${item.filename}"
+
+    fun toggleSelection(item: GalleryItem) {
+        val key = getItemKey(item)
+        val currentSelected = _uiState.value.selectedItems.toMutableSet()
+
+        if (currentSelected.contains(key)) {
+            currentSelected.remove(key)
+        } else {
+            currentSelected.add(key)
+        }
+
+        _uiState.value = _uiState.value.copy(
+            selectedItems = currentSelected,
+            isSelectionMode = currentSelected.isNotEmpty()
+        )
+    }
+
+    fun isItemSelected(item: GalleryItem): Boolean {
+        return _uiState.value.selectedItems.contains(getItemKey(item))
+    }
+
+    fun clearSelection() {
+        _uiState.value = _uiState.value.copy(
+            selectedItems = emptySet(),
+            isSelectionMode = false
+        )
+    }
+
+    fun deleteSelected() {
+        val client = comfyUIClient ?: return
+        val selectedItems = getSelectedItems()
+        if (selectedItems.isEmpty()) return
+
+        viewModelScope.launch {
+            var successCount = 0
+            var failCount = 0
+
+            // Get unique prompt IDs (multiple items can share the same promptId)
+            val promptIds = selectedItems.map { it.promptId }.distinct()
+
+            for (promptId in promptIds) {
+                val success = withContext(Dispatchers.IO) {
+                    kotlin.coroutines.suspendCoroutine { continuation ->
+                        client.deleteHistoryItem(promptId) { success ->
+                            continuation.resumeWith(Result.success(success))
+                        }
+                    }
+                }
+                if (success) successCount++ else failCount++
+            }
+
+            // Remove deleted items from local list
+            if (successCount > 0) {
+                val deletedPromptIds = promptIds.toSet()
+                val currentItems = _uiState.value.items.toMutableList()
+                currentItems.removeAll { it.promptId in deletedPromptIds }
+                _uiState.value = _uiState.value.copy(items = currentItems)
+            }
+
+            // Show result toast
+            if (failCount == 0) {
+                _events.emit(GalleryEvent.ShowToast(R.string.items_deleted_success))
+            } else {
+                _events.emit(GalleryEvent.ShowToast(R.string.some_items_failed_to_delete))
+            }
+
+            // Clear selection after delete
+            clearSelection()
+        }
+    }
+
+    fun getSelectedItems(): List<GalleryItem> {
+        val selectedKeys = _uiState.value.selectedItems
+        return _uiState.value.items.filter { getItemKey(it) in selectedKeys }
+    }
+
+    fun saveSelectedToGallery(context: Context) {
+        val selectedItems = getSelectedItems()
+        if (selectedItems.isEmpty()) return
+
+        viewModelScope.launch {
+            var successCount = 0
+            var failCount = 0
+
+            for (item in selectedItems) {
+                val success = if (item.isVideo) {
+                    saveVideoToGalleryInternal(context, item)
+                } else {
+                    saveImageToGalleryInternal(context, item)
+                }
+                if (success) successCount++ else failCount++
+            }
+
+            // Show result toast
+            if (failCount == 0) {
+                _events.emit(GalleryEvent.ShowToast(R.string.items_saved_to_gallery))
+            } else {
+                _events.emit(GalleryEvent.ShowToast(R.string.some_items_failed_to_save))
+            }
+
+            // Clear selection after save
+            clearSelection()
+        }
+    }
+
+    private suspend fun saveImageToGalleryInternal(context: Context, item: GalleryItem): Boolean {
+        val client = comfyUIClient ?: return false
+
+        return withContext(Dispatchers.IO) {
+            val bitmap = kotlin.coroutines.suspendCoroutine { continuation ->
+                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
+                    continuation.resumeWith(Result.success(bmp))
+                }
+            }
+
+            if (bitmap == null) return@withContext false
+
+            try {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.png")
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/ComfyChair")
+                }
+
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+                uri?.let { outputUri ->
+                    resolver.openOutputStream(outputUri)?.use { outputStream ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                    }
+                }
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    private suspend fun saveVideoToGalleryInternal(context: Context, item: GalleryItem): Boolean {
+        val client = comfyUIClient ?: return false
+
+        return withContext(Dispatchers.IO) {
+            val videoBytes = kotlin.coroutines.suspendCoroutine { continuation ->
+                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
+                    continuation.resumeWith(Result.success(bytes))
+                }
+            }
+
+            if (videoBytes == null) return@withContext false
+
+            try {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.mp4")
+                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/ComfyChair")
+                }
+
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+                uri?.let { outputUri ->
+                    resolver.openOutputStream(outputUri)?.use { outputStream ->
+                        outputStream.write(videoBytes)
+                    }
+                }
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    fun shareSelected(context: Context) {
+        val selectedItems = getSelectedItems()
+        if (selectedItems.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                val uris = mutableListOf<Uri>()
+
+                for ((index, item) in selectedItems.withIndex()) {
+                    val uri = if (item.isVideo) {
+                        getVideoShareUri(context, item, index)
+                    } else {
+                        getImageShareUri(context, item, index)
+                    }
+                    uri?.let { uris.add(it) }
+                }
+
+                if (uris.isEmpty()) {
+                    _events.emit(GalleryEvent.ShowToast(R.string.failed_share_items))
+                    return@launch
+                }
+
+                val shareIntent = android.content.Intent().apply {
+                    action = android.content.Intent.ACTION_SEND_MULTIPLE
+                    putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, ArrayList(uris))
+                    type = if (selectedItems.all { it.isVideo }) "video/*"
+                           else if (selectedItems.none { it.isVideo }) "image/*"
+                           else "*/*"
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+
+                context.startActivity(
+                    android.content.Intent.createChooser(
+                        shareIntent,
+                        context.getString(R.string.share)
+                    )
+                )
+
+                // Clear selection after share
+                clearSelection()
+            } catch (e: Exception) {
+                _events.emit(GalleryEvent.ShowToast(R.string.failed_share_items))
+            }
+        }
+    }
+
+    private suspend fun getImageShareUri(context: Context, item: GalleryItem, index: Int): Uri? {
+        val client = comfyUIClient ?: return null
+
+        return withContext(Dispatchers.IO) {
+            val bitmap = kotlin.coroutines.suspendCoroutine { continuation ->
+                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
+                    continuation.resumeWith(Result.success(bmp))
+                }
+            }
+
+            if (bitmap == null) return@withContext null
+
+            try {
+                val shareFile = File(context.cacheDir, "share_image_$index.png")
+                shareFile.outputStream().use { outputStream ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                }
+
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    shareFile
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    private suspend fun getVideoShareUri(context: Context, item: GalleryItem, index: Int): Uri? {
+        val client = comfyUIClient ?: return null
+
+        return withContext(Dispatchers.IO) {
+            val videoBytes = kotlin.coroutines.suspendCoroutine { continuation ->
+                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
+                    continuation.resumeWith(Result.success(bytes))
+                }
+            }
+
+            if (videoBytes == null) return@withContext null
+
+            try {
+                val shareFile = File(context.cacheDir, "share_video_$index.mp4")
+                shareFile.writeBytes(videoBytes)
+
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    shareFile
+                )
+            } catch (e: Exception) {
+                null
             }
         }
     }

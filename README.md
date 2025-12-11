@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.3.1
+**Current version**: v0.4.0
 
 ## Overview
 
@@ -10,8 +10,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-settingsunet.png" width="200"/> <img src="screenshots/texttoimage-contextmenu.png" width="200"/> <img src="screenshots/texttovideo.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-sourceimage.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/>
-<img src="screenshots/toast.png" width="200"/> <img src="screenshots/configuration.png" width="200"/>
+<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-settingsunet.png" width="200"/> <img src="screenshots/texttovideo.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/configuration.png" width="200"/>
 
 ## Features
 
@@ -42,13 +41,13 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Error notifications via Toast messages
 - **Image/Video preview**:
   - Tap to view fullscreen with pinch-to-zoom (images) or play (videos)
-  - Long press for save/share options
 - **Gallery**:
   - View all generated images and videos with 2-column grid layout
   - Video indicator on thumbnails
   - Pull-to-refresh to update gallery
-  - Delete individual items from server history
-- **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair), save as file, or share
+  - Multi-select mode with long press to select items
+  - Batch operations: save, share, or delete multiple items at once
+- **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
 - **Server configuration**:
   - View detailed server information (ComfyUI version, OS, Python, PyTorch versions)
   - Monitor hardware resources (RAM and GPU VRAM usage with free/total display)
@@ -59,7 +58,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
 - **Localization**: Available in English (default), German, French, Polish, and Spanish
-- **Native Android experience**: Built with Kotlin and Material Design 3
+- **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
 
 ## Requirements
 
@@ -118,8 +117,10 @@ To connect to your ComfyUI server, you'll need:
 - **Language**: Kotlin 2.0.21
 - **Min SDK**: Android 14 (API 34)
 - **Target SDK**: Android 15 (API 36)
-- **Architecture**: Modern Android with AndroidX components
-- **UI**: Material Design 3
+- **UI Framework**: Jetpack Compose with Material Design 3
+- **Video Playback**: Media3 ExoPlayer
+- **Architecture**: MVVM with ViewModels and StateFlow
+- **Navigation**: Jetpack Compose Navigation
 - **Build system**: Gradle with Kotlin DSL
 
 ## Project structure
@@ -127,36 +128,46 @@ To connect to your ComfyUI server, you'll need:
 ```
 app/src/main/
 ├── java/sh/hnet/comfychair/
-│   ├── MainActivity.kt              # Login/connection screen
-│   ├── MainContainerActivity.kt     # Fragment container with persistent navigation
-│   ├── TextToImageFragment.kt       # Text-to-image generation screen
-│   ├── TextToVideoFragment.kt       # Text-to-video generation screen
-│   ├── InpaintingFragment.kt        # Inpainting screen with mask editor
-│   ├── GalleryFragment.kt           # Image/video gallery screen
-│   ├── ConfigurationFragment.kt     # Server configuration and management
-│   ├── GalleryAdapter.kt            # RecyclerView adapter for gallery grid
-│   ├── MaskPaintView.kt             # Custom view for mask painting
+│   ├── MainActivity.kt              # Login/connection screen (Compose)
+│   ├── MainContainerActivity.kt     # Main container with bottom navigation
+│   ├── SettingsContainerActivity.kt # Settings container activity
+│   ├── GalleryContainerActivity.kt  # Gallery container activity
 │   ├── ComfyUIClient.kt             # API client for ComfyUI server
 │   ├── WorkflowManager.kt           # Workflow JSON management
-│   └── SelfSignedCertHelper.kt      # SSL certificate handling
+│   ├── SelfSignedCertHelper.kt      # SSL certificate handling
+│   ├── navigation/
+│   │   └── AppNavigation.kt         # Navigation route definitions
+│   ├── viewmodel/
+│   │   ├── GenerationViewModel.kt   # Central WebSocket & generation state
+│   │   ├── TextToImageViewModel.kt  # Text-to-image screen state
+│   │   ├── TextToVideoViewModel.kt  # Text-to-video screen state
+│   │   ├── InpaintingViewModel.kt   # Inpainting screen state
+│   │   ├── GalleryViewModel.kt      # Gallery screen state
+│   │   └── SettingsViewModel.kt     # Settings screen state
+│   └── ui/
+│       ├── theme/                   # Material 3 theme (Color, Type, Theme)
+│       ├── screens/
+│       │   ├── LoginScreen.kt       # Login/connection UI
+│       │   ├── TextToImageScreen.kt # Text-to-image generation UI
+│       │   ├── TextToVideoScreen.kt # Text-to-video generation UI
+│       │   ├── InpaintingScreen.kt  # Inpainting UI
+│       │   ├── GalleryScreen.kt     # Gallery UI with multi-select
+│       │   ├── ApplicationSettingsScreen.kt  # App settings UI
+│       │   └── ServerSettingsScreen.kt       # Server settings UI
+│       ├── components/
+│       │   ├── MainNavigationBar.kt          # Bottom navigation bar
+│       │   ├── ConfigBottomSheetContent.kt   # Text-to-image config
+│       │   ├── VideoConfigBottomSheetContent.kt  # Video config
+│       │   ├── InpaintingConfigBottomSheetContent.kt  # Inpainting config
+│       │   ├── MaskPaintCanvas.kt            # Compose Canvas mask painting
+│       │   ├── MaskPreview.kt                # Mask preview component
+│       │   ├── MaskEditorDialog.kt           # Fullscreen mask editor
+│       │   ├── VideoPlayer.kt                # ExoPlayer video component
+│       │   └── FullscreenImageDialog.kt      # Fullscreen image viewer
+│       └── navigation/
+│           ├── MainNavHost.kt       # Main screen navigation
+│           └── SettingsNavHost.kt   # Settings screen navigation
 ├── res/
-│   ├── layout/                      # UI layouts
-│   │   ├── activity_main.xml        # Login screen layout
-│   │   ├── activity_main_container.xml  # Container with bottom navigation
-│   │   ├── fragment_text_to_image.xml   # Text-to-image screen layout
-│   │   ├── fragment_text_to_video.xml   # Text-to-video screen layout
-│   │   ├── fragment_inpainting.xml  # Inpainting screen layout
-│   │   ├── fragment_gallery.xml     # Gallery screen layout
-│   │   ├── fragment_configuration.xml   # Configuration screen layout
-│   │   ├── bottom_sheet_config.xml  # Text-to-image configuration panel
-│   │   ├── bottom_sheet_video_config.xml  # Text-to-video configuration panel
-│   │   ├── bottom_sheet_inpainting_config.xml  # Inpainting configuration panel
-│   │   ├── bottom_sheet_save_options.xml  # Save/share options
-│   │   ├── bottom_sheet_source_image.xml  # Source image options
-│   │   ├── dialog_mask_editor.xml   # Mask painting dialog
-│   │   ├── dialog_fullscreen_image.xml    # Fullscreen image viewer
-│   │   ├── dialog_fullscreen_video.xml    # Fullscreen video player
-│   │   └── item_gallery_thumbnail.xml     # Gallery thumbnail item
 │   ├── raw/                         # Workflow JSON files
 │   │   ├── tti_checkpoint_default.json  # Default text-to-image checkpoint workflow
 │   │   ├── tti_unet_zimage.json         # Z-Image text-to-image UNET workflow
@@ -168,7 +179,7 @@ app/src/main/
 │   ├── values-fr/                   # French translations
 │   ├── values-pl/                   # Polish translations
 │   ├── values-es/                   # Spanish translations
-│   ├── drawable/                    # Icons and graphics
+│   ├── drawable/                    # App icons
 │   └── xml/                         # Backup rules, file provider paths
 └── AndroidManifest.xml
 ```
@@ -177,8 +188,9 @@ app/src/main/
 
 This project follows standard Android development practices:
 - Kotlin coding conventions
-- Material Design guidelines
-- AndroidX compatibility
+- Jetpack Compose best practices
+- Material Design 3 guidelines
+- MVVM architecture pattern
 
 ## License
 

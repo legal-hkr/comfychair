@@ -41,9 +41,6 @@ import sh.hnet.comfychair.CertificateIssue
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.MainContainerActivity
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.theme.ConnectedGreen
-import sh.hnet.comfychair.ui.theme.ConnectingYellow
-import sh.hnet.comfychair.ui.theme.FailedRed
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -352,13 +349,13 @@ fun LoginScreen() {
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
             ConnectionState.CONNECTING -> ButtonDefaults.elevatedButtonColors(
-                containerColor = ConnectingYellow
+                containerColor = MaterialTheme.colorScheme.secondary
             )
             ConnectionState.FAILED -> ButtonDefaults.elevatedButtonColors(
-                containerColor = FailedRed
+                containerColor = MaterialTheme.colorScheme.error
             )
             ConnectionState.CONNECTED -> ButtonDefaults.elevatedButtonColors(
-                containerColor = ConnectedGreen
+                containerColor = MaterialTheme.colorScheme.tertiary
             )
         }
 
@@ -392,7 +389,7 @@ fun LoginScreen() {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = message,
-                color = ConnectingYellow,
+                color = MaterialTheme.colorScheme.secondary,
                 fontSize = 14.sp
             )
         }

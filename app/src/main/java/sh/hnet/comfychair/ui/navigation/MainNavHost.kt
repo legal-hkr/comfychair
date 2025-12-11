@@ -12,11 +12,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.components.MainNavigationBar
-import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.InpaintingScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
-import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.InpaintingViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
@@ -30,6 +28,7 @@ import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 fun MainNavHost(
     generationViewModel: GenerationViewModel,
     onNavigateToSettings: () -> Unit,
+    onNavigateToGallery: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
@@ -37,7 +36,8 @@ fun MainNavHost(
     Scaffold(
         bottomBar = {
             MainNavigationBar(
-                navController = navController
+                navController = navController,
+                onNavigateToGallery = onNavigateToGallery
             )
         },
         modifier = modifier.imePadding()
@@ -72,16 +72,6 @@ fun MainNavHost(
                 InpaintingScreen(
                     generationViewModel = generationViewModel,
                     inpaintingViewModel = inpaintingViewModel,
-                    onNavigateToSettings = onNavigateToSettings,
-                    onLogout = onLogout
-                )
-            }
-
-            composable(MainRoute.Gallery.route) {
-                val galleryViewModel: GalleryViewModel = viewModel()
-                GalleryScreen(
-                    generationViewModel = generationViewModel,
-                    galleryViewModel = galleryViewModel,
                     onNavigateToSettings = onNavigateToSettings,
                     onLogout = onLogout
                 )

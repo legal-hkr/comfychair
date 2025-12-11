@@ -36,6 +36,12 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- GalleryContainerActivity - Container for gallery screen -->
+        <activity
+            android:name=".GalleryContainerActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- FileProvider for sharing images -->
         <provider
             android:name="androidx.core.content.FileProvider"

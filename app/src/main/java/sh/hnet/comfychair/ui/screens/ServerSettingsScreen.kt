@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
-import sh.hnet.comfychair.ui.theme.FailedRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -253,7 +252,7 @@ fun ServerSettingsScreen(
                     Text(
                         text = stringResource(R.string.server_management_warning),
                         style = MaterialTheme.typography.bodySmall,
-                        color = FailedRed
+                        color = MaterialTheme.colorScheme.error
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -263,7 +262,7 @@ fun ServerSettingsScreen(
                         enabled = !uiState.isClearingQueue,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FailedRed
+                            containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
                         Text(stringResource(R.string.clear_queue_button))
@@ -276,7 +275,7 @@ fun ServerSettingsScreen(
                         enabled = !uiState.isClearingHistory,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FailedRed
+                            containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
                         Text(stringResource(R.string.clear_history_button))

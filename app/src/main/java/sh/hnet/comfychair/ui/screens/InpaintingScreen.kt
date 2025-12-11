@@ -65,7 +65,6 @@ import sh.hnet.comfychair.ui.components.FullscreenImageDialog
 import sh.hnet.comfychair.ui.components.InpaintingConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.MaskEditorDialog
 import sh.hnet.comfychair.ui.components.MaskPreview
-import sh.hnet.comfychair.ui.theme.CancelRed
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -380,7 +379,7 @@ fun InpaintingScreen(
                     uiState.sourceImage != null
                 ),
                 colors = if (generationState.isGenerating) {
-                    ButtonDefaults.elevatedButtonColors(containerColor = CancelRed)
+                    ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
                     ButtonDefaults.elevatedButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,

@@ -65,6 +65,7 @@ class MainContainerActivity : ComponentActivity() {
                     MainNavHost(
                         generationViewModel = generationViewModel,
                         onNavigateToSettings = { openSettings() },
+                        onNavigateToGallery = { openGallery() },
                         onLogout = { logout() }
                     )
                 }
@@ -88,6 +89,16 @@ class MainContainerActivity : ComponentActivity() {
         intent.putExtra("hostname", hostname)
         intent.putExtra("port", port)
         settingsLauncher.launch(intent)
+    }
+
+    /**
+     * Open the Gallery activity
+     */
+    private fun openGallery() {
+        val intent = Intent(this, GalleryContainerActivity::class.java)
+        intent.putExtra("hostname", hostname)
+        intent.putExtra("port", port)
+        startActivity(intent)
     }
 
     override fun onDestroy() {

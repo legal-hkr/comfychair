@@ -118,10 +118,20 @@
     <!-- Image/Video parameters section -->
     <string name="image_parameters_title">Image parameters</string>
 
-    <!-- Save options bottom sheet -->
+    <!-- Save options -->
     <string name="save_to_gallery">Save to gallery</string>
-    <string name="save_as">Save as…</string>
     <string name="share">Share…</string>
+    <string name="save_image">Save</string>
+
+    <!-- Gallery selection mode strings -->
+    <string name="gallery_selected_count">%d selected</string>
+    <string name="cancel_selection">Cancel selection</string>
+    <string name="item_selected">Selected</string>
+    <string name="items_saved_to_gallery">Items saved to gallery</string>
+    <string name="some_items_failed_to_save">Some items failed to save</string>
+    <string name="failed_share_items">Failed to share items</string>
+    <string name="items_deleted_success">Items deleted successfully</string>
+    <string name="some_items_failed_to_delete">Some items failed to delete</string>
 
     <!-- Mask editor strings -->
     <string name="invert_mask">Invert mask</string>
