@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -73,6 +74,7 @@ fun VideoPlayer(
     }
 
     // Render the PlayerView
+    // clipToBounds() ensures vertical videos don't overflow their container
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
@@ -81,7 +83,7 @@ fun VideoPlayer(
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM // Center crop
             }
         },
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         update = { playerView ->
             playerView.useController = showController
         }
