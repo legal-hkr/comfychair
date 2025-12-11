@@ -253,10 +253,13 @@ fun MaskPaintCanvas(
             isAntiAlias = true
         }
 
-        drawContext.canvas.nativeCanvas.save()
-
-        // Clip to image bounds to prevent mask drawing outside image
+        // Draw mask overlay with layer support for eraser (PorterDuff.Mode.CLEAR needs a layer)
         if (sourceImage != null && imgRect.width > 0 && imgRect.height > 0) {
+            // Save layer for the mask overlay - this allows CLEAR mode to work
+            val layerBounds = android.graphics.RectF(imgRect.left, imgRect.top, imgRect.right, imgRect.bottom)
+            drawContext.canvas.nativeCanvas.saveLayer(layerBounds, null)
+
+            // Clip and transform to image coordinates
             drawContext.canvas.nativeCanvas.clipRect(
                 imgRect.left,
                 imgRect.top,
@@ -268,23 +271,40 @@ fun MaskPaintCanvas(
                 imgRect.width / sourceImage.width,
                 imgRect.height / sourceImage.height
             )
-        }
 
-        // Draw completed paths
-        maskPaths.forEach { pathData ->
-            if (!pathData.isEraser) {
-                maskPaint.strokeWidth = pathData.brushSize
-                drawContext.canvas.nativeCanvas.drawPath(pathData.path, maskPaint)
+            // Paint for erasing (cuts through the layer)
+            val clearPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.TRANSPARENT
+                style = android.graphics.Paint.Style.STROKE
+                strokeJoin = android.graphics.Paint.Join.ROUND
+                strokeCap = android.graphics.Paint.Cap.ROUND
+                isAntiAlias = true
+                xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
             }
-        }
 
-        // Draw current path being drawn
-        currentPath?.let { path ->
-            val paint = if (isEraserMode) erasePaint else maskPaint
-            paint.strokeWidth = scaleBrushSizeToImage(brushSize, imgRect, sourceImage)
-            drawContext.canvas.nativeCanvas.drawPath(path, paint)
-        }
+            // Draw all paths in order - this allows paint after erase to work correctly
+            maskPaths.forEach { pathData ->
+                if (pathData.isEraser) {
+                    clearPaint.strokeWidth = pathData.brushSize
+                    drawContext.canvas.nativeCanvas.drawPath(pathData.path, clearPaint)
+                } else {
+                    maskPaint.strokeWidth = pathData.brushSize
+                    drawContext.canvas.nativeCanvas.drawPath(pathData.path, maskPaint)
+                }
+            }
 
-        drawContext.canvas.nativeCanvas.restore()
+            // Draw current path being drawn
+            currentPath?.let { path ->
+                val paint = if (isEraserMode) {
+                    // Show eraser preview with semi-transparent indicator
+                    erasePaint.apply { strokeWidth = scaleBrushSizeToImage(brushSize, imgRect, sourceImage) }
+                } else {
+                    maskPaint.apply { strokeWidth = scaleBrushSizeToImage(brushSize, imgRect, sourceImage) }
+                }
+                drawContext.canvas.nativeCanvas.drawPath(path, paint)
+            }
+
+            drawContext.canvas.nativeCanvas.restore()
+        }
     }
 }
