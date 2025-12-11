@@ -118,10 +118,19 @@ class GalleryViewModel : ViewModel() {
     }
 
     /**
-     * Manual refresh triggered by user (pull-to-refresh)
+     * Manual refresh triggered by user (pull-to-refresh).
+     * Shows the refresh indicator.
+     */
+    fun manualRefresh() {
+        repository.manualRefresh()
+    }
+
+    /**
+     * Background refresh (silent, no indicator).
+     * Used when returning from other screens or after external changes.
      */
     fun refresh() {
-        repository.manualRefresh()
+        repository.refresh()
     }
 
     fun deleteItem(item: GalleryItem) {

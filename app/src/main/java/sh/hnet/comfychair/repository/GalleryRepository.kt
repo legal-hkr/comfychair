@@ -143,9 +143,9 @@ class GalleryRepository private constructor() {
 
     /**
      * Background refresh (silent, no indicator).
-     * Called after generation completes or periodically.
+     * Called after generation completes, periodically, or when returning from other screens.
      */
-    fun backgroundRefresh() {
+    fun refresh() {
         if (_isLoading.value || _isRefreshing.value) {
             return
         }
@@ -153,13 +153,6 @@ class GalleryRepository private constructor() {
         scope.launch {
             loadGalleryInternal(isRefresh = true)
         }
-    }
-
-    /**
-     * Legacy refresh method - defaults to background refresh for compatibility
-     */
-    fun refresh() {
-        backgroundRefresh()
     }
 
     /**

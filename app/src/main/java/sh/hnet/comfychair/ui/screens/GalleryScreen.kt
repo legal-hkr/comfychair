@@ -92,7 +92,7 @@ fun GalleryScreen(
     val mediaViewerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        // Refresh gallery if item was deleted
+        // Refresh gallery if item was deleted (silent refresh, no spinner)
         if (result.resultCode == Activity.RESULT_OK) {
             val itemDeleted = result.data?.getBooleanExtra(MediaViewerActivity.RESULT_ITEM_DELETED, false) ?: false
             if (itemDeleted) {
@@ -224,7 +224,7 @@ fun GalleryScreen(
 
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
-            onRefresh = { galleryViewModel.refresh() },
+            onRefresh = { galleryViewModel.manualRefresh() },
             modifier = Modifier.fillMaxSize(),
             state = pullToRefreshState,
             indicator = {
