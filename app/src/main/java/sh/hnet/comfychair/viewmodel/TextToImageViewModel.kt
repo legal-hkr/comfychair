@@ -248,27 +248,27 @@ class TextToImageViewModel : ViewModel() {
 
     // Update functions for UI state
 
-    fun updateMode(isCheckpointMode: Boolean) {
+    fun onModeChange(isCheckpointMode: Boolean) {
         _uiState.value = _uiState.value.copy(isCheckpointMode = isCheckpointMode)
         saveConfiguration()
     }
 
-    fun updatePrompt(prompt: String) {
+    fun onPromptChange(prompt: String) {
         _uiState.value = _uiState.value.copy(prompt = prompt)
         saveConfiguration()
     }
 
-    fun updateCheckpointWorkflow(workflow: String) {
+    fun onCheckpointWorkflowChange(workflow: String) {
         _uiState.value = _uiState.value.copy(checkpointWorkflow = workflow)
         saveConfiguration()
     }
 
-    fun updateSelectedCheckpoint(checkpoint: String) {
+    fun onCheckpointChange(checkpoint: String) {
         _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoint)
         saveConfiguration()
     }
 
-    fun updateCheckpointWidth(width: String) {
+    fun onCheckpointWidthChange(width: String) {
         val error = validateDimension(width)
         _uiState.value = _uiState.value.copy(
             checkpointWidth = width,
@@ -277,7 +277,7 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
-    fun updateCheckpointHeight(height: String) {
+    fun onCheckpointHeightChange(height: String) {
         val error = validateDimension(height)
         _uiState.value = _uiState.value.copy(
             checkpointHeight = height,
@@ -286,7 +286,7 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
-    fun updateCheckpointSteps(steps: String) {
+    fun onCheckpointStepsChange(steps: String) {
         val error = validateSteps(steps)
         _uiState.value = _uiState.value.copy(
             checkpointSteps = steps,
@@ -295,27 +295,27 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
-    fun updateUnetWorkflow(workflow: String) {
+    fun onUnetWorkflowChange(workflow: String) {
         _uiState.value = _uiState.value.copy(unetWorkflow = workflow)
         saveConfiguration()
     }
 
-    fun updateSelectedUnet(unet: String) {
+    fun onUnetChange(unet: String) {
         _uiState.value = _uiState.value.copy(selectedUnet = unet)
         saveConfiguration()
     }
 
-    fun updateSelectedVae(vae: String) {
+    fun onVaeChange(vae: String) {
         _uiState.value = _uiState.value.copy(selectedVae = vae)
         saveConfiguration()
     }
 
-    fun updateSelectedClip(clip: String) {
+    fun onClipChange(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip = clip)
         saveConfiguration()
     }
 
-    fun updateUnetWidth(width: String) {
+    fun onUnetWidthChange(width: String) {
         val error = validateDimension(width)
         _uiState.value = _uiState.value.copy(
             unetWidth = width,
@@ -324,7 +324,7 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
-    fun updateUnetHeight(height: String) {
+    fun onUnetHeightChange(height: String) {
         val error = validateDimension(height)
         _uiState.value = _uiState.value.copy(
             unetHeight = height,
@@ -333,7 +333,7 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
-    fun updateUnetSteps(steps: String) {
+    fun onUnetStepsChange(steps: String) {
         val error = validateSteps(steps)
         _uiState.value = _uiState.value.copy(
             unetSteps = steps,

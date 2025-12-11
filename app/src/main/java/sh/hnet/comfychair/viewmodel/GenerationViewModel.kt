@@ -92,9 +92,6 @@ class GenerationViewModel : ViewModel() {
     private var generationOwnerId: String? = null
     private var pendingCompletion: GenerationEvent.ImageGenerated? = null
 
-    // Pending image (generated while no collector was active)
-    private var pendingImagePromptId: String? = null
-
     companion object {
         private const val PREFS_NAME = "GenerationViewModelPrefs"
         private const val PREF_IS_GENERATING = "isGenerating"
@@ -444,7 +441,6 @@ class GenerationViewModel : ViewModel() {
         _generationState.value = GenerationState()
         generationOwnerId = null
         pendingCompletion = null
-        pendingImagePromptId = null
     }
 
     /**

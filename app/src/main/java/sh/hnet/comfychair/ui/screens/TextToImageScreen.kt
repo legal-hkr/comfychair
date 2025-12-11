@@ -225,7 +225,7 @@ fun TextToImageScreen(
         // Prompt Input
         OutlinedTextField(
             value = uiState.prompt,
-            onValueChange = { textToImageViewModel.updatePrompt(it) },
+            onValueChange = { textToImageViewModel.onPromptChange(it) },
             label = { Text(stringResource(R.string.prompt_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -234,7 +234,7 @@ fun TextToImageScreen(
             maxLines = 4,
             trailingIcon = {
                 if (uiState.prompt.isNotEmpty()) {
-                    IconButton(onClick = { textToImageViewModel.updatePrompt("") }) {
+                    IconButton(onClick = { textToImageViewModel.onPromptChange("") }) {
                         Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
@@ -313,19 +313,19 @@ fun TextToImageScreen(
         ) {
             ConfigBottomSheetContent(
                 uiState = uiState,
-                onModeChange = { textToImageViewModel.updateMode(it) },
-                onCheckpointWorkflowChange = { textToImageViewModel.updateCheckpointWorkflow(it) },
-                onCheckpointChange = { textToImageViewModel.updateSelectedCheckpoint(it) },
-                onCheckpointWidthChange = { textToImageViewModel.updateCheckpointWidth(it) },
-                onCheckpointHeightChange = { textToImageViewModel.updateCheckpointHeight(it) },
-                onCheckpointStepsChange = { textToImageViewModel.updateCheckpointSteps(it) },
-                onUnetWorkflowChange = { textToImageViewModel.updateUnetWorkflow(it) },
-                onUnetChange = { textToImageViewModel.updateSelectedUnet(it) },
-                onVaeChange = { textToImageViewModel.updateSelectedVae(it) },
-                onClipChange = { textToImageViewModel.updateSelectedClip(it) },
-                onUnetWidthChange = { textToImageViewModel.updateUnetWidth(it) },
-                onUnetHeightChange = { textToImageViewModel.updateUnetHeight(it) },
-                onUnetStepsChange = { textToImageViewModel.updateUnetSteps(it) }
+                onModeChange = { textToImageViewModel.onModeChange(it) },
+                onCheckpointWorkflowChange = { textToImageViewModel.onCheckpointWorkflowChange(it) },
+                onCheckpointChange = { textToImageViewModel.onCheckpointChange(it) },
+                onCheckpointWidthChange = { textToImageViewModel.onCheckpointWidthChange(it) },
+                onCheckpointHeightChange = { textToImageViewModel.onCheckpointHeightChange(it) },
+                onCheckpointStepsChange = { textToImageViewModel.onCheckpointStepsChange(it) },
+                onUnetWorkflowChange = { textToImageViewModel.onUnetWorkflowChange(it) },
+                onUnetChange = { textToImageViewModel.onUnetChange(it) },
+                onVaeChange = { textToImageViewModel.onVaeChange(it) },
+                onClipChange = { textToImageViewModel.onClipChange(it) },
+                onUnetWidthChange = { textToImageViewModel.onUnetWidthChange(it) },
+                onUnetHeightChange = { textToImageViewModel.onUnetHeightChange(it) },
+                onUnetStepsChange = { textToImageViewModel.onUnetStepsChange(it) }
             )
         }
     }
