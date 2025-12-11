@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +55,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -88,6 +91,7 @@ fun TextToVideoScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
@@ -97,11 +101,26 @@ fun TextToVideoScreen(
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showFullscreenDialog by remember { mutableStateOf(false) }
 
+    // Track screen visibility for video playback control
+    // This prevents video from rendering over navigation transitions
+    var isScreenVisible by remember { mutableStateOf(true) }
+
     // Video state
     var videoUri by remember { mutableStateOf<Uri?>(null) }
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val configSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Observe lifecycle to control video playback during navigation transitions
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            isScreenVisible = event.targetState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
@@ -243,7 +262,8 @@ fun TextToVideoScreen(
                 videoUri != null -> {
                     VideoPlayer(
                         videoUri = videoUri,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        isActive = isScreenVisible
                     )
                 }
                 // Show placeholder - monochrome app logo
