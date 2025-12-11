@@ -35,15 +35,15 @@ data class TextToImageUiState(
     val selectedCheckpoint: String = "",
     val checkpointWidth: String = "1024",
     val checkpointHeight: String = "1024",
-    val checkpointSteps: String = "9",
+    val checkpointSteps: String = "20",
 
     // UNET mode configuration
     val unetWorkflow: String = "",
     val selectedUnet: String = "",
     val selectedVae: String = "",
     val selectedClip: String = "",
-    val unetWidth: String = "1024",
-    val unetHeight: String = "1024",
+    val unetWidth: String = "832",
+    val unetHeight: String = "1216",
     val unetSteps: String = "9",
 
     // Available models (loaded from server)
@@ -505,12 +505,12 @@ class TextToImageViewModel : ViewModel() {
             checkpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.checkpointWorkflow) ?: _uiState.value.checkpointWorkflow,
             checkpointWidth = prefs.getString(PREF_CHECKPOINT_WIDTH, "1024") ?: "1024",
             checkpointHeight = prefs.getString(PREF_CHECKPOINT_HEIGHT, "1024") ?: "1024",
-            checkpointSteps = prefs.getString(PREF_CHECKPOINT_STEPS, "9") ?: "9",
+            checkpointSteps = prefs.getString(PREF_CHECKPOINT_STEPS, "20") ?: "20",
 
             // UNET mode
             unetWorkflow = prefs.getString(PREF_UNET_WORKFLOW, _uiState.value.unetWorkflow) ?: _uiState.value.unetWorkflow,
-            unetWidth = prefs.getString(PREF_UNET_WIDTH, "1024") ?: "1024",
-            unetHeight = prefs.getString(PREF_UNET_HEIGHT, "1024") ?: "1024",
+            unetWidth = prefs.getString(PREF_UNET_WIDTH, "832") ?: "832",
+            unetHeight = prefs.getString(PREF_UNET_HEIGHT, "1216") ?: "1216",
             unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9"
         )
     }

@@ -112,8 +112,8 @@ class TextToVideoViewModel : ViewModel() {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         val savedWorkflow = prefs.getString(KEY_WORKFLOW, "") ?: ""
-        val savedWidth = prefs.getString(KEY_WIDTH, "848") ?: "848"
-        val savedHeight = prefs.getString(KEY_HEIGHT, "480") ?: "480"
+        val savedWidth = prefs.getString(KEY_WIDTH, "480") ?: "480"
+        val savedHeight = prefs.getString(KEY_HEIGHT, "848") ?: "848"
         val savedLength = prefs.getString(KEY_LENGTH, "33") ?: "33"
         val savedFps = prefs.getString(KEY_FPS, "16") ?: "16"
         val defaultPrompt = context.getString(R.string.default_prompt_image)

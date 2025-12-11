@@ -83,7 +83,7 @@ data class InpaintingUiState(
     val selectedVae: String = "",
     val clips: List<String> = emptyList(),
     val selectedClip: String = "",
-    val unetSteps: String = "20",
+    val unetSteps: String = "9",
 
     // Prompt
     val prompt: String = "",
@@ -185,7 +185,7 @@ class InpaintingViewModel : ViewModel() {
             selectedUnet = prefs.getString(PREF_UNET, "") ?: "",
             selectedVae = prefs.getString(PREF_VAE, "") ?: "",
             selectedClip = prefs.getString(PREF_CLIP, "") ?: "",
-            unetSteps = prefs.getString(PREF_UNET_STEPS, "20") ?: "20",
+            unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9",
             prompt = prefs.getString(PREF_PROMPT, null) ?: defaultPrompt
         )
     }
