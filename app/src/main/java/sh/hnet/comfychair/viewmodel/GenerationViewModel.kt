@@ -19,6 +19,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
  * Generation state data class
@@ -61,6 +62,9 @@ class GenerationViewModel : ViewModel() {
     // ComfyUI client
     private var comfyUIClient: ComfyUIClient? = null
 
+    // Application context for gallery repository
+    private var applicationContext: Context? = null
+
     // Connection parameters
     private var hostname: String = ""
     private var port: Int = 8188
@@ -100,9 +104,13 @@ class GenerationViewModel : ViewModel() {
             return
         }
 
+        this.applicationContext = context.applicationContext
         this.hostname = hostname
         this.port = port
         this.comfyUIClient = ComfyUIClient(hostname, port)
+
+        // Initialize gallery repository with client
+        GalleryRepository.getInstance().initialize(context.applicationContext, this.comfyUIClient!!)
 
         // Restore generation state
         restoreGenerationState(context)
@@ -163,6 +171,9 @@ class GenerationViewModel : ViewModel() {
 
                 // Start keepalive
                 startKeepalive()
+
+                // Start background gallery preloading
+                GalleryRepository.getInstance().startBackgroundPreload()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -220,6 +231,8 @@ class GenerationViewModel : ViewModel() {
                         viewModelScope.launch {
                             _events.emit(GenerationEvent.ImageGenerated(promptId))
                         }
+                        // Trigger gallery refresh to include the new item
+                        GalleryRepository.getInstance().refresh()
                     }
                 }
                 "progress" -> {
@@ -457,6 +470,9 @@ class GenerationViewModel : ViewModel() {
      * Logout - close connections and reset state
      */
     fun logout() {
+        // Stop gallery background tasks
+        GalleryRepository.getInstance().reset()
+
         comfyUIClient?.closeWebSocket()
         comfyUIClient?.shutdown()
         isWebSocketConnected = false

@@ -43,6 +43,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -102,7 +104,7 @@ fun GalleryScreen(
     // Initialize ViewModel
     LaunchedEffect(Unit) {
         generationViewModel.getClient()?.let { client ->
-            galleryViewModel.initialize(context, client)
+            galleryViewModel.initialize(client)
         }
     }
 
@@ -218,10 +220,20 @@ fun GalleryScreen(
                 }
             }
         )
+        val pullToRefreshState = rememberPullToRefreshState()
+
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
             onRefresh = { galleryViewModel.refresh() },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            state = pullToRefreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
         ) {
             if (uiState.isLoading && uiState.items.isEmpty()) {
                 // Loading state

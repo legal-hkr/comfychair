@@ -3,8 +3,6 @@ package sh.hnet.comfychair.viewmodel
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -18,11 +16,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.repository.GalleryRepository
 import java.io.File
 
 /**
@@ -58,221 +57,77 @@ sealed class GalleryEvent {
 }
 
 /**
- * ViewModel for the Gallery screen
+ * ViewModel for the Gallery screen.
+ * Uses GalleryRepository for data management and background loading.
  */
 class GalleryViewModel : ViewModel() {
 
     private var comfyUIClient: ComfyUIClient? = null
-    private var applicationContext: Context? = null
+    private val repository = GalleryRepository.getInstance()
 
+    // Selection state (local to this ViewModel)
+    private val _selectedItems = MutableStateFlow<Set<String>>(emptySet())
+    private val _isSelectionMode = MutableStateFlow(false)
+
+    // Combine repository state with local selection state
     private val _uiState = MutableStateFlow(GalleryUiState())
     val uiState: StateFlow<GalleryUiState> = _uiState.asStateFlow()
 
     private val _events = MutableSharedFlow<GalleryEvent>()
     val events: SharedFlow<GalleryEvent> = _events.asSharedFlow()
 
-    companion object {
-        private val VIDEO_EXTENSIONS = listOf(".mp4", ".webm", ".gif", ".avi", ".mov")
-    }
-
-    fun initialize(context: Context, client: ComfyUIClient) {
-        applicationContext = context.applicationContext
-        comfyUIClient = client
-    }
-
-    fun loadGallery() {
-        val client = comfyUIClient ?: return
-        val context = applicationContext ?: return
-
-        _uiState.value = _uiState.value.copy(isLoading = true)
-
+    init {
+        // Observe repository state and combine with local selection state
         viewModelScope.launch {
-            val historyJson = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchAllHistory { history ->
-                        continuation.resumeWith(Result.success(history))
-                    }
-                }
+            combine(
+                repository.galleryItems,
+                repository.isLoading,
+                repository.isManualRefreshing,
+                _selectedItems,
+                _isSelectionMode
+            ) { items, isLoading, isManualRefreshing, selectedItems, isSelectionMode ->
+                GalleryUiState(
+                    items = items,
+                    isLoading = isLoading,
+                    isRefreshing = isManualRefreshing, // Only show indicator for manual refresh
+                    selectedItems = selectedItems,
+                    isSelectionMode = isSelectionMode
+                )
+            }.collect { state ->
+                _uiState.value = state
             }
-
-            if (historyJson == null) {
-                _uiState.value = _uiState.value.copy(isLoading = false, isRefreshing = false)
-                _events.emit(GalleryEvent.ShowToast(R.string.error_failed_fetch_history))
-                return@launch
-            }
-
-            val items = parseHistoryToGalleryItems(historyJson, context)
-            _uiState.value = _uiState.value.copy(
-                items = items,
-                isLoading = false,
-                isRefreshing = false
-            )
         }
     }
 
+    fun initialize(client: ComfyUIClient) {
+        comfyUIClient = client
+        // Repository is already initialized by GenerationViewModel
+    }
+
+    /**
+     * Load gallery - delegates to repository.
+     * If repository already has data, this will return immediately with cached data.
+     * The repository handles background refreshing.
+     */
+    fun loadGallery() {
+        // Repository already has data from background preload, no need to reload
+        // unless explicitly refreshed by user
+        if (!repository.hasData()) {
+            repository.refresh()
+        }
+    }
+
+    /**
+     * Manual refresh triggered by user (pull-to-refresh)
+     */
     fun refresh() {
-        _uiState.value = _uiState.value.copy(isRefreshing = true)
-        loadGallery()
-    }
-
-    private suspend fun parseHistoryToGalleryItems(
-        historyJson: JSONObject,
-        context: Context
-    ): List<GalleryItem> = withContext(Dispatchers.IO) {
-        val items = mutableListOf<GalleryItem>()
-        var index = 0
-
-        val promptIds = historyJson.keys()
-        while (promptIds.hasNext()) {
-            val promptId = promptIds.next()
-            val promptHistory = historyJson.optJSONObject(promptId) ?: continue
-            val outputs = promptHistory.optJSONObject("outputs") ?: continue
-
-            val nodeIds = outputs.keys()
-            while (nodeIds.hasNext()) {
-                val nodeId = nodeIds.next()
-                val nodeOutput = outputs.optJSONObject(nodeId) ?: continue
-
-                // Check for videos first
-                val videos = nodeOutput.optJSONArray("videos")
-                    ?: nodeOutput.optJSONArray("gifs")
-
-                if (videos != null && videos.length() > 0) {
-                    for (i in 0 until videos.length()) {
-                        val videoInfo = videos.optJSONObject(i) ?: continue
-                        val filename = videoInfo.optString("filename", "")
-                        if (filename.isEmpty()) continue
-
-                        val subfolder = videoInfo.optString("subfolder", "")
-                        val type = videoInfo.optString("type", "output")
-
-                        // Get thumbnail for video
-                        val thumbnail = getVideoThumbnail(context, filename, subfolder, type)
-
-                        items.add(GalleryItem(
-                            promptId = promptId,
-                            filename = filename,
-                            subfolder = subfolder,
-                            type = type,
-                            isVideo = true,
-                            thumbnail = thumbnail,
-                            index = index++
-                        ))
-                    }
-                }
-
-                // Check for images
-                val images = nodeOutput.optJSONArray("images")
-                if (images != null && images.length() > 0) {
-                    for (i in 0 until images.length()) {
-                        val imageInfo = images.optJSONObject(i) ?: continue
-                        val filename = imageInfo.optString("filename", "")
-                        if (filename.isEmpty()) continue
-
-                        // Skip if it's actually a video
-                        if (VIDEO_EXTENSIONS.any { filename.lowercase().endsWith(it) }) {
-                            val subfolder = imageInfo.optString("subfolder", "")
-                            val type = imageInfo.optString("type", "output")
-                            val thumbnail = getVideoThumbnail(context, filename, subfolder, type)
-
-                            items.add(GalleryItem(
-                                promptId = promptId,
-                                filename = filename,
-                                subfolder = subfolder,
-                                type = type,
-                                isVideo = true,
-                                thumbnail = thumbnail,
-                                index = index++
-                            ))
-                            continue
-                        }
-
-                        val subfolder = imageInfo.optString("subfolder", "")
-                        val type = imageInfo.optString("type", "output")
-
-                        // Get thumbnail for image
-                        val thumbnail = getImageThumbnail(filename, subfolder, type)
-
-                        items.add(GalleryItem(
-                            promptId = promptId,
-                            filename = filename,
-                            subfolder = subfolder,
-                            type = type,
-                            isVideo = false,
-                            thumbnail = thumbnail,
-                            index = index++
-                        ))
-                    }
-                }
-            }
-        }
-
-        // Sort by index descending (newest first)
-        items.sortedByDescending { it.index }
-    }
-
-    private suspend fun getImageThumbnail(
-        filename: String,
-        subfolder: String,
-        type: String
-    ): Bitmap? = withContext(Dispatchers.IO) {
-        kotlin.coroutines.suspendCoroutine { continuation ->
-            comfyUIClient?.fetchImage(filename, subfolder, type) { bitmap ->
-                continuation.resumeWith(Result.success(bitmap))
-            } ?: continuation.resumeWith(Result.success(null))
-        }
-    }
-
-    private suspend fun getVideoThumbnail(
-        context: Context,
-        filename: String,
-        subfolder: String,
-        type: String
-    ): Bitmap? = withContext(Dispatchers.IO) {
-        // Fetch video and extract thumbnail
-        val videoBytes: ByteArray? = kotlin.coroutines.suspendCoroutine { continuation ->
-            comfyUIClient?.fetchVideo(filename, subfolder, type) { bytes ->
-                continuation.resumeWith(Result.success(bytes))
-            } ?: continuation.resumeWith(Result.success(null))
-        }
-        if (videoBytes == null) return@withContext null
-
-        // Save to temp file
-        val tempFile = File(context.cacheDir, "temp_video_thumb_${System.currentTimeMillis()}.mp4")
-        try {
-            tempFile.writeBytes(videoBytes)
-
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(tempFile.absolutePath)
-            val bitmap = retriever.getFrameAtTime(0)
-            retriever.release()
-
-            tempFile.delete()
-            bitmap
-        } catch (e: Exception) {
-            println("Failed to extract video thumbnail: ${e.message}")
-            tempFile.delete()
-            null
-        }
+        repository.manualRefresh()
     }
 
     fun deleteItem(item: GalleryItem) {
-        val client = comfyUIClient ?: return
-
         viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.deleteHistoryItem(item.promptId) { success ->
-                        continuation.resumeWith(Result.success(success))
-                    }
-                }
-            }
-
+            val success = repository.deleteItem(item)
             if (success) {
-                // Remove from local list
-                val currentItems = _uiState.value.items.toMutableList()
-                currentItems.removeAll { it.promptId == item.promptId }
-                _uiState.value = _uiState.value.copy(items = currentItems)
                 _events.emit(GalleryEvent.ShowToast(R.string.history_item_deleted_success))
             } else {
                 _events.emit(GalleryEvent.ShowToast(R.string.history_item_deleted_failed))
@@ -512,7 +367,7 @@ class GalleryViewModel : ViewModel() {
 
     fun toggleSelection(item: GalleryItem) {
         val key = getItemKey(item)
-        val currentSelected = _uiState.value.selectedItems.toMutableSet()
+        val currentSelected = _selectedItems.value.toMutableSet()
 
         if (currentSelected.contains(key)) {
             currentSelected.remove(key)
@@ -520,53 +375,28 @@ class GalleryViewModel : ViewModel() {
             currentSelected.add(key)
         }
 
-        _uiState.value = _uiState.value.copy(
-            selectedItems = currentSelected,
-            isSelectionMode = currentSelected.isNotEmpty()
-        )
+        _selectedItems.value = currentSelected
+        _isSelectionMode.value = currentSelected.isNotEmpty()
     }
 
     fun isItemSelected(item: GalleryItem): Boolean {
-        return _uiState.value.selectedItems.contains(getItemKey(item))
+        return _selectedItems.value.contains(getItemKey(item))
     }
 
     fun clearSelection() {
-        _uiState.value = _uiState.value.copy(
-            selectedItems = emptySet(),
-            isSelectionMode = false
-        )
+        _selectedItems.value = emptySet()
+        _isSelectionMode.value = false
     }
 
     fun deleteSelected() {
-        val client = comfyUIClient ?: return
         val selectedItems = getSelectedItems()
         if (selectedItems.isEmpty()) return
 
         viewModelScope.launch {
-            var successCount = 0
-            var failCount = 0
-
             // Get unique prompt IDs (multiple items can share the same promptId)
-            val promptIds = selectedItems.map { it.promptId }.distinct()
-
-            for (promptId in promptIds) {
-                val success = withContext(Dispatchers.IO) {
-                    kotlin.coroutines.suspendCoroutine { continuation ->
-                        client.deleteHistoryItem(promptId) { success ->
-                            continuation.resumeWith(Result.success(success))
-                        }
-                    }
-                }
-                if (success) successCount++ else failCount++
-            }
-
-            // Remove deleted items from local list
-            if (successCount > 0) {
-                val deletedPromptIds = promptIds.toSet()
-                val currentItems = _uiState.value.items.toMutableList()
-                currentItems.removeAll { it.promptId in deletedPromptIds }
-                _uiState.value = _uiState.value.copy(items = currentItems)
-            }
+            val promptIds = selectedItems.map { it.promptId }.distinct().toSet()
+            val successCount = repository.deleteItems(promptIds)
+            val failCount = promptIds.size - successCount
 
             // Show result toast
             if (failCount == 0) {
@@ -581,7 +411,7 @@ class GalleryViewModel : ViewModel() {
     }
 
     fun getSelectedItems(): List<GalleryItem> {
-        val selectedKeys = _uiState.value.selectedItems
+        val selectedKeys = _selectedItems.value
         return _uiState.value.items.filter { getItemKey(it) in selectedKeys }
     }
 
