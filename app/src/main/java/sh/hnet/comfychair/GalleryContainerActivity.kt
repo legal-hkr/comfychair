@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,23 +49,17 @@ class GalleryContainerActivity : ComponentActivity() {
             ComfyChairTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Scaffold(
-                        bottomBar = {
-                            BottomAppBar(
-                                actions = { },
-                                floatingActionButton = {
-                                    // Back to generation FAB
-                                    FloatingActionButton(
-                                        onClick = { finish() },
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                    ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.content_description_back),
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                }
-                            )
+                        floatingActionButton = {
+                            FloatingActionButton(
+                                onClick = { finish() },
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.content_description_back),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                         }
                     ) { paddingValues ->
                         GalleryScreen(
