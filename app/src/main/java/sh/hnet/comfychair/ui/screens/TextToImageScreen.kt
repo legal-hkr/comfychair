@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,8 +29,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedIconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,9 +56,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
-import sh.hnet.comfychair.ui.components.FullscreenImageDialog
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -124,7 +121,6 @@ fun TextToImageScreen(
 
     // UI State
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
-    var showFullscreenImage by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
     Column(
@@ -196,14 +192,18 @@ fun TextToImageScreen(
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(enabled = uiState.currentBitmap != null) {
-                    showFullscreenImage = true
+                    // Launch MediaViewer for single image
+                    uiState.currentBitmap?.let { bitmap ->
+                        val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                        context.startActivity(intent)
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
             if (uiState.currentBitmap != null) {
                 Image(
                     bitmap = uiState.currentBitmap!!.asImageBitmap(),
-                    contentDescription = "Generated image",
+                    contentDescription = stringResource(R.string.content_description_generated_image),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -336,13 +336,5 @@ fun TextToImageScreen(
                 onUnetStepsChange = { textToImageViewModel.updateUnetSteps(it) }
             )
         }
-    }
-
-    // Fullscreen Image Dialog
-    if (showFullscreenImage && uiState.currentBitmap != null) {
-        FullscreenImageDialog(
-            bitmap = uiState.currentBitmap!!,
-            onDismiss = { showFullscreenImage = false }
-        )
     }
 }

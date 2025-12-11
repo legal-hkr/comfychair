@@ -42,6 +42,12 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- MediaViewerActivity - Fullscreen media viewer -->
+        <activity
+            android:name=".MediaViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ComfyChair.Fullscreen" />
+
         <!-- FileProvider for sharing images -->
         <provider
             android:name="androidx.core.content.FileProvider"

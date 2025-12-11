@@ -73,8 +73,8 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.FullscreenVideoPlayer
 import sh.hnet.comfychair.ui.components.VideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.viewmodel.GenerationEvent
@@ -100,7 +100,6 @@ fun TextToVideoScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by remember { mutableStateOf(false) }
-    var showFullscreenDialog by remember { mutableStateOf(false) }
 
     // Track screen visibility for video playback control
     // This prevents video from rendering over navigation transitions
@@ -246,7 +245,11 @@ fun TextToVideoScreen(
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(enabled = videoUri != null) {
-                    showFullscreenDialog = true
+                    // Launch MediaViewer for single video
+                    videoUri?.let { uri ->
+                        val intent = MediaViewerActivity.createSingleVideoIntent(context, uri)
+                        context.startActivity(intent)
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -255,7 +258,7 @@ fun TextToVideoScreen(
                 previewBitmap != null -> {
                     Image(
                         bitmap = previewBitmap!!.asImageBitmap(),
-                        contentDescription = "Preview",
+                        contentDescription = stringResource(R.string.content_description_preview),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -398,30 +401,6 @@ fun TextToVideoScreen(
                 onLengthChange = textToVideoViewModel::onLengthChange,
                 onFpsChange = textToVideoViewModel::onFpsChange
             )
-        }
-    }
-
-    // Fullscreen video dialog
-    if (showFullscreenDialog && videoUri != null) {
-        Dialog(
-            onDismissRequest = { showFullscreenDialog = false },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = false
-            )
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                FullscreenVideoPlayer(
-                    videoUri = videoUri,
-                    modifier = Modifier.fillMaxSize(),
-                    onDismiss = { showFullscreenDialog = false }
-                )
-            }
         }
     }
 }

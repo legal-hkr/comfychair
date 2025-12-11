@@ -62,8 +62,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.FullscreenImageDialog
 import sh.hnet.comfychair.ui.components.InpaintingConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.MaskEditorDialog
 import sh.hnet.comfychair.ui.components.MaskPreview
@@ -71,7 +71,6 @@ import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.InpaintingEvent
-import sh.hnet.comfychair.viewmodel.InpaintingUiState
 import sh.hnet.comfychair.viewmodel.InpaintingViewMode
 import sh.hnet.comfychair.viewmodel.InpaintingViewModel
 
@@ -94,7 +93,6 @@ fun InpaintingScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showMaskEditor by remember { mutableStateOf(false) }
-    var showFullscreenImage by remember { mutableStateOf(false) }
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -224,7 +222,10 @@ fun InpaintingScreen(
                 .clickable(
                     onClick = {
                         if (uiState.viewMode == InpaintingViewMode.PREVIEW && uiState.previewImage != null) {
-                            showFullscreenImage = true
+                            // Launch MediaViewer for single image
+                            val bitmap = uiState.previewImage!!
+                            val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                            context.startActivity(intent)
                         }
                     }
                 ),
@@ -263,7 +264,7 @@ fun InpaintingScreen(
                     if (uiState.previewImage != null) {
                         Image(
                             bitmap = uiState.previewImage!!.asImageBitmap(),
-                            contentDescription = "Preview",
+                            contentDescription = stringResource(R.string.content_description_preview),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
@@ -431,14 +432,6 @@ fun InpaintingScreen(
                 onUnetStepsChange = inpaintingViewModel::onUnetStepsChange
             )
         }
-    }
-
-    // Fullscreen image dialog
-    if (showFullscreenImage && uiState.previewImage != null) {
-        FullscreenImageDialog(
-            bitmap = uiState.previewImage!!,
-            onDismiss = { showFullscreenImage = false }
-        )
     }
 
     // Mask editor dialog

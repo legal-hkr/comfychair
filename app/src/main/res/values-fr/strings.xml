@@ -158,10 +158,19 @@
     <string name="content_description_close">Fermer</string>
     <string name="content_description_video">Vidéo</string>
     <string name="content_description_clear">Effacer</string>
+    <string name="content_description_generated_image">Image générée</string>
+    <string name="content_description_preview">Aperçu</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">Aucune image pour le moment</string>
 
     <!-- Section titles -->
     <string name="model_selection_title">Sélection du modèle</string>
+
+    <!-- Media viewer action buttons -->
+    <string name="media_viewer_delete">Supprimer</string>
+    <string name="media_viewer_save">Enregistrer</string>
+    <string name="media_viewer_share">Partager</string>
+    <string name="media_viewer_previous">Précédent</string>
+    <string name="media_viewer_next">Suivant</string>
 </resources>

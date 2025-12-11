@@ -1,8 +1,9 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.graphics.Bitmap
-import android.net.Uri
+import android.app.Activity
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -59,22 +60,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.FullscreenImageDialog
-import sh.hnet.comfychair.ui.components.FullscreenVideoPlayer
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
 import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.MediaViewerItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryScreen(
     generationViewModel: GenerationViewModel,
     galleryViewModel: GalleryViewModel,
+    hostname: String,
+    port: Int,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
@@ -84,10 +85,19 @@ fun GalleryScreen(
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
-    var showFullscreenImage by remember { mutableStateOf(false) }
-    var showFullscreenVideo by remember { mutableStateOf(false) }
-    var fullscreenBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var fullscreenVideoUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Activity result launcher for MediaViewerActivity
+    val mediaViewerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // Refresh gallery if item was deleted
+        if (result.resultCode == Activity.RESULT_OK) {
+            val itemDeleted = result.data?.getBooleanExtra(MediaViewerActivity.RESULT_ITEM_DELETED, false) ?: false
+            if (itemDeleted) {
+                galleryViewModel.refresh()
+            }
+        }
+    }
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
@@ -115,6 +125,33 @@ fun GalleryScreen(
                 }
             }
         }
+    }
+
+    // Helper function to convert GalleryItems to MediaViewerItems
+    fun galleryItemsToViewerItems(items: List<GalleryItem>): List<MediaViewerItem> {
+        return items.map { item ->
+            MediaViewerItem(
+                promptId = item.promptId,
+                filename = item.filename,
+                subfolder = item.subfolder,
+                type = item.type,
+                isVideo = item.isVideo,
+                index = item.index
+            )
+        }
+    }
+
+    // Function to launch media viewer
+    fun launchMediaViewer(clickedIndex: Int) {
+        val viewerItems = galleryItemsToViewerItems(uiState.items)
+        val intent = MediaViewerActivity.createGalleryIntent(
+            context = context,
+            hostname = hostname,
+            port = port,
+            items = viewerItems,
+            initialIndex = clickedIndex
+        )
+        mediaViewerLauncher.launch(intent)
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -224,6 +261,7 @@ fun GalleryScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(uiState.items, key = { "${it.promptId}_${it.filename}" }) { item ->
+                        val itemIndex = uiState.items.indexOf(item)
                         GalleryItemCard(
                             item = item,
                             isSelected = galleryViewModel.isItemSelected(item),
@@ -232,34 +270,8 @@ fun GalleryScreen(
                                     // In selection mode, tap toggles selection
                                     galleryViewModel.toggleSelection(item)
                                 } else {
-                                    // Normal mode, tap opens fullscreen view
-                                    if (item.isVideo) {
-                                        galleryViewModel.fetchVideoUri(context, item) { uri ->
-                                            if (uri != null) {
-                                                fullscreenVideoUri = uri
-                                                showFullscreenVideo = true
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getString(R.string.error_failed_load_video),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    } else {
-                                        galleryViewModel.fetchFullImage(item) { bitmap ->
-                                            if (bitmap != null) {
-                                                fullscreenBitmap = bitmap
-                                                showFullscreenImage = true
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getString(R.string.error_failed_load_image),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    }
+                                    // Normal mode, tap opens MediaViewer
+                                    launchMediaViewer(itemIndex)
                                 }
                             },
                             onLongPress = {
@@ -269,47 +281,6 @@ fun GalleryScreen(
                         )
                     }
                 }
-            }
-        }
-    }
-
-    // Fullscreen image dialog
-    if (showFullscreenImage && fullscreenBitmap != null) {
-        FullscreenImageDialog(
-            bitmap = fullscreenBitmap!!,
-            onDismiss = {
-                showFullscreenImage = false
-                fullscreenBitmap = null
-            }
-        )
-    }
-
-    // Fullscreen video dialog
-    if (showFullscreenVideo && fullscreenVideoUri != null) {
-        Dialog(
-            onDismissRequest = {
-                showFullscreenVideo = false
-                fullscreenVideoUri = null
-            },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = false
-            )
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                FullscreenVideoPlayer(
-                    videoUri = fullscreenVideoUri,
-                    modifier = Modifier.fillMaxSize(),
-                    onDismiss = {
-                        showFullscreenVideo = false
-                        fullscreenVideoUri = null
-                    }
-                )
             }
         }
     }

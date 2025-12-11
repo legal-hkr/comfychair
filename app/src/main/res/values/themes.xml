@@ -6,4 +6,10 @@
     </style>
 
     <style name="Theme.ComfyChair" parent="Base.Theme.ComfyChair" />
+
+    <!-- Fullscreen theme for media viewer -->
+    <style name="Theme.ComfyChair.Fullscreen" parent="Theme.ComfyChair">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
 </resources>

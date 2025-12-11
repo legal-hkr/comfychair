@@ -72,6 +72,8 @@ class GalleryContainerActivity : ComponentActivity() {
                         GalleryScreen(
                             generationViewModel = generationViewModel,
                             galleryViewModel = galleryViewModel,
+                            hostname = hostname,
+                            port = port,
                             onNavigateToSettings = { openSettings() },
                             onLogout = { logout() },
                             modifier = Modifier.padding(paddingValues)

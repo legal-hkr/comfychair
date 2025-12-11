@@ -173,10 +173,19 @@
     <string name="content_description_close">Close</string>
     <string name="content_description_video">Video</string>
     <string name="content_description_clear">Clear</string>
+    <string name="content_description_generated_image">Generated image</string>
+    <string name="content_description_preview">Preview</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">No images yet</string>
 
     <!-- Section titles -->
     <string name="model_selection_title">Model selection</string>
+
+    <!-- Media viewer action buttons -->
+    <string name="media_viewer_delete">Delete</string>
+    <string name="media_viewer_save">Save</string>
+    <string name="media_viewer_share">Share</string>
+    <string name="media_viewer_previous">Previous</string>
+    <string name="media_viewer_next">Next</string>
 </resources>
