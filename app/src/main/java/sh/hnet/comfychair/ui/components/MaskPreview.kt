@@ -86,7 +86,19 @@ fun MaskPreview(
                 isAntiAlias = true
             }
 
-            drawContext.canvas.nativeCanvas.save()
+            // Paint for erasing (cuts through the layer)
+            val clearPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.TRANSPARENT
+                style = android.graphics.Paint.Style.STROKE
+                strokeJoin = android.graphics.Paint.Join.ROUND
+                strokeCap = android.graphics.Paint.Cap.ROUND
+                isAntiAlias = true
+                xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+            }
+
+            // Save layer for the mask overlay - this allows CLEAR mode to work
+            val layerBounds = android.graphics.RectF(0f, 0f, size.width, size.height)
+            drawContext.canvas.nativeCanvas.saveLayer(layerBounds, null)
 
             // Clip to canvas bounds
             drawContext.canvas.nativeCanvas.clipRect(0f, 0f, size.width, size.height)
@@ -98,9 +110,12 @@ fun MaskPreview(
                 imgRect.height / sourceImage.height
             )
 
-            // Draw completed paths (non-eraser only)
+            // Draw all paths in order - this allows paint after erase to work correctly
             maskPaths.forEach { pathData ->
-                if (!pathData.isEraser) {
+                if (pathData.isEraser) {
+                    clearPaint.strokeWidth = pathData.brushSize
+                    drawContext.canvas.nativeCanvas.drawPath(pathData.path, clearPaint)
+                } else {
                     maskPaint.strokeWidth = pathData.brushSize
                     drawContext.canvas.nativeCanvas.drawPath(pathData.path, maskPaint)
                 }

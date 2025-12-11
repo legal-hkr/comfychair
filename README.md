@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.4.1
+**Current version**: v0.4.2
 
 ## Overview
 
@@ -34,15 +34,20 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Save videos to device gallery or share
 - **Inpainting**:
   - Upload source images for selective inpainting
-  - Intuitive mask painting with adjustable brush size
-  - Mask inversion and clearing tools
+  - Mask editor with paint/eraser toggle
+  - Adjustable brush size with visual indicator
   - Feathered mask edges for smooth blending
   - Megapixels-based sizing for checkpoint workflows
   - WebSocket-based live updates showing step-by-step progress
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
-- **Image/Video preview**:
-  - Tap to view fullscreen with pinch-to-zoom (images) or play (videos)
+- **Media viewer**:
+  - Unified fullscreen viewer for images and videos
+  - Swipe navigation between gallery items
+  - Pinch-to-zoom
+  - Double-tap to toggle between fit and crop zoom
+  - Single-tap to toggle UI visibility (with system bars)
+  - Quick actions: delete, save to gallery, share
 - **Gallery**:
   - View all generated images and videos with 2-column grid layout
   - Video indicator on thumbnails
@@ -134,6 +139,7 @@ app/src/main/
 │   ├── MainContainerActivity.kt     # Main container with bottom navigation
 │   ├── SettingsContainerActivity.kt # Settings container activity
 │   ├── GalleryContainerActivity.kt  # Gallery container activity
+│   ├── MediaViewerActivity.kt       # Fullscreen media viewer activity
 │   ├── ComfyUIClient.kt             # API client for ComfyUI server
 │   ├── WorkflowManager.kt           # Workflow JSON management
 │   ├── SelfSignedCertHelper.kt      # SSL certificate handling
@@ -145,7 +151,8 @@ app/src/main/
 │   │   ├── TextToVideoViewModel.kt  # Text-to-video screen state
 │   │   ├── InpaintingViewModel.kt   # Inpainting screen state
 │   │   ├── GalleryViewModel.kt      # Gallery screen state
-│   │   └── SettingsViewModel.kt     # Settings screen state
+│   │   ├── SettingsViewModel.kt     # Settings screen state
+│   │   └── MediaViewerViewModel.kt  # Media viewer state
 │   └── ui/
 │       ├── theme/                   # Material 3 theme (Color, Type, Theme)
 │       ├── screens/
@@ -154,6 +161,7 @@ app/src/main/
 │       │   ├── TextToVideoScreen.kt # Text-to-video generation UI
 │       │   ├── InpaintingScreen.kt  # Inpainting UI
 │       │   ├── GalleryScreen.kt     # Gallery UI with multi-select
+│       │   ├── MediaViewerScreen.kt # Fullscreen media viewer UI
 │       │   ├── ApplicationSettingsScreen.kt  # App settings UI
 │       │   └── ServerSettingsScreen.kt       # Server settings UI
 │       ├── components/
@@ -164,8 +172,8 @@ app/src/main/
 │       │   ├── MaskPaintCanvas.kt            # Compose Canvas mask painting
 │       │   ├── MaskPreview.kt                # Mask preview component
 │       │   ├── MaskEditorDialog.kt           # Fullscreen mask editor
-│       │   ├── VideoPlayer.kt                # ExoPlayer video component
-│       │   └── FullscreenImageDialog.kt      # Fullscreen image viewer
+│       │   ├── ImageViewer.kt                # Zoomable image viewer component
+│       │   └── VideoPlayer.kt                # ExoPlayer video component
 │       └── navigation/
 │           ├── MainNavHost.kt       # Main screen navigation
 │           └── SettingsNavHost.kt   # Settings screen navigation
