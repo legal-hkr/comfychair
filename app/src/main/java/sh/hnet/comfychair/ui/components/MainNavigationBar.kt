@@ -1,6 +1,9 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
@@ -16,13 +19,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
+import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
  * Main navigation bar for the app with 3 destinations:
@@ -41,6 +49,10 @@ fun MainNavigationBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Observe gallery items to show latest thumbnail in FAB
+    val galleryItems by GalleryRepository.getInstance().galleryItems.collectAsState()
+    val latestThumbnail = galleryItems.firstOrNull()?.thumbnail
 
     BottomAppBar(
         actions = {
@@ -140,11 +152,22 @@ fun MainNavigationBar(
                 onClick = onNavigateToGallery,
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
-                Icon(
-                    Icons.Filled.Collections,
-                    contentDescription = stringResource(R.string.nav_gallery),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+                if (latestThumbnail != null) {
+                    Image(
+                        bitmap = latestThumbnail.asImageBitmap(),
+                        contentDescription = stringResource(R.string.nav_gallery),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(MaterialTheme.shapes.medium),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Filled.Collections,
+                        contentDescription = stringResource(R.string.nav_gallery),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
             }
         }
     )
