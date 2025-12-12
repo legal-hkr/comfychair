@@ -125,6 +125,7 @@ fun ImageToVideoScreen(
     ) { uri ->
         uri?.let {
             imageToVideoViewModel.setSourceImage(context, it)
+            imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.SOURCE)
         }
     }
 
@@ -420,6 +421,8 @@ fun ImageToVideoScreen(
                             val workflowJson = imageToVideoViewModel.prepareWorkflow()
                             if (workflowJson != null) {
                                 // Clear preview and switch to preview view
+                                videoUri = null
+                                previewBitmap = null
                                 imageToVideoViewModel.clearPreview()
                                 imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
 

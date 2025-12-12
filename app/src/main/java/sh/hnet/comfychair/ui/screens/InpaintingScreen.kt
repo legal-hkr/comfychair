@@ -106,6 +106,7 @@ fun InpaintingScreen(
     ) { uri ->
         uri?.let {
             inpaintingViewModel.setSourceImage(context, it)
+            inpaintingViewModel.onViewModeChange(InpaintingViewMode.SOURCE)
         }
     }
 
