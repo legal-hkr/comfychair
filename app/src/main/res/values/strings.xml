@@ -70,6 +70,10 @@
     <!-- Text to Video fragment strings -->
     <string name="text_to_video_title">Text to video</string>
     <string name="nav_text_to_video">Text to video</string>
+
+    <!-- Image to Video fragment strings -->
+    <string name="image_to_video_title">Image to video</string>
+    <string name="nav_image_to_video">Image to video</string>
     <string name="highnoise_unet_label" translatable="false">High noise UNET</string>
     <string name="lownoise_unet_label" translatable="false">Low noise UNET</string>
     <string name="highnoise_lora_label" translatable="false">High noise LoRA</string>

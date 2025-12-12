@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.InvertColors
+import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.ui.unit.dp
@@ -113,6 +114,35 @@ fun MainNavigationBar(
                     Icon(
                         Icons.Filled.VideoLibrary,
                         contentDescription = stringResource(R.string.nav_text_to_video),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            // Image to Video
+            if (currentRoute == MainRoute.ImageToVideo.route) {
+                FilledIconButton(
+                    onClick = { },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(
+                        Icons.Filled.Slideshow,
+                        contentDescription = stringResource(R.string.nav_image_to_video)
+                    )
+                }
+            } else {
+                IconButton(onClick = {
+                    navController.navigate(MainRoute.ImageToVideo.route) {
+                        popUpTo(MainRoute.TextToImage.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }) {
+                    Icon(
+                        Icons.Filled.Slideshow,
+                        contentDescription = stringResource(R.string.nav_image_to_video),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

@@ -66,6 +66,10 @@
     <!-- Text to Video fragment strings -->
     <string name="text_to_video_title">Text zu Video</string>
     <string name="nav_text_to_video">Text zu Video</string>
+
+    <!-- Image to Video fragment strings -->
+    <string name="image_to_video_title">Bild zu Video</string>
+    <string name="nav_image_to_video">Bild zu Video</string>
     <string name="length_label">Länge</string>
     <string name="error_invalid_length">Länge muss 1, 5, 9, 13… bis 129 sein</string>
     <string name="video_parameters_title">Video-Parameter</string>

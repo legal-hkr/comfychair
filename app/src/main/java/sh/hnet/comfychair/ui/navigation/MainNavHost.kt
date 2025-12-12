@@ -12,10 +12,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.components.MainNavigationBar
+import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
 import sh.hnet.comfychair.ui.screens.InpaintingScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.InpaintingViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
@@ -62,6 +64,16 @@ fun MainNavHost(
                 TextToVideoScreen(
                     generationViewModel = generationViewModel,
                     textToVideoViewModel = textToVideoViewModel,
+                    onNavigateToSettings = onNavigateToSettings,
+                    onLogout = onLogout
+                )
+            }
+
+            composable(MainRoute.ImageToVideo.route) {
+                val imageToVideoViewModel: ImageToVideoViewModel = viewModel()
+                ImageToVideoScreen(
+                    generationViewModel = generationViewModel,
+                    imageToVideoViewModel = imageToVideoViewModel,
                     onNavigateToSettings = onNavigateToSettings,
                     onLogout = onLogout
                 )

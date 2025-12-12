@@ -6,6 +6,7 @@ package sh.hnet.comfychair.navigation
 sealed class MainRoute(val route: String) {
     data object TextToImage : MainRoute("text_to_image")
     data object TextToVideo : MainRoute("text_to_video")
+    data object ImageToVideo : MainRoute("image_to_video")
     data object Inpainting : MainRoute("inpainting")
     data object Gallery : MainRoute("gallery")
 }
