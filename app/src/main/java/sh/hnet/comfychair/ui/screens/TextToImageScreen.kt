@@ -232,8 +232,8 @@ fun TextToImageScreen(
 
         // Prompt Input
         OutlinedTextField(
-            value = uiState.prompt,
-            onValueChange = { textToImageViewModel.onPromptChange(it) },
+            value = uiState.positivePrompt,
+            onValueChange = { textToImageViewModel.onPositivePromptChange(it) },
             label = { Text(stringResource(R.string.prompt_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -241,8 +241,8 @@ fun TextToImageScreen(
             minLines = 2,
             maxLines = 4,
             trailingIcon = {
-                if (uiState.prompt.isNotEmpty()) {
-                    IconButton(onClick = { textToImageViewModel.onPromptChange("") }) {
+                if (uiState.positivePrompt.isNotEmpty()) {
+                    IconButton(onClick = { textToImageViewModel.onPositivePromptChange("") }) {
                         Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
@@ -283,7 +283,7 @@ fun TextToImageScreen(
                     .weight(1f)
                     .height(56.dp),
                 enabled = isThisScreenGenerating ||
-                    (!generationState.isGenerating && uiState.prompt.isNotBlank()),
+                    (!generationState.isGenerating && uiState.positivePrompt.isNotBlank()),
                 colors = if (isThisScreenGenerating) {
                     ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {

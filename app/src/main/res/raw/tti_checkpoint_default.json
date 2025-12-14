@@ -11,7 +11,7 @@
     "6": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "{{prompt}}",
+        "text": "{{positive_prompt}}",
         "clip": ["4", 1]
       }
     },

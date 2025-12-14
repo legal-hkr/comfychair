@@ -318,8 +318,8 @@ fun InpaintingScreen(
 
         // Prompt Input
         OutlinedTextField(
-            value = uiState.prompt,
-            onValueChange = { inpaintingViewModel.onPromptChange(it) },
+            value = uiState.positivePrompt,
+            onValueChange = { inpaintingViewModel.onPositivePromptChange(it) },
             label = { Text(stringResource(R.string.prompt_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -327,8 +327,8 @@ fun InpaintingScreen(
             minLines = 2,
             maxLines = 4,
             trailingIcon = {
-                if (uiState.prompt.isNotEmpty()) {
-                    IconButton(onClick = { inpaintingViewModel.onPromptChange("") }) {
+                if (uiState.positivePrompt.isNotEmpty()) {
+                    IconButton(onClick = { inpaintingViewModel.onPositivePromptChange("") }) {
                         Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
@@ -381,7 +381,7 @@ fun InpaintingScreen(
                 enabled = isThisScreenGenerating || (
                     !generationState.isGenerating &&
                     inpaintingViewModel.hasValidConfiguration() &&
-                    uiState.prompt.isNotBlank() &&
+                    uiState.positivePrompt.isNotBlank() &&
                     uiState.sourceImage != null
                 ),
                 colors = if (isThisScreenGenerating) {

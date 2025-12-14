@@ -43,7 +43,7 @@
     },
     "17": {
       "inputs": {
-        "text": "{{prompt}}",
+        "text": "{{positive_prompt}}",
         "clip": [
           "14",
           0

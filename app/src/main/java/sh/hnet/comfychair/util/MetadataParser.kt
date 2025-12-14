@@ -6,7 +6,7 @@ import org.json.JSONObject
  * Parsed generation metadata from ComfyUI workflow.
  */
 data class GenerationMetadata(
-    val prompt: String? = null,
+    val positivePrompt: String? = null,
     val negativePrompt: String? = null,
     val seed: Long? = null,
     val steps: Int? = null,
@@ -53,7 +53,7 @@ object MetadataParser {
      * Parse a ComfyUI workflow JSONObject into GenerationMetadata.
      */
     private fun parseWorkflow(root: JSONObject): GenerationMetadata {
-        var prompt: String? = null
+        var positivePrompt: String? = null
         var negativePrompt: String? = null
         var seed: Long? = null
         var steps: Int? = null
@@ -160,7 +160,7 @@ object MetadataParser {
         for ((sourceNodeId, outputSlot) in positiveSourceConnections) {
             val clipNodeId = traceToClipTextEncode(sourceNodeId, outputSlot, nodeTypes, nodeInputs)
             if (clipNodeId != null && clipTexts.containsKey(clipNodeId)) {
-                prompt = clipTexts[clipNodeId]
+                positivePrompt = clipTexts[clipNodeId]
             }
         }
 
@@ -173,16 +173,16 @@ object MetadataParser {
 
         // Fallback: if we couldn't determine prompts from connections,
         // use first two CLIP text nodes
-        if (prompt == null && clipTexts.isNotEmpty()) {
+        if (positivePrompt == null && clipTexts.isNotEmpty()) {
             val entries = clipTexts.entries.toList()
-            prompt = entries[0].value
+            positivePrompt = entries[0].value
             if (negativePrompt == null && entries.size > 1) {
                 negativePrompt = entries[1].value
             }
         }
 
         return GenerationMetadata(
-            prompt = prompt,
+            positivePrompt = positivePrompt,
             negativePrompt = negativePrompt,
             seed = seed,
             steps = steps,

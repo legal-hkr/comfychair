@@ -27,8 +27,8 @@ data class TextToImageUiState(
     // Mode selection
     val isCheckpointMode: Boolean = true,
 
-    // Prompt
-    val prompt: String = "",
+    // Positive prompt
+    val positivePrompt: String = "",
 
     // Checkpoint mode configuration
     val checkpointWorkflow: String = "",
@@ -92,7 +92,7 @@ class TextToImageViewModel : ViewModel() {
         const val OWNER_ID = "TEXT_TO_IMAGE"
         private const val PREFS_NAME = "TextToImageFragmentPrefs"
         private const val PREF_IS_CHECKPOINT_MODE = "isCheckpointMode"
-        private const val PREF_PROMPT = "prompt"
+        private const val PREF_POSITIVE_PROMPT = "positive_prompt"
 
         // Checkpoint mode preferences
         private const val PREF_CHECKPOINT_WORKFLOW = "checkpointWorkflow"
@@ -258,8 +258,8 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
-    fun onPromptChange(prompt: String) {
-        _uiState.value = _uiState.value.copy(prompt = prompt)
+    fun onPositivePromptChange(positivePrompt: String) {
+        _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
         saveConfiguration()
     }
 
@@ -448,7 +448,7 @@ class TextToImageViewModel : ViewModel() {
     fun validateConfiguration(): Boolean {
         val state = _uiState.value
 
-        if (state.prompt.isBlank()) return false
+        if (state.positivePrompt.isBlank()) return false
 
         return if (state.isCheckpointMode) {
             state.selectedCheckpoint.isNotEmpty() &&
@@ -475,7 +475,7 @@ class TextToImageViewModel : ViewModel() {
         return if (state.isCheckpointMode) {
             manager.prepareWorkflow(
                 workflowName = state.checkpointWorkflow,
-                prompt = state.prompt,
+                positivePrompt = state.positivePrompt,
                 checkpoint = state.selectedCheckpoint,
                 width = state.checkpointWidth.toIntOrNull() ?: 1024,
                 height = state.checkpointHeight.toIntOrNull() ?: 1024,
@@ -484,7 +484,7 @@ class TextToImageViewModel : ViewModel() {
         } else {
             manager.prepareWorkflow(
                 workflowName = state.unetWorkflow,
-                prompt = state.prompt,
+                positivePrompt = state.positivePrompt,
                 unet = state.selectedUnet,
                 vae = state.selectedVae,
                 clip = state.selectedClip,
@@ -547,7 +547,7 @@ class TextToImageViewModel : ViewModel() {
 
         prefs.edit().apply {
             putBoolean(PREF_IS_CHECKPOINT_MODE, state.isCheckpointMode)
-            putString(PREF_PROMPT, state.prompt)
+            putString(PREF_POSITIVE_PROMPT, state.positivePrompt)
 
             // Checkpoint mode
             putString(PREF_CHECKPOINT_WORKFLOW, state.checkpointWorkflow)
@@ -573,10 +573,10 @@ class TextToImageViewModel : ViewModel() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        val defaultPrompt = ctx.getString(R.string.default_prompt_image)
+        val defaultPositivePrompt = ctx.getString(R.string.default_prompt_image)
         _uiState.value = _uiState.value.copy(
             isCheckpointMode = prefs.getBoolean(PREF_IS_CHECKPOINT_MODE, true),
-            prompt = prefs.getString(PREF_PROMPT, null) ?: defaultPrompt,
+            positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt,
 
             // Checkpoint mode
             checkpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.checkpointWorkflow) ?: _uiState.value.checkpointWorkflow,

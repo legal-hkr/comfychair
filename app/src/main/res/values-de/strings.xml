@@ -257,7 +257,7 @@
     <string name="generation_parameters">Generierungsparameter</string>
     <string name="copied_to_clipboard">In Zwischenablage kopiert</string>
     <string name="copy_to_clipboard">In Zwischenablage kopieren</string>
-    <string name="metadata_prompt">Prompt</string>
+    <string name="metadata_positive_prompt">Positiver Prompt</string>
     <string name="metadata_negative_prompt">Negativer Prompt</string>
     <string name="metadata_model">Modell</string>
     <string name="metadata_seed">Seed</string>

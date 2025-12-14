@@ -185,8 +185,8 @@ private data class MetadataItem(
 private fun buildMetadataItems(metadata: GenerationMetadata, context: Context): List<MetadataItem> {
     val items = mutableListOf<MetadataItem>()
 
-    metadata.prompt?.let {
-        items.add(MetadataItem(context.getString(R.string.metadata_prompt), it))
+    metadata.positivePrompt?.let {
+        items.add(MetadataItem(context.getString(R.string.metadata_positive_prompt), it))
     }
 
     metadata.negativePrompt?.let {

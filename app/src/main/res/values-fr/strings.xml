@@ -257,7 +257,7 @@
     <string name="generation_parameters">Paramètres de génération</string>
     <string name="copied_to_clipboard">Copié dans le presse-papiers</string>
     <string name="copy_to_clipboard">Copier dans le presse-papiers</string>
-    <string name="metadata_prompt">Prompt</string>
+    <string name="metadata_positive_prompt">Prompt positif</string>
     <string name="metadata_negative_prompt">Prompt négatif</string>
     <string name="metadata_model">Modèle</string>
     <string name="metadata_seed">Seed</string>

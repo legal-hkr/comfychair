@@ -4,16 +4,16 @@ import sh.hnet.comfychair.WorkflowType
 
 /**
  * Centralized registry of template keys used in workflow JSON files.
- * Maps placeholder names (e.g., "prompt") to actual JSON input keys (e.g., "text").
+ * Maps placeholder names (e.g., "positive_prompt") to actual JSON input keys (e.g., "text").
  */
 object TemplateKeyRegistry {
 
     /**
      * Map from placeholder name to the JSON input key it targets.
-     * Example: "{{prompt}}" placeholder maps to "text" key in CLIPTextEncode inputs
+     * Example: "{{positive_prompt}}" placeholder maps to "text" key in CLIPTextEncode inputs
      */
     private val PLACEHOLDER_TO_KEY = mapOf(
-        "prompt" to "text",
+        "positive_prompt" to "text",
         "ckpt_name" to "ckpt_name",
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
@@ -38,7 +38,7 @@ object TemplateKeyRegistry {
      * placeholder name for each input key.
      */
     private val KEY_TO_PLACEHOLDER = mapOf(
-        "text" to "prompt",
+        "text" to "positive_prompt",
         "ckpt_name" to "ckpt_name",
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
@@ -94,7 +94,7 @@ object TemplateKeyRegistry {
     /**
      * Get the placeholder name for a given input key.
      * Returns the input key itself if no mapping exists.
-     * Example: getPlaceholderForKey("text") returns "prompt"
+     * Example: getPlaceholderForKey("text") returns "positive_prompt"
      */
     fun getPlaceholderForKey(key: String): String {
         return KEY_TO_PLACEHOLDER[key] ?: key

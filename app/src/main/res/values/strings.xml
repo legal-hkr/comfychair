@@ -272,7 +272,7 @@
     <string name="generation_parameters">Generation parameters</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="copy_to_clipboard">Copy to clipboard</string>
-    <string name="metadata_prompt">Prompt</string>
+    <string name="metadata_positive_prompt">Positive prompt</string>
     <string name="metadata_negative_prompt">Negative prompt</string>
     <string name="metadata_model">Model</string>
     <string name="metadata_lora" translatable="false">LoRA</string>

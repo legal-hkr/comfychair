@@ -50,8 +50,8 @@ data class TextToVideoUiState(
     val lengthError: String? = null,
     val fpsError: String? = null,
 
-    // Prompt
-    val prompt: String = "",
+    // Positive prompt
+    val positivePrompt: String = "",
 
     // Deferred model selections (for restoring after models load)
     val deferredHighnoiseUnet: String? = null,
@@ -93,7 +93,7 @@ class TextToVideoViewModel : ViewModel() {
         private const val KEY_HEIGHT = "height"
         private const val KEY_LENGTH = "length"
         private const val KEY_FPS = "fps"
-        private const val KEY_PROMPT = "prompt"
+        private const val KEY_POSITIVE_PROMPT = "positive_prompt"
     }
 
     fun initialize(context: Context, client: ComfyUIClient) {
@@ -125,8 +125,8 @@ class TextToVideoViewModel : ViewModel() {
         val savedHeight = prefs.getString(KEY_HEIGHT, "848") ?: "848"
         val savedLength = prefs.getString(KEY_LENGTH, "33") ?: "33"
         val savedFps = prefs.getString(KEY_FPS, "16") ?: "16"
-        val defaultPrompt = context.getString(R.string.default_prompt_image)
-        val savedPrompt = prefs.getString(KEY_PROMPT, null) ?: defaultPrompt
+        val defaultPositivePrompt = context.getString(R.string.default_prompt_image)
+        val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
 
         // Deferred model selections
         val deferredHighnoiseUnet = prefs.getString(KEY_HIGHNOISE_UNET, null)
@@ -146,7 +146,7 @@ class TextToVideoViewModel : ViewModel() {
             height = savedHeight,
             length = savedLength,
             fps = savedFps,
-            prompt = savedPrompt,
+            positivePrompt = savedPositivePrompt,
             deferredHighnoiseUnet = deferredHighnoiseUnet,
             deferredLownoiseUnet = deferredLownoiseUnet,
             deferredHighnoiseLora = deferredHighnoiseLora,
@@ -173,7 +173,7 @@ class TextToVideoViewModel : ViewModel() {
             .putString(KEY_HEIGHT, state.height)
             .putString(KEY_LENGTH, state.length)
             .putString(KEY_FPS, state.fps)
-            .putString(KEY_PROMPT, state.prompt)
+            .putString(KEY_POSITIVE_PROMPT, state.positivePrompt)
             .apply()
     }
 
@@ -328,8 +328,8 @@ class TextToVideoViewModel : ViewModel() {
         if (error == null) savePreferences()
     }
 
-    fun onPromptChange(prompt: String) {
-        _uiState.value = _uiState.value.copy(prompt = prompt)
+    fun onPositivePromptChange(positivePrompt: String) {
+        _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
         savePreferences()
     }
 
@@ -388,7 +388,7 @@ class TextToVideoViewModel : ViewModel() {
 
         return workflowManager?.prepareVideoWorkflow(
             workflowName = state.selectedWorkflow,
-            prompt = state.prompt,
+            positivePrompt = state.positivePrompt,
             highnoiseUnet = state.selectedHighnoiseUnet,
             lownoiseUnet = state.selectedLownoiseUnet,
             highnoiseLora = state.selectedHighnoiseLora,

@@ -90,8 +90,8 @@ data class InpaintingUiState(
     val selectedClip: String = "",
     val unetSteps: String = "9",
 
-    // Prompt
-    val prompt: String = "",
+    // Positive prompt
+    val positivePrompt: String = "",
 
     // Validation errors
     val megapixelsError: String? = null
@@ -136,7 +136,7 @@ class InpaintingViewModel : ViewModel() {
         private const val PREF_VAE = "vae"
         private const val PREF_CLIP = "clip"
         private const val PREF_UNET_STEPS = "unet_steps"
-        private const val PREF_PROMPT = "prompt"
+        private const val PREF_POSITIVE_PROMPT = "positive_prompt"
         private const val FEATHER_RADIUS = 8
     }
 
@@ -183,7 +183,7 @@ class InpaintingViewModel : ViewModel() {
             InpaintingConfigMode.CHECKPOINT
         }
 
-        val defaultPrompt = context.getString(R.string.default_prompt_inpainting)
+        val defaultPositivePrompt = context.getString(R.string.default_prompt_inpainting)
         _uiState.value = _uiState.value.copy(
             configMode = configMode,
             selectedCheckpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow) ?: _uiState.value.selectedCheckpointWorkflow,
@@ -195,7 +195,7 @@ class InpaintingViewModel : ViewModel() {
             selectedVae = prefs.getString(PREF_VAE, "") ?: "",
             selectedClip = prefs.getString(PREF_CLIP, "") ?: "",
             unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9",
-            prompt = prefs.getString(PREF_PROMPT, null) ?: defaultPrompt
+            positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
         )
     }
 
@@ -214,7 +214,7 @@ class InpaintingViewModel : ViewModel() {
             .putString(PREF_VAE, _uiState.value.selectedVae)
             .putString(PREF_CLIP, _uiState.value.selectedClip)
             .putString(PREF_UNET_STEPS, _uiState.value.unetSteps)
-            .putString(PREF_PROMPT, _uiState.value.prompt)
+            .putString(PREF_POSITIVE_PROMPT, _uiState.value.positivePrompt)
             .apply()
     }
 
@@ -522,9 +522,9 @@ class InpaintingViewModel : ViewModel() {
         savePreferences()
     }
 
-    // Prompt
-    fun onPromptChange(prompt: String) {
-        _uiState.value = _uiState.value.copy(prompt = prompt)
+    // Positive prompt
+    fun onPositivePromptChange(positivePrompt: String) {
+        _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
         savePreferences()
     }
 
@@ -604,7 +604,7 @@ class InpaintingViewModel : ViewModel() {
             InpaintingConfigMode.CHECKPOINT -> {
                 wm.prepareInpaintingWorkflow(
                     workflowName = state.selectedCheckpointWorkflow,
-                    prompt = state.prompt,
+                    positivePrompt = state.positivePrompt,
                     checkpoint = state.selectedCheckpoint,
                     megapixels = state.megapixels.toFloatOrNull() ?: 1.0f,
                     steps = state.checkpointSteps.toIntOrNull() ?: 20,
@@ -614,7 +614,7 @@ class InpaintingViewModel : ViewModel() {
             InpaintingConfigMode.UNET -> {
                 wm.prepareInpaintingWorkflow(
                     workflowName = state.selectedUnetWorkflow,
-                    prompt = state.prompt,
+                    positivePrompt = state.positivePrompt,
                     unet = state.selectedUnet,
                     vae = state.selectedVae,
                     clip = state.selectedClip,

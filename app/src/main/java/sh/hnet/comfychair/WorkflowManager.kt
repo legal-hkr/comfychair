@@ -60,25 +60,25 @@ class WorkflowManager(private val context: Context) {
         // Required placeholders per workflow type
         val REQUIRED_PLACEHOLDERS = mapOf(
             WorkflowType.TTI_CHECKPOINT to listOf(
-                "{{prompt}}", "{{ckpt_name}}", "{{width}}", "{{height}}", "{{steps}}"
+                "{{positive_prompt}}", "{{ckpt_name}}", "{{width}}", "{{height}}", "{{steps}}"
             ),
             WorkflowType.TTI_UNET to listOf(
-                "{{prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}",
+                "{{positive_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}",
                 "{{width}}", "{{height}}", "{{steps}}"
             ),
             WorkflowType.IIP_CHECKPOINT to listOf(
-                "{{prompt}}", "{{ckpt_name}}", "{{megapixels}}", "{{steps}}"
+                "{{positive_prompt}}", "{{ckpt_name}}", "{{megapixels}}", "{{steps}}"
             ),
             WorkflowType.IIP_UNET to listOf(
-                "{{prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
+                "{{positive_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
             ),
             WorkflowType.TTV_UNET to listOf(
-                "{{prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
+                "{{positive_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
                 "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
                 "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}"
             ),
             WorkflowType.ITV_UNET to listOf(
-                "{{prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
+                "{{positive_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
                 "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
                 "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}",
                 "{{image_filename}}"
@@ -481,7 +481,7 @@ class WorkflowManager(private val context: Context) {
                 val inputsJson = nodeJson.optJSONObject("inputs")
                 if (inputsJson != null && inputsJson.has(inputKey)) {
                     // Convert input key to proper placeholder name
-                    // e.g., "text" -> "prompt", "ckpt_name" -> "checkpoint"
+                    // e.g., "text" -> "positive_prompt", "ckpt_name" -> "checkpoint"
                     val placeholderName = TemplateKeyRegistry.getPlaceholderForKey(fieldKey)
                     inputsJson.put(inputKey, "{{$placeholderName}}")
                 }
@@ -894,7 +894,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun prepareWorkflow(
         workflowName: String,
-        prompt: String,
+        positivePrompt: String,
         checkpoint: String = "",
         unet: String = "",
         vae: String = "",
@@ -906,10 +906,10 @@ class WorkflowManager(private val context: Context) {
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
-        val escapedPrompt = escapeForJson(prompt)
+        val escapedPositivePrompt = escapeForJson(positivePrompt)
 
         var processedJson = workflow.jsonContent
-        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
+        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{ckpt_name}}", checkpoint)
         processedJson = processedJson.replace("{{unet_name}}", unet)
         processedJson = processedJson.replace("{{vae_name}}", vae)
@@ -927,7 +927,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun prepareInpaintingWorkflow(
         workflowName: String,
-        prompt: String,
+        positivePrompt: String,
         checkpoint: String = "",
         unet: String = "",
         vae: String = "",
@@ -939,10 +939,10 @@ class WorkflowManager(private val context: Context) {
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
-        val escapedPrompt = escapeForJson(prompt)
+        val escapedPositivePrompt = escapeForJson(positivePrompt)
 
         var processedJson = workflow.jsonContent
-        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
+        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{ckpt_name}}", checkpoint)
         processedJson = processedJson.replace("{{unet_name}}", unet)
         processedJson = processedJson.replace("{{vae_name}}", vae)
@@ -961,7 +961,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun prepareVideoWorkflow(
         workflowName: String,
-        prompt: String,
+        positivePrompt: String,
         highnoiseUnet: String,
         lownoiseUnet: String,
         highnoiseLora: String,
@@ -976,10 +976,10 @@ class WorkflowManager(private val context: Context) {
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
-        val escapedPrompt = escapeForJson(prompt)
+        val escapedPositivePrompt = escapeForJson(positivePrompt)
 
         var processedJson = workflow.jsonContent
-        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
+        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{highnoise_unet_name}}", highnoiseUnet)
         processedJson = processedJson.replace("{{lownoise_unet_name}}", lownoiseUnet)
         processedJson = processedJson.replace("{{highnoise_lora_name}}", highnoiseLora)
@@ -1001,7 +1001,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun prepareImageToVideoWorkflow(
         workflowName: String,
-        prompt: String,
+        positivePrompt: String,
         highnoiseUnet: String,
         lownoiseUnet: String,
         highnoiseLora: String,
@@ -1017,10 +1017,10 @@ class WorkflowManager(private val context: Context) {
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
-        val escapedPrompt = escapeForJson(prompt)
+        val escapedPositivePrompt = escapeForJson(positivePrompt)
 
         var processedJson = workflow.jsonContent
-        processedJson = processedJson.replace("{{prompt}}", escapedPrompt)
+        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{highnoise_unet_name}}", highnoiseUnet)
         processedJson = processedJson.replace("{{lownoise_unet_name}}", lownoiseUnet)
         processedJson = processedJson.replace("{{highnoise_lora_name}}", highnoiseLora)
@@ -1043,7 +1043,7 @@ class WorkflowManager(private val context: Context) {
      */
     fun getWorkflowNodes(
         workflowName: String,
-        prompt: String,
+        positivePrompt: String,
         checkpoint: String = "",
         unet: String = "",
         vae: String = "",
@@ -1052,7 +1052,7 @@ class WorkflowManager(private val context: Context) {
         height: Int,
         steps: Int
     ): JSONObject? {
-        val processedJson = prepareWorkflow(workflowName, prompt, checkpoint, unet, vae, clip, width, height, steps)
+        val processedJson = prepareWorkflow(workflowName, positivePrompt, checkpoint, unet, vae, clip, width, height, steps)
             ?: return null
 
         val jsonObject = JSONObject(processedJson)

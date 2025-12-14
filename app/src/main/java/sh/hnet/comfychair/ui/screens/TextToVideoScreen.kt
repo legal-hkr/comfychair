@@ -291,8 +291,8 @@ fun TextToVideoScreen(
 
         // Prompt Input
         OutlinedTextField(
-            value = uiState.prompt,
-            onValueChange = { textToVideoViewModel.onPromptChange(it) },
+            value = uiState.positivePrompt,
+            onValueChange = { textToVideoViewModel.onPositivePromptChange(it) },
             label = { Text(stringResource(R.string.prompt_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -300,8 +300,8 @@ fun TextToVideoScreen(
             minLines = 2,
             maxLines = 4,
             trailingIcon = {
-                if (uiState.prompt.isNotEmpty()) {
-                    IconButton(onClick = { textToVideoViewModel.onPromptChange("") }) {
+                if (uiState.positivePrompt.isNotEmpty()) {
+                    IconButton(onClick = { textToVideoViewModel.onPositivePromptChange("") }) {
                         Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
@@ -353,7 +353,7 @@ fun TextToVideoScreen(
                     .weight(1f)
                     .height(56.dp),
                 enabled = isThisScreenGenerating ||
-                    (!generationState.isGenerating && textToVideoViewModel.hasValidConfiguration() && uiState.prompt.isNotBlank()),
+                    (!generationState.isGenerating && textToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank()),
                 colors = if (isThisScreenGenerating) {
                     ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
                 } else {
