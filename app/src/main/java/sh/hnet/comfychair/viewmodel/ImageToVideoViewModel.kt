@@ -587,6 +587,9 @@ class ImageToVideoViewModel : ViewModel() {
                 videoFetchedCallback?.invoke(event.promptId)
             }
             is GenerationEvent.Error -> {
+                viewModelScope.launch {
+                    _events.emit(ImageToVideoEvent.ShowToastMessage(event.message))
+                }
                 generationViewModelRef?.completeGeneration()
             }
             else -> {}

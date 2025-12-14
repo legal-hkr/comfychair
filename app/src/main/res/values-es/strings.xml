@@ -95,6 +95,8 @@
     <!-- Error and status messages -->
     <string name="error_failed_load_workflow">Error al cargar el workflow</string>
     <string name="error_failed_start_generation">Error al iniciar la generación: %s</string>
+    <string name="error_failed_to_connect">Error de conexión: %s</string>
+    <string name="error_generation_failed">La generación falló</string>
     <string name="error_unknown">Error desconocido</string>
     <string name="error_connection_lost">Conexión perdida durante la generación</string>
     <string name="error_no_connection">Sin conexión al servidor</string>

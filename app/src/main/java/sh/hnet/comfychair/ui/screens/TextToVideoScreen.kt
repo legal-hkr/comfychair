@@ -74,6 +74,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.VideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.TextToVideoEvent
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 import java.io.File
 
@@ -159,6 +160,17 @@ fun TextToVideoScreen(
         )
         onDispose {
             textToVideoViewModel.stopListening(generationViewModel)
+        }
+    }
+
+    // Handle events (toasts)
+    LaunchedEffect(Unit) {
+        textToVideoViewModel.events.collect { event ->
+            when (event) {
+                is TextToVideoEvent.ShowToastMessage -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

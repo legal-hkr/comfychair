@@ -4,8 +4,11 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,12 +66,22 @@ data class TextToVideoUiState(
 )
 
 /**
+ * One-time events for Text-to-Video screen
+ */
+sealed class TextToVideoEvent {
+    data class ShowToastMessage(val message: String) : TextToVideoEvent()
+}
+
+/**
  * ViewModel for the Text-to-Video screen
  */
 class TextToVideoViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(TextToVideoUiState())
     val uiState: StateFlow<TextToVideoUiState> = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<TextToVideoEvent>()
+    val events: SharedFlow<TextToVideoEvent> = _events.asSharedFlow()
 
     private var workflowManager: WorkflowManager? = null
     private var comfyUIClient: ComfyUIClient? = null
@@ -471,6 +484,9 @@ class TextToVideoViewModel : ViewModel() {
                 videoFetchedCallback?.invoke(event.promptId)
             }
             is GenerationEvent.Error -> {
+                viewModelScope.launch {
+                    _events.emit(TextToVideoEvent.ShowToastMessage(event.message))
+                }
                 generationViewModelRef?.completeGeneration()
             }
             else -> {}

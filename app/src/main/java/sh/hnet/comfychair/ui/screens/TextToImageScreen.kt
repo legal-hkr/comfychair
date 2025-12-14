@@ -60,6 +60,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.TextToImageEvent
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 
 /**
@@ -104,6 +105,17 @@ fun TextToImageScreen(
         textToImageViewModel.startListening(generationViewModel)
         onDispose {
             textToImageViewModel.stopListening(generationViewModel)
+        }
+    }
+
+    // Handle events (toasts)
+    LaunchedEffect(Unit) {
+        textToImageViewModel.events.collect { event ->
+            when (event) {
+                is TextToImageEvent.ShowToastMessage -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

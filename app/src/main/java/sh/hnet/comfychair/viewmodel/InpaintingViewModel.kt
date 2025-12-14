@@ -766,6 +766,9 @@ class InpaintingViewModel : ViewModel() {
                 }
             }
             is GenerationEvent.Error -> {
+                viewModelScope.launch {
+                    _events.emit(InpaintingEvent.ShowToastMessage(event.message))
+                }
                 generationViewModelRef?.completeGeneration()
             }
             else -> {}

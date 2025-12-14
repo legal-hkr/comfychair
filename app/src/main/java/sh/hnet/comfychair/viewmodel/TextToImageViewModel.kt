@@ -10,8 +10,11 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
@@ -73,6 +76,13 @@ data class TextToImageUiState(
 )
 
 /**
+ * One-time events for Text-to-Image screen
+ */
+sealed class TextToImageEvent {
+    data class ShowToastMessage(val message: String) : TextToImageEvent()
+}
+
+/**
  * ViewModel for the Text-to-Image screen.
  * Manages configuration state, model selection, and image generation.
  */
@@ -80,6 +90,9 @@ class TextToImageViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(TextToImageUiState())
     val uiState: StateFlow<TextToImageUiState> = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<TextToImageEvent>()
+    val events: SharedFlow<TextToImageEvent> = _events.asSharedFlow()
 
     private var workflowManager: WorkflowManager? = null
     private var comfyUIClient: ComfyUIClient? = null
@@ -418,6 +431,9 @@ class TextToImageViewModel : ViewModel() {
                 }
             }
             is GenerationEvent.Error -> {
+                viewModelScope.launch {
+                    _events.emit(TextToImageEvent.ShowToastMessage(event.message))
+                }
                 generationViewModelRef?.completeGeneration()
             }
             else -> {}

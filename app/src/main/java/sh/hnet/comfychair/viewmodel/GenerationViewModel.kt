@@ -216,7 +216,9 @@ class GenerationViewModel : ViewModel() {
                 openWebSocketConnection()
             } else {
                 _connectionStatus.value = ConnectionStatus.FAILED
-                dispatchEvent(GenerationEvent.Error("Failed to connect: $errorMessage"))
+                val message = applicationContext?.getString(R.string.error_failed_to_connect, errorMessage)
+                    ?: "Failed to connect: $errorMessage"
+                dispatchEvent(GenerationEvent.Error(message))
             }
         }
     }
@@ -306,7 +308,9 @@ class GenerationViewModel : ViewModel() {
                 }
                 "execution_error" -> {
                     resetGenerationState()
-                    dispatchEvent(GenerationEvent.Error("Generation failed"))
+                    val message = applicationContext?.getString(R.string.error_generation_failed)
+                        ?: "Generation failed"
+                    dispatchEvent(GenerationEvent.Error(message))
                 }
                 "status", "previewing", "execution_cached", "execution_start",
                 "execution_success", "progress_state", "executed" -> {
