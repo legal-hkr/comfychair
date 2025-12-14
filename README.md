@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.4.3
+**Current version**: v0.5.0
 
 ## Overview
 
@@ -30,7 +30,13 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Generate AI videos with customizable parameters
   - High/low noise UNET and LoRA model selection
   - Live preview during generation
-  - In-loop video playback with center-crop scaling
+  - Save videos to device gallery or share
+- **Image-to-video generation**:
+  - Animate still images into videos
+  - Upload source image with visual preview
+  - High/low noise UNET and LoRA model selection
+  - Adjustable video length and frame rate
+  - Live preview during generation
   - Save videos to device gallery or share
 - **Inpainting**:
   - Upload source images for selective inpainting
@@ -62,6 +68,12 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **App management**:
   - Clear local cache (generated images, videos, source images, masks)
   - Restore default settings
+- **Workflow management**:
+  - View and manage custom workflows
+  - Upload custom ComfyUI workflows with automatic validation
+  - Visual workflow previewer with node graph display
+  - Field mapping UI for required template fields
+  - Edit workflow name and description
 - **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
 - **Localization**: Available in English (default), German, French, Polish, and Spanish
@@ -140,6 +152,7 @@ app/src/main/
 │   ├── SettingsContainerActivity.kt # Settings container activity
 │   ├── GalleryContainerActivity.kt  # Gallery container activity
 │   ├── MediaViewerActivity.kt       # Fullscreen media viewer activity
+│   ├── WorkflowPreviewerActivity.kt # Workflow preview activity
 │   ├── ComfyUIClient.kt             # API client for ComfyUI server
 │   ├── WorkflowManager.kt           # Workflow JSON management
 │   ├── SelfSignedCertHelper.kt      # SSL certificate handling
@@ -149,21 +162,27 @@ app/src/main/
 │   │   ├── GenerationViewModel.kt   # Central WebSocket & generation state
 │   │   ├── TextToImageViewModel.kt  # Text-to-image screen state
 │   │   ├── TextToVideoViewModel.kt  # Text-to-video screen state
+│   │   ├── ImageToVideoViewModel.kt # Image-to-video screen state
 │   │   ├── InpaintingViewModel.kt   # Inpainting screen state
 │   │   ├── GalleryViewModel.kt      # Gallery screen state
 │   │   ├── SettingsViewModel.kt     # Settings screen state
-│   │   └── MediaViewerViewModel.kt  # Media viewer state
+│   │   ├── MediaViewerViewModel.kt  # Media viewer state
+│   │   ├── WorkflowManagementViewModel.kt  # Workflow management state
+│   │   └── WorkflowPreviewerViewModel.kt   # Workflow previewer state
 │   └── ui/
 │       ├── theme/                   # Material 3 theme (Color, Type, Theme)
 │       ├── screens/
 │       │   ├── LoginScreen.kt       # Login/connection UI
 │       │   ├── TextToImageScreen.kt # Text-to-image generation UI
 │       │   ├── TextToVideoScreen.kt # Text-to-video generation UI
+│       │   ├── ImageToVideoScreen.kt # Image-to-video generation UI
 │       │   ├── InpaintingScreen.kt  # Inpainting UI
 │       │   ├── GalleryScreen.kt     # Gallery UI with multi-select
 │       │   ├── MediaViewerScreen.kt # Fullscreen media viewer UI
 │       │   ├── ApplicationSettingsScreen.kt  # App settings UI
-│       │   └── ServerSettingsScreen.kt       # Server settings UI
+│       │   ├── ServerSettingsScreen.kt       # Server settings UI
+│       │   ├── WorkflowsSettingsScreen.kt    # Workflow management UI
+│       │   └── WorkflowPreviewerScreen.kt    # Workflow preview UI
 │       ├── components/
 │       │   ├── MainNavigationBar.kt          # Bottom navigation bar
 │       │   ├── ConfigBottomSheetContent.kt   # Text-to-image config
@@ -173,7 +192,8 @@ app/src/main/
 │       │   ├── MaskPreview.kt                # Mask preview component
 │       │   ├── MaskEditorDialog.kt           # Fullscreen mask editor
 │       │   ├── ImageViewer.kt                # Zoomable image viewer component
-│       │   └── VideoPlayer.kt                # ExoPlayer video component
+│       │   ├── VideoPlayer.kt                # ExoPlayer video component
+│       │   └── WorkflowGraphCanvas.kt        # Workflow node graph canvas
 │       └── navigation/
 │           ├── MainNavHost.kt       # Main screen navigation
 │           └── SettingsNavHost.kt   # Settings screen navigation
@@ -183,7 +203,8 @@ app/src/main/
 │   │   ├── tti_unet_zimage.json         # Z-Image text-to-image UNET workflow
 │   │   ├── iip_checkpoint_default.json  # Default inpainting checkpoint workflow
 │   │   ├── iip_unet_zimage.json         # Z-Image inpainting UNET workflow
-│   │   └── ttv_unet_wan22_lightx2v.json # WAN 2.2 text-to-video UNET workflow
+│   │   ├── ttv_unet_wan22_lightx2v.json # WAN 2.2 text-to-video UNET workflow
+│   │   └── itv_unet_wan22_lightx2v.json # WAN 2.2 image-to-video UNET workflow
 │   ├── values/                      # Strings, themes, colors (English default)
 │   ├── values-de/                   # German translations
 │   ├── values-fr/                   # French translations
