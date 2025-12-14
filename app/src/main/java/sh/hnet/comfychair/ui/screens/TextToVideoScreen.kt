@@ -404,10 +404,7 @@ private fun fetchVideoFromHistory(
     promptId: String,
     onComplete: (Uri?) -> Unit
 ) {
-    println("TextToVideoScreen: fetchVideoFromHistory called for promptId: $promptId")
-
     val client = generationViewModel.getClient() ?: run {
-        println("TextToVideoScreen: No client available")
         onComplete(null)
         return
     }
@@ -416,24 +413,18 @@ private fun fetchVideoFromHistory(
 
     client.fetchHistory(promptId) { historyJson ->
         if (historyJson == null) {
-            println("TextToVideoScreen: historyJson is null")
             mainHandler.post { onComplete(null) }
             return@fetchHistory
         }
-
-        println("TextToVideoScreen: historyJson received: ${historyJson.toString().take(500)}")
 
         // Parse video info from history
         val promptHistory = historyJson.optJSONObject(promptId)
         val outputs = promptHistory?.optJSONObject("outputs")
 
         if (outputs == null) {
-            println("TextToVideoScreen: outputs is null, promptHistory: $promptHistory")
             mainHandler.post { onComplete(null) }
             return@fetchHistory
         }
-
-        println("TextToVideoScreen: outputs keys: ${outputs.keys().asSequence().toList()}")
 
         // Find video in outputs
         // Note: ComfyUI may return videos in "videos", "gifs", or even "images" arrays
@@ -442,7 +433,6 @@ private fun fetchVideoFromHistory(
         while (outputKeys.hasNext()) {
             val nodeId = outputKeys.next()
             val nodeOutput = outputs.optJSONObject(nodeId)
-            println("TextToVideoScreen: nodeOutput $nodeId: ${nodeOutput?.toString()?.take(200)}")
 
             // Check videos, gifs, and images arrays for video files
             val videos = nodeOutput?.optJSONArray("videos")
@@ -455,17 +445,12 @@ private fun fetchVideoFromHistory(
                 val subfolder = videoInfo.optString("subfolder", "")
                 val type = videoInfo.optString("type", "output")
 
-                println("TextToVideoScreen: Found video - filename: $filename, subfolder: $subfolder, type: $type")
-
                 // Fetch video bytes
                 client.fetchVideo(filename, subfolder, type) { videoBytes ->
                     if (videoBytes == null) {
-                        println("TextToVideoScreen: videoBytes is null")
                         mainHandler.post { onComplete(null) }
                         return@fetchVideo
                     }
-
-                    println("TextToVideoScreen: Received ${videoBytes.size} bytes")
 
                     // Save to internal storage
                     val videoFile = File(context.filesDir, "last_generated_video.mp4")
@@ -477,14 +462,12 @@ private fun fetchVideoFromHistory(
                         videoFile
                     )
 
-                    println("TextToVideoScreen: Video saved, uri: $uri")
                     mainHandler.post { onComplete(uri) }
                 }
                 return@fetchHistory
             }
         }
 
-        println("TextToVideoScreen: No video found in outputs")
         mainHandler.post { onComplete(null) }
     }
 }

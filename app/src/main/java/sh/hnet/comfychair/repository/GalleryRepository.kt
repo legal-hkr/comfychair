@@ -82,12 +82,10 @@ class GalleryRepository private constructor() {
      */
     fun startBackgroundPreload() {
         if (comfyUIClient == null || applicationContext == null) {
-            println("GalleryRepository: Cannot preload - not initialized")
             return
         }
 
         if (_isLoading.value || _isRefreshing.value) {
-            println("GalleryRepository: Already loading, skipping preload")
             return
         }
 
@@ -110,7 +108,6 @@ class GalleryRepository private constructor() {
             while (true) {
                 delay(PERIODIC_REFRESH_INTERVAL_MS)
                 if (comfyUIClient != null && !_isLoading.value && !_isRefreshing.value) {
-                    println("GalleryRepository: Periodic refresh triggered")
                     loadGalleryInternal(isRefresh = true)
                 }
             }
@@ -168,8 +165,6 @@ class GalleryRepository private constructor() {
             _isLoading.value = true
         }
 
-        println("GalleryRepository: Loading gallery (isRefresh=$isRefresh)")
-
         try {
             val historyJson = withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
@@ -180,7 +175,6 @@ class GalleryRepository private constructor() {
             }
 
             if (historyJson == null) {
-                println("GalleryRepository: Failed to fetch history")
                 _isLoading.value = false
                 _isRefreshing.value = false
                 return
@@ -190,10 +184,8 @@ class GalleryRepository private constructor() {
             _galleryItems.value = items
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
-
-            println("GalleryRepository: Loaded ${items.size} gallery items")
         } catch (e: Exception) {
-            println("GalleryRepository: Error loading gallery: ${e.message}")
+            // Failed to load gallery
         } finally {
             _isLoading.value = false
             _isRefreshing.value = false
@@ -411,7 +403,6 @@ class GalleryRepository private constructor() {
             tempFile.delete()
             bitmap
         } catch (e: Exception) {
-            println("GalleryRepository: Failed to extract video thumbnail: ${e.message}")
             tempFile.delete()
             null
         }

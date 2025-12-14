@@ -132,7 +132,7 @@
     },
     "94": {
       "inputs": {
-        "fps": "{{fps}}",
+        "fps": "{{frame_rate}}",
         "images": [
           "87",
           0

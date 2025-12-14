@@ -317,7 +317,7 @@ class ImageToVideoViewModel : ViewModel() {
     }
 
     // Source image
-    fun setSourceImage(context: Context, uri: Uri) {
+    fun onSourceImageChange(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
@@ -525,7 +525,7 @@ class ImageToVideoViewModel : ViewModel() {
                 state.fpsError == null
     }
 
-    fun updatePreviewBitmap(bitmap: Bitmap) {
+    fun onPreviewBitmapChange(bitmap: Bitmap) {
         _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
     }
 

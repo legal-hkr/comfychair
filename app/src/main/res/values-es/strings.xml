@@ -71,7 +71,6 @@
     <string name="image_to_video_title">Imagen a vídeo</string>
     <string name="nav_image_to_video">Imagen a vídeo</string>
     <string name="length_label">Duración</string>
-    <string name="error_invalid_length">La duración debe ser 1, 5, 9, 13… hasta 129</string>
     <string name="video_parameters_title">Parámetros de vídeo</string>
     <string name="placeholder_video_description">El vídeo generado aparecerá aquí</string>
 
@@ -89,13 +88,16 @@
     <string name="button_cancel_generation">Cancelar generación</string>
 
     <!-- Error and status messages -->
-    <string name="error_failed_load_image">Error al cargar la imagen</string>
-    <string name="error_failed_fetch_history">Error al obtener el historial de generación</string>
     <string name="error_failed_load_workflow">Error al cargar el workflow</string>
     <string name="error_failed_start_generation">Error al iniciar la generación: %s</string>
-    <string name="error_image_generation_failed">Error en la generación de imagen</string>
-    <string name="error_video_generation_failed">Error en la generación de vídeo</string>
-    <string name="error_failed_load_video">Error al cargar el vídeo</string>
+    <string name="error_connection_lost">Conexión perdida durante la generación</string>
+    <string name="error_no_connection">Sin conexión al servidor</string>
+    <string name="error_workflow_not_found">Workflow no encontrado</string>
+    <string name="error_no_workflow_specified">No se especificó ningún workflow</string>
+    <string name="error_client_not_initialized">Cliente no inicializado</string>
+    <string name="error_websocket_not_connected">WebSocket no conectado</string>
+    <string name="error_invalid_json">JSON inválido: %s</string>
+    <string name="error_cannot_determine_workflow_type">No se puede determinar el tipo de workflow</string>
 
     <!-- Save/share messages -->
     <string name="image_saved_to_gallery">Imagen guardada en la galería</string>
@@ -153,8 +155,39 @@
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplicación</string>
     <string name="nav_server_settings">Servidor</string>
+    <string name="nav_workflows_settings">Workflows</string>
     <string name="application_settings_title">Configuración de la aplicación</string>
     <string name="server_settings_title">Configuración del servidor</string>
+    <string name="workflows_settings_title">Workflows</string>
+
+    <!-- Workflow management strings -->
+    <string name="workflow_section_tti_checkpoint">Texto a imagen (Checkpoint)</string>
+    <string name="workflow_section_tti_unet">Texto a imagen (UNET)</string>
+    <string name="workflow_section_iip_checkpoint">Inpainting (Checkpoint)</string>
+    <string name="workflow_section_iip_unet">Inpainting (UNET)</string>
+    <string name="workflow_section_ttv_unet">Texto a vídeo (UNET)</string>
+    <string name="workflow_section_itv_unet">Imagen a vídeo (UNET)</string>
+    <string name="workflow_section_empty">Sin workflows</string>
+    <string name="workflow_built_in_label">Integrado</string>
+    <string name="workflow_name_label">Nombre</string>
+    <string name="workflow_description_label">Descripción</string>
+    <string name="upload_workflow_title">Subir workflow</string>
+    <string name="edit_workflow_title">Editar workflow</string>
+    <string name="delete_workflow_title">Eliminar workflow</string>
+    <string name="delete_workflow_message">¿Está seguro de que desea eliminar \"%s\"?</string>
+    <string name="button_upload">Subir</string>
+    <string name="button_save">Guardar</string>
+    <string name="button_delete">Eliminar</string>
+    <string name="button_cancel">Cancelar</string>
+    <string name="edit">Editar</string>
+    <string name="delete">Eliminar</string>
+    <string name="workflow_error_invalid_json">Formato JSON inválido</string>
+    <string name="workflow_upload_success">Workflow subido</string>
+    <string name="workflow_upload_failed">Error al subir el workflow</string>
+    <string name="workflow_delete_success">Workflow eliminado</string>
+    <string name="workflow_delete_failed">Error al eliminar el workflow</string>
+    <string name="workflow_update_success">Workflow actualizado</string>
+    <string name="workflow_update_failed">Error al actualizar el workflow</string>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menú</string>
@@ -177,4 +210,39 @@
     <string name="media_viewer_share">Compartir</string>
     <string name="media_viewer_previous">Anterior</string>
     <string name="media_viewer_next">Siguiente</string>
+
+    <!-- Workflow previewer strings -->
+    <string name="workflow_previewer_title">Vista previa del workflow</string>
+    <string name="workflow_previewer_zoom_in">Acercar</string>
+    <string name="workflow_previewer_zoom_out">Alejar</string>
+    <string name="workflow_previewer_reset_zoom">Restablecer vista</string>
+    <string name="workflow_previewer_highlight_templates">Resaltar plantillas</string>
+    <string name="workflow_previewer_error_loading">Error al cargar el workflow</string>
+
+    <!-- Workflow upload dialog strings -->
+    <string name="workflow_type_label">Tipo de workflow</string>
+    <string name="button_continue">Continuar</string>
+    <string name="button_dismiss">Cerrar</string>
+    <string name="button_confirm">Confirmar</string>
+    <string name="button_ok">OK</string>
+    <string name="validating_workflow">Validando workflow…</string>
+
+    <!-- Workflow validation error dialogs -->
+    <string name="missing_nodes_title">Nodos faltantes</string>
+    <string name="missing_nodes_message">Los siguientes nodos no están disponibles en su servidor ComfyUI:</string>
+    <string name="missing_fields_title">Campos requeridos faltantes</string>
+    <string name="missing_fields_message">El workflow no contiene estos campos requeridos para el tipo seleccionado:</string>
+    <string name="duplicate_name_title">Nombre ya existente</string>
+    <string name="duplicate_name_message">Ya existe un workflow con este nombre. Por favor, elija otro nombre.</string>
+
+    <!-- Field mapping UI strings -->
+    <string name="field_mapping_title">Mapear campos requeridos</string>
+    <string name="tap_node_to_change">Toque un nodo resaltado para cambiar el mapeo</string>
+    <string name="no_matching_nodes">No se encontraron nodos coincidentes</string>
+
+    <!-- Workflow validation errors -->
+    <string name="workflow_error_fetch_nodes_failed">Error al obtener los nodos del servidor</string>
+    <string name="workflow_name_error_too_long">El nombre debe tener 40 caracteres o menos</string>
+    <string name="workflow_name_error_invalid_chars">El nombre solo puede contener letras, números, espacios, guiones bajos, guiones y corchetes</string>
+    <string name="workflow_description_error_too_long">La descripción debe tener 120 caracteres o menos</string>
 </resources>

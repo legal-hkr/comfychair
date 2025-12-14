@@ -160,7 +160,7 @@ class MediaViewerViewModel : ViewModel() {
 
         // Create client for gallery mode and test connection to set protocol
         if (mode == ViewerMode.GALLERY && hostname.isNotEmpty()) {
-            val client = ComfyUIClient(hostname, port)
+            val client = ComfyUIClient(context.applicationContext, hostname, port)
             comfyUIClient = client
 
             // Test connection to establish protocol, then load items

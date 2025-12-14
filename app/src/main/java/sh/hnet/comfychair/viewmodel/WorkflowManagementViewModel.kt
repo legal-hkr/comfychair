@@ -1,0 +1,537 @@
+package sh.hnet.comfychair.viewmodel
+
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
+import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.WorkflowValidationResult
+import sh.hnet.comfychair.workflow.FieldCandidate
+import sh.hnet.comfychair.workflow.FieldDisplayRegistry
+import sh.hnet.comfychair.workflow.FieldMappingState
+import sh.hnet.comfychair.workflow.PendingWorkflowUpload
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import sh.hnet.comfychair.workflow.WorkflowMappingState
+
+/**
+ * UI state for the Workflow Management screen
+ */
+data class WorkflowManagementUiState(
+    // Workflows organized by type
+    val ttiCheckpointWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val ttiUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val iipCheckpointWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val iipUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val ttvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val itvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+
+    // Upload dialog state
+    val showUploadDialog: Boolean = false,
+    val pendingUploadJsonContent: String = "",
+    val uploadSelectedType: WorkflowType? = null,
+    val uploadTypeDropdownExpanded: Boolean = false,
+    val uploadName: String = "",
+    val uploadDescription: String = "",
+    val uploadNameError: String? = null,
+    val uploadDescriptionError: String? = null,
+
+    // Validation state
+    val isValidatingNodes: Boolean = false,
+    val showMissingNodesDialog: Boolean = false,
+    val missingNodes: List<String> = emptyList(),
+    val showMissingFieldsDialog: Boolean = false,
+    val missingFields: List<String> = emptyList(),
+    val showDuplicateNameDialog: Boolean = false,
+
+    // Pending workflow for previewer
+    val pendingWorkflowForMapping: PendingWorkflowUpload? = null,
+
+    // Edit dialog state
+    val showEditDialog: Boolean = false,
+    val editingWorkflow: WorkflowManager.Workflow? = null,
+    val editName: String = "",
+    val editDescription: String = "",
+
+    // Delete confirmation dialog
+    val showDeleteDialog: Boolean = false,
+    val workflowToDelete: WorkflowManager.Workflow? = null,
+
+    // Loading state
+    val isLoading: Boolean = false
+)
+
+/**
+ * Events emitted by the Workflow Management screen
+ */
+sealed class WorkflowManagementEvent {
+    data class ShowToast(val messageResId: Int) : WorkflowManagementEvent()
+    data class ShowToastMessage(val message: String) : WorkflowManagementEvent()
+    data class LaunchPreviewer(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
+    object WorkflowsChanged : WorkflowManagementEvent()
+}
+
+/**
+ * ViewModel for the Workflow Management screen
+ */
+class WorkflowManagementViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(WorkflowManagementUiState())
+    val uiState: StateFlow<WorkflowManagementUiState> = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<WorkflowManagementEvent>()
+    val events: SharedFlow<WorkflowManagementEvent> = _events.asSharedFlow()
+
+    private var workflowManager: WorkflowManager? = null
+    private var applicationContext: Context? = null
+
+    /**
+     * Initialize the ViewModel with context
+     */
+    fun initialize(context: Context) {
+        applicationContext = context.applicationContext
+        workflowManager = WorkflowManager(context)
+        loadWorkflows()
+    }
+
+    /**
+     * Load all workflows and organize by type
+     */
+    fun loadWorkflows() {
+        val wm = workflowManager ?: return
+
+        _uiState.value = _uiState.value.copy(
+            ttiCheckpointWorkflows = wm.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT),
+            ttiUnetWorkflows = wm.getWorkflowsByType(WorkflowType.TTI_UNET),
+            iipCheckpointWorkflows = wm.getWorkflowsByType(WorkflowType.IIP_CHECKPOINT),
+            iipUnetWorkflows = wm.getWorkflowsByType(WorkflowType.IIP_UNET),
+            ttvUnetWorkflows = wm.getWorkflowsByType(WorkflowType.TTV_UNET),
+            itvUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITV_UNET)
+        )
+    }
+
+    // ==================== New Upload Flow ====================
+
+    /**
+     * Handle file selection from file picker - new flow without filename prefix requirement
+     */
+    fun onFileSelected(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            try {
+                // Read file content
+                val jsonContent = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
+                }
+
+                // Validate JSON format
+                try {
+                    JSONObject(jsonContent)
+                } catch (e: Exception) {
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_invalid_json))
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    return@launch
+                }
+
+                // Auto-detect type as suggestion (user can override)
+                val wm = workflowManager
+                val detectedType = wm?.detectWorkflowType(jsonContent)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    showUploadDialog = true,
+                    pendingUploadJsonContent = jsonContent,
+                    uploadSelectedType = detectedType,
+                    uploadTypeDropdownExpanded = false,
+                    uploadName = "",
+                    uploadDescription = "",
+                    uploadNameError = null,
+                    uploadDescriptionError = null
+                )
+            } catch (e: Exception) {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_upload_failed))
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+
+    fun onUploadTypeSelected(type: WorkflowType) {
+        _uiState.value = _uiState.value.copy(
+            uploadSelectedType = type,
+            uploadTypeDropdownExpanded = false
+        )
+    }
+
+    fun onToggleTypeDropdown() {
+        _uiState.value = _uiState.value.copy(
+            uploadTypeDropdownExpanded = !_uiState.value.uploadTypeDropdownExpanded
+        )
+    }
+
+    fun onUploadNameChange(name: String) {
+        val error = if (name.length > 40) applicationContext?.getString(R.string.workflow_name_error_too_long) else null
+        _uiState.value = _uiState.value.copy(
+            uploadName = name.take(40),
+            uploadNameError = error
+        )
+    }
+
+    fun onUploadDescriptionChange(description: String) {
+        val error = if (description.length > 120) applicationContext?.getString(R.string.workflow_description_error_too_long) else null
+        _uiState.value = _uiState.value.copy(
+            uploadDescription = description.take(120),
+            uploadDescriptionError = error
+        )
+    }
+
+    /**
+     * Proceed with upload - validate and launch previewer
+     */
+    fun proceedWithUpload(comfyUIClient: ComfyUIClient) {
+        val state = _uiState.value
+        val wm = workflowManager ?: return
+
+        val selectedType = state.uploadSelectedType ?: return
+        val name = state.uploadName.trim()
+        val description = state.uploadDescription.trim()
+
+        // Validate name format
+        val nameError = wm.validateWorkflowName(name)
+        if (nameError != null) {
+            _uiState.value = _uiState.value.copy(uploadNameError = nameError)
+            return
+        }
+
+        // Validate description format
+        val descError = wm.validateWorkflowDescription(description)
+        if (descError != null) {
+            _uiState.value = _uiState.value.copy(uploadDescriptionError = descError)
+            return
+        }
+
+        // Check for duplicate name
+        if (wm.isWorkflowNameTaken(name)) {
+            _uiState.value = _uiState.value.copy(showDuplicateNameDialog = true)
+            return
+        }
+
+        // Start node validation
+        _uiState.value = _uiState.value.copy(isValidatingNodes = true)
+
+        // Fetch available nodes from server
+        comfyUIClient.fetchAllNodeTypes { availableNodes ->
+            viewModelScope.launch {
+                if (availableNodes == null) {
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_fetch_nodes_failed))
+                    _uiState.value = _uiState.value.copy(isValidatingNodes = false)
+                    return@launch
+                }
+
+                // Extract class types from workflow
+                val classTypesResult = wm.extractClassTypes(state.pendingUploadJsonContent)
+                if (classTypesResult.isFailure) {
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_invalid_json))
+                    _uiState.value = _uiState.value.copy(isValidatingNodes = false)
+                    return@launch
+                }
+                val workflowClassTypes = classTypesResult.getOrThrow()
+
+                // Validate nodes
+                val missingNodes = wm.validateNodesAgainstServer(workflowClassTypes, availableNodes)
+                if (missingNodes.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        isValidatingNodes = false,
+                        showMissingNodesDialog = true,
+                        missingNodes = missingNodes
+                    )
+                    return@launch
+                }
+
+                // Validate required fields for type
+                val keyValidation = wm.validateWorkflowKeys(state.pendingUploadJsonContent, selectedType)
+                when (keyValidation) {
+                    is WorkflowValidationResult.MissingKeys -> {
+                        _uiState.value = _uiState.value.copy(
+                            isValidatingNodes = false,
+                            showMissingFieldsDialog = true,
+                            missingFields = keyValidation.missing
+                        )
+                        return@launch
+                    }
+                    is WorkflowValidationResult.Success -> { /* Continue */ }
+                    else -> { /* Continue - may have placeholders instead of keys */ }
+                }
+
+                // Create field mapping state
+                val mappingState = createFieldMappingState(
+                    state.pendingUploadJsonContent,
+                    selectedType
+                )
+
+                // Check if all fields are mapped
+                if (!mappingState.allFieldsMapped) {
+                    val unmappedFieldNames = mappingState.unmappedFields.map { it.displayName }
+                    _uiState.value = _uiState.value.copy(
+                        isValidatingNodes = false,
+                        showMissingFieldsDialog = true,
+                        missingFields = unmappedFieldNames
+                    )
+                    return@launch
+                }
+
+                // Prepare pending upload and launch previewer
+                val pendingUpload = PendingWorkflowUpload(
+                    jsonContent = state.pendingUploadJsonContent,
+                    name = name,
+                    description = description,
+                    type = selectedType,
+                    mappingState = mappingState
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isValidatingNodes = false,
+                    showUploadDialog = false,
+                    pendingWorkflowForMapping = pendingUpload
+                )
+
+                _events.emit(WorkflowManagementEvent.LaunchPreviewer(pendingUpload))
+            }
+        }
+    }
+
+    /**
+     * Create field mapping state by analyzing workflow JSON
+     */
+    private fun createFieldMappingState(jsonContent: String, type: WorkflowType): WorkflowMappingState {
+        val requiredKeys = TemplateKeyRegistry.getKeysForType(type)
+        val json = try {
+            JSONObject(jsonContent)
+        } catch (e: Exception) {
+            return WorkflowMappingState(type, emptyList())
+        }
+
+        val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
+
+        val fieldMappings = requiredKeys.map { fieldKey ->
+            val candidates = mutableListOf<FieldCandidate>()
+
+            // Find all nodes that have this input key
+            for (nodeId in nodesJson.keys()) {
+                val node = nodesJson.optJSONObject(nodeId) ?: continue
+                val inputs = node.optJSONObject("inputs") ?: continue
+
+                if (inputs.has(fieldKey)) {
+                    val classType = node.optString("class_type", "Unknown")
+                    val meta = node.optJSONObject("_meta")
+                    val title = meta?.optString("title") ?: classType
+                    val currentValue = inputs.opt(fieldKey)
+
+                    candidates.add(
+                        FieldCandidate(
+                            nodeId = nodeId,
+                            nodeName = title,
+                            classType = classType,
+                            inputKey = fieldKey,
+                            currentValue = currentValue
+                        )
+                    )
+                }
+            }
+
+            FieldMappingState(
+                field = FieldDisplayRegistry.createRequiredField(fieldKey),
+                candidates = candidates,
+                selectedCandidateIndex = 0  // Auto-select first
+            )
+        }
+
+        return WorkflowMappingState(type, fieldMappings)
+    }
+
+    fun cancelUpload() {
+        _uiState.value = _uiState.value.copy(
+            showUploadDialog = false,
+            pendingUploadJsonContent = "",
+            uploadSelectedType = null,
+            uploadName = "",
+            uploadDescription = "",
+            uploadNameError = null,
+            uploadDescriptionError = null,
+            pendingWorkflowForMapping = null
+        )
+    }
+
+    fun dismissMissingNodesDialog() {
+        _uiState.value = _uiState.value.copy(
+            showMissingNodesDialog = false,
+            missingNodes = emptyList(),
+            showUploadDialog = false
+        )
+        cancelUpload()
+    }
+
+    fun dismissMissingFieldsDialog() {
+        _uiState.value = _uiState.value.copy(
+            showMissingFieldsDialog = false,
+            missingFields = emptyList(),
+            showUploadDialog = false
+        )
+        cancelUpload()
+    }
+
+    fun dismissDuplicateNameDialog() {
+        _uiState.value = _uiState.value.copy(showDuplicateNameDialog = false)
+    }
+
+    /**
+     * Complete the upload after mapping is confirmed in previewer
+     */
+    fun completeUpload(fieldMappings: Map<String, Pair<String, String>>) {
+        val pending = _uiState.value.pendingWorkflowForMapping ?: return
+        val wm = workflowManager ?: return
+
+        viewModelScope.launch {
+            val result = wm.addUserWorkflowWithMapping(
+                name = pending.name,
+                description = pending.description,
+                jsonContent = pending.jsonContent,
+                type = pending.type,
+                fieldMappings = fieldMappings
+            )
+
+            if (result.isSuccess) {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_upload_success))
+                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                loadWorkflows()
+            } else {
+                _events.emit(WorkflowManagementEvent.ShowToastMessage(
+                    result.exceptionOrNull()?.message ?: "Upload failed"
+                ))
+            }
+
+            _uiState.value = _uiState.value.copy(pendingWorkflowForMapping = null)
+        }
+    }
+
+    /**
+     * Cancel mapping and discard workflow
+     */
+    fun cancelMapping() {
+        _uiState.value = _uiState.value.copy(pendingWorkflowForMapping = null)
+    }
+
+    // ==================== Edit Flow ====================
+
+    fun onEditWorkflow(workflow: WorkflowManager.Workflow) {
+        if (workflow.isBuiltIn) return
+
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = true,
+            editingWorkflow = workflow,
+            editName = workflow.name,
+            editDescription = workflow.description
+        )
+    }
+
+    fun onEditNameChange(name: String) {
+        _uiState.value = _uiState.value.copy(editName = name)
+    }
+
+    fun onEditDescriptionChange(description: String) {
+        _uiState.value = _uiState.value.copy(editDescription = description)
+    }
+
+    fun confirmEdit() {
+        val state = _uiState.value
+        val wm = workflowManager ?: return
+        val workflow = state.editingWorkflow ?: return
+
+        if (state.editName.isBlank()) return
+
+        viewModelScope.launch {
+            val success = wm.updateUserWorkflowMetadata(
+                workflowId = workflow.id,
+                name = state.editName,
+                description = state.editDescription
+            )
+
+            if (success) {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_update_success))
+                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                loadWorkflows()
+            } else {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_update_failed))
+            }
+
+            _uiState.value = _uiState.value.copy(
+                showEditDialog = false,
+                editingWorkflow = null,
+                editName = "",
+                editDescription = ""
+            )
+        }
+    }
+
+    fun cancelEdit() {
+        _uiState.value = _uiState.value.copy(
+            showEditDialog = false,
+            editingWorkflow = null,
+            editName = "",
+            editDescription = ""
+        )
+    }
+
+    // ==================== Delete Flow ====================
+
+    fun onDeleteWorkflow(workflow: WorkflowManager.Workflow) {
+        if (workflow.isBuiltIn) return
+
+        _uiState.value = _uiState.value.copy(
+            showDeleteDialog = true,
+            workflowToDelete = workflow
+        )
+    }
+
+    fun confirmDelete() {
+        val state = _uiState.value
+        val wm = workflowManager ?: return
+        val workflow = state.workflowToDelete ?: return
+
+        viewModelScope.launch {
+            val success = wm.deleteUserWorkflow(workflow.id)
+
+            if (success) {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_delete_success))
+                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                loadWorkflows()
+            } else {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_delete_failed))
+            }
+
+            _uiState.value = _uiState.value.copy(
+                showDeleteDialog = false,
+                workflowToDelete = null
+            )
+        }
+    }
+
+    fun cancelDelete() {
+        _uiState.value = _uiState.value.copy(
+            showDeleteDialog = false,
+            workflowToDelete = null
+        )
+    }
+}

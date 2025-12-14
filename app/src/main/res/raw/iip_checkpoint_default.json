@@ -119,7 +119,7 @@
     },
     "29": {
       "inputs": {
-        "ckpt_name": "{{checkpoint}}"
+        "ckpt_name": "{{ckpt_name}}"
       },
       "class_type": "CheckpointLoaderSimple",
       "_meta": {

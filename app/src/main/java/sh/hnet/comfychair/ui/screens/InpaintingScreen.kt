@@ -105,7 +105,7 @@ fun InpaintingScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            inpaintingViewModel.setSourceImage(context, it)
+            inpaintingViewModel.onSourceImageChange(context, it)
             inpaintingViewModel.onViewModeChange(InpaintingViewMode.SOURCE)
         }
     }
@@ -440,8 +440,8 @@ fun InpaintingScreen(
             },
             onClearMask = { inpaintingViewModel.clearMask() },
             onInvertMask = { inpaintingViewModel.invertMask() },
-            onBrushSizeChange = { inpaintingViewModel.setBrushSize(it) },
-            onEraserModeChange = { inpaintingViewModel.setEraserMode(it) },
+            onBrushSizeChange = { inpaintingViewModel.onBrushSizeChange(it) },
+            onEraserModeChange = { inpaintingViewModel.onEraserModeChange(it) },
             onDismiss = { showMaskEditor = false }
         )
     }

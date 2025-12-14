@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.BottomAppBar
@@ -25,15 +26,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.ui.screens.ApplicationSettingsScreen
 import sh.hnet.comfychair.ui.screens.ServerSettingsScreen
+import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
+import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
 @Composable
 fun SettingsNavHost(
     settingsViewModel: SettingsViewModel,
+    workflowManagementViewModel: WorkflowManagementViewModel,
+    comfyUIClient: ComfyUIClient,
     onNavigateToGeneration: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -47,6 +53,38 @@ fun SettingsNavHost(
                 actions = {
                     // Add left padding to align with screen content
                     Spacer(modifier = Modifier.width(12.dp))
+
+                    // Workflows Settings (first)
+                    if (currentRoute == SettingsRoute.Workflows.route) {
+                        FilledIconButton(
+                            onClick = { },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.AccountTree,
+                                contentDescription = stringResource(R.string.nav_workflows_settings)
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = {
+                            navController.navigate(SettingsRoute.Workflows.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }) {
+                            Icon(
+                                Icons.Filled.AccountTree,
+                                contentDescription = stringResource(R.string.nav_workflows_settings),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
                     // Application Settings
                     if (currentRoute == SettingsRoute.Application.route) {
@@ -130,7 +168,7 @@ fun SettingsNavHost(
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = SettingsRoute.Application.route,
+            startDestination = SettingsRoute.Workflows.route,
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(SettingsRoute.Application.route) {
@@ -146,6 +184,15 @@ fun SettingsNavHost(
                 ServerSettingsScreen(
                     viewModel = settingsViewModel,
                     onNavigateBack = onNavigateToGeneration,
+                    onNavigateToGeneration = onNavigateToGeneration,
+                    onLogout = onLogout
+                )
+            }
+
+            composable(SettingsRoute.Workflows.route) {
+                WorkflowsSettingsScreen(
+                    viewModel = workflowManagementViewModel,
+                    comfyUIClient = comfyUIClient,
                     onNavigateToGeneration = onNavigateToGeneration,
                     onLogout = onLogout
                 )

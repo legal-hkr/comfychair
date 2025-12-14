@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.WorkflowManager
 
 /**
  * UI state for server settings screen
@@ -67,8 +68,8 @@ class SettingsViewModel : ViewModel() {
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
-    fun initialize(hostname: String, port: Int) {
-        val client = ComfyUIClient(hostname, port)
+    fun initialize(context: Context, hostname: String, port: Int) {
+        val client = ComfyUIClient(context.applicationContext, hostname, port)
         comfyUIClient = client
         _serverSettingsState.value = _serverSettingsState.value.copy(
             hostname = hostname,
@@ -217,10 +218,9 @@ class SettingsViewModel : ViewModel() {
 
                 cachedFiles.forEach { filename ->
                     try {
-                        val deleted = context.deleteFile(filename)
-                        println("SettingsViewModel: Delete $filename: $deleted")
+                        context.deleteFile(filename)
                     } catch (e: Exception) {
-                        println("SettingsViewModel: Failed to delete $filename: ${e.message}")
+                        // Failed to delete file
                     }
                 }
 
@@ -229,12 +229,15 @@ class SettingsViewModel : ViewModel() {
                     if (file.name.startsWith("gallery_video_") || file.name.endsWith(".png") || file.name.endsWith(".mp4")) {
                         try {
                             file.delete()
-                            println("SettingsViewModel: Deleted cache file ${file.name}")
                         } catch (e: Exception) {
-                            println("SettingsViewModel: Failed to delete cache file ${file.name}: ${e.message}")
+                            // Failed to delete cache file
                         }
                     }
                 }
+
+                // Clear user-uploaded workflows
+                val workflowManager = WorkflowManager(context)
+                workflowManager.clearAllUserWorkflows()
             }
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.cache_cleared_success))
@@ -254,13 +257,9 @@ class SettingsViewModel : ViewModel() {
                 prefsToDelete.forEach { prefsName ->
                     try {
                         val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-                        val allPrefs = prefs.all
-                        println("SettingsViewModel: Before clear $prefsName has ${allPrefs.size} entries: ${allPrefs.keys}")
-                        prefs.edit().clear().commit() // Use commit() instead of apply() for immediate effect
-                        val afterClear = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).all
-                        println("SettingsViewModel: After clear $prefsName has ${afterClear.size} entries")
+                        prefs.edit().clear().commit()
                     } catch (e: Exception) {
-                        println("SettingsViewModel: Failed to clear $prefsName: ${e.message}")
+                        // Failed to clear preferences
                     }
                 }
             }

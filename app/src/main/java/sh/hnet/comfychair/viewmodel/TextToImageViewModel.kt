@@ -345,7 +345,7 @@ class TextToImageViewModel : ViewModel() {
     /**
      * Update the current bitmap (e.g., from preview or final image)
      */
-    fun updateCurrentBitmap(bitmap: Bitmap?) {
+    fun onCurrentBitmapChange(bitmap: Bitmap?) {
         _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
         bitmap?.let { saveLastGeneratedImage(it) }
     }
@@ -385,7 +385,7 @@ class TextToImageViewModel : ViewModel() {
     private fun handleGenerationEvent(event: GenerationEvent) {
         when (event) {
             is GenerationEvent.PreviewImage -> {
-                updateCurrentBitmap(event.bitmap)
+                onCurrentBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
                 fetchGeneratedImage(event.promptId) {
@@ -495,7 +495,7 @@ class TextToImageViewModel : ViewModel() {
                             client.fetchImage(filename, subfolder, type) { bitmap ->
                                 viewModelScope.launch {
                                     if (bitmap != null) {
-                                        updateCurrentBitmap(bitmap)
+                                        onCurrentBitmapChange(bitmap)
                                     }
                                     onComplete()
                                 }
@@ -505,7 +505,6 @@ class TextToImageViewModel : ViewModel() {
                     }
                     onComplete()
                 } catch (e: Exception) {
-                    println("TextToImageViewModel: Failed to parse history: ${e.message}")
                     onComplete()
                 }
             } else {
@@ -575,7 +574,7 @@ class TextToImageViewModel : ViewModel() {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             }
         } catch (e: Exception) {
-            println("TextToImageViewModel: Failed to save image: ${e.message}")
+            // Failed to save image
         }
     }
 
@@ -592,7 +591,7 @@ class TextToImageViewModel : ViewModel() {
                 }
             }
         } catch (e: Exception) {
-            println("TextToImageViewModel: Failed to restore image: ${e.message}")
+            // Failed to restore image
         }
     }
 
@@ -616,7 +615,6 @@ class TextToImageViewModel : ViewModel() {
                 }
                 onResult(true)
             } catch (e: IOException) {
-                println("TextToImageViewModel: Failed to save to gallery: ${e.message}")
                 onResult(false)
             }
         } ?: onResult(false)
@@ -632,7 +630,6 @@ class TextToImageViewModel : ViewModel() {
             }
             onResult(true)
         } catch (e: IOException) {
-            println("TextToImageViewModel: Failed to save image: ${e.message}")
             onResult(false)
         }
     }
@@ -662,7 +659,6 @@ class TextToImageViewModel : ViewModel() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         } catch (e: Exception) {
-            println("TextToImageViewModel: Failed to create share intent: ${e.message}")
             null
         }
     }

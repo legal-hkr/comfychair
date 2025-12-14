@@ -17,4 +17,5 @@ sealed class MainRoute(val route: String) {
 sealed class SettingsRoute(val route: String) {
     data object Application : SettingsRoute("application_settings")
     data object Server : SettingsRoute("server_settings")
+    data object Workflows : SettingsRoute("workflows_settings")
 }

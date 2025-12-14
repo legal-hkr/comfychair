@@ -121,9 +121,7 @@ object SelfSignedCertHelper {
             builder.hostnameVerifier { _, _ -> true }
 
         } catch (e: Exception) {
-            // If SSL configuration fails, log the error
-            // The builder will use default SSL settings
-            println("Failed to configure SSL for certificate issues: ${e.message}")
+            // If SSL configuration fails, the builder will use default SSL settings
         }
 
         return builder

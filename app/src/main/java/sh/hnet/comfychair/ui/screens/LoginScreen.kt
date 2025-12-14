@@ -134,48 +134,39 @@ fun LoginScreen() {
         // Launch connection in scope (survives state changes)
         scope.launch {
             val portNum = trimmedPort.toInt()
-            val client = ComfyUIClient(trimmedHostname, portNum)
+            val client = ComfyUIClient(context.applicationContext, trimmedHostname, portNum)
             comfyUIClient = client
 
             // Test connection using suspendCoroutine
-            println("LoginScreen: Testing connection...")
             val result = suspendCoroutine { continuation ->
                 client.testConnection { success, errorMessage, certIssue ->
-                    println("LoginScreen: testConnection callback - success=$success, error=$errorMessage")
                     continuation.resume(Triple(success, errorMessage, certIssue))
                 }
             }
 
             val (success, _, certIssue) = result
-            println("LoginScreen: testConnection result - success=$success")
 
             if (success) {
                 // Open WebSocket connection
-                println("LoginScreen: Opening WebSocket...")
                 val wsResult = suspendCoroutine { continuation ->
                     val listener = object : WebSocketListener() {
                         override fun onOpen(webSocket: WebSocket, response: Response) {
-                            println("LoginScreen: WebSocket onOpen called")
                             continuation.resume(Pair(true, certIssue))
                         }
 
                         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                            println("LoginScreen: WebSocket onFailure called - ${t.message}")
                             continuation.resume(Pair(false, certIssue))
                         }
                     }
                     val opened = client.openWebSocket(listener)
-                    println("LoginScreen: openWebSocket returned $opened")
                     if (!opened) {
                         continuation.resume(Pair(false, certIssue))
                     }
                 }
 
                 val (wsSuccess, wssCertIssue) = wsResult
-                println("LoginScreen: WebSocket result - success=$wsSuccess")
 
                 if (wsSuccess) {
-                    println("LoginScreen: Setting state to CONNECTED")
                     connectionState = ConnectionState.CONNECTED
 
                     // Save connection info
@@ -199,19 +190,15 @@ fun LoginScreen() {
                         CertificateIssue.NONE -> 500L
                     }
 
-                    println("LoginScreen: Delaying ${navigateDelay}ms before navigation")
                     delay(navigateDelay)
 
                     // Close WebSocket and navigate
-                    println("LoginScreen: Closing WebSocket and navigating...")
                     client.closeWebSocket()
                     val intent = Intent(context, MainContainerActivity::class.java).apply {
                         putExtra("hostname", trimmedHostname)
                         putExtra("port", portNum)
                     }
-                    println("LoginScreen: Starting MainContainerActivity")
                     context.startActivity(intent)
-                    println("LoginScreen: startActivity called successfully")
                 } else {
                     connectionState = ConnectionState.FAILED
                     delay(2000)

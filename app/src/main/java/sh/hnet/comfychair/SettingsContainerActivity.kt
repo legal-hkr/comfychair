@@ -13,6 +13,8 @@ import sh.hnet.comfychair.ui.navigation.SettingsNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
+import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
+import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
 /**
  * Container activity that hosts settings screens with Compose Navigation.
@@ -20,10 +22,12 @@ import sh.hnet.comfychair.viewmodel.SettingsViewModel
 class SettingsContainerActivity : ComponentActivity() {
 
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
 
     // Connection information (passed from MainContainerActivity)
     private var hostname: String = ""
     private var port: Int = 8188
+    private lateinit var comfyUIClient: ComfyUIClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,8 +36,14 @@ class SettingsContainerActivity : ComponentActivity() {
         hostname = intent.getStringExtra("hostname") ?: ""
         port = intent.getIntExtra("port", 8188)
 
+        // Initialize ComfyUIClient and test connection to determine protocol
+        comfyUIClient = ComfyUIClient(applicationContext, hostname, port)
+        comfyUIClient.testConnection { _, _, _ ->
+            // Protocol is now determined (http or https)
+        }
+
         // Initialize ViewModel with connection info
-        settingsViewModel.initialize(hostname, port)
+        settingsViewModel.initialize(applicationContext, hostname, port)
 
         setContent {
             ComfyChairTheme {
@@ -49,9 +59,23 @@ class SettingsContainerActivity : ComponentActivity() {
                     }
                 }
 
+                // Listen for WorkflowsChanged event to set activity result
+                LaunchedEffect(Unit) {
+                    workflowManagementViewModel.events.collect { event ->
+                        when (event) {
+                            is WorkflowManagementEvent.WorkflowsChanged -> {
+                                setResult(MainContainerActivity.RESULT_REFRESH_NEEDED)
+                            }
+                            else -> {} // Other events handled in screens
+                        }
+                    }
+                }
+
                 Surface(modifier = Modifier.fillMaxSize()) {
                     SettingsNavHost(
                         settingsViewModel = settingsViewModel,
+                        workflowManagementViewModel = workflowManagementViewModel,
+                        comfyUIClient = comfyUIClient,
                         onNavigateToGeneration = { finish() },
                         onLogout = { logout() }
                     )

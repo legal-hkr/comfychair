@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -139,7 +138,7 @@ class MediaViewerActivity : ComponentActivity() {
                 }
             }
 
-            ComfyChairTheme {
+            ComfyChairTheme(forceDarkStatusBar = true) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MediaViewerScreen(
                         viewModel = viewModel,

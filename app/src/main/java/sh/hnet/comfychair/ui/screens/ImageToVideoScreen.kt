@@ -124,7 +124,7 @@ fun ImageToVideoScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            imageToVideoViewModel.setSourceImage(context, it)
+            imageToVideoViewModel.onSourceImageChange(context, it)
             imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.SOURCE)
         }
     }

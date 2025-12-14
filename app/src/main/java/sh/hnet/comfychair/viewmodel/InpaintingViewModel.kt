@@ -286,7 +286,7 @@ class InpaintingViewModel : ViewModel() {
     }
 
     // Source image
-    fun setSourceImage(context: Context, uri: Uri) {
+    fun onSourceImageChange(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
@@ -319,11 +319,11 @@ class InpaintingViewModel : ViewModel() {
         )
     }
 
-    fun setBrushSize(size: Float) {
+    fun onBrushSizeChange(size: Float) {
         _uiState.value = _uiState.value.copy(brushSize = size)
     }
 
-    fun setEraserMode(isEraser: Boolean) {
+    fun onEraserModeChange(isEraser: Boolean) {
         _uiState.value = _uiState.value.copy(isEraserMode = isEraser)
     }
 
@@ -707,7 +707,7 @@ class InpaintingViewModel : ViewModel() {
         }
     }
 
-    fun updatePreviewBitmap(bitmap: Bitmap) {
+    fun onPreviewBitmapChange(bitmap: Bitmap) {
         _uiState.value = _uiState.value.copy(previewImage = bitmap)
     }
 
@@ -750,7 +750,7 @@ class InpaintingViewModel : ViewModel() {
     private fun handleGenerationEvent(event: GenerationEvent) {
         when (event) {
             is GenerationEvent.PreviewImage -> {
-                updatePreviewBitmap(event.bitmap)
+                onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
                 fetchGeneratedImage(event.promptId) {

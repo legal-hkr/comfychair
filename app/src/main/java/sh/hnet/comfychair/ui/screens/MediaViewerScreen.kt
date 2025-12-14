@@ -238,7 +238,7 @@ fun MediaViewerScreen(
                     Text(
                         text = "${uiState.currentIndex + 1} / ${uiState.totalCount}",
                         color = Color.White,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleLarge
                     )
                 }
             }

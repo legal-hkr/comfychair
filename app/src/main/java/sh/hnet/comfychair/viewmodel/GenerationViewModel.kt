@@ -19,6 +19,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
@@ -111,7 +112,7 @@ class GenerationViewModel : ViewModel() {
         this.applicationContext = context.applicationContext
         this.hostname = hostname
         this.port = port
-        this.comfyUIClient = ComfyUIClient(hostname, port)
+        this.comfyUIClient = ComfyUIClient(context.applicationContext, hostname, port)
 
         // Initialize gallery repository with client
         GalleryRepository.getInstance().initialize(context.applicationContext, this.comfyUIClient!!)
@@ -212,10 +213,8 @@ class GenerationViewModel : ViewModel() {
 
         client.testConnection { success, errorMessage, _ ->
             if (success) {
-                println("GenerationViewModel: Connection successful!")
                 openWebSocketConnection()
             } else {
-                println("GenerationViewModel: Failed to connect: $errorMessage")
                 _connectionStatus.value = ConnectionStatus.FAILED
                 dispatchEvent(GenerationEvent.Error("Failed to connect: $errorMessage"))
             }
@@ -230,7 +229,6 @@ class GenerationViewModel : ViewModel() {
 
         val webSocketListener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                println("GenerationViewModel: WebSocket connected")
                 isWebSocketConnected = true
                 reconnectAttempts = 0
                 _connectionStatus.value = ConnectionStatus.CONNECTED
@@ -251,19 +249,17 @@ class GenerationViewModel : ViewModel() {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                println("GenerationViewModel: WebSocket failed: ${t.message}")
                 isWebSocketConnected = false
 
                 if (_generationState.value.isGenerating) {
                     resetGenerationState()
-                    dispatchEvent(GenerationEvent.Error("Connection lost during generation"))
+                    dispatchEvent(GenerationEvent.Error(applicationContext?.getString(R.string.error_connection_lost) ?: "Connection lost during generation"))
                 }
 
                 scheduleReconnect()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                println("GenerationViewModel: WebSocket closed: $code - $reason")
                 isWebSocketConnected = false
 
                 if (code != 1000) {
@@ -291,7 +287,6 @@ class GenerationViewModel : ViewModel() {
                     val currentState = _generationState.value
 
                     if (isComplete && promptId == currentState.promptId && promptId != null) {
-                        println("GenerationViewModel: Generation complete for prompt: $promptId")
                         dispatchEvent(GenerationEvent.ImageGenerated(promptId))
                         // Trigger gallery refresh to include the new item
                         GalleryRepository.getInstance().refresh()
@@ -310,7 +305,6 @@ class GenerationViewModel : ViewModel() {
                     }
                 }
                 "execution_error" -> {
-                    println("GenerationViewModel: Execution error: $text")
                     resetGenerationState()
                     dispatchEvent(GenerationEvent.Error("Generation failed"))
                 }
@@ -319,11 +313,11 @@ class GenerationViewModel : ViewModel() {
                     // Known message types - no action needed
                 }
                 else -> {
-                    println("GenerationViewModel: Unknown message type: $messageType")
+                    // Unknown message type - ignore
                 }
             }
         } catch (e: Exception) {
-            println("GenerationViewModel: Failed to parse WebSocket message: ${e.message}")
+            // Failed to parse message
         }
     }
 
@@ -340,7 +334,7 @@ class GenerationViewModel : ViewModel() {
                     dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
             } catch (e: Exception) {
-                println("GenerationViewModel: Failed to decode preview image: ${e.message}")
+                // Failed to decode preview image
             }
         }
     }
@@ -357,7 +351,7 @@ class GenerationViewModel : ViewModel() {
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
         val client = comfyUIClient ?: run {
-            onResult(false, null, "Client not initialized")
+            onResult(false, null, applicationContext?.getString(R.string.error_client_not_initialized) ?: "Client not initialized")
             return
         }
 
@@ -365,7 +359,6 @@ class GenerationViewModel : ViewModel() {
         generationOwnerId = ownerId
 
         if (!isWebSocketConnected) {
-            println("GenerationViewModel: WebSocket not connected, attempting reconnect...")
             reconnectWebSocket()
 
             viewModelScope.launch {
@@ -373,7 +366,7 @@ class GenerationViewModel : ViewModel() {
                 if (isWebSocketConnected) {
                     submitWorkflow(workflowJson, onResult)
                 } else {
-                    onResult(false, null, "WebSocket not connected")
+                    onResult(false, null, applicationContext?.getString(R.string.error_websocket_not_connected) ?: "WebSocket not connected")
                 }
             }
         } else {
@@ -392,7 +385,6 @@ class GenerationViewModel : ViewModel() {
 
         client.submitPrompt(workflowJson) { success, promptId, errorMessage ->
             if (success && promptId != null) {
-                println("GenerationViewModel: Workflow submitted. Prompt ID: $promptId")
                 _generationState.value = GenerationState(
                     isGenerating = true,
                     promptId = promptId,
@@ -402,7 +394,6 @@ class GenerationViewModel : ViewModel() {
                 )
                 onResult(true, promptId, null)
             } else {
-                println("GenerationViewModel: Failed to submit workflow: $errorMessage")
                 onResult(false, null, errorMessage)
             }
         }
@@ -418,9 +409,6 @@ class GenerationViewModel : ViewModel() {
         }
 
         client.interruptExecution { success ->
-            if (success) {
-                println("GenerationViewModel: Generation cancelled")
-            }
             resetGenerationState()
             dispatchEvent(GenerationEvent.GenerationCancelled)
             onResult(success)
@@ -451,10 +439,7 @@ class GenerationViewModel : ViewModel() {
             while (isWebSocketConnected) {
                 delay(KEEPALIVE_INTERVAL_MS)
                 if (isWebSocketConnected) {
-                    val success = comfyUIClient?.sendWebSocketMessage("{\"type\":\"ping\"}") ?: false
-                    if (!success) {
-                        println("GenerationViewModel: Failed to send keepalive ping")
-                    }
+                    comfyUIClient?.sendWebSocketMessage("{\"type\":\"ping\"}")
                 }
             }
         }
@@ -465,7 +450,6 @@ class GenerationViewModel : ViewModel() {
      */
     private fun scheduleReconnect() {
         if (reconnectAttempts >= maxReconnectAttempts) {
-            println("GenerationViewModel: Max reconnection attempts reached")
             _connectionStatus.value = ConnectionStatus.FAILED
             return
         }
@@ -474,8 +458,6 @@ class GenerationViewModel : ViewModel() {
 
         val delayMs = (Math.pow(2.0, reconnectAttempts.toDouble()) * 1000).toLong()
         reconnectAttempts++
-
-        println("GenerationViewModel: Scheduling reconnect attempt $reconnectAttempts in ${delayMs}ms")
 
         viewModelScope.launch {
             delay(delayMs)
@@ -487,15 +469,12 @@ class GenerationViewModel : ViewModel() {
      * Reconnect WebSocket
      */
     private fun reconnectWebSocket() {
-        println("GenerationViewModel: Attempting to reconnect...")
         comfyUIClient?.closeWebSocket()
 
-        comfyUIClient?.testConnection { success, errorMessage, _ ->
+        comfyUIClient?.testConnection { success, _, _ ->
             if (success) {
                 openWebSocketConnection()
-                println("GenerationViewModel: Reconnected successfully")
             } else {
-                println("GenerationViewModel: Reconnection failed: $errorMessage")
                 scheduleReconnect()
             }
         }
@@ -528,7 +507,6 @@ class GenerationViewModel : ViewModel() {
                 promptId = promptId
             )
         }
-        println("GenerationViewModel: Restored state: isGenerating=$isGenerating, promptId=$promptId")
     }
 
     /**

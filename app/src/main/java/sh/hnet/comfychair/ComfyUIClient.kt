@@ -1,5 +1,6 @@
 package sh.hnet.comfychair
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,10 +24,12 @@ import java.util.concurrent.TimeUnit
  * 2. Auto-detecting whether to use HTTP or HTTPS
  * 3. Opening WebSocket connection for real-time updates
  *
+ * @param context Application context for string resources
  * @param hostname The server hostname or IP address (e.g., "192.168.1.100")
  * @param port The server port number (default: 8188)
  */
 class ComfyUIClient(
+    private val context: Context? = null,
     private val hostname: String,
     private val port: Int
 ) {
@@ -48,9 +51,7 @@ class ComfyUIClient(
     // Client ID for tracking WebSocket messages
     // This must match the client_id used when submitting prompts
     // Generate a unique ID for each client instance to support multiple concurrent users
-    private val clientId = "comfychair_android_${UUID.randomUUID()}".also {
-        println("ComfyUIClient: Generated unique client ID: $it")
-    }
+    private val clientId = "comfychair_android_${UUID.randomUUID()}"
 
     /**
      * Test connection to the ComfyUI server
@@ -150,8 +151,6 @@ class ComfyUIClient(
         val wsProtocol = if (protocol == "https") "wss" else "ws"
         val wsUrl = "$wsProtocol://$hostname:$port/ws?clientId=$clientId"
 
-        println("Opening WebSocket with URL: $wsUrl")
-
         // Create WebSocket request
         val request = Request.Builder()
             .url(wsUrl)
@@ -196,6 +195,55 @@ class ComfyUIClient(
     }
 
     /**
+     * Fetch all available node types from the ComfyUI server.
+     * Uses the /object_info endpoint to get the complete node registry.
+     *
+     * @param callback Called with the result:
+     *                 - nodeTypes: Set of available node class_type names, or null on error
+     */
+    fun fetchAllNodeTypes(callback: (nodeTypes: Set<String>?) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(null)
+            return
+        }
+
+        val url = "$baseUrl/object_info"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val responseBody = response.body?.string() ?: "{}"
+                            val json = JSONObject(responseBody)
+                            // The keys of the object are the available node class_types
+                            val nodeTypes = mutableSetOf<String>()
+                            val keys = json.keys()
+                            while (keys.hasNext()) {
+                                nodeTypes.add(keys.next())
+                            }
+                            callback(nodeTypes)
+                        } catch (e: Exception) {
+                            callback(null)
+                        }
+                    } else {
+                        callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Fetch available checkpoints from the ComfyUI server
      * Retrieves the list of checkpoint models that can be used for generation
      *
@@ -217,7 +265,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch checkpoints: ${e.message}")
                 callback(emptyList())
             }
 
@@ -226,8 +273,6 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body?.string() ?: "{}"
-                            println("Checkpoint response: $responseBody")
-
                             val json = JSONObject(responseBody)
                             // First get the CheckpointLoaderSimple object
                             val checkpointLoaderJson = json.optJSONObject("CheckpointLoaderSimple")
@@ -235,30 +280,21 @@ class ComfyUIClient(
                             val requiredJson = inputJson?.optJSONObject("required")
                             val ckptNameArray = requiredJson?.optJSONArray("ckpt_name")
 
-                            println("Checkpoint parsing: CheckpointLoaderSimple=${checkpointLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, ckpt_name=${ckptNameArray != null}")
-
                             // The first element is the array of checkpoint names
                             val optionsArray = ckptNameArray?.optJSONArray(0)
-
-                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
 
                             val checkpoints = mutableListOf<String>()
                             if (optionsArray != null) {
                                 for (i in 0 until optionsArray.length()) {
                                     val checkpoint = optionsArray.getString(i)
-                                    println("Found checkpoint: $checkpoint")
                                     checkpoints.add(checkpoint)
                                 }
                             }
-                            println("Total checkpoints found: ${checkpoints.size}")
                             callback(checkpoints)
                         } catch (e: Exception) {
-                            println("Failed to parse checkpoints: ${e.message}")
-                            e.printStackTrace()
                             callback(emptyList())
                         }
                     } else {
-                        println("Server returned error when fetching checkpoints: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -288,7 +324,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch UNETs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -297,8 +332,6 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body?.string() ?: "{}"
-                            println("UNET response: $responseBody")
-
                             val json = JSONObject(responseBody)
                             // Get the UNETLoader object
                             val unetLoaderJson = json.optJSONObject("UNETLoader")
@@ -306,30 +339,21 @@ class ComfyUIClient(
                             val requiredJson = inputJson?.optJSONObject("required")
                             val unetNameArray = requiredJson?.optJSONArray("unet_name")
 
-                            println("UNET parsing: UNETLoader=${unetLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, unet_name=${unetNameArray != null}")
-
                             // The first element is the array of UNET model names
                             val optionsArray = unetNameArray?.optJSONArray(0)
-
-                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
 
                             val unets = mutableListOf<String>()
                             if (optionsArray != null) {
                                 for (i in 0 until optionsArray.length()) {
                                     val unet = optionsArray.getString(i)
-                                    println("Found UNET: $unet")
                                     unets.add(unet)
                                 }
                             }
-                            println("Total UNETs found: ${unets.size}")
                             callback(unets)
                         } catch (e: Exception) {
-                            println("Failed to parse UNETs: ${e.message}")
-                            e.printStackTrace()
                             callback(emptyList())
                         }
                     } else {
-                        println("Server returned error when fetching UNETs: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -359,7 +383,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch VAEs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -368,8 +391,6 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body?.string() ?: "{}"
-                            println("VAE response: $responseBody")
-
                             val json = JSONObject(responseBody)
                             // Get the VAELoader object
                             val vaeLoaderJson = json.optJSONObject("VAELoader")
@@ -377,30 +398,21 @@ class ComfyUIClient(
                             val requiredJson = inputJson?.optJSONObject("required")
                             val vaeNameArray = requiredJson?.optJSONArray("vae_name")
 
-                            println("VAE parsing: VAELoader=${vaeLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, vae_name=${vaeNameArray != null}")
-
                             // The first element is the array of VAE model names
                             val optionsArray = vaeNameArray?.optJSONArray(0)
-
-                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
 
                             val vaes = mutableListOf<String>()
                             if (optionsArray != null) {
                                 for (i in 0 until optionsArray.length()) {
                                     val vae = optionsArray.getString(i)
-                                    println("Found VAE: $vae")
                                     vaes.add(vae)
                                 }
                             }
-                            println("Total VAEs found: ${vaes.size}")
                             callback(vaes)
                         } catch (e: Exception) {
-                            println("Failed to parse VAEs: ${e.message}")
-                            e.printStackTrace()
                             callback(emptyList())
                         }
                     } else {
-                        println("Server returned error when fetching VAEs: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -430,7 +442,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch CLIPs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -439,8 +450,6 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body?.string() ?: "{}"
-                            println("CLIP response: $responseBody")
-
                             val json = JSONObject(responseBody)
                             // Get the CLIPLoader object
                             val clipLoaderJson = json.optJSONObject("CLIPLoader")
@@ -448,30 +457,21 @@ class ComfyUIClient(
                             val requiredJson = inputJson?.optJSONObject("required")
                             val clipNameArray = requiredJson?.optJSONArray("clip_name")
 
-                            println("CLIP parsing: CLIPLoader=${clipLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, clip_name=${clipNameArray != null}")
-
                             // The first element is the array of CLIP model names
                             val optionsArray = clipNameArray?.optJSONArray(0)
-
-                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
 
                             val clips = mutableListOf<String>()
                             if (optionsArray != null) {
                                 for (i in 0 until optionsArray.length()) {
                                     val clip = optionsArray.getString(i)
-                                    println("Found CLIP: $clip")
                                     clips.add(clip)
                                 }
                             }
-                            println("Total CLIPs found: ${clips.size}")
                             callback(clips)
                         } catch (e: Exception) {
-                            println("Failed to parse CLIPs: ${e.message}")
-                            e.printStackTrace()
                             callback(emptyList())
                         }
                     } else {
-                        println("Server returned error when fetching CLIPs: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -501,7 +501,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch LoRAs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -510,8 +509,6 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body?.string() ?: "{}"
-                            println("LoRA response: $responseBody")
-
                             val json = JSONObject(responseBody)
                             // Get the LoraLoaderModelOnly object
                             val loraLoaderJson = json.optJSONObject("LoraLoaderModelOnly")
@@ -519,30 +516,21 @@ class ComfyUIClient(
                             val requiredJson = inputJson?.optJSONObject("required")
                             val loraNameArray = requiredJson?.optJSONArray("lora_name")
 
-                            println("LoRA parsing: LoraLoaderModelOnly=${loraLoaderJson != null}, input=${inputJson != null}, required=${requiredJson != null}, lora_name=${loraNameArray != null}")
-
                             // The first element is the array of LoRA model names
                             val optionsArray = loraNameArray?.optJSONArray(0)
-
-                            println("Options array: ${optionsArray != null}, length=${optionsArray?.length()}")
 
                             val loras = mutableListOf<String>()
                             if (optionsArray != null) {
                                 for (i in 0 until optionsArray.length()) {
                                     val lora = optionsArray.getString(i)
-                                    println("Found LoRA: $lora")
                                     loras.add(lora)
                                 }
                             }
-                            println("Total LoRAs found: ${loras.size}")
                             callback(loras)
                         } catch (e: Exception) {
-                            println("Failed to parse LoRAs: ${e.message}")
-                            e.printStackTrace()
                             callback(emptyList())
                         }
                     } else {
-                        println("Server returned error when fetching LoRAs: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -565,7 +553,7 @@ class ComfyUIClient(
         callback: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
         val baseUrl = getBaseUrl() ?: run {
-            callback(false, null, "No connection to server")
+            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
             return
         }
 
@@ -635,7 +623,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch all history: ${e.message}")
                 callback(null)
             }
 
@@ -646,11 +633,9 @@ class ComfyUIClient(
                             val historyJson = JSONObject(response.body?.string() ?: "{}")
                             callback(historyJson)
                         } catch (e: Exception) {
-                            println("Failed to parse all history: ${e.message}")
                             callback(null)
                         }
                     } else {
-                        println("Server returned error when fetching all history: ${response.code}")
                         callback(null)
                     }
                 }
@@ -684,7 +669,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch history: ${e.message}")
                 callback(null)
             }
 
@@ -695,11 +679,9 @@ class ComfyUIClient(
                             val historyJson = JSONObject(response.body?.string() ?: "{}")
                             callback(historyJson)
                         } catch (e: Exception) {
-                            println("Failed to parse history: ${e.message}")
                             callback(null)
                         }
                     } else {
-                        println("Server returned error when fetching history: ${response.code}")
                         callback(null)
                     }
                 }
@@ -737,7 +719,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch image: ${e.message}")
                 callback(null)
             }
 
@@ -753,11 +734,9 @@ class ComfyUIClient(
                                 callback(null)
                             }
                         } catch (e: Exception) {
-                            println("Failed to decode image: ${e.message}")
                             callback(null)
                         }
                     } else {
-                        println("Server returned error when fetching image: ${response.code}")
                         callback(null)
                     }
                 }
@@ -795,7 +774,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch video: ${e.message}")
                 callback(null)
             }
 
@@ -806,11 +784,9 @@ class ComfyUIClient(
                             val bytes = response.body?.bytes()
                             callback(bytes)
                         } catch (e: Exception) {
-                            println("Failed to read video bytes: ${e.message}")
                             callback(null)
                         }
                     } else {
-                        println("Server returned error when fetching video: ${response.code}")
                         callback(null)
                     }
                 }
@@ -839,19 +815,12 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to interrupt execution: ${e.message}")
                 callback(false)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful) {
-                        println("Execution interrupted successfully")
-                        callback(true)
-                    } else {
-                        println("Server returned error when interrupting: ${response.code}")
-                        callback(false)
-                    }
+                    callback(response.isSuccessful)
                 }
             }
         })
@@ -879,7 +848,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to fetch system stats: ${e.message}")
                 callback(null)
             }
 
@@ -890,11 +858,9 @@ class ComfyUIClient(
                             val statsJson = JSONObject(response.body?.string() ?: "{}")
                             callback(statsJson)
                         } catch (e: Exception) {
-                            println("Failed to parse system stats: ${e.message}")
                             callback(null)
                         }
                     } else {
-                        println("Server returned error when fetching system stats: ${response.code}")
                         callback(null)
                     }
                 }
@@ -927,19 +893,12 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to clear queue: ${e.message}")
                 callback(false)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful) {
-                        println("Queue cleared successfully")
-                        callback(true)
-                    } else {
-                        println("Server returned error when clearing queue: ${response.code}")
-                        callback(false)
-                    }
+                    callback(response.isSuccessful)
                 }
             }
         })
@@ -970,19 +929,12 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to clear history: ${e.message}")
                 callback(false)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful) {
-                        println("History cleared successfully")
-                        callback(true)
-                    } else {
-                        println("Server returned error when clearing history: ${response.code}")
-                        callback(false)
-                    }
+                    callback(response.isSuccessful)
                 }
             }
         })
@@ -1014,19 +966,12 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to delete history item: ${e.message}")
                 callback(false)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful) {
-                        println("History item deleted successfully: $promptId")
-                        callback(true)
-                    } else {
-                        println("Server returned error when deleting history item: ${response.code}")
-                        callback(false)
-                    }
+                    callback(response.isSuccessful)
                 }
             }
         })
@@ -1053,7 +998,7 @@ class ComfyUIClient(
         callback: (success: Boolean, filename: String?, errorMessage: String?) -> Unit
     ) {
         val baseUrl = getBaseUrl() ?: run {
-            callback(false, null, "No connection to server")
+            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
             return
         }
 
@@ -1078,7 +1023,6 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                println("Failed to upload image: ${e.message}")
                 callback(false, null, "Upload failed: ${e.message}")
             }
 
@@ -1088,15 +1032,11 @@ class ComfyUIClient(
                         try {
                             val json = JSONObject(response.body?.string() ?: "{}")
                             val savedFilename = json.optString("name", filename)
-                            println("Image uploaded successfully: $savedFilename")
                             callback(true, savedFilename, null)
                         } catch (e: Exception) {
-                            println("Failed to parse upload response: ${e.message}")
                             callback(false, null, "Failed to parse response: ${e.message}")
                         }
                     } else {
-                        val errorBody = response.body?.string() ?: "Unknown error"
-                        println("Server returned error when uploading: ${response.code} - $errorBody")
                         callback(false, null, "Server error: ${response.code}")
                     }
                 }

@@ -5,7 +5,7 @@
     "4": {
       "class_type": "CheckpointLoaderSimple",
       "inputs": {
-        "ckpt_name": "{{checkpoint}}"
+        "ckpt_name": "{{ckpt_name}}"
       }
     },
     "6": {
