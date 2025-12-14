@@ -231,40 +231,6 @@ fun WorkflowsSettingsScreen(
                     }
                 }
 
-                // Text-to-Video (UNET)
-                item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_ttv_unet))
-                }
-                if (uiState.ttvUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.ttvUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
-                }
-
-                // Image-to-Video (UNET)
-                item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_itv_unet))
-                }
-                if (uiState.itvUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.itvUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
-                }
-
                 // Inpainting (Checkpoint)
                 item {
                     WorkflowSectionHeader(stringResource(R.string.workflow_section_iip_checkpoint))
@@ -290,6 +256,40 @@ fun WorkflowsSettingsScreen(
                     item { EmptySection() }
                 } else {
                     items(uiState.iipUnetWorkflows) { workflow ->
+                        WorkflowListItem(
+                            workflow = workflow,
+                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
+                            onEdit = { viewModel.onEditWorkflow(it) },
+                            onDelete = { viewModel.onDeleteWorkflow(it) }
+                        )
+                    }
+                }
+
+                // Text-to-Video (UNET)
+                item {
+                    WorkflowSectionHeader(stringResource(R.string.workflow_section_ttv_unet))
+                }
+                if (uiState.ttvUnetWorkflows.isEmpty()) {
+                    item { EmptySection() }
+                } else {
+                    items(uiState.ttvUnetWorkflows) { workflow ->
+                        WorkflowListItem(
+                            workflow = workflow,
+                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
+                            onEdit = { viewModel.onEditWorkflow(it) },
+                            onDelete = { viewModel.onDeleteWorkflow(it) }
+                        )
+                    }
+                }
+
+                // Image-to-Video (UNET)
+                item {
+                    WorkflowSectionHeader(stringResource(R.string.workflow_section_itv_unet))
+                }
+                if (uiState.itvUnetWorkflows.isEmpty()) {
+                    item { EmptySection() }
+                } else {
+                    items(uiState.itvUnetWorkflows) { workflow ->
                         WorkflowListItem(
                             workflow = workflow,
                             onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
@@ -492,10 +492,10 @@ private fun UploadWorkflowDialog(
     val allTypes = listOf(
         WorkflowType.TTI_CHECKPOINT to stringResource(R.string.workflow_section_tti_checkpoint),
         WorkflowType.TTI_UNET to stringResource(R.string.workflow_section_tti_unet),
-        WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
-        WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet),
         WorkflowType.IIP_CHECKPOINT to stringResource(R.string.workflow_section_iip_checkpoint),
-        WorkflowType.IIP_UNET to stringResource(R.string.workflow_section_iip_unet)
+        WorkflowType.IIP_UNET to stringResource(R.string.workflow_section_iip_unet),
+        WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
+        WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet)
     )
 
     val selectedTypeName = allTypes.find { it.first == selectedType }?.second ?: ""

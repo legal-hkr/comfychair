@@ -243,10 +243,14 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val cachedFiles = listOf(
+                    // Text to Image
                     "last_generated_image.png",
-                    "last_generated_video.mp4",
+                    // Inpainting
                     "inpainting_last_preview.png",
                     "inpainting_last_source.png",
+                    // Text to Video
+                    "last_generated_video.mp4",
+                    // Image to Video
                     "image_to_video_last_source.png",
                     "image_to_video_last_generated.mp4"
                 )
@@ -285,8 +289,8 @@ class SettingsViewModel : ViewModel() {
             withContext(Dispatchers.IO) {
                 val prefsToDelete = listOf(
                     "TextToImageFragmentPrefs",
-                    "TextToVideoFragmentPrefs",
                     "InpaintingFragmentPrefs",
+                    "TextToVideoFragmentPrefs",
                     "ImageToVideoFragmentPrefs"
                 )
 
