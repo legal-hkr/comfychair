@@ -2,7 +2,6 @@ package sh.hnet.comfychair.ui.screens
 
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
 import android.os.Handler
@@ -82,7 +81,6 @@ import sh.hnet.comfychair.ui.components.ImageToVideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
-import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewMode
 import java.io.File
@@ -115,7 +113,6 @@ fun ImageToVideoScreen(
 
     // Video state
     var videoUri by remember { mutableStateOf<Uri?>(null) }
-    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val configSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -146,14 +143,20 @@ fun ImageToVideoScreen(
             imageToVideoViewModel.initialize(context, client)
         }
 
-        // Load last generated video
-        val videoFile = File(context.filesDir, "image_to_video_last_generated.mp4")
-        if (videoFile.exists()) {
-            videoUri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                videoFile
-            )
+        // Load last generated video only if not currently generating for this screen
+        val currentState = generationViewModel.generationState.value
+        val isGeneratingForThisScreen = currentState.isGenerating &&
+            currentState.ownerId == ImageToVideoViewModel.OWNER_ID
+
+        if (!isGeneratingForThisScreen) {
+            val videoFile = File(context.filesDir, "image_to_video_last_generated.mp4")
+            if (videoFile.exists()) {
+                videoUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    videoFile
+                )
+            }
         }
     }
 
@@ -176,7 +179,7 @@ fun ImageToVideoScreen(
         imageToVideoViewModel.startListening(
             generationViewModel,
             onPreviewBitmap = { bitmap ->
-                previewBitmap = bitmap
+                imageToVideoViewModel.onPreviewBitmapChange(bitmap)
             },
             onVideoFetched = { promptId ->
                 fetchVideoFromHistory(context, generationViewModel, promptId, "image_to_video_last_generated.mp4") { uri ->
@@ -193,7 +196,7 @@ fun ImageToVideoScreen(
     // Clear preview when not generating
     LaunchedEffect(generationState.isGenerating) {
         if (!generationState.isGenerating) {
-            previewBitmap = null
+            imageToVideoViewModel.clearPreview()
         }
     }
 
@@ -324,9 +327,9 @@ fun ImageToVideoScreen(
                 ImageToVideoViewMode.PREVIEW -> {
                     when {
                         // Show preview bitmap during generation
-                        previewBitmap != null -> {
+                        uiState.previewBitmap != null -> {
                             Image(
-                                bitmap = previewBitmap!!.asImageBitmap(),
+                                bitmap = uiState.previewBitmap!!.asImageBitmap(),
                                 contentDescription = stringResource(R.string.content_description_preview),
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
@@ -428,7 +431,6 @@ fun ImageToVideoScreen(
                             if (workflowJson != null) {
                                 // Clear preview and switch to preview view
                                 videoUri = null
-                                previewBitmap = null
                                 imageToVideoViewModel.clearPreview()
                                 imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
 
@@ -439,7 +441,7 @@ fun ImageToVideoScreen(
                                     if (!success) {
                                         Toast.makeText(
                                             context,
-                                            context.getString(R.string.error_failed_start_generation, errorMessage ?: "Unknown error"),
+                                            context.getString(R.string.error_failed_start_generation, errorMessage ?: context.getString(R.string.error_unknown)),
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }

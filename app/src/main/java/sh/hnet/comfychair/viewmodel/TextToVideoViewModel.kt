@@ -17,6 +17,9 @@ import sh.hnet.comfychair.WorkflowManager
  * UI state for the Text-to-Video screen
  */
 data class TextToVideoUiState(
+    // Preview state
+    val previewBitmap: android.graphics.Bitmap? = null,
+
     // Workflow selection
     val selectedWorkflow: String = "",
     val availableWorkflows: List<String> = emptyList(),
@@ -328,6 +331,14 @@ class TextToVideoViewModel : ViewModel() {
     fun onPromptChange(prompt: String) {
         _uiState.value = _uiState.value.copy(prompt = prompt)
         savePreferences()
+    }
+
+    fun onPreviewBitmapChange(bitmap: android.graphics.Bitmap) {
+        _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
+    }
+
+    fun clearPreview() {
+        _uiState.value = _uiState.value.copy(previewBitmap = null)
     }
 
     private fun validateDimension(value: String, name: String): String? {

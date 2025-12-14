@@ -266,6 +266,9 @@ fun TextToImageScreen(
                         if (textToImageViewModel.validateConfiguration()) {
                             val workflowJson = textToImageViewModel.prepareWorkflowJson()
                             if (workflowJson != null) {
+                                // Clear preview before starting generation
+                                textToImageViewModel.clearPreview()
+
                                 generationViewModel.startGeneration(
                                     workflowJson,
                                     TextToImageViewModel.OWNER_ID

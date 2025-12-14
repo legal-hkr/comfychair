@@ -2,7 +2,6 @@ package sh.hnet.comfychair.ui.screens
 
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
 import android.os.Handler
@@ -60,15 +59,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -110,7 +106,6 @@ fun TextToVideoScreen(
 
     // Video state
     var videoUri by remember { mutableStateOf<Uri?>(null) }
-    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val configSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -131,14 +126,20 @@ fun TextToVideoScreen(
             textToVideoViewModel.initialize(context, client)
         }
 
-        // Load last generated video
-        val videoFile = File(context.filesDir, "last_generated_video.mp4")
-        if (videoFile.exists()) {
-            videoUri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                videoFile
-            )
+        // Load last generated video only if not currently generating for this screen
+        val currentState = generationViewModel.generationState.value
+        val isGeneratingForThisScreen = currentState.isGenerating &&
+            currentState.ownerId == TextToVideoViewModel.OWNER_ID
+
+        if (!isGeneratingForThisScreen) {
+            val videoFile = File(context.filesDir, "last_generated_video.mp4")
+            if (videoFile.exists()) {
+                videoUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    videoFile
+                )
+            }
         }
     }
 
@@ -147,7 +148,7 @@ fun TextToVideoScreen(
         textToVideoViewModel.startListening(
             generationViewModel,
             onPreviewBitmap = { bitmap ->
-                previewBitmap = bitmap
+                textToVideoViewModel.onPreviewBitmapChange(bitmap)
             },
             onVideoFetched = { promptId ->
                 fetchVideoFromHistory(context, generationViewModel, promptId) { uri ->
@@ -164,7 +165,7 @@ fun TextToVideoScreen(
     // Clear preview when not generating
     LaunchedEffect(generationState.isGenerating) {
         if (!generationState.isGenerating) {
-            previewBitmap = null
+            textToVideoViewModel.clearPreview()
         }
     }
 
@@ -247,9 +248,9 @@ fun TextToVideoScreen(
         ) {
             when {
                 // Show preview bitmap during generation
-                previewBitmap != null -> {
+                uiState.previewBitmap != null -> {
                     Image(
-                        bitmap = previewBitmap!!.asImageBitmap(),
+                        bitmap = uiState.previewBitmap!!.asImageBitmap(),
                         contentDescription = stringResource(R.string.content_description_preview),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -323,6 +324,10 @@ fun TextToVideoScreen(
                         // Start generation (only if no generation is running)
                         val workflowJson = textToVideoViewModel.prepareWorkflow()
                         if (workflowJson != null) {
+                            // Clear preview before starting generation
+                            videoUri = null
+                            textToVideoViewModel.clearPreview()
+
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 TextToVideoViewModel.OWNER_ID
@@ -330,7 +335,7 @@ fun TextToVideoScreen(
                                 if (!success) {
                                     Toast.makeText(
                                         context,
-                                        context.getString(R.string.error_failed_start_generation, errorMessage ?: "Unknown error"),
+                                        context.getString(R.string.error_failed_start_generation, errorMessage ?: context.getString(R.string.error_unknown)),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }

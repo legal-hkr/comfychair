@@ -356,6 +356,13 @@ class TextToImageViewModel : ViewModel() {
     }
 
     /**
+     * Clear the preview image when starting a new generation.
+     */
+    fun clearPreview() {
+        _uiState.value = _uiState.value.copy(currentBitmap = null)
+    }
+
+    /**
      * Update the current bitmap with file info for metadata extraction.
      */
     private fun setCurrentImage(bitmap: Bitmap, filename: String, subfolder: String, type: String) {
