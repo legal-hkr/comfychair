@@ -304,7 +304,7 @@ fun ImageToVideoScreen(
                             Icon(
                                 painter = painterResource(R.drawable.ic_launcher_foreground_monochrome),
                                 contentDescription = null,
-                                modifier = Modifier.size(192.dp),
+                                modifier = Modifier.size(256.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                             Text(
@@ -339,7 +339,7 @@ fun ImageToVideoScreen(
                             Icon(
                                 painter = painterResource(R.drawable.ic_launcher_foreground_monochrome),
                                 contentDescription = stringResource(R.string.placeholder_video_description),
-                                modifier = Modifier.size(192.dp),
+                                modifier = Modifier.size(256.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         }

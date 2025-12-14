@@ -246,7 +246,9 @@ class SettingsViewModel : ViewModel() {
                     "last_generated_image.png",
                     "last_generated_video.mp4",
                     "inpainting_last_preview.png",
-                    "inpainting_last_source.png"
+                    "inpainting_last_source.png",
+                    "image_to_video_last_source.png",
+                    "image_to_video_last_generated.mp4"
                 )
 
                 cachedFiles.forEach { filename ->
@@ -284,7 +286,8 @@ class SettingsViewModel : ViewModel() {
                 val prefsToDelete = listOf(
                     "TextToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
-                    "InpaintingFragmentPrefs"
+                    "InpaintingFragmentPrefs",
+                    "ImageToVideoFragmentPrefs"
                 )
 
                 prefsToDelete.forEach { prefsName ->
