@@ -265,4 +265,24 @@
     <string name="workflow_name_error_too_long">Name must be 40 characters or less</string>
     <string name="workflow_name_error_invalid_chars">Name can only contain letters, numbers, spaces, underscores, dashes, and brackets</string>
     <string name="workflow_description_error_too_long">Description must be 120 characters or less</string>
+
+    <!-- Metadata viewer strings -->
+    <string name="show_metadata">Info</string>
+    <string name="generation_parameters">Generation parameters</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="copy_to_clipboard">Copy to clipboard</string>
+    <string name="metadata_prompt">Prompt</string>
+    <string name="metadata_negative_prompt">Negative prompt</string>
+    <string name="metadata_model">Model</string>
+    <string name="metadata_lora" translatable="false">LoRA</string>
+    <string name="metadata_seed">Seed</string>
+    <string name="metadata_steps">Steps</string>
+    <string name="metadata_cfg" translatable="false">CFG</string>
+    <string name="metadata_sampler">Sampler</string>
+    <string name="metadata_scheduler">Scheduler</string>
+    <string name="metadata_size">Size</string>
+    <string name="metadata_vae" translatable="false">VAE</string>
+    <string name="metadata_unet" translatable="false">UNET</string>
+    <string name="metadata_not_available">Metadata not available</string>
+    <string name="metadata_loading">Loading metadata…</string>
 </resources>

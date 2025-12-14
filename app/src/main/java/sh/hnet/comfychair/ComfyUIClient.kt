@@ -745,6 +745,56 @@ class ComfyUIClient(
     }
 
     /**
+     * Fetch raw bytes from the ComfyUI server without decoding.
+     * Used for metadata extraction where we need the original file bytes.
+     *
+     * @param filename The filename of the file
+     * @param subfolder The subfolder where the file is stored
+     * @param type The file type (usually "output" or "temp")
+     * @param callback Called with the result:
+     *                 - bytes: The raw file bytes, or null on error
+     */
+    fun fetchRawBytes(
+        filename: String,
+        subfolder: String = "",
+        type: String = "output",
+        callback: (bytes: ByteArray?) -> Unit
+    ) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(null)
+            return
+        }
+
+        val url = "$baseUrl/view?filename=$filename&subfolder=$subfolder&type=$type"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val bytes = response.body?.bytes()
+                            callback(bytes)
+                        } catch (e: Exception) {
+                            callback(null)
+                        }
+                    } else {
+                        callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Fetch a generated video from the ComfyUI server
      * Downloads the video as raw bytes
      *

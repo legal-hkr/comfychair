@@ -24,6 +24,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.util.GenerationMetadata
+import sh.hnet.comfychair.util.MetadataParser
+import sh.hnet.comfychair.util.Mp4MetadataExtractor
+import sh.hnet.comfychair.util.PngMetadataExtractor
 import java.io.File
 
 /**
@@ -137,6 +141,14 @@ class MediaViewerViewModel : ViewModel() {
     private val _events = MutableSharedFlow<MediaViewerEvent>()
     val events: SharedFlow<MediaViewerEvent> = _events.asSharedFlow()
 
+    // Metadata state
+    private val cachedMetadata = mutableMapOf<Int, GenerationMetadata?>()
+    private val _currentMetadata = MutableStateFlow<GenerationMetadata?>(null)
+    val currentMetadata: StateFlow<GenerationMetadata?> = _currentMetadata.asStateFlow()
+
+    private val _isLoadingMetadata = MutableStateFlow(false)
+    val isLoadingMetadata: StateFlow<Boolean> = _isLoadingMetadata.asStateFlow()
+
     fun initialize(
         context: Context,
         hostname: String,
@@ -188,6 +200,9 @@ class MediaViewerViewModel : ViewModel() {
     fun setCurrentIndex(index: Int) {
         val state = _uiState.value
         if (index < 0 || index >= state.items.size) return
+
+        // Clear metadata when navigating
+        clearCurrentMetadata()
 
         _uiState.value = state.copy(
             currentIndex = index,
@@ -297,6 +312,59 @@ class MediaViewerViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Load metadata for the current item.
+     * Extracts generation parameters from PNG/MP4 metadata.
+     */
+    fun loadMetadata() {
+        val state = _uiState.value
+        val item = state.currentItem ?: return
+        val client = comfyUIClient ?: return
+        val index = state.currentIndex
+
+        // Check cache first
+        if (cachedMetadata.containsKey(index)) {
+            _currentMetadata.value = cachedMetadata[index]
+            return
+        }
+
+        _isLoadingMetadata.value = true
+
+        viewModelScope.launch {
+            val metadata = withContext(Dispatchers.IO) {
+                // Fetch raw bytes to preserve metadata
+                val bytes = kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes ->
+                        continuation.resumeWith(Result.success(rawBytes))
+                    }
+                }
+
+                if (bytes == null) return@withContext null
+
+                // Extract metadata based on file type
+                val jsonString = if (item.isVideo) {
+                    Mp4MetadataExtractor.extractPromptMetadata(bytes)
+                } else {
+                    PngMetadataExtractor.extractPromptMetadata(bytes)
+                }
+
+                // Parse the workflow JSON
+                jsonString?.let { MetadataParser.parseWorkflowJson(it) }
+            }
+
+            cachedMetadata[index] = metadata
+            _currentMetadata.value = metadata
+            _isLoadingMetadata.value = false
+        }
+    }
+
+    /**
+     * Clear metadata when navigating to a different item.
+     */
+    private fun clearCurrentMetadata() {
+        _currentMetadata.value = null
+    }
+
     private suspend fun prefetchAdjacentItems() {
         val state = _uiState.value
         val client = comfyUIClient ?: return
@@ -371,6 +439,8 @@ class MediaViewerViewModel : ViewModel() {
                     // IMPORTANT: Clear all caches because indices have shifted
                     // The cache uses integer indices as keys, so after deletion
                     // all indices >= deletedIndex are now wrong
+                    cachedMetadata.clear()
+                    _currentMetadata.value = null
                     _uiState.value = currentState.copy(
                         items = currentItems,
                         currentIndex = newIndex,

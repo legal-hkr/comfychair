@@ -250,4 +250,20 @@
     <string name="workflow_name_error_too_long">Le nom doit contenir 40 caractères maximum</string>
     <string name="workflow_name_error_invalid_chars">Le nom ne peut contenir que des lettres, des chiffres, des espaces, des tirets bas, des tirets et des crochets</string>
     <string name="workflow_description_error_too_long">La description doit contenir 120 caractères maximum</string>
+
+    <!-- Metadata viewer strings -->
+    <string name="show_metadata">Info</string>
+    <string name="generation_parameters">Paramètres de génération</string>
+    <string name="copied_to_clipboard">Copié dans le presse-papiers</string>
+    <string name="copy_to_clipboard">Copier dans le presse-papiers</string>
+    <string name="metadata_prompt">Prompt</string>
+    <string name="metadata_negative_prompt">Prompt négatif</string>
+    <string name="metadata_model">Modèle</string>
+    <string name="metadata_seed">Seed</string>
+    <string name="metadata_steps">Étapes</string>
+    <string name="metadata_sampler">Sampler</string>
+    <string name="metadata_scheduler">Scheduler</string>
+    <string name="metadata_size">Taille</string>
+    <string name="metadata_not_available">Métadonnées non disponibles</string>
+    <string name="metadata_loading">Chargement des métadonnées…</string>
 </resources>

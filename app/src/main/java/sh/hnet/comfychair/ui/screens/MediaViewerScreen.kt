@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,7 +37,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.ImageViewer
+import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.VideoScaleMode
 import sh.hnet.comfychair.viewmodel.MediaViewerEvent
@@ -62,7 +67,19 @@ fun MediaViewerScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val currentMetadata by viewModel.currentMetadata.collectAsState()
+    val isLoadingMetadata by viewModel.isLoadingMetadata.collectAsState()
     val scope = rememberCoroutineScope()
+
+    // Metadata bottom sheet state
+    var showMetadataSheet by remember { mutableStateOf(false) }
+
+    // Load metadata when sheet is shown
+    LaunchedEffect(showMetadataSheet) {
+        if (showMetadataSheet) {
+            viewModel.loadMetadata()
+        }
+    }
 
     // Handle events
     LaunchedEffect(Unit) {
@@ -260,6 +277,13 @@ fun MediaViewerScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Info button
+                ActionButton(
+                    icon = Icons.Outlined.Info,
+                    label = stringResource(R.string.show_metadata),
+                    onClick = { showMetadataSheet = true }
+                )
+
                 // Delete button (only in gallery mode)
                 if (uiState.mode == ViewerMode.GALLERY) {
                     ActionButton(
@@ -283,6 +307,15 @@ fun MediaViewerScreen(
                     onClick = { viewModel.shareCurrentItem() }
                 )
             }
+        }
+
+        // Metadata bottom sheet
+        if (showMetadataSheet) {
+            MetadataBottomSheet(
+                metadata = currentMetadata,
+                isLoading = isLoadingMetadata,
+                onDismiss = { showMetadataSheet = false }
+            )
         }
     }
 }
