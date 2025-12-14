@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -126,10 +127,20 @@ fun WorkflowGraphCanvas(
                         val event = awaitPointerEvent()
                         val zoom = event.calculateZoom()
                         val pan = event.calculatePan()
+                        val centroid = event.calculateCentroid()
 
                         if (zoom != 1f || pan != Offset.Zero) {
-                            val newScale = (currentScaleState.value * zoom).coerceIn(0.2f, 3f)
-                            val newOffset = currentOffsetState.value + pan
+                            val oldScale = currentScaleState.value
+                            val newScale = (oldScale * zoom).coerceIn(0.2f, 3f)
+                            val oldOffset = currentOffsetState.value
+
+                            // When zooming, adjust offset to keep the pinch centroid stationary
+                            // The point under the centroid in graph coords should stay under the centroid
+                            val zoomChange = newScale / oldScale
+                            val newOffset = Offset(
+                                x = centroid.x - (centroid.x - oldOffset.x) * zoomChange + pan.x,
+                                y = centroid.y - (centroid.y - oldOffset.y) * zoomChange + pan.y
+                            )
                             onTransform(newScale, newOffset)
                         }
 

@@ -327,19 +327,42 @@ class WorkflowPreviewerViewModel : ViewModel() {
     }
 
     /**
-     * Zoom in by 20%
+     * Zoom in by 20%, centered on the canvas center
      */
     fun zoomIn() {
-        val currentScale = _uiState.value.scale
-        setScale(currentScale * 1.2f)
+        zoomTowardCenter(1.2f)
     }
 
     /**
-     * Zoom out by 20%
+     * Zoom out by 20%, centered on the canvas center
      */
     fun zoomOut() {
-        val currentScale = _uiState.value.scale
-        setScale(currentScale / 1.2f)
+        zoomTowardCenter(1f / 1.2f)
+    }
+
+    /**
+     * Zoom by a factor while keeping the canvas center stationary
+     */
+    private fun zoomTowardCenter(zoomFactor: Float) {
+        val oldScale = _uiState.value.scale
+        val newScale = (oldScale * zoomFactor).coerceIn(0.2f, 3f)
+        val oldOffset = _uiState.value.offset
+
+        // Center of the canvas
+        val centerX = canvasWidth / 2
+        val centerY = canvasHeight / 2
+
+        // Adjust offset to keep the center point stationary
+        val scaleChange = newScale / oldScale
+        val newOffset = Offset(
+            x = centerX - (centerX - oldOffset.x) * scaleChange,
+            y = centerY - (centerY - oldOffset.y) * scaleChange
+        )
+
+        _uiState.value = _uiState.value.copy(
+            scale = newScale,
+            offset = newOffset
+        )
     }
 
     /**

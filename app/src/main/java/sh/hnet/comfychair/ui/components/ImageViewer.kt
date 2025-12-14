@@ -203,8 +203,10 @@ fun ImageViewer(
                                         val pan = change.position - change.previousPosition
                                         if (pan != Offset.Zero) {
                                             wasPanOrZoom = true
+                                            // Scale the pan delta to match the zoom level
+                                            // (translation is in pre-scale coordinates)
                                             offset = constrainOffset(
-                                                Offset(offset.x + pan.x, offset.y + pan.y),
+                                                Offset(offset.x + pan.x * scale, offset.y + pan.y * scale),
                                                 scale
                                             )
                                             change.consume()
