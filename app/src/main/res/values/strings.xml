@@ -47,6 +47,11 @@
     <string name="clear_queue_button">Clear queue</string>
     <string name="clear_history_button">Clear history</string>
 
+    <!-- Resource usage strings -->
+    <string name="ram_usage_title">RAM</string>
+    <string name="gpu_usage_title">GPU</string>
+    <string name="resource_usage_format">%1$.2f GB / %2$.2f GB used</string>
+
     <!-- Toast messages -->
     <string name="queue_cleared_success">Queue cleared successfully</string>
     <string name="queue_cleared_failed">Failed to clear queue</string>

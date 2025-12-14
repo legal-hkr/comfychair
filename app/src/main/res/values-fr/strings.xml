@@ -43,6 +43,11 @@
     <string name="clear_queue_button">Vider la file d\'attente</string>
     <string name="clear_history_button">Effacer l\'historique</string>
 
+    <!-- Resource usage strings -->
+    <string name="ram_usage_title">RAM</string>
+    <string name="gpu_usage_title">GPU</string>
+    <string name="resource_usage_format">%1$.2f Go / %2$.2f Go utilisés</string>
+
     <!-- Toast messages -->
     <string name="queue_cleared_success">File d\'attente vidée avec succès</string>
     <string name="queue_cleared_failed">Échec du vidage de la file d\'attente</string>

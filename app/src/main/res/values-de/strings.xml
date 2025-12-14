@@ -43,6 +43,11 @@
     <string name="clear_queue_button">Warteschlange leeren</string>
     <string name="clear_history_button">Verlauf löschen</string>
 
+    <!-- Resource usage strings -->
+    <string name="ram_usage_title">RAM</string>
+    <string name="gpu_usage_title">GPU</string>
+    <string name="resource_usage_format">%1$.2f GB / %2$.2f GB belegt</string>
+
     <!-- Toast messages -->
     <string name="queue_cleared_success">Warteschlange erfolgreich geleert</string>
     <string name="queue_cleared_failed">Warteschlange konnte nicht geleert werden</string>

@@ -4,12 +4,15 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -61,6 +64,7 @@ sealed class SettingsEvent {
 class SettingsViewModel : ViewModel() {
 
     private var comfyUIClient: ComfyUIClient? = null
+    private var resourceRefreshJob: Job? = null
 
     private val _serverSettingsState = MutableStateFlow(ServerSettingsUiState())
     val serverSettingsState: StateFlow<ServerSettingsUiState> = _serverSettingsState.asStateFlow()
@@ -82,9 +86,15 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun loadSystemStats() {
+        loadSystemStats(showLoading = true)
+    }
+
+    private fun loadSystemStats(showLoading: Boolean) {
         val client = comfyUIClient ?: return
 
-        _serverSettingsState.value = _serverSettingsState.value.copy(isLoadingStats = true)
+        if (showLoading) {
+            _serverSettingsState.value = _serverSettingsState.value.copy(isLoadingStats = true)
+        }
 
         viewModelScope.launch {
             val stats = withContext(Dispatchers.IO) {
@@ -107,6 +117,27 @@ class SettingsViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    /**
+     * Start auto-refreshing resource stats every 2 seconds
+     */
+    fun startResourceAutoRefresh() {
+        stopResourceAutoRefresh()
+        resourceRefreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(2000)
+                loadSystemStats(showLoading = false)
+            }
+        }
+    }
+
+    /**
+     * Stop auto-refreshing resource stats
+     */
+    fun stopResourceAutoRefresh() {
+        resourceRefreshJob?.cancel()
+        resourceRefreshJob = null
     }
 
     private fun parseSystemStats(statsJson: JSONObject): SystemStats {
@@ -134,7 +165,9 @@ class SettingsViewModel : ViewModel() {
 
                     // Extract GPU name from full name string
                     // Format: "cuda:0 NVIDIA GeForce RTX 4080 SUPER : cudaMallocAsync"
-                    val gpuName = name.split(":").getOrNull(1)?.trim() ?: name
+                    val gpuNameRaw = name.split(":").getOrNull(1)?.trim() ?: name
+                    // Remove leading device index (e.g., "0 " or "1 ")
+                    val gpuName = gpuNameRaw.replaceFirst(Regex("^\\d+\\s+"), "")
 
                     gpus.add(GpuInfo(
                         name = gpuName,
@@ -271,6 +304,7 @@ class SettingsViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
+        stopResourceAutoRefresh()
         comfyUIClient?.shutdown()
     }
 }
