@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.InvertColors
-import androidx.compose.material.icons.filled.Slideshow
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.FilledIconButton
@@ -26,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -34,10 +31,11 @@ import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
- * Main navigation bar for the app with 3 destinations:
+ * Main navigation bar for the app with 4 destinations:
  * - Text-to-Image (icon button)
- * - Text-to-Video (icon button)
  * - Inpainting (icon button)
+ * - Text-to-Video (icon button)
+ * - Image-to-Video (icon button)
  *
  * FAB launches Gallery activity.
  *
@@ -70,7 +68,7 @@ fun MainNavigationBar(
                     )
                 ) {
                     Icon(
-                        Icons.Filled.Image,
+                        painter = painterResource(R.drawable.text_to_image_24px),
                         contentDescription = stringResource(R.string.nav_text_to_image)
                     )
                 }
@@ -83,8 +81,37 @@ fun MainNavigationBar(
                     }
                 }) {
                     Icon(
-                        Icons.Filled.Image,
+                        painter = painterResource(R.drawable.text_to_image_24px),
                         contentDescription = stringResource(R.string.nav_text_to_image),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            // Inpainting
+            if (currentRoute == MainRoute.Inpainting.route) {
+                FilledIconButton(
+                    onClick = { },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.inpainting_24px),
+                        contentDescription = stringResource(R.string.nav_inpainting)
+                    )
+                }
+            } else {
+                IconButton(onClick = {
+                    navController.navigate(MainRoute.Inpainting.route) {
+                        popUpTo(MainRoute.TextToImage.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.inpainting_24px),
+                        contentDescription = stringResource(R.string.nav_inpainting),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -99,7 +126,7 @@ fun MainNavigationBar(
                     )
                 ) {
                     Icon(
-                        Icons.Filled.VideoLibrary,
+                        painter = painterResource(R.drawable.text_to_video_24px),
                         contentDescription = stringResource(R.string.nav_text_to_video)
                     )
                 }
@@ -112,7 +139,7 @@ fun MainNavigationBar(
                     }
                 }) {
                     Icon(
-                        Icons.Filled.VideoLibrary,
+                        painter = painterResource(R.drawable.text_to_video_24px),
                         contentDescription = stringResource(R.string.nav_text_to_video),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -128,7 +155,7 @@ fun MainNavigationBar(
                     )
                 ) {
                     Icon(
-                        Icons.Filled.Slideshow,
+                        painter = painterResource(R.drawable.image_to_video_24px),
                         contentDescription = stringResource(R.string.nav_image_to_video)
                     )
                 }
@@ -141,37 +168,8 @@ fun MainNavigationBar(
                     }
                 }) {
                     Icon(
-                        Icons.Filled.Slideshow,
+                        painter = painterResource(R.drawable.image_to_video_24px),
                         contentDescription = stringResource(R.string.nav_image_to_video),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            // Inpainting
-            if (currentRoute == MainRoute.Inpainting.route) {
-                FilledIconButton(
-                    onClick = { },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Icon(
-                        Icons.Filled.InvertColors,
-                        contentDescription = stringResource(R.string.nav_inpainting)
-                    )
-                }
-            } else {
-                IconButton(onClick = {
-                    navController.navigate(MainRoute.Inpainting.route) {
-                        popUpTo(MainRoute.TextToImage.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }) {
-                    Icon(
-                        Icons.Filled.InvertColors,
-                        contentDescription = stringResource(R.string.nav_inpainting),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
