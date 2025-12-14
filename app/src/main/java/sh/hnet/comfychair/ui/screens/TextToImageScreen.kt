@@ -182,7 +182,15 @@ fun TextToImageScreen(
                 .clickable(enabled = uiState.currentBitmap != null) {
                     // Launch MediaViewer for single image
                     uiState.currentBitmap?.let { bitmap ->
-                        val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                        val intent = MediaViewerActivity.createSingleImageIntent(
+                            context = context,
+                            bitmap = bitmap,
+                            hostname = generationViewModel.getHostname(),
+                            port = generationViewModel.getPort(),
+                            filename = uiState.currentImageFilename,
+                            subfolder = uiState.currentImageSubfolder,
+                            type = uiState.currentImageType
+                        )
                         context.startActivity(intent)
                     }
                 },

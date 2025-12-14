@@ -63,6 +63,11 @@ data class InpaintingUiState(
     val brushSize: Float = 50f,
     val isEraserMode: Boolean = false,
 
+    // Preview image file info (for metadata extraction)
+    val previewImageFilename: String? = null,
+    val previewImageSubfolder: String? = null,
+    val previewImageType: String? = null,
+
     // Configuration mode
     val configMode: InpaintingConfigMode = InpaintingConfigMode.CHECKPOINT,
 
@@ -693,6 +698,9 @@ class InpaintingViewModel : ViewModel() {
 
                                 _uiState.value = _uiState.value.copy(
                                     previewImage = bitmap,
+                                    previewImageFilename = filename,
+                                    previewImageSubfolder = subfolder,
+                                    previewImageType = type,
                                     viewMode = InpaintingViewMode.PREVIEW
                                 )
                             }

@@ -271,11 +271,17 @@ fun ImageToVideoScreen(
                         when (uiState.viewMode) {
                             ImageToVideoViewMode.PREVIEW -> {
                                 videoUri?.let { uri ->
-                                    val intent = MediaViewerActivity.createSingleVideoIntent(context, uri)
+                                    val intent = MediaViewerActivity.createSingleVideoIntent(
+                                        context = context,
+                                        videoUri = uri,
+                                        hostname = generationViewModel.getHostname(),
+                                        port = generationViewModel.getPort()
+                                    )
                                     context.startActivity(intent)
                                 }
                             }
                             ImageToVideoViewMode.SOURCE -> {
+                                // Source image is user-provided, no ComfyUI metadata
                                 uiState.sourceImage?.let { bitmap ->
                                     val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
                                     context.startActivity(intent)

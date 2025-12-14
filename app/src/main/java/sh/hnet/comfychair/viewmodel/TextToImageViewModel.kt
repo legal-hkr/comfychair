@@ -57,6 +57,11 @@ data class TextToImageUiState(
     // Generated image
     val currentBitmap: Bitmap? = null,
 
+    // Current image file info (for metadata extraction)
+    val currentImageFilename: String? = null,
+    val currentImageSubfolder: String? = null,
+    val currentImageType: String? = null,
+
     // Loading states
     val isLoadingModels: Boolean = false,
     val modelsLoaded: Boolean = false,
@@ -350,6 +355,19 @@ class TextToImageViewModel : ViewModel() {
         bitmap?.let { saveLastGeneratedImage(it) }
     }
 
+    /**
+     * Update the current bitmap with file info for metadata extraction.
+     */
+    private fun setCurrentImage(bitmap: Bitmap, filename: String, subfolder: String, type: String) {
+        _uiState.value = _uiState.value.copy(
+            currentBitmap = bitmap,
+            currentImageFilename = filename,
+            currentImageSubfolder = subfolder,
+            currentImageType = type
+        )
+        saveLastGeneratedImage(bitmap)
+    }
+
     // Event listener management
 
     /**
@@ -495,7 +513,7 @@ class TextToImageViewModel : ViewModel() {
                             client.fetchImage(filename, subfolder, type) { bitmap ->
                                 viewModelScope.launch {
                                     if (bitmap != null) {
-                                        onCurrentBitmapChange(bitmap)
+                                        setCurrentImage(bitmap, filename, subfolder, type)
                                     }
                                     onComplete()
                                 }

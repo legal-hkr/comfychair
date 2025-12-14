@@ -170,12 +170,12 @@ class MediaViewerViewModel : ViewModel() {
             isLoading = mode == ViewerMode.GALLERY && items.isNotEmpty()
         )
 
-        // Create client for gallery mode and test connection to set protocol
-        if (mode == ViewerMode.GALLERY && hostname.isNotEmpty()) {
+        // Create client when hostname is provided (for gallery mode or single mode with server info)
+        if (hostname.isNotEmpty()) {
             val client = ComfyUIClient(context.applicationContext, hostname, port)
             comfyUIClient = client
 
-            // Test connection to establish protocol, then load items
+            // Test connection to establish protocol
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     kotlin.coroutines.suspendCoroutine { continuation ->
@@ -185,8 +185,8 @@ class MediaViewerViewModel : ViewModel() {
                     }
                 }
 
-                // Now load current item
-                if (items.isNotEmpty()) {
+                // For gallery mode, load current item after connection
+                if (mode == ViewerMode.GALLERY && items.isNotEmpty()) {
                     loadCurrentItem()
                 }
             }
@@ -315,12 +315,15 @@ class MediaViewerViewModel : ViewModel() {
     /**
      * Load metadata for the current item.
      * Extracts generation parameters from PNG/MP4 metadata.
+     *
+     * For SINGLE mode videos, reads metadata from local file.
+     * For items with server file info, fetches from server.
      */
     fun loadMetadata() {
         val state = _uiState.value
         val item = state.currentItem ?: return
-        val client = comfyUIClient ?: return
         val index = state.currentIndex
+        val context = applicationContext ?: return
 
         // Check cache first
         if (cachedMetadata.containsKey(index)) {
@@ -332,11 +335,27 @@ class MediaViewerViewModel : ViewModel() {
 
         viewModelScope.launch {
             val metadata = withContext(Dispatchers.IO) {
-                // Fetch raw bytes to preserve metadata
-                val bytes = kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes ->
-                        continuation.resumeWith(Result.success(rawBytes))
+                val bytes: ByteArray? = when {
+                    // For SINGLE mode videos, try to read from local file first
+                    state.mode == ViewerMode.SINGLE && item.isVideo && state.currentVideoUri != null -> {
+                        try {
+                            context.contentResolver.openInputStream(state.currentVideoUri)?.use {
+                                it.readBytes()
+                            }
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
+                    // For items with server file info and a client, fetch from server
+                    item.filename.isNotEmpty() && comfyUIClient != null -> {
+                        kotlin.coroutines.suspendCoroutine { continuation ->
+                            comfyUIClient!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes ->
+                                continuation.resumeWith(Result.success(rawBytes))
+                            }
+                        }
+                    }
+                    // No source available
+                    else -> null
                 }
 
                 if (bytes == null) return@withContext null

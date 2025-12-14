@@ -212,7 +212,15 @@ fun InpaintingScreen(
                         if (uiState.viewMode == InpaintingViewMode.PREVIEW && uiState.previewImage != null) {
                             // Launch MediaViewer for single image
                             val bitmap = uiState.previewImage!!
-                            val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                            val intent = MediaViewerActivity.createSingleImageIntent(
+                                context = context,
+                                bitmap = bitmap,
+                                hostname = generationViewModel.getHostname(),
+                                port = generationViewModel.getPort(),
+                                filename = uiState.previewImageFilename,
+                                subfolder = uiState.previewImageSubfolder,
+                                type = uiState.previewImageType
+                            )
                             context.startActivity(intent)
                         }
                     }

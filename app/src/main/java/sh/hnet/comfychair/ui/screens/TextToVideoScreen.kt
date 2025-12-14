@@ -234,7 +234,12 @@ fun TextToVideoScreen(
                 .clickable(enabled = videoUri != null) {
                     // Launch MediaViewer for single video
                     videoUri?.let { uri ->
-                        val intent = MediaViewerActivity.createSingleVideoIntent(context, uri)
+                        val intent = MediaViewerActivity.createSingleVideoIntent(
+                            context = context,
+                            videoUri = uri,
+                            hostname = generationViewModel.getHostname(),
+                            port = generationViewModel.getPort()
+                        )
                         context.startActivity(intent)
                     }
                 },

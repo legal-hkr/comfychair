@@ -54,6 +54,11 @@ class MediaViewerActivity : ComponentActivity() {
         const val EXTRA_BITMAP_PATH = "bitmap_path"
         const val EXTRA_VIDEO_URI = "video_uri"
 
+        // Single mode file info (for metadata extraction)
+        const val EXTRA_FILENAME = "filename"
+        const val EXTRA_SUBFOLDER = "subfolder"
+        const val EXTRA_TYPE = "type"
+
         // Result
         const val RESULT_ITEM_DELETED = "item_deleted"
 
@@ -78,10 +83,21 @@ class MediaViewerActivity : ComponentActivity() {
 
         /**
          * Create intent for single image mode (from generation screen preview)
+         *
+         * @param hostname Server hostname for metadata extraction (optional)
+         * @param port Server port for metadata extraction (optional)
+         * @param filename Server filename for metadata extraction (optional)
+         * @param subfolder Server subfolder for metadata extraction (optional)
+         * @param type Server type for metadata extraction (optional)
          */
         fun createSingleImageIntent(
             context: Context,
-            bitmap: Bitmap
+            bitmap: Bitmap,
+            hostname: String? = null,
+            port: Int? = null,
+            filename: String? = null,
+            subfolder: String? = null,
+            type: String? = null
         ): Intent {
             // Save bitmap to temp file for passing to activity
             val tempFile = File(context.cacheDir, "viewer_temp_${System.currentTimeMillis()}.png")
@@ -93,20 +109,40 @@ class MediaViewerActivity : ComponentActivity() {
                 putExtra(EXTRA_MODE, MODE_SINGLE)
                 putExtra(EXTRA_IS_VIDEO, false)
                 putExtra(EXTRA_BITMAP_PATH, tempFile.absolutePath)
+                // Add server and file info for metadata extraction
+                hostname?.let { putExtra(EXTRA_HOSTNAME, it) }
+                port?.let { putExtra(EXTRA_PORT, it) }
+                filename?.let { putExtra(EXTRA_FILENAME, it) }
+                subfolder?.let { putExtra(EXTRA_SUBFOLDER, it) }
+                type?.let { putExtra(EXTRA_TYPE, it) }
             }
         }
 
         /**
          * Create intent for single video mode (from generation screen preview)
+         *
+         * Note: For videos, metadata can be extracted directly from the video file,
+         * so server info is optional but can be provided for consistency.
          */
         fun createSingleVideoIntent(
             context: Context,
-            videoUri: Uri
+            videoUri: Uri,
+            hostname: String? = null,
+            port: Int? = null,
+            filename: String? = null,
+            subfolder: String? = null,
+            type: String? = null
         ): Intent {
             return Intent(context, MediaViewerActivity::class.java).apply {
                 putExtra(EXTRA_MODE, MODE_SINGLE)
                 putExtra(EXTRA_IS_VIDEO, true)
                 putExtra(EXTRA_VIDEO_URI, videoUri.toString())
+                // Add server and file info for metadata extraction
+                hostname?.let { putExtra(EXTRA_HOSTNAME, it) }
+                port?.let { putExtra(EXTRA_PORT, it) }
+                filename?.let { putExtra(EXTRA_FILENAME, it) }
+                subfolder?.let { putExtra(EXTRA_SUBFOLDER, it) }
+                type?.let { putExtra(EXTRA_TYPE, it) }
             }
         }
     }
@@ -176,24 +212,31 @@ class MediaViewerActivity : ComponentActivity() {
     private fun initializeSingleMode() {
         val isVideo = intent.getBooleanExtra(EXTRA_IS_VIDEO, false)
 
+        // Extract server and file info for metadata extraction
+        val hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: ""
+        val port = intent.getIntExtra(EXTRA_PORT, 0)
+        val filename = intent.getStringExtra(EXTRA_FILENAME) ?: ""
+        val subfolder = intent.getStringExtra(EXTRA_SUBFOLDER) ?: ""
+        val type = intent.getStringExtra(EXTRA_TYPE) ?: "output"
+
         if (isVideo) {
             val videoUriString = intent.getStringExtra(EXTRA_VIDEO_URI)
             val videoUri = videoUriString?.let { Uri.parse(it) }
 
-            // Create a single item for the video
+            // Create a single item for the video with file info
             val item = MediaViewerItem(
                 promptId = "",
-                filename = "",
-                subfolder = "",
-                type = "",
+                filename = filename,
+                subfolder = subfolder,
+                type = type,
                 isVideo = true,
                 index = 0
             )
 
             viewModel.initialize(
                 context = this,
-                hostname = "",
-                port = 0,
+                hostname = hostname,
+                port = port,
                 mode = ViewerMode.SINGLE,
                 items = listOf(item),
                 initialIndex = 0,
@@ -205,20 +248,20 @@ class MediaViewerActivity : ComponentActivity() {
                 BitmapFactory.decodeFile(it)
             }
 
-            // Create a single item for the image
+            // Create a single item for the image with file info
             val item = MediaViewerItem(
                 promptId = "",
-                filename = "",
-                subfolder = "",
-                type = "",
+                filename = filename,
+                subfolder = subfolder,
+                type = type,
                 isVideo = false,
                 index = 0
             )
 
             viewModel.initialize(
                 context = this,
-                hostname = "",
-                port = 0,
+                hostname = hostname,
+                port = port,
                 mode = ViewerMode.SINGLE,
                 items = listOf(item),
                 initialIndex = 0,
