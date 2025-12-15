@@ -6,9 +6,9 @@
       "inputs": {
         "seed": 0,
         "steps": "{{steps}}",
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
         "denoise": 1,
         "model": [
           "16",

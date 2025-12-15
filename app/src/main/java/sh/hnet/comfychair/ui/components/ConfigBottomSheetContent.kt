@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 
 /**
@@ -46,6 +47,9 @@ fun ConfigBottomSheetContent(
     onCheckpointWidthChange: (String) -> Unit,
     onCheckpointHeightChange: (String) -> Unit,
     onCheckpointStepsChange: (String) -> Unit,
+    onCheckpointCfgChange: (String) -> Unit,
+    onCheckpointSamplerChange: (String) -> Unit,
+    onCheckpointSchedulerChange: (String) -> Unit,
     onUnetWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -53,6 +57,9 @@ fun ConfigBottomSheetContent(
     onUnetWidthChange: (String) -> Unit,
     onUnetHeightChange: (String) -> Unit,
     onUnetStepsChange: (String) -> Unit,
+    onUnetCfgChange: (String) -> Unit,
+    onUnetSamplerChange: (String) -> Unit,
+    onUnetSchedulerChange: (String) -> Unit,
     // Checkpoint LoRA chain callbacks
     onAddCheckpointLora: () -> Unit,
     onRemoveCheckpointLora: (Int) -> Unit,
@@ -108,6 +115,9 @@ fun ConfigBottomSheetContent(
                 onWidthChange = onCheckpointWidthChange,
                 onHeightChange = onCheckpointHeightChange,
                 onStepsChange = onCheckpointStepsChange,
+                onCfgChange = onCheckpointCfgChange,
+                onSamplerChange = onCheckpointSamplerChange,
+                onSchedulerChange = onCheckpointSchedulerChange,
                 onAddLora = onAddCheckpointLora,
                 onRemoveLora = onRemoveCheckpointLora,
                 onLoraNameChange = onCheckpointLoraNameChange,
@@ -124,6 +134,9 @@ fun ConfigBottomSheetContent(
                 onWidthChange = onUnetWidthChange,
                 onHeightChange = onUnetHeightChange,
                 onStepsChange = onUnetStepsChange,
+                onCfgChange = onUnetCfgChange,
+                onSamplerChange = onUnetSamplerChange,
+                onSchedulerChange = onUnetSchedulerChange,
                 onAddLora = onAddUnetLora,
                 onRemoveLora = onRemoveUnetLora,
                 onLoraNameChange = onUnetLoraNameChange,
@@ -141,6 +154,9 @@ private fun CheckpointModeContent(
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
     onStepsChange: (String) -> Unit,
+    onCfgChange: (String) -> Unit,
+    onSamplerChange: (String) -> Unit,
+    onSchedulerChange: (String) -> Unit,
     onAddLora: () -> Unit,
     onRemoveLora: (Int) -> Unit,
     onLoraNameChange: (Int, String) -> Unit,
@@ -199,18 +215,55 @@ private fun CheckpointModeContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // Steps
-    OutlinedTextField(
-        value = uiState.checkpointSteps,
-        onValueChange = onStepsChange,
-        label = { Text(stringResource(R.string.label_steps)) },
-        isError = uiState.stepsError != null && uiState.isCheckpointMode,
-        supportingText = if (uiState.stepsError != null && uiState.isCheckpointMode) {
-            { Text(uiState.stepsError!!) }
-        } else null,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true
+    // Steps and CFG
+    Row(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = uiState.checkpointSteps,
+            onValueChange = onStepsChange,
+            label = { Text(stringResource(R.string.label_steps)) },
+            isError = uiState.stepsError != null && uiState.isCheckpointMode,
+            supportingText = if (uiState.stepsError != null && uiState.isCheckpointMode) {
+                { Text(uiState.stepsError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = uiState.checkpointCfg,
+            onValueChange = onCfgChange,
+            label = { Text(stringResource(R.string.label_cfg)) },
+            isError = uiState.cfgError != null && uiState.isCheckpointMode,
+            supportingText = if (uiState.cfgError != null && uiState.isCheckpointMode) {
+                { Text(uiState.cfgError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Sampler dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_sampler),
+        selectedValue = uiState.checkpointSampler,
+        options = SamplerOptions.SAMPLERS,
+        onValueChange = onSamplerChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Scheduler dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_scheduler),
+        selectedValue = uiState.checkpointScheduler,
+        options = SamplerOptions.SCHEDULERS,
+        onValueChange = onSchedulerChange
     )
 
     Spacer(modifier = Modifier.height(16.dp))
@@ -237,6 +290,9 @@ private fun UnetModeContent(
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
     onStepsChange: (String) -> Unit,
+    onCfgChange: (String) -> Unit,
+    onSamplerChange: (String) -> Unit,
+    onSchedulerChange: (String) -> Unit,
     onAddLora: () -> Unit,
     onRemoveLora: (Int) -> Unit,
     onLoraNameChange: (Int, String) -> Unit,
@@ -315,18 +371,55 @@ private fun UnetModeContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // Steps
-    OutlinedTextField(
-        value = uiState.unetSteps,
-        onValueChange = onStepsChange,
-        label = { Text(stringResource(R.string.label_steps)) },
-        isError = uiState.stepsError != null && !uiState.isCheckpointMode,
-        supportingText = if (uiState.stepsError != null && !uiState.isCheckpointMode) {
-            { Text(uiState.stepsError!!) }
-        } else null,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true
+    // Steps and CFG
+    Row(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = uiState.unetSteps,
+            onValueChange = onStepsChange,
+            label = { Text(stringResource(R.string.label_steps)) },
+            isError = uiState.stepsError != null && !uiState.isCheckpointMode,
+            supportingText = if (uiState.stepsError != null && !uiState.isCheckpointMode) {
+                { Text(uiState.stepsError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = uiState.unetCfg,
+            onValueChange = onCfgChange,
+            label = { Text(stringResource(R.string.label_cfg)) },
+            isError = uiState.cfgError != null && !uiState.isCheckpointMode,
+            supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
+                { Text(uiState.cfgError!!) }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Sampler dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_sampler),
+        selectedValue = uiState.unetSampler,
+        options = SamplerOptions.SAMPLERS,
+        onValueChange = onSamplerChange
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    // Scheduler dropdown
+    ModelDropdown(
+        label = stringResource(R.string.label_scheduler),
+        selectedValue = uiState.unetScheduler,
+        options = SamplerOptions.SCHEDULERS,
+        onValueChange = onSchedulerChange
     )
 
     Spacer(modifier = Modifier.height(16.dp))

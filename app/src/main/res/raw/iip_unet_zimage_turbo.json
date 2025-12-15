@@ -100,9 +100,9 @@
       "inputs": {
         "seed": 42,
         "steps": "{{steps}}",
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
         "denoise": 1.0,
         "model": [
           "13",

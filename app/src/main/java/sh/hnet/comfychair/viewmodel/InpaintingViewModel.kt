@@ -80,6 +80,9 @@ data class InpaintingUiState(
     val selectedCheckpoint: String = "",
     val megapixels: String = "1.0",
     val checkpointSteps: String = "20",
+    val checkpointCfg: String = "8.0",
+    val checkpointSampler: String = "euler",
+    val checkpointScheduler: String = "normal",
 
     // UNET mode settings
     val unetWorkflows: List<String> = emptyList(),
@@ -91,12 +94,16 @@ data class InpaintingUiState(
     val clips: List<String> = emptyList(),
     val selectedClip: String = "",
     val unetSteps: String = "9",
+    val unetCfg: String = "1.0",
+    val unetSampler: String = "euler",
+    val unetScheduler: String = "simple",
 
     // Positive prompt
     val positivePrompt: String = "",
 
     // Validation errors
     val megapixelsError: String? = null,
+    val cfgError: String? = null,
 
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
@@ -144,6 +151,12 @@ class InpaintingViewModel : ViewModel() {
         private const val PREF_CLIP = "clip"
         private const val PREF_UNET_STEPS = "unet_steps"
         private const val PREF_POSITIVE_PROMPT = "positive_prompt"
+        private const val PREF_CHECKPOINT_CFG = "checkpoint_cfg"
+        private const val PREF_CHECKPOINT_SAMPLER = "checkpoint_sampler"
+        private const val PREF_CHECKPOINT_SCHEDULER = "checkpoint_scheduler"
+        private const val PREF_UNET_CFG = "unet_cfg"
+        private const val PREF_UNET_SAMPLER = "unet_sampler"
+        private const val PREF_UNET_SCHEDULER = "unet_scheduler"
         private const val PREF_CHECKPOINT_LORA_CHAIN = "checkpoint_lora_chain"
         private const val PREF_UNET_LORA_CHAIN = "unet_lora_chain"
         private const val FEATHER_RADIUS = 8
@@ -205,6 +218,12 @@ class InpaintingViewModel : ViewModel() {
             selectedClip = prefs.getString(PREF_CLIP, "") ?: "",
             unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9",
             positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt,
+            checkpointCfg = prefs.getString(PREF_CHECKPOINT_CFG, "8.0") ?: "8.0",
+            checkpointSampler = prefs.getString(PREF_CHECKPOINT_SAMPLER, "euler") ?: "euler",
+            checkpointScheduler = prefs.getString(PREF_CHECKPOINT_SCHEDULER, "normal") ?: "normal",
+            unetCfg = prefs.getString(PREF_UNET_CFG, "1.0") ?: "1.0",
+            unetSampler = prefs.getString(PREF_UNET_SAMPLER, "euler") ?: "euler",
+            unetScheduler = prefs.getString(PREF_UNET_SCHEDULER, "simple") ?: "simple",
             checkpointLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_CHECKPOINT_LORA_CHAIN, null)),
             unetLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_UNET_LORA_CHAIN, null))
         )
@@ -226,6 +245,12 @@ class InpaintingViewModel : ViewModel() {
             .putString(PREF_CLIP, _uiState.value.selectedClip)
             .putString(PREF_UNET_STEPS, _uiState.value.unetSteps)
             .putString(PREF_POSITIVE_PROMPT, _uiState.value.positivePrompt)
+            .putString(PREF_CHECKPOINT_CFG, _uiState.value.checkpointCfg)
+            .putString(PREF_CHECKPOINT_SAMPLER, _uiState.value.checkpointSampler)
+            .putString(PREF_CHECKPOINT_SCHEDULER, _uiState.value.checkpointScheduler)
+            .putString(PREF_UNET_CFG, _uiState.value.unetCfg)
+            .putString(PREF_UNET_SAMPLER, _uiState.value.unetSampler)
+            .putString(PREF_UNET_SCHEDULER, _uiState.value.unetScheduler)
             .putString(PREF_CHECKPOINT_LORA_CHAIN, LoraSelection.toJsonString(_uiState.value.checkpointLoraChain))
             .putString(PREF_UNET_LORA_CHAIN, LoraSelection.toJsonString(_uiState.value.unetLoraChain))
             .apply()
@@ -522,6 +547,25 @@ class InpaintingViewModel : ViewModel() {
         savePreferences()
     }
 
+    fun onCheckpointCfgChange(cfg: String) {
+        val error = validateCfg(cfg)
+        _uiState.value = _uiState.value.copy(
+            checkpointCfg = cfg,
+            cfgError = if (_uiState.value.configMode == InpaintingConfigMode.CHECKPOINT) error else _uiState.value.cfgError
+        )
+        savePreferences()
+    }
+
+    fun onCheckpointSamplerChange(sampler: String) {
+        _uiState.value = _uiState.value.copy(checkpointSampler = sampler)
+        savePreferences()
+    }
+
+    fun onCheckpointSchedulerChange(scheduler: String) {
+        _uiState.value = _uiState.value.copy(checkpointScheduler = scheduler)
+        savePreferences()
+    }
+
     // UNET mode settings
     fun onUnetWorkflowChange(workflow: String) {
         _uiState.value = _uiState.value.copy(selectedUnetWorkflow = workflow)
@@ -545,6 +589,25 @@ class InpaintingViewModel : ViewModel() {
 
     fun onUnetStepsChange(steps: String) {
         _uiState.value = _uiState.value.copy(unetSteps = steps)
+        savePreferences()
+    }
+
+    fun onUnetCfgChange(cfg: String) {
+        val error = validateCfg(cfg)
+        _uiState.value = _uiState.value.copy(
+            unetCfg = cfg,
+            cfgError = if (_uiState.value.configMode == InpaintingConfigMode.UNET) error else _uiState.value.cfgError
+        )
+        savePreferences()
+    }
+
+    fun onUnetSamplerChange(sampler: String) {
+        _uiState.value = _uiState.value.copy(unetSampler = sampler)
+        savePreferences()
+    }
+
+    fun onUnetSchedulerChange(scheduler: String) {
+        _uiState.value = _uiState.value.copy(unetScheduler = scheduler)
         savePreferences()
     }
 
@@ -639,8 +702,19 @@ class InpaintingViewModel : ViewModel() {
     }
 
     private fun validateMegapixels(value: String): String? {
-        val mp = value.toFloatOrNull() ?: return "Invalid number"
-        return if (mp < 0.1f || mp > 8.3f) "Must be 0.1-8.3" else null
+        val mp = value.toFloatOrNull()
+            ?: return applicationContext?.getString(R.string.error_invalid_number) ?: "Invalid number"
+        return if (mp < 0.1f || mp > 8.3f) {
+            applicationContext?.getString(R.string.error_megapixels_range) ?: "Must be 0.1-8.3"
+        } else null
+    }
+
+    private fun validateCfg(value: String): String? {
+        if (value.isEmpty()) return null
+        val floatValue = value.toFloatOrNull()
+        return if (floatValue == null || floatValue !in 0.0f..100.0f) {
+            applicationContext?.getString(R.string.error_cfg_range) ?: "Must be 0.0-100.0"
+        } else null
     }
 
     fun hasValidConfiguration(): Boolean {
@@ -652,14 +726,16 @@ class InpaintingViewModel : ViewModel() {
                 state.selectedCheckpoint.isNotEmpty() &&
                 state.megapixels.toFloatOrNull() != null &&
                 state.megapixelsError == null &&
-                state.checkpointSteps.toIntOrNull() != null
+                state.checkpointSteps.toIntOrNull() != null &&
+                validateCfg(state.checkpointCfg) == null
             }
             InpaintingConfigMode.UNET -> {
                 state.selectedUnetWorkflow.isNotEmpty() &&
                 state.selectedUnet.isNotEmpty() &&
                 state.selectedVae.isNotEmpty() &&
                 state.selectedClip.isNotEmpty() &&
-                state.unetSteps.toIntOrNull() != null
+                state.unetSteps.toIntOrNull() != null &&
+                validateCfg(state.unetCfg) == null
             }
         }
     }
@@ -718,6 +794,9 @@ class InpaintingViewModel : ViewModel() {
                     checkpoint = state.selectedCheckpoint,
                     megapixels = state.megapixels.toFloatOrNull() ?: 1.0f,
                     steps = state.checkpointSteps.toIntOrNull() ?: 20,
+                    cfg = state.checkpointCfg.toFloatOrNull() ?: 8.0f,
+                    samplerName = state.checkpointSampler,
+                    scheduler = state.checkpointScheduler,
                     imageFilename = uploadedFilename
                 )
             }
@@ -728,7 +807,10 @@ class InpaintingViewModel : ViewModel() {
                     unet = state.selectedUnet,
                     vae = state.selectedVae,
                     clip = state.selectedClip,
-                    steps = state.unetSteps.toIntOrNull() ?: 20,
+                    steps = state.unetSteps.toIntOrNull() ?: 9,
+                    cfg = state.unetCfg.toFloatOrNull() ?: 1.0f,
+                    samplerName = state.unetSampler,
+                    scheduler = state.unetScheduler,
                     imageFilename = uploadedFilename
                 )
             }

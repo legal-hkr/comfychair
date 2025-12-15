@@ -1167,7 +1167,10 @@ class WorkflowManager(private val context: Context) {
         clip: String = "",
         width: Int,
         height: Int,
-        steps: Int
+        steps: Int,
+        cfg: Float = 8.0f,
+        samplerName: String = "euler",
+        scheduler: String = "normal"
     ): String? {
         val workflow = getWorkflowByName(workflowName) ?: return null
 
@@ -1183,6 +1186,9 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{width}}", width.toString())
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
+        processedJson = processedJson.replace("{{cfg}}", cfg.toString())
+        processedJson = processedJson.replace("{{sampler_name}}", samplerName)
+        processedJson = processedJson.replace("{{scheduler}}", scheduler)
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
         return processedJson
@@ -1200,6 +1206,9 @@ class WorkflowManager(private val context: Context) {
         clip: String = "",
         megapixels: Float = 1.0f,
         steps: Int,
+        cfg: Float = 8.0f,
+        samplerName: String = "euler",
+        scheduler: String = "normal",
         imageFilename: String
     ): String? {
         val workflow = getWorkflowByName(workflowName) ?: return null
@@ -1215,6 +1224,9 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{clip_name}}", clip)
         processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
+        processedJson = processedJson.replace("{{cfg}}", cfg.toString())
+        processedJson = processedJson.replace("{{sampler_name}}", samplerName)
+        processedJson = processedJson.replace("{{scheduler}}", scheduler)
         processedJson = processedJson.replace("uploaded_image.png [input]", "$imageFilename [input]")
         processedJson = processedJson.replace("\"seed\": 42", "\"seed\": $randomSeed")
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")

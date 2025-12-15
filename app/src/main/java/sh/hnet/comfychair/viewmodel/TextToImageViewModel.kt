@@ -41,6 +41,9 @@ data class TextToImageUiState(
     val checkpointWidth: String = "1024",
     val checkpointHeight: String = "1024",
     val checkpointSteps: String = "20",
+    val checkpointCfg: String = "8.0",
+    val checkpointSampler: String = "euler",
+    val checkpointScheduler: String = "normal",
 
     // UNET mode configuration
     val unetWorkflow: String = "",
@@ -50,6 +53,9 @@ data class TextToImageUiState(
     val unetWidth: String = "832",
     val unetHeight: String = "1216",
     val unetSteps: String = "9",
+    val unetCfg: String = "1.0",
+    val unetSampler: String = "euler",
+    val unetScheduler: String = "simple",
 
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
@@ -79,7 +85,8 @@ data class TextToImageUiState(
     // Validation errors
     val widthError: String? = null,
     val heightError: String? = null,
-    val stepsError: String? = null
+    val stepsError: String? = null,
+    val cfgError: String? = null
 )
 
 /**
@@ -129,6 +136,14 @@ class TextToImageViewModel : ViewModel() {
         private const val PREF_UNET_WIDTH = "unetWidth"
         private const val PREF_UNET_HEIGHT = "unetHeight"
         private const val PREF_UNET_STEPS = "unetSteps"
+
+        // CFG, sampler, scheduler preferences
+        private const val PREF_CHECKPOINT_CFG = "checkpointCfg"
+        private const val PREF_CHECKPOINT_SAMPLER = "checkpointSampler"
+        private const val PREF_CHECKPOINT_SCHEDULER = "checkpointScheduler"
+        private const val PREF_UNET_CFG = "unetCfg"
+        private const val PREF_UNET_SAMPLER = "unetSampler"
+        private const val PREF_UNET_SCHEDULER = "unetScheduler"
 
         // LoRA chain preferences
         private const val PREF_CHECKPOINT_LORA_CHAIN = "checkpointLoraChain"
@@ -341,6 +356,25 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
+    fun onCheckpointCfgChange(cfg: String) {
+        val error = validateCfg(cfg)
+        _uiState.value = _uiState.value.copy(
+            checkpointCfg = cfg,
+            cfgError = if (_uiState.value.isCheckpointMode) error else _uiState.value.cfgError
+        )
+        saveConfiguration()
+    }
+
+    fun onCheckpointSamplerChange(sampler: String) {
+        _uiState.value = _uiState.value.copy(checkpointSampler = sampler)
+        saveConfiguration()
+    }
+
+    fun onCheckpointSchedulerChange(scheduler: String) {
+        _uiState.value = _uiState.value.copy(checkpointScheduler = scheduler)
+        saveConfiguration()
+    }
+
     fun onUnetWorkflowChange(workflow: String) {
         _uiState.value = _uiState.value.copy(unetWorkflow = workflow)
         saveConfiguration()
@@ -385,6 +419,25 @@ class TextToImageViewModel : ViewModel() {
             unetSteps = steps,
             stepsError = if (!_uiState.value.isCheckpointMode) error else _uiState.value.stepsError
         )
+        saveConfiguration()
+    }
+
+    fun onUnetCfgChange(cfg: String) {
+        val error = validateCfg(cfg)
+        _uiState.value = _uiState.value.copy(
+            unetCfg = cfg,
+            cfgError = if (!_uiState.value.isCheckpointMode) error else _uiState.value.cfgError
+        )
+        saveConfiguration()
+    }
+
+    fun onUnetSamplerChange(sampler: String) {
+        _uiState.value = _uiState.value.copy(unetSampler = sampler)
+        saveConfiguration()
+    }
+
+    fun onUnetSchedulerChange(scheduler: String) {
+        _uiState.value = _uiState.value.copy(unetScheduler = scheduler)
         saveConfiguration()
     }
 
@@ -562,7 +615,7 @@ class TextToImageViewModel : ViewModel() {
         if (value.isEmpty()) return null
         val intValue = value.toIntOrNull()
         return if (intValue == null || intValue !in 1..4096) {
-            "Must be 1-4096"
+            context?.getString(R.string.error_dimension_range) ?: "Must be 1-4096"
         } else null
     }
 
@@ -570,7 +623,15 @@ class TextToImageViewModel : ViewModel() {
         if (value.isEmpty()) return null
         val intValue = value.toIntOrNull()
         return if (intValue == null || intValue !in 1..255) {
-            "Must be 1-255"
+            context?.getString(R.string.error_steps_range) ?: "Must be 1-255"
+        } else null
+    }
+
+    private fun validateCfg(value: String): String? {
+        if (value.isEmpty()) return null
+        val floatValue = value.toFloatOrNull()
+        return if (floatValue == null || floatValue !in 0.0f..100.0f) {
+            context?.getString(R.string.error_cfg_range) ?: "Must be 0.0-100.0"
         } else null
     }
 
@@ -586,14 +647,16 @@ class TextToImageViewModel : ViewModel() {
             state.selectedCheckpoint.isNotEmpty() &&
             validateDimension(state.checkpointWidth) == null &&
             validateDimension(state.checkpointHeight) == null &&
-            validateSteps(state.checkpointSteps) == null
+            validateSteps(state.checkpointSteps) == null &&
+            validateCfg(state.checkpointCfg) == null
         } else {
             state.selectedUnet.isNotEmpty() &&
             state.selectedVae.isNotEmpty() &&
             state.selectedClip.isNotEmpty() &&
             validateDimension(state.unetWidth) == null &&
             validateDimension(state.unetHeight) == null &&
-            validateSteps(state.unetSteps) == null
+            validateSteps(state.unetSteps) == null &&
+            validateCfg(state.unetCfg) == null
         }
     }
 
@@ -611,7 +674,10 @@ class TextToImageViewModel : ViewModel() {
                 checkpoint = state.selectedCheckpoint,
                 width = state.checkpointWidth.toIntOrNull() ?: 1024,
                 height = state.checkpointHeight.toIntOrNull() ?: 1024,
-                steps = state.checkpointSteps.toIntOrNull() ?: 9
+                steps = state.checkpointSteps.toIntOrNull() ?: 20,
+                cfg = state.checkpointCfg.toFloatOrNull() ?: 8.0f,
+                samplerName = state.checkpointSampler,
+                scheduler = state.checkpointScheduler
             )
         } else {
             manager.prepareWorkflow(
@@ -620,9 +686,12 @@ class TextToImageViewModel : ViewModel() {
                 unet = state.selectedUnet,
                 vae = state.selectedVae,
                 clip = state.selectedClip,
-                width = state.unetWidth.toIntOrNull() ?: 1024,
-                height = state.unetHeight.toIntOrNull() ?: 1024,
-                steps = state.unetSteps.toIntOrNull() ?: 9
+                width = state.unetWidth.toIntOrNull() ?: 832,
+                height = state.unetHeight.toIntOrNull() ?: 1216,
+                steps = state.unetSteps.toIntOrNull() ?: 9,
+                cfg = state.unetCfg.toFloatOrNull() ?: 1.0f,
+                samplerName = state.unetSampler,
+                scheduler = state.unetScheduler
             )
         } ?: return null
 
@@ -702,6 +771,14 @@ class TextToImageViewModel : ViewModel() {
             putString(PREF_UNET_HEIGHT, state.unetHeight)
             putString(PREF_UNET_STEPS, state.unetSteps)
 
+            // CFG, sampler, scheduler
+            putString(PREF_CHECKPOINT_CFG, state.checkpointCfg)
+            putString(PREF_CHECKPOINT_SAMPLER, state.checkpointSampler)
+            putString(PREF_CHECKPOINT_SCHEDULER, state.checkpointScheduler)
+            putString(PREF_UNET_CFG, state.unetCfg)
+            putString(PREF_UNET_SAMPLER, state.unetSampler)
+            putString(PREF_UNET_SCHEDULER, state.unetScheduler)
+
             // LoRA chains
             putString(PREF_CHECKPOINT_LORA_CHAIN, LoraSelection.toJsonString(state.checkpointLoraChain))
             putString(PREF_UNET_LORA_CHAIN, LoraSelection.toJsonString(state.unetLoraChain))
@@ -730,6 +807,14 @@ class TextToImageViewModel : ViewModel() {
             unetWidth = prefs.getString(PREF_UNET_WIDTH, "832") ?: "832",
             unetHeight = prefs.getString(PREF_UNET_HEIGHT, "1216") ?: "1216",
             unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9",
+
+            // CFG, sampler, scheduler
+            checkpointCfg = prefs.getString(PREF_CHECKPOINT_CFG, "8.0") ?: "8.0",
+            checkpointSampler = prefs.getString(PREF_CHECKPOINT_SAMPLER, "euler") ?: "euler",
+            checkpointScheduler = prefs.getString(PREF_CHECKPOINT_SCHEDULER, "normal") ?: "normal",
+            unetCfg = prefs.getString(PREF_UNET_CFG, "1.0") ?: "1.0",
+            unetSampler = prefs.getString(PREF_UNET_SAMPLER, "euler") ?: "euler",
+            unetScheduler = prefs.getString(PREF_UNET_SCHEDULER, "simple") ?: "simple",
 
             // LoRA chains
             checkpointLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_CHECKPOINT_LORA_CHAIN, null)),

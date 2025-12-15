@@ -27,9 +27,9 @@
       "inputs": {
         "seed": 0,
         "steps": "{{steps}}",
-        "cfg": 8.0,
-        "sampler_name": "euler",
-        "scheduler": "normal",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
         "denoise": 1.0,
         "model": ["4", 0],
         "positive": ["6", 0],

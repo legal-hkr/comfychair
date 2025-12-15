@@ -6,9 +6,9 @@
       "inputs": {
         "seed": 42,
         "steps": "{{steps}}",
-        "cfg": 8,
-        "sampler_name": "uni_pc_bh2",
-        "scheduler": "normal",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
         "denoise": 0.8,
         "model": [
           "29",

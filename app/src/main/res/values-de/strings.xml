@@ -163,6 +163,15 @@
     <string name="label_width">Breite</string>
     <string name="label_height">Höhe</string>
     <string name="label_steps">Schritte</string>
+    <string name="label_sampler">Sampler</string>
+    <string name="label_scheduler">Scheduler</string>
+
+    <!-- Validation error messages -->
+    <string name="error_dimension_range">Muss 1–4096 sein</string>
+    <string name="error_steps_range">Muss 1–255 sein</string>
+    <string name="error_cfg_range">Muss 0,0–100,0 sein</string>
+    <string name="error_megapixels_range">Muss 0,1–8,3 sein</string>
+    <string name="error_invalid_number">Ungültige Zahl</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Anwendung</string>

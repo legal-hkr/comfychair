@@ -21,6 +21,9 @@ object TemplateKeyRegistry {
         "width" to "width",
         "height" to "height",
         "steps" to "steps",
+        "cfg" to "cfg",
+        "sampler_name" to "sampler_name",
+        "scheduler" to "scheduler",
         "megapixels" to "megapixels",
         "highnoise_unet_name" to "unet_name",
         "lownoise_unet_name" to "unet_name",
@@ -46,6 +49,9 @@ object TemplateKeyRegistry {
         "width" to "width",
         "height" to "height",
         "steps" to "steps",
+        "cfg" to "cfg",
+        "sampler_name" to "sampler_name",
+        "scheduler" to "scheduler",
         "megapixels" to "megapixels",
         "lora_name" to "lora_name",
         "length" to "length",
@@ -62,10 +68,10 @@ object TemplateKeyRegistry {
      * Required keys per workflow type (derived from WorkflowManager.REQUIRED_PLACEHOLDERS)
      */
     private val KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
-        WorkflowType.TTI_CHECKPOINT to setOf("text", "ckpt_name", "width", "height", "steps"),
-        WorkflowType.TTI_UNET to setOf("text", "unet_name", "vae_name", "clip_name", "width", "height", "steps"),
-        WorkflowType.IIP_CHECKPOINT to setOf("text", "ckpt_name", "megapixels", "steps"),
-        WorkflowType.IIP_UNET to setOf("text", "unet_name", "vae_name", "clip_name", "steps"),
+        WorkflowType.TTI_CHECKPOINT to setOf("text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.TTI_UNET to setOf("text", "unet_name", "vae_name", "clip_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.IIP_CHECKPOINT to setOf("text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.IIP_UNET to setOf("text", "unet_name", "vae_name", "clip_name", "steps", "cfg", "sampler_name", "scheduler"),
         WorkflowType.TTV_UNET to setOf("text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
         WorkflowType.ITV_UNET to setOf("text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps", "image")
     )
