@@ -348,7 +348,15 @@ fun TextToImageScreen(
                 onClipChange = { textToImageViewModel.onClipChange(it) },
                 onUnetWidthChange = { textToImageViewModel.onUnetWidthChange(it) },
                 onUnetHeightChange = { textToImageViewModel.onUnetHeightChange(it) },
-                onUnetStepsChange = { textToImageViewModel.onUnetStepsChange(it) }
+                onUnetStepsChange = { textToImageViewModel.onUnetStepsChange(it) },
+                onAddCheckpointLora = textToImageViewModel::onAddCheckpointLora,
+                onRemoveCheckpointLora = textToImageViewModel::onRemoveCheckpointLora,
+                onCheckpointLoraNameChange = textToImageViewModel::onCheckpointLoraNameChange,
+                onCheckpointLoraStrengthChange = textToImageViewModel::onCheckpointLoraStrengthChange,
+                onAddUnetLora = textToImageViewModel::onAddUnetLora,
+                onRemoveUnetLora = textToImageViewModel::onRemoveUnetLora,
+                onUnetLoraNameChange = textToImageViewModel::onUnetLoraNameChange,
+                onUnetLoraStrengthChange = textToImageViewModel::onUnetLoraStrengthChange
             )
         }
     }

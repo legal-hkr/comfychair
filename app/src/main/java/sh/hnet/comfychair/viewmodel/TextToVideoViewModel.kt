@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.model.LoraSelection
 
 /**
  * UI state for the Text-to-Video screen
@@ -62,7 +63,11 @@ data class TextToVideoUiState(
     val deferredHighnoiseLora: String? = null,
     val deferredLownoiseLora: String? = null,
     val deferredVae: String? = null,
-    val deferredClip: String? = null
+    val deferredClip: String? = null,
+
+    // Additional LoRA chains (optional, 0-5 LoRAs on top of mandatory LightX2V LoRAs)
+    val highnoiseLoraChain: List<LoraSelection> = emptyList(),
+    val lownoiseLoraChain: List<LoraSelection> = emptyList()
 )
 
 /**
@@ -107,6 +112,8 @@ class TextToVideoViewModel : ViewModel() {
         private const val KEY_LENGTH = "length"
         private const val KEY_FPS = "fps"
         private const val KEY_POSITIVE_PROMPT = "positive_prompt"
+        private const val KEY_HIGHNOISE_LORA_CHAIN = "highnoise_lora_chain"
+        private const val KEY_LOWNOISE_LORA_CHAIN = "lownoise_lora_chain"
     }
 
     fun initialize(context: Context, client: ComfyUIClient) {
@@ -149,6 +156,10 @@ class TextToVideoViewModel : ViewModel() {
         val deferredVae = prefs.getString(KEY_VAE, null)
         val deferredClip = prefs.getString(KEY_CLIP, null)
 
+        // Additional LoRA chains (separate for high noise and low noise)
+        val highnoiseLoraChain = LoraSelection.fromJsonString(prefs.getString(KEY_HIGHNOISE_LORA_CHAIN, null))
+        val lownoiseLoraChain = LoraSelection.fromJsonString(prefs.getString(KEY_LOWNOISE_LORA_CHAIN, null))
+
         _uiState.value = _uiState.value.copy(
             selectedWorkflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.contains(savedWorkflow)) {
                 savedWorkflow
@@ -165,7 +176,9 @@ class TextToVideoViewModel : ViewModel() {
             deferredHighnoiseLora = deferredHighnoiseLora,
             deferredLownoiseLora = deferredLownoiseLora,
             deferredVae = deferredVae,
-            deferredClip = deferredClip
+            deferredClip = deferredClip,
+            highnoiseLoraChain = highnoiseLoraChain,
+            lownoiseLoraChain = lownoiseLoraChain
         )
     }
 
@@ -187,6 +200,8 @@ class TextToVideoViewModel : ViewModel() {
             .putString(KEY_LENGTH, state.length)
             .putString(KEY_FPS, state.fps)
             .putString(KEY_POSITIVE_PROMPT, state.positivePrompt)
+            .putString(KEY_HIGHNOISE_LORA_CHAIN, LoraSelection.toJsonString(state.highnoiseLoraChain))
+            .putString(KEY_LOWNOISE_LORA_CHAIN, LoraSelection.toJsonString(state.lownoiseLoraChain))
             .apply()
     }
 
@@ -230,13 +245,18 @@ class TextToVideoViewModel : ViewModel() {
                     ?: loras.firstOrNull() ?: ""
                 val lownoiseLora = state.deferredLownoiseLora?.takeIf { it in loras }
                     ?: loras.firstOrNull() ?: ""
+                // Filter out any LoRAs in the chains that are no longer available
+                val filteredHighnoiseChain = state.highnoiseLoraChain.filter { it.name in loras }
+                val filteredLownoiseChain = state.lownoiseLoraChain.filter { it.name in loras }
 
                 _uiState.value = state.copy(
                     availableLoras = loras,
                     selectedHighnoiseLora = highnoiseLora,
                     selectedLownoiseLora = lownoiseLora,
                     deferredHighnoiseLora = null,
-                    deferredLownoiseLora = null
+                    deferredLownoiseLora = null,
+                    highnoiseLoraChain = filteredHighnoiseChain,
+                    lownoiseLoraChain = filteredLownoiseChain
                 )
             }
 
@@ -346,6 +366,90 @@ class TextToVideoViewModel : ViewModel() {
         savePreferences()
     }
 
+    // High noise LoRA chain operations
+    fun onAddHighnoiseLora() {
+        val currentChain = _uiState.value.highnoiseLoraChain
+        if (currentChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
+        val availableLoras = _uiState.value.availableLoras
+        if (availableLoras.isEmpty()) return
+
+        val newLora = LoraSelection(
+            name = availableLoras.first(),
+            strength = LoraSelection.DEFAULT_STRENGTH
+        )
+        _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain + newLora)
+        savePreferences()
+    }
+
+    fun onRemoveHighnoiseLora(index: Int) {
+        val currentChain = _uiState.value.highnoiseLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain.removeAt(index)
+            _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    fun onHighnoiseLoraChainNameChange(index: Int, name: String) {
+        val currentChain = _uiState.value.highnoiseLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain[index] = currentChain[index].copy(name = name)
+            _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    fun onHighnoiseLoraChainStrengthChange(index: Int, strength: Float) {
+        val currentChain = _uiState.value.highnoiseLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain[index] = currentChain[index].copy(strength = strength)
+            _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    // Low noise LoRA chain operations
+    fun onAddLownoiseLora() {
+        val currentChain = _uiState.value.lownoiseLoraChain
+        if (currentChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
+        val availableLoras = _uiState.value.availableLoras
+        if (availableLoras.isEmpty()) return
+
+        val newLora = LoraSelection(
+            name = availableLoras.first(),
+            strength = LoraSelection.DEFAULT_STRENGTH
+        )
+        _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain + newLora)
+        savePreferences()
+    }
+
+    fun onRemoveLownoiseLora(index: Int) {
+        val currentChain = _uiState.value.lownoiseLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain.removeAt(index)
+            _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    fun onLownoiseLoraChainNameChange(index: Int, name: String) {
+        val currentChain = _uiState.value.lownoiseLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain[index] = currentChain[index].copy(name = name)
+            _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    fun onLownoiseLoraChainStrengthChange(index: Int, strength: Float) {
+        val currentChain = _uiState.value.lownoiseLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain[index] = currentChain[index].copy(strength = strength)
+            _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
     fun onPreviewBitmapChange(bitmap: android.graphics.Bitmap) {
         _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
     }
@@ -387,6 +491,7 @@ class TextToVideoViewModel : ViewModel() {
 
     fun prepareWorkflow(): String? {
         val state = _uiState.value
+        val wm = workflowManager ?: return null
 
         // Validate all fields
         if (state.widthError != null || state.heightError != null ||
@@ -399,7 +504,7 @@ class TextToVideoViewModel : ViewModel() {
         val length = state.length.toIntOrNull() ?: return null
         val fps = state.fps.toIntOrNull() ?: return null
 
-        return workflowManager?.prepareVideoWorkflow(
+        val baseWorkflow = wm.prepareVideoWorkflow(
             workflowName = state.selectedWorkflow,
             positivePrompt = state.positivePrompt,
             highnoiseUnet = state.selectedHighnoiseUnet,
@@ -412,7 +517,17 @@ class TextToVideoViewModel : ViewModel() {
             height = height,
             length = length,
             fps = fps
-        )
+        ) ?: return null
+
+        // Inject additional LoRAs if configured (separate chains for high noise and low noise)
+        var workflow = baseWorkflow
+        if (state.highnoiseLoraChain.isNotEmpty()) {
+            workflow = wm.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
+        }
+        if (state.lownoiseLoraChain.isNotEmpty()) {
+            workflow = wm.injectAdditionalVideoLoras(workflow, state.lownoiseLoraChain, isHighNoise = false)
+        }
+        return workflow
     }
 
     fun hasValidConfiguration(): Boolean {

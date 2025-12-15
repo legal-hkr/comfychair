@@ -507,7 +507,15 @@ fun ImageToVideoScreen(
                 onWidthChange = imageToVideoViewModel::onWidthChange,
                 onHeightChange = imageToVideoViewModel::onHeightChange,
                 onLengthChange = imageToVideoViewModel::onLengthChange,
-                onFpsChange = imageToVideoViewModel::onFpsChange
+                onFpsChange = imageToVideoViewModel::onFpsChange,
+                onAddHighnoiseLora = imageToVideoViewModel::onAddHighnoiseLora,
+                onRemoveHighnoiseLora = imageToVideoViewModel::onRemoveHighnoiseLora,
+                onHighnoiseLoraChainNameChange = imageToVideoViewModel::onHighnoiseLoraChainNameChange,
+                onHighnoiseLoraChainStrengthChange = imageToVideoViewModel::onHighnoiseLoraChainStrengthChange,
+                onAddLownoiseLora = imageToVideoViewModel::onAddLownoiseLora,
+                onRemoveLownoiseLora = imageToVideoViewModel::onRemoveLownoiseLora,
+                onLownoiseLoraChainNameChange = imageToVideoViewModel::onLownoiseLoraChainNameChange,
+                onLownoiseLoraChainStrengthChange = imageToVideoViewModel::onLownoiseLoraChainStrengthChange
             )
         }
     }

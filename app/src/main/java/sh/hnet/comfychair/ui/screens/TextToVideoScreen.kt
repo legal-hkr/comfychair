@@ -418,7 +418,15 @@ fun TextToVideoScreen(
                 onWidthChange = textToVideoViewModel::onWidthChange,
                 onHeightChange = textToVideoViewModel::onHeightChange,
                 onLengthChange = textToVideoViewModel::onLengthChange,
-                onFpsChange = textToVideoViewModel::onFpsChange
+                onFpsChange = textToVideoViewModel::onFpsChange,
+                onAddHighnoiseLora = textToVideoViewModel::onAddHighnoiseLora,
+                onRemoveHighnoiseLora = textToVideoViewModel::onRemoveHighnoiseLora,
+                onHighnoiseLoraChainNameChange = textToVideoViewModel::onHighnoiseLoraChainNameChange,
+                onHighnoiseLoraChainStrengthChange = textToVideoViewModel::onHighnoiseLoraChainStrengthChange,
+                onAddLownoiseLora = textToVideoViewModel::onAddLownoiseLora,
+                onRemoveLownoiseLora = textToVideoViewModel::onRemoveLownoiseLora,
+                onLownoiseLoraChainNameChange = textToVideoViewModel::onLownoiseLoraChainNameChange,
+                onLownoiseLoraChainStrengthChange = textToVideoViewModel::onLownoiseLoraChainStrengthChange
             )
         }
     }

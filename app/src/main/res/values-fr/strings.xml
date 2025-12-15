@@ -75,6 +75,10 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">Image vers vidéo</string>
     <string name="nav_image_to_video">Image vers vidéo</string>
+    <string name="highnoise_unet_label">UNET High noise</string>
+    <string name="lownoise_unet_label">UNET Low noise</string>
+    <string name="highnoise_lora_label">LoRA High noise</string>
+    <string name="lownoise_lora_label">LoRA Low noise</string>
     <string name="length_label">Durée</string>
     <string name="video_parameters_title">Paramètres vidéo</string>
     <string name="placeholder_video_description">La vidéo générée apparaîtra ici</string>
@@ -269,4 +273,14 @@
     <string name="metadata_size">Taille</string>
     <string name="metadata_not_available">Métadonnées non disponibles</string>
     <string name="metadata_loading">Chargement des métadonnées…</string>
+
+    <!-- LoRA chain editor strings -->
+    <string name="lora_chain_title">Chaîne LoRA (optionnel)</string>
+    <string name="additional_lora_chain_title">LoRAs supplémentaires (optionnel)</string>
+    <string name="highnoise_lora_chain_title">LoRAs High noise (optionnel)</string>
+    <string name="lownoise_lora_chain_title">LoRAs Low noise (optionnel)</string>
+    <string name="add_lora_button">Ajouter LoRA</string>
+    <string name="lora_strength_label">Force :</string>
+    <string name="lora_empty_state">Aucun LoRA ajouté</string>
+    <string name="remove_lora">Supprimer LoRA</string>
 </resources>

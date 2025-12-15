@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.model.LoraSelection
 import java.io.File
 import java.io.IOException
 
@@ -49,6 +51,10 @@ data class TextToImageUiState(
     val unetHeight: String = "1216",
     val unetSteps: String = "9",
 
+    // LoRA chains (optional, separate for each mode)
+    val checkpointLoraChain: List<LoraSelection> = emptyList(),
+    val unetLoraChain: List<LoraSelection> = emptyList(),
+
     // Available models (loaded from server)
     val availableCheckpointWorkflows: List<String> = emptyList(),
     val availableUnetWorkflows: List<String> = emptyList(),
@@ -56,6 +62,7 @@ data class TextToImageUiState(
     val availableUnets: List<String> = emptyList(),
     val availableVaes: List<String> = emptyList(),
     val availableClips: List<String> = emptyList(),
+    val availableLoras: List<String> = emptyList(),
 
     // Generated image
     val currentBitmap: Bitmap? = null,
@@ -123,6 +130,10 @@ class TextToImageViewModel : ViewModel() {
         private const val PREF_UNET_HEIGHT = "unetHeight"
         private const val PREF_UNET_STEPS = "unetSteps"
 
+        // LoRA chain preferences
+        private const val PREF_CHECKPOINT_LORA_CHAIN = "checkpointLoraChain"
+        private const val PREF_UNET_LORA_CHAIN = "unetLoraChain"
+
         private const val LAST_IMAGE_FILENAME = "last_generated_image.png"
     }
 
@@ -180,6 +191,7 @@ class TextToImageViewModel : ViewModel() {
         fetchUnets(client)
         fetchVaes(client)
         fetchClips(client)
+        fetchLoras(client)
     }
 
     private fun fetchCheckpoints(client: ComfyUIClient) {
@@ -243,6 +255,22 @@ class TextToImageViewModel : ViewModel() {
                         state.selectedClip,
                         clips
                     )
+                )
+            }
+        }
+    }
+
+    private fun fetchLoras(client: ComfyUIClient) {
+        client.fetchLoRAs { loras ->
+            viewModelScope.launch {
+                val state = _uiState.value
+                // Filter out any LoRAs in the chains that are no longer available
+                val filteredCheckpointChain = state.checkpointLoraChain.filter { it.name in loras }
+                val filteredUnetChain = state.unetLoraChain.filter { it.name in loras }
+                _uiState.value = state.copy(
+                    availableLoras = loras,
+                    checkpointLoraChain = filteredCheckpointChain,
+                    unetLoraChain = filteredUnetChain
                 )
             }
         }
@@ -357,6 +385,94 @@ class TextToImageViewModel : ViewModel() {
             unetSteps = steps,
             stepsError = if (!_uiState.value.isCheckpointMode) error else _uiState.value.stepsError
         )
+        saveConfiguration()
+    }
+
+    // Checkpoint LoRA chain management
+
+    fun onAddCheckpointLora() {
+        val state = _uiState.value
+        if (state.checkpointLoraChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
+        if (state.availableLoras.isEmpty()) return
+
+        val newLora = LoraSelection(
+            name = state.availableLoras.first(),
+            strength = LoraSelection.DEFAULT_STRENGTH
+        )
+        _uiState.value = state.copy(checkpointLoraChain = state.checkpointLoraChain + newLora)
+        saveConfiguration()
+    }
+
+    fun onRemoveCheckpointLora(index: Int) {
+        val state = _uiState.value
+        if (index !in state.checkpointLoraChain.indices) return
+
+        _uiState.value = state.copy(checkpointLoraChain = state.checkpointLoraChain.toMutableList().apply { removeAt(index) })
+        saveConfiguration()
+    }
+
+    fun onCheckpointLoraNameChange(index: Int, name: String) {
+        val state = _uiState.value
+        if (index !in state.checkpointLoraChain.indices) return
+
+        val updatedChain = state.checkpointLoraChain.toMutableList()
+        updatedChain[index] = updatedChain[index].copy(name = name)
+        _uiState.value = state.copy(checkpointLoraChain = updatedChain)
+        saveConfiguration()
+    }
+
+    fun onCheckpointLoraStrengthChange(index: Int, strength: Float) {
+        val state = _uiState.value
+        if (index !in state.checkpointLoraChain.indices) return
+
+        val clampedStrength = strength.coerceIn(LoraSelection.MIN_STRENGTH, LoraSelection.MAX_STRENGTH)
+        val updatedChain = state.checkpointLoraChain.toMutableList()
+        updatedChain[index] = updatedChain[index].copy(strength = clampedStrength)
+        _uiState.value = state.copy(checkpointLoraChain = updatedChain)
+        saveConfiguration()
+    }
+
+    // UNET LoRA chain management
+
+    fun onAddUnetLora() {
+        val state = _uiState.value
+        if (state.unetLoraChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
+        if (state.availableLoras.isEmpty()) return
+
+        val newLora = LoraSelection(
+            name = state.availableLoras.first(),
+            strength = LoraSelection.DEFAULT_STRENGTH
+        )
+        _uiState.value = state.copy(unetLoraChain = state.unetLoraChain + newLora)
+        saveConfiguration()
+    }
+
+    fun onRemoveUnetLora(index: Int) {
+        val state = _uiState.value
+        if (index !in state.unetLoraChain.indices) return
+
+        _uiState.value = state.copy(unetLoraChain = state.unetLoraChain.toMutableList().apply { removeAt(index) })
+        saveConfiguration()
+    }
+
+    fun onUnetLoraNameChange(index: Int, name: String) {
+        val state = _uiState.value
+        if (index !in state.unetLoraChain.indices) return
+
+        val updatedChain = state.unetLoraChain.toMutableList()
+        updatedChain[index] = updatedChain[index].copy(name = name)
+        _uiState.value = state.copy(unetLoraChain = updatedChain)
+        saveConfiguration()
+    }
+
+    fun onUnetLoraStrengthChange(index: Int, strength: Float) {
+        val state = _uiState.value
+        if (index !in state.unetLoraChain.indices) return
+
+        val clampedStrength = strength.coerceIn(LoraSelection.MIN_STRENGTH, LoraSelection.MAX_STRENGTH)
+        val updatedChain = state.unetLoraChain.toMutableList()
+        updatedChain[index] = updatedChain[index].copy(strength = clampedStrength)
+        _uiState.value = state.copy(unetLoraChain = updatedChain)
         saveConfiguration()
     }
 
@@ -488,7 +604,7 @@ class TextToImageViewModel : ViewModel() {
         val manager = workflowManager ?: return null
         val state = _uiState.value
 
-        return if (state.isCheckpointMode) {
+        val baseWorkflow = if (state.isCheckpointMode) {
             manager.prepareWorkflow(
                 workflowName = state.checkpointWorkflow,
                 positivePrompt = state.positivePrompt,
@@ -508,7 +624,12 @@ class TextToImageViewModel : ViewModel() {
                 height = state.unetHeight.toIntOrNull() ?: 1024,
                 steps = state.unetSteps.toIntOrNull() ?: 9
             )
-        }
+        } ?: return null
+
+        // Inject LoRA chain if present (using the appropriate chain for the mode)
+        val workflowType = if (state.isCheckpointMode) WorkflowType.TTI_CHECKPOINT else WorkflowType.TTI_UNET
+        val loraChain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
+        return manager.injectLoraChain(baseWorkflow, loraChain, workflowType)
     }
 
     /**
@@ -581,6 +702,10 @@ class TextToImageViewModel : ViewModel() {
             putString(PREF_UNET_HEIGHT, state.unetHeight)
             putString(PREF_UNET_STEPS, state.unetSteps)
 
+            // LoRA chains
+            putString(PREF_CHECKPOINT_LORA_CHAIN, LoraSelection.toJsonString(state.checkpointLoraChain))
+            putString(PREF_UNET_LORA_CHAIN, LoraSelection.toJsonString(state.unetLoraChain))
+
             apply()
         }
     }
@@ -604,7 +729,11 @@ class TextToImageViewModel : ViewModel() {
             unetWorkflow = prefs.getString(PREF_UNET_WORKFLOW, _uiState.value.unetWorkflow) ?: _uiState.value.unetWorkflow,
             unetWidth = prefs.getString(PREF_UNET_WIDTH, "832") ?: "832",
             unetHeight = prefs.getString(PREF_UNET_HEIGHT, "1216") ?: "1216",
-            unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9"
+            unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9",
+
+            // LoRA chains
+            checkpointLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_CHECKPOINT_LORA_CHAIN, null)),
+            unetLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_UNET_LORA_CHAIN, null))
         )
     }
 

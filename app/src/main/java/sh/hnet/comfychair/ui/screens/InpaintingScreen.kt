@@ -431,7 +431,15 @@ fun InpaintingScreen(
                 onUnetChange = inpaintingViewModel::onUnetChange,
                 onVaeChange = inpaintingViewModel::onVaeChange,
                 onClipChange = inpaintingViewModel::onClipChange,
-                onUnetStepsChange = inpaintingViewModel::onUnetStepsChange
+                onUnetStepsChange = inpaintingViewModel::onUnetStepsChange,
+                onAddCheckpointLora = inpaintingViewModel::onAddCheckpointLora,
+                onRemoveCheckpointLora = inpaintingViewModel::onRemoveCheckpointLora,
+                onCheckpointLoraNameChange = inpaintingViewModel::onCheckpointLoraNameChange,
+                onCheckpointLoraStrengthChange = inpaintingViewModel::onCheckpointLoraStrengthChange,
+                onAddUnetLora = inpaintingViewModel::onAddUnetLora,
+                onRemoveUnetLora = inpaintingViewModel::onRemoveUnetLora,
+                onUnetLoraNameChange = inpaintingViewModel::onUnetLoraNameChange,
+                onUnetLoraStrengthChange = inpaintingViewModel::onUnetLoraStrengthChange
             )
         }
     }

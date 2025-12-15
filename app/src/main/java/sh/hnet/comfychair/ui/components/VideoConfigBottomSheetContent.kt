@@ -37,7 +37,17 @@ fun VideoConfigBottomSheetContent(
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
     onLengthChange: (String) -> Unit,
-    onFpsChange: (String) -> Unit
+    onFpsChange: (String) -> Unit,
+    // High noise LoRA chain callbacks
+    onAddHighnoiseLora: () -> Unit,
+    onRemoveHighnoiseLora: (Int) -> Unit,
+    onHighnoiseLoraChainNameChange: (Int, String) -> Unit,
+    onHighnoiseLoraChainStrengthChange: (Int, Float) -> Unit,
+    // Low noise LoRA chain callbacks
+    onAddLownoiseLora: () -> Unit,
+    onRemoveLownoiseLora: (Int) -> Unit,
+    onLownoiseLoraChainNameChange: (Int, String) -> Unit,
+    onLownoiseLoraChainStrengthChange: (Int, Float) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -185,5 +195,31 @@ fun VideoConfigBottomSheetContent(
                 singleLine = true
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // High noise LoRA chain editor
+        LoraChainEditor(
+            title = stringResource(R.string.highnoise_lora_chain_title),
+            loraChain = uiState.highnoiseLoraChain,
+            availableLoras = uiState.availableLoras,
+            onAddLora = onAddHighnoiseLora,
+            onRemoveLora = onRemoveHighnoiseLora,
+            onLoraNameChange = onHighnoiseLoraChainNameChange,
+            onLoraStrengthChange = onHighnoiseLoraChainStrengthChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Low noise LoRA chain editor
+        LoraChainEditor(
+            title = stringResource(R.string.lownoise_lora_chain_title),
+            loraChain = uiState.lownoiseLoraChain,
+            availableLoras = uiState.availableLoras,
+            onAddLora = onAddLownoiseLora,
+            onRemoveLora = onRemoveLownoiseLora,
+            onLoraNameChange = onLownoiseLoraChainNameChange,
+            onLoraStrengthChange = onLownoiseLoraChainStrengthChange
+        )
     }
 }

@@ -52,7 +52,17 @@ fun ConfigBottomSheetContent(
     onClipChange: (String) -> Unit,
     onUnetWidthChange: (String) -> Unit,
     onUnetHeightChange: (String) -> Unit,
-    onUnetStepsChange: (String) -> Unit
+    onUnetStepsChange: (String) -> Unit,
+    // Checkpoint LoRA chain callbacks
+    onAddCheckpointLora: () -> Unit,
+    onRemoveCheckpointLora: (Int) -> Unit,
+    onCheckpointLoraNameChange: (Int, String) -> Unit,
+    onCheckpointLoraStrengthChange: (Int, Float) -> Unit,
+    // UNET LoRA chain callbacks
+    onAddUnetLora: () -> Unit,
+    onRemoveUnetLora: (Int) -> Unit,
+    onUnetLoraNameChange: (Int, String) -> Unit,
+    onUnetLoraStrengthChange: (Int, Float) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -97,7 +107,11 @@ fun ConfigBottomSheetContent(
                 onCheckpointChange = onCheckpointChange,
                 onWidthChange = onCheckpointWidthChange,
                 onHeightChange = onCheckpointHeightChange,
-                onStepsChange = onCheckpointStepsChange
+                onStepsChange = onCheckpointStepsChange,
+                onAddLora = onAddCheckpointLora,
+                onRemoveLora = onRemoveCheckpointLora,
+                onLoraNameChange = onCheckpointLoraNameChange,
+                onLoraStrengthChange = onCheckpointLoraStrengthChange
             )
         } else {
             // UNET mode configuration
@@ -109,7 +123,11 @@ fun ConfigBottomSheetContent(
                 onClipChange = onClipChange,
                 onWidthChange = onUnetWidthChange,
                 onHeightChange = onUnetHeightChange,
-                onStepsChange = onUnetStepsChange
+                onStepsChange = onUnetStepsChange,
+                onAddLora = onAddUnetLora,
+                onRemoveLora = onRemoveUnetLora,
+                onLoraNameChange = onUnetLoraNameChange,
+                onLoraStrengthChange = onUnetLoraStrengthChange
             )
         }
     }
@@ -122,7 +140,11 @@ private fun CheckpointModeContent(
     onCheckpointChange: (String) -> Unit,
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
-    onStepsChange: (String) -> Unit
+    onStepsChange: (String) -> Unit,
+    onAddLora: () -> Unit,
+    onRemoveLora: (Int) -> Unit,
+    onLoraNameChange: (Int, String) -> Unit,
+    onLoraStrengthChange: (Int, Float) -> Unit
 ) {
     // Workflow dropdown
     ModelDropdown(
@@ -190,6 +212,19 @@ private fun CheckpointModeContent(
         modifier = Modifier.fillMaxWidth(),
         singleLine = true
     )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // LoRA chain editor (Checkpoint mode)
+    LoraChainEditor(
+        title = stringResource(R.string.lora_chain_title),
+        loraChain = uiState.checkpointLoraChain,
+        availableLoras = uiState.availableLoras,
+        onAddLora = onAddLora,
+        onRemoveLora = onRemoveLora,
+        onLoraNameChange = onLoraNameChange,
+        onLoraStrengthChange = onLoraStrengthChange
+    )
 }
 
 @Composable
@@ -201,7 +236,11 @@ private fun UnetModeContent(
     onClipChange: (String) -> Unit,
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
-    onStepsChange: (String) -> Unit
+    onStepsChange: (String) -> Unit,
+    onAddLora: () -> Unit,
+    onRemoveLora: (Int) -> Unit,
+    onLoraNameChange: (Int, String) -> Unit,
+    onLoraStrengthChange: (Int, Float) -> Unit
 ) {
     // Workflow dropdown
     ModelDropdown(
@@ -288,6 +327,19 @@ private fun UnetModeContent(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
         singleLine = true
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // LoRA chain editor (UNET mode)
+    LoraChainEditor(
+        title = stringResource(R.string.lora_chain_title),
+        loraChain = uiState.unetLoraChain,
+        availableLoras = uiState.availableLoras,
+        onAddLora = onAddLora,
+        onRemoveLora = onRemoveLora,
+        onLoraNameChange = onLoraNameChange,
+        onLoraStrengthChange = onLoraStrengthChange
     )
 }
 

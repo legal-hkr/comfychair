@@ -39,7 +39,17 @@ fun InpaintingConfigBottomSheetContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
-    onUnetStepsChange: (String) -> Unit
+    onUnetStepsChange: (String) -> Unit,
+    // Checkpoint LoRA chain callbacks
+    onAddCheckpointLora: () -> Unit,
+    onRemoveCheckpointLora: (Int) -> Unit,
+    onCheckpointLoraNameChange: (Int, String) -> Unit,
+    onCheckpointLoraStrengthChange: (Int, Float) -> Unit,
+    // UNET LoRA chain callbacks
+    onAddUnetLora: () -> Unit,
+    onRemoveUnetLora: (Int) -> Unit,
+    onUnetLoraNameChange: (Int, String) -> Unit,
+    onUnetLoraStrengthChange: (Int, Float) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -84,7 +94,11 @@ fun InpaintingConfigBottomSheetContent(
                     onWorkflowChange = onCheckpointWorkflowChange,
                     onCheckpointChange = onCheckpointChange,
                     onMegapixelsChange = onMegapixelsChange,
-                    onStepsChange = onCheckpointStepsChange
+                    onStepsChange = onCheckpointStepsChange,
+                    onAddLora = onAddCheckpointLora,
+                    onRemoveLora = onRemoveCheckpointLora,
+                    onLoraNameChange = onCheckpointLoraNameChange,
+                    onLoraStrengthChange = onCheckpointLoraStrengthChange
                 )
             }
             InpaintingConfigMode.UNET -> {
@@ -94,7 +108,11 @@ fun InpaintingConfigBottomSheetContent(
                     onUnetChange = onUnetChange,
                     onVaeChange = onVaeChange,
                     onClipChange = onClipChange,
-                    onStepsChange = onUnetStepsChange
+                    onStepsChange = onUnetStepsChange,
+                    onAddLora = onAddUnetLora,
+                    onRemoveLora = onRemoveUnetLora,
+                    onLoraNameChange = onUnetLoraNameChange,
+                    onLoraStrengthChange = onUnetLoraStrengthChange
                 )
             }
         }
@@ -107,7 +125,11 @@ private fun CheckpointModeContent(
     onWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
-    onStepsChange: (String) -> Unit
+    onStepsChange: (String) -> Unit,
+    onAddLora: () -> Unit,
+    onRemoveLora: (Int) -> Unit,
+    onLoraNameChange: (Int, String) -> Unit,
+    onLoraStrengthChange: (Int, Float) -> Unit
 ) {
     // Workflow dropdown
     ModelDropdown(
@@ -157,6 +179,19 @@ private fun CheckpointModeContent(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth()
     )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // LoRA chain editor (Checkpoint mode)
+    LoraChainEditor(
+        title = stringResource(R.string.lora_chain_title),
+        loraChain = uiState.checkpointLoraChain,
+        availableLoras = uiState.availableLoras,
+        onAddLora = onAddLora,
+        onRemoveLora = onRemoveLora,
+        onLoraNameChange = onLoraNameChange,
+        onLoraStrengthChange = onLoraStrengthChange
+    )
 }
 
 @Composable
@@ -166,7 +201,11 @@ private fun UnetModeContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
-    onStepsChange: (String) -> Unit
+    onStepsChange: (String) -> Unit,
+    onAddLora: () -> Unit,
+    onRemoveLora: (Int) -> Unit,
+    onLoraNameChange: (Int, String) -> Unit,
+    onLoraStrengthChange: (Int, Float) -> Unit
 ) {
     // Workflow dropdown
     ModelDropdown(
@@ -222,5 +261,18 @@ private fun UnetModeContent(
         label = { Text(stringResource(R.string.label_steps)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth()
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // LoRA chain editor (UNET mode)
+    LoraChainEditor(
+        title = stringResource(R.string.lora_chain_title),
+        loraChain = uiState.unetLoraChain,
+        availableLoras = uiState.availableLoras,
+        onAddLora = onAddLora,
+        onRemoveLora = onRemoveLora,
+        onLoraNameChange = onLoraNameChange,
+        onLoraStrengthChange = onLoraStrengthChange
     )
 }
