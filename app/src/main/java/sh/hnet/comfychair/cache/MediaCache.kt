@@ -390,7 +390,7 @@ object MediaCache {
     }
 
     private fun startPrefetchWorkers() {
-        prefetchJobs = List(MAX_CONCURRENT_PREFETCH) { workerId ->
+        prefetchJobs = List(MAX_CONCURRENT_PREFETCH) {
             scope.launch {
                 while (isActive) {
                     val request = prefetchQueue.poll()
