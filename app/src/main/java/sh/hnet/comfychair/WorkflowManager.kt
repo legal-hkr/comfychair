@@ -130,10 +130,10 @@ class WorkflowManager(private val context: Context) {
      */
     private fun loadBuiltInWorkflows() {
         val workflowResources = listOf(
-            R.raw.tti_checkpoint_default,
-            R.raw.tti_unet_zimage,
-            R.raw.iip_checkpoint_default,
-            R.raw.iip_unet_zimage,
+            R.raw.tti_checkpoint_sd_sdxl,
+            R.raw.tti_unet_zimage_turbo,
+            R.raw.iip_checkpoint_sd_sdxl,
+            R.raw.iip_unet_zimage_turbo,
             R.raw.ttv_unet_wan22_lightx2v,
             R.raw.itv_unet_wan22_lightx2v
         )

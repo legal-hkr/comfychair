@@ -1,17 +1,17 @@
 {
-  "name": "Z-Image",
-  "description": "UNET workflow for Z-Image generation (Flux VAE)",
+  "name": "SD and SDXL inpainting",
+  "description": "Default workflow for SD and SDXL inpainting",
   "nodes": {
     "3": {
       "inputs": {
-        "seed": 0,
+        "seed": 42,
         "steps": "{{steps}}",
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
-        "denoise": 1,
+        "cfg": 8,
+        "sampler_name": "uni_pc_bh2",
+        "scheduler": "normal",
+        "denoise": 0.8,
         "model": [
-          "16",
+          "29",
           0
         ],
         "positive": [
@@ -23,7 +23,7 @@
           0
         ],
         "latent_image": [
-          "13",
+          "26",
           0
         ]
       },
@@ -36,8 +36,8 @@
       "inputs": {
         "text": "{{positive_prompt}}",
         "clip": [
-          "18",
-          0
+          "29",
+          1
         ]
       },
       "class_type": "CLIPTextEncode",
@@ -47,10 +47,10 @@
     },
     "7": {
       "inputs": {
-        "text": "blurry ugly bad",
+        "text": "",
         "clip": [
-          "18",
-          0
+          "29",
+          1
         ]
       },
       "class_type": "CLIPTextEncode",
@@ -65,8 +65,8 @@
           0
         ],
         "vae": [
-          "17",
-          0
+          "29",
+          2
         ]
       },
       "class_type": "VAEDecode",
@@ -74,48 +74,7 @@
         "title": "VAE Decode"
       }
     },
-    "13": {
-      "inputs": {
-        "width": "{{width}}",
-        "height": "{{height}}",
-        "batch_size": 1
-      },
-      "class_type": "EmptySD3LatentImage",
-      "_meta": {
-        "title": "EmptySD3LatentImage"
-      }
-    },
-    "16": {
-      "inputs": {
-        "unet_name": "{{unet_name}}",
-        "weight_dtype": "default"
-      },
-      "class_type": "UNETLoader",
-      "_meta": {
-        "title": "Load Diffusion Model"
-      }
-    },
-    "17": {
-      "inputs": {
-        "vae_name": "{{vae_name}}"
-      },
-      "class_type": "VAELoader",
-      "_meta": {
-        "title": "Load VAE"
-      }
-    },
-    "18": {
-      "inputs": {
-        "clip_name": "{{clip_name}}",
-        "type": "lumina2",
-        "device": "default"
-      },
-      "class_type": "CLIPLoader",
-      "_meta": {
-        "title": "Load CLIP"
-      }
-    },
-    "28": {
+    "9": {
       "inputs": {
         "filename_prefix": "ComfyUI",
         "images": [
@@ -126,6 +85,59 @@
       "class_type": "SaveImage",
       "_meta": {
         "title": "Save Image"
+      }
+    },
+    "20": {
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "26": {
+      "inputs": {
+        "grow_mask_by": 14,
+        "pixels": [
+          "33",
+          0
+        ],
+        "vae": [
+          "29",
+          2
+        ],
+        "mask": [
+          "20",
+          1
+        ]
+      },
+      "class_type": "VAEEncodeForInpaint",
+      "_meta": {
+        "title": "VAE Encode (for Inpainting)"
+      }
+    },
+    "29": {
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "33": {
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": "{{megapixels}}",
+        "image": [
+          "20",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
       }
     }
   }

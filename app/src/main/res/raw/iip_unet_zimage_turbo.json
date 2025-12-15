@@ -1,6 +1,6 @@
 {
-  "name": "Inpaint Z-Image",
-  "description": "Fast inpainting workflow using Z-Image turbo model",
+  "name": "Z-Image Turbo inpainting",
+  "description": "Default inpainting workflow using Z-Image Turbo model",
   "nodes": {
     "13": {
       "inputs": {

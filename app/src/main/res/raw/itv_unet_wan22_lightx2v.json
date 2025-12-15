@@ -1,6 +1,6 @@
 {
   "name": "Wan 2.2 I2V (LightX2V)",
-  "description": "UNET workflow for Wan 2.2 image to video generation (LightX2V LoRA)",
+  "description": "Default workflow for Wan 2.2 image to video generation (LightX2V LoRA)",
   "nodes": {
     "84": {
       "inputs": {

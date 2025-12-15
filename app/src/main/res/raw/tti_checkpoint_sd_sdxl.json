@@ -1,6 +1,6 @@
 {
-  "name": "Default",
-  "description": "Standard workflow for SD and SDXL",
+  "name": "SD and SDXL",
+  "description": "Default workflow for SD and SDXL generation",
   "nodes": {
     "4": {
       "class_type": "CheckpointLoaderSimple",
