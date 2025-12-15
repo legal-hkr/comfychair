@@ -18,6 +18,11 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Dual workflow support**:
   - **Checkpoint mode**: Traditional CheckpointLoaderSimple workflows
   - **UNET mode**: Modern diffusion workflows (Flux, Z-Image, etc.) with separate UNET, VAE, and CLIP model selection
+- **LoRA chain support**:
+  - Add up to 5 LoRAs per chain with individual strength control (0.0-2.0)
+  - Text-to-Image and Inpainting: Separate LoRA chains for Checkpoint and UNET modes
+  - Text-to-Video and Image-to-Video: Separate High noise and Low noise LoRA chains
+  - LoRAs are dynamically injected into workflows at generation time
 - **Text-to-image generation**:
   - Mobile-optimized interface
   - Cancel generation at any time with one-tap interrupt
@@ -192,7 +197,8 @@ app/src/main/
 │       │   ├── MaskEditorDialog.kt           # Fullscreen mask editor
 │       │   ├── ImageViewer.kt                # Zoomable image viewer component
 │       │   ├── VideoPlayer.kt                # ExoPlayer video component
-│       │   └── WorkflowGraphCanvas.kt        # Workflow node graph canvas
+│       │   ├── WorkflowGraphCanvas.kt        # Workflow node graph canvas
+│       │   └── LoraChainEditor.kt            # LoRA chain editor component
 │       └── navigation/
 │           ├── MainNavHost.kt       # Main screen navigation
 │           └── SettingsNavHost.kt   # Settings screen navigation
