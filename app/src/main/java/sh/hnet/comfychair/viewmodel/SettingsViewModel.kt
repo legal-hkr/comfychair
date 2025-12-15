@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.cache.MediaCache
 
 /**
  * UI state for server settings screen
@@ -265,7 +266,7 @@ class SettingsViewModel : ViewModel() {
 
                 // Also clear any temp files in cache directory
                 context.cacheDir.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("gallery_video_") || file.name.endsWith(".png") || file.name.endsWith(".mp4")) {
+                    if (file.name.startsWith("gallery_video_") || file.name.startsWith("playback_") || file.name.endsWith(".png") || file.name.endsWith(".mp4")) {
                         try {
                             file.delete()
                         } catch (e: Exception) {
@@ -278,6 +279,9 @@ class SettingsViewModel : ViewModel() {
                 val workflowManager = WorkflowManager(context)
                 workflowManager.clearAllUserWorkflows()
             }
+
+            // Clear in-memory media cache
+            MediaCache.clearAll()
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.cache_cleared_success))
             _events.emit(SettingsEvent.RefreshNeeded)

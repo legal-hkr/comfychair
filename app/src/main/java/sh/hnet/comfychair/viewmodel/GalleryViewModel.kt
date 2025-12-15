@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.repository.GalleryRepository
 import java.io.File
 
@@ -62,7 +64,6 @@ sealed class GalleryEvent {
  */
 class GalleryViewModel : ViewModel() {
 
-    private var comfyUIClient: ComfyUIClient? = null
     private val repository = GalleryRepository.getInstance()
 
     // Selection state (local to this ViewModel)
@@ -99,8 +100,9 @@ class GalleryViewModel : ViewModel() {
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun initialize(client: ComfyUIClient) {
-        comfyUIClient = client
+        // MediaCache is used for all fetch operations
         // Repository is already initialized by GenerationViewModel
     }
 
@@ -145,15 +147,11 @@ class GalleryViewModel : ViewModel() {
     }
 
     fun saveImageToGallery(context: Context, item: GalleryItem) {
-        val client = comfyUIClient ?: return
-
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val bitmap = kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                        continuation.resumeWith(Result.success(bmp))
-                    }
-                }
+                val key = MediaCacheKey(item.promptId, item.filename)
+                val bitmap = MediaCache.getImage(key)
+                    ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
                 if (bitmap == null) {
                     _events.emit(GalleryEvent.ShowToast(R.string.failed_save_image))
@@ -185,15 +183,11 @@ class GalleryViewModel : ViewModel() {
     }
 
     fun saveVideoToGallery(context: Context, item: GalleryItem) {
-        val client = comfyUIClient ?: return
-
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val videoBytes = kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                        continuation.resumeWith(Result.success(bytes))
-                    }
-                }
+                val key = MediaCacheKey(item.promptId, item.filename)
+                val videoBytes = MediaCache.getVideoBytes(key)
+                    ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
                 if (videoBytes == null) {
                     _events.emit(GalleryEvent.ShowToast(R.string.failed_save_video))
@@ -225,63 +219,32 @@ class GalleryViewModel : ViewModel() {
     }
 
     fun fetchFullImage(item: GalleryItem, onResult: (Bitmap?) -> Unit) {
-        val client = comfyUIClient ?: run {
-            onResult(null)
-            return
-        }
-
-        client.fetchImage(item.filename, item.subfolder, item.type) { bitmap ->
+        viewModelScope.launch {
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val bitmap = MediaCache.getImage(key)
+                ?: MediaCache.fetchImage(key, item.subfolder, item.type)
             onResult(bitmap)
         }
     }
 
     fun fetchVideoUri(context: Context, item: GalleryItem, onResult: (Uri?) -> Unit) {
-        val client = comfyUIClient ?: run {
-            onResult(null)
-            return
-        }
-
         viewModelScope.launch {
-            val videoBytes = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                        continuation.resumeWith(Result.success(bytes))
-                    }
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            // Ensure bytes are cached
+            MediaCache.getVideoBytes(key)
+                ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
-            if (videoBytes == null) {
-                onResult(null)
-                return@launch
-            }
-
-            // Save to temp file
-            val tempFile = File(context.cacheDir, "gallery_video_${System.currentTimeMillis()}.mp4")
-            withContext(Dispatchers.IO) {
-                tempFile.writeBytes(videoBytes)
-            }
-
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                tempFile
-            )
-
+            // Get URI from cache (creates temp file from cached bytes)
+            val uri = MediaCache.getVideoUri(key, context)
             onResult(uri)
         }
     }
 
     fun shareImage(context: Context, item: GalleryItem) {
-        val client = comfyUIClient ?: return
-
         viewModelScope.launch {
-            val bitmap = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                        continuation.resumeWith(Result.success(bmp))
-                    }
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val bitmap = MediaCache.getImage(key)
+                ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) {
                 _events.emit(GalleryEvent.ShowToast(R.string.failed_share_image))
@@ -323,16 +286,10 @@ class GalleryViewModel : ViewModel() {
     }
 
     fun shareVideo(context: Context, item: GalleryItem) {
-        val client = comfyUIClient ?: return
-
         viewModelScope.launch {
-            val videoBytes = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                        continuation.resumeWith(Result.success(bytes))
-                    }
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val videoBytes = MediaCache.getVideoBytes(key)
+                ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
             if (videoBytes == null) {
                 _events.emit(GalleryEvent.ShowToast(R.string.failed_share_video))
@@ -454,14 +411,10 @@ class GalleryViewModel : ViewModel() {
     }
 
     private suspend fun saveImageToGalleryInternal(context: Context, item: GalleryItem): Boolean {
-        val client = comfyUIClient ?: return false
-
         return withContext(Dispatchers.IO) {
-            val bitmap = kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                    continuation.resumeWith(Result.success(bmp))
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val bitmap = MediaCache.getImage(key)
+                ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) return@withContext false
 
@@ -488,14 +441,10 @@ class GalleryViewModel : ViewModel() {
     }
 
     private suspend fun saveVideoToGalleryInternal(context: Context, item: GalleryItem): Boolean {
-        val client = comfyUIClient ?: return false
-
         return withContext(Dispatchers.IO) {
-            val videoBytes = kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                    continuation.resumeWith(Result.success(bytes))
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val videoBytes = MediaCache.getVideoBytes(key)
+                ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
             if (videoBytes == null) return@withContext false
 
@@ -568,14 +517,10 @@ class GalleryViewModel : ViewModel() {
     }
 
     private suspend fun getImageShareUri(context: Context, item: GalleryItem, index: Int): Uri? {
-        val client = comfyUIClient ?: return null
-
         return withContext(Dispatchers.IO) {
-            val bitmap = kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                    continuation.resumeWith(Result.success(bmp))
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val bitmap = MediaCache.getImage(key)
+                ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) return@withContext null
 
@@ -597,14 +542,10 @@ class GalleryViewModel : ViewModel() {
     }
 
     private suspend fun getVideoShareUri(context: Context, item: GalleryItem, index: Int): Uri? {
-        val client = comfyUIClient ?: return null
-
         return withContext(Dispatchers.IO) {
-            val videoBytes = kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                    continuation.resumeWith(Result.success(bytes))
-                }
-            }
+            val key = MediaCacheKey(item.promptId, item.filename)
+            val videoBytes = MediaCache.getVideoBytes(key)
+                ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
             if (videoBytes == null) return@withContext null
 

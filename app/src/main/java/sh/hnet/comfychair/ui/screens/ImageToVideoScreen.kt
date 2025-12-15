@@ -149,8 +149,12 @@ fun ImageToVideoScreen(
             currentState.ownerId == ImageToVideoViewModel.OWNER_ID
 
         if (!isGeneratingForThisScreen) {
-            val videoFile = File(context.filesDir, "image_to_video_last_generated.mp4")
-            if (videoFile.exists()) {
+            // Find the most recent generated video file for image-to-video
+            val videoFile = context.filesDir.listFiles()
+                ?.filter { it.name.startsWith("image_to_video_last_generated") && it.name.endsWith(".mp4") }
+                ?.maxByOrNull { it.lastModified() }
+
+            if (videoFile != null && videoFile.exists()) {
                 videoUri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
@@ -182,7 +186,7 @@ fun ImageToVideoScreen(
                 imageToVideoViewModel.onPreviewBitmapChange(bitmap)
             },
             onVideoFetched = { promptId ->
-                fetchVideoFromHistory(context, generationViewModel, promptId, "image_to_video_last_generated.mp4") { uri ->
+                fetchVideoFromHistory(context, generationViewModel, promptId) { uri ->
                     videoUri = uri
                     generationViewModel.completeGeneration()
                 }
@@ -513,7 +517,6 @@ private fun fetchVideoFromHistory(
     context: Context,
     generationViewModel: GenerationViewModel,
     promptId: String,
-    videoFilename: String,
     onComplete: (Uri?) -> Unit
 ) {
     val client = generationViewModel.getClient() ?: run {
@@ -562,8 +565,15 @@ private fun fetchVideoFromHistory(
                         return@fetchVideo
                     }
 
-                    // Save to internal storage
-                    val videoFile = File(context.filesDir, videoFilename)
+                    // Clean up old generated videos for image-to-video
+                    context.filesDir.listFiles()?.forEach { file ->
+                        if (file.name.startsWith("image_to_video_last_generated") && file.name.endsWith(".mp4")) {
+                            file.delete()
+                        }
+                    }
+
+                    // Save to internal storage with unique name to force player reload
+                    val videoFile = File(context.filesDir, "image_to_video_last_generated_${promptId}.mp4")
                     videoFile.writeBytes(videoBytes)
 
                     val uri = FileProvider.getUriForFile(

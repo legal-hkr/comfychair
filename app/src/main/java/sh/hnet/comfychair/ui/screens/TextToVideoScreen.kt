@@ -133,8 +133,12 @@ fun TextToVideoScreen(
             currentState.ownerId == TextToVideoViewModel.OWNER_ID
 
         if (!isGeneratingForThisScreen) {
-            val videoFile = File(context.filesDir, "last_generated_video.mp4")
-            if (videoFile.exists()) {
+            // Find the most recent generated video file
+            val videoFile = context.filesDir.listFiles()
+                ?.filter { it.name.startsWith("last_generated_video") && it.name.endsWith(".mp4") }
+                ?.maxByOrNull { it.lastModified() }
+
+            if (videoFile != null && videoFile.exists()) {
                 videoUri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
@@ -474,8 +478,17 @@ private fun fetchVideoFromHistory(
                         return@fetchVideo
                     }
 
-                    // Save to internal storage
-                    val videoFile = File(context.filesDir, "last_generated_video.mp4")
+                    // Clean up old generated videos
+                    context.filesDir.listFiles()?.forEach { file ->
+                        if (file.name.startsWith("last_generated_video_") && file.name.endsWith(".mp4")) {
+                            file.delete()
+                        }
+                    }
+                    // Also delete legacy file
+                    File(context.filesDir, "last_generated_video.mp4").delete()
+
+                    // Save to internal storage with unique name to force player reload
+                    val videoFile = File(context.filesDir, "last_generated_video_${promptId}.mp4")
                     videoFile.writeBytes(videoBytes)
 
                     val uri = FileProvider.getUriForFile(

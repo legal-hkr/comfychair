@@ -51,6 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.ui.components.ImageViewer
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.VideoPlayer
@@ -134,17 +136,20 @@ fun MediaViewerScreen(
                             val item = uiState.items[page]
                             val isCurrentPage = page == pagerState.currentPage
 
-                            // For current page, use currentBitmap/currentVideoUri
-                            // For other pages, use cached values (may be null if not yet loaded)
-                            val bitmap = if (isCurrentPage) uiState.currentBitmap else uiState.cachedBitmaps[page]
-                            val videoUri = if (isCurrentPage) uiState.currentVideoUri else uiState.cachedVideoUris[page]
+                            // For current page, use uiState values
+                            // For other pages, check MediaCache directly
+                            val cacheKey = MediaCacheKey(item.promptId, item.filename)
+                            val bitmap = if (isCurrentPage) uiState.currentBitmap else MediaCache.getImage(cacheKey)
+                            // For video URI: only current page needs it (non-current pages just check if bytes are cached)
+                            val videoUri = if (isCurrentPage) uiState.currentVideoUri else null
+                            val hasVideoCached = if (!isCurrentPage && item.isVideo) MediaCache.getVideoBytes(cacheKey) != null else false
 
                             // Show loading if: current page is loading, OR content not available yet
                             val showLoading = if (isCurrentPage) {
                                 uiState.isLoading
                             } else {
                                 // Non-current page: show loading if no cached content
-                                if (item.isVideo) videoUri == null else bitmap == null
+                                if (item.isVideo) !hasVideoCached else bitmap == null
                             }
 
                             MediaContent(

@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -24,6 +23,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.MetadataParser
 import sh.hnet.comfychair.util.Mp4MetadataExtractor
@@ -92,7 +93,8 @@ data class MediaViewerItem(
 }
 
 /**
- * UI state for the media viewer
+ * UI state for the media viewer.
+ * Caching is handled by MediaCache singleton - no local cache maps needed.
  */
 data class MediaViewerUiState(
     val mode: ViewerMode = ViewerMode.GALLERY,
@@ -101,9 +103,7 @@ data class MediaViewerUiState(
     val isUiVisible: Boolean = true,
     val isLoading: Boolean = false,
     val currentBitmap: Bitmap? = null,
-    val currentVideoUri: Uri? = null,
-    val cachedBitmaps: Map<Int, Bitmap> = emptyMap(),
-    val cachedVideoUris: Map<Int, Uri> = emptyMap()
+    val currentVideoUri: Uri? = null
 ) {
     val currentItem: MediaViewerItem?
         get() = items.getOrNull(currentIndex)
@@ -204,14 +204,53 @@ class MediaViewerViewModel : ViewModel() {
         // Clear metadata when navigating
         clearCurrentMetadata()
 
-        _uiState.value = state.copy(
-            currentIndex = index,
-            currentBitmap = state.cachedBitmaps[index],
-            currentVideoUri = state.cachedVideoUris[index]
-        )
+        val item = state.items[index]
+        val key = item.toCacheKey()
 
-        loadCurrentItem()
+        // Try to get from cache immediately
+        val bitmap = if (!item.isVideo) MediaCache.getImage(key) else null
+        val hasVideoCached = if (item.isVideo) MediaCache.getVideoBytes(key) != null else false
+
+        if (!item.isVideo && bitmap != null) {
+            // Image is cached - show immediately
+            _uiState.value = state.copy(
+                currentIndex = index,
+                currentBitmap = bitmap,
+                currentVideoUri = null,
+                isLoading = false
+            )
+            triggerPrefetch()
+        } else if (item.isVideo && hasVideoCached) {
+            // Video bytes are cached - get URI asynchronously
+            _uiState.value = state.copy(
+                currentIndex = index,
+                currentBitmap = null,
+                currentVideoUri = null,
+                isLoading = true
+            )
+            viewModelScope.launch {
+                val context = applicationContext ?: return@launch
+                val uri = MediaCache.getVideoUri(key, context)
+                _uiState.value = _uiState.value.copy(
+                    currentVideoUri = uri,
+                    isLoading = false
+                )
+                triggerPrefetch()
+            }
+        } else {
+            // Content not cached - load from server
+            _uiState.value = state.copy(
+                currentIndex = index,
+                currentBitmap = null,
+                currentVideoUri = null,
+                isLoading = true
+            )
+            loadCurrentItem()
+        }
     }
+
+    /** Convert MediaViewerItem to MediaCacheKey */
+    private fun MediaViewerItem.toCacheKey() = MediaCacheKey(promptId, filename)
 
     fun navigateNext() {
         val state = _uiState.value
@@ -230,86 +269,58 @@ class MediaViewerViewModel : ViewModel() {
     private fun loadCurrentItem() {
         val state = _uiState.value
         val item = state.currentItem ?: return
-        val client = comfyUIClient ?: return
         val context = applicationContext ?: return
 
-        // Check if already cached
-        if (item.isVideo && state.cachedVideoUris.containsKey(state.currentIndex)) {
-            _uiState.value = state.copy(currentVideoUri = state.cachedVideoUris[state.currentIndex])
-            return
-        }
-        if (!item.isVideo && state.cachedBitmaps.containsKey(state.currentIndex)) {
-            _uiState.value = state.copy(currentBitmap = state.cachedBitmaps[state.currentIndex])
-            return
+        val key = item.toCacheKey()
+
+        // Check if already cached in MediaCache
+        if (!item.isVideo) {
+            MediaCache.getImage(key)?.let { bitmap ->
+                _uiState.value = state.copy(currentBitmap = bitmap, isLoading = false)
+                triggerPrefetch()
+                return
+            }
         }
 
         _uiState.value = state.copy(isLoading = true)
 
         viewModelScope.launch {
             if (item.isVideo) {
-                loadVideo(item, state.currentIndex, context, client)
+                // Fetch video bytes to cache, then get Uri
+                MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
+                val uri = MediaCache.getVideoUri(key, context)
+                _uiState.value = _uiState.value.copy(
+                    currentVideoUri = uri,
+                    isLoading = false
+                )
             } else {
-                loadImage(item, state.currentIndex, client)
+                val bitmap = MediaCache.fetchImage(key, item.subfolder, item.type)
+                _uiState.value = _uiState.value.copy(
+                    currentBitmap = bitmap,
+                    isLoading = false
+                )
             }
-
-            // Prefetch adjacent items
-            prefetchAdjacentItems()
+            triggerPrefetch()
         }
     }
 
-    private suspend fun loadImage(item: MediaViewerItem, index: Int, client: ComfyUIClient) {
-        val bitmap = withContext(Dispatchers.IO) {
-            kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                    continuation.resumeWith(Result.success(bmp))
-                }
-            }
-        }
-
+    /**
+     * Trigger prefetching of adjacent items using MediaCache.
+     */
+    private fun triggerPrefetch() {
         val state = _uiState.value
-        val newCachedBitmaps = state.cachedBitmaps.toMutableMap()
-        bitmap?.let { newCachedBitmaps[index] = it }
+        if (state.mode != ViewerMode.GALLERY || state.items.isEmpty()) return
 
-        _uiState.value = state.copy(
-            isLoading = false,
-            currentBitmap = if (state.currentIndex == index) bitmap else state.currentBitmap,
-            cachedBitmaps = newCachedBitmaps
-        )
-    }
-
-    private suspend fun loadVideo(item: MediaViewerItem, index: Int, context: Context, client: ComfyUIClient) {
-        val videoBytes = withContext(Dispatchers.IO) {
-            kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                    continuation.resumeWith(Result.success(bytes))
-                }
-            }
-        }
-
-        if (videoBytes == null) {
-            _uiState.value = _uiState.value.copy(isLoading = false)
-            return
-        }
-
-        val uri = withContext(Dispatchers.IO) {
-            val tempFile = File(context.cacheDir, "viewer_video_${index}_${System.currentTimeMillis()}.mp4")
-            tempFile.writeBytes(videoBytes)
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                tempFile
+        val prefetchItems = state.items.map { item ->
+            MediaCache.PrefetchItem(
+                key = item.toCacheKey(),
+                isVideo = item.isVideo,
+                subfolder = item.subfolder,
+                type = item.type
             )
         }
 
-        val state = _uiState.value
-        val newCachedUris = state.cachedVideoUris.toMutableMap()
-        newCachedUris[index] = uri
-
-        _uiState.value = state.copy(
-            isLoading = false,
-            currentVideoUri = if (state.currentIndex == index) uri else state.currentVideoUri,
-            cachedVideoUris = newCachedUris
-        )
+        MediaCache.prefetchAround(state.currentIndex, prefetchItems)
     }
 
     /**
@@ -384,43 +395,10 @@ class MediaViewerViewModel : ViewModel() {
         _currentMetadata.value = null
     }
 
-    private suspend fun prefetchAdjacentItems() {
-        val state = _uiState.value
-        val client = comfyUIClient ?: return
-        val context = applicationContext ?: return
-
-        // Prefetch next item
-        if (state.currentIndex + 1 < state.items.size) {
-            val nextIndex = state.currentIndex + 1
-            val nextItem = state.items[nextIndex]
-            if (!state.cachedBitmaps.containsKey(nextIndex) && !state.cachedVideoUris.containsKey(nextIndex)) {
-                if (nextItem.isVideo) {
-                    loadVideo(nextItem, nextIndex, context, client)
-                } else {
-                    loadImage(nextItem, nextIndex, client)
-                }
-            }
-        }
-
-        // Prefetch previous item
-        if (state.currentIndex - 1 >= 0) {
-            val prevIndex = state.currentIndex - 1
-            val prevItem = state.items[prevIndex]
-            if (!state.cachedBitmaps.containsKey(prevIndex) && !state.cachedVideoUris.containsKey(prevIndex)) {
-                if (prevItem.isVideo) {
-                    loadVideo(prevItem, prevIndex, context, client)
-                } else {
-                    loadImage(prevItem, prevIndex, client)
-                }
-            }
-        }
-    }
-
     fun deleteCurrentItem() {
         val state = _uiState.value
         val item = state.currentItem ?: return
         val client = comfyUIClient ?: return
-        val indexToDelete = state.currentIndex
 
         viewModelScope.launch {
             val success = withContext(Dispatchers.IO) {
@@ -433,6 +411,9 @@ class MediaViewerViewModel : ViewModel() {
 
             if (success) {
                 _events.emit(MediaViewerEvent.ShowToast(R.string.history_item_deleted_success))
+
+                // Evict from MediaCache (uses stable key, not index)
+                MediaCache.evict(item.toCacheKey())
 
                 // Get fresh state after async operation
                 val currentState = _uiState.value
@@ -455,18 +436,15 @@ class MediaViewerViewModel : ViewModel() {
                     // Adjust index and show next/previous item
                     val newIndex = actualIndexToRemove.coerceIn(0, currentItems.size - 1)
 
-                    // IMPORTANT: Clear all caches because indices have shifted
-                    // The cache uses integer indices as keys, so after deletion
-                    // all indices >= deletedIndex are now wrong
+                    // Clear metadata cache (still uses indices)
                     cachedMetadata.clear()
                     _currentMetadata.value = null
+
                     _uiState.value = currentState.copy(
                         items = currentItems,
                         currentIndex = newIndex,
                         currentBitmap = null,
                         currentVideoUri = null,
-                        cachedBitmaps = emptyMap(),
-                        cachedVideoUris = emptyMap(),
                         isLoading = true
                     )
                     _events.emit(MediaViewerEvent.ItemDeleted)
@@ -568,14 +546,12 @@ class MediaViewerViewModel : ViewModel() {
     }
 
     private suspend fun saveImageFromServer(context: Context, item: MediaViewerItem) {
-        val client = comfyUIClient ?: return
+        val key = item.toCacheKey()
 
         withContext(Dispatchers.IO) {
-            val bitmap = kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                    continuation.resumeWith(Result.success(bmp))
-                }
-            }
+            // Try cache first, then fetch if needed
+            val bitmap = MediaCache.getImage(key)
+                ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) {
                 _events.emit(MediaViewerEvent.ShowToast(R.string.failed_save_image))
@@ -606,14 +582,12 @@ class MediaViewerViewModel : ViewModel() {
     }
 
     private suspend fun saveVideoFromServer(context: Context, item: MediaViewerItem) {
-        val client = comfyUIClient ?: return
+        val key = item.toCacheKey()
 
         withContext(Dispatchers.IO) {
-            val videoBytes = kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                    continuation.resumeWith(Result.success(bytes))
-                }
-            }
+            // Try cache first, then fetch if needed
+            val videoBytes = MediaCache.getVideoBytes(key)
+                ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
             if (videoBytes == null) {
                 _events.emit(MediaViewerEvent.ShowToast(R.string.failed_save_video))
@@ -729,15 +703,11 @@ class MediaViewerViewModel : ViewModel() {
     }
 
     private suspend fun shareImageFromServer(context: Context, item: MediaViewerItem) {
-        val client = comfyUIClient ?: return
+        val key = item.toCacheKey()
 
-        val bitmap = withContext(Dispatchers.IO) {
-            kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchImage(item.filename, item.subfolder, item.type) { bmp ->
-                    continuation.resumeWith(Result.success(bmp))
-                }
-            }
-        }
+        // Try cache first, then fetch if needed
+        val bitmap = MediaCache.getImage(key)
+            ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
         if (bitmap == null) {
             _events.emit(MediaViewerEvent.ShowToast(R.string.failed_share_image))
@@ -748,15 +718,11 @@ class MediaViewerViewModel : ViewModel() {
     }
 
     private suspend fun shareVideoFromServer(context: Context, item: MediaViewerItem) {
-        val client = comfyUIClient ?: return
+        val key = item.toCacheKey()
 
-        val videoBytes = withContext(Dispatchers.IO) {
-            kotlin.coroutines.suspendCoroutine { continuation ->
-                client.fetchVideo(item.filename, item.subfolder, item.type) { bytes ->
-                    continuation.resumeWith(Result.success(bytes))
-                }
-            }
-        }
+        // Try cache first, then fetch if needed
+        val videoBytes = MediaCache.getVideoBytes(key)
+            ?: MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
 
         if (videoBytes == null) {
             _events.emit(MediaViewerEvent.ShowToast(R.string.failed_share_video))

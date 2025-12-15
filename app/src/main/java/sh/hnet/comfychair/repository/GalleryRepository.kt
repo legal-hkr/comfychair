@@ -2,7 +2,6 @@ package sh.hnet.comfychair.repository
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.media.MediaMetadataRetriever
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,8 +14,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.viewmodel.GalleryItem
-import java.io.File
 
 /**
  * Repository for managing gallery data with background preloading and caching.
@@ -74,6 +74,8 @@ class GalleryRepository private constructor() {
     fun initialize(context: Context, client: ComfyUIClient) {
         applicationContext = context.applicationContext
         comfyUIClient = client
+        // Initialize shared media cache
+        MediaCache.initialize(context, client)
     }
 
     /**
@@ -212,6 +214,8 @@ class GalleryRepository private constructor() {
         }
 
         if (success) {
+            // Evict from media cache
+            MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
             // Remove from local list
             val currentItems = _galleryItems.value.toMutableList()
             currentItems.removeAll { it.promptId == item.promptId }
@@ -227,6 +231,9 @@ class GalleryRepository private constructor() {
     suspend fun deleteItems(promptIds: Set<String>): Int {
         val client = comfyUIClient ?: return 0
 
+        // Find items to be deleted for cache eviction
+        val itemsToDelete = _galleryItems.value.filter { it.promptId in promptIds }
+
         var successCount = 0
         for (promptId in promptIds) {
             val success = withContext(Dispatchers.IO) {
@@ -239,8 +246,12 @@ class GalleryRepository private constructor() {
             if (success) successCount++
         }
 
-        // Remove deleted items from local list
+        // Remove deleted items from local list and evict from cache
         if (successCount > 0) {
+            // Evict from media cache
+            itemsToDelete.forEach { item ->
+                MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+            }
             val currentItems = _galleryItems.value.toMutableList()
             currentItems.removeAll { it.promptId in promptIds }
             _galleryItems.value = currentItems
@@ -257,6 +268,8 @@ class GalleryRepository private constructor() {
         _lastRefreshTime.value = 0L
         hasLoadedOnce = false
         stopPeriodicRefresh()
+        // Clear media cache
+        MediaCache.clearAll()
     }
 
     /**
@@ -266,6 +279,8 @@ class GalleryRepository private constructor() {
         clearCache()
         comfyUIClient = null
         applicationContext = null
+        // Reset media cache
+        MediaCache.reset()
     }
 
     private suspend fun parseHistoryToGalleryItems(
@@ -299,8 +314,8 @@ class GalleryRepository private constructor() {
                         val subfolder = videoInfo.optString("subfolder", "")
                         val type = videoInfo.optString("type", "output")
 
-                        // Get thumbnail for video
-                        val thumbnail = getVideoThumbnail(context, filename, subfolder, type)
+                        // Get thumbnail for video (uses MediaCache)
+                        val thumbnail = getVideoThumbnail(promptId, filename, subfolder, type)
 
                         items.add(GalleryItem(
                             promptId = promptId,
@@ -326,7 +341,7 @@ class GalleryRepository private constructor() {
                         if (VIDEO_EXTENSIONS.any { filename.lowercase().endsWith(it) }) {
                             val subfolder = imageInfo.optString("subfolder", "")
                             val type = imageInfo.optString("type", "output")
-                            val thumbnail = getVideoThumbnail(context, filename, subfolder, type)
+                            val thumbnail = getVideoThumbnail(promptId, filename, subfolder, type)
 
                             items.add(GalleryItem(
                                 promptId = promptId,
@@ -343,8 +358,8 @@ class GalleryRepository private constructor() {
                         val subfolder = imageInfo.optString("subfolder", "")
                         val type = imageInfo.optString("type", "output")
 
-                        // Get thumbnail for image
-                        val thumbnail = getImageThumbnail(filename, subfolder, type)
+                        // Get thumbnail for image (uses MediaCache)
+                        val thumbnail = getImageThumbnail(promptId, filename, subfolder, type)
 
                         items.add(GalleryItem(
                             promptId = promptId,
@@ -365,46 +380,22 @@ class GalleryRepository private constructor() {
     }
 
     private suspend fun getImageThumbnail(
+        promptId: String,
         filename: String,
         subfolder: String,
         type: String
-    ): Bitmap? = withContext(Dispatchers.IO) {
-        kotlin.coroutines.suspendCoroutine { continuation ->
-            comfyUIClient?.fetchImage(filename, subfolder, type) { bitmap ->
-                continuation.resumeWith(Result.success(bitmap))
-            } ?: continuation.resumeWith(Result.success(null))
-        }
+    ): Bitmap? {
+        val key = MediaCacheKey(promptId, filename)
+        return MediaCache.fetchThumbnail(key, isVideo = false, subfolder, type)
     }
 
     private suspend fun getVideoThumbnail(
-        context: Context,
+        promptId: String,
         filename: String,
         subfolder: String,
         type: String
-    ): Bitmap? = withContext(Dispatchers.IO) {
-        // Fetch video and extract thumbnail
-        val videoBytes: ByteArray? = kotlin.coroutines.suspendCoroutine { continuation ->
-            comfyUIClient?.fetchVideo(filename, subfolder, type) { bytes ->
-                continuation.resumeWith(Result.success(bytes))
-            } ?: continuation.resumeWith(Result.success(null))
-        }
-        if (videoBytes == null) return@withContext null
-
-        // Save to temp file
-        val tempFile = File(context.cacheDir, "temp_video_thumb_${System.currentTimeMillis()}.mp4")
-        try {
-            tempFile.writeBytes(videoBytes)
-
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(tempFile.absolutePath)
-            val bitmap = retriever.getFrameAtTime(0)
-            retriever.release()
-
-            tempFile.delete()
-            bitmap
-        } catch (e: Exception) {
-            tempFile.delete()
-            null
-        }
+    ): Bitmap? {
+        val key = MediaCacheKey(promptId, filename)
+        return MediaCache.fetchThumbnail(key, isVideo = true, subfolder, type)
     }
 }
