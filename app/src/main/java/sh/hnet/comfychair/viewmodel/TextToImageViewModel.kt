@@ -589,7 +589,7 @@ class TextToImageViewModel : ViewModel() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        val defaultPositivePrompt = ctx.getString(R.string.default_prompt_image)
+        val defaultPositivePrompt = ctx.getString(R.string.default_prompt_text_to_image)
         _uiState.value = _uiState.value.copy(
             isCheckpointMode = prefs.getBoolean(PREF_IS_CHECKPOINT_MODE, true),
             positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt,

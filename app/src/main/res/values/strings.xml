@@ -22,8 +22,10 @@
 
     <!-- Query screen strings -->
     <string name="prompt_hint">Prompt</string>
-    <string name="default_prompt_image">A warm and cozy photo of a woman sitting in a comfy chair, sipping coffee</string>
-    <string name="default_prompt_inpainting">A woman with green, wavy hair</string>
+    <string name="default_prompt_text_to_image" translatable="false">A warm and cozy photo of a woman sitting in a comfy chair and sipping coffee</string>
+    <string name="default_prompt_inpainting" translatable="false">A woman with short, pink hair</string>
+    <string name="default_prompt_text_to_video" translatable="false">A woman sitting in a comfy chair, reading a book and gently turning pages</string>
+    <string name="default_prompt_image_to_video" translatable="false">The woman gently moves, her hair swaying slightly in a soft breeze</string>
     <string name="button_generate">Generate</string>
 
     <!-- Configuration panel strings -->

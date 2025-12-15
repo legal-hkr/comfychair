@@ -135,10 +135,10 @@ class TextToVideoViewModel : ViewModel() {
 
         val savedWorkflow = prefs.getString(KEY_WORKFLOW, "") ?: ""
         val savedWidth = prefs.getString(KEY_WIDTH, "480") ?: "480"
-        val savedHeight = prefs.getString(KEY_HEIGHT, "848") ?: "848"
-        val savedLength = prefs.getString(KEY_LENGTH, "33") ?: "33"
-        val savedFps = prefs.getString(KEY_FPS, "16") ?: "16"
-        val defaultPositivePrompt = context.getString(R.string.default_prompt_image)
+        val savedHeight = prefs.getString(KEY_HEIGHT, "800") ?: "800"
+        val savedLength = prefs.getString(KEY_LENGTH, "49") ?: "49"
+        val savedFps = prefs.getString(KEY_FPS, "24") ?: "24"
+        val defaultPositivePrompt = context.getString(R.string.default_prompt_text_to_video)
         val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
 
         // Deferred model selections
