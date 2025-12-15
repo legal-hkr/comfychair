@@ -264,6 +264,18 @@ class SettingsViewModel : ViewModel() {
                     }
                 }
 
+                // Clear video files with prompt ID suffixes in filesDir
+                context.filesDir.listFiles()?.forEach { file ->
+                    if (file.name.startsWith("last_generated_video") && file.name.endsWith(".mp4") ||
+                        file.name.startsWith("image_to_video_last_generated") && file.name.endsWith(".mp4")) {
+                        try {
+                            file.delete()
+                        } catch (e: Exception) {
+                            // Failed to delete video file
+                        }
+                    }
+                }
+
                 // Also clear any temp files in cache directory
                 context.cacheDir.listFiles()?.forEach { file ->
                     if (file.name.startsWith("gallery_video_") || file.name.startsWith("playback_") || file.name.endsWith(".png") || file.name.endsWith(".mp4")) {
