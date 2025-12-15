@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.5.0
+**Current version**: v0.5.1
 
 ## Overview
 
@@ -54,6 +54,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Double-tap to toggle between fit and crop zoom
   - Single-tap to toggle UI visibility (with system bars)
   - Quick actions: delete, save to gallery, share
+  - Metadata viewer showing generation parameters (prompt, model, seed, steps, etc.)
 - **Gallery**:
   - View all generated images and videos with 2-column grid layout
   - Video indicator on thumbnails
