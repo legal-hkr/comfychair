@@ -10,9 +10,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-***UPDATE REQUIRED***
-
-<img src="screenshots/login.png" width="200"/> <img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-settingsunet.png" width="200"/> <img src="screenshots/texttovideo.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/inpainting-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/settings-server.png" width="200"/>
+<img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttovideo-options.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/imagetovideo-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/gallery-mediaviewer.png" width="200"/> <img src="screenshots/gallery-metadataviewer.png" width="200"/> <img src="screenshots/settings-workflows.png" width="200"/> <img src="screenshots/settings-workflows-previewer.png" width="200"/> <img src="screenshots/settings-server.png" width="200"/>
 
 ## Features
 
