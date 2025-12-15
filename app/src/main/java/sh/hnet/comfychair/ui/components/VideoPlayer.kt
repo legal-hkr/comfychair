@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,13 +49,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import androidx.media3.ui.compose.PlayerSurface
+import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
+import androidx.media3.ui.compose.state.rememberPresentationState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -105,8 +106,6 @@ fun VideoPlayer(
 
     // Thumbnail for displaying when player is destroyed during transitions
     var thumbnail by remember { mutableStateOf<Bitmap?>(null) }
-    // Controls whether to show thumbnail overlay on top of video
-    var showThumbnailOverlay by remember { mutableStateOf(true) }
 
     // Video dimensions for aspect ratio calculations
     var videoWidth by remember { mutableStateOf(0) }
@@ -140,7 +139,6 @@ fun VideoPlayer(
     // Extract first frame as thumbnail and video dimensions when video URI changes
     LaunchedEffect(videoUri) {
         if (videoUri != null) {
-            showThumbnailOverlay = true
             // Reset zoom when video changes
             scale = 1f
             offset = Offset.Zero
@@ -165,13 +163,6 @@ fun VideoPlayer(
             thumbnail = null
             videoWidth = 0
             videoHeight = 0
-        }
-    }
-
-    // Reset thumbnail overlay when becoming inactive
-    LaunchedEffect(isActive) {
-        if (!isActive) {
-            showThumbnailOverlay = true
         }
     }
 
@@ -400,73 +391,113 @@ fun VideoPlayer(
                     }
                 )
         ) {
+            // Determine content scale for thumbnail
+            val thumbnailContentScale = when {
+                enableZoom -> ContentScale.Fit
+                scaleMode == VideoScaleMode.CROP -> ContentScale.Crop
+                else -> ContentScale.Fit
+            }
+
             if (isActive && videoUri != null) {
-                // Only create ExoPlayer when active
-                val exoPlayer = remember(videoUri) {
-                    ExoPlayer.Builder(context).build().apply {
-                        repeatMode = Player.REPEAT_MODE_ALL
-                        setMediaItem(MediaItem.fromUri(videoUri))
-                        prepare()
-                        play()
-                    }
-                }
+                // Use shared ExoPlayer instance with reference counting
+                val exoPlayer = remember { SharedVideoPlayer.registerConsumer(context) }
 
-                // Release player when it leaves composition
-                DisposableEffect(exoPlayer) {
+                // Unregister when leaving composition
+                DisposableEffect(Unit) {
                     onDispose {
-                        exoPlayer.release()
+                        SharedVideoPlayer.unregisterConsumer()
                     }
                 }
 
-                // Hide thumbnail overlay after delay to reveal video
-                LaunchedEffect(Unit) {
-                    delay(150)
-                    showThumbnailOverlay = false
+                // Start/switch video playback when URI changes
+                LaunchedEffect(videoUri) {
+                    SharedVideoPlayer.playVideo(context, videoUri)
                 }
 
-                // Determine resize mode based on scaleMode and enableZoom
-                val resizeMode = when {
-                    enableZoom -> AspectRatioFrameLayout.RESIZE_MODE_FIT // Zoom needs FIT as base
-                    scaleMode == VideoScaleMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                }
-                val thumbnailContentScale = when {
-                    enableZoom -> ContentScale.Fit
-                    scaleMode == VideoScaleMode.CROP -> ContentScale.Crop
-                    else -> ContentScale.Fit
+                // Use PresentationState to track when video surface is ready
+                val presentationState = rememberPresentationState(exoPlayer)
+
+                // Use video dimensions from MediaMetadataRetriever (extracted earlier)
+                // This is more reliable than presentationState.videoSizeDp when sharing ExoPlayer
+                val hasValidDimensions = videoWidth > 0 && videoHeight > 0
+                val playerVideoAspectRatio = if (hasValidDimensions) {
+                    videoWidth.toFloat() / videoHeight.toFloat()
+                } else {
+                    16f / 9f // Default until dimensions available
                 }
 
-                // Video player
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            player = exoPlayer
-                            useController = showController
-                            this.resizeMode = resizeMode
+                // Calculate scale to maintain aspect ratio
+                // CROP: scale up so video fills container completely (excess is clipped)
+                // FIT: scale so video fits entirely within container (may have letterboxing)
+                val aspectRatioScale = remember(containerSize, videoWidth, videoHeight, scaleMode, enableZoom) {
+                    if (containerSize.width == 0 || containerSize.height == 0 || !hasValidDimensions) {
+                        1f
+                    } else {
+                        val containerAspect = containerSize.width.toFloat() / containerSize.height.toFloat()
+
+                        if (enableZoom || scaleMode == VideoScaleMode.FIT) {
+                            // FIT mode: no additional scaling needed beyond aspectRatio modifier
+                            1f
+                        } else {
+                            // CROP mode: scale up to fill container
+                            if (playerVideoAspectRatio > containerAspect) {
+                                // Video is wider - scale based on height to fill
+                                playerVideoAspectRatio / containerAspect
+                            } else {
+                                // Video is taller - scale based on width to fill
+                                containerAspect / playerVideoAspectRatio
+                            }
                         }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    update = { playerView ->
-                        playerView.useController = showController
                     }
-                )
+                }
 
-                // Thumbnail overlay while video is starting
-                if (showThumbnailOverlay && thumbnail != null) {
-                    Image(
-                        bitmap = thumbnail!!.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = thumbnailContentScale
+                // Native Compose PlayerSurface with aspect ratio handling
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PlayerSurface(
+                        player = exoPlayer,
+                        surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+                        modifier = Modifier
+                            .then(
+                                if (hasValidDimensions) {
+                                    Modifier.aspectRatio(playerVideoAspectRatio)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = aspectRatioScale
+                                scaleY = aspectRatioScale
+                            }
                     )
+                }
+
+                // Shutter overlay - show until surface is ready AND we have valid dimensions
+                // This ensures video never shows stretched
+                val showShutter = presentationState.coverSurface || !hasValidDimensions
+                if (showShutter) {
+                    if (thumbnail != null) {
+                        // Show thumbnail as shutter
+                        Image(
+                            bitmap = thumbnail!!.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = thumbnailContentScale
+                        )
+                    } else {
+                        // Show black background as fallback shutter when thumbnail not ready
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black)
+                        )
+                    }
                 }
             } else if (thumbnail != null) {
                 // When inactive, show only the thumbnail
-                val thumbnailContentScale = when {
-                    enableZoom -> ContentScale.Fit
-                    scaleMode == VideoScaleMode.CROP -> ContentScale.Crop
-                    else -> ContentScale.Fit
-                }
                 Image(
                     bitmap = thumbnail!!.asImageBitmap(),
                     contentDescription = null,
@@ -479,7 +510,9 @@ fun VideoPlayer(
 }
 
 /**
- * Composable for fullscreen video playback with controls and close button
+ * Composable for fullscreen video playback with controls and close button.
+ * Uses native Compose PlayerSurface with PresentationState for proper first-frame detection.
+ *
  * @param videoUri The URI of the video to play
  * @param modifier Modifier for the player view
  * @param onDismiss Callback when user wants to dismiss
@@ -493,36 +526,91 @@ fun FullscreenVideoPlayer(
 ) {
     val context = LocalContext.current
 
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_ALL
-            playWhenReady = true
+    // Video dimensions for aspect ratio calculations (same approach as VideoPlayer)
+    var videoWidth by remember { mutableStateOf(0) }
+    var videoHeight by remember { mutableStateOf(0) }
+
+    // Extract video dimensions using MediaMetadataRetriever (consistent with VideoPlayer)
+    LaunchedEffect(videoUri) {
+        if (videoUri != null) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val retriever = MediaMetadataRetriever()
+                    retriever.setDataSource(context, videoUri)
+                    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                    retriever.release()
+                    videoWidth = width
+                    videoHeight = height
+                } catch (e: Exception) {
+                    videoWidth = 0
+                    videoHeight = 0
+                }
+            }
+        } else {
+            videoWidth = 0
+            videoHeight = 0
         }
     }
 
-    // Handle video URI changes and release player on dispose
-    DisposableEffect(videoUri) {
-        if (videoUri != null) {
-            exoPlayer.setMediaItem(MediaItem.fromUri(videoUri))
-            exoPlayer.prepare()
-            exoPlayer.play()
-        }
+    // Use shared ExoPlayer instance with reference counting
+    val exoPlayer = remember { SharedVideoPlayer.registerConsumer(context) }
+
+    // Unregister when leaving composition
+    DisposableEffect(Unit) {
         onDispose {
-            exoPlayer.release()
+            SharedVideoPlayer.unregisterConsumer()
         }
+    }
+
+    // Start/switch video playback when URI changes
+    LaunchedEffect(videoUri) {
+        if (videoUri != null) {
+            SharedVideoPlayer.playVideo(context, videoUri)
+        }
+    }
+
+    // Use PresentationState to track when video surface is ready
+    val presentationState = rememberPresentationState(exoPlayer)
+
+    // Use video dimensions from MediaMetadataRetriever for consistent aspect ratio
+    val hasValidDimensions = videoWidth > 0 && videoHeight > 0
+    val videoAspectRatio = if (hasValidDimensions) {
+        videoWidth.toFloat() / videoHeight.toFloat()
+    } else {
+        16f / 9f // Default aspect ratio
     }
 
     Box(modifier = modifier) {
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = true
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT // Fit for fullscreen
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        // Native Compose PlayerSurface with aspect ratio (FIT mode for fullscreen)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            PlayerSurface(
+                player = exoPlayer,
+                surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+                modifier = Modifier
+                    .then(
+                        if (hasValidDimensions) {
+                            Modifier.aspectRatio(videoAspectRatio)
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .fillMaxSize()
+            )
+        }
+
+        // Shutter overlay - controlled by PresentationState.coverSurface
+        // Shows black background until first frame is rendered or dimensions not ready
+        if (presentationState.coverSurface || !hasValidDimensions) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            )
+        }
 
         // Close button
         if (onDismiss != null) {

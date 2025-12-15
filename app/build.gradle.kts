@@ -71,6 +71,7 @@ dependencies {
     // Media3 for video playback
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+    implementation(libs.media3.ui.compose)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
