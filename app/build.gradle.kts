@@ -12,8 +12,8 @@ android {
         applicationId = "sh.hnet.comfychair"
         minSdk = 34
         targetSdk = 36
-        versionCode = 16
-        versionName = "v0.6.0"
+        versionCode = 17
+        versionName = "v0.6.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

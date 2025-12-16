@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.6.0
+**Current version**: v0.6.1
 
 ## Overview
 
@@ -58,6 +58,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Single-tap to toggle UI visibility (with system bars)
   - Quick actions: delete, save to gallery, share
   - Metadata viewer showing generation parameters (prompt, model, seed, steps, etc.)
+  - Optimized media caching for smooth transitions between items
 - **Gallery**:
   - View all generated images and videos with 2-column grid layout
   - Video indicator on thumbnails
@@ -78,7 +79,9 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Visual workflow previewer with node graph display
   - Field mapping UI for required template fields
   - Edit workflow name and description
-- **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters
+  - Default generation settings extracted during workflow import
+  - Per-workflow generation settings (each workflow remembers its own configuration)
+- **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters on a per-workflow basis
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
 - **Localization**: Available in English (default), German, French, Polish, and Spanish
 - **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
@@ -160,8 +163,17 @@ app/src/main/
 │   ├── ComfyUIClient.kt             # API client for ComfyUI server
 │   ├── WorkflowManager.kt           # Workflow JSON management
 │   ├── SelfSignedCertHelper.kt      # SSL certificate handling
+│   ├── cache/
+│   │   └── MediaCache.kt            # In-memory media caching with prefetch
+│   ├── model/
+│   │   ├── LoraSelection.kt         # LoRA selection data class
+│   │   ├── SamplerOptions.kt        # Sampler and scheduler options
+│   │   ├── WorkflowDefaults.kt      # Per-workflow default values
+│   │   └── WorkflowValues.kt        # Per-workflow saved values
 │   ├── navigation/
 │   │   └── AppNavigation.kt         # Navigation route definitions
+│   ├── storage/
+│   │   └── WorkflowValuesStorage.kt # Per-workflow value persistence
 │   ├── viewmodel/
 │   │   ├── GenerationViewModel.kt   # Central WebSocket & generation state
 │   │   ├── TextToImageViewModel.kt  # Text-to-image screen state
