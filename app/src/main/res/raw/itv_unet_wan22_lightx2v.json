@@ -4,8 +4,8 @@
   "defaults": {
     "width": 480,
     "height": 800,
-    "length": 33,
-    "frame_rate": 16
+    "length": 49,
+    "frame_rate": 24
   },
   "nodes": {
     "1": {
