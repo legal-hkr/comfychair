@@ -53,6 +53,9 @@ class GalleryRepository private constructor() {
     // Track if initial load has been done
     private var hasLoadedOnce = false
 
+    // Track items being deleted to filter them from refresh results
+    private val pendingDeletions = mutableSetOf<String>()
+
     companion object {
         @Volatile
         private var instance: GalleryRepository? = null
@@ -182,7 +185,37 @@ class GalleryRepository private constructor() {
                 return
             }
 
-            val items = parseHistoryToGalleryItems(historyJson, context)
+            // Get current items for thumbnail preservation
+            val existingItems = _galleryItems.value
+            val existingThumbnails = existingItems.associateBy(
+                { "${it.promptId}_${it.filename}" },
+                { it.thumbnail }
+            )
+
+            // Get pending deletions snapshot
+            val deletionsSnapshot: Set<String>
+            synchronized(pendingDeletions) {
+                deletionsSnapshot = pendingDeletions.toSet()
+            }
+
+            var items = parseHistoryToGalleryItems(historyJson, context)
+
+            // Filter out pending deletions to prevent reappearing
+            if (deletionsSnapshot.isNotEmpty()) {
+                items = items.filter { it.promptId !in deletionsSnapshot }
+            }
+
+            // Preserve existing thumbnails for items that already have them
+            items = items.map { item ->
+                val key = "${item.promptId}_${item.filename}"
+                val existingThumbnail = existingThumbnails[key]
+                if (item.thumbnail == null && existingThumbnail != null) {
+                    item.copy(thumbnail = existingThumbnail)
+                } else {
+                    item
+                }
+            }
+
             _galleryItems.value = items
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
@@ -205,6 +238,16 @@ class GalleryRepository private constructor() {
     suspend fun deleteItem(item: GalleryItem): Boolean {
         val client = comfyUIClient ?: return false
 
+        // Add to pending deletions to prevent reappearing during concurrent refresh
+        synchronized(pendingDeletions) {
+            pendingDeletions.add(item.promptId)
+        }
+
+        // Remove from local list immediately for responsive UI
+        val currentItems = _galleryItems.value.toMutableList()
+        currentItems.removeAll { it.promptId == item.promptId }
+        _galleryItems.value = currentItems
+
         val success = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
                 client.deleteHistoryItem(item.promptId) { success ->
@@ -216,10 +259,11 @@ class GalleryRepository private constructor() {
         if (success) {
             // Evict from media cache
             MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
-            // Remove from local list
-            val currentItems = _galleryItems.value.toMutableList()
-            currentItems.removeAll { it.promptId == item.promptId }
-            _galleryItems.value = currentItems
+        }
+
+        // Remove from pending deletions after server confirms (or fails)
+        synchronized(pendingDeletions) {
+            pendingDeletions.remove(item.promptId)
         }
 
         return success
@@ -234,6 +278,16 @@ class GalleryRepository private constructor() {
         // Find items to be deleted for cache eviction
         val itemsToDelete = _galleryItems.value.filter { it.promptId in promptIds }
 
+        // Add to pending deletions to prevent reappearing during concurrent refresh
+        synchronized(pendingDeletions) {
+            pendingDeletions.addAll(promptIds)
+        }
+
+        // Remove from local list immediately for responsive UI
+        val currentItems = _galleryItems.value.toMutableList()
+        currentItems.removeAll { it.promptId in promptIds }
+        _galleryItems.value = currentItems
+
         var successCount = 0
         for (promptId in promptIds) {
             val success = withContext(Dispatchers.IO) {
@@ -243,18 +297,18 @@ class GalleryRepository private constructor() {
                     }
                 }
             }
-            if (success) successCount++
+            if (success) {
+                successCount++
+                // Evict from media cache
+                itemsToDelete.filter { it.promptId == promptId }.forEach { item ->
+                    MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+                }
+            }
         }
 
-        // Remove deleted items from local list and evict from cache
-        if (successCount > 0) {
-            // Evict from media cache
-            itemsToDelete.forEach { item ->
-                MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
-            }
-            val currentItems = _galleryItems.value.toMutableList()
-            currentItems.removeAll { it.promptId in promptIds }
-            _galleryItems.value = currentItems
+        // Remove from pending deletions after all server operations complete
+        synchronized(pendingDeletions) {
+            pendingDeletions.removeAll(promptIds)
         }
 
         return successCount
@@ -267,6 +321,9 @@ class GalleryRepository private constructor() {
         _galleryItems.value = emptyList()
         _lastRefreshTime.value = 0L
         hasLoadedOnce = false
+        synchronized(pendingDeletions) {
+            pendingDeletions.clear()
+        }
         stopPeriodicRefresh()
         // Clear media cache
         MediaCache.clearAll()
