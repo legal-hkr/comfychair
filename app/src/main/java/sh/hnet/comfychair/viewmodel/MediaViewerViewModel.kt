@@ -185,8 +185,11 @@ class MediaViewerViewModel : ViewModel() {
                     }
                 }
 
-                // For gallery mode, load current item after connection
+                // For gallery mode, set up priorities and load current item after connection
                 if (mode == ViewerMode.GALLERY && items.isNotEmpty()) {
+                    val currentIdx = _uiState.value.currentIndex
+                    updateCachePrioritiesForIndex(currentIdx)
+                    triggerPrefetchForIndex(currentIdx)
                     loadCurrentItem()
                 }
             }
@@ -206,6 +209,9 @@ class MediaViewerViewModel : ViewModel() {
 
         val item = state.items[index]
         val key = item.toCacheKey()
+
+        // Update image cache priorities based on new position
+        updateCachePrioritiesForIndex(index)
 
         // Trigger prefetch IMMEDIATELY for adjacent items (before loading current)
         triggerPrefetchForIndex(index)
@@ -271,6 +277,19 @@ class MediaViewerViewModel : ViewModel() {
                 isLoading = false
             )
         }
+    }
+
+    /**
+     * Update cache priorities based on current viewing position.
+     * Ensures adjacent items have higher priority than distant items.
+     */
+    private fun updateCachePrioritiesForIndex(index: Int) {
+        val state = _uiState.value
+        if (state.mode != ViewerMode.GALLERY || state.items.isEmpty()) return
+
+        val currentKey = state.items[index].toCacheKey()
+        val allKeys = state.items.map { it.toCacheKey() }
+        MediaCache.updateImagePriorities(currentKey, allKeys, index)
     }
 
     /**

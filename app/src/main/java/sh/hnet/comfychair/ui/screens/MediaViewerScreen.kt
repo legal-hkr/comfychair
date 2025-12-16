@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -135,31 +136,40 @@ fun MediaViewerScreen(
                         ) { page ->
                             val item = uiState.items[page]
                             val isCurrentPage = page == pagerState.currentPage
-
-                            // For current page, use uiState values
-                            // For other pages, check MediaCache directly
                             val cacheKey = MediaCacheKey(item.promptId, item.filename)
-                            val bitmap = if (isCurrentPage) uiState.currentBitmap else MediaCache.getImage(cacheKey)
+
+                            // Always use cache for bitmap to prevent flash-through during transitions
+                            // When currentPage changes, using uiState.currentBitmap can cause the old page
+                            // to briefly show the new image before recomposition
+                            val bitmap = if (!item.isVideo) MediaCache.getImage(cacheKey) else null
+
                             // For video URI: only current page needs it (non-current pages just check if bytes are cached)
                             val videoUri = if (isCurrentPage) uiState.currentVideoUri else null
                             val hasVideoCached = if (!isCurrentPage && item.isVideo) MediaCache.getVideoBytes(cacheKey) != null else false
 
                             // Show loading if: current page is loading, OR content not available yet
                             val showLoading = if (isCurrentPage) {
-                                uiState.isLoading
+                                uiState.isLoading && (if (item.isVideo) videoUri == null else bitmap == null)
                             } else {
                                 // Non-current page: show loading if no cached content
                                 if (item.isVideo) !hasVideoCached else bitmap == null
                             }
 
-                            MediaContent(
-                                isVideo = item.isVideo,
-                                bitmap = bitmap,
-                                videoUri = videoUri,
-                                isLoading = showLoading,
-                                onSingleTap = { viewModel.toggleUiVisibility() },
-                                cacheKey = cacheKey
-                            )
+                            // Use clipToBounds to ensure content doesn't bleed during transitions
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clipToBounds()
+                            ) {
+                                MediaContent(
+                                    isVideo = item.isVideo,
+                                    bitmap = bitmap,
+                                    videoUri = videoUri,
+                                    isLoading = showLoading,
+                                    onSingleTap = { viewModel.toggleUiVisibility() },
+                                    cacheKey = cacheKey
+                                )
+                            }
                         }
 
                         // Navigation arrows need pagerState, so move them inside

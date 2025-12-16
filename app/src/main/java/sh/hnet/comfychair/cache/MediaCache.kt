@@ -33,13 +33,13 @@ data class MediaCacheKey(
 }
 
 /**
- * Cached video metadata including dimensions and thumbnail.
+ * Cached video dimensions.
  * Used to avoid repeated MediaMetadataRetriever calls in VideoPlayer.
+ * Thumbnails are stored separately in thumbnailCache.
  */
-data class VideoMetadata(
+data class VideoDimensions(
     val width: Int,
-    val height: Int,
-    val thumbnail: Bitmap?
+    val height: Int
 )
 
 /**
@@ -101,9 +101,10 @@ object MediaCache {
         override fun sizeOf(key: String, bitmap: Bitmap): Int = bitmap.byteCount
     }
 
-    private val imageCache: LruCache<String, Bitmap> = object : LruCache<String, Bitmap>(imageCacheSize) {
-        override fun sizeOf(key: String, bitmap: Bitmap): Int = bitmap.byteCount
-    }
+    private val imageCache: PriorityLruCache<String, Bitmap> = PriorityLruCache(
+        maxSize = imageCacheSize,
+        sizeOf = { _, bitmap -> bitmap.byteCount }
+    )
 
     private val videoCache: LruCache<String, ByteArray> = object : LruCache<String, ByteArray>(videoCacheSize) {
         override fun sizeOf(key: String, bytes: ByteArray): Int = bytes.size
@@ -112,8 +113,8 @@ object MediaCache {
     // Cache of video URIs (lightweight - just stores Uri references)
     private val videoUriCache = ConcurrentHashMap<String, Uri>()
 
-    // Cache of video metadata (dimensions + thumbnail) for VideoPlayer
-    private val videoMetadataCache = ConcurrentHashMap<String, VideoMetadata>()
+    // Cache of video dimensions for VideoPlayer
+    private val videoDimensionsCache = ConcurrentHashMap<String, VideoDimensions>()
 
     // Prefetching infrastructure
     private val prefetchQueue = PriorityBlockingQueue<PrefetchRequest>()
@@ -181,7 +182,8 @@ object MediaCache {
         key: MediaCacheKey,
         subfolder: String,
         type: String,
-        client: ComfyUIClient
+        client: ComfyUIClient,
+        priority: Int = PriorityLruCache.PRIORITY_DEFAULT
     ): Bitmap? {
         val bitmap = suspendCancellableCoroutine { continuation ->
             client.fetchImage(key.filename, subfolder, type) { bmp ->
@@ -193,7 +195,7 @@ object MediaCache {
             val keyStr = key.keyString
             thumbnailCache.put(keyStr, it)
             // Also cache in full-size cache since we have it
-            imageCache.put(keyStr, it)
+            imageCache.put(keyStr, it, priority)
         }
 
         return bitmap
@@ -225,14 +227,12 @@ object MediaCache {
 
         if (videoBytes == null) return null
 
-        // Extract and cache metadata (thumbnail + dimensions)
-        val metadata = extractVideoMetadata(videoBytes, context)
-        metadata?.let {
-            videoMetadataCache[keyStr] = it
-            it.thumbnail?.let { thumb -> thumbnailCache.put(keyStr, thumb) }
-        }
+        // Extract and cache thumbnail and dimensions
+        val (dimensions, thumbnail) = extractVideoData(videoBytes, context)
+        dimensions?.let { videoDimensionsCache[keyStr] = it }
+        thumbnail?.let { thumbnailCache.put(keyStr, it) }
 
-        return metadata?.thumbnail
+        return thumbnail
     }
 
     // ==================== FULL-SIZE IMAGE OPERATIONS ====================
@@ -246,11 +246,14 @@ object MediaCache {
 
     /**
      * Fetch full-size image with caching.
+     *
+     * @param priority Cache priority level (default: PRIORITY_CURRENT for direct requests)
      */
     suspend fun fetchImage(
         key: MediaCacheKey,
         subfolder: String,
-        type: String
+        type: String,
+        priority: Int = PriorityLruCache.PRIORITY_CURRENT
     ): Bitmap? {
         val keyStr = key.keyString
 
@@ -266,7 +269,7 @@ object MediaCache {
                 }
             }
 
-            bitmap?.let { imageCache.put(keyStr, it) }
+            bitmap?.let { imageCache.put(keyStr, it, priority) }
             bitmap
         }
     }
@@ -316,11 +319,11 @@ object MediaCache {
     }
 
     /**
-     * Get cached video metadata (dimensions + thumbnail) if available (sync).
+     * Get cached video dimensions if available (sync).
      * Used by VideoPlayer to avoid repeated MediaMetadataRetriever calls.
      */
-    fun getVideoMetadata(key: MediaCacheKey): VideoMetadata? {
-        return videoMetadataCache[key.keyString]
+    fun getVideoDimensions(key: MediaCacheKey): VideoDimensions? {
+        return videoDimensionsCache[key.keyString]
     }
 
     /**
@@ -372,13 +375,12 @@ object MediaCache {
         // Ensure bytes are cached
         val bytes = fetchVideoBytes(key, subfolder, type) ?: return null
 
-        // Extract and cache metadata if not already cached
-        if (!videoMetadataCache.containsKey(keyStr)) {
+        // Extract and cache dimensions/thumbnail if not already cached
+        if (!videoDimensionsCache.containsKey(keyStr)) {
             withContext(Dispatchers.IO) {
-                extractVideoMetadata(bytes, context)?.let {
-                    videoMetadataCache[keyStr] = it
-                    it.thumbnail?.let { thumb -> thumbnailCache.put(keyStr, thumb) }
-                }
+                val (dimensions, thumbnail) = extractVideoData(bytes, context)
+                dimensions?.let { videoDimensionsCache[keyStr] = it }
+                thumbnail?.let { thumbnailCache.put(keyStr, it) }
             }
         }
 
@@ -521,6 +523,13 @@ object MediaCache {
                             inProgressKeys.add(keyStr)) {
 
                             try {
+                                // Convert PrefetchPriority to PriorityLruCache priority
+                                val cachePriority = when (request.priority) {
+                                    PrefetchPriority.ADJACENT -> PriorityLruCache.PRIORITY_ADJACENT
+                                    PrefetchPriority.NEARBY -> PriorityLruCache.PRIORITY_NEARBY
+                                    PrefetchPriority.DISTANT -> PriorityLruCache.PRIORITY_DISTANT
+                                }
+
                                 if (request.isVideo) {
                                     // Fetch bytes and create URI so video is ready to play
                                     val context = applicationContext
@@ -530,7 +539,7 @@ object MediaCache {
                                         fetchVideoBytes(request.key, request.subfolder, request.type)
                                     }
                                 } else {
-                                    fetchImage(request.key, request.subfolder, request.type)
+                                    fetchImage(request.key, request.subfolder, request.type, cachePriority)
                                 }
                             } finally {
                                 inProgressKeys.remove(keyStr)
@@ -566,7 +575,7 @@ object MediaCache {
         imageCache.remove(keyStr)
         videoCache.remove(keyStr)
         videoUriCache.remove(keyStr)
-        videoMetadataCache.remove(keyStr)
+        videoDimensionsCache.remove(keyStr)
     }
 
     /**
@@ -577,7 +586,7 @@ object MediaCache {
         imageCache.evictAll()
         videoCache.evictAll()
         videoUriCache.clear()
-        videoMetadataCache.clear()
+        videoDimensionsCache.clear()
         prefetchQueue.clear()
         inProgressKeys.clear()
         completionCallbacks.clear()
@@ -595,10 +604,11 @@ object MediaCache {
     // ==================== UTILITY ====================
 
     /**
-     * Extract video metadata (thumbnail + dimensions) from video bytes.
+     * Extract video dimensions and thumbnail from video bytes.
      * Uses MediaMetadataRetriever which requires a file, so creates a temp file.
+     * Returns Pair of (dimensions, thumbnail) - either may be null on error.
      */
-    private fun extractVideoMetadata(videoBytes: ByteArray, context: Context): VideoMetadata? {
+    private fun extractVideoData(videoBytes: ByteArray, context: Context): Pair<VideoDimensions?, Bitmap?> {
         val tempFile = File(context.cacheDir, "temp_meta_${System.currentTimeMillis()}.mp4")
         return try {
             tempFile.writeBytes(videoBytes)
@@ -610,11 +620,40 @@ object MediaCache {
             val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
                 ?: thumbnail?.height ?: 0
             retriever.release()
-            VideoMetadata(width, height, thumbnail)
+            Pair(VideoDimensions(width, height), thumbnail)
         } catch (e: Exception) {
-            null
+            Pair(null, null)
         } finally {
             tempFile.delete()
         }
+    }
+
+    // ==================== PRIORITY MANAGEMENT ====================
+
+    /**
+     * Update image cache priorities based on current viewing position.
+     * Called when user navigates to a new item.
+     *
+     * @param currentKey The key of the currently viewed item
+     * @param allKeys All keys in viewing order
+     * @param currentIndex Index of current item in allKeys
+     */
+    fun updateImagePriorities(currentKey: MediaCacheKey, allKeys: List<MediaCacheKey>, currentIndex: Int) {
+        val priorityMap = mutableMapOf<String, Int>()
+
+        // Set priority based on distance from current
+        for ((index, key) in allKeys.withIndex()) {
+            val distance = kotlin.math.abs(index - currentIndex)
+            val priority = when (distance) {
+                0 -> PriorityLruCache.PRIORITY_CURRENT
+                1 -> PriorityLruCache.PRIORITY_ADJACENT
+                2 -> PriorityLruCache.PRIORITY_NEARBY
+                3 -> PriorityLruCache.PRIORITY_DISTANT
+                else -> PriorityLruCache.PRIORITY_DEFAULT
+            }
+            priorityMap[key.keyString] = priority
+        }
+
+        imageCache.updateAllPriorities(priorityMap)
     }
 }

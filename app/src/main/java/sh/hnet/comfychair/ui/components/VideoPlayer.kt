@@ -139,27 +139,28 @@ fun VideoPlayer(
     }
 
     // Extract first frame as thumbnail and video dimensions when video URI changes
-    // Check MediaCache first for pre-fetched metadata to avoid expensive MediaMetadataRetriever calls
+    // Check MediaCache first for pre-fetched data to avoid expensive MediaMetadataRetriever calls
     LaunchedEffect(videoUri, cacheKey) {
         if (videoUri != null) {
             // Reset zoom/pan state when video changes
             scale = 1f
             offset = Offset.Zero
 
-            // Try to get cached metadata first (from prefetch)
-            val cachedMetadata = cacheKey?.let { MediaCache.getVideoMetadata(it) }
+            // Try to get cached dimensions and thumbnail first (from prefetch)
+            val cachedDimensions = cacheKey?.let { MediaCache.getVideoDimensions(it) }
+            val cachedThumbnail = cacheKey?.let { MediaCache.getThumbnail(it) }
 
-            if (cachedMetadata != null) {
-                // Use cached metadata - instant display
-                videoWidth = cachedMetadata.width
-                videoHeight = cachedMetadata.height
-                thumbnail = cachedMetadata.thumbnail
+            if (cachedDimensions != null) {
+                // Use cached data - instant display
+                videoWidth = cachedDimensions.width
+                videoHeight = cachedDimensions.height
+                thumbnail = cachedThumbnail
             } else {
-                // No cached metadata - fall back to MediaMetadataRetriever
+                // No cached data - fall back to MediaMetadataRetriever
                 // Reset dimensions to trigger shutter overlay during extraction
                 videoWidth = 0
                 videoHeight = 0
-                thumbnail = null
+                thumbnail = cachedThumbnail // Still use cached thumbnail if available
                 withContext(Dispatchers.IO) {
                     try {
                         val retriever = MediaMetadataRetriever()
@@ -168,7 +169,7 @@ fun VideoPlayer(
                         val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: frame?.width ?: 0
                         val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: frame?.height ?: 0
                         retriever.release()
-                        thumbnail = frame
+                        thumbnail = frame ?: thumbnail // Keep cached thumbnail if extraction fails
                         videoWidth = width
                         videoHeight = height
                     } catch (e: Exception) {
