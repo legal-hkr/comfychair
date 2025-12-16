@@ -125,6 +125,12 @@ fun MediaViewerScreen(
                                 .collect { page ->
                                     if (page != uiState.currentIndex) {
                                         viewModel.setCurrentIndex(page)
+
+                                        // Update cache priorities based on new position
+                                        val allKeys = uiState.items.map {
+                                            MediaCacheKey(it.promptId, it.filename)
+                                        }
+                                        MediaCache.updateNavigationPriorities(page, allKeys)
                                     }
                                 }
                         }
@@ -138,21 +144,26 @@ fun MediaViewerScreen(
                             val isCurrentPage = page == pagerState.currentPage
                             val cacheKey = MediaCacheKey(item.promptId, item.filename)
 
-                            // Always use cache for bitmap to prevent flash-through during transitions
-                            // When currentPage changes, using uiState.currentBitmap can cause the old page
-                            // to briefly show the new image before recomposition
-                            val bitmap = if (!item.isVideo) MediaCache.getImage(cacheKey) else null
+                            // Get appropriate content for each page type:
+                            // - Images: bitmap from cache
+                            // - Non-current videos: bitmap (thumbnail) from cache (prevents black screen during swipe)
+                            // - Current video: null (VideoPlayer handles its own thumbnail → video transition)
+                            val bitmap = when {
+                                !item.isVideo -> MediaCache.getBitmap(cacheKey)
+                                !isCurrentPage -> MediaCache.getBitmap(cacheKey)
+                                else -> null
+                            }
 
-                            // For video URI: only current page needs it (non-current pages just check if bytes are cached)
-                            val videoUri = if (isCurrentPage) uiState.currentVideoUri else null
-                            val hasVideoCached = if (!isCurrentPage && item.isVideo) MediaCache.getVideoBytes(cacheKey) != null else false
+                            // Video URI only needed for current page (VideoPlayer)
+                            val videoUri = if (isCurrentPage && item.isVideo) uiState.currentVideoUri else null
 
-                            // Show loading if: current page is loading, OR content not available yet
+                            // Show loading if content not available yet
+                            // - Current page: respect uiState.isLoading
+                            // - Non-current page: check if bitmap (image or video thumbnail) is cached
                             val showLoading = if (isCurrentPage) {
                                 uiState.isLoading && (if (item.isVideo) videoUri == null else bitmap == null)
                             } else {
-                                // Non-current page: show loading if no cached content
-                                if (item.isVideo) !hasVideoCached else bitmap == null
+                                bitmap == null
                             }
 
                             // Use clipToBounds to ensure content doesn't bleed during transitions
@@ -378,6 +389,7 @@ private fun MediaContent(
     ) {
         when {
             isVideo && videoUri != null -> {
+                // Current video page: show VideoPlayer
                 VideoPlayer(
                     videoUri = videoUri,
                     modifier = Modifier.fillMaxSize(),
@@ -388,17 +400,20 @@ private fun MediaContent(
                     cacheKey = cacheKey
                 )
             }
-            !isVideo && bitmap != null -> {
+            bitmap != null -> {
+                // Image OR video thumbnail (for non-current video pages)
                 ImageViewer(
                     bitmap = bitmap,
                     modifier = Modifier.fillMaxSize(),
                     onSingleTap = onSingleTap
                 )
             }
-            isLoading -> {
+            isVideo || isLoading -> {
+                // Video pages without content always show spinner (never black)
+                // This handles the case where thumbnail is not yet in cache
                 CircularProgressIndicator(color = Color.White)
             }
-            // Fallback: content not ready yet, show nothing but black background prevents flash-through
+            // Fallback: only images without bitmap and not loading show black
         }
     }
 }

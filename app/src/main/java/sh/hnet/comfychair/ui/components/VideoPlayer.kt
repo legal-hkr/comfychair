@@ -106,12 +106,19 @@ fun VideoPlayer(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Thumbnail for displaying when player is destroyed during transitions
-    var thumbnail by remember { mutableStateOf<Bitmap?>(null) }
+    // Initialize thumbnail synchronously from cache to avoid black flash during transitions
+    // This ensures the thumbnail is available on the very first composition
+    val initialThumbnail = remember(cacheKey) {
+        cacheKey?.let { MediaCache.getBitmap(it) }
+    }
+    var thumbnail by remember(cacheKey) { mutableStateOf(initialThumbnail) }
 
-    // Video dimensions for aspect ratio calculations
-    var videoWidth by remember { mutableStateOf(0) }
-    var videoHeight by remember { mutableStateOf(0) }
+    // Video dimensions - also check cache synchronously for instant display
+    val cachedDimensions = remember(cacheKey) {
+        cacheKey?.let { MediaCache.getVideoDimensions(it) }
+    }
+    var videoWidth by remember(cacheKey) { mutableStateOf(cachedDimensions?.width ?: 0) }
+    var videoHeight by remember(cacheKey) { mutableStateOf(cachedDimensions?.height ?: 0) }
 
     // Zoom/pan state
     val scaleAnimatable = remember { Animatable(1f) }
@@ -138,29 +145,17 @@ fun VideoPlayer(
         }
     }
 
-    // Extract first frame as thumbnail and video dimensions when video URI changes
-    // Check MediaCache first for pre-fetched data to avoid expensive MediaMetadataRetriever calls
+    // Extract video dimensions when not available from cache
+    // Thumbnail and dimensions are initialized synchronously from cache above
+    // This LaunchedEffect only handles the fallback case when cache is empty
     LaunchedEffect(videoUri, cacheKey) {
         if (videoUri != null) {
             // Reset zoom/pan state when video changes
             scale = 1f
             offset = Offset.Zero
 
-            // Try to get cached dimensions and thumbnail first (from prefetch)
-            val cachedDimensions = cacheKey?.let { MediaCache.getVideoDimensions(it) }
-            val cachedThumbnail = cacheKey?.let { MediaCache.getThumbnail(it) }
-
-            if (cachedDimensions != null) {
-                // Use cached data - instant display
-                videoWidth = cachedDimensions.width
-                videoHeight = cachedDimensions.height
-                thumbnail = cachedThumbnail
-            } else {
-                // No cached data - fall back to MediaMetadataRetriever
-                // Reset dimensions to trigger shutter overlay during extraction
-                videoWidth = 0
-                videoHeight = 0
-                thumbnail = cachedThumbnail // Still use cached thumbnail if available
+            // Only fall back to MediaMetadataRetriever if cache didn't have dimensions
+            if (videoWidth == 0 || videoHeight == 0) {
                 withContext(Dispatchers.IO) {
                     try {
                         val retriever = MediaMetadataRetriever()
@@ -169,11 +164,13 @@ fun VideoPlayer(
                         val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: frame?.width ?: 0
                         val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: frame?.height ?: 0
                         retriever.release()
-                        thumbnail = frame ?: thumbnail // Keep cached thumbnail if extraction fails
+                        if (thumbnail == null) {
+                            thumbnail = frame
+                        }
                         videoWidth = width
                         videoHeight = height
                     } catch (e: Exception) {
-                        // Dimensions already reset to 0
+                        // Keep any existing values
                     }
                 }
             }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import android.util.LruCache
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +34,6 @@ data class MediaCacheKey(
 /**
  * Cached video dimensions.
  * Used to avoid repeated MediaMetadataRetriever calls in VideoPlayer.
- * Thumbnails are stored separately in thumbnailCache.
  */
 data class VideoDimensions(
     val width: Int,
@@ -73,8 +71,8 @@ data class PrefetchRequest(
  * Centralized in-memory media cache singleton.
  *
  * Provides shared caching between Gallery and MediaViewer with:
- * - Stable key-based caching (survives deletions)
- * - LRU eviction for memory management
+ * - Single bitmap cache for all images (thumbnails and full-size are the same)
+ * - Priority-based eviction to protect items near current view position
  * - Smart prefetching with priority queue
  * - Session-only storage (cleared when app closes)
  *
@@ -90,25 +88,22 @@ object MediaCache {
     private var comfyUIClient: ComfyUIClient? = null
     private var isInitialized = false
 
-    // Memory budget calculation based on max heap
-    private val maxMemory = Runtime.getRuntime().maxMemory()
-    private val thumbnailCacheSize = (maxMemory / 16).toInt()  // ~32MB on 512MB heap
-    private val imageCacheSize = (maxMemory / 8).toInt()       // ~64MB on 512MB heap
-    private val videoCacheSize = (maxMemory / 10).toInt()      // ~48MB on 512MB heap
+    // Memory budget: 1/8 of max heap for bitmaps, 1/8 for videos
+    private val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val bitmapCacheSize = maxMemoryKb / 8
+    private val videoCacheSize = maxMemoryKb / 8
 
-    // LRU Caches with byte-based sizing
-    private val thumbnailCache: LruCache<String, Bitmap> = object : LruCache<String, Bitmap>(thumbnailCacheSize) {
-        override fun sizeOf(key: String, bitmap: Bitmap): Int = bitmap.byteCount
-    }
-
-    private val imageCache: PriorityLruCache<String, Bitmap> = PriorityLruCache(
-        maxSize = imageCacheSize,
-        sizeOf = { _, bitmap -> bitmap.byteCount }
+    // Single bitmap cache for all images (thumbnails and full-size are the same bitmap)
+    private val bitmapCache = PriorityLruCache<String, Bitmap>(
+        maxSize = bitmapCacheSize,
+        sizeOf = { _, bitmap -> bitmap.byteCount / 1024 }
     )
 
-    private val videoCache: LruCache<String, ByteArray> = object : LruCache<String, ByteArray>(videoCacheSize) {
-        override fun sizeOf(key: String, bytes: ByteArray): Int = bytes.size
-    }
+    // Video bytes cache (separate data type)
+    private val videoCache = PriorityLruCache<String, ByteArray>(
+        maxSize = videoCacheSize,
+        sizeOf = { _, bytes -> bytes.size / 1024 }
+    )
 
     // Cache of video URIs (lightweight - just stores Uri references)
     private val videoUriCache = ConcurrentHashMap<String, Uri>()
@@ -135,55 +130,107 @@ object MediaCache {
         }
     }
 
-    // ==================== THUMBNAIL OPERATIONS ====================
+    // ==================== BITMAP OPERATIONS ====================
 
     /**
-     * Get thumbnail from cache (sync).
+     * Get bitmap from cache (sync).
+     * Works for both "thumbnails" and "full-size images" - they're the same thing.
      */
-    fun getThumbnail(key: MediaCacheKey): Bitmap? {
-        return thumbnailCache.get(key.keyString)
+    fun getBitmap(key: MediaCacheKey): Bitmap? {
+        return bitmapCache.get(key.keyString)
     }
 
     /**
-     * Put thumbnail into cache.
+     * Put bitmap into cache with optional priority.
      */
-    fun putThumbnail(key: MediaCacheKey, bitmap: Bitmap) {
-        thumbnailCache.put(key.keyString, bitmap)
+    fun putBitmap(key: MediaCacheKey, bitmap: Bitmap, priority: Int = PriorityLruCache.PRIORITY_DEFAULT) {
+        bitmapCache.put(key.keyString, bitmap, priority)
+    }
+
+    // ==================== VIEWER SESSION ====================
+
+    /**
+     * Prepare bitmaps for MediaViewer session.
+     * Sets high priority on all provided bitmaps to prevent eviction during swipe navigation.
+     */
+    fun prepareViewerSession(bitmaps: Map<MediaCacheKey, Bitmap>) {
+        bitmaps.forEach { (key, bitmap) ->
+            // Put with highest priority to prevent eviction during viewer session
+            bitmapCache.put(key.keyString, bitmap, PriorityLruCache.PRIORITY_CURRENT)
+        }
     }
 
     /**
-     * Fetch thumbnail with caching.
+     * End the viewer session.
+     * Resets bitmap priorities to default so they can be evicted normally.
+     */
+    fun clearViewerSession() {
+        // Reset all bitmap priorities to default
+        val defaultPriorities = bitmapCache.keys().associateWith {
+            PriorityLruCache.PRIORITY_DEFAULT
+        }
+        bitmapCache.updateAllPriorities(defaultPriorities)
+    }
+
+    /**
+     * Update bitmap priorities based on current navigation position.
+     * Call this when user swipes to a new page in MediaViewer.
+     *
+     * @param currentIndex Index of the currently viewed item
+     * @param allKeys All keys in viewing order
+     */
+    fun updateNavigationPriorities(currentIndex: Int, allKeys: List<MediaCacheKey>) {
+        val priorityMap = mutableMapOf<String, Int>()
+
+        for ((index, key) in allKeys.withIndex()) {
+            val distance = kotlin.math.abs(index - currentIndex)
+            val priority = when (distance) {
+                0 -> PriorityLruCache.PRIORITY_CURRENT
+                1 -> PriorityLruCache.PRIORITY_ADJACENT
+                2 -> PriorityLruCache.PRIORITY_NEARBY
+                3 -> PriorityLruCache.PRIORITY_DISTANT
+                else -> PriorityLruCache.PRIORITY_DEFAULT
+            }
+            priorityMap[key.keyString] = priority
+        }
+
+        bitmapCache.updateAllPriorities(priorityMap)
+    }
+
+    /**
+     * Fetch bitmap with caching.
      * Returns cached version immediately if available.
      */
-    suspend fun fetchThumbnail(
+    suspend fun fetchBitmap(
         key: MediaCacheKey,
         isVideo: Boolean,
         subfolder: String,
-        type: String
+        type: String,
+        priority: Int = PriorityLruCache.PRIORITY_DEFAULT
     ): Bitmap? {
         val keyStr = key.keyString
 
         // Check cache first
-        thumbnailCache.get(keyStr)?.let { return it }
+        bitmapCache.get(keyStr)?.let { return it }
 
         val client = comfyUIClient ?: return null
         val context = applicationContext ?: return null
 
         return withContext(Dispatchers.IO) {
             if (isVideo) {
-                fetchVideoThumbnail(key, subfolder, type, client, context)
+                fetchVideoBitmap(key, subfolder, type, client, context, priority)
             } else {
-                fetchImageAsThumbnail(key, subfolder, type, client)
+                fetchImageBitmap(key, subfolder, type, client, priority)
             }
         }
     }
 
-    private suspend fun fetchImageAsThumbnail(
+    private suspend fun fetchImageBitmap(
         key: MediaCacheKey,
         subfolder: String,
         type: String,
         client: ComfyUIClient,
-        priority: Int = PriorityLruCache.PRIORITY_DEFAULT
+        priority: Int
     ): Bitmap? {
         val bitmap = suspendCancellableCoroutine { continuation ->
             client.fetchImage(key.filename, subfolder, type) { bmp ->
@@ -192,21 +239,19 @@ object MediaCache {
         }
 
         bitmap?.let {
-            val keyStr = key.keyString
-            thumbnailCache.put(keyStr, it)
-            // Also cache in full-size cache since we have it
-            imageCache.put(keyStr, it, priority)
+            bitmapCache.put(key.keyString, it, priority)
         }
 
         return bitmap
     }
 
-    private suspend fun fetchVideoThumbnail(
+    private suspend fun fetchVideoBitmap(
         key: MediaCacheKey,
         subfolder: String,
         type: String,
         client: ComfyUIClient,
-        context: Context
+        context: Context,
+        priority: Int
     ): Bitmap? {
         val keyStr = key.keyString
 
@@ -222,7 +267,7 @@ object MediaCache {
             }
 
             // Cache the video bytes
-            videoBytes?.let { videoCache.put(keyStr, it) }
+            videoBytes?.let { videoCache.put(keyStr, it, PriorityLruCache.PRIORITY_DEFAULT) }
         }
 
         if (videoBytes == null) return null
@@ -230,19 +275,12 @@ object MediaCache {
         // Extract and cache thumbnail and dimensions
         val (dimensions, thumbnail) = extractVideoData(videoBytes, context)
         dimensions?.let { videoDimensionsCache[keyStr] = it }
-        thumbnail?.let { thumbnailCache.put(keyStr, it) }
+        thumbnail?.let { bitmapCache.put(keyStr, it, priority) }
 
         return thumbnail
     }
 
     // ==================== FULL-SIZE IMAGE OPERATIONS ====================
-
-    /**
-     * Get full-size image from cache (sync).
-     */
-    fun getImage(key: MediaCacheKey): Bitmap? {
-        return imageCache.get(key.keyString)
-    }
 
     /**
      * Fetch full-size image with caching.
@@ -258,7 +296,7 @@ object MediaCache {
         val keyStr = key.keyString
 
         // Check cache first
-        imageCache.get(keyStr)?.let { return it }
+        bitmapCache.get(keyStr)?.let { return it }
 
         val client = comfyUIClient ?: return null
 
@@ -269,7 +307,7 @@ object MediaCache {
                 }
             }
 
-            bitmap?.let { imageCache.put(keyStr, it, priority) }
+            bitmap?.let { bitmapCache.put(keyStr, it, priority) }
             bitmap
         }
     }
@@ -305,7 +343,7 @@ object MediaCache {
                 }
             }
 
-            bytes?.let { videoCache.put(keyStr, it) }
+            bytes?.let { videoCache.put(keyStr, it, PriorityLruCache.PRIORITY_DEFAULT) }
             bytes
         }
     }
@@ -380,7 +418,7 @@ object MediaCache {
             withContext(Dispatchers.IO) {
                 val (dimensions, thumbnail) = extractVideoData(bytes, context)
                 dimensions?.let { videoDimensionsCache[keyStr] = it }
-                thumbnail?.let { thumbnailCache.put(keyStr, it) }
+                thumbnail?.let { bitmapCache.put(keyStr, it, PriorityLruCache.PRIORITY_DEFAULT) }
             }
         }
 
@@ -506,7 +544,7 @@ object MediaCache {
             // Video is fully cached when URI is ready (not just bytes)
             videoUriCache.containsKey(keyStr)
         } else {
-            imageCache.get(keyStr) != null
+            bitmapCache.get(keyStr) != null
         }
     }
 
@@ -571,8 +609,7 @@ object MediaCache {
      */
     fun evict(key: MediaCacheKey) {
         val keyStr = key.keyString
-        thumbnailCache.remove(keyStr)
-        imageCache.remove(keyStr)
+        bitmapCache.remove(keyStr)
         videoCache.remove(keyStr)
         videoUriCache.remove(keyStr)
         videoDimensionsCache.remove(keyStr)
@@ -582,8 +619,7 @@ object MediaCache {
      * Clear all caches.
      */
     fun clearAll() {
-        thumbnailCache.evictAll()
-        imageCache.evictAll()
+        bitmapCache.evictAll()
         videoCache.evictAll()
         videoUriCache.clear()
         videoDimensionsCache.clear()
@@ -626,34 +662,5 @@ object MediaCache {
         } finally {
             tempFile.delete()
         }
-    }
-
-    // ==================== PRIORITY MANAGEMENT ====================
-
-    /**
-     * Update image cache priorities based on current viewing position.
-     * Called when user navigates to a new item.
-     *
-     * @param currentKey The key of the currently viewed item
-     * @param allKeys All keys in viewing order
-     * @param currentIndex Index of current item in allKeys
-     */
-    fun updateImagePriorities(currentKey: MediaCacheKey, allKeys: List<MediaCacheKey>, currentIndex: Int) {
-        val priorityMap = mutableMapOf<String, Int>()
-
-        // Set priority based on distance from current
-        for ((index, key) in allKeys.withIndex()) {
-            val distance = kotlin.math.abs(index - currentIndex)
-            val priority = when (distance) {
-                0 -> PriorityLruCache.PRIORITY_CURRENT
-                1 -> PriorityLruCache.PRIORITY_ADJACENT
-                2 -> PriorityLruCache.PRIORITY_NEARBY
-                3 -> PriorityLruCache.PRIORITY_DISTANT
-                else -> PriorityLruCache.PRIORITY_DEFAULT
-            }
-            priorityMap[key.keyString] = priority
-        }
-
-        imageCache.updateAllPriorities(priorityMap)
     }
 }

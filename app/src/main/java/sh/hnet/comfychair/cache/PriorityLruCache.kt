@@ -73,16 +73,14 @@ class PriorityLruCache<K : Any, V : Any>(
     fun put(key: K, value: V, priority: Int = PRIORITY_DEFAULT): Boolean = synchronized(lock) {
         val entrySize = sizeOf(key, value)
 
-        // If entry is larger than max size, don't cache it
-        if (entrySize > maxSize) {
-            return false
-        }
-
         // Remove existing entry if present
         remove(key)
 
         // Make room for the new entry
-        val madeRoom = trimToSize(maxSize - entrySize, priority)
+        // PRIORITY_CURRENT items can only evict lower priority items (not other PRIORITY_CURRENT)
+        // This ensures viewer session thumbnails don't evict each other
+        val minEvictPriority = if (priority == PRIORITY_CURRENT) PRIORITY_ADJACENT else priority
+        val madeRoom = trimToSize(maxSize - entrySize, minEvictPriority)
         if (!madeRoom) {
             // Couldn't make enough room - all existing items have higher priority
             return false
@@ -152,6 +150,13 @@ class PriorityLruCache<K : Any, V : Any>(
      * Get maximum size of the cache.
      */
     fun maxSize(): Int = maxSize
+
+    /**
+     * Get a snapshot of all keys currently in the cache.
+     */
+    fun keys(): Set<K> = synchronized(lock) {
+        cache.keys.toSet()
+    }
 
     /**
      * Trim the cache to the specified target size.

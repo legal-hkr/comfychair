@@ -64,6 +64,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
 import sh.hnet.comfychair.viewmodel.GalleryItem
@@ -92,6 +94,9 @@ fun GalleryScreen(
     val mediaViewerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        // Clear viewer session cache (no longer needed)
+        MediaCache.clearViewerSession()
+
         // Refresh gallery if item was deleted (silent refresh, no spinner)
         if (result.resultCode == Activity.RESULT_OK) {
             val itemDeleted = result.data?.getBooleanExtra(MediaViewerActivity.RESULT_ITEM_DELETED, false) ?: false
@@ -145,6 +150,15 @@ fun GalleryScreen(
 
     // Function to launch media viewer
     fun launchMediaViewer(clickedIndex: Int) {
+        // Prepare viewer session with all thumbnails (no LRU eviction)
+        // This ensures thumbnails are available during swipe navigation
+        val thumbnails = uiState.items
+            .filter { it.thumbnail != null }
+            .associate { item ->
+                MediaCacheKey(item.promptId, item.filename) to item.thumbnail!!
+            }
+        MediaCache.prepareViewerSession(thumbnails)
+
         val viewerItems = galleryItemsToViewerItems(uiState.items)
         val intent = MediaViewerActivity.createGalleryIntent(
             context = context,

@@ -443,7 +443,7 @@ class GalleryRepository private constructor() {
         type: String
     ): Bitmap? {
         val key = MediaCacheKey(promptId, filename)
-        return MediaCache.fetchThumbnail(key, isVideo = false, subfolder, type)
+        return MediaCache.fetchBitmap(key, isVideo = false, subfolder, type)
     }
 
     private suspend fun getVideoThumbnail(
@@ -453,6 +453,6 @@ class GalleryRepository private constructor() {
         type: String
     ): Bitmap? {
         val key = MediaCacheKey(promptId, filename)
-        return MediaCache.fetchThumbnail(key, isVideo = true, subfolder, type)
+        return MediaCache.fetchBitmap(key, isVideo = true, subfolder, type)
     }
 }

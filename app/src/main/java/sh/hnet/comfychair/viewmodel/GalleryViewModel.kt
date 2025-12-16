@@ -150,7 +150,7 @@ class GalleryViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val key = MediaCacheKey(item.promptId, item.filename)
-                val bitmap = MediaCache.getImage(key)
+                val bitmap = MediaCache.getBitmap(key)
                     ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
                 if (bitmap == null) {
@@ -221,7 +221,7 @@ class GalleryViewModel : ViewModel() {
     fun fetchFullImage(item: GalleryItem, onResult: (Bitmap?) -> Unit) {
         viewModelScope.launch {
             val key = MediaCacheKey(item.promptId, item.filename)
-            val bitmap = MediaCache.getImage(key)
+            val bitmap = MediaCache.getBitmap(key)
                 ?: MediaCache.fetchImage(key, item.subfolder, item.type)
             onResult(bitmap)
         }
@@ -243,7 +243,7 @@ class GalleryViewModel : ViewModel() {
     fun shareImage(context: Context, item: GalleryItem) {
         viewModelScope.launch {
             val key = MediaCacheKey(item.promptId, item.filename)
-            val bitmap = MediaCache.getImage(key)
+            val bitmap = MediaCache.getBitmap(key)
                 ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) {
@@ -413,7 +413,7 @@ class GalleryViewModel : ViewModel() {
     private suspend fun saveImageToGalleryInternal(context: Context, item: GalleryItem): Boolean {
         return withContext(Dispatchers.IO) {
             val key = MediaCacheKey(item.promptId, item.filename)
-            val bitmap = MediaCache.getImage(key)
+            val bitmap = MediaCache.getBitmap(key)
                 ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) return@withContext false
@@ -519,7 +519,7 @@ class GalleryViewModel : ViewModel() {
     private suspend fun getImageShareUri(context: Context, item: GalleryItem, index: Int): Uri? {
         return withContext(Dispatchers.IO) {
             val key = MediaCacheKey(item.promptId, item.filename)
-            val bitmap = MediaCache.getImage(key)
+            val bitmap = MediaCache.getBitmap(key)
                 ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) return@withContext null

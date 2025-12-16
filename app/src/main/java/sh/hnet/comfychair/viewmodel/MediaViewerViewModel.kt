@@ -217,7 +217,7 @@ class MediaViewerViewModel : ViewModel() {
         triggerPrefetchForIndex(index)
 
         // Try to get from cache immediately (same approach for images and videos)
-        val cachedBitmap = if (!item.isVideo) MediaCache.getImage(key) else null
+        val cachedBitmap = if (!item.isVideo) MediaCache.getBitmap(key) else null
         val cachedVideoUri = if (item.isVideo) MediaCache.getCachedVideoUri(key) else null
 
         if (!item.isVideo && cachedBitmap != null) {
@@ -271,7 +271,7 @@ class MediaViewerViewModel : ViewModel() {
                 isLoading = false
             )
         } else {
-            val bitmap = MediaCache.getImage(key)
+            val bitmap = MediaCache.getBitmap(key)
             _uiState.value = _uiState.value.copy(
                 currentBitmap = bitmap,
                 isLoading = false
@@ -287,9 +287,8 @@ class MediaViewerViewModel : ViewModel() {
         val state = _uiState.value
         if (state.mode != ViewerMode.GALLERY || state.items.isEmpty()) return
 
-        val currentKey = state.items[index].toCacheKey()
         val allKeys = state.items.map { it.toCacheKey() }
-        MediaCache.updateImagePriorities(currentKey, allKeys, index)
+        MediaCache.updateNavigationPriorities(index, allKeys)
     }
 
     /**
@@ -342,7 +341,7 @@ class MediaViewerViewModel : ViewModel() {
                 return
             }
         } else {
-            MediaCache.getImage(key)?.let { bitmap ->
+            MediaCache.getBitmap(key)?.let { bitmap ->
                 _uiState.value = state.copy(currentBitmap = bitmap, isLoading = false)
                 return
             }
@@ -597,7 +596,7 @@ class MediaViewerViewModel : ViewModel() {
 
         withContext(Dispatchers.IO) {
             // Try cache first, then fetch if needed
-            val bitmap = MediaCache.getImage(key)
+            val bitmap = MediaCache.getBitmap(key)
                 ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
             if (bitmap == null) {
@@ -753,7 +752,7 @@ class MediaViewerViewModel : ViewModel() {
         val key = item.toCacheKey()
 
         // Try cache first, then fetch if needed
-        val bitmap = MediaCache.getImage(key)
+        val bitmap = MediaCache.getBitmap(key)
             ?: MediaCache.fetchImage(key, item.subfolder, item.type)
 
         if (bitmap == null) {
