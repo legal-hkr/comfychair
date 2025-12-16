@@ -359,26 +359,33 @@ private fun MediaContent(
     onSingleTap: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        if (isLoading && bitmap == null && videoUri == null) {
-            CircularProgressIndicator(color = Color.White)
-        } else if (isVideo && videoUri != null) {
-            VideoPlayer(
-                videoUri = videoUri,
-                modifier = Modifier.fillMaxSize(),
-                showController = false,
-                scaleMode = VideoScaleMode.FIT,
-                enableZoom = true,
-                onSingleTap = onSingleTap
-            )
-        } else if (!isVideo && bitmap != null) {
-            ImageViewer(
-                bitmap = bitmap,
-                modifier = Modifier.fillMaxSize(),
-                onSingleTap = onSingleTap
-            )
+        when {
+            isVideo && videoUri != null -> {
+                VideoPlayer(
+                    videoUri = videoUri,
+                    modifier = Modifier.fillMaxSize(),
+                    showController = false,
+                    scaleMode = VideoScaleMode.FIT,
+                    enableZoom = true,
+                    onSingleTap = onSingleTap
+                )
+            }
+            !isVideo && bitmap != null -> {
+                ImageViewer(
+                    bitmap = bitmap,
+                    modifier = Modifier.fillMaxSize(),
+                    onSingleTap = onSingleTap
+                )
+            }
+            isLoading -> {
+                CircularProgressIndicator(color = Color.White)
+            }
+            // Fallback: content not ready yet, show nothing but black background prevents flash-through
         }
     }
 }
