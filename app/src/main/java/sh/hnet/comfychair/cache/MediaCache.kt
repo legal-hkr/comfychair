@@ -8,7 +8,6 @@ import android.util.LruCache
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -39,6 +38,7 @@ data class MediaCacheKey(
 enum class PrefetchPriority(val value: Int) {
     ADJACENT(1),    // N±1 from current
     NEARBY(2),      // N±2 from current
+    DISTANT(3)      // N±3 from current
 }
 
 /**
@@ -99,10 +99,12 @@ object MediaCache {
         override fun sizeOf(key: String, bytes: ByteArray): Int = bytes.size
     }
 
+    // Cache of video URIs (lightweight - just stores Uri references)
+    private val videoUriCache = ConcurrentHashMap<String, Uri>()
+
     // Prefetching infrastructure
     private val prefetchQueue = PriorityBlockingQueue<PrefetchRequest>()
     private val inProgressKeys = ConcurrentHashMap.newKeySet<String>()
-    private var prefetchJobs: List<Job> = emptyList()
 
     private const val MAX_CONCURRENT_PREFETCH = 3
 
@@ -288,24 +290,41 @@ object MediaCache {
     }
 
     /**
+     * Get cached video URI if available (sync).
+     * Returns null if URI not yet created - call getVideoUri to create it.
+     */
+    fun getCachedVideoUri(key: MediaCacheKey): Uri? {
+        return videoUriCache[key.keyString]
+    }
+
+    /**
      * Get video URI for ExoPlayer playback.
-     * Creates a temp file from cached bytes if available.
+     * Creates a temp file from cached bytes if available, or returns cached URI.
      * Returns null if bytes not cached - call fetchVideoBytes first.
      */
     suspend fun getVideoUri(key: MediaCacheKey, context: Context): Uri? {
-        val bytes = videoCache.get(key.keyString) ?: return null
+        val keyStr = key.keyString
+
+        // Return cached URI if available
+        videoUriCache[keyStr]?.let { return it }
+
+        val bytes = videoCache.get(keyStr) ?: return null
 
         return withContext(Dispatchers.IO) {
             try {
                 // Create temp file for playback
-                val tempFile = File(context.cacheDir, "playback_${key.keyString.hashCode()}.mp4")
+                val tempFile = File(context.cacheDir, "playback_${keyStr.hashCode()}.mp4")
                 tempFile.writeBytes(bytes)
 
-                FileProvider.getUriForFile(
+                val uri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
                     tempFile
                 )
+
+                // Cache the URI for future use
+                videoUriCache[keyStr] = uri
+                uri
             } catch (e: Exception) {
                 null
             }
@@ -330,42 +349,103 @@ object MediaCache {
 
     // ==================== PREFETCHING ====================
 
+    // Track completion callbacks for in-progress fetches
+    private val completionCallbacks = ConcurrentHashMap<String, MutableList<() -> Unit>>()
+
     /**
      * Request prefetching of adjacent items.
      * Call this when the user navigates to a new item.
+     * Does not clear the queue - instead reprioritizes existing requests.
      */
     fun prefetchAround(
         currentIndex: Int,
         allItems: List<PrefetchItem>
     ) {
-        // Clear existing queue to prioritize new location
-        prefetchQueue.clear()
+        // Build set of keys that should be prefetched with their priorities
+        val desiredPrefetches = mutableMapOf<String, Pair<PrefetchItem, PrefetchPriority>>()
 
-        // Queue adjacent items with priority
         val indicesToPrefetch = listOf(
             currentIndex - 1 to PrefetchPriority.ADJACENT,
             currentIndex + 1 to PrefetchPriority.ADJACENT,
             currentIndex - 2 to PrefetchPriority.NEARBY,
-            currentIndex + 2 to PrefetchPriority.NEARBY
+            currentIndex + 2 to PrefetchPriority.NEARBY,
+            currentIndex - 3 to PrefetchPriority.DISTANT,
+            currentIndex + 3 to PrefetchPriority.DISTANT
         )
 
         for ((index, priority) in indicesToPrefetch) {
             if (index in allItems.indices) {
                 val item = allItems[index]
                 val keyStr = item.key.keyString
-
-                // Skip if already cached or in progress
-                if (isCached(item.key, item.isVideo) || inProgressKeys.contains(keyStr)) {
-                    continue
+                // Skip if already cached
+                if (!isCached(item.key, item.isVideo)) {
+                    desiredPrefetches[keyStr] = item to priority
                 }
+            }
+        }
 
-                prefetchQueue.offer(PrefetchRequest(
-                    key = item.key,
-                    isVideo = item.isVideo,
-                    subfolder = item.subfolder,
-                    type = item.type,
-                    priority = priority
-                ))
+        // Remove outdated requests from queue (items no longer in desired range)
+        val iterator = prefetchQueue.iterator()
+        while (iterator.hasNext()) {
+            val request = iterator.next()
+            val keyStr = request.key.keyString
+            if (!desiredPrefetches.containsKey(keyStr)) {
+                iterator.remove()
+            } else {
+                // Item already queued - remove from desired to avoid re-adding
+                desiredPrefetches.remove(keyStr)
+            }
+        }
+
+        // Add new prefetch requests
+        for ((keyStr, itemAndPriority) in desiredPrefetches) {
+            val (item, priority) = itemAndPriority
+            // Skip if already in progress
+            if (inProgressKeys.contains(keyStr)) {
+                continue
+            }
+
+            prefetchQueue.offer(PrefetchRequest(
+                key = item.key,
+                isVideo = item.isVideo,
+                subfolder = item.subfolder,
+                type = item.type,
+                priority = priority
+            ))
+        }
+    }
+
+    /**
+     * Check if a prefetch is currently in progress for the given key.
+     */
+    fun isPrefetchInProgress(key: MediaCacheKey): Boolean {
+        return inProgressKeys.contains(key.keyString)
+    }
+
+    /**
+     * Wait for an in-progress prefetch to complete.
+     * Returns immediately if no prefetch is in progress.
+     */
+    suspend fun awaitPrefetchCompletion(key: MediaCacheKey) {
+        val keyStr = key.keyString
+        if (!inProgressKeys.contains(keyStr)) return
+
+        suspendCancellableCoroutine { continuation ->
+            val callbacks = completionCallbacks.getOrPut(keyStr) { mutableListOf() }
+            val callback: () -> Unit = { continuation.resume(Unit) }
+            synchronized(callbacks) {
+                // Double-check in case it completed while we were setting up
+                if (!inProgressKeys.contains(keyStr)) {
+                    continuation.resume(Unit)
+                } else {
+                    callbacks.add(callback)
+                }
+            }
+
+            continuation.invokeOnCancellation {
+                synchronized(callbacks) {
+                    callbacks.remove(callback)
+                }
             }
         }
     }
@@ -383,14 +463,15 @@ object MediaCache {
     private fun isCached(key: MediaCacheKey, isVideo: Boolean): Boolean {
         val keyStr = key.keyString
         return if (isVideo) {
-            videoCache.get(keyStr) != null
+            // Video is fully cached when URI is ready (not just bytes)
+            videoUriCache.containsKey(keyStr)
         } else {
             imageCache.get(keyStr) != null
         }
     }
 
     private fun startPrefetchWorkers() {
-        prefetchJobs = List(MAX_CONCURRENT_PREFETCH) {
+        repeat(MAX_CONCURRENT_PREFETCH) {
             scope.launch {
                 while (isActive) {
                     val request = prefetchQueue.poll()
@@ -403,12 +484,19 @@ object MediaCache {
 
                             try {
                                 if (request.isVideo) {
-                                    fetchVideoBytes(request.key, request.subfolder, request.type)
+                                    // Fetch bytes and create URI so video is ready to play
+                                    val context = applicationContext
+                                    if (context != null) {
+                                        fetchVideoUri(request.key, request.subfolder, request.type, context)
+                                    } else {
+                                        fetchVideoBytes(request.key, request.subfolder, request.type)
+                                    }
                                 } else {
                                     fetchImage(request.key, request.subfolder, request.type)
                                 }
                             } finally {
                                 inProgressKeys.remove(keyStr)
+                                notifyPrefetchComplete(keyStr)
                             }
                         }
                     } else {
@@ -416,6 +504,16 @@ object MediaCache {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Notify all waiting callbacks that a prefetch has completed.
+     */
+    private fun notifyPrefetchComplete(keyStr: String) {
+        val callbacks = completionCallbacks.remove(keyStr) ?: return
+        synchronized(callbacks) {
+            callbacks.forEach { it.invoke() }
         }
     }
 
@@ -429,6 +527,7 @@ object MediaCache {
         thumbnailCache.remove(keyStr)
         imageCache.remove(keyStr)
         videoCache.remove(keyStr)
+        videoUriCache.remove(keyStr)
     }
 
     /**
@@ -438,8 +537,10 @@ object MediaCache {
         thumbnailCache.evictAll()
         imageCache.evictAll()
         videoCache.evictAll()
+        videoUriCache.clear()
         prefetchQueue.clear()
         inProgressKeys.clear()
+        completionCallbacks.clear()
     }
 
     /**

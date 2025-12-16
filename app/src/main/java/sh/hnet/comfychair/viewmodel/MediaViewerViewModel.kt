@@ -207,21 +207,31 @@ class MediaViewerViewModel : ViewModel() {
         val item = state.items[index]
         val key = item.toCacheKey()
 
-        // Try to get from cache immediately
-        val bitmap = if (!item.isVideo) MediaCache.getImage(key) else null
-        val hasVideoCached = if (item.isVideo) MediaCache.getVideoBytes(key) != null else false
+        // Trigger prefetch IMMEDIATELY for adjacent items (before loading current)
+        triggerPrefetchForIndex(index)
 
-        if (!item.isVideo && bitmap != null) {
+        // Try to get from cache immediately (same approach for images and videos)
+        val cachedBitmap = if (!item.isVideo) MediaCache.getImage(key) else null
+        val cachedVideoUri = if (item.isVideo) MediaCache.getCachedVideoUri(key) else null
+
+        if (!item.isVideo && cachedBitmap != null) {
             // Image is cached - show immediately
             _uiState.value = state.copy(
                 currentIndex = index,
-                currentBitmap = bitmap,
+                currentBitmap = cachedBitmap,
                 currentVideoUri = null,
                 isLoading = false
             )
-            triggerPrefetch()
-        } else if (item.isVideo && hasVideoCached) {
-            // Video bytes are cached - get URI asynchronously
+        } else if (item.isVideo && cachedVideoUri != null) {
+            // Video is cached - show immediately
+            _uiState.value = state.copy(
+                currentIndex = index,
+                currentBitmap = null,
+                currentVideoUri = cachedVideoUri,
+                isLoading = false
+            )
+        } else if (MediaCache.isPrefetchInProgress(key)) {
+            // Prefetch is in progress - wait for it instead of starting new fetch
             _uiState.value = state.copy(
                 currentIndex = index,
                 currentBitmap = null,
@@ -229,13 +239,8 @@ class MediaViewerViewModel : ViewModel() {
                 isLoading = true
             )
             viewModelScope.launch {
-                val context = applicationContext ?: return@launch
-                val uri = MediaCache.getVideoUri(key, context)
-                _uiState.value = _uiState.value.copy(
-                    currentVideoUri = uri,
-                    isLoading = false
-                )
-                triggerPrefetch()
+                MediaCache.awaitPrefetchCompletion(key)
+                showFromCache(item, key)
             }
         } else {
             // Content not cached - load from server
@@ -247,6 +252,44 @@ class MediaViewerViewModel : ViewModel() {
             )
             loadCurrentItem()
         }
+    }
+
+    /**
+     * Show item from cache after prefetch completes.
+     */
+    private fun showFromCache(item: MediaViewerItem, key: MediaCacheKey) {
+        if (item.isVideo) {
+            val uri = MediaCache.getCachedVideoUri(key)
+            _uiState.value = _uiState.value.copy(
+                currentVideoUri = uri,
+                isLoading = false
+            )
+        } else {
+            val bitmap = MediaCache.getImage(key)
+            _uiState.value = _uiState.value.copy(
+                currentBitmap = bitmap,
+                isLoading = false
+            )
+        }
+    }
+
+    /**
+     * Trigger prefetch for items around the given index.
+     */
+    private fun triggerPrefetchForIndex(index: Int) {
+        val state = _uiState.value
+        if (state.mode != ViewerMode.GALLERY || state.items.isEmpty()) return
+
+        val prefetchItems = state.items.map { item ->
+            MediaCache.PrefetchItem(
+                key = item.toCacheKey(),
+                isVideo = item.isVideo,
+                subfolder = item.subfolder,
+                type = item.type
+            )
+        }
+
+        MediaCache.prefetchAround(index, prefetchItems)
     }
 
     /** Convert MediaViewerItem to MediaCacheKey */
@@ -273,11 +316,15 @@ class MediaViewerViewModel : ViewModel() {
 
         val key = item.toCacheKey()
 
-        // Check if already cached in MediaCache
-        if (!item.isVideo) {
+        // Check if already cached
+        if (item.isVideo) {
+            MediaCache.getCachedVideoUri(key)?.let { uri ->
+                _uiState.value = state.copy(currentVideoUri = uri, isLoading = false)
+                return
+            }
+        } else {
             MediaCache.getImage(key)?.let { bitmap ->
                 _uiState.value = state.copy(currentBitmap = bitmap, isLoading = false)
-                triggerPrefetch()
                 return
             }
         }
@@ -286,9 +333,8 @@ class MediaViewerViewModel : ViewModel() {
 
         viewModelScope.launch {
             if (item.isVideo) {
-                // Fetch video bytes to cache, then get Uri
-                MediaCache.fetchVideoBytes(key, item.subfolder, item.type)
-                val uri = MediaCache.getVideoUri(key, context)
+                // Fetch video and create URI in one step
+                val uri = MediaCache.fetchVideoUri(key, item.subfolder, item.type, context)
                 _uiState.value = _uiState.value.copy(
                     currentVideoUri = uri,
                     isLoading = false
@@ -300,27 +346,7 @@ class MediaViewerViewModel : ViewModel() {
                     isLoading = false
                 )
             }
-            triggerPrefetch()
         }
-    }
-
-    /**
-     * Trigger prefetching of adjacent items using MediaCache.
-     */
-    private fun triggerPrefetch() {
-        val state = _uiState.value
-        if (state.mode != ViewerMode.GALLERY || state.items.isEmpty()) return
-
-        val prefetchItems = state.items.map { item ->
-            MediaCache.PrefetchItem(
-                key = item.toCacheKey(),
-                isVideo = item.isVideo,
-                subfolder = item.subfolder,
-                type = item.type
-            )
-        }
-
-        MediaCache.prefetchAround(state.currentIndex, prefetchItems)
     }
 
     /**
@@ -518,10 +544,12 @@ class MediaViewerViewModel : ViewModel() {
 
         withContext(Dispatchers.IO) {
             try {
-                val inputStream = context.contentResolver.openInputStream(videoUri)
-                    ?: throw Exception("Cannot open video URI")
-                val videoBytes = inputStream.readBytes()
-                inputStream.close()
+                val videoBytes = context.contentResolver.openInputStream(videoUri)?.use {
+                    it.readBytes()
+                } ?: run {
+                    _events.emit(MediaViewerEvent.ShowToast(R.string.failed_save_video))
+                    return@withContext
+                }
 
                 val contentValues = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.mp4")
