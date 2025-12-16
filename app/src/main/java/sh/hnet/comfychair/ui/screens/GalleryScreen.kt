@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -272,8 +272,7 @@ fun GalleryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(uiState.items, key = { "${it.promptId}_${it.filename}" }) { item ->
-                        val itemIndex = uiState.items.indexOf(item)
+                    itemsIndexed(uiState.items, key = { _, item -> "${item.promptId}_${item.filename}" }) { index, item ->
                         GalleryItemCard(
                             item = item,
                             isSelected = galleryViewModel.isItemSelected(item),
@@ -283,7 +282,7 @@ fun GalleryScreen(
                                     galleryViewModel.toggleSelection(item)
                                 } else {
                                     // Normal mode, tap opens MediaViewer
-                                    launchMediaViewer(itemIndex)
+                                    launchMediaViewer(index)
                                 }
                             },
                             onLongPress = {

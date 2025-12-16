@@ -49,8 +49,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.compose.PlayerSurface
@@ -139,9 +137,13 @@ fun VideoPlayer(
     // Extract first frame as thumbnail and video dimensions when video URI changes
     LaunchedEffect(videoUri) {
         if (videoUri != null) {
-            // Reset zoom when video changes
+            // Reset all state immediately when video changes (before IO extraction)
+            // This ensures hasValidDimensions becomes false, triggering shutter overlay
             scale = 1f
             offset = Offset.Zero
+            videoWidth = 0
+            videoHeight = 0
+            thumbnail = null
             withContext(Dispatchers.IO) {
                 try {
                     val retriever = MediaMetadataRetriever()
@@ -154,9 +156,7 @@ fun VideoPlayer(
                     videoWidth = width
                     videoHeight = height
                 } catch (e: Exception) {
-                    thumbnail = null
-                    videoWidth = 0
-                    videoHeight = 0
+                    // Dimensions already reset to 0
                 }
             }
         } else {
@@ -451,36 +451,47 @@ fun VideoPlayer(
                     }
                 }
 
-                // Native Compose PlayerSurface with aspect ratio handling
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PlayerSurface(
-                        player = exoPlayer,
-                        surfaceType = SURFACE_TYPE_SURFACE_VIEW,
-                        modifier = Modifier
-                            .then(
-                                if (hasValidDimensions) {
-                                    Modifier.aspectRatio(playerVideoAspectRatio)
-                                } else {
-                                    Modifier
+                // Only render PlayerSurface when dimensions are ready
+                // SurfaceView renders on a separate hardware layer that can briefly show stretched
+                // content before Compose overlays cover it, so we prevent this by not rendering at all
+                if (hasValidDimensions) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PlayerSurface(
+                            player = exoPlayer,
+                            surfaceType = SURFACE_TYPE_SURFACE_VIEW,
+                            modifier = Modifier
+                                .aspectRatio(playerVideoAspectRatio)
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = aspectRatioScale
+                                    scaleY = aspectRatioScale
                                 }
-                            )
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = aspectRatioScale
-                                scaleY = aspectRatioScale
-                            }
-                    )
-                }
+                        )
 
-                // Shutter overlay - show until surface is ready AND we have valid dimensions
-                // This ensures video never shows stretched
-                val showShutter = presentationState.coverSurface || !hasValidDimensions
-                if (showShutter) {
+                        // Shutter overlay - show until surface is ready (first frame rendered)
+                        if (presentationState.coverSurface) {
+                            if (thumbnail != null) {
+                                Image(
+                                    bitmap = thumbnail!!.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = thumbnailContentScale
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Show placeholder until dimensions are extracted
                     if (thumbnail != null) {
-                        // Show thumbnail as shutter
                         Image(
                             bitmap = thumbnail!!.asImageBitmap(),
                             contentDescription = null,
@@ -488,7 +499,6 @@ fun VideoPlayer(
                             contentScale = thumbnailContentScale
                         )
                     } else {
-                        // Show black background as fallback shutter when thumbnail not ready
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
