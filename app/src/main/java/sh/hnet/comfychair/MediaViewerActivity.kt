@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -24,7 +23,25 @@ import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
-import java.io.File
+/**
+ * Simple in-memory cache for passing bitmaps between activities.
+ * Avoids expensive PNG compression/decompression when launching MediaViewer.
+ */
+object BitmapCache {
+    private var cachedBitmap: Bitmap? = null
+
+    fun put(bitmap: Bitmap) {
+        cachedBitmap = bitmap
+    }
+
+    fun get(): Bitmap? {
+        return cachedBitmap
+    }
+
+    fun clear() {
+        cachedBitmap = null
+    }
+}
 
 /**
  * Activity for fullscreen media viewing.
@@ -51,7 +68,6 @@ class MediaViewerActivity : ComponentActivity() {
 
         // Single mode extras
         const val EXTRA_IS_VIDEO = "is_video"
-        const val EXTRA_BITMAP_PATH = "bitmap_path"
         const val EXTRA_VIDEO_URI = "video_uri"
 
         // Single mode file info (for metadata extraction)
@@ -99,16 +115,12 @@ class MediaViewerActivity : ComponentActivity() {
             subfolder: String? = null,
             type: String? = null
         ): Intent {
-            // Save bitmap to temp file for passing to activity
-            val tempFile = File(context.cacheDir, "viewer_temp_${System.currentTimeMillis()}.png")
-            tempFile.outputStream().use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-            }
+            // Store bitmap in memory cache (avoids expensive PNG compression/decompression)
+            BitmapCache.put(bitmap)
 
             return Intent(context, MediaViewerActivity::class.java).apply {
                 putExtra(EXTRA_MODE, MODE_SINGLE)
                 putExtra(EXTRA_IS_VIDEO, false)
-                putExtra(EXTRA_BITMAP_PATH, tempFile.absolutePath)
                 // Add server and file info for metadata extraction
                 hostname?.let { putExtra(EXTRA_HOSTNAME, it) }
                 port?.let { putExtra(EXTRA_PORT, it) }
@@ -243,10 +255,9 @@ class MediaViewerActivity : ComponentActivity() {
                 singleVideoUri = videoUri
             )
         } else {
-            val bitmapPath = intent.getStringExtra(EXTRA_BITMAP_PATH)
-            val bitmap = bitmapPath?.let {
-                BitmapFactory.decodeFile(it)
-            }
+            // Retrieve bitmap from memory cache (avoids file I/O)
+            val bitmap = BitmapCache.get()
+            BitmapCache.clear()
 
             // Create a single item for the image with file info
             val item = MediaViewerItem(
@@ -267,9 +278,6 @@ class MediaViewerActivity : ComponentActivity() {
                 initialIndex = 0,
                 singleBitmap = bitmap
             )
-
-            // Clean up temp file
-            bitmapPath?.let { File(it).delete() }
         }
     }
 }
