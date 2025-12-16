@@ -16,6 +16,8 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
  * UI state for the Text-to-Video screen
@@ -91,6 +93,7 @@ class TextToVideoViewModel : ViewModel() {
     private var workflowManager: WorkflowManager? = null
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
+    private var workflowValuesStorage: WorkflowValuesStorage? = null
 
     // Reference to GenerationViewModel and callbacks for event handling
     private var generationViewModelRef: GenerationViewModel? = null
@@ -100,25 +103,16 @@ class TextToVideoViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "TEXT_TO_VIDEO"
         private const val PREFS_NAME = "TextToVideoFragmentPrefs"
+
+        // Global preferences
         private const val KEY_WORKFLOW = "workflow"
-        private const val KEY_HIGHNOISE_UNET = "highnoise_unet"
-        private const val KEY_LOWNOISE_UNET = "lownoise_unet"
-        private const val KEY_HIGHNOISE_LORA = "highnoise_lora"
-        private const val KEY_LOWNOISE_LORA = "lownoise_lora"
-        private const val KEY_VAE = "vae"
-        private const val KEY_CLIP = "clip"
-        private const val KEY_WIDTH = "width"
-        private const val KEY_HEIGHT = "height"
-        private const val KEY_LENGTH = "length"
-        private const val KEY_FPS = "fps"
         private const val KEY_POSITIVE_PROMPT = "positive_prompt"
-        private const val KEY_HIGHNOISE_LORA_CHAIN = "highnoise_lora_chain"
-        private const val KEY_LOWNOISE_LORA_CHAIN = "lownoise_lora_chain"
     }
 
     fun initialize(context: Context, client: ComfyUIClient) {
         applicationContext = context.applicationContext
         workflowManager = WorkflowManager(context)
+        workflowValuesStorage = WorkflowValuesStorage(context)
         comfyUIClient = client
 
         loadWorkflows()
@@ -138,71 +132,92 @@ class TextToVideoViewModel : ViewModel() {
 
     private fun restorePreferences() {
         val context = applicationContext ?: return
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        // Load global preferences
         val savedWorkflow = prefs.getString(KEY_WORKFLOW, "") ?: ""
-        val savedWidth = prefs.getString(KEY_WIDTH, "480") ?: "480"
-        val savedHeight = prefs.getString(KEY_HEIGHT, "800") ?: "800"
-        val savedLength = prefs.getString(KEY_LENGTH, "49") ?: "49"
-        val savedFps = prefs.getString(KEY_FPS, "24") ?: "24"
         val defaultPositivePrompt = context.getString(R.string.default_prompt_text_to_video)
         val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
 
-        // Deferred model selections
-        val deferredHighnoiseUnet = prefs.getString(KEY_HIGHNOISE_UNET, null)
-        val deferredLownoiseUnet = prefs.getString(KEY_LOWNOISE_UNET, null)
-        val deferredHighnoiseLora = prefs.getString(KEY_HIGHNOISE_LORA, null)
-        val deferredLownoiseLora = prefs.getString(KEY_LOWNOISE_LORA, null)
-        val deferredVae = prefs.getString(KEY_VAE, null)
-        val deferredClip = prefs.getString(KEY_CLIP, null)
+        val workflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.contains(savedWorkflow)) {
+            savedWorkflow
+        } else {
+            _uiState.value.selectedWorkflow
+        }
 
-        // Additional LoRA chains (separate for high noise and low noise)
-        val highnoiseLoraChain = LoraSelection.fromJsonString(prefs.getString(KEY_HIGHNOISE_LORA_CHAIN, null))
-        val lownoiseLoraChain = LoraSelection.fromJsonString(prefs.getString(KEY_LOWNOISE_LORA_CHAIN, null))
+        // Load per-workflow values
+        // Use workflow name directly as storage key for consistency
+        val savedValues = storage.loadValues(workflow)
+        val defaults = manager.getWorkflowDefaults(workflow)
 
         _uiState.value = _uiState.value.copy(
-            selectedWorkflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.contains(savedWorkflow)) {
-                savedWorkflow
-            } else {
-                _uiState.value.selectedWorkflow
-            },
-            width = savedWidth,
-            height = savedHeight,
-            length = savedLength,
-            fps = savedFps,
+            selectedWorkflow = workflow,
             positivePrompt = savedPositivePrompt,
-            deferredHighnoiseUnet = deferredHighnoiseUnet,
-            deferredLownoiseUnet = deferredLownoiseUnet,
-            deferredHighnoiseLora = deferredHighnoiseLora,
-            deferredLownoiseLora = deferredLownoiseLora,
-            deferredVae = deferredVae,
-            deferredClip = deferredClip,
-            highnoiseLoraChain = highnoiseLoraChain,
-            lownoiseLoraChain = lownoiseLoraChain
+            width = savedValues?.width?.toString()
+                ?: defaults?.width?.toString() ?: "848",
+            height = savedValues?.height?.toString()
+                ?: defaults?.height?.toString() ?: "480",
+            length = savedValues?.length?.toString()
+                ?: defaults?.length?.toString() ?: "33",
+            fps = savedValues?.frameRate?.toString()
+                ?: defaults?.frameRate?.toString() ?: "16",
+            // Deferred model selections from saved values
+            deferredHighnoiseUnet = savedValues?.highnoiseUnetModel,
+            deferredLownoiseUnet = savedValues?.lownoiseUnetModel,
+            deferredHighnoiseLora = savedValues?.highnoiseLoraModel,
+            deferredLownoiseLora = savedValues?.lownoiseLoraModel,
+            deferredVae = savedValues?.vaeModel,
+            deferredClip = savedValues?.clipModel,
+            highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
         )
+    }
+
+    /**
+     * Save current workflow values to per-workflow storage
+     */
+    private fun saveWorkflowValues(workflowName: String) {
+        val storage = workflowValuesStorage ?: return
+        val state = _uiState.value
+
+        // Use workflow name directly as storage key for consistency
+        // Workflow names are unique and always available
+        val values = WorkflowValues(
+            workflowId = workflowName,
+            width = state.width.toIntOrNull(),
+            height = state.height.toIntOrNull(),
+            length = state.length.toIntOrNull(),
+            frameRate = state.fps.toIntOrNull(),
+            highnoiseUnetModel = state.selectedHighnoiseUnet.takeIf { it.isNotEmpty() },
+            lownoiseUnetModel = state.selectedLownoiseUnet.takeIf { it.isNotEmpty() },
+            highnoiseLoraModel = state.selectedHighnoiseLora.takeIf { it.isNotEmpty() },
+            lownoiseLoraModel = state.selectedLownoiseLora.takeIf { it.isNotEmpty() },
+            vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
+            clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
+            highnoiseLoraChain = LoraSelection.toJsonString(state.highnoiseLoraChain).takeIf { state.highnoiseLoraChain.isNotEmpty() },
+            lownoiseLoraChain = LoraSelection.toJsonString(state.lownoiseLoraChain).takeIf { state.lownoiseLoraChain.isNotEmpty() }
+        )
+
+        storage.saveValues(workflowName, values)
     }
 
     private fun savePreferences() {
         val context = applicationContext ?: return
         val state = _uiState.value
 
+        // Save global preferences
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_WORKFLOW, state.selectedWorkflow)
-            .putString(KEY_HIGHNOISE_UNET, state.selectedHighnoiseUnet)
-            .putString(KEY_LOWNOISE_UNET, state.selectedLownoiseUnet)
-            .putString(KEY_HIGHNOISE_LORA, state.selectedHighnoiseLora)
-            .putString(KEY_LOWNOISE_LORA, state.selectedLownoiseLora)
-            .putString(KEY_VAE, state.selectedVae)
-            .putString(KEY_CLIP, state.selectedClip)
-            .putString(KEY_WIDTH, state.width)
-            .putString(KEY_HEIGHT, state.height)
-            .putString(KEY_LENGTH, state.length)
-            .putString(KEY_FPS, state.fps)
             .putString(KEY_POSITIVE_PROMPT, state.positivePrompt)
-            .putString(KEY_HIGHNOISE_LORA_CHAIN, LoraSelection.toJsonString(state.highnoiseLoraChain))
-            .putString(KEY_LOWNOISE_LORA_CHAIN, LoraSelection.toJsonString(state.lownoiseLoraChain))
             .apply()
+
+        // Save per-workflow values
+        if (state.selectedWorkflow.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflow)
+        }
     }
 
     private fun loadModels() {
@@ -303,7 +318,39 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     fun onWorkflowChange(workflow: String) {
-        _uiState.value = _uiState.value.copy(selectedWorkflow = workflow)
+        val state = _uiState.value
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
+
+        // Save current workflow values before switching
+        if (state.selectedWorkflow.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflow)
+        }
+
+        // Load new workflow's saved values or defaults
+        // Use workflow name directly as storage key for consistency
+        val savedValues = storage.loadValues(workflow)
+        val defaults = manager.getWorkflowDefaults(workflow)
+
+        _uiState.value = state.copy(
+            selectedWorkflow = workflow,
+            width = savedValues?.width?.toString()
+                ?: defaults?.width?.toString() ?: "848",
+            height = savedValues?.height?.toString()
+                ?: defaults?.height?.toString() ?: "480",
+            length = savedValues?.length?.toString()
+                ?: defaults?.length?.toString() ?: "33",
+            fps = savedValues?.frameRate?.toString()
+                ?: defaults?.frameRate?.toString() ?: "16",
+            selectedHighnoiseUnet = savedValues?.highnoiseUnetModel ?: "",
+            selectedLownoiseUnet = savedValues?.lownoiseUnetModel ?: "",
+            selectedHighnoiseLora = savedValues?.highnoiseLoraModel ?: "",
+            selectedLownoiseLora = savedValues?.lownoiseLoraModel ?: "",
+            selectedVae = savedValues?.vaeModel ?: "",
+            selectedClip = savedValues?.clipModel ?: "",
+            highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+        )
         savePreferences()
     }
 
@@ -338,13 +385,13 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     fun onWidthChange(width: String) {
-        val error = validateDimension(width, "Width")
+        val error = validateDimension(width)
         _uiState.value = _uiState.value.copy(width = width, widthError = error)
         if (error == null) savePreferences()
     }
 
     fun onHeightChange(height: String) {
-        val error = validateDimension(height, "Height")
+        val error = validateDimension(height)
         _uiState.value = _uiState.value.copy(height = height, heightError = error)
         if (error == null) savePreferences()
     }
@@ -458,12 +505,15 @@ class TextToVideoViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(previewBitmap = null)
     }
 
-    private fun validateDimension(value: String, name: String): String? {
+    private fun validateDimension(value: String): String? {
         val num = value.toIntOrNull()
         return when {
-            value.isEmpty() -> "Required"
-            num == null -> "Invalid number"
-            num !in 1..4096 -> "$name must be 1-4096"
+            value.isEmpty() -> applicationContext?.getString(R.string.error_required)
+                ?: "Required"
+            num == null -> applicationContext?.getString(R.string.error_invalid_number)
+                ?: "Invalid number"
+            num !in 1..4096 -> applicationContext?.getString(R.string.error_dimension_range)
+                ?: "Must be 1-4096"
             else -> null
         }
     }
@@ -471,10 +521,14 @@ class TextToVideoViewModel : ViewModel() {
     private fun validateLength(value: String): String? {
         val num = value.toIntOrNull()
         return when {
-            value.isEmpty() -> "Required"
-            num == null -> "Invalid number"
-            num !in 1..129 -> "Length must be 1-129"
-            (num - 1) % 4 != 0 -> "Length must be 1, 5, 9, 13... up to 129"
+            value.isEmpty() -> applicationContext?.getString(R.string.error_required)
+                ?: "Required"
+            num == null -> applicationContext?.getString(R.string.error_invalid_number)
+                ?: "Invalid number"
+            num !in 1..129 -> applicationContext?.getString(R.string.error_length_range)
+                ?: "Must be 1-129"
+            (num - 1) % 4 != 0 -> applicationContext?.getString(R.string.error_length_step)
+                ?: "Must be 1, 5, 9, 13... (steps of 4)"
             else -> null
         }
     }
@@ -482,9 +536,12 @@ class TextToVideoViewModel : ViewModel() {
     private fun validateFps(value: String): String? {
         val num = value.toIntOrNull()
         return when {
-            value.isEmpty() -> "Required"
-            num == null -> "Invalid number"
-            num !in 1..120 -> "FPS must be 1-120"
+            value.isEmpty() -> applicationContext?.getString(R.string.error_required)
+                ?: "Required"
+            num == null -> applicationContext?.getString(R.string.error_invalid_number)
+                ?: "Invalid number"
+            num !in 1..120 -> applicationContext?.getString(R.string.error_fps_range)
+                ?: "Must be 1-120"
             else -> null
         }
     }

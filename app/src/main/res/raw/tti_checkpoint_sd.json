@@ -1,77 +1,56 @@
 {
-  "name": "Z-Image Turbo",
-  "description": "Default workflow using Z-Image Turbo model",
+  "name": "SD",
+  "description": "Default workflow for SD generation",
   "defaults": {
-    "width": 832,
-    "height": 1216,
-    "steps": 9,
-    "cfg": 1.0,
+    "width": 512,
+    "height": 512,
+    "steps": 20,
+    "cfg": 8.0,
     "sampler_name": "euler",
-    "scheduler": "simple"
+    "scheduler": "normal"
   },
   "nodes": {
     "1": {
-      "class_type": "UNETLoader",
+      "class_type": "CheckpointLoaderSimple",
       "inputs": {
-        "unet_name": "{{unet_name}}",
-        "weight_dtype": "default"
+        "ckpt_name": "{{ckpt_name}}"
       },
       "_meta": {
-        "title": "Load Diffusion Model"
+        "title": "Load Checkpoint"
       }
     },
     "2": {
-      "class_type": "VAELoader",
-      "inputs": {
-        "vae_name": "{{vae_name}}"
-      },
-      "_meta": {
-        "title": "Load VAE"
-      }
-    },
-    "3": {
-      "class_type": "CLIPLoader",
-      "inputs": {
-        "clip_name": "{{clip_name}}",
-        "type": "lumina2",
-        "device": "default"
-      },
-      "_meta": {
-        "title": "Load CLIP"
-      }
-    },
-    "4": {
-      "class_type": "EmptySD3LatentImage",
+      "class_type": "EmptyLatentImage",
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
         "batch_size": 1
       },
       "_meta": {
-        "title": "EmptySD3LatentImage"
+        "title": "Empty Latent Image"
       }
     },
-    "5": {
+    "3": {
       "class_type": "CLIPTextEncode",
       "inputs": {
         "text": "{{positive_prompt}}",
-        "clip": ["3", 0]
+        "clip": ["1", 1]
       },
       "_meta": {
         "title": "CLIP Text Encode (Positive Prompt)"
       }
     },
-    "6": {
+    "4": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "blurry ugly bad",
-        "clip": ["3", 0]
+        "text": "text, watermark",
+        "clip": ["1", 1]
       },
       "_meta": {
         "title": "CLIP Text Encode (Negative Prompt)"
       }
     },
-    "7": {
+    "5": {
       "class_type": "KSampler",
       "inputs": {
         "seed": 0,
@@ -81,29 +60,29 @@
         "scheduler": "{{scheduler}}",
         "denoise": 1,
         "model": ["1", 0],
-        "positive": ["5", 0],
-        "negative": ["6", 0],
-        "latent_image": ["4", 0]
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["2", 0]
       },
       "_meta": {
         "title": "KSampler"
       }
     },
-    "8": {
+    "6": {
       "class_type": "VAEDecode",
       "inputs": {
-        "samples": ["7", 0],
-        "vae": ["2", 0]
+        "samples": ["5", 0],
+        "vae": ["1", 2]
       },
       "_meta": {
         "title": "VAE Decode"
       }
     },
-    "9": {
+    "7": {
       "class_type": "SaveImage",
       "inputs": {
         "filename_prefix": "ComfyChair",
-        "images": ["8", 0]
+        "images": ["6", 0]
       },
       "_meta": {
         "title": "Save Image"

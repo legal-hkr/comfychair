@@ -19,6 +19,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
  * UI state for server settings screen
@@ -303,6 +304,11 @@ class SettingsViewModel : ViewModel() {
     fun restoreDefaults(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
+                // Clear per-workflow saved values
+                val workflowValuesStorage = WorkflowValuesStorage(context)
+                workflowValuesStorage.clearAll()
+
+                // Clear global preferences (mode, workflow selections, prompts)
                 val prefsToDelete = listOf(
                     "TextToImageFragmentPrefs",
                     "InpaintingFragmentPrefs",

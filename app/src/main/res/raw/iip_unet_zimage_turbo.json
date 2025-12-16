@@ -1,102 +1,88 @@
 {
   "name": "Z-Image Turbo inpainting",
   "description": "Default inpainting workflow using Z-Image Turbo model",
+  "defaults": {
+    "steps": 9,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple"
+  },
   "nodes": {
-    "13": {
+    "1": {
+      "class_type": "UNETLoader",
       "inputs": {
         "unet_name": "{{unet_name}}",
         "weight_dtype": "default"
       },
-      "class_type": "UNETLoader",
       "_meta": {
         "title": "Load Diffusion Model"
       }
     },
-    "14": {
+    "2": {
+      "class_type": "CLIPLoader",
       "inputs": {
         "clip_name": "{{clip_name}}",
         "type": "stable_diffusion",
         "device": "default"
       },
-      "class_type": "CLIPLoader",
       "_meta": {
         "title": "Load CLIP"
       }
     },
-    "15": {
+    "3": {
+      "class_type": "VAELoader",
       "inputs": {
         "vae_name": "{{vae_name}}"
       },
-      "class_type": "VAELoader",
       "_meta": {
         "title": "Load VAE"
       }
     },
-    "16": {
+    "4": {
+      "class_type": "LoadImage",
       "inputs": {
         "image": "uploaded_image.png [input]"
       },
-      "class_type": "LoadImage",
       "_meta": {
         "title": "Load Image"
       }
     },
-    "17": {
+    "5": {
+      "class_type": "CLIPTextEncode",
       "inputs": {
         "text": "{{positive_prompt}}",
-        "clip": [
-          "14",
-          0
-        ]
+        "clip": ["2", 0]
       },
-      "class_type": "CLIPTextEncode",
       "_meta": {
         "title": "CLIP Text Encode (Positive Prompt)"
       }
     },
-    "18": {
+    "6": {
+      "class_type": "CLIPTextEncode",
       "inputs": {
         "text": "",
-        "clip": [
-          "14",
-          0
-        ]
+        "clip": ["2", 0]
       },
-      "class_type": "CLIPTextEncode",
       "_meta": {
         "title": "CLIP Text Encode (Negative Prompt)"
       }
     },
-    "19": {
+    "7": {
+      "class_type": "InpaintModelConditioning",
       "inputs": {
         "noise_mask": true,
-        "positive": [
-          "17",
-          0
-        ],
-        "negative": [
-          "18",
-          0
-        ],
-        "vae": [
-          "15",
-          0
-        ],
-        "pixels": [
-          "16",
-          0
-        ],
-        "mask": [
-          "16",
-          1
-        ]
+        "positive": ["5", 0],
+        "negative": ["6", 0],
+        "vae": ["3", 0],
+        "pixels": ["4", 0],
+        "mask": ["4", 1]
       },
-      "class_type": "InpaintModelConditioning",
       "_meta": {
         "title": "InpaintModelConditioning"
       }
     },
-    "20": {
+    "8": {
+      "class_type": "KSampler",
       "inputs": {
         "seed": 42,
         "steps": "{{steps}}",
@@ -104,76 +90,45 @@
         "sampler_name": "{{sampler_name}}",
         "scheduler": "{{scheduler}}",
         "denoise": 1.0,
-        "model": [
-          "13",
-          0
-        ],
-        "positive": [
-          "19",
-          0
-        ],
-        "negative": [
-          "19",
-          1
-        ],
-        "latent_image": [
-          "19",
-          2
-        ]
+        "model": ["1", 0],
+        "positive": ["7", 0],
+        "negative": ["7", 1],
+        "latent_image": ["7", 2]
       },
-      "class_type": "KSampler",
       "_meta": {
         "title": "KSampler"
       }
     },
-    "23": {
-      "inputs": {
-        "samples": [
-          "20",
-          0
-        ],
-        "vae": [
-          "15",
-          0
-        ]
-      },
+    "9": {
       "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["8", 0],
+        "vae": ["3", 0]
+      },
       "_meta": {
         "title": "VAE Decode"
       }
     },
-    "24": {
+    "10": {
+      "class_type": "ImageCompositeMasked",
       "inputs": {
         "x": 0,
         "y": 0,
         "resize_source": false,
-        "destination": [
-          "16",
-          0
-        ],
-        "source": [
-          "23",
-          0
-        ],
-        "mask": [
-          "16",
-          1
-        ]
+        "destination": ["4", 0],
+        "source": ["9", 0],
+        "mask": ["4", 1]
       },
-      "class_type": "ImageCompositeMasked",
       "_meta": {
         "title": "ImageCompositeMasked"
       }
     },
-    "25": {
-      "inputs": {
-        "filename_prefix": "ComfyUI",
-        "images": [
-          "24",
-          0
-        ]
-      },
+    "11": {
       "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["10", 0]
+      },
       "_meta": {
         "title": "Save Image"
       }

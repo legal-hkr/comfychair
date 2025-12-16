@@ -1,0 +1,135 @@
+{
+  "name": "SDXL with latent upscaling",
+  "description": "Default workflow for SDXL generation with latent upscaling",
+  "defaults": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 25,
+    "cfg": 4.0,
+    "sampler_name": "dpmpp_2m_sde",
+    "scheduler": "karras"
+  },
+  "nodes": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "2": {
+      "class_type": "CLIPSetLastLayer",
+      "inputs": {
+        "stop_at_clip_layer": -2,
+        "clip": ["1", 1]
+      },
+      "_meta": {
+        "title": "CLIP Set Last Layer"
+      }
+    },
+    "3": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "batch_size": 1
+      },
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "6": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": 1,
+        "model": ["1", 0],
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["5", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "7": {
+      "class_type": "LatentUpscaleBy",
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "scale_by": 1.5,
+        "samples": ["6", 0]
+      },
+      "_meta": {
+        "title": "Upscale Latent By"
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 20,
+        "cfg": 4.0,
+        "sampler_name": "dpmpp_2m_sde",
+        "scheduler": "karras",
+        "denoise": 0.5,
+        "model": ["1", 0],
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["7", 0]
+      },
+      "_meta": {
+        "title": "KSampler (Refine)"
+      }
+    },
+    "9": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "tile_size": 512,
+        "overlap": 64,
+        "temporal_size": 64,
+        "temporal_overlap": 8,
+        "samples": ["8", 0],
+        "vae": ["1", 2]
+      },
+      "_meta": {
+        "title": "VAE Decode (Tiled)"
+      }
+    },
+    "10": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["9", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

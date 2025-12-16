@@ -3,6 +3,7 @@ package sh.hnet.comfychair
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.model.WorkflowDefaults
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import java.io.File
 import java.io.InputStream
@@ -49,7 +50,8 @@ class WorkflowManager(private val context: Context) {
         val description: String,
         val jsonContent: String,
         val type: WorkflowType,
-        val isBuiltIn: Boolean
+        val isBuiltIn: Boolean,
+        val defaults: WorkflowDefaults = WorkflowDefaults()
     )
 
     companion object {
@@ -130,7 +132,11 @@ class WorkflowManager(private val context: Context) {
      */
     private fun loadBuiltInWorkflows() {
         val workflowResources = listOf(
-            R.raw.tti_checkpoint_sd_sdxl,
+            R.raw.tti_checkpoint_sd,
+            R.raw.tti_checkpoint_sdxl_lcm_upscaler_latent,
+            R.raw.tti_checkpoint_sdxl_light_upscaler_latent,
+            R.raw.tti_checkpoint_sdxl_upscaler_latent,
+            R.raw.tti_checkpoint_sdxl,
             R.raw.tti_unet_zimage_turbo,
             R.raw.iip_checkpoint_sd_sdxl,
             R.raw.iip_unet_zimage_turbo,
@@ -148,8 +154,9 @@ class WorkflowManager(private val context: Context) {
                 val description = jsonObject.optString("description", "")
                 val id = context.resources.getResourceEntryName(resId)
                 val type = parseWorkflowType(id) ?: continue
+                val defaults = WorkflowDefaults.fromJson(jsonObject.optJSONObject("defaults"))
 
-                workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = true))
+                workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = true, defaults))
             } catch (e: Exception) {
                 // Failed to load workflow
             }
@@ -185,7 +192,14 @@ class WorkflowManager(private val context: Context) {
                 if (!file.exists()) continue
 
                 val jsonContent = file.readText()
-                workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = false))
+                val jsonObject = try {
+                    JSONObject(jsonContent)
+                } catch (e: Exception) {
+                    null
+                }
+                val defaults = WorkflowDefaults.fromJson(jsonObject?.optJSONObject("defaults"))
+
+                workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = false, defaults))
             }
         } catch (e: Exception) {
             // Failed to load user workflows
@@ -473,6 +487,26 @@ class WorkflowManager(private val context: Context) {
         val isWrapped = json.has("nodes") && json.optJSONObject("nodes") != null
         val nodesJson = if (isWrapped) json.getJSONObject("nodes") else json
 
+        // Extract original values before replacing with placeholders to create defaults
+        val extractedDefaults = mutableMapOf<String, Any>()
+        fieldMappings.forEach { (fieldKey, mapping) ->
+            val (nodeId, inputKey) = mapping
+            val nodeJson = nodesJson.optJSONObject(nodeId)
+            if (nodeJson != null) {
+                val inputsJson = nodeJson.optJSONObject("inputs")
+                if (inputsJson != null && inputsJson.has(inputKey)) {
+                    val originalValue = inputsJson.get(inputKey)
+                    // Only capture numeric and string values as defaults (not model names or prompts)
+                    if (originalValue is Number || (originalValue is String && fieldKey in listOf(
+                            "width", "height", "steps", "cfg", "sampler_name", "scheduler",
+                            "megapixels", "length", "frame_rate"
+                        ))) {
+                        extractedDefaults[fieldKey] = originalValue
+                    }
+                }
+            }
+        }
+
         // Apply field mappings - replace values with placeholders
         fieldMappings.forEach { (fieldKey, mapping) ->
             val (nodeId, inputKey) = mapping
@@ -488,10 +522,28 @@ class WorkflowManager(private val context: Context) {
             }
         }
 
-        // Create wrapped JSON with metadata
+        // Create defaults object from extracted values
+        val defaults = WorkflowDefaults(
+            width = (extractedDefaults["width"] as? Number)?.toInt(),
+            height = (extractedDefaults["height"] as? Number)?.toInt(),
+            steps = (extractedDefaults["steps"] as? Number)?.toInt(),
+            cfg = (extractedDefaults["cfg"] as? Number)?.toFloat(),
+            samplerName = extractedDefaults["sampler_name"] as? String,
+            scheduler = extractedDefaults["scheduler"] as? String,
+            megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
+            length = (extractedDefaults["length"] as? Number)?.toInt(),
+            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt()
+        )
+
+        // Create wrapped JSON with metadata and defaults
         val finalJson = JSONObject().apply {
             put("name", name)
             put("description", description)
+            // Add defaults if any were extracted
+            val defaultsJson = WorkflowDefaults.toJson(defaults)
+            if (defaultsJson.length() > 0) {
+                put("defaults", defaultsJson)
+            }
             put("nodes", nodesJson)
             // Store field mappings for reference
             if (fieldMappings.isNotEmpty()) {
@@ -511,7 +563,7 @@ class WorkflowManager(private val context: Context) {
 
         // Check for duplicate filename
         if (isFilenameExists(filename)) {
-            return Result.failure(Exception("A workflow with this name already exists"))
+            return Result.failure(Exception(context.getString(R.string.workflow_error_duplicate_filename)))
         }
 
         // Save file
@@ -522,7 +574,7 @@ class WorkflowManager(private val context: Context) {
         try {
             file.writeText(finalJson.toString(2))
         } catch (e: Exception) {
-            return Result.failure(Exception("Failed to save file: ${e.message}"))
+            return Result.failure(Exception(context.getString(R.string.workflow_error_save_failed, e.message ?: "")))
         }
 
         // Save metadata
@@ -542,7 +594,7 @@ class WorkflowManager(private val context: Context) {
 
         prefs.edit().putString(USER_WORKFLOWS_KEY, metadataArray.toString()).apply()
 
-        val workflow = Workflow(id, name, description, finalJson.toString(2), type, isBuiltIn = false)
+        val workflow = Workflow(id, name, description, finalJson.toString(2), type, isBuiltIn = false, defaults)
         workflows.add(workflow)
 
         return Result.success(workflow)
@@ -605,10 +657,10 @@ class WorkflowManager(private val context: Context) {
             val errorMessage = when (validationResult) {
                 is WorkflowValidationResult.InvalidJson -> validationResult.message
                 is WorkflowValidationResult.MissingPlaceholders ->
-                    "Missing placeholders: ${validationResult.missing.joinToString(", ")}"
+                    context.getString(R.string.workflow_error_missing_placeholders, validationResult.missing.joinToString(", "))
                 is WorkflowValidationResult.MissingKeys ->
-                    "Missing required inputs: ${validationResult.missing.joinToString(", ")}"
-                else -> "Unknown error"
+                    context.getString(R.string.workflow_error_missing_inputs, validationResult.missing.joinToString(", "))
+                else -> context.getString(R.string.error_unknown)
             }
             return Result.failure(Exception(errorMessage))
         }
@@ -630,7 +682,7 @@ class WorkflowManager(private val context: Context) {
         try {
             file.writeText(finalJson)
         } catch (e: Exception) {
-            return Result.failure(Exception("Failed to save file: ${e.message}"))
+            return Result.failure(Exception(context.getString(R.string.workflow_error_save_failed, e.message ?: "")))
         }
 
         // Save metadata
@@ -841,6 +893,13 @@ class WorkflowManager(private val context: Context) {
      */
     fun getWorkflowById(id: String): Workflow? {
         return workflows.find { it.id == id }
+    }
+
+    /**
+     * Get workflow defaults by workflow name
+     */
+    fun getWorkflowDefaults(workflowName: String): WorkflowDefaults? {
+        return getWorkflowByName(workflowName)?.defaults
     }
 
     /**

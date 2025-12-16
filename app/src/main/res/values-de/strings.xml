@@ -171,6 +171,9 @@
     <string name="error_steps_range">Muss 1–255 sein</string>
     <string name="error_cfg_range">Muss 0,0–100,0 sein</string>
     <string name="error_megapixels_range">Muss 0,1–8,3 sein</string>
+    <string name="error_length_range">Muss 1–129 sein</string>
+    <string name="error_length_step">Muss 1, 5, 9, 13… sein (4er-Schritte)</string>
+    <string name="error_fps_range">Muss 1–120 sein</string>
     <string name="error_invalid_number">Ungültige Zahl</string>
 
     <!-- Settings screen strings -->
@@ -263,6 +266,10 @@
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Server-Nodes konnten nicht abgerufen werden</string>
+    <string name="workflow_error_save_failed">Workflow-Datei konnte nicht gespeichert werden: %s</string>
+    <string name="workflow_error_duplicate_filename">Ein Workflow mit diesem Namen existiert bereits</string>
+    <string name="workflow_error_missing_placeholders">Fehlende Platzhalter: %s</string>
+    <string name="workflow_error_missing_inputs">Fehlende erforderliche Eingaben: %s</string>
     <string name="workflow_name_error_too_long">Name darf maximal 40 Zeichen haben</string>
     <string name="workflow_name_error_invalid_chars">Name darf nur Buchstaben, Zahlen, Leerzeichen, Unterstriche, Bindestriche und Klammern enthalten</string>
     <string name="workflow_description_error_too_long">Beschreibung darf maximal 120 Zeichen haben</string>

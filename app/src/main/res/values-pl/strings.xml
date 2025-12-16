@@ -171,6 +171,9 @@
     <string name="error_steps_range">Musi być 1–255</string>
     <string name="error_cfg_range">Musi być 0,0–100,0</string>
     <string name="error_megapixels_range">Musi być 0,1–8,3</string>
+    <string name="error_length_range">Musi być 1–129</string>
+    <string name="error_length_step">Musi być 1, 5, 9, 13… (co 4)</string>
+    <string name="error_fps_range">Musi być 1–120</string>
     <string name="error_invalid_number">Nieprawidłowa liczba</string>
 
     <!-- Settings screen strings -->
@@ -263,6 +266,10 @@
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Nie udało się pobrać węzłów z serwera</string>
+    <string name="workflow_error_save_failed">Nie udało się zapisać pliku workflow: %s</string>
+    <string name="workflow_error_duplicate_filename">Workflow o tej nazwie już istnieje</string>
+    <string name="workflow_error_missing_placeholders">Brakujące placeholdery: %s</string>
+    <string name="workflow_error_missing_inputs">Brakujące wymagane dane wejściowe: %s</string>
     <string name="workflow_name_error_too_long">Nazwa może mieć maksymalnie 40 znaków</string>
     <string name="workflow_name_error_invalid_chars">Nazwa może zawierać tylko litery, cyfry, spacje, podkreślniki, myślniki i nawiasy</string>
     <string name="workflow_description_error_too_long">Opis może mieć maksymalnie 120 znaków</string>

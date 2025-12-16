@@ -25,6 +25,8 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import java.io.File
 import java.io.FileOutputStream
 
@@ -127,6 +129,7 @@ class InpaintingViewModel : ViewModel() {
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
     private var workflowManager: WorkflowManager? = null
+    private var workflowValuesStorage: WorkflowValuesStorage? = null
 
     private val _uiState = MutableStateFlow(InpaintingUiState())
     val uiState: StateFlow<InpaintingUiState> = _uiState.asStateFlow()
@@ -140,25 +143,13 @@ class InpaintingViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "INPAINTING"
         private const val PREFS_NAME = "InpaintingFragmentPrefs"
+
+        // Global preferences (shared across workflows)
         private const val PREF_CONFIG_MODE = "config_mode"
         private const val PREF_CHECKPOINT_WORKFLOW = "checkpoint_workflow"
-        private const val PREF_CHECKPOINT = "checkpoint"
-        private const val PREF_MEGAPIXELS = "megapixels"
-        private const val PREF_CHECKPOINT_STEPS = "checkpoint_steps"
         private const val PREF_UNET_WORKFLOW = "unet_workflow"
-        private const val PREF_UNET = "unet"
-        private const val PREF_VAE = "vae"
-        private const val PREF_CLIP = "clip"
-        private const val PREF_UNET_STEPS = "unet_steps"
         private const val PREF_POSITIVE_PROMPT = "positive_prompt"
-        private const val PREF_CHECKPOINT_CFG = "checkpoint_cfg"
-        private const val PREF_CHECKPOINT_SAMPLER = "checkpoint_sampler"
-        private const val PREF_CHECKPOINT_SCHEDULER = "checkpoint_scheduler"
-        private const val PREF_UNET_CFG = "unet_cfg"
-        private const val PREF_UNET_SAMPLER = "unet_sampler"
-        private const val PREF_UNET_SCHEDULER = "unet_scheduler"
-        private const val PREF_CHECKPOINT_LORA_CHAIN = "checkpoint_lora_chain"
-        private const val PREF_UNET_LORA_CHAIN = "unet_lora_chain"
+
         private const val FEATHER_RADIUS = 8
     }
 
@@ -166,6 +157,7 @@ class InpaintingViewModel : ViewModel() {
         applicationContext = context.applicationContext
         comfyUIClient = client
         workflowManager = WorkflowManager(context)
+        workflowValuesStorage = WorkflowValuesStorage(context)
 
         loadWorkflowOptions()
         restorePreferences()
@@ -196,6 +188,8 @@ class InpaintingViewModel : ViewModel() {
 
     private fun restorePreferences() {
         val context = applicationContext ?: return
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         val configModeStr = prefs.getString(PREF_CONFIG_MODE, "CHECKPOINT") ?: "CHECKPOINT"
@@ -206,54 +200,115 @@ class InpaintingViewModel : ViewModel() {
         }
 
         val defaultPositivePrompt = context.getString(R.string.default_prompt_inpainting)
+
+        // Load global preferences
+        val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
+        val checkpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow) ?: _uiState.value.selectedCheckpointWorkflow
+        val unetWorkflow = prefs.getString(PREF_UNET_WORKFLOW, _uiState.value.selectedUnetWorkflow) ?: _uiState.value.selectedUnetWorkflow
+
+        // Load per-workflow values for checkpoint workflow
+        // Use workflow name directly as storage key for consistency
+        val checkpointSavedValues = storage.loadValues(checkpointWorkflow)
+        val checkpointDefaults = manager.getWorkflowDefaults(checkpointWorkflow)
+
+        // Load per-workflow values for UNET workflow
+        // Use workflow name directly as storage key for consistency
+        val unetSavedValues = storage.loadValues(unetWorkflow)
+        val unetDefaults = manager.getWorkflowDefaults(unetWorkflow)
+
         _uiState.value = _uiState.value.copy(
             configMode = configMode,
-            selectedCheckpointWorkflow = prefs.getString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow) ?: _uiState.value.selectedCheckpointWorkflow,
-            selectedCheckpoint = prefs.getString(PREF_CHECKPOINT, "") ?: "",
-            megapixels = prefs.getString(PREF_MEGAPIXELS, "1.0") ?: "1.0",
-            checkpointSteps = prefs.getString(PREF_CHECKPOINT_STEPS, "20") ?: "20",
-            selectedUnetWorkflow = prefs.getString(PREF_UNET_WORKFLOW, _uiState.value.selectedUnetWorkflow) ?: _uiState.value.selectedUnetWorkflow,
-            selectedUnet = prefs.getString(PREF_UNET, "") ?: "",
-            selectedVae = prefs.getString(PREF_VAE, "") ?: "",
-            selectedClip = prefs.getString(PREF_CLIP, "") ?: "",
-            unetSteps = prefs.getString(PREF_UNET_STEPS, "9") ?: "9",
-            positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt,
-            checkpointCfg = prefs.getString(PREF_CHECKPOINT_CFG, "8.0") ?: "8.0",
-            checkpointSampler = prefs.getString(PREF_CHECKPOINT_SAMPLER, "euler") ?: "euler",
-            checkpointScheduler = prefs.getString(PREF_CHECKPOINT_SCHEDULER, "normal") ?: "normal",
-            unetCfg = prefs.getString(PREF_UNET_CFG, "1.0") ?: "1.0",
-            unetSampler = prefs.getString(PREF_UNET_SAMPLER, "euler") ?: "euler",
-            unetScheduler = prefs.getString(PREF_UNET_SCHEDULER, "simple") ?: "simple",
-            checkpointLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_CHECKPOINT_LORA_CHAIN, null)),
-            unetLoraChain = LoraSelection.fromJsonString(prefs.getString(PREF_UNET_LORA_CHAIN, null))
+            positivePrompt = positivePrompt,
+
+            // Checkpoint mode - use saved values, then defaults, then fallback
+            selectedCheckpointWorkflow = checkpointWorkflow,
+            megapixels = checkpointSavedValues?.megapixels?.toString()
+                ?: checkpointDefaults?.megapixels?.toString() ?: "1.0",
+            checkpointSteps = checkpointSavedValues?.steps?.toString()
+                ?: checkpointDefaults?.steps?.toString() ?: "20",
+            checkpointCfg = checkpointSavedValues?.cfg?.toString()
+                ?: checkpointDefaults?.cfg?.toString() ?: "8.0",
+            checkpointSampler = checkpointSavedValues?.samplerName
+                ?: checkpointDefaults?.samplerName ?: "euler",
+            checkpointScheduler = checkpointSavedValues?.scheduler
+                ?: checkpointDefaults?.scheduler ?: "normal",
+            selectedCheckpoint = checkpointSavedValues?.checkpointModel ?: "",
+            checkpointLoraChain = checkpointSavedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+
+            // UNET mode - use saved values, then defaults, then fallback
+            selectedUnetWorkflow = unetWorkflow,
+            unetSteps = unetSavedValues?.steps?.toString()
+                ?: unetDefaults?.steps?.toString() ?: "9",
+            unetCfg = unetSavedValues?.cfg?.toString()
+                ?: unetDefaults?.cfg?.toString() ?: "1.0",
+            unetSampler = unetSavedValues?.samplerName
+                ?: unetDefaults?.samplerName ?: "euler",
+            unetScheduler = unetSavedValues?.scheduler
+                ?: unetDefaults?.scheduler ?: "simple",
+            selectedUnet = unetSavedValues?.unetModel ?: "",
+            selectedVae = unetSavedValues?.vaeModel ?: "",
+            selectedClip = unetSavedValues?.clipModel ?: "",
+            unetLoraChain = unetSavedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
         )
+    }
+
+    /**
+     * Save current workflow values to per-workflow storage
+     */
+    private fun saveWorkflowValues(workflowName: String, isCheckpointMode: Boolean) {
+        val storage = workflowValuesStorage ?: return
+        val state = _uiState.value
+
+        // Use workflow name directly as storage key for consistency
+        // Workflow names are unique and always available
+        val values = if (isCheckpointMode) {
+            WorkflowValues(
+                workflowId = workflowName,
+                megapixels = state.megapixels.toFloatOrNull(),
+                steps = state.checkpointSteps.toIntOrNull(),
+                cfg = state.checkpointCfg.toFloatOrNull(),
+                samplerName = state.checkpointSampler,
+                scheduler = state.checkpointScheduler,
+                checkpointModel = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
+                loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() }
+            )
+        } else {
+            WorkflowValues(
+                workflowId = workflowName,
+                steps = state.unetSteps.toIntOrNull(),
+                cfg = state.unetCfg.toFloatOrNull(),
+                samplerName = state.unetSampler,
+                scheduler = state.unetScheduler,
+                unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
+                vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
+                clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
+                loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() }
+            )
+        }
+
+        storage.saveValues(workflowName, values)
     }
 
     private fun savePreferences() {
         val context = applicationContext ?: return
+        val state = _uiState.value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        // Save global preferences
         prefs.edit()
-            .putString(PREF_CONFIG_MODE, _uiState.value.configMode.name)
-            .putString(PREF_CHECKPOINT_WORKFLOW, _uiState.value.selectedCheckpointWorkflow)
-            .putString(PREF_CHECKPOINT, _uiState.value.selectedCheckpoint)
-            .putString(PREF_MEGAPIXELS, _uiState.value.megapixels)
-            .putString(PREF_CHECKPOINT_STEPS, _uiState.value.checkpointSteps)
-            .putString(PREF_UNET_WORKFLOW, _uiState.value.selectedUnetWorkflow)
-            .putString(PREF_UNET, _uiState.value.selectedUnet)
-            .putString(PREF_VAE, _uiState.value.selectedVae)
-            .putString(PREF_CLIP, _uiState.value.selectedClip)
-            .putString(PREF_UNET_STEPS, _uiState.value.unetSteps)
-            .putString(PREF_POSITIVE_PROMPT, _uiState.value.positivePrompt)
-            .putString(PREF_CHECKPOINT_CFG, _uiState.value.checkpointCfg)
-            .putString(PREF_CHECKPOINT_SAMPLER, _uiState.value.checkpointSampler)
-            .putString(PREF_CHECKPOINT_SCHEDULER, _uiState.value.checkpointScheduler)
-            .putString(PREF_UNET_CFG, _uiState.value.unetCfg)
-            .putString(PREF_UNET_SAMPLER, _uiState.value.unetSampler)
-            .putString(PREF_UNET_SCHEDULER, _uiState.value.unetScheduler)
-            .putString(PREF_CHECKPOINT_LORA_CHAIN, LoraSelection.toJsonString(_uiState.value.checkpointLoraChain))
-            .putString(PREF_UNET_LORA_CHAIN, LoraSelection.toJsonString(_uiState.value.unetLoraChain))
+            .putString(PREF_CONFIG_MODE, state.configMode.name)
+            .putString(PREF_CHECKPOINT_WORKFLOW, state.selectedCheckpointWorkflow)
+            .putString(PREF_UNET_WORKFLOW, state.selectedUnetWorkflow)
+            .putString(PREF_POSITIVE_PROMPT, state.positivePrompt)
             .apply()
+
+        // Save per-workflow values
+        if (state.selectedCheckpointWorkflow.isNotEmpty()) {
+            saveWorkflowValues(state.selectedCheckpointWorkflow, isCheckpointMode = true)
+        }
+        if (state.selectedUnetWorkflow.isNotEmpty()) {
+            saveWorkflowValues(state.selectedUnetWorkflow, isCheckpointMode = false)
+        }
     }
 
     private fun loadSavedImages() {
@@ -524,7 +579,35 @@ class InpaintingViewModel : ViewModel() {
 
     // Checkpoint mode settings
     fun onCheckpointWorkflowChange(workflow: String) {
-        _uiState.value = _uiState.value.copy(selectedCheckpointWorkflow = workflow)
+        val state = _uiState.value
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
+
+        // Save current workflow values before switching
+        if (state.selectedCheckpointWorkflow.isNotEmpty()) {
+            saveWorkflowValues(state.selectedCheckpointWorkflow, isCheckpointMode = true)
+        }
+
+        // Load new workflow's saved values or defaults
+        // Use workflow name directly as storage key for consistency
+        val savedValues = storage.loadValues(workflow)
+        val defaults = manager.getWorkflowDefaults(workflow)
+
+        _uiState.value = state.copy(
+            selectedCheckpointWorkflow = workflow,
+            megapixels = savedValues?.megapixels?.toString()
+                ?: defaults?.megapixels?.toString() ?: "1.0",
+            checkpointSteps = savedValues?.steps?.toString()
+                ?: defaults?.steps?.toString() ?: "20",
+            checkpointCfg = savedValues?.cfg?.toString()
+                ?: defaults?.cfg?.toString() ?: "8.0",
+            checkpointSampler = savedValues?.samplerName
+                ?: defaults?.samplerName ?: "euler",
+            checkpointScheduler = savedValues?.scheduler
+                ?: defaults?.scheduler ?: "normal",
+            selectedCheckpoint = savedValues?.checkpointModel ?: "",
+            checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+        )
         savePreferences()
     }
 
@@ -568,7 +651,35 @@ class InpaintingViewModel : ViewModel() {
 
     // UNET mode settings
     fun onUnetWorkflowChange(workflow: String) {
-        _uiState.value = _uiState.value.copy(selectedUnetWorkflow = workflow)
+        val state = _uiState.value
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
+
+        // Save current workflow values before switching
+        if (state.selectedUnetWorkflow.isNotEmpty()) {
+            saveWorkflowValues(state.selectedUnetWorkflow, isCheckpointMode = false)
+        }
+
+        // Load new workflow's saved values or defaults
+        // Use workflow name directly as storage key for consistency
+        val savedValues = storage.loadValues(workflow)
+        val defaults = manager.getWorkflowDefaults(workflow)
+
+        _uiState.value = state.copy(
+            selectedUnetWorkflow = workflow,
+            unetSteps = savedValues?.steps?.toString()
+                ?: defaults?.steps?.toString() ?: "9",
+            unetCfg = savedValues?.cfg?.toString()
+                ?: defaults?.cfg?.toString() ?: "1.0",
+            unetSampler = savedValues?.samplerName
+                ?: defaults?.samplerName ?: "euler",
+            unetScheduler = savedValues?.scheduler
+                ?: defaults?.scheduler ?: "simple",
+            selectedUnet = savedValues?.unetModel ?: "",
+            selectedVae = savedValues?.vaeModel ?: "",
+            selectedClip = savedValues?.clipModel ?: "",
+            unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+        )
         savePreferences()
     }
 

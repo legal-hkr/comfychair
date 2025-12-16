@@ -1,122 +1,129 @@
 {
   "name": "Wan 2.2 (LightX2V)",
   "description": "Default workflow for Wan 2.2 video generation (LightX2V LoRA)",
+  "defaults": {
+    "width": 480,
+    "height": 800,
+    "length": 33,
+    "frame_rate": 16
+  },
   "nodes": {
-    "71": {
+    "1": {
+      "class_type": "CLIPLoader",
       "inputs": {
         "clip_name": "{{clip_name}}",
         "type": "wan",
         "device": "default"
       },
-      "class_type": "CLIPLoader",
       "_meta": {
         "title": "Load CLIP"
       }
     },
-    "72": {
-      "inputs": {
-        "text": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
-        "clip": [
-          "71",
-          0
-        ]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": {
-        "title": "CLIP Text Encode (Negative Prompt)"
-      }
-    },
-    "73": {
+    "2": {
+      "class_type": "VAELoader",
       "inputs": {
         "vae_name": "{{vae_name}}"
       },
-      "class_type": "VAELoader",
       "_meta": {
         "title": "Load VAE"
       }
     },
-    "74": {
+    "3": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{highnoise_unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model (High Noise)"
+      }
+    },
+    "4": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{lownoise_unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model (Low Noise)"
+      }
+    },
+    "5": {
+      "class_type": "EmptyHunyuanLatentVideo",
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
         "length": "{{length}}",
         "batch_size": 1
       },
-      "class_type": "EmptyHunyuanLatentVideo",
       "_meta": {
         "title": "Empty HunyuanVideo 1.0 Latent"
       }
     },
-    "75": {
+    "6": {
+      "class_type": "CLIPTextEncode",
       "inputs": {
-        "unet_name": "{{highnoise_unet_name}}",
-        "weight_dtype": "default"
+        "text": "{{positive_prompt}}",
+        "clip": ["1", 0]
       },
-      "class_type": "UNETLoader",
       "_meta": {
-        "title": "Load Diffusion Model"
+        "title": "CLIP Text Encode (Positive Prompt)"
       }
     },
-    "76": {
+    "7": {
+      "class_type": "CLIPTextEncode",
       "inputs": {
-        "unet_name": "{{lownoise_unet_name}}",
-        "weight_dtype": "default"
+        "text": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+        "clip": ["1", 0]
       },
-      "class_type": "UNETLoader",
       "_meta": {
-        "title": "Load Diffusion Model"
+        "title": "CLIP Text Encode (Negative Prompt)"
       }
     },
-    "78": {
+    "8": {
+      "class_type": "LoraLoaderModelOnly",
       "inputs": {
-        "add_noise": "disable",
-        "noise_seed": 0,
-        "steps": 4,
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
-        "start_at_step": 2,
-        "end_at_step": 4,
-        "return_with_leftover_noise": "disable",
-        "model": [
-          "86",
-          0
-        ],
-        "positive": [
-          "89",
-          0
-        ],
-        "negative": [
-          "72",
-          0
-        ],
-        "latent_image": [
-          "81",
-          0
-        ]
+        "lora_name": "{{highnoise_lora_name}}",
+        "strength_model": 1.0000000000000002,
+        "model": ["3", 0]
       },
+      "_meta": {
+        "title": "LoraLoaderModelOnly (High Noise)"
+      }
+    },
+    "9": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "{{lownoise_lora_name}}",
+        "strength_model": 1.0000000000000002,
+        "model": ["4", 0]
+      },
+      "_meta": {
+        "title": "LoraLoaderModelOnly (Low Noise)"
+      }
+    },
+    "10": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "shift": 5.000000000000001,
+        "model": ["8", 0]
+      },
+      "_meta": {
+        "title": "ModelSamplingSD3 (High Noise)"
+      }
+    },
+    "11": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "shift": 5.000000000000001,
+        "model": ["9", 0]
+      },
+      "_meta": {
+        "title": "ModelSamplingSD3 (Low Noise)"
+      }
+    },
+    "12": {
       "class_type": "KSamplerAdvanced",
-      "_meta": {
-        "title": "KSampler (Advanced)"
-      }
-    },
-    "80": {
-      "inputs": {
-        "filename_prefix": "video/ComfyUI",
-        "format": "auto",
-        "codec": "auto",
-        "video-preview": "",
-        "video": [
-          "88",
-          0
-        ]
-      },
-      "class_type": "SaveVideo",
-      "_meta": {
-        "title": "Save Video"
-      }
-    },
-    "81": {
       "inputs": {
         "add_noise": "enable",
         "noise_seed": 42,
@@ -127,122 +134,67 @@
         "start_at_step": 0,
         "end_at_step": 2,
         "return_with_leftover_noise": "enable",
-        "model": [
-          "82",
-          0
-        ],
-        "positive": [
-          "89",
-          0
-        ],
-        "negative": [
-          "72",
-          0
-        ],
-        "latent_image": [
-          "74",
-          0
-        ]
+        "model": ["10", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
+      "_meta": {
+        "title": "KSampler (Advanced) - High Noise"
+      }
+    },
+    "13": {
       "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "add_noise": "disable",
+        "noise_seed": 0,
+        "steps": 4,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "start_at_step": 2,
+        "end_at_step": 4,
+        "return_with_leftover_noise": "disable",
+        "model": ["11", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["12", 0]
+      },
       "_meta": {
-        "title": "KSampler (Advanced)"
+        "title": "KSampler (Advanced) - Low Noise"
       }
     },
-    "82": {
-      "inputs": {
-        "shift": 5.000000000000001,
-        "model": [
-          "83",
-          0
-        ]
-      },
-      "class_type": "ModelSamplingSD3",
-      "_meta": {
-        "title": "ModelSamplingSD3"
-      }
-    },
-    "83": {
-      "inputs": {
-        "lora_name": "{{highnoise_lora_name}}",
-        "strength_model": 1.0000000000000002,
-        "model": [
-          "75",
-          0
-        ]
-      },
-      "class_type": "LoraLoaderModelOnly",
-      "_meta": {
-        "title": "LoraLoaderModelOnly"
-      }
-    },
-    "85": {
-      "inputs": {
-        "lora_name": "{{lownoise_lora_name}}",
-        "strength_model": 1.0000000000000002,
-        "model": [
-          "76",
-          0
-        ]
-      },
-      "class_type": "LoraLoaderModelOnly",
-      "_meta": {
-        "title": "LoraLoaderModelOnly"
-      }
-    },
-    "86": {
-      "inputs": {
-        "shift": 5.000000000000001,
-        "model": [
-          "85",
-          0
-        ]
-      },
-      "class_type": "ModelSamplingSD3",
-      "_meta": {
-        "title": "ModelSamplingSD3"
-      }
-    },
-    "87": {
-      "inputs": {
-        "samples": [
-          "78",
-          0
-        ],
-        "vae": [
-          "73",
-          0
-        ]
-      },
+    "14": {
       "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["2", 0]
+      },
       "_meta": {
         "title": "VAE Decode"
       }
     },
-    "88": {
+    "15": {
+      "class_type": "CreateVideo",
       "inputs": {
         "fps": "{{frame_rate}}",
-        "images": [
-          "87",
-          0
-        ]
+        "images": ["14", 0]
       },
-      "class_type": "CreateVideo",
       "_meta": {
         "title": "Create Video"
       }
     },
-    "89": {
+    "16": {
+      "class_type": "SaveVideo",
       "inputs": {
-        "text": "{{positive_prompt}}",
-        "clip": [
-          "71",
-          0
-        ]
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "codec": "auto",
+        "video-preview": "",
+        "video": ["15", 0]
       },
-      "class_type": "CLIPTextEncode",
       "_meta": {
-        "title": "CLIP Text Encode (Positive Prompt)"
+        "title": "Save Video"
       }
     }
   }
