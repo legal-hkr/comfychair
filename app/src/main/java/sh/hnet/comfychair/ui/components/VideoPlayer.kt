@@ -59,6 +59,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaCacheKey
 
 /**
  * Scale mode for video display
@@ -87,6 +89,7 @@ enum class VideoScaleMode {
  * @param scaleMode How to scale the video (FIT or CROP)
  * @param enableZoom Whether to enable pinch-to-zoom and double-tap zoom gestures (only works with FIT mode)
  * @param onSingleTap Callback when user taps on the video (only works when showController is false)
+ * @param cacheKey Optional cache key to look up pre-fetched metadata from MediaCache
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -97,7 +100,8 @@ fun VideoPlayer(
     isActive: Boolean = true,
     scaleMode: VideoScaleMode = VideoScaleMode.CROP,
     enableZoom: Boolean = false,
-    onSingleTap: (() -> Unit)? = null
+    onSingleTap: (() -> Unit)? = null,
+    cacheKey: MediaCacheKey? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -135,28 +139,41 @@ fun VideoPlayer(
     }
 
     // Extract first frame as thumbnail and video dimensions when video URI changes
-    LaunchedEffect(videoUri) {
+    // Check MediaCache first for pre-fetched metadata to avoid expensive MediaMetadataRetriever calls
+    LaunchedEffect(videoUri, cacheKey) {
         if (videoUri != null) {
-            // Reset all state immediately when video changes (before IO extraction)
-            // This ensures hasValidDimensions becomes false, triggering shutter overlay
+            // Reset zoom/pan state when video changes
             scale = 1f
             offset = Offset.Zero
-            videoWidth = 0
-            videoHeight = 0
-            thumbnail = null
-            withContext(Dispatchers.IO) {
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(context, videoUri)
-                    val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: frame?.width ?: 0
-                    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: frame?.height ?: 0
-                    retriever.release()
-                    thumbnail = frame
-                    videoWidth = width
-                    videoHeight = height
-                } catch (e: Exception) {
-                    // Dimensions already reset to 0
+
+            // Try to get cached metadata first (from prefetch)
+            val cachedMetadata = cacheKey?.let { MediaCache.getVideoMetadata(it) }
+
+            if (cachedMetadata != null) {
+                // Use cached metadata - instant display
+                videoWidth = cachedMetadata.width
+                videoHeight = cachedMetadata.height
+                thumbnail = cachedMetadata.thumbnail
+            } else {
+                // No cached metadata - fall back to MediaMetadataRetriever
+                // Reset dimensions to trigger shutter overlay during extraction
+                videoWidth = 0
+                videoHeight = 0
+                thumbnail = null
+                withContext(Dispatchers.IO) {
+                    try {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(context, videoUri)
+                        val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: frame?.width ?: 0
+                        val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: frame?.height ?: 0
+                        retriever.release()
+                        thumbnail = frame
+                        videoWidth = width
+                        videoHeight = height
+                    } catch (e: Exception) {
+                        // Dimensions already reset to 0
+                    }
                 }
             }
         } else {

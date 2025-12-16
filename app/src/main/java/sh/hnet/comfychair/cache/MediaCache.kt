@@ -33,6 +33,16 @@ data class MediaCacheKey(
 }
 
 /**
+ * Cached video metadata including dimensions and thumbnail.
+ * Used to avoid repeated MediaMetadataRetriever calls in VideoPlayer.
+ */
+data class VideoMetadata(
+    val width: Int,
+    val height: Int,
+    val thumbnail: Bitmap?
+)
+
+/**
  * Prefetch priority levels - lower value = higher priority
  */
 enum class PrefetchPriority(val value: Int) {
@@ -101,6 +111,9 @@ object MediaCache {
 
     // Cache of video URIs (lightweight - just stores Uri references)
     private val videoUriCache = ConcurrentHashMap<String, Uri>()
+
+    // Cache of video metadata (dimensions + thumbnail) for VideoPlayer
+    private val videoMetadataCache = ConcurrentHashMap<String, VideoMetadata>()
 
     // Prefetching infrastructure
     private val prefetchQueue = PriorityBlockingQueue<PrefetchRequest>()
@@ -212,9 +225,14 @@ object MediaCache {
 
         if (videoBytes == null) return null
 
-        return extractVideoThumbnail(videoBytes, context)?.also {
-            thumbnailCache.put(keyStr, it)
+        // Extract and cache metadata (thumbnail + dimensions)
+        val metadata = extractVideoMetadata(videoBytes, context)
+        metadata?.let {
+            videoMetadataCache[keyStr] = it
+            it.thumbnail?.let { thumb -> thumbnailCache.put(keyStr, thumb) }
         }
+
+        return metadata?.thumbnail
     }
 
     // ==================== FULL-SIZE IMAGE OPERATIONS ====================
@@ -298,6 +316,14 @@ object MediaCache {
     }
 
     /**
+     * Get cached video metadata (dimensions + thumbnail) if available (sync).
+     * Used by VideoPlayer to avoid repeated MediaMetadataRetriever calls.
+     */
+    fun getVideoMetadata(key: MediaCacheKey): VideoMetadata? {
+        return videoMetadataCache[key.keyString]
+    }
+
+    /**
      * Get video URI for ExoPlayer playback.
      * Creates a temp file from cached bytes if available, or returns cached URI.
      * Returns null if bytes not cached - call fetchVideoBytes first.
@@ -333,7 +359,7 @@ object MediaCache {
 
     /**
      * Fetch video and return URI for playback.
-     * Caches bytes and creates temp file.
+     * Caches bytes, extracts metadata, and creates temp file.
      */
     suspend fun fetchVideoUri(
         key: MediaCacheKey,
@@ -341,8 +367,20 @@ object MediaCache {
         type: String,
         context: Context
     ): Uri? {
+        val keyStr = key.keyString
+
         // Ensure bytes are cached
-        fetchVideoBytes(key, subfolder, type) ?: return null
+        val bytes = fetchVideoBytes(key, subfolder, type) ?: return null
+
+        // Extract and cache metadata if not already cached
+        if (!videoMetadataCache.containsKey(keyStr)) {
+            withContext(Dispatchers.IO) {
+                extractVideoMetadata(bytes, context)?.let {
+                    videoMetadataCache[keyStr] = it
+                    it.thumbnail?.let { thumb -> thumbnailCache.put(keyStr, thumb) }
+                }
+            }
+        }
 
         return getVideoUri(key, context)
     }
@@ -528,6 +566,7 @@ object MediaCache {
         imageCache.remove(keyStr)
         videoCache.remove(keyStr)
         videoUriCache.remove(keyStr)
+        videoMetadataCache.remove(keyStr)
     }
 
     /**
@@ -538,6 +577,7 @@ object MediaCache {
         imageCache.evictAll()
         videoCache.evictAll()
         videoUriCache.clear()
+        videoMetadataCache.clear()
         prefetchQueue.clear()
         inProgressKeys.clear()
         completionCallbacks.clear()
@@ -554,15 +594,23 @@ object MediaCache {
 
     // ==================== UTILITY ====================
 
-    private fun extractVideoThumbnail(videoBytes: ByteArray, context: Context): Bitmap? {
-        val tempFile = File(context.cacheDir, "temp_thumb_${System.currentTimeMillis()}.mp4")
+    /**
+     * Extract video metadata (thumbnail + dimensions) from video bytes.
+     * Uses MediaMetadataRetriever which requires a file, so creates a temp file.
+     */
+    private fun extractVideoMetadata(videoBytes: ByteArray, context: Context): VideoMetadata? {
+        val tempFile = File(context.cacheDir, "temp_meta_${System.currentTimeMillis()}.mp4")
         return try {
             tempFile.writeBytes(videoBytes)
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(tempFile.absolutePath)
-            val bitmap = retriever.getFrameAtTime(0)
+            val thumbnail = retriever.getFrameAtTime(0)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull()
+                ?: thumbnail?.width ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
+                ?: thumbnail?.height ?: 0
             retriever.release()
-            bitmap
+            VideoMetadata(width, height, thumbnail)
         } catch (e: Exception) {
             null
         } finally {
