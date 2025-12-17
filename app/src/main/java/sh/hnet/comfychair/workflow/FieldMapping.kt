@@ -198,7 +198,8 @@ sealed class NodeValidationResult {
 object FieldDisplayRegistry {
 
     private val FIELD_INFO = mapOf(
-        "text" to Pair("Prompt", "The text prompt for generation"),
+        "positive_text" to Pair("Positive Prompt", "The text prompt for generation"),
+        "negative_text" to Pair("Negative Prompt", "Text describing what to avoid in generation"),
         "ckpt_name" to Pair("Checkpoint", "The checkpoint model to use"),
         "unet_name" to Pair("UNET Model", "The diffusion model to use"),
         "vae_name" to Pair("VAE", "The VAE encoder/decoder"),

@@ -7,7 +7,8 @@
     "steps": 25,
     "cfg": 4.0,
     "sampler_name": "dpmpp_2m_sde",
-    "scheduler": "karras"
+    "scheduler": "karras",
+    "negative_prompt": "text, watermark"
   },
   "nodes": {
     "1": {
@@ -43,7 +44,7 @@
     "4": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "text, watermark",
+        "text": "{{negative_prompt}}",
         "clip": ["1", 1]
       },
       "_meta": {

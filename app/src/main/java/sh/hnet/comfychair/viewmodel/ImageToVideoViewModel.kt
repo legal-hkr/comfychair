@@ -74,8 +74,11 @@ data class ImageToVideoUiState(
     val lengthError: String? = null,
     val fpsError: String? = null,
 
-    // Positive prompt
+    // Positive prompt (global)
     val positivePrompt: String = "",
+
+    // Negative prompt (per-workflow)
+    val negativePrompt: String = "",
 
     // Deferred model selections (for restoring after models load)
     val deferredHighnoiseUnet: String? = null,
@@ -196,6 +199,8 @@ class ImageToVideoViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             selectedWorkflow = workflow,
             positivePrompt = savedPositivePrompt,
+            negativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
             width = savedValues?.width?.toString()
                 ?: defaults?.width?.toString() ?: "848",
             height = savedValues?.height?.toString()
@@ -231,6 +236,7 @@ class ImageToVideoViewModel : ViewModel() {
             height = state.height.toIntOrNull(),
             length = state.length.toIntOrNull(),
             frameRate = state.fps.toIntOrNull(),
+            negativePrompt = state.negativePrompt.takeIf { it.isNotEmpty() },
             highnoiseUnetModel = state.selectedHighnoiseUnet.takeIf { it.isNotEmpty() },
             lownoiseUnetModel = state.selectedLownoiseUnet.takeIf { it.isNotEmpty() },
             highnoiseLoraModel = state.selectedHighnoiseLora.takeIf { it.isNotEmpty() },
@@ -415,6 +421,8 @@ class ImageToVideoViewModel : ViewModel() {
 
         _uiState.value = state.copy(
             selectedWorkflow = workflow,
+            negativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
             width = savedValues?.width?.toString()
                 ?: defaults?.width?.toString() ?: "848",
             height = savedValues?.height?.toString()
@@ -491,6 +499,11 @@ class ImageToVideoViewModel : ViewModel() {
 
     fun onPositivePromptChange(positivePrompt: String) {
         _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
+        savePreferences()
+    }
+
+    fun onNegativePromptChange(negativePrompt: String) {
+        _uiState.value = _uiState.value.copy(negativePrompt = negativePrompt)
         savePreferences()
     }
 
@@ -678,6 +691,7 @@ class ImageToVideoViewModel : ViewModel() {
         val baseWorkflow = wm.prepareImageToVideoWorkflow(
             workflowName = state.selectedWorkflow,
             positivePrompt = state.positivePrompt,
+            negativePrompt = state.negativePrompt,
             highnoiseUnet = state.selectedHighnoiseUnet,
             lownoiseUnet = state.selectedLownoiseUnet,
             highnoiseLora = state.selectedHighnoiseLora,

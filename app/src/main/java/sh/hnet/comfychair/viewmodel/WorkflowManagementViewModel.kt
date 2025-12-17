@@ -325,40 +325,250 @@ class WorkflowManagementViewModel : ViewModel() {
 
         val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
 
+        // For positive_text and negative_text, we need graph tracing to determine which CLIPTextEncode
+        // connects to which sampler input (positive vs negative)
+        val promptMappings = if (requiredKeys.contains("positive_text") || requiredKeys.contains("negative_text")) {
+            createPromptFieldMappings(nodesJson)
+        } else {
+            emptyMap()
+        }
+
         val fieldMappings = requiredKeys.map { fieldKey ->
-            val candidates = mutableListOf<FieldCandidate>()
+            // Handle positive_text and negative_text specially with graph tracing results
+            if (fieldKey == "positive_text" || fieldKey == "negative_text") {
+                val candidates = promptMappings[fieldKey] ?: emptyList()
+                FieldMappingState(
+                    field = FieldDisplayRegistry.createRequiredField(fieldKey),
+                    candidates = candidates,
+                    selectedCandidateIndex = 0  // Auto-select first (which is the traced one)
+                )
+            } else {
+                val candidates = mutableListOf<FieldCandidate>()
 
-            // Find all nodes that have this input key
-            for (nodeId in nodesJson.keys()) {
-                val node = nodesJson.optJSONObject(nodeId) ?: continue
-                val inputs = node.optJSONObject("inputs") ?: continue
+                // Find all nodes that have this input key
+                for (nodeId in nodesJson.keys()) {
+                    val node = nodesJson.optJSONObject(nodeId) ?: continue
+                    val inputs = node.optJSONObject("inputs") ?: continue
 
-                if (inputs.has(fieldKey)) {
-                    val classType = node.optString("class_type", "Unknown")
-                    val meta = node.optJSONObject("_meta")
-                    val title = meta?.optString("title") ?: classType
-                    val currentValue = inputs.opt(fieldKey)
+                    if (inputs.has(fieldKey)) {
+                        val classType = node.optString("class_type", "Unknown")
+                        val meta = node.optJSONObject("_meta")
+                        val title = meta?.optString("title") ?: classType
+                        val currentValue = inputs.opt(fieldKey)
 
-                    candidates.add(
-                        FieldCandidate(
-                            nodeId = nodeId,
-                            nodeName = title,
-                            classType = classType,
-                            inputKey = fieldKey,
-                            currentValue = currentValue
+                        candidates.add(
+                            FieldCandidate(
+                                nodeId = nodeId,
+                                nodeName = title,
+                                classType = classType,
+                                inputKey = fieldKey,
+                                currentValue = currentValue
+                            )
                         )
-                    )
+                    }
                 }
-            }
 
-            FieldMappingState(
-                field = FieldDisplayRegistry.createRequiredField(fieldKey),
-                candidates = candidates,
-                selectedCandidateIndex = 0  // Auto-select first
-            )
+                FieldMappingState(
+                    field = FieldDisplayRegistry.createRequiredField(fieldKey),
+                    candidates = candidates,
+                    selectedCandidateIndex = 0  // Auto-select first
+                )
+            }
         }
 
         return WorkflowMappingState(type, fieldMappings)
+    }
+
+    /**
+     * Create field mappings for positive_text and negative_text using graph tracing.
+     * Traces CLIPTextEncode outputs to find which connects to "positive" vs "negative" sampler inputs.
+     */
+    private fun createPromptFieldMappings(nodesJson: JSONObject): Map<String, List<FieldCandidate>> {
+        val positiveTextCandidates = mutableListOf<FieldCandidate>()
+        val negativeTextCandidates = mutableListOf<FieldCandidate>()
+
+        // Find all CLIPTextEncode nodes with "text" input
+        val clipTextEncodeNodes = mutableMapOf<String, JSONObject>()
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val classType = node.optString("class_type", "")
+            if (classType == "CLIPTextEncode") {
+                val inputs = node.optJSONObject("inputs")
+                if (inputs != null && inputs.has("text")) {
+                    clipTextEncodeNodes[nodeId] = node
+                }
+            }
+        }
+
+        // For each CLIPTextEncode, trace its output to find if it connects to positive or negative
+        for ((clipNodeId, clipNode) in clipTextEncodeNodes) {
+            val inputs = clipNode.optJSONObject("inputs") ?: continue
+            val meta = clipNode.optJSONObject("_meta")
+            val title = meta?.optString("title") ?: "CLIPTextEncode"
+            val currentValue = inputs.opt("text")
+
+            // Determine if this node connects to positive or negative input
+            val connectionType = traceClipTextEncodeConnection(nodesJson, clipNodeId)
+
+            val candidate = FieldCandidate(
+                nodeId = clipNodeId,
+                nodeName = title,
+                classType = "CLIPTextEncode",
+                inputKey = "text",
+                currentValue = currentValue
+            )
+
+            when (connectionType) {
+                "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
+                "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
+                else -> {
+                    // Unknown connection - add to both as fallback candidates (not first)
+                    positiveTextCandidates.add(candidate)
+                    negativeTextCandidates.add(candidate)
+                }
+            }
+        }
+
+        // If graph tracing didn't find matches, try title-based fallback
+        if (positiveTextCandidates.isEmpty() || negativeTextCandidates.isEmpty()) {
+            for ((clipNodeId, clipNode) in clipTextEncodeNodes) {
+                val inputs = clipNode.optJSONObject("inputs") ?: continue
+                val meta = clipNode.optJSONObject("_meta")
+                val title = meta?.optString("title")?.lowercase() ?: ""
+                val currentValue = inputs.opt("text")
+
+                val candidate = FieldCandidate(
+                    nodeId = clipNodeId,
+                    nodeName = meta?.optString("title") ?: "CLIPTextEncode",
+                    classType = "CLIPTextEncode",
+                    inputKey = "text",
+                    currentValue = currentValue
+                )
+
+                // Title-based fallback
+                if (positiveTextCandidates.isEmpty() && title.contains("positive")) {
+                    positiveTextCandidates.add(0, candidate)
+                }
+                if (negativeTextCandidates.isEmpty() && title.contains("negative")) {
+                    negativeTextCandidates.add(0, candidate)
+                }
+            }
+        }
+
+        return mapOf(
+            "positive_text" to positiveTextCandidates,
+            "negative_text" to negativeTextCandidates
+        )
+    }
+
+    /**
+     * Trace a CLIPTextEncode node's output to find what type of connection it has.
+     * Returns "positive", "negative", or null if no connection found.
+     */
+    private fun traceClipTextEncodeConnection(nodesJson: JSONObject, clipNodeId: String): String? {
+        // Search all nodes for ones that reference this CLIPTextEncode output
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val classType = node.optString("class_type", "")
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            // Check KSampler and KSamplerAdvanced nodes
+            if (classType == "KSampler" || classType == "KSamplerAdvanced") {
+                // Check "positive" input
+                val positiveInput = inputs.optJSONArray("positive")
+                if (positiveInput != null && positiveInput.length() >= 1) {
+                    val refNodeId = positiveInput.optString(0, "")
+                    if (refNodeId == clipNodeId) {
+                        return "positive"
+                    }
+                }
+
+                // Check "negative" input
+                val negativeInput = inputs.optJSONArray("negative")
+                if (negativeInput != null && negativeInput.length() >= 1) {
+                    val refNodeId = negativeInput.optString(0, "")
+                    if (refNodeId == clipNodeId) {
+                        return "negative"
+                    }
+                }
+            }
+
+            // For video workflows, check conditioning nodes like WanImageToVideo
+            if (classType.contains("ImageToVideo", ignoreCase = true) ||
+                classType.contains("TextToVideo", ignoreCase = true)) {
+                val positiveInput = inputs.optJSONArray("positive")
+                if (positiveInput != null && positiveInput.length() >= 1) {
+                    val refNodeId = positiveInput.optString(0, "")
+                    if (refNodeId == clipNodeId) {
+                        return "positive"
+                    }
+                }
+
+                val negativeInput = inputs.optJSONArray("negative")
+                if (negativeInput != null && negativeInput.length() >= 1) {
+                    val refNodeId = negativeInput.optString(0, "")
+                    if (refNodeId == clipNodeId) {
+                        return "negative"
+                    }
+                }
+            }
+        }
+
+        // If direct connection not found, check for intermediate conditioning nodes
+        // that might reference this CLIPTextEncode and connect to samplers
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            // Check if any input references this CLIPTextEncode
+            for (inputKey in inputs.keys()) {
+                val inputValue = inputs.optJSONArray(inputKey)
+                if (inputValue != null && inputValue.length() >= 1) {
+                    val refNodeId = inputValue.optString(0, "")
+                    if (refNodeId == clipNodeId) {
+                        // This node references our CLIPTextEncode, now trace this node's output
+                        val intermediateResult = traceIntermediateConnection(nodesJson, nodeId)
+                        if (intermediateResult != null) {
+                            return intermediateResult
+                        }
+                    }
+                }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Trace an intermediate conditioning node to find if it connects to positive or negative.
+     */
+    private fun traceIntermediateConnection(nodesJson: JSONObject, intermediateNodeId: String): String? {
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val classType = node.optString("class_type", "")
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            if (classType == "KSampler" || classType == "KSamplerAdvanced" ||
+                classType.contains("ImageToVideo", ignoreCase = true)) {
+
+                val positiveInput = inputs.optJSONArray("positive")
+                if (positiveInput != null && positiveInput.length() >= 1) {
+                    val refNodeId = positiveInput.optString(0, "")
+                    if (refNodeId == intermediateNodeId) {
+                        return "positive"
+                    }
+                }
+
+                val negativeInput = inputs.optJSONArray("negative")
+                if (negativeInput != null && negativeInput.length() >= 1) {
+                    val refNodeId = negativeInput.optString(0, "")
+                    if (refNodeId == intermediateNodeId) {
+                        return "negative"
+                    }
+                }
+            }
+        }
+        return null
     }
 
     fun cancelUpload() {

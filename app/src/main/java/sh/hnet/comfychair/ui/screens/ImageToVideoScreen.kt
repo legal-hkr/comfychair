@@ -425,6 +425,7 @@ fun ImageToVideoScreen(
             ImageToVideoConfigBottomSheetContent(
                 uiState = uiState,
                 onWorkflowChange = imageToVideoViewModel::onWorkflowChange,
+                onNegativePromptChange = imageToVideoViewModel::onNegativePromptChange,
                 onHighnoiseUnetChange = imageToVideoViewModel::onHighnoiseUnetChange,
                 onLownoiseUnetChange = imageToVideoViewModel::onLownoiseUnetChange,
                 onHighnoiseLoraChange = imageToVideoViewModel::onHighnoiseLoraChange,

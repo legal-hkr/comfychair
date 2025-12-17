@@ -6,7 +6,8 @@
     "steps": 20,
     "cfg": 8.0,
     "sampler_name": "euler",
-    "scheduler": "normal"
+    "scheduler": "normal",
+    "negative_prompt": ""
   },
   "nodes": {
     "1": {
@@ -51,7 +52,7 @@
     "5": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "",
+        "text": "{{negative_prompt}}",
         "clip": ["1", 1]
       },
       "_meta": {

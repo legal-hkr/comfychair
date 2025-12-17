@@ -20,6 +20,7 @@
 
     <!-- Query screen strings -->
     <string name="prompt_hint">提示词</string>
+    <string name="negative_prompt_hint">反向提示词</string>
     <string name="button_generate">生成</string>
 
     <!-- Configuration panel strings -->

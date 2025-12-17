@@ -7,7 +7,8 @@
     "steps": 7,
     "cfg": 2.0,
     "sampler_name": "euler_ancestral",
-    "scheduler": "beta"
+    "scheduler": "beta",
+    "negative_prompt": ""
   },
   "nodes": {
     "1": {
@@ -53,7 +54,7 @@
     "5": {
       "class_type": "CLIPTextEncode",
       "inputs": {
-        "text": "",
+        "text": "{{negative_prompt}}",
         "clip": ["3", 0]
       },
       "_meta": {

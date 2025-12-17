@@ -33,6 +33,7 @@ import sh.hnet.comfychair.viewmodel.InpaintingUiState
 fun InpaintingConfigBottomSheetContent(
     uiState: InpaintingUiState,
     onConfigModeChange: (InpaintingConfigMode) -> Unit,
+    onCheckpointNegativePromptChange: (String) -> Unit,
     onCheckpointWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
@@ -40,6 +41,7 @@ fun InpaintingConfigBottomSheetContent(
     onCheckpointCfgChange: (String) -> Unit,
     onCheckpointSamplerChange: (String) -> Unit,
     onCheckpointSchedulerChange: (String) -> Unit,
+    onUnetNegativePromptChange: (String) -> Unit,
     onUnetWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -99,6 +101,7 @@ fun InpaintingConfigBottomSheetContent(
             InpaintingConfigMode.CHECKPOINT -> {
                 CheckpointModeContent(
                     uiState = uiState,
+                    onNegativePromptChange = onCheckpointNegativePromptChange,
                     onWorkflowChange = onCheckpointWorkflowChange,
                     onCheckpointChange = onCheckpointChange,
                     onMegapixelsChange = onMegapixelsChange,
@@ -115,6 +118,7 @@ fun InpaintingConfigBottomSheetContent(
             InpaintingConfigMode.UNET -> {
                 UnetModeContent(
                     uiState = uiState,
+                    onNegativePromptChange = onUnetNegativePromptChange,
                     onWorkflowChange = onUnetWorkflowChange,
                     onUnetChange = onUnetChange,
                     onVaeChange = onVaeChange,
@@ -136,6 +140,7 @@ fun InpaintingConfigBottomSheetContent(
 @Composable
 private fun CheckpointModeContent(
     uiState: InpaintingUiState,
+    onNegativePromptChange: (String) -> Unit,
     onWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
@@ -148,6 +153,18 @@ private fun CheckpointModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
+    // Negative prompt (per-workflow)
+    OutlinedTextField(
+        value = uiState.checkpointNegativePrompt,
+        onValueChange = onNegativePromptChange,
+        label = { Text(stringResource(R.string.negative_prompt_hint)) },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = 2,
+        maxLines = 4
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
     // Workflow dropdown
     ModelDropdown(
         label = stringResource(R.string.label_workflow),
@@ -252,6 +269,7 @@ private fun CheckpointModeContent(
 @Composable
 private fun UnetModeContent(
     uiState: InpaintingUiState,
+    onNegativePromptChange: (String) -> Unit,
     onWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -265,6 +283,18 @@ private fun UnetModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
+    // Negative prompt (per-workflow)
+    OutlinedTextField(
+        value = uiState.unetNegativePrompt,
+        onValueChange = onNegativePromptChange,
+        label = { Text(stringResource(R.string.negative_prompt_hint)) },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = 2,
+        maxLines = 4
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
     // Workflow dropdown
     ModelDropdown(
         label = stringResource(R.string.label_workflow),

@@ -34,8 +34,12 @@ data class TextToImageUiState(
     // Mode selection
     val isCheckpointMode: Boolean = true,
 
-    // Positive prompt
+    // Positive prompt (global)
     val positivePrompt: String = "",
+
+    // Negative prompts (per-workflow, stored per mode)
+    val checkpointNegativePrompt: String = "",
+    val unetNegativePrompt: String = "",
 
     // Checkpoint mode configuration
     val checkpointWorkflow: String = "",
@@ -291,6 +295,16 @@ class TextToImageViewModel : ViewModel() {
         saveConfiguration()
     }
 
+    fun onCheckpointNegativePromptChange(negativePrompt: String) {
+        _uiState.value = _uiState.value.copy(checkpointNegativePrompt = negativePrompt)
+        saveConfiguration()
+    }
+
+    fun onUnetNegativePromptChange(negativePrompt: String) {
+        _uiState.value = _uiState.value.copy(unetNegativePrompt = negativePrompt)
+        saveConfiguration()
+    }
+
     fun onCheckpointWorkflowChange(workflow: String) {
         val state = _uiState.value
         val manager = workflowManager ?: return
@@ -320,6 +334,8 @@ class TextToImageViewModel : ViewModel() {
                 ?: defaults?.samplerName ?: "euler",
             checkpointScheduler = savedValues?.scheduler
                 ?: defaults?.scheduler ?: "normal",
+            checkpointNegativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
             selectedCheckpoint = savedValues?.checkpointModel ?: "",
             checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
         )
@@ -406,6 +422,8 @@ class TextToImageViewModel : ViewModel() {
                 ?: defaults?.samplerName ?: "euler",
             unetScheduler = savedValues?.scheduler
                 ?: defaults?.scheduler ?: "simple",
+            unetNegativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
             selectedUnet = savedValues?.unetModel ?: "",
             selectedVae = savedValues?.vaeModel ?: "",
             selectedClip = savedValues?.clipModel ?: "",
@@ -722,6 +740,7 @@ class TextToImageViewModel : ViewModel() {
             manager.prepareWorkflow(
                 workflowName = state.checkpointWorkflow,
                 positivePrompt = state.positivePrompt,
+                negativePrompt = state.checkpointNegativePrompt,
                 checkpoint = state.selectedCheckpoint,
                 width = state.checkpointWidth.toIntOrNull() ?: 1024,
                 height = state.checkpointHeight.toIntOrNull() ?: 1024,
@@ -734,6 +753,7 @@ class TextToImageViewModel : ViewModel() {
             manager.prepareWorkflow(
                 workflowName = state.unetWorkflow,
                 positivePrompt = state.positivePrompt,
+                negativePrompt = state.unetNegativePrompt,
                 unet = state.selectedUnet,
                 vae = state.selectedVae,
                 clip = state.selectedClip,
@@ -822,6 +842,7 @@ class TextToImageViewModel : ViewModel() {
                 cfg = state.checkpointCfg.toFloatOrNull(),
                 samplerName = state.checkpointSampler,
                 scheduler = state.checkpointScheduler,
+                negativePrompt = state.checkpointNegativePrompt.takeIf { it.isNotEmpty() },
                 checkpointModel = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
                 loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() }
             )
@@ -834,6 +855,7 @@ class TextToImageViewModel : ViewModel() {
                 cfg = state.unetCfg.toFloatOrNull(),
                 samplerName = state.unetSampler,
                 scheduler = state.unetScheduler,
+                negativePrompt = state.unetNegativePrompt.takeIf { it.isNotEmpty() },
                 unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
                 vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
@@ -909,6 +931,8 @@ class TextToImageViewModel : ViewModel() {
                 ?: checkpointDefaults?.samplerName ?: "euler",
             checkpointScheduler = checkpointSavedValues?.scheduler
                 ?: checkpointDefaults?.scheduler ?: "normal",
+            checkpointNegativePrompt = checkpointSavedValues?.negativePrompt
+                ?: checkpointDefaults?.negativePrompt ?: "",
             selectedCheckpoint = checkpointSavedValues?.checkpointModel ?: "",
             checkpointLoraChain = checkpointSavedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
 
@@ -926,6 +950,8 @@ class TextToImageViewModel : ViewModel() {
                 ?: unetDefaults?.samplerName ?: "euler",
             unetScheduler = unetSavedValues?.scheduler
                 ?: unetDefaults?.scheduler ?: "simple",
+            unetNegativePrompt = unetSavedValues?.negativePrompt
+                ?: unetDefaults?.negativePrompt ?: "",
             selectedUnet = unetSavedValues?.unetModel ?: "",
             selectedVae = unetSavedValues?.vaeModel ?: "",
             selectedClip = unetSavedValues?.clipModel ?: "",

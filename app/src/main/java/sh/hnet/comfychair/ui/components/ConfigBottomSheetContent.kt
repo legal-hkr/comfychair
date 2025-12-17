@@ -50,6 +50,7 @@ fun ConfigBottomSheetContent(
     onCheckpointCfgChange: (String) -> Unit,
     onCheckpointSamplerChange: (String) -> Unit,
     onCheckpointSchedulerChange: (String) -> Unit,
+    onCheckpointNegativePromptChange: (String) -> Unit,
     onUnetWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -60,6 +61,7 @@ fun ConfigBottomSheetContent(
     onUnetCfgChange: (String) -> Unit,
     onUnetSamplerChange: (String) -> Unit,
     onUnetSchedulerChange: (String) -> Unit,
+    onUnetNegativePromptChange: (String) -> Unit,
     // Checkpoint LoRA chain callbacks
     onAddCheckpointLora: () -> Unit,
     onRemoveCheckpointLora: (Int) -> Unit,
@@ -78,6 +80,18 @@ fun ConfigBottomSheetContent(
             .padding(bottom = 32.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // Negative prompt (per-workflow)
+        OutlinedTextField(
+            value = if (uiState.isCheckpointMode) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
+            onValueChange = if (uiState.isCheckpointMode) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
+            label = { Text(stringResource(R.string.negative_prompt_hint)) },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 4
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Mode Toggle
         Text(
             text = stringResource(R.string.label_mode),

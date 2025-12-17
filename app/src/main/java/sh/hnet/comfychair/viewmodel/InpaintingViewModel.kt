@@ -100,8 +100,12 @@ data class InpaintingUiState(
     val unetSampler: String = "euler",
     val unetScheduler: String = "simple",
 
-    // Positive prompt
+    // Positive prompt (global)
     val positivePrompt: String = "",
+
+    // Negative prompts (per-workflow, stored per mode)
+    val checkpointNegativePrompt: String = "",
+    val unetNegativePrompt: String = "",
 
     // Validation errors
     val megapixelsError: String? = null,
@@ -232,6 +236,8 @@ class InpaintingViewModel : ViewModel() {
                 ?: checkpointDefaults?.samplerName ?: "euler",
             checkpointScheduler = checkpointSavedValues?.scheduler
                 ?: checkpointDefaults?.scheduler ?: "normal",
+            checkpointNegativePrompt = checkpointSavedValues?.negativePrompt
+                ?: checkpointDefaults?.negativePrompt ?: "",
             selectedCheckpoint = checkpointSavedValues?.checkpointModel ?: "",
             checkpointLoraChain = checkpointSavedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
 
@@ -245,6 +251,8 @@ class InpaintingViewModel : ViewModel() {
                 ?: unetDefaults?.samplerName ?: "euler",
             unetScheduler = unetSavedValues?.scheduler
                 ?: unetDefaults?.scheduler ?: "simple",
+            unetNegativePrompt = unetSavedValues?.negativePrompt
+                ?: unetDefaults?.negativePrompt ?: "",
             selectedUnet = unetSavedValues?.unetModel ?: "",
             selectedVae = unetSavedValues?.vaeModel ?: "",
             selectedClip = unetSavedValues?.clipModel ?: "",
@@ -269,6 +277,7 @@ class InpaintingViewModel : ViewModel() {
                 cfg = state.checkpointCfg.toFloatOrNull(),
                 samplerName = state.checkpointSampler,
                 scheduler = state.checkpointScheduler,
+                negativePrompt = state.checkpointNegativePrompt.takeIf { it.isNotEmpty() },
                 checkpointModel = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
                 loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() }
             )
@@ -279,6 +288,7 @@ class InpaintingViewModel : ViewModel() {
                 cfg = state.unetCfg.toFloatOrNull(),
                 samplerName = state.unetSampler,
                 scheduler = state.unetScheduler,
+                negativePrompt = state.unetNegativePrompt.takeIf { it.isNotEmpty() },
                 unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
                 vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
@@ -605,6 +615,8 @@ class InpaintingViewModel : ViewModel() {
                 ?: defaults?.samplerName ?: "euler",
             checkpointScheduler = savedValues?.scheduler
                 ?: defaults?.scheduler ?: "normal",
+            checkpointNegativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
             selectedCheckpoint = savedValues?.checkpointModel ?: "",
             checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
         )
@@ -675,6 +687,8 @@ class InpaintingViewModel : ViewModel() {
                 ?: defaults?.samplerName ?: "euler",
             unetScheduler = savedValues?.scheduler
                 ?: defaults?.scheduler ?: "simple",
+            unetNegativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
             selectedUnet = savedValues?.unetModel ?: "",
             selectedVae = savedValues?.vaeModel ?: "",
             selectedClip = savedValues?.clipModel ?: "",
@@ -725,6 +739,17 @@ class InpaintingViewModel : ViewModel() {
     // Positive prompt
     fun onPositivePromptChange(positivePrompt: String) {
         _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
+        savePreferences()
+    }
+
+    // Negative prompts
+    fun onCheckpointNegativePromptChange(negativePrompt: String) {
+        _uiState.value = _uiState.value.copy(checkpointNegativePrompt = negativePrompt)
+        savePreferences()
+    }
+
+    fun onUnetNegativePromptChange(negativePrompt: String) {
+        _uiState.value = _uiState.value.copy(unetNegativePrompt = negativePrompt)
         savePreferences()
     }
 
@@ -902,6 +927,7 @@ class InpaintingViewModel : ViewModel() {
                 wm.prepareInpaintingWorkflow(
                     workflowName = state.selectedCheckpointWorkflow,
                     positivePrompt = state.positivePrompt,
+                    negativePrompt = state.checkpointNegativePrompt,
                     checkpoint = state.selectedCheckpoint,
                     megapixels = state.megapixels.toFloatOrNull() ?: 1.0f,
                     steps = state.checkpointSteps.toIntOrNull() ?: 20,
@@ -915,6 +941,7 @@ class InpaintingViewModel : ViewModel() {
                 wm.prepareInpaintingWorkflow(
                     workflowName = state.selectedUnetWorkflow,
                     positivePrompt = state.positivePrompt,
+                    negativePrompt = state.unetNegativePrompt,
                     unet = state.selectedUnet,
                     vae = state.selectedVae,
                     clip = state.selectedClip,

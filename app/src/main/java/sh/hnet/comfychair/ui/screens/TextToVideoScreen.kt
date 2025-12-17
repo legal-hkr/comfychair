@@ -336,6 +336,7 @@ fun TextToVideoScreen(
             VideoConfigBottomSheetContent(
                 uiState = uiState,
                 onWorkflowChange = textToVideoViewModel::onWorkflowChange,
+                onNegativePromptChange = textToVideoViewModel::onNegativePromptChange,
                 onHighnoiseUnetChange = textToVideoViewModel::onHighnoiseUnetChange,
                 onLownoiseUnetChange = textToVideoViewModel::onLownoiseUnetChange,
                 onHighnoiseLoraChange = textToVideoViewModel::onHighnoiseLoraChange,

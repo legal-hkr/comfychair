@@ -397,6 +397,7 @@ fun InpaintingScreen(
             InpaintingConfigBottomSheetContent(
                 uiState = uiState,
                 onConfigModeChange = inpaintingViewModel::onConfigModeChange,
+                onCheckpointNegativePromptChange = inpaintingViewModel::onCheckpointNegativePromptChange,
                 onCheckpointWorkflowChange = inpaintingViewModel::onCheckpointWorkflowChange,
                 onCheckpointChange = inpaintingViewModel::onCheckpointChange,
                 onMegapixelsChange = inpaintingViewModel::onMegapixelsChange,
@@ -404,6 +405,7 @@ fun InpaintingScreen(
                 onCheckpointCfgChange = inpaintingViewModel::onCheckpointCfgChange,
                 onCheckpointSamplerChange = inpaintingViewModel::onCheckpointSamplerChange,
                 onCheckpointSchedulerChange = inpaintingViewModel::onCheckpointSchedulerChange,
+                onUnetNegativePromptChange = inpaintingViewModel::onUnetNegativePromptChange,
                 onUnetWorkflowChange = inpaintingViewModel::onUnetWorkflowChange,
                 onUnetChange = inpaintingViewModel::onUnetChange,
                 onVaeChange = inpaintingViewModel::onVaeChange,

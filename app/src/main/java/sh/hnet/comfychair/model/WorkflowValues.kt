@@ -17,6 +17,9 @@ data class WorkflowValues(
     val samplerName: String? = null,
     val scheduler: String? = null,
 
+    // Prompt parameters
+    val negativePrompt: String? = null,
+
     // Inpainting specific
     val megapixels: Float? = null,
 
@@ -50,6 +53,7 @@ data class WorkflowValues(
                 cfg = json.optDouble("cfg").takeIf { !it.isNaN() }?.toFloat(),
                 samplerName = json.optString("samplerName").takeIf { it.isNotEmpty() },
                 scheduler = json.optString("scheduler").takeIf { it.isNotEmpty() },
+                negativePrompt = if (json.has("negativePrompt")) json.optString("negativePrompt") else null,
                 megapixels = json.optDouble("megapixels").takeIf { !it.isNaN() }?.toFloat(),
                 length = json.optInt("length").takeIf { it > 0 },
                 frameRate = json.optInt("frameRate").takeIf { it > 0 },
@@ -76,6 +80,7 @@ data class WorkflowValues(
                 values.cfg?.let { put("cfg", it.toDouble()) }
                 values.samplerName?.let { put("samplerName", it) }
                 values.scheduler?.let { put("scheduler", it) }
+                values.negativePrompt?.let { put("negativePrompt", it) }
                 values.megapixels?.let { put("megapixels", it.toDouble()) }
                 values.length?.let { put("length", it) }
                 values.frameRate?.let { put("frameRate", it) }

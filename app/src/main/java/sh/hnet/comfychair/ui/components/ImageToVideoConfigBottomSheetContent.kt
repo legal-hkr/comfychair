@@ -28,6 +28,7 @@ import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
 fun ImageToVideoConfigBottomSheetContent(
     uiState: ImageToVideoUiState,
     onWorkflowChange: (String) -> Unit,
+    onNegativePromptChange: (String) -> Unit,
     onHighnoiseUnetChange: (String) -> Unit,
     onLownoiseUnetChange: (String) -> Unit,
     onHighnoiseLoraChange: (String) -> Unit,
@@ -56,6 +57,18 @@ fun ImageToVideoConfigBottomSheetContent(
             .padding(bottom = 32.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // Negative prompt (per-workflow)
+        OutlinedTextField(
+            value = uiState.negativePrompt,
+            onValueChange = onNegativePromptChange,
+            label = { Text(stringResource(R.string.negative_prompt_hint)) },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 4
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Workflow dropdown
         ModelDropdown(
             label = stringResource(R.string.label_workflow),

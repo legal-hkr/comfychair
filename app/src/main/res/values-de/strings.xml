@@ -20,6 +20,7 @@
 
     <!-- Query screen strings -->
     <string name="prompt_hint">Prompt</string>
+    <string name="negative_prompt_hint">Negativer Prompt</string>
     <string name="button_generate">Generieren</string>
 
     <!-- Configuration panel strings -->

@@ -10,10 +10,11 @@ object TemplateKeyRegistry {
 
     /**
      * Map from placeholder name to the JSON input key it targets.
-     * Example: "{{positive_prompt}}" placeholder maps to "text" key in CLIPTextEncode inputs
+     * Example: "{{positive_prompt}}" placeholder maps to "positive_text" key in CLIPTextEncode inputs
      */
     private val PLACEHOLDER_TO_KEY = mapOf(
-        "positive_prompt" to "text",
+        "positive_prompt" to "positive_text",
+        "negative_prompt" to "negative_text",
         "ckpt_name" to "ckpt_name",
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
@@ -41,7 +42,8 @@ object TemplateKeyRegistry {
      * placeholder name for each input key.
      */
     private val KEY_TO_PLACEHOLDER = mapOf(
-        "text" to "positive_prompt",
+        "positive_text" to "positive_prompt",
+        "negative_text" to "negative_prompt",
         "ckpt_name" to "ckpt_name",
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
@@ -68,12 +70,12 @@ object TemplateKeyRegistry {
      * Required keys per workflow type (derived from WorkflowManager.REQUIRED_PLACEHOLDERS)
      */
     private val KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
-        WorkflowType.TTI_CHECKPOINT to setOf("text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
-        WorkflowType.TTI_UNET to setOf("text", "unet_name", "vae_name", "clip_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
-        WorkflowType.IIP_CHECKPOINT to setOf("text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler"),
-        WorkflowType.IIP_UNET to setOf("text", "unet_name", "vae_name", "clip_name", "steps", "cfg", "sampler_name", "scheduler"),
-        WorkflowType.TTV_UNET to setOf("text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
-        WorkflowType.ITV_UNET to setOf("text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps", "image")
+        WorkflowType.TTI_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.TTI_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.IIP_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.IIP_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.TTV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
+        WorkflowType.ITV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps", "image")
     )
 
     /**
