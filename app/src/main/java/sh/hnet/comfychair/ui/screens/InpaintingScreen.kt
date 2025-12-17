@@ -26,15 +26,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -61,10 +58,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.GenerationButton
+import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.InpaintingConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.MaskEditorDialog
 import sh.hnet.comfychair.ui.components.MaskPreview
@@ -276,17 +274,10 @@ fun InpaintingScreen(
 
                     // Progress indicator - only show if THIS screen started generation
                     if (isThisScreenGenerating) {
-                        LinearProgressIndicator(
-                            progress = {
-                                if (generationState.maxProgress > 0) {
-                                    generationState.progress.toFloat() / generationState.maxProgress
-                                } else 0f
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .height(8.dp)
-                                .align(Alignment.BottomCenter)
+                        GenerationProgressBar(
+                            progress = generationState.progress,
+                            maxProgress = generationState.maxProgress,
+                            modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
                 }
@@ -342,66 +333,38 @@ fun InpaintingScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 16.dp)
         ) {
-            ElevatedButton(
-                onClick = {
-                    if (isThisScreenGenerating) {
-                        // Cancel generation (only if this screen started it)
-                        generationViewModel.cancelGeneration { }
-                    } else if (!generationState.isGenerating) {
-                        // Start generation (only if no generation is running)
-                        scope.launch {
-                            if (!inpaintingViewModel.hasMask()) {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.paint_mask_hint),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                return@launch
-                            }
-
-                            val workflowJson = inpaintingViewModel.prepareWorkflow()
-                            if (workflowJson != null) {
-                                // Clear preview and switch to preview view
-                                inpaintingViewModel.clearPreview()
-                                inpaintingViewModel.onViewModeChange(InpaintingViewMode.PREVIEW)
-
-                                generationViewModel.startGeneration(
-                                    workflowJson,
-                                    InpaintingViewModel.OWNER_ID
-                                ) { _, _, _ ->
-                                    // Generation started
-                                }
-                            }
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                enabled = isThisScreenGenerating || (
+            GenerationButton(
+                isGenerating = isThisScreenGenerating,
+                isEnabled = isThisScreenGenerating || (
                     !generationState.isGenerating &&
                     inpaintingViewModel.hasValidConfiguration() &&
                     uiState.positivePrompt.isNotBlank() &&
                     uiState.sourceImage != null
                 ),
-                colors = if (isThisScreenGenerating) {
-                    ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
-                } else {
-                    ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            ) {
-                Text(
-                    text = if (isThisScreenGenerating) {
-                        stringResource(R.string.button_cancel_generation)
-                    } else {
-                        stringResource(R.string.button_generate)
-                    },
-                    fontSize = 18.sp
-                )
-            }
+                onGenerate = {
+                    scope.launch {
+                        if (!inpaintingViewModel.hasMask()) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.paint_mask_hint),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@launch
+                        }
+                        val workflowJson = inpaintingViewModel.prepareWorkflow()
+                        if (workflowJson != null) {
+                            inpaintingViewModel.clearPreview()
+                            inpaintingViewModel.onViewModeChange(InpaintingViewMode.PREVIEW)
+                            generationViewModel.startGeneration(
+                                workflowJson,
+                                InpaintingViewModel.OWNER_ID
+                            ) { _, _, _ -> }
+                        }
+                    }
+                },
+                onCancel = { generationViewModel.cancelGeneration { } },
+                modifier = Modifier.weight(1f)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
 

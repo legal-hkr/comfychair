@@ -12,6 +12,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import sh.hnet.comfychair.util.Logger
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit

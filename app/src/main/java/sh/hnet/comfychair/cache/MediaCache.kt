@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.util.Logger
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.PriorityBlockingQueue
@@ -47,6 +48,15 @@ enum class PrefetchPriority(val value: Int) {
     ADJACENT(1),    // N±1 from current
     NEARBY(2),      // N±2 from current
     DISTANT(3)      // N±3 from current
+}
+
+/**
+ * Identifies which screen is currently controlling cache priorities.
+ * MediaViewer takes precedence when open.
+ */
+enum class ActiveView {
+    GALLERY,
+    MEDIA_VIEWER
 }
 
 /**
@@ -88,12 +98,13 @@ object MediaCache {
     private var comfyUIClient: ComfyUIClient? = null
     private var isInitialized = false
 
-    // Memory budget: 1/8 of max heap for bitmaps, 1/8 for videos
+    // Memory budget: 1/3 of max heap for bitmaps (full-res images), 1/8 for video bytes
+    // Bitmaps are large (4MB+ per 1024x1024 image), so we need generous cache for smooth scrolling
     private val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-    private val bitmapCacheSize = maxMemoryKb / 8
+    private val bitmapCacheSize = maxMemoryKb / 3
     private val videoCacheSize = maxMemoryKb / 8
 
-    // Single bitmap cache for all images (thumbnails and full-size are the same bitmap)
+    // Single bitmap cache for all images (full-size for both gallery and viewer)
     private val bitmapCache = PriorityLruCache<String, Bitmap>(
         maxSize = bitmapCacheSize,
         sizeOf = { _, bitmap -> bitmap.byteCount / 1024 }
@@ -111,19 +122,43 @@ object MediaCache {
     // Cache of video dimensions for VideoPlayer
     private val videoDimensionsCache = ConcurrentHashMap<String, VideoDimensions>()
 
+
     // Prefetching infrastructure
     private val prefetchQueue = PriorityBlockingQueue<PrefetchRequest>()
     private val inProgressKeys = ConcurrentHashMap.newKeySet<String>()
 
     private const val MAX_CONCURRENT_PREFETCH = 3
 
+    // Active view tracking - MediaViewer takes precedence when open
+    private var activeView = ActiveView.GALLERY
+
+    /**
+     * Set which view is currently active for priority management.
+     * MediaViewer takes precedence when open.
+     */
+    fun setActiveView(view: ActiveView) {
+        activeView = view
+    }
+
+    /**
+     * Check if a specific view is currently active.
+     */
+    fun isActiveView(view: ActiveView): Boolean = activeView == view
+
     /**
      * Initialize the cache with context and client.
      * Called after connection is established.
+     *
+     * Only replaces the client if the existing one is not working.
+     * This prevents GalleryContainerActivity from overwriting a working client.
      */
     fun initialize(context: Context, client: ComfyUIClient) {
-        applicationContext = context.applicationContext
-        comfyUIClient = client
+        // Only replace client if we don't have a working one
+        val existingClient = comfyUIClient
+        if (existingClient == null || existingClient.getBaseUrl() == null) {
+            applicationContext = context.applicationContext
+            comfyUIClient = client
+        }
         if (!isInitialized) {
             startPrefetchWorkers()
             isInitialized = true
@@ -134,7 +169,6 @@ object MediaCache {
 
     /**
      * Get bitmap from cache (sync).
-     * Works for both "thumbnails" and "full-size images" - they're the same thing.
      */
     fun getBitmap(key: MediaCacheKey): Bitmap? {
         return bitmapCache.get(key.keyString)
@@ -147,30 +181,7 @@ object MediaCache {
         bitmapCache.put(key.keyString, bitmap, priority)
     }
 
-    // ==================== VIEWER SESSION ====================
-
-    /**
-     * Prepare bitmaps for MediaViewer session.
-     * Sets high priority on all provided bitmaps to prevent eviction during swipe navigation.
-     */
-    fun prepareViewerSession(bitmaps: Map<MediaCacheKey, Bitmap>) {
-        bitmaps.forEach { (key, bitmap) ->
-            // Put with highest priority to prevent eviction during viewer session
-            bitmapCache.put(key.keyString, bitmap, PriorityLruCache.PRIORITY_CURRENT)
-        }
-    }
-
-    /**
-     * End the viewer session.
-     * Resets bitmap priorities to default so they can be evicted normally.
-     */
-    fun clearViewerSession() {
-        // Reset all bitmap priorities to default
-        val defaultPriorities = bitmapCache.keys().associateWith {
-            PriorityLruCache.PRIORITY_DEFAULT
-        }
-        bitmapCache.updateAllPriorities(defaultPriorities)
-    }
+    // ==================== NAVIGATION PRIORITIES ====================
 
     /**
      * Update bitmap priorities based on current navigation position.
@@ -195,6 +206,137 @@ object MediaCache {
         }
 
         bitmapCache.updateAllPriorities(priorityMap)
+    }
+
+    /**
+     * Update priorities based on gallery scroll position.
+     * Uses a wider window than MediaViewer since more items are visible at once.
+     *
+     * @param firstVisibleIndex Index of first visible item in gallery grid
+     * @param visibleItemCount Number of items currently visible on screen
+     * @param allItems All gallery items for priority calculation
+     * @param columnsInGrid Number of columns in the grid (for row-based calculations)
+     */
+    fun updateGalleryPosition(
+        firstVisibleIndex: Int,
+        visibleItemCount: Int,
+        allItems: List<PrefetchItem>,
+        columnsInGrid: Int = 2
+    ) {
+        if (allItems.isEmpty()) return
+
+        val lastVisibleIndex = (firstVisibleIndex + visibleItemCount - 1).coerceAtMost(allItems.size - 1)
+        val centerIndex = firstVisibleIndex + (visibleItemCount / 2)
+
+        val priorityMap = mutableMapOf<String, Int>()
+
+        for ((index, item) in allItems.withIndex()) {
+            val distanceFromCenter = kotlin.math.abs(index - centerIndex)
+            val rowDistance = distanceFromCenter / columnsInGrid
+
+            val priority = when {
+                // Visible items get highest priority
+                index in firstVisibleIndex..lastVisibleIndex ->
+                    PriorityLruCache.PRIORITY_CURRENT
+                // ±1 row from visible
+                rowDistance <= 1 -> PriorityLruCache.PRIORITY_ADJACENT
+                // ±2 rows from visible
+                rowDistance <= 2 -> PriorityLruCache.PRIORITY_NEARBY
+                // ±3 rows from visible
+                rowDistance <= 3 -> PriorityLruCache.PRIORITY_DISTANT
+                else -> PriorityLruCache.PRIORITY_DEFAULT
+            }
+            priorityMap[item.key.keyString] = priority
+        }
+
+        bitmapCache.updateAllPriorities(priorityMap)
+
+        // Trigger prefetch for items in buffer zone
+        prefetchGalleryItems(firstVisibleIndex, visibleItemCount, columnsInGrid, allItems)
+    }
+
+    /**
+     * Prefetch gallery items around visible area.
+     */
+    private fun prefetchGalleryItems(
+        firstVisibleIndex: Int,
+        visibleItemCount: Int,
+        columnsInGrid: Int,
+        allItems: List<PrefetchItem>
+    ) {
+        val bufferRows = 3
+        val bufferItems = bufferRows * columnsInGrid
+
+        val startIndex = (firstVisibleIndex - bufferItems).coerceAtLeast(0)
+        val endIndex = (firstVisibleIndex + visibleItemCount + bufferItems).coerceAtMost(allItems.size)
+
+        // Build set of keys that should be prefetched with their priorities
+        val desiredPrefetches = mutableMapOf<String, Pair<PrefetchItem, PrefetchPriority>>()
+
+        for (i in startIndex until endIndex) {
+            val item = allItems[i]
+            val keyStr = item.key.keyString
+
+            // Skip if already cached
+            if (isCached(item.key, item.isVideo)) continue
+            // Skip if already in progress
+            if (inProgressKeys.contains(keyStr)) continue
+
+            val distanceFromFirst = kotlin.math.abs(i - firstVisibleIndex)
+            val priority = when {
+                i in firstVisibleIndex until (firstVisibleIndex + visibleItemCount) ->
+                    PrefetchPriority.ADJACENT
+                distanceFromFirst <= columnsInGrid * 2 -> PrefetchPriority.NEARBY
+                else -> PrefetchPriority.DISTANT
+            }
+
+            desiredPrefetches[keyStr] = item to priority
+        }
+
+        // Merge approach: remove outdated requests, keep existing ones in range
+        val iterator = prefetchQueue.iterator()
+        while (iterator.hasNext()) {
+            val request = iterator.next()
+            val keyStr = request.key.keyString
+            if (!desiredPrefetches.containsKey(keyStr)) {
+                // Remove item no longer in desired range
+                iterator.remove()
+            } else {
+                // Item already queued - remove from desired to avoid re-adding
+                desiredPrefetches.remove(keyStr)
+            }
+        }
+
+        // Add only new prefetch requests
+        for ((_, itemAndPriority) in desiredPrefetches) {
+            val (item, priority) = itemAndPriority
+            prefetchQueue.offer(PrefetchRequest(
+                key = item.key,
+                isVideo = item.isVideo,
+                subfolder = item.subfolder,
+                type = item.type,
+                priority = priority
+            ))
+        }
+    }
+
+    /**
+     * Initial prefetch for gallery startup.
+     * Fetches first N items with high priority.
+     */
+    fun initialPrefetch(items: List<PrefetchItem>) {
+        for (item in items) {
+            val keyStr = item.key.keyString
+            if (!isCached(item.key, item.isVideo) && !inProgressKeys.contains(keyStr)) {
+                prefetchQueue.offer(PrefetchRequest(
+                    key = item.key,
+                    isVideo = item.isVideo,
+                    subfolder = item.subfolder,
+                    type = item.type,
+                    priority = PrefetchPriority.ADJACENT
+                ))
+            }
+        }
     }
 
     /**
@@ -255,6 +397,9 @@ object MediaCache {
     ): Bitmap? {
         val keyStr = key.keyString
 
+        // Check if thumbnail is already cached - avoid redundant extraction
+        bitmapCache.get(keyStr)?.let { return it }
+
         // Check if we have video bytes cached
         var videoBytes = videoCache.get(keyStr)
 
@@ -272,8 +417,11 @@ object MediaCache {
 
         if (videoBytes == null) return null
 
+        // Double-check bitmap cache (another thread might have extracted while we fetched)
+        bitmapCache.get(keyStr)?.let { return it }
+
         // Extract and cache thumbnail and dimensions
-        val (dimensions, thumbnail) = extractVideoData(videoBytes, context)
+        val (dimensions, thumbnail) = extractVideoData(keyStr, videoBytes, context)
         dimensions?.let { videoDimensionsCache[keyStr] = it }
         thumbnail?.let { bitmapCache.put(keyStr, it, priority) }
 
@@ -393,6 +541,7 @@ object MediaCache {
                 videoUriCache[keyStr] = uri
                 uri
             } catch (e: Exception) {
+                Logger.e("MediaCache", "Failed to create video URI for $keyStr", e)
                 null
             }
         }
@@ -416,7 +565,7 @@ object MediaCache {
         // Extract and cache dimensions/thumbnail if not already cached
         if (!videoDimensionsCache.containsKey(keyStr)) {
             withContext(Dispatchers.IO) {
-                val (dimensions, thumbnail) = extractVideoData(bytes, context)
+                val (dimensions, thumbnail) = extractVideoData(keyStr, bytes, context)
                 dimensions?.let { videoDimensionsCache[keyStr] = it }
                 thumbnail?.let { bitmapCache.put(keyStr, it, PriorityLruCache.PRIORITY_DEFAULT) }
             }
@@ -541,8 +690,8 @@ object MediaCache {
     private fun isCached(key: MediaCacheKey, isVideo: Boolean): Boolean {
         val keyStr = key.keyString
         return if (isVideo) {
-            // Video is fully cached when URI is ready (not just bytes)
-            videoUriCache.containsKey(keyStr)
+            // Video is cached when bytes are downloaded (URI can be created on-demand)
+            videoCache.get(keyStr) != null
         } else {
             bitmapCache.get(keyStr) != null
         }
@@ -629,6 +778,20 @@ object MediaCache {
     }
 
     /**
+     * Clear bitmap and video thumbnail caches for refresh.
+     * This forces thumbnails to be re-fetched from the server.
+     * Does not clear video URIs (temp files) as they may still be in use.
+     */
+    fun clearForRefresh() {
+        bitmapCache.evictAll()
+        videoCache.evictAll()
+        videoDimensionsCache.clear()
+        prefetchQueue.clear()
+        inProgressKeys.clear()
+        completionCallbacks.clear()
+    }
+
+    /**
      * Reset cache (on logout/disconnect).
      */
     fun reset() {
@@ -643,9 +806,15 @@ object MediaCache {
      * Extract video dimensions and thumbnail from video bytes.
      * Uses MediaMetadataRetriever which requires a file, so creates a temp file.
      * Returns Pair of (dimensions, thumbnail) - either may be null on error.
+     *
+     * @param keyStr Unique key string used for temp file naming to prevent race conditions
+     * @param videoBytes The video bytes to extract from
+     * @param context Android context for cache directory access
      */
-    private fun extractVideoData(videoBytes: ByteArray, context: Context): Pair<VideoDimensions?, Bitmap?> {
-        val tempFile = File(context.cacheDir, "temp_meta_${System.currentTimeMillis()}.mp4")
+    private fun extractVideoData(keyStr: String, videoBytes: ByteArray, context: Context): Pair<VideoDimensions?, Bitmap?> {
+        // Use key hash + thread ID for unique temp filename to prevent race conditions
+        val uniqueId = "${keyStr.hashCode()}_${Thread.currentThread().id}"
+        val tempFile = File(context.cacheDir, "temp_meta_$uniqueId.mp4")
         return try {
             tempFile.writeBytes(videoBytes)
             val retriever = MediaMetadataRetriever()
@@ -658,6 +827,7 @@ object MediaCache {
             retriever.release()
             Pair(VideoDimensions(width, height), thumbnail)
         } catch (e: Exception) {
+            Logger.e("MediaCache", "Failed to extract video metadata/thumbnail for $keyStr", e)
             Pair(null, null)
         } finally {
             tempFile.delete()

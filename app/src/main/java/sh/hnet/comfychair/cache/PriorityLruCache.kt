@@ -73,13 +73,18 @@ class PriorityLruCache<K : Any, V : Any>(
     fun put(key: K, value: V, priority: Int = PRIORITY_DEFAULT): Boolean = synchronized(lock) {
         val entrySize = sizeOf(key, value)
 
-        // Remove existing entry if present
-        remove(key)
+        // Remove existing entry if present (inline to avoid double synchronization)
+        val existingValue = cache.remove(key)
+        if (existingValue != null) {
+            currentSize -= sizes[key] ?: 0
+            priorities.remove(key)
+            sizes.remove(key)
+        }
 
         // Make room for the new entry
-        // PRIORITY_CURRENT items can only evict lower priority items (not other PRIORITY_CURRENT)
-        // This ensures viewer session thumbnails don't evict each other
-        val minEvictPriority = if (priority == PRIORITY_CURRENT) PRIORITY_ADJACENT else priority
+        // Items can evict other items of same or lower priority (higher number)
+        // Among same-priority items, LRU order determines eviction
+        val minEvictPriority = priority
         val madeRoom = trimToSize(maxSize - entrySize, minEvictPriority)
         if (!madeRoom) {
             // Couldn't make enough room - all existing items have higher priority
@@ -160,6 +165,7 @@ class PriorityLruCache<K : Any, V : Any>(
 
     /**
      * Trim the cache to the specified target size.
+     * Optimized to find all eviction candidates in one pass (O(n log n) instead of O(n²)).
      *
      * @param targetSize The target size to trim to
      * @param minEvictPriority Only evict items with priority >= this value
@@ -167,51 +173,45 @@ class PriorityLruCache<K : Any, V : Any>(
      *         (remaining items have higher priority than minEvictPriority)
      */
     private fun trimToSize(targetSize: Int, minEvictPriority: Int): Boolean {
-        while (currentSize > targetSize) {
-            val evictKey = findEvictionCandidate(minEvictPriority)
-            if (evictKey == null) {
-                // No evictable candidates - all remaining items have higher priority
-                return false
+        if (currentSize <= targetSize) return true
+
+        // Collect all evictable candidates in one pass with their LRU order
+        val candidates = mutableListOf<EvictionCandidate<K>>()
+        var lruOrder = 0
+        for (key in cache.keys) {
+            val priority = priorities[key] ?: PRIORITY_DEFAULT
+            if (priority >= minEvictPriority) {
+                candidates.add(EvictionCandidate(key, priority, lruOrder))
             }
-            evict(evictKey)
+            lruOrder++
         }
-        return true
+
+        if (candidates.isEmpty()) {
+            // No evictable candidates - all items have higher priority
+            return currentSize <= targetSize
+        }
+
+        // Sort by priority descending (lowest priority first), then by LRU order ascending
+        candidates.sortWith(compareByDescending<EvictionCandidate<K>> { it.priority }
+            .thenBy { it.lruOrder })
+
+        // Evict candidates until we reach target size
+        for (candidate in candidates) {
+            if (currentSize <= targetSize) break
+            evict(candidate.key)
+        }
+
+        return currentSize <= targetSize
     }
 
     /**
-     * Find the best candidate for eviction.
-     *
-     * Selection criteria:
-     * 1. Only consider items with priority >= minPriority
-     * 2. Among candidates, prefer lowest priority (highest number)
-     * 3. Among items with same priority, prefer LRU (earliest in LinkedHashMap)
-     *
-     * @param minPriority Minimum priority to consider for eviction
-     * @return The key to evict, or null if no candidates
+     * Helper class for batch eviction sorting
      */
-    private fun findEvictionCandidate(minPriority: Int): K? {
-        var bestCandidate: K? = null
-        var bestPriority = -1
-
-        // Iterate in LRU order (oldest first)
-        for (key in cache.keys) {
-            val priority = priorities[key] ?: PRIORITY_DEFAULT
-
-            // Skip items with higher priority than allowed
-            if (priority < minPriority) {
-                continue
-            }
-
-            // Prefer lowest priority (highest number)
-            // If same priority, keep first one found (oldest in LRU order)
-            if (bestCandidate == null || priority > bestPriority) {
-                bestCandidate = key
-                bestPriority = priority
-            }
-        }
-
-        return bestCandidate
-    }
+    private data class EvictionCandidate<K>(
+        val key: K,
+        val priority: Int,
+        val lruOrder: Int
+    )
 
     /**
      * Evict a specific key from the cache.

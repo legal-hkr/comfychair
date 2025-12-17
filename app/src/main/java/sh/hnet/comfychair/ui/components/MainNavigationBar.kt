@@ -51,7 +51,15 @@ fun MainNavigationBar(
 
     // Observe gallery items to show latest thumbnail in FAB
     val galleryItems by GalleryRepository.getInstance().galleryItems.collectAsState()
-    val latestThumbnail = galleryItems.firstOrNull()?.thumbnail
+    val latestItem = galleryItems.firstOrNull()
+
+    // Lazy load thumbnail for FAB - keep previous thumbnail until new one is ready
+    val displayedThumbnail = rememberRetainedBitmap(
+        cacheKey = latestItem?.toCacheKey(),
+        isVideo = latestItem?.isVideo ?: false,
+        subfolder = latestItem?.subfolder ?: "",
+        type = latestItem?.type ?: ""
+    )
 
     BottomAppBar(
         actions = {
@@ -180,9 +188,9 @@ fun MainNavigationBar(
                 onClick = onNavigateToGallery,
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
-                if (latestThumbnail != null) {
+                if (displayedThumbnail != null) {
                     Image(
-                        bitmap = latestThumbnail.asImageBitmap(),
+                        bitmap = displayedThumbnail.asImageBitmap(),
                         contentDescription = stringResource(R.string.nav_gallery),
                         modifier = Modifier
                             .size(48.dp)

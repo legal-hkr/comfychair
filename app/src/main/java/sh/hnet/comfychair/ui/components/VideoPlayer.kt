@@ -174,11 +174,9 @@ fun VideoPlayer(
                     }
                 }
             }
-        } else {
-            thumbnail = null
-            videoWidth = 0
-            videoHeight = 0
         }
+        // Note: We intentionally don't reset thumbnail/dimensions when videoUri becomes null.
+        // The cached thumbnail should persist to avoid black flashes during transitions.
     }
 
     // Calculate video display size for zoom calculations
@@ -426,13 +424,21 @@ fun VideoPlayer(
                     }
                 }
 
-                // Start/switch video playback when URI changes
+                // Prepare video (without playing) when URI changes
                 LaunchedEffect(videoUri) {
-                    SharedVideoPlayer.playVideo(context, videoUri)
+                    SharedVideoPlayer.prepareVideo(context, videoUri)
                 }
 
                 // Use PresentationState to track when video surface is ready
                 val presentationState = rememberPresentationState(exoPlayer)
+
+                // Start playback only when surface is ready (first frame can be rendered)
+                // This ensures video starts from frame 0 when thumbnail is replaced
+                LaunchedEffect(presentationState.coverSurface) {
+                    if (!presentationState.coverSurface) {
+                        SharedVideoPlayer.startPlayback()
+                    }
+                }
 
                 // Use video dimensions from MediaMetadataRetriever (extracted earlier)
                 // This is more reliable than presentationState.videoSizeDp when sharing ExoPlayer
@@ -590,15 +596,23 @@ fun FullscreenVideoPlayer(
         }
     }
 
-    // Start/switch video playback when URI changes
+    // Prepare video (without playing) when URI changes
     LaunchedEffect(videoUri) {
         if (videoUri != null) {
-            SharedVideoPlayer.playVideo(context, videoUri)
+            SharedVideoPlayer.prepareVideo(context, videoUri)
         }
     }
 
     // Use PresentationState to track when video surface is ready
     val presentationState = rememberPresentationState(exoPlayer)
+
+    // Start playback only when surface is ready (first frame can be rendered)
+    // This ensures video starts from frame 0 when thumbnail is replaced
+    LaunchedEffect(presentationState.coverSurface) {
+        if (!presentationState.coverSurface) {
+            SharedVideoPlayer.startPlayback()
+        }
+    }
 
     // Use video dimensions from MediaMetadataRetriever for consistent aspect ratio
     val hasValidDimensions = videoWidth > 0 && videoHeight > 0

@@ -48,6 +48,12 @@
     <string name="gpu_usage_title">GPU</string>
     <string name="resource_usage_format">%1$.2f GB / %2$.2f GB belegt</string>
 
+    <!-- Server info labels -->
+    <string name="server_info_label_os">OS:</string>
+    <string name="server_info_label_comfyui">ComfyUI:</string>
+    <string name="server_info_label_python">Python:</string>
+    <string name="server_info_label_pytorch">PyTorch:</string>
+
     <!-- Toast messages -->
     <string name="queue_cleared_success">Warteschlange erfolgreich geleert</string>
     <string name="queue_cleared_failed">Warteschlange konnte nicht geleert werden</string>
@@ -57,6 +63,8 @@
     <string name="history_item_deleted_failed">Element konnte nicht gelöscht werden</string>
     <string name="cache_cleared_success">Cache erfolgreich geleert</string>
     <string name="defaults_restored_success">Standardeinstellungen erfolgreich wiederhergestellt</string>
+    <string name="gallery_refresh_success">Galerie aktualisiert</string>
+    <string name="gallery_refresh_failed">Galerie konnte nicht aktualisiert werden</string>
 
     <!-- App management strings -->
     <string name="app_management_title">App-Verwaltung</string>

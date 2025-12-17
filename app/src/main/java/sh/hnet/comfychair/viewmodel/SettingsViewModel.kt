@@ -57,7 +57,7 @@ data class GpuInfo(
  */
 sealed class SettingsEvent {
     data class ShowToast(val messageResId: Int) : SettingsEvent()
-    object RefreshNeeded : SettingsEvent()
+    data object RefreshNeeded : SettingsEvent()
 }
 
 /**

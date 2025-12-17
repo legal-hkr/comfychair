@@ -57,6 +57,7 @@ import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.ui.components.ImageViewer
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.VideoPlayer
+import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.VideoScaleMode
 import sh.hnet.comfychair.viewmodel.MediaViewerEvent
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
@@ -144,26 +145,22 @@ fun MediaViewerScreen(
                             val isCurrentPage = page == pagerState.currentPage
                             val cacheKey = MediaCacheKey(item.promptId, item.filename)
 
-                            // Get appropriate content for each page type:
-                            // - Images: bitmap from cache
-                            // - Non-current videos: bitmap (thumbnail) from cache (prevents black screen during swipe)
-                            // - Current video: null (VideoPlayer handles its own thumbnail → video transition)
-                            val bitmap = when {
-                                !item.isVideo -> MediaCache.getBitmap(cacheKey)
-                                !isCurrentPage -> MediaCache.getBitmap(cacheKey)
-                                else -> null
-                            }
+                            // Lazy load bitmap from cache
+                            val (bitmap, isBitmapLoading) = rememberLazyBitmap(
+                                cacheKey = cacheKey,
+                                isVideo = item.isVideo,
+                                subfolder = item.subfolder,
+                                type = item.type
+                            )
 
                             // Video URI only needed for current page (VideoPlayer)
                             val videoUri = if (isCurrentPage && item.isVideo) uiState.currentVideoUri else null
 
                             // Show loading if content not available yet
-                            // - Current page: respect uiState.isLoading
-                            // - Non-current page: check if bitmap (image or video thumbnail) is cached
                             val showLoading = if (isCurrentPage) {
                                 uiState.isLoading && (if (item.isVideo) videoUri == null else bitmap == null)
                             } else {
-                                bitmap == null
+                                isBitmapLoading
                             }
 
                             // Use clipToBounds to ensure content doesn't bleed during transitions

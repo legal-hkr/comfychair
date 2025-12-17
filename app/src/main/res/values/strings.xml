@@ -54,6 +54,12 @@
     <string name="gpu_usage_title">GPU</string>
     <string name="resource_usage_format">%1$.2f GB / %2$.2f GB used</string>
 
+    <!-- Server info labels -->
+    <string name="server_info_label_os">OS:</string>
+    <string name="server_info_label_comfyui">ComfyUI:</string>
+    <string name="server_info_label_python">Python:</string>
+    <string name="server_info_label_pytorch">PyTorch:</string>
+
     <!-- Toast messages -->
     <string name="queue_cleared_success">Queue cleared successfully</string>
     <string name="queue_cleared_failed">Failed to clear queue</string>
@@ -63,6 +69,8 @@
     <string name="history_item_deleted_failed">Failed to delete item</string>
     <string name="cache_cleared_success">Cache cleared successfully</string>
     <string name="defaults_restored_success">Defaults restored successfully</string>
+    <string name="gallery_refresh_success">Gallery refreshed</string>
+    <string name="gallery_refresh_failed">Failed to refresh gallery</string>
 
     <!-- App management strings -->
     <string name="app_management_title">App management</string>

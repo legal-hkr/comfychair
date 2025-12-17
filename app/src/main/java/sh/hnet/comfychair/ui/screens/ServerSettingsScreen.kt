@@ -198,19 +198,19 @@ fun ServerSettingsScreen(
                     } else {
                         uiState.systemStats?.let { stats ->
                             Text(
-                                text = "OS: ${stats.os}",
+                                text = "${stringResource(R.string.server_info_label_os)} ${stats.os}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                text = "ComfyUI: ${stats.comfyuiVersion}",
+                                text = "${stringResource(R.string.server_info_label_comfyui)} ${stats.comfyuiVersion}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                text = "Python: ${stats.pythonVersion}",
+                                text = "${stringResource(R.string.server_info_label_python)} ${stats.pythonVersion}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                text = "PyTorch: ${stats.pytorchVersion}",
+                                text = "${stringResource(R.string.server_info_label_pytorch)} ${stats.pytorchVersion}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

@@ -27,7 +27,8 @@ import sh.hnet.comfychair.repository.GalleryRepository
 import java.io.File
 
 /**
- * Represents a gallery item (image or video)
+ * Represents a gallery item (image or video).
+ * Bitmaps are stored in MediaCache, not in this data class.
  */
 data class GalleryItem(
     val promptId: String,
@@ -35,9 +36,11 @@ data class GalleryItem(
     val subfolder: String,
     val type: String,
     val isVideo: Boolean,
-    val thumbnail: Bitmap? = null,
     val index: Int = 0 // For sorting
-)
+) {
+    /** Create a cache key for this item */
+    fun toCacheKey() = MediaCacheKey(promptId, filename)
+}
 
 /**
  * UI state for the Gallery screen
@@ -121,10 +124,18 @@ class GalleryViewModel : ViewModel() {
 
     /**
      * Manual refresh triggered by user (pull-to-refresh).
-     * Shows the refresh indicator.
+     * Shows the refresh indicator and displays a Toast on completion.
      */
     fun manualRefresh() {
-        repository.manualRefresh()
+        repository.manualRefresh { success ->
+            viewModelScope.launch {
+                if (success) {
+                    _events.emit(GalleryEvent.ShowToast(R.string.gallery_refresh_success))
+                } else {
+                    _events.emit(GalleryEvent.ShowToast(R.string.gallery_refresh_failed))
+                }
+            }
+        }
     }
 
     /**

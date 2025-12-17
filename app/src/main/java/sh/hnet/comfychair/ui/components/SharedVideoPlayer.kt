@@ -83,10 +83,11 @@ object SharedVideoPlayer {
     }
 
     /**
-     * Prepare and play a video from the given URI.
-     * If the URI is the same as currently loaded, just resumes playback.
+     * Prepare a video from the given URI without starting playback.
+     * Call startPlayback() after the surface is ready to begin from frame 0.
+     * If the URI is the same as currently loaded, does nothing (video already prepared).
      */
-    fun playVideo(context: Context, uri: Uri) {
+    fun prepareVideo(context: Context, uri: Uri) {
         // Cancel any pending stop
         pendingStopRunnable?.let { handler.removeCallbacks(it) }
         pendingStopRunnable = null
@@ -97,12 +98,31 @@ object SharedVideoPlayer {
             // New video - stop current, load new
             player.stop()
             player.setMediaItem(MediaItem.fromUri(uri))
+            player.playWhenReady = false  // Don't auto-play
             player.prepare()
             currentUri = uri
         }
+    }
 
-        player.playWhenReady = true
-        player.play()
+    /**
+     * Start playback from the beginning.
+     * Call this after the video surface is ready to ensure playback starts from frame 0.
+     */
+    fun startPlayback() {
+        exoPlayer?.let { player ->
+            player.seekTo(0)
+            player.playWhenReady = true
+            player.play()
+        }
+    }
+
+    /**
+     * Legacy method - prepares and immediately plays.
+     * @deprecated Use prepareVideo + startPlayback for proper frame synchronization.
+     */
+    fun playVideo(context: Context, uri: Uri) {
+        prepareVideo(context, uri)
+        startPlayback()
     }
 
     /**

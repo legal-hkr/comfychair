@@ -1,7 +1,6 @@
 package sh.hnet.comfychair.repository
 
 import android.content.Context
-import android.graphics.Bitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,6 +14,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
@@ -73,8 +73,21 @@ class GalleryRepository private constructor() {
     /**
      * Initialize the repository with context and client.
      * Should be called after connection is established.
+     *
+     * Only re-initializes if the repository doesn't have a working client.
+     * This prevents GalleryContainerActivity from overwriting a working client
+     * with a broken one (missing workingProtocol).
      */
+    @Synchronized
     fun initialize(context: Context, client: ComfyUIClient) {
+        // Only initialize if we don't have a working client
+        // A working client has getBaseUrl() != null (workingProtocol is set)
+        val existingClient = comfyUIClient
+        if (existingClient != null && existingClient.getBaseUrl() != null) {
+            // Already have a working client, don't replace it
+            return
+        }
+
         applicationContext = context.applicationContext
         comfyUIClient = client
         // Initialize shared media cache
@@ -129,17 +142,26 @@ class GalleryRepository private constructor() {
 
     /**
      * Manual refresh triggered by user (pull-to-refresh).
-     * Shows loading indicator.
+     * Clears the thumbnail cache and fetches fresh data from server.
+     *
+     * @param onComplete Callback with success status (true if refresh succeeded)
      */
-    fun manualRefresh() {
+    fun manualRefresh(onComplete: (Boolean) -> Unit = {}) {
         if (_isLoading.value || _isRefreshing.value) {
+            onComplete(false)
             return
         }
 
         scope.launch {
             _isManualRefreshing.value = true
-            loadGalleryInternal(isRefresh = true)
+
+            // Clear thumbnail cache to force re-fetch
+            MediaCache.clearForRefresh()
+
+            val success = loadGalleryInternal(isRefresh = true)
+
             _isManualRefreshing.value = false
+            onComplete(success)
         }
     }
 
@@ -158,11 +180,12 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Load gallery data in background
+     * Load gallery data in background.
+     * @return true if load succeeded, false otherwise
      */
-    private suspend fun loadGalleryInternal(isRefresh: Boolean) {
-        val client = comfyUIClient ?: return
-        val context = applicationContext ?: return
+    private suspend fun loadGalleryInternal(isRefresh: Boolean): Boolean {
+        val client = comfyUIClient ?: return false
+        if (applicationContext == null) return false
 
         if (isRefresh) {
             _isRefreshing.value = true
@@ -182,15 +205,8 @@ class GalleryRepository private constructor() {
             if (historyJson == null) {
                 _isLoading.value = false
                 _isRefreshing.value = false
-                return
+                return false
             }
-
-            // Get current items for thumbnail preservation
-            val existingItems = _galleryItems.value
-            val existingThumbnails = existingItems.associateBy(
-                { "${it.promptId}_${it.filename}" },
-                { it.thumbnail }
-            )
 
             // Get pending deletions snapshot
             val deletionsSnapshot: Set<String>
@@ -198,29 +214,20 @@ class GalleryRepository private constructor() {
                 deletionsSnapshot = pendingDeletions.toSet()
             }
 
-            var items = parseHistoryToGalleryItems(historyJson, context)
+            var items = parseHistoryToGalleryItems(historyJson)
 
             // Filter out pending deletions to prevent reappearing
             if (deletionsSnapshot.isNotEmpty()) {
                 items = items.filter { it.promptId !in deletionsSnapshot }
             }
 
-            // Preserve existing thumbnails for items that already have them
-            items = items.map { item ->
-                val key = "${item.promptId}_${item.filename}"
-                val existingThumbnail = existingThumbnails[key]
-                if (item.thumbnail == null && existingThumbnail != null) {
-                    item.copy(thumbnail = existingThumbnail)
-                } else {
-                    item
-                }
-            }
-
             _galleryItems.value = items
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
+            return true
         } catch (e: Exception) {
-            // Failed to load gallery
+            Logger.e("GalleryRepo", "Failed to load gallery", e)
+            return false
         } finally {
             _isLoading.value = false
             _isRefreshing.value = false
@@ -248,25 +255,27 @@ class GalleryRepository private constructor() {
         currentItems.removeAll { it.promptId == item.promptId }
         _galleryItems.value = currentItems
 
-        val success = withContext(Dispatchers.IO) {
-            kotlin.coroutines.suspendCoroutine { continuation ->
-                client.deleteHistoryItem(item.promptId) { success ->
-                    continuation.resumeWith(Result.success(success))
+        try {
+            val success = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.deleteHistoryItem(item.promptId) { success ->
+                        continuation.resumeWith(Result.success(success))
+                    }
                 }
             }
-        }
 
-        if (success) {
-            // Evict from media cache
-            MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
-        }
+            if (success) {
+                // Evict from media cache
+                MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+            }
 
-        // Remove from pending deletions after server confirms (or fails)
-        synchronized(pendingDeletions) {
-            pendingDeletions.remove(item.promptId)
+            return success
+        } finally {
+            // Always remove from pending deletions to prevent memory leak
+            synchronized(pendingDeletions) {
+                pendingDeletions.remove(item.promptId)
+            }
         }
-
-        return success
     }
 
     /**
@@ -288,30 +297,32 @@ class GalleryRepository private constructor() {
         currentItems.removeAll { it.promptId in promptIds }
         _galleryItems.value = currentItems
 
-        var successCount = 0
-        for (promptId in promptIds) {
-            val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.deleteHistoryItem(promptId) { success ->
-                        continuation.resumeWith(Result.success(success))
+        try {
+            var successCount = 0
+            for (promptId in promptIds) {
+                val success = withContext(Dispatchers.IO) {
+                    kotlin.coroutines.suspendCoroutine { continuation ->
+                        client.deleteHistoryItem(promptId) { success ->
+                            continuation.resumeWith(Result.success(success))
+                        }
+                    }
+                }
+                if (success) {
+                    successCount++
+                    // Evict from media cache
+                    itemsToDelete.filter { it.promptId == promptId }.forEach { item ->
+                        MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
                     }
                 }
             }
-            if (success) {
-                successCount++
-                // Evict from media cache
-                itemsToDelete.filter { it.promptId == promptId }.forEach { item ->
-                    MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
-                }
+
+            return successCount
+        } finally {
+            // Always remove from pending deletions to prevent memory leak
+            synchronized(pendingDeletions) {
+                pendingDeletions.removeAll(promptIds)
             }
         }
-
-        // Remove from pending deletions after all server operations complete
-        synchronized(pendingDeletions) {
-            pendingDeletions.removeAll(promptIds)
-        }
-
-        return successCount
     }
 
     /**
@@ -340,10 +351,11 @@ class GalleryRepository private constructor() {
         MediaCache.reset()
     }
 
-    private suspend fun parseHistoryToGalleryItems(
-        historyJson: JSONObject,
-        context: Context
-    ): List<GalleryItem> = withContext(Dispatchers.IO) {
+    /**
+     * Parse history JSON to gallery items.
+     * Does NOT fetch bitmaps - those are loaded lazily via MediaCache.
+     */
+    private fun parseHistoryToGalleryItems(historyJson: JSONObject): List<GalleryItem> {
         val items = mutableListOf<GalleryItem>()
         var index = 0
 
@@ -371,16 +383,12 @@ class GalleryRepository private constructor() {
                         val subfolder = videoInfo.optString("subfolder", "")
                         val type = videoInfo.optString("type", "output")
 
-                        // Get thumbnail for video (uses MediaCache)
-                        val thumbnail = getVideoThumbnail(promptId, filename, subfolder, type)
-
                         items.add(GalleryItem(
                             promptId = promptId,
                             filename = filename,
                             subfolder = subfolder,
                             type = type,
                             isVideo = true,
-                            thumbnail = thumbnail,
                             index = index++
                         ))
                     }
@@ -398,7 +406,6 @@ class GalleryRepository private constructor() {
                         if (VIDEO_EXTENSIONS.any { filename.lowercase().endsWith(it) }) {
                             val subfolder = imageInfo.optString("subfolder", "")
                             val type = imageInfo.optString("type", "output")
-                            val thumbnail = getVideoThumbnail(promptId, filename, subfolder, type)
 
                             items.add(GalleryItem(
                                 promptId = promptId,
@@ -406,7 +413,6 @@ class GalleryRepository private constructor() {
                                 subfolder = subfolder,
                                 type = type,
                                 isVideo = true,
-                                thumbnail = thumbnail,
                                 index = index++
                             ))
                             continue
@@ -415,16 +421,12 @@ class GalleryRepository private constructor() {
                         val subfolder = imageInfo.optString("subfolder", "")
                         val type = imageInfo.optString("type", "output")
 
-                        // Get thumbnail for image (uses MediaCache)
-                        val thumbnail = getImageThumbnail(promptId, filename, subfolder, type)
-
                         items.add(GalleryItem(
                             promptId = promptId,
                             filename = filename,
                             subfolder = subfolder,
                             type = type,
                             isVideo = false,
-                            thumbnail = thumbnail,
                             index = index++
                         ))
                     }
@@ -433,26 +435,6 @@ class GalleryRepository private constructor() {
         }
 
         // Sort by index descending (newest first)
-        items.sortedByDescending { it.index }
-    }
-
-    private suspend fun getImageThumbnail(
-        promptId: String,
-        filename: String,
-        subfolder: String,
-        type: String
-    ): Bitmap? {
-        val key = MediaCacheKey(promptId, filename)
-        return MediaCache.fetchBitmap(key, isVideo = false, subfolder, type)
-    }
-
-    private suspend fun getVideoThumbnail(
-        promptId: String,
-        filename: String,
-        subfolder: String,
-        type: String
-    ): Bitmap? {
-        val key = MediaCacheKey(promptId, filename)
-        return MediaCache.fetchBitmap(key, isVideo = true, subfolder, type)
+        return items.sortedByDescending { it.index }
     }
 }

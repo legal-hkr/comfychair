@@ -48,6 +48,12 @@
     <string name="gpu_usage_title">GPU</string>
     <string name="resource_usage_format">%1$.2f Go / %2$.2f Go utilisés</string>
 
+    <!-- Server info labels -->
+    <string name="server_info_label_os">OS :</string>
+    <string name="server_info_label_comfyui">ComfyUI :</string>
+    <string name="server_info_label_python">Python :</string>
+    <string name="server_info_label_pytorch">PyTorch :</string>
+
     <!-- Toast messages -->
     <string name="queue_cleared_success">File d\'attente vidée avec succès</string>
     <string name="queue_cleared_failed">Échec du vidage de la file d\'attente</string>
@@ -57,6 +63,8 @@
     <string name="history_item_deleted_failed">Échec de la suppression de l\'élément</string>
     <string name="cache_cleared_success">Cache vidé avec succès</string>
     <string name="defaults_restored_success">Paramètres par défaut restaurés avec succès</string>
+    <string name="gallery_refresh_success">Galerie actualisée</string>
+    <string name="gallery_refresh_failed">Échec de l\'actualisation de la galerie</string>
 
     <!-- App management strings -->
     <string name="app_management_title">Gestion de l\'application</string>

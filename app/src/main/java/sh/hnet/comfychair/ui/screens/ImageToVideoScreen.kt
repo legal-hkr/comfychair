@@ -1,12 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.content.ContentValues
-import android.content.Context
 import android.net.Uri
-import android.os.Environment
-import android.os.Handler
-import android.os.Looper
-import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,15 +27,12 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.ui.res.painterResource
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -70,20 +61,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.GenerationButton
+import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.ImageToVideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
+import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewMode
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,9 +176,16 @@ fun ImageToVideoScreen(
                 imageToVideoViewModel.onPreviewBitmapChange(bitmap)
             },
             onVideoFetched = { promptId ->
-                fetchVideoFromHistory(context, generationViewModel, promptId) { uri ->
-                    videoUri = uri
-                    generationViewModel.completeGeneration()
+                generationViewModel.getClient()?.let { client ->
+                    VideoUtils.fetchVideoFromHistory(
+                        context,
+                        client,
+                        promptId,
+                        VideoUtils.FilePrefix.IMAGE_TO_VIDEO
+                    ) { uri ->
+                        videoUri = uri
+                        generationViewModel.completeGeneration()
+                    }
                 }
             }
         )
@@ -218,14 +215,14 @@ fun ImageToVideoScreen(
                 if (videoUri != null && uiState.viewMode == ImageToVideoViewMode.PREVIEW) {
                     IconButton(onClick = {
                         scope.launch {
-                            saveVideoToGallery(context, videoUri)
+                            VideoUtils.saveVideoToGallery(context, videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO)
                         }
                     }) {
                         Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save_to_gallery))
                     }
                     // Share button
                     IconButton(onClick = {
-                        shareVideo(context, videoUri)
+                        VideoUtils.shareVideo(context, videoUri)
                     }) {
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share))
                     }
@@ -360,14 +357,10 @@ fun ImageToVideoScreen(
 
                     // Progress indicator - only show if THIS screen started generation
                     if (isThisScreenGenerating && generationState.maxProgress > 0) {
-                        val progress = generationState.progress.toFloat() / generationState.maxProgress.toFloat()
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .height(8.dp)
-                                .align(Alignment.BottomCenter)
+                        GenerationProgressBar(
+                            progress = generationState.progress,
+                            maxProgress = generationState.maxProgress,
+                            modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
                 }
@@ -423,60 +416,35 @@ fun ImageToVideoScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 16.dp)
         ) {
-            ElevatedButton(
-                onClick = {
-                    if (isThisScreenGenerating) {
-                        // Cancel generation (only if this screen started it)
-                        generationViewModel.cancelGeneration { }
-                    } else if (!generationState.isGenerating) {
-                        // Start generation (only if no generation is running)
-                        scope.launch {
-                            val workflowJson = imageToVideoViewModel.prepareWorkflow()
-                            if (workflowJson != null) {
-                                // Clear preview and switch to preview view
-                                videoUri = null
-                                imageToVideoViewModel.clearPreview()
-                                imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
-
-                                generationViewModel.startGeneration(
-                                    workflowJson,
-                                    ImageToVideoViewModel.OWNER_ID
-                                ) { success, _, errorMessage ->
-                                    if (!success) {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.error_failed_start_generation, errorMessage ?: context.getString(R.string.error_unknown)),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+            GenerationButton(
+                isGenerating = isThisScreenGenerating,
+                isEnabled = isThisScreenGenerating ||
+                    (!generationState.isGenerating && imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank()),
+                onGenerate = {
+                    scope.launch {
+                        val workflowJson = imageToVideoViewModel.prepareWorkflow()
+                        if (workflowJson != null) {
+                            videoUri = null
+                            imageToVideoViewModel.clearPreview()
+                            imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
+                            generationViewModel.startGeneration(
+                                workflowJson,
+                                ImageToVideoViewModel.OWNER_ID
+                            ) { success, _, errorMessage ->
+                                if (!success) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.error_failed_start_generation, errorMessage ?: context.getString(R.string.error_unknown)),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         }
                     }
                 },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                enabled = isThisScreenGenerating ||
-                    (!generationState.isGenerating && imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank()),
-                colors = if (isThisScreenGenerating) {
-                    ButtonDefaults.elevatedButtonColors(containerColor = MaterialTheme.colorScheme.error)
-                } else {
-                    ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            ) {
-                Text(
-                    text = if (isThisScreenGenerating) {
-                        stringResource(R.string.button_cancel_generation)
-                    } else {
-                        stringResource(R.string.button_generate)
-                    },
-                    fontSize = 18.sp
-                )
-            }
+                onCancel = { generationViewModel.cancelGeneration { } },
+                modifier = Modifier.weight(1f)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -518,151 +486,5 @@ fun ImageToVideoScreen(
                 onLownoiseLoraChainStrengthChange = imageToVideoViewModel::onLownoiseLoraChainStrengthChange
             )
         }
-    }
-}
-
-private fun fetchVideoFromHistory(
-    context: Context,
-    generationViewModel: GenerationViewModel,
-    promptId: String,
-    onComplete: (Uri?) -> Unit
-) {
-    val client = generationViewModel.getClient() ?: run {
-        onComplete(null)
-        return
-    }
-
-    val mainHandler = Handler(Looper.getMainLooper())
-
-    client.fetchHistory(promptId) { historyJson ->
-        if (historyJson == null) {
-            mainHandler.post { onComplete(null) }
-            return@fetchHistory
-        }
-
-        // Parse video info from history
-        val promptHistory = historyJson.optJSONObject(promptId)
-        val outputs = promptHistory?.optJSONObject("outputs")
-
-        if (outputs == null) {
-            mainHandler.post { onComplete(null) }
-            return@fetchHistory
-        }
-
-        // Find video in outputs
-        val outputKeys = outputs.keys()
-        while (outputKeys.hasNext()) {
-            val nodeId = outputKeys.next()
-            val nodeOutput = outputs.optJSONObject(nodeId)
-
-            // Check videos, gifs, and images arrays for video files
-            val videos = nodeOutput?.optJSONArray("videos")
-                ?: nodeOutput?.optJSONArray("gifs")
-                ?: nodeOutput?.optJSONArray("images")
-
-            if (videos != null && videos.length() > 0) {
-                val videoInfo = videos.optJSONObject(0)
-                val filename = videoInfo?.optString("filename") ?: continue
-                val subfolder = videoInfo.optString("subfolder", "")
-                val type = videoInfo.optString("type", "output")
-
-                // Fetch video bytes
-                client.fetchVideo(filename, subfolder, type) { videoBytes ->
-                    if (videoBytes == null) {
-                        mainHandler.post { onComplete(null) }
-                        return@fetchVideo
-                    }
-
-                    // Clean up old generated videos for image-to-video
-                    context.filesDir.listFiles()?.forEach { file ->
-                        if (file.name.startsWith("image_to_video_last_generated") && file.name.endsWith(".mp4")) {
-                            file.delete()
-                        }
-                    }
-
-                    // Save to internal storage with unique name to force player reload
-                    val videoFile = File(context.filesDir, "image_to_video_last_generated_${promptId}.mp4")
-                    videoFile.writeBytes(videoBytes)
-
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        videoFile
-                    )
-
-                    mainHandler.post { onComplete(uri) }
-                }
-                return@fetchHistory
-            }
-        }
-
-        mainHandler.post { onComplete(null) }
-    }
-}
-
-private suspend fun saveVideoToGallery(context: Context, videoUri: Uri?) {
-    if (videoUri == null) return
-
-    withContext(Dispatchers.IO) {
-        try {
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Video.Media.DISPLAY_NAME, "ComfyChair_ITV_${System.currentTimeMillis()}.mp4")
-                put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-                put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/ComfyChair")
-            }
-
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-            uri?.let { outputUri ->
-                resolver.openOutputStream(outputUri)?.use { outputStream ->
-                    resolver.openInputStream(videoUri)?.use { inputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.video_saved_to_gallery),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.failed_save_video),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    }
-}
-
-private fun shareVideo(context: Context, videoUri: Uri?) {
-    if (videoUri == null) return
-
-    try {
-        val shareIntent = android.content.Intent().apply {
-            action = android.content.Intent.ACTION_SEND
-            putExtra(android.content.Intent.EXTRA_STREAM, videoUri)
-            type = "video/mp4"
-            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        context.startActivity(
-            android.content.Intent.createChooser(
-                shareIntent,
-                context.getString(R.string.share_video)
-            )
-        )
-    } catch (e: Exception) {
-        Toast.makeText(
-            context,
-            context.getString(R.string.failed_share_video),
-            Toast.LENGTH_SHORT
-        ).show()
     }
 }

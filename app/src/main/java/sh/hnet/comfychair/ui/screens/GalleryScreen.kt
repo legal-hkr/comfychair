@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -43,8 +45,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,8 +64,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
-import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
 import sh.hnet.comfychair.viewmodel.GalleryItem
@@ -94,8 +95,8 @@ fun GalleryScreen(
     val mediaViewerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        // Clear viewer session cache (no longer needed)
-        MediaCache.clearViewerSession()
+        // Restore active view to Gallery
+        MediaCache.setActiveView(ActiveView.GALLERY)
 
         // Refresh gallery if item was deleted (silent refresh, no spinner)
         if (result.resultCode == Activity.RESULT_OK) {
@@ -150,14 +151,12 @@ fun GalleryScreen(
 
     // Function to launch media viewer
     fun launchMediaViewer(clickedIndex: Int) {
-        // Prepare viewer session with all thumbnails (no LRU eviction)
-        // This ensures thumbnails are available during swipe navigation
-        val thumbnails = uiState.items
-            .filter { it.thumbnail != null }
-            .associate { item ->
-                MediaCacheKey(item.promptId, item.filename) to item.thumbnail!!
-            }
-        MediaCache.prepareViewerSession(thumbnails)
+        // Set active view to MediaViewer
+        MediaCache.setActiveView(ActiveView.MEDIA_VIEWER)
+
+        // Update priorities to protect items around clicked index
+        val allKeys = uiState.items.map { it.toCacheKey() }
+        MediaCache.updateNavigationPriorities(clickedIndex, allKeys)
 
         val viewerItems = galleryItemsToViewerItems(uiState.items)
         val intent = MediaViewerActivity.createGalleryIntent(
@@ -168,6 +167,58 @@ fun GalleryScreen(
             initialIndex = clickedIndex
         )
         mediaViewerLauncher.launch(intent)
+    }
+
+    // Grid state for scroll tracking
+    val gridState = rememberLazyGridState()
+
+    // Create prefetch items list from gallery items
+    val prefetchItems = remember(uiState.items) {
+        uiState.items.map { item ->
+            MediaCache.PrefetchItem(
+                key = item.toCacheKey(),
+                isVideo = item.isVideo,
+                subfolder = item.subfolder,
+                type = item.type
+            )
+        }
+    }
+
+    // Track scroll position and update cache priorities with debounce
+    // Only update when Gallery is the active view (not when MediaViewer is animating closed)
+    LaunchedEffect(gridState.firstVisibleItemIndex, gridState.layoutInfo.visibleItemsInfo.size) {
+        if (prefetchItems.isNotEmpty() && MediaCache.isActiveView(ActiveView.GALLERY)) {
+            // Debounce scroll updates to avoid excessive calls during fast scrolling
+            kotlinx.coroutines.delay(100)
+            MediaCache.updateGalleryPosition(
+                firstVisibleIndex = gridState.firstVisibleItemIndex,
+                visibleItemCount = gridState.layoutInfo.visibleItemsInfo.size,
+                allItems = prefetchItems,
+                columnsInGrid = 2
+            )
+        }
+    }
+
+    // Prefetch when items become available or change (e.g., after manual refresh)
+    // Use first item's key as part of the effect key to detect list changes
+    val itemsKey = remember(uiState.items) {
+        if (uiState.items.isEmpty()) "" else "${uiState.items.size}_${uiState.items.first().promptId}"
+    }
+    LaunchedEffect(itemsKey) {
+        if (uiState.items.isNotEmpty()) {
+            // Base prefetch on current scroll position instead of always starting from 0
+            val startIndex = gridState.firstVisibleItemIndex.coerceAtLeast(0)
+            val endIndex = (startIndex + 24).coerceAtMost(uiState.items.size)
+            val initialItems = uiState.items.subList(startIndex, endIndex).map { item ->
+                MediaCache.PrefetchItem(
+                    key = item.toCacheKey(),
+                    isVideo = item.isVideo,
+                    subfolder = item.subfolder,
+                    type = item.type
+                )
+            }
+            MediaCache.initialPrefetch(initialItems)
+        }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -234,58 +285,59 @@ fun GalleryScreen(
                 }
             }
         )
-        val pullToRefreshState = rememberPullToRefreshState()
 
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
             onRefresh = { galleryViewModel.manualRefresh() },
-            modifier = Modifier.fillMaxSize(),
-            state = pullToRefreshState,
-            indicator = {
-                PullToRefreshDefaults.Indicator(
-                    state = pullToRefreshState,
-                    isRefreshing = uiState.isRefreshing,
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
-            }
+            modifier = Modifier.fillMaxSize()
         ) {
-            if (uiState.isLoading && uiState.items.isEmpty()) {
-                // Loading state
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.items.isEmpty()) {
-                // Empty state
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            text = stringResource(R.string.gallery_empty),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            // Always use LazyVerticalGrid for consistent nested scroll behavior with pull-to-refresh
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                state = gridState,
+                contentPadding = PaddingValues(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (uiState.isLoading && uiState.items.isEmpty()) {
+                    // Loading state - show as full-span item
+                    item(span = { GridItemSpan(2) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-            } else {
-                // Gallery grid
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
+                } else if (uiState.items.isEmpty()) {
+                    // Empty state - show as full-span item
+                    item(span = { GridItemSpan(2) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                                Text(
+                                    text = stringResource(R.string.gallery_empty),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Gallery items
                     itemsIndexed(uiState.items, key = { _, item -> "${item.promptId}_${item.filename}" }) { index, item ->
                         GalleryItemCard(
                             item = item,
@@ -311,6 +363,10 @@ fun GalleryScreen(
     }
 }
 
+/**
+ * Gallery item card with lazy bitmap loading.
+ * Bitmaps are loaded from MediaCache on-demand.
+ */
 @Composable
 private fun GalleryItemCard(
     item: GalleryItem,
@@ -318,6 +374,15 @@ private fun GalleryItemCard(
     onTap: () -> Unit,
     onLongPress: () -> Unit
 ) {
+    // Create cache key directly from item's stable properties
+    val cacheKey = item.toCacheKey()
+    val (bitmap, isLoading) = rememberLazyBitmap(
+        cacheKey = cacheKey,
+        isVideo = item.isVideo,
+        subfolder = item.subfolder,
+        type = item.type
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -341,31 +406,49 @@ private fun GalleryItemCard(
             }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Thumbnail
-            if (item.thumbnail != null) {
-                Image(
-                    bitmap = item.thumbnail.asImageBitmap(),
-                    contentDescription = if (item.isVideo) {
-                        stringResource(R.string.gallery_video_thumbnail_description)
-                    } else {
-                        stringResource(R.string.gallery_thumbnail_description)
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (item.isVideo) Icons.Default.PlayArrow else Icons.Default.Image,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            // Thumbnail from cache
+            when {
+                bitmap != null -> {
+                    Image(
+                        bitmap = bitmap!!.asImageBitmap(),
+                        contentDescription = if (item.isVideo) {
+                            stringResource(R.string.gallery_video_thumbnail_description)
+                        } else {
+                            stringResource(R.string.gallery_thumbnail_description)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
+                }
+                isLoading -> {
+                    // Loading placeholder
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+                else -> {
+                    // Fallback placeholder
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (item.isVideo) Icons.Default.PlayArrow else Icons.Default.Image,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             }
 
@@ -388,8 +471,8 @@ private fun GalleryItemCard(
                 }
             }
 
-            // Video indicator (only show when not selected)
-            if (item.isVideo && !isSelected) {
+            // Video indicator (only show when not selected and not loading)
+            if (item.isVideo && !isSelected && bitmap != null) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
