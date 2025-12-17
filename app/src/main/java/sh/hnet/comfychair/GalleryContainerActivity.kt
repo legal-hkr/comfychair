@@ -8,7 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,8 +55,8 @@ class GalleryContainerActivity : ComponentActivity() {
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = stringResource(R.string.content_description_back),
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = stringResource(R.string.menu_generation),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
