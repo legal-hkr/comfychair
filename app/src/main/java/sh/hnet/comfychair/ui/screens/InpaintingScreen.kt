@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -198,6 +197,7 @@ fun InpaintingScreen(
         )
 
         // Image Preview Area
+        // Only allow tapping final generated image or source image, not live previews during generation
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -205,20 +205,32 @@ fun InpaintingScreen(
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(
+                    enabled = (uiState.viewMode == InpaintingViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenGenerating) ||
+                              (uiState.viewMode == InpaintingViewMode.SOURCE && uiState.sourceImage != null),
                     onClick = {
-                        if (uiState.viewMode == InpaintingViewMode.PREVIEW && uiState.previewImage != null) {
-                            // Launch MediaViewer for single image
-                            val bitmap = uiState.previewImage!!
-                            val intent = MediaViewerActivity.createSingleImageIntent(
-                                context = context,
-                                bitmap = bitmap,
-                                hostname = generationViewModel.getHostname(),
-                                port = generationViewModel.getPort(),
-                                filename = uiState.previewImageFilename,
-                                subfolder = uiState.previewImageSubfolder,
-                                type = uiState.previewImageType
-                            )
-                            context.startActivity(intent)
+                        when (uiState.viewMode) {
+                            InpaintingViewMode.PREVIEW -> {
+                                // Launch MediaViewer for generated image
+                                uiState.previewImage?.let { bitmap ->
+                                    val intent = MediaViewerActivity.createSingleImageIntent(
+                                        context = context,
+                                        bitmap = bitmap,
+                                        hostname = generationViewModel.getHostname(),
+                                        port = generationViewModel.getPort(),
+                                        filename = uiState.previewImageFilename,
+                                        subfolder = uiState.previewImageSubfolder,
+                                        type = uiState.previewImageType
+                                    )
+                                    context.startActivity(intent)
+                                }
+                            }
+                            InpaintingViewMode.SOURCE -> {
+                                // Launch MediaViewer for source image (without mask)
+                                uiState.sourceImage?.let { bitmap ->
+                                    val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                                    context.startActivity(intent)
+                                }
+                            }
                         }
                     }
                 ),

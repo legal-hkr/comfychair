@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -183,13 +182,14 @@ fun TextToImageScreen(
         )
 
         // Image Preview Area
+        // Only allow tapping final generated image, not live previews during generation
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(enabled = uiState.currentBitmap != null) {
+                .clickable(enabled = uiState.currentBitmap != null && !isThisScreenGenerating) {
                     // Launch MediaViewer for single image
                     uiState.currentBitmap?.let { bitmap ->
                         val intent = MediaViewerActivity.createSingleImageIntent(
