@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
@@ -246,7 +246,7 @@ fun TextToImageScreen(
             trailingIcon = {
                 if (uiState.positivePrompt.isNotEmpty()) {
                     IconButton(onClick = { textToImageViewModel.onPositivePromptChange("") }) {
-                        Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.content_description_clear))
+                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
             }

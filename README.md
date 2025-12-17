@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.6.1
+**Current version**: v0.6.2
 
 ## Overview
 
@@ -83,7 +83,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Per-workflow generation settings (each workflow remembers its own configuration)
 - **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters on a per-workflow basis
 - **Persistent navigation**: Bottom navigation bar for seamless switching between screens
-- **Localization**: Available in English (default), German, French, Polish, and Spanish
+- **Localization**: Available in English (default), German, French, Polish, Spanish, and Chinese
 - **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
 
 ## Requirements
@@ -227,6 +227,7 @@ app/src/main/
 │   ├── values-fr/                   # French translations
 │   ├── values-pl/                   # Polish translations
 │   ├── values-es/                   # Spanish translations
+│   ├── values-zh/                   # Chinese translations
 │   ├── drawable/                    # App icons
 │   └── xml/                         # Backup rules, file provider paths
 └── AndroidManifest.xml
