@@ -575,7 +575,12 @@ class TextToImageViewModel : ViewModel() {
      * Clear the preview image when starting a new generation.
      */
     fun clearPreview() {
-        _uiState.value = _uiState.value.copy(currentBitmap = null)
+        _uiState.value = _uiState.value.copy(
+            currentBitmap = null,
+            currentImageFilename = null,
+            currentImageSubfolder = null,
+            currentImageType = null
+        )
     }
 
     /**
@@ -629,15 +634,27 @@ class TextToImageViewModel : ViewModel() {
                 onCurrentBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
-                fetchGeneratedImage(event.promptId) {
-                    generationViewModelRef?.completeGeneration()
+                fetchGeneratedImage(event.promptId) { success ->
+                    if (success) {
+                        generationViewModelRef?.completeGeneration()
+                    }
+                    // If not successful, don't complete - will retry on next return
                 }
+            }
+            is GenerationEvent.ConnectionLostDuringGeneration -> {
+                viewModelScope.launch {
+                    val message = context?.getString(R.string.connection_lost_generation_may_continue)
+                        ?: "Connection lost. Will check for completion when reconnected."
+                    _events.emit(TextToImageEvent.ShowToastMessage(message))
+                }
+                // DON'T clear state - generation may still be running on server
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
                     _events.emit(TextToImageEvent.ShowToastMessage(event.message))
                 }
-                generationViewModelRef?.completeGeneration()
+                // DON'T call completeGeneration() here - this may just be a connection error
+                // The server might still complete the generation
             }
             else -> {}
         }
@@ -737,9 +754,14 @@ class TextToImageViewModel : ViewModel() {
 
     /**
      * Fetch the generated image after completion
+     * @param promptId The prompt ID to fetch
+     * @param onComplete Callback with success boolean (true if image was fetched and set)
      */
-    fun fetchGeneratedImage(promptId: String, onComplete: () -> Unit) {
-        val client = comfyUIClient ?: return
+    fun fetchGeneratedImage(promptId: String, onComplete: (success: Boolean) -> Unit) {
+        val client = comfyUIClient ?: run {
+            onComplete(false)
+            return
+        }
 
         client.fetchHistory(promptId) { historyJson ->
             if (historyJson != null) {
@@ -761,19 +783,21 @@ class TextToImageViewModel : ViewModel() {
                                 viewModelScope.launch {
                                     if (bitmap != null) {
                                         setCurrentImage(bitmap, filename, subfolder, type)
+                                        onComplete(true)
+                                    } else {
+                                        onComplete(false)
                                     }
-                                    onComplete()
                                 }
                             }
                             return@fetchHistory
                         }
                     }
-                    onComplete()
+                    onComplete(false)
                 } catch (e: Exception) {
-                    onComplete()
+                    onComplete(false)
                 }
             } else {
-                onComplete()
+                onComplete(false)
             }
         }
     }

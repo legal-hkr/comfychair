@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -55,7 +53,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
@@ -64,6 +61,7 @@ import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.VideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
+import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoEvent
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
@@ -95,8 +93,8 @@ fun TextToVideoScreen(
     // This prevents video from rendering over navigation transitions
     var isScreenVisible by remember { mutableStateOf(true) }
 
-    // Video state
-    var videoUri by remember { mutableStateOf<Uri?>(null) }
+    // Video URI from ViewModel state
+    val videoUri = uiState.currentVideoUri
 
     val configSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -117,48 +115,16 @@ fun TextToVideoScreen(
             textToVideoViewModel.initialize(context, client)
         }
 
-        // Load last generated video only if not currently generating for this screen
-        val currentState = generationViewModel.generationState.value
-        val isGeneratingForThisScreen = currentState.isGenerating &&
-            currentState.ownerId == TextToVideoViewModel.OWNER_ID
-
-        if (!isGeneratingForThisScreen) {
-            // Find the most recent generated video file
-            val videoFile = context.filesDir.listFiles()
-                ?.filter { it.name.startsWith("last_generated_video") && it.name.endsWith(".mp4") }
-                ?.maxByOrNull { it.lastModified() }
-
-            if (videoFile != null && videoFile.exists()) {
-                videoUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    videoFile
-                )
-            }
+        // Check if there's a pending generation that may have completed while we were away
+        if (generationViewModel.generationState.value.isGenerating &&
+            generationViewModel.generationState.value.ownerId == TextToVideoViewModel.OWNER_ID) {
+            generationViewModel.checkServerForCompletion { _, _ -> }
         }
     }
 
     // Register event handler when screen is active
     DisposableEffect(Unit) {
-        textToVideoViewModel.startListening(
-            generationViewModel,
-            onPreviewBitmap = { bitmap ->
-                textToVideoViewModel.onPreviewBitmapChange(bitmap)
-            },
-            onVideoFetched = { promptId ->
-                generationViewModel.getClient()?.let { client ->
-                    VideoUtils.fetchVideoFromHistory(
-                        context,
-                        client,
-                        promptId,
-                        VideoUtils.FilePrefix.TEXT_TO_VIDEO
-                    ) { uri ->
-                        videoUri = uri
-                        generationViewModel.completeGeneration()
-                    }
-                }
-            }
-        )
+        textToVideoViewModel.startListening(generationViewModel)
         onDispose {
             textToVideoViewModel.stopListening(generationViewModel)
         }
@@ -172,13 +138,6 @@ fun TextToVideoScreen(
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-    }
-
-    // Clear preview when not generating
-    LaunchedEffect(generationState.isGenerating) {
-        if (!generationState.isGenerating) {
-            textToVideoViewModel.clearPreview()
         }
     }
 
@@ -331,11 +290,11 @@ fun TextToVideoScreen(
                 onGenerate = {
                     val workflowJson = textToVideoViewModel.prepareWorkflow()
                     if (workflowJson != null) {
-                        videoUri = null
                         textToVideoViewModel.clearPreview()
                         generationViewModel.startGeneration(
                             workflowJson,
-                            TextToVideoViewModel.OWNER_ID
+                            TextToVideoViewModel.OWNER_ID,
+                            ContentType.VIDEO
                         ) { success, _, errorMessage ->
                             if (!success) {
                                 Toast.makeText(

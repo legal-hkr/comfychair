@@ -111,6 +111,7 @@
     <string name="error_generation_failed">La generación falló</string>
     <string name="error_unknown">Error desconocido</string>
     <string name="error_connection_lost">Conexión perdida durante la generación</string>
+    <string name="connection_lost_generation_may_continue">Conexión perdida. Se verificará la finalización al reconectarse.</string>
     <string name="error_no_connection">Sin conexión al servidor</string>
     <string name="error_workflow_not_found">Workflow no encontrado</string>
     <string name="error_no_workflow_specified">No se especificó ningún workflow</string>

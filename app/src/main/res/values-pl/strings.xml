@@ -111,6 +111,7 @@
     <string name="error_generation_failed">Generowanie nie powiodło się</string>
     <string name="error_unknown">Nieznany błąd</string>
     <string name="error_connection_lost">Utracono połączenie podczas generowania</string>
+    <string name="connection_lost_generation_may_continue">Utracono połączenie. Sprawdzenie zakończenia po ponownym połączeniu.</string>
     <string name="error_no_connection">Brak połączenia z serwerem</string>
     <string name="error_workflow_not_found">Nie znaleziono workflow</string>
     <string name="error_no_workflow_specified">Nie określono workflow</string>

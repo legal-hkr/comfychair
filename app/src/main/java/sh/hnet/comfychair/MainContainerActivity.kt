@@ -98,6 +98,20 @@ class MainContainerActivity : ComponentActivity() {
         startActivity(intent)
     }
 
+    override fun onStop() {
+        super.onStop()
+        // Save generation state when going to background
+        generationViewModel.saveGenerationState(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Check if there's a pending generation that may have completed while in background
+        if (generationViewModel.generationState.value.isGenerating) {
+            generationViewModel.checkServerForCompletion { _, _ -> }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // ViewModel handles cleanup automatically via onCleared()

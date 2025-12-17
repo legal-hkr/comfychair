@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -61,7 +59,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
@@ -70,6 +67,7 @@ import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.ImageToVideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
+import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
@@ -101,8 +99,8 @@ fun ImageToVideoScreen(
     // Track screen visibility for video playback control
     var isScreenVisible by remember { mutableStateOf(true) }
 
-    // Video state
-    var videoUri by remember { mutableStateOf<Uri?>(null) }
+    // Video URI from ViewModel state
+    val videoUri = uiState.currentVideoUri
 
     val configSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -133,24 +131,10 @@ fun ImageToVideoScreen(
             imageToVideoViewModel.initialize(context, client)
         }
 
-        // Load last generated video only if not currently generating for this screen
-        val currentState = generationViewModel.generationState.value
-        val isGeneratingForThisScreen = currentState.isGenerating &&
-            currentState.ownerId == ImageToVideoViewModel.OWNER_ID
-
-        if (!isGeneratingForThisScreen) {
-            // Find the most recent generated video file for image-to-video
-            val videoFile = context.filesDir.listFiles()
-                ?.filter { it.name.startsWith("image_to_video_last_generated") && it.name.endsWith(".mp4") }
-                ?.maxByOrNull { it.lastModified() }
-
-            if (videoFile != null && videoFile.exists()) {
-                videoUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    videoFile
-                )
-            }
+        // Check if there's a pending generation that may have completed while we were away
+        if (generationViewModel.generationState.value.isGenerating &&
+            generationViewModel.generationState.value.ownerId == ImageToVideoViewModel.OWNER_ID) {
+            generationViewModel.checkServerForCompletion { _, _ -> }
         }
     }
 
@@ -170,34 +154,9 @@ fun ImageToVideoScreen(
 
     // Register event handler when screen is active
     DisposableEffect(Unit) {
-        imageToVideoViewModel.startListening(
-            generationViewModel,
-            onPreviewBitmap = { bitmap ->
-                imageToVideoViewModel.onPreviewBitmapChange(bitmap)
-            },
-            onVideoFetched = { promptId ->
-                generationViewModel.getClient()?.let { client ->
-                    VideoUtils.fetchVideoFromHistory(
-                        context,
-                        client,
-                        promptId,
-                        VideoUtils.FilePrefix.IMAGE_TO_VIDEO
-                    ) { uri ->
-                        videoUri = uri
-                        generationViewModel.completeGeneration()
-                    }
-                }
-            }
-        )
+        imageToVideoViewModel.startListening(generationViewModel)
         onDispose {
             imageToVideoViewModel.stopListening(generationViewModel)
-        }
-    }
-
-    // Clear preview when not generating
-    LaunchedEffect(generationState.isGenerating) {
-        if (!generationState.isGenerating) {
-            imageToVideoViewModel.clearPreview()
         }
     }
 
@@ -424,12 +383,12 @@ fun ImageToVideoScreen(
                     scope.launch {
                         val workflowJson = imageToVideoViewModel.prepareWorkflow()
                         if (workflowJson != null) {
-                            videoUri = null
                             imageToVideoViewModel.clearPreview()
                             imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
                             generationViewModel.startGeneration(
                                 workflowJson,
-                                ImageToVideoViewModel.OWNER_ID
+                                ImageToVideoViewModel.OWNER_ID,
+                                ContentType.VIDEO
                             ) { success, _, errorMessage ->
                                 if (!success) {
                                     Toast.makeText(

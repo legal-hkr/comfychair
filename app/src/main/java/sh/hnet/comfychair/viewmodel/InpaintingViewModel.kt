@@ -971,14 +971,22 @@ class InpaintingViewModel : ViewModel() {
 
     /**
      * Fetch and save generated image from history
+     * @param promptId The prompt ID to fetch
+     * @param onComplete Callback with success boolean (true if image was fetched and set)
      */
-    fun fetchGeneratedImage(promptId: String, onComplete: () -> Unit) {
-        val client = comfyUIClient ?: return
-        val context = applicationContext ?: return
+    fun fetchGeneratedImage(promptId: String, onComplete: (success: Boolean) -> Unit) {
+        val client = comfyUIClient ?: run {
+            onComplete(false)
+            return
+        }
+        val context = applicationContext ?: run {
+            onComplete(false)
+            return
+        }
 
         client.fetchHistory(promptId) { historyJson ->
             if (historyJson == null) {
-                onComplete()
+                onComplete(false)
                 return@fetchHistory
             }
 
@@ -986,7 +994,7 @@ class InpaintingViewModel : ViewModel() {
             val outputs = promptHistory?.optJSONObject("outputs")
 
             if (outputs == null) {
-                onComplete()
+                onComplete(false)
                 return@fetchHistory
             }
 
@@ -1019,15 +1027,17 @@ class InpaintingViewModel : ViewModel() {
                                     previewImageType = type,
                                     viewMode = InpaintingViewMode.PREVIEW
                                 )
+                                onComplete(true)
                             }
+                        } else {
+                            onComplete(false)
                         }
-                        onComplete()
                     }
                     return@fetchHistory
                 }
             }
 
-            onComplete()
+            onComplete(false)
         }
     }
 
@@ -1036,7 +1046,12 @@ class InpaintingViewModel : ViewModel() {
     }
 
     fun clearPreview() {
-        _uiState.value = _uiState.value.copy(previewImage = null)
+        _uiState.value = _uiState.value.copy(
+            previewImage = null,
+            previewImageFilename = null,
+            previewImageSubfolder = null,
+            previewImageType = null
+        )
     }
 
     // Event listener management
@@ -1077,15 +1092,27 @@ class InpaintingViewModel : ViewModel() {
                 onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
-                fetchGeneratedImage(event.promptId) {
-                    generationViewModelRef?.completeGeneration()
+                fetchGeneratedImage(event.promptId) { success ->
+                    if (success) {
+                        generationViewModelRef?.completeGeneration()
+                    }
+                    // If not successful, don't complete - will retry on next return
                 }
+            }
+            is GenerationEvent.ConnectionLostDuringGeneration -> {
+                viewModelScope.launch {
+                    val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
+                        ?: "Connection lost. Will check for completion when reconnected."
+                    _events.emit(InpaintingEvent.ShowToastMessage(message))
+                }
+                // DON'T clear state - generation may still be running on server
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
                     _events.emit(InpaintingEvent.ShowToastMessage(event.message))
                 }
-                generationViewModelRef?.completeGeneration()
+                // DON'T call completeGeneration() here - this may just be a connection error
+                // The server might still complete the generation
             }
             else -> {}
         }

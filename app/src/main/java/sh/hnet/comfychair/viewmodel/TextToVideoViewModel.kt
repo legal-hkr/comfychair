@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.viewmodel
 
 import android.content.Context
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.VideoUtils
 
 /**
  * UI state for the Text-to-Video screen
@@ -25,6 +27,7 @@ import sh.hnet.comfychair.storage.WorkflowValuesStorage
 data class TextToVideoUiState(
     // Preview state
     val previewBitmap: android.graphics.Bitmap? = null,
+    val currentVideoUri: android.net.Uri? = null,
 
     // Workflow selection
     val selectedWorkflow: String = "",
@@ -95,10 +98,8 @@ class TextToVideoViewModel : ViewModel() {
     private var applicationContext: Context? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
 
-    // Reference to GenerationViewModel and callbacks for event handling
+    // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
-    private var previewBitmapCallback: ((android.graphics.Bitmap) -> Unit)? = null
-    private var videoFetchedCallback: ((promptId: String) -> Unit)? = null
 
     companion object {
         const val OWNER_ID = "TEXT_TO_VIDEO"
@@ -117,7 +118,30 @@ class TextToVideoViewModel : ViewModel() {
 
         loadWorkflows()
         restorePreferences()
+        loadLastGeneratedVideo()
         loadModels()
+    }
+
+    /**
+     * Load the last generated video from internal storage.
+     * This restores the video preview when the screen is recreated.
+     */
+    private fun loadLastGeneratedVideo() {
+        val context = applicationContext ?: return
+
+        // Find the most recent generated video file
+        val videoFile = context.filesDir.listFiles()
+            ?.filter { it.name.startsWith(VideoUtils.FilePrefix.TEXT_TO_VIDEO) && it.name.endsWith(".mp4") }
+            ?.maxByOrNull { it.lastModified() }
+
+        if (videoFile != null && videoFile.exists()) {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                videoFile
+            )
+            _uiState.value = _uiState.value.copy(currentVideoUri = uri)
+        }
     }
 
     private fun loadWorkflows() {
@@ -502,7 +526,7 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     fun clearPreview() {
-        _uiState.value = _uiState.value.copy(previewBitmap = null)
+        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
     }
 
     private fun validateDimension(value: String): String? {
@@ -608,17 +632,9 @@ class TextToVideoViewModel : ViewModel() {
      * Start listening for generation events from the GenerationViewModel.
      * This registers this ViewModel as the active event handler.
      * @param generationViewModel The shared GenerationViewModel
-     * @param onPreviewBitmap Callback for preview image updates
-     * @param onVideoFetched Callback when video generation is complete (provides promptId)
      */
-    fun startListening(
-        generationViewModel: GenerationViewModel,
-        onPreviewBitmap: (android.graphics.Bitmap) -> Unit,
-        onVideoFetched: (promptId: String) -> Unit
-    ) {
+    fun startListening(generationViewModel: GenerationViewModel) {
         generationViewModelRef = generationViewModel
-        previewBitmapCallback = onPreviewBitmap
-        videoFetchedCallback = onVideoFetched
 
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
             handleGenerationEvent(event)
@@ -637,8 +653,6 @@ class TextToVideoViewModel : ViewModel() {
         if (!generationViewModel.generationState.value.isGenerating) {
             if (generationViewModelRef == generationViewModel) {
                 generationViewModelRef = null
-                previewBitmapCallback = null
-                videoFetchedCallback = null
             }
         }
     }
@@ -649,19 +663,50 @@ class TextToVideoViewModel : ViewModel() {
     private fun handleGenerationEvent(event: GenerationEvent) {
         when (event) {
             is GenerationEvent.PreviewImage -> {
-                previewBitmapCallback?.invoke(event.bitmap)
+                onPreviewBitmapChange(event.bitmap)
             }
-            is GenerationEvent.ImageGenerated -> {
-                // For video, ImageGenerated event is used since we parse history the same way
-                videoFetchedCallback?.invoke(event.promptId)
+            is GenerationEvent.VideoGenerated -> {
+                fetchGeneratedVideo(event.promptId)
+            }
+            is GenerationEvent.ConnectionLostDuringGeneration -> {
+                viewModelScope.launch {
+                    val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
+                        ?: "Connection lost. Will check for completion when reconnected."
+                    _events.emit(TextToVideoEvent.ShowToastMessage(message))
+                }
+                // DON'T clear state - generation may still be running on server
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
                     _events.emit(TextToVideoEvent.ShowToastMessage(event.message))
                 }
-                generationViewModelRef?.completeGeneration()
+                // DON'T call completeGeneration() here - this may just be a connection error
+                // The server might still complete the generation
             }
             else -> {}
+        }
+    }
+
+    /**
+     * Fetch the generated video from the server and update the UI state.
+     * Called when VideoGenerated event is received.
+     */
+    private fun fetchGeneratedVideo(promptId: String) {
+        val context = applicationContext ?: return
+        val client = comfyUIClient ?: return
+
+        VideoUtils.fetchVideoFromHistory(
+            context = context,
+            client = client,
+            promptId = promptId,
+            filePrefix = VideoUtils.FilePrefix.TEXT_TO_VIDEO
+        ) { uri ->
+            if (uri != null) {
+                // Clear preview bitmap so video player takes display precedence
+                _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null)
+                generationViewModelRef?.completeGeneration()
+            }
+            // If uri is null, don't complete generation - will retry on next return
         }
     }
 }

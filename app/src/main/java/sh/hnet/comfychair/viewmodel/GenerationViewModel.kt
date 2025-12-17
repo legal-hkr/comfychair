@@ -30,7 +30,8 @@ data class GenerationState(
     val promptId: String? = null,
     val progress: Int = 0,
     val maxProgress: Int = 100,
-    val ownerId: String? = null
+    val ownerId: String? = null,
+    val contentType: ContentType = ContentType.IMAGE
 )
 
 /**
@@ -45,6 +46,14 @@ enum class ConnectionStatus {
 }
 
 /**
+ * Content type for generation (determines which event to dispatch on completion)
+ */
+enum class ContentType {
+    IMAGE,
+    VIDEO
+}
+
+/**
  * One-time events emitted during generation
  */
 sealed class GenerationEvent {
@@ -53,6 +62,7 @@ sealed class GenerationEvent {
     data class PreviewImage(val bitmap: Bitmap) : GenerationEvent()
     data class Error(val message: String) : GenerationEvent()
     data object GenerationCancelled : GenerationEvent()
+    data object ConnectionLostDuringGeneration : GenerationEvent()
 }
 
 /**
@@ -91,12 +101,14 @@ class GenerationViewModel : ViewModel() {
     private var activeEventHandler: ((GenerationEvent) -> Unit)? = null
     private var activeEventHandlerOwnerId: String? = null  // Track who registered the handler
     private var generationOwnerId: String? = null
-    private var pendingCompletion: GenerationEvent.ImageGenerated? = null
+    private var pendingCompletion: GenerationEvent? = null  // ImageGenerated or VideoGenerated
 
     companion object {
         private const val PREFS_NAME = "GenerationViewModelPrefs"
         private const val PREF_IS_GENERATING = "isGenerating"
         private const val PREF_CURRENT_PROMPT_ID = "currentPromptId"
+        private const val PREF_OWNER_ID = "ownerId"
+        private const val PREF_CONTENT_TYPE = "contentType"
         private const val KEEPALIVE_INTERVAL_MS = 30000L
     }
 
@@ -193,7 +205,7 @@ class GenerationViewModel : ViewModel() {
             viewModelScope.launch {
                 handler(event)
             }
-        } else if (event is GenerationEvent.ImageGenerated) {
+        } else if (event is GenerationEvent.ImageGenerated || event is GenerationEvent.VideoGenerated) {
             // Store completion for when owner screen returns
             pendingCompletion = event
         }
@@ -240,6 +252,11 @@ class GenerationViewModel : ViewModel() {
 
                 // Start background gallery preloading
                 GalleryRepository.getInstance().startBackgroundPreload()
+
+                // If there's a pending generation, check if it completed while we were disconnected
+                if (_generationState.value.isGenerating) {
+                    checkServerForCompletion { _, _ -> }
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -254,8 +271,10 @@ class GenerationViewModel : ViewModel() {
                 isWebSocketConnected = false
 
                 if (_generationState.value.isGenerating) {
-                    resetGenerationState()
-                    dispatchEvent(GenerationEvent.Error(applicationContext?.getString(R.string.error_connection_lost) ?: "Connection lost during generation"))
+                    // DON'T reset generation state - generation may still be running on server
+                    // Save state so we can recover after reconnect
+                    applicationContext?.let { saveGenerationState(it) }
+                    dispatchEvent(GenerationEvent.ConnectionLostDuringGeneration)
                 }
 
                 scheduleReconnect()
@@ -289,7 +308,13 @@ class GenerationViewModel : ViewModel() {
                     val currentState = _generationState.value
 
                     if (isComplete && promptId == currentState.promptId && promptId != null) {
-                        dispatchEvent(GenerationEvent.ImageGenerated(promptId))
+                        // Dispatch the appropriate event based on content type
+                        val event = if (currentState.contentType == ContentType.VIDEO) {
+                            GenerationEvent.VideoGenerated(promptId)
+                        } else {
+                            GenerationEvent.ImageGenerated(promptId)
+                        }
+                        dispatchEvent(event)
                         // Trigger gallery refresh to include the new item
                         GalleryRepository.getInstance().refresh()
                     }
@@ -343,15 +368,20 @@ class GenerationViewModel : ViewModel() {
         }
     }
 
+    // Content type for current generation (used in submitWorkflow)
+    private var generationContentType: ContentType = ContentType.IMAGE
+
     /**
      * Start generation with the given workflow JSON
      * @param workflowJson The workflow JSON to submit
      * @param ownerId The ID of the screen/ViewModel that owns this generation (e.g., "TEXT_TO_IMAGE")
+     * @param contentType The type of content being generated (IMAGE or VIDEO)
      * @param onResult Callback with result
      */
     fun startGeneration(
         workflowJson: String,
         ownerId: String,
+        contentType: ContentType = ContentType.IMAGE,
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
         val client = comfyUIClient ?: run {
@@ -359,8 +389,9 @@ class GenerationViewModel : ViewModel() {
             return
         }
 
-        // Store the owner before starting generation
+        // Store the owner and content type before starting generation
         generationOwnerId = ownerId
+        generationContentType = contentType
 
         if (!isWebSocketConnected) {
             reconnectWebSocket()
@@ -394,8 +425,11 @@ class GenerationViewModel : ViewModel() {
                     promptId = promptId,
                     progress = 0,
                     maxProgress = 100,
-                    ownerId = generationOwnerId
+                    ownerId = generationOwnerId,
+                    contentType = generationContentType
                 )
+                // Save state immediately after starting
+                applicationContext?.let { saveGenerationState(it) }
                 onResult(true, promptId, null)
             } else {
                 onResult(false, null, errorMessage)
@@ -493,7 +527,57 @@ class GenerationViewModel : ViewModel() {
         prefs.edit().apply {
             putBoolean(PREF_IS_GENERATING, state.isGenerating)
             putString(PREF_CURRENT_PROMPT_ID, state.promptId)
+            putString(PREF_OWNER_ID, state.ownerId)
+            putString(PREF_CONTENT_TYPE, state.contentType.name)
             apply()
+        }
+    }
+
+    /**
+     * Check server for generation completion.
+     * This is called when returning from background or reconnecting after connection loss.
+     * Queries the server's history API to see if the generation completed while we were away.
+     *
+     * @param onResult Callback with (completed: Boolean, promptId: String?)
+     */
+    fun checkServerForCompletion(onResult: (completed: Boolean, promptId: String?) -> Unit) {
+        val state = _generationState.value
+        if (!state.isGenerating || state.promptId == null) {
+            onResult(false, null)
+            return
+        }
+
+        val client = comfyUIClient ?: run {
+            onResult(false, null)
+            return
+        }
+
+        client.fetchHistory(state.promptId) { historyJson ->
+            if (historyJson == null) {
+                // Couldn't fetch history, generation status unknown
+                onResult(false, state.promptId)
+                return@fetchHistory
+            }
+
+            // Check if the prompt has outputs (generation completed)
+            val promptData = historyJson.optJSONObject(state.promptId)
+            val outputs = promptData?.optJSONObject("outputs")
+
+            if (outputs != null && outputs.length() > 0) {
+                // Generation completed - dispatch appropriate event
+                val event = if (state.contentType == ContentType.VIDEO) {
+                    GenerationEvent.VideoGenerated(state.promptId)
+                } else {
+                    GenerationEvent.ImageGenerated(state.promptId)
+                }
+                dispatchEvent(event)
+                // Trigger gallery refresh
+                GalleryRepository.getInstance().refresh()
+                onResult(true, state.promptId)
+            } else {
+                // Generation still running or no outputs yet
+                onResult(false, state.promptId)
+            }
         }
     }
 
@@ -504,11 +588,24 @@ class GenerationViewModel : ViewModel() {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val isGenerating = prefs.getBoolean(PREF_IS_GENERATING, false)
         val promptId = prefs.getString(PREF_CURRENT_PROMPT_ID, null)
+        val ownerId = prefs.getString(PREF_OWNER_ID, null)
+        val contentTypeName = prefs.getString(PREF_CONTENT_TYPE, null)
+        val contentType = try {
+            contentTypeName?.let { ContentType.valueOf(it) } ?: ContentType.IMAGE
+        } catch (e: IllegalArgumentException) {
+            ContentType.IMAGE
+        }
 
         if (isGenerating && promptId != null) {
+            // Restore internal owner tracking
+            generationOwnerId = ownerId
+            generationContentType = contentType
+
             _generationState.value = GenerationState(
                 isGenerating = true,
-                promptId = promptId
+                promptId = promptId,
+                ownerId = ownerId,
+                contentType = contentType
             )
         }
     }
