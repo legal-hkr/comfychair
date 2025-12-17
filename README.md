@@ -104,8 +104,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd ComfyChair
+   git clone https://github.com/legal-hkr/comfychair.git
+   cd comfychair
    ```
 
 2. Set up your local environment:
@@ -135,7 +135,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 ## Configuration
 
 To connect to your ComfyUI server, you'll need:
-- ComfyUI server URL (e.g., `http://192.168.1.100:8188`)
+- ComfyUI server URL (e.g., `http(s)://192.168.1.100:8188`)
 - Network access between your Android device and the ComfyUI server
 
 ## Tech stack
