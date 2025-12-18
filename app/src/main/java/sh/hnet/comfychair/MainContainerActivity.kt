@@ -9,9 +9,14 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.InpaintingViewModel
+import sh.hnet.comfychair.viewmodel.TextToImageViewModel
+import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 
 /**
  * Container activity that hosts the main navigation graph.
@@ -56,6 +61,15 @@ class MainContainerActivity : ComponentActivity() {
         // Initialize the ViewModel with connection parameters
         generationViewModel.initialize(this, hostname, port)
 
+        // Determine start destination based on active generation owner
+        val startDestination = when (generationViewModel.generationState.value.ownerId) {
+            TextToImageViewModel.OWNER_ID -> MainRoute.TextToImage.route
+            InpaintingViewModel.OWNER_ID -> MainRoute.Inpainting.route
+            TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo.route
+            ImageToVideoViewModel.OWNER_ID -> MainRoute.ImageToVideo.route
+            else -> MainRoute.TextToImage.route
+        }
+
         setContent {
             ComfyChairTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -63,7 +77,8 @@ class MainContainerActivity : ComponentActivity() {
                         generationViewModel = generationViewModel,
                         onNavigateToSettings = { openSettings() },
                         onNavigateToGallery = { openGallery() },
-                        onLogout = { logout() }
+                        onLogout = { logout() },
+                        startDestination = startDestination
                     )
                 }
             }

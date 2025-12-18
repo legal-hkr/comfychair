@@ -123,6 +123,7 @@ class ImageToVideoViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "IMAGE_TO_VIDEO"
         private const val PREFS_NAME = "ImageToVideoFragmentPrefs"
+        private const val LAST_PREVIEW_FILENAME = "itv_last_preview.png"
 
         // Global preferences
         private const val KEY_WORKFLOW = "workflow"
@@ -138,6 +139,7 @@ class ImageToVideoViewModel : ViewModel() {
         loadWorkflows()
         restorePreferences()
         loadSavedSourceImage()
+        restoreLastPreviewImage()
         loadLastGeneratedVideo()
         loadModels()
     }
@@ -734,6 +736,7 @@ class ImageToVideoViewModel : ViewModel() {
 
     fun onPreviewBitmapChange(bitmap: Bitmap) {
         _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
+        saveLastPreviewImage(bitmap)
     }
 
     fun clearPreview() {
@@ -797,6 +800,9 @@ class ImageToVideoViewModel : ViewModel() {
                 // DON'T call completeGeneration() here - this may just be a connection error
                 // The server might still complete the generation
             }
+            is GenerationEvent.ClearPreviewForResume -> {
+                // Don't clear - we want to keep the restored preview visible until video loads
+            }
             else -> {}
         }
     }
@@ -818,9 +824,47 @@ class ImageToVideoViewModel : ViewModel() {
             if (uri != null) {
                 // Clear preview bitmap so video player takes display precedence
                 _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null)
+                deleteLastPreviewImage()
                 generationViewModelRef?.completeGeneration()
             }
             // If uri is null, don't complete generation - will retry on next return
+        }
+    }
+
+    private fun saveLastPreviewImage(bitmap: Bitmap) {
+        val ctx = applicationContext ?: return
+        try {
+            ctx.openFileOutput(LAST_PREVIEW_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+        } catch (_: Exception) {
+            // Failed to save preview image
+        }
+    }
+
+    private fun restoreLastPreviewImage() {
+        val ctx = applicationContext ?: return
+        try {
+            val file = ctx.getFileStreamPath(LAST_PREVIEW_FILENAME)
+            if (file.exists()) {
+                ctx.openFileInput(LAST_PREVIEW_FILENAME).use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    if (bitmap != null) {
+                        _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Failed to restore preview image
+        }
+    }
+
+    private fun deleteLastPreviewImage() {
+        val ctx = applicationContext ?: return
+        try {
+            ctx.getFileStreamPath(LAST_PREVIEW_FILENAME)?.delete()
+        } catch (_: Exception) {
+            // Failed to delete preview image
         }
     }
 }

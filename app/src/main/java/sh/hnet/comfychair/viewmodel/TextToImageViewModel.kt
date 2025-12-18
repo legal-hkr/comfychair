@@ -132,7 +132,7 @@ class TextToImageViewModel : ViewModel() {
         private const val PREF_CHECKPOINT_WORKFLOW = "checkpointWorkflow"
         private const val PREF_UNET_WORKFLOW = "unetWorkflow"
 
-        private const val LAST_IMAGE_FILENAME = "last_generated_image.png"
+        private const val LAST_IMAGE_FILENAME = "tti_last_preview.png"
     }
 
     /**
@@ -634,8 +634,6 @@ class TextToImageViewModel : ViewModel() {
      */
     fun stopListening(generationViewModel: GenerationViewModel) {
         generationViewModel.unregisterEventHandler(OWNER_ID)
-        // Only clear ref if no generation is active (handler was actually unregistered)
-        // If generation is running, the handler is kept and needs the ref
         if (!generationViewModel.generationState.value.isGenerating) {
             if (generationViewModelRef == generationViewModel) {
                 generationViewModelRef = null
@@ -643,20 +641,14 @@ class TextToImageViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Handle generation events from the GenerationViewModel.
-     */
     private fun handleGenerationEvent(event: GenerationEvent) {
         when (event) {
-            is GenerationEvent.PreviewImage -> {
-                onCurrentBitmapChange(event.bitmap)
-            }
+            is GenerationEvent.PreviewImage -> onCurrentBitmapChange(event.bitmap)
             is GenerationEvent.ImageGenerated -> {
                 fetchGeneratedImage(event.promptId) { success ->
                     if (success) {
                         generationViewModelRef?.completeGeneration()
                     }
-                    // If not successful, don't complete - will retry on next return
                 }
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
@@ -665,15 +657,13 @@ class TextToImageViewModel : ViewModel() {
                         ?: "Connection lost. Will check for completion when reconnected."
                     _events.emit(TextToImageEvent.ShowToastMessage(message))
                 }
-                // DON'T clear state - generation may still be running on server
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
                     _events.emit(TextToImageEvent.ShowToastMessage(event.message))
                 }
-                // DON'T call completeGeneration() here - this may just be a connection error
-                // The server might still complete the generation
             }
+            is GenerationEvent.ClearPreviewForResume -> clearPreview()
             else -> {}
         }
     }

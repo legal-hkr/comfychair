@@ -147,6 +147,7 @@ class InpaintingViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "INPAINTING"
         private const val PREFS_NAME = "InpaintingFragmentPrefs"
+        private const val LAST_PREVIEW_FILENAME = "inpainting_last_preview.png"
 
         // Global preferences (shared across workflows)
         private const val PREF_CONFIG_MODE = "config_mode"
@@ -333,7 +334,7 @@ class InpaintingViewModel : ViewModel() {
             }
 
             // Load preview image
-            val previewFile = File(context.filesDir, "inpainting_last_preview.png")
+            val previewFile = File(context.filesDir, LAST_PREVIEW_FILENAME)
             if (previewFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(previewFile.absolutePath)
                 _uiState.value = _uiState.value.copy(previewImage = bitmap)
@@ -1042,7 +1043,7 @@ class InpaintingViewModel : ViewModel() {
                         if (bitmap != null) {
                             // Save to file
                             viewModelScope.launch(Dispatchers.IO) {
-                                val file = File(context.filesDir, "inpainting_last_preview.png")
+                                val file = File(context.filesDir, LAST_PREVIEW_FILENAME)
                                 FileOutputStream(file).use { out ->
                                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                                 }
@@ -1070,6 +1071,7 @@ class InpaintingViewModel : ViewModel() {
 
     fun onPreviewBitmapChange(bitmap: Bitmap) {
         _uiState.value = _uiState.value.copy(previewImage = bitmap)
+        saveLastPreviewImage(bitmap)
     }
 
     fun clearPreview() {
@@ -1141,7 +1143,24 @@ class InpaintingViewModel : ViewModel() {
                 // DON'T call completeGeneration() here - this may just be a connection error
                 // The server might still complete the generation
             }
+            is GenerationEvent.ClearPreviewForResume -> {
+                clearPreview()
+            }
             else -> {}
+        }
+    }
+
+    private fun saveLastPreviewImage(bitmap: Bitmap) {
+        val context = applicationContext ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = File(context.filesDir, LAST_PREVIEW_FILENAME)
+                FileOutputStream(file).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+            } catch (_: Exception) {
+                // Failed to save preview image
+            }
         }
     }
 }

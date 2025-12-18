@@ -65,6 +65,7 @@ sealed class GenerationEvent {
     data class Error(val message: String) : GenerationEvent()
     data object GenerationCancelled : GenerationEvent()
     data object ConnectionLostDuringGeneration : GenerationEvent()
+    data object ClearPreviewForResume : GenerationEvent()
 }
 
 /**
@@ -104,6 +105,8 @@ class GenerationViewModel : ViewModel() {
     private var activeEventHandlerOwnerId: String? = null  // Track who registered the handler
     private var generationOwnerId: String? = null
     private var pendingCompletion: GenerationEvent? = null  // ImageGenerated or VideoGenerated
+    private var bufferedPreview: Bitmap? = null  // Buffer for preview when no handler registered
+    private var pendingClearPreview: Boolean = false  // Buffer for ClearPreviewForResume when no handler
 
     // Polling for completion when resuming a generation
     private var completionPollingJob: Job? = null
@@ -160,15 +163,27 @@ class GenerationViewModel : ViewModel() {
     /**
      * Register an event handler for a specific owner (screen).
      * Only the owner that started generation will receive events.
-     * If there's a pending completion from when the screen was away, it will be delivered.
+     * If there's a buffered preview or pending completion, it will be delivered immediately.
      */
     fun registerEventHandler(ownerId: String, handler: (GenerationEvent) -> Unit) {
         // Only allow registration if this owner started generation OR no generation is active
         if (ownerId == generationOwnerId || generationOwnerId == null) {
             activeEventHandler = handler
-            activeEventHandlerOwnerId = ownerId  // Track who registered the handler
+            activeEventHandlerOwnerId = ownerId
 
-            // If there's a pending completion for this owner, dispatch it now
+            // Deliver pending ClearPreviewForResume if exists (must be before preview delivery)
+            if (pendingClearPreview) {
+                viewModelScope.launch { handler(GenerationEvent.ClearPreviewForResume) }
+                pendingClearPreview = false
+            }
+
+            // Deliver buffered preview if exists
+            bufferedPreview?.let { bitmap ->
+                viewModelScope.launch { handler(GenerationEvent.PreviewImage(bitmap)) }
+                bufferedPreview = null
+            }
+
+            // Deliver pending completion if exists
             pendingCompletion?.let { completion ->
                 viewModelScope.launch { handler(completion) }
                 pendingCompletion = null
@@ -201,24 +216,27 @@ class GenerationViewModel : ViewModel() {
 
     /**
      * Dispatch event to active handler, falling back to SharedFlow.
-     * If no handler is active and this is a completion event, store it for later.
+     * If no handler is active, buffer previews and store completion events for later.
      * Handler is invoked on the main thread to ensure proper UI state updates.
      */
     private fun dispatchEvent(event: GenerationEvent) {
         val handler = activeEventHandler
         if (handler != null) {
-            // Invoke handler on main thread for proper Compose state updates
-            viewModelScope.launch {
-                handler(event)
+            viewModelScope.launch { handler(event) }
+            if (event is GenerationEvent.PreviewImage) {
+                bufferedPreview = null
             }
-        } else if (event is GenerationEvent.ImageGenerated || event is GenerationEvent.VideoGenerated) {
-            // Store completion for when owner screen returns
-            pendingCompletion = event
+        } else {
+            // No handler - buffer for later delivery
+            when (event) {
+                is GenerationEvent.PreviewImage -> bufferedPreview = event.bitmap
+                is GenerationEvent.ImageGenerated, is GenerationEvent.VideoGenerated -> pendingCompletion = event
+                is GenerationEvent.ClearPreviewForResume -> pendingClearPreview = true
+                else -> {}
+            }
         }
         // Also emit to SharedFlow for backwards compatibility
-        viewModelScope.launch {
-            _events.emit(event)
-        }
+        viewModelScope.launch { _events.emit(event) }
     }
 
     /**
@@ -253,15 +271,12 @@ class GenerationViewModel : ViewModel() {
                 reconnectAttempts = 0
                 _connectionStatus.value = ConnectionStatus.CONNECTED
 
-                // Start keepalive
                 startKeepalive()
-
-                // Start background gallery preloading
                 GalleryRepository.getInstance().startBackgroundPreload()
 
-                // If there's a pending generation, check if it completed while we were disconnected
+                // Check if there's a pending generation that completed while we were disconnected
                 if (_generationState.value.isGenerating) {
-                    checkServerForCompletion { _, _ -> }
+                    checkServerForCompletion()
                 }
             }
 
@@ -277,8 +292,6 @@ class GenerationViewModel : ViewModel() {
                 isWebSocketConnected = false
 
                 if (_generationState.value.isGenerating) {
-                    // DON'T reset generation state - generation may still be running on server
-                    // Save state so we can recover after reconnect
                     applicationContext?.let { saveGenerationState(it) }
                     dispatchEvent(GenerationEvent.ConnectionLostDuringGeneration)
                 }
@@ -364,11 +377,10 @@ class GenerationViewModel : ViewModel() {
             try {
                 val pngBytes = bytes.substring(8).toByteArray()
                 val bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
-
                 if (bitmap != null) {
                     dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Failed to decode preview image
             }
         }
@@ -474,6 +486,8 @@ class GenerationViewModel : ViewModel() {
         _generationState.value = GenerationState()
         generationOwnerId = null
         pendingCompletion = null
+        bufferedPreview = null
+        pendingClearPreview = false
         // Clear persisted state to prevent stale "generating" state on app restart
         applicationContext?.let { saveGenerationState(it) }
     }
@@ -612,7 +626,7 @@ class GenerationViewModel : ViewModel() {
                 // History fetch failed - check queue to detect stale state
                 checkIfPromptInQueue(client, state.promptId) { inQueue ->
                     if (inQueue) {
-                        // In queue - start polling for completion
+                        dispatchEvent(GenerationEvent.ClearPreviewForResume)
                         startCompletionPolling(state.promptId, state.contentType)
                         onResult(false, state.promptId)
                     } else {
@@ -623,7 +637,6 @@ class GenerationViewModel : ViewModel() {
                                 dispatchCompletionEvent(state.promptId, state.contentType)
                                 onResult(true, state.promptId)
                             } else {
-                                // Not in queue and not in history = stale state
                                 resetGenerationState()
                                 onResult(false, null)
                             }
@@ -635,18 +648,16 @@ class GenerationViewModel : ViewModel() {
 
             val outputs = historyJson.optJSONObject(state.promptId)?.optJSONObject("outputs")
             if (outputs != null && outputs.length() > 0) {
-                // Generation completed
                 dispatchCompletionEvent(state.promptId, state.contentType)
                 onResult(true, state.promptId)
             } else {
                 // Not in history with outputs - check if still in queue
                 checkIfPromptInQueue(client, state.promptId) { inQueue ->
                     if (inQueue) {
-                        // Still in queue - start polling
+                        dispatchEvent(GenerationEvent.ClearPreviewForResume)
                         startCompletionPolling(state.promptId, state.contentType)
                         onResult(false, state.promptId)
                     } else {
-                        // Not in queue and not in history = stale state
                         resetGenerationState()
                         onResult(false, null)
                     }

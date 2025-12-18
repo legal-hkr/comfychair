@@ -32,6 +32,7 @@ fun MainNavHost(
     onNavigateToSettings: () -> Unit,
     onNavigateToGallery: () -> Unit,
     onLogout: () -> Unit,
+    startDestination: String = MainRoute.TextToImage.route,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
@@ -46,7 +47,7 @@ fun MainNavHost(
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = MainRoute.TextToImage.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(MainRoute.TextToImage.route) {
