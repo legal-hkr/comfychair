@@ -195,8 +195,8 @@
     <string name="workflows_settings_title">Workflows</string>
 
     <!-- Workflow management strings -->
-    <string name="workflow_section_tti_checkpoint">Tekst-na-obraz (Checkpoint)</string>
-    <string name="workflow_section_tti_unet">Tekst-na-obraz (UNET)</string>
+    <string name="workflow_section_tti_checkpoint">Tekst na obraz (Checkpoint)</string>
+    <string name="workflow_section_tti_unet">Tekst na obraz (UNET)</string>
     <string name="workflow_section_iti_checkpoint">Obraz na obraz (Checkpoint)</string>
     <string name="workflow_section_iti_unet">Obraz na obraz (UNET)</string>
     <string name="workflow_section_ttv_unet">Tekst na wideo (UNET)</string>

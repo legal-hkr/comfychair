@@ -41,13 +41,30 @@ class WorkflowParser {
             val inputsJson = nodeJson.optJSONObject("inputs") ?: JSONObject()
             val inputs = parseInputs(inputsJson)
 
-            // Find template input keys in this node (keys that are known template targets)
-            val templateKeys = inputs.keys.filter { key ->
-                TemplateKeyRegistry.isTemplateKey(key)
-            }.toSet()
+            // Find inputs that contain template placeholders like {{positive_prompt}}
+            val templateKeys = mutableSetOf<String>()
+            inputs.forEach { (key, value) ->
+                if (value is InputValue.Literal) {
+                    val stringValue = value.value.toString()
+                    // Check for {{placeholder}} patterns
+                    val placeholderRegex = """\{\{(\w+)\}\}""".toRegex()
+                    val matches = placeholderRegex.findAll(stringValue)
+                    for (match in matches) {
+                        val placeholderName = match.groupValues[1]
+                        // Store the input key that contains a template placeholder
+                        templateKeys.add(key)
+                        // Also track the placeholder name for the graph
+                        allTemplateVars.add(placeholderName)
+                    }
+                }
+            }
 
-            if (templateKeys.isNotEmpty()) {
-                allTemplateVars.addAll(templateKeys)
+            // Also check for keys that are known template targets (for workflows using direct key names)
+            inputs.keys.filter { key ->
+                TemplateKeyRegistry.isTemplateKey(key)
+            }.forEach { key ->
+                templateKeys.add(key)
+                allTemplateVars.add(key)
             }
 
             nodes.add(
