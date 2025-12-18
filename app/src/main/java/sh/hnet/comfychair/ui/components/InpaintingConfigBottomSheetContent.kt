@@ -64,22 +64,32 @@ fun InpaintingConfigBottomSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 24.dp)
     ) {
-        // Title
+        // Negative prompt (per-workflow)
+        OutlinedTextField(
+            value = if (uiState.configMode == InpaintingConfigMode.CHECKPOINT) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
+            onValueChange = if (uiState.configMode == InpaintingConfigMode.CHECKPOINT) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
+            label = { Text(stringResource(R.string.negative_prompt_hint)) },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 4
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Mode label
         Text(
-            text = stringResource(R.string.config_panel_title),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp)
+            text = stringResource(R.string.label_mode),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
         // Mode toggle (Checkpoint / UNET)
         SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             SegmentedButton(
                 selected = uiState.configMode == InpaintingConfigMode.CHECKPOINT,
@@ -97,11 +107,12 @@ fun InpaintingConfigBottomSheetContent(
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         when (uiState.configMode) {
             InpaintingConfigMode.CHECKPOINT -> {
                 CheckpointModeContent(
                     uiState = uiState,
-                    onNegativePromptChange = onCheckpointNegativePromptChange,
                     onWorkflowChange = onCheckpointWorkflowChange,
                     onCheckpointChange = onCheckpointChange,
                     onMegapixelsChange = onMegapixelsChange,
@@ -118,7 +129,6 @@ fun InpaintingConfigBottomSheetContent(
             InpaintingConfigMode.UNET -> {
                 UnetModeContent(
                     uiState = uiState,
-                    onNegativePromptChange = onUnetNegativePromptChange,
                     onWorkflowChange = onUnetWorkflowChange,
                     onUnetChange = onUnetChange,
                     onVaeChange = onVaeChange,
@@ -140,7 +150,6 @@ fun InpaintingConfigBottomSheetContent(
 @Composable
 private fun CheckpointModeContent(
     uiState: InpaintingUiState,
-    onNegativePromptChange: (String) -> Unit,
     onWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
@@ -153,18 +162,6 @@ private fun CheckpointModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
-    // Negative prompt (per-workflow)
-    OutlinedTextField(
-        value = uiState.checkpointNegativePrompt,
-        onValueChange = onNegativePromptChange,
-        label = { Text(stringResource(R.string.negative_prompt_hint)) },
-        modifier = Modifier.fillMaxWidth(),
-        minLines = 2,
-        maxLines = 4
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
     // Workflow dropdown
     ModelDropdown(
         label = stringResource(R.string.label_workflow),
@@ -269,7 +266,6 @@ private fun CheckpointModeContent(
 @Composable
 private fun UnetModeContent(
     uiState: InpaintingUiState,
-    onNegativePromptChange: (String) -> Unit,
     onWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -283,18 +279,6 @@ private fun UnetModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
-    // Negative prompt (per-workflow)
-    OutlinedTextField(
-        value = uiState.unetNegativePrompt,
-        onValueChange = onNegativePromptChange,
-        label = { Text(stringResource(R.string.negative_prompt_hint)) },
-        modifier = Modifier.fillMaxWidth(),
-        minLines = 2,
-        maxLines = 4
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
     // Workflow dropdown
     ModelDropdown(
         label = stringResource(R.string.label_workflow),
