@@ -467,6 +467,8 @@ class GenerationViewModel : ViewModel() {
         _generationState.value = GenerationState()
         generationOwnerId = null
         pendingCompletion = null
+        // Clear persisted state to prevent stale "generating" state on app restart
+        applicationContext?.let { saveGenerationState(it) }
     }
 
     /**
@@ -559,9 +561,17 @@ class GenerationViewModel : ViewModel() {
                 return@fetchHistory
             }
 
-            // Check if the prompt has outputs (generation completed)
+            // Check if the prompt exists in history
             val promptData = historyJson.optJSONObject(state.promptId)
-            val outputs = promptData?.optJSONObject("outputs")
+            if (promptData == null) {
+                // Prompt doesn't exist in history - stale state, clear it
+                resetGenerationState()
+                onResult(false, null)
+                return@fetchHistory
+            }
+
+            // Check if the prompt has outputs (generation completed)
+            val outputs = promptData.optJSONObject("outputs")
 
             if (outputs != null && outputs.length() > 0) {
                 // Generation completed - dispatch appropriate event
@@ -571,6 +581,8 @@ class GenerationViewModel : ViewModel() {
                     GenerationEvent.ImageGenerated(state.promptId)
                 }
                 dispatchEvent(event)
+                // Reset generation state (ViewModels will also call completeGeneration via event)
+                resetGenerationState()
                 // Trigger gallery refresh
                 GalleryRepository.getInstance().refresh()
                 onResult(true, state.promptId)
