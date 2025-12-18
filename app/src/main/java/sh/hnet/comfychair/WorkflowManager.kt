@@ -366,8 +366,8 @@ class WorkflowManager(private val context: Context) {
             }
         }
 
-        // Get required keys for this workflow type
-        val requiredKeys = TemplateKeyRegistry.getKeysForType(type)
+        // Get required keys for this workflow type (excludes graph-traced keys like positive_text/negative_text)
+        val requiredKeys = TemplateKeyRegistry.getDirectKeysForType(type)
         val missingKeys = requiredKeys.filter { it !in presentKeys }
 
         // Also check for required patterns (like uploaded_image.png for inpainting)

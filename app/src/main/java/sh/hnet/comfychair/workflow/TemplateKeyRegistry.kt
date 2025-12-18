@@ -67,7 +67,14 @@ object TemplateKeyRegistry {
     val ALL_TEMPLATE_KEYS: Set<String> = PLACEHOLDER_TO_KEY.values.toSet()
 
     /**
-     * Required keys per workflow type (derived from WorkflowManager.REQUIRED_PLACEHOLDERS)
+     * Keys that require graph tracing to find (not direct JSON key lookups).
+     * These are excluded from simple key validation but included in field mapping.
+     */
+    val GRAPH_TRACED_KEYS: Set<String> = setOf("positive_text", "negative_text")
+
+    /**
+     * Required keys per workflow type for field mapping.
+     * Includes both direct keys and graph-traced keys.
      */
     private val KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
         WorkflowType.TTI_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
@@ -77,6 +84,13 @@ object TemplateKeyRegistry {
         WorkflowType.TTV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
         WorkflowType.ITV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps", "image")
     )
+
+    /**
+     * Get the set of required keys for simple key validation (excludes graph-traced keys).
+     */
+    fun getDirectKeysForType(type: WorkflowType): Set<String> {
+        return (KEYS_BY_TYPE[type] ?: emptySet()) - GRAPH_TRACED_KEYS
+    }
 
     /**
      * Get the set of required input keys for a workflow type
