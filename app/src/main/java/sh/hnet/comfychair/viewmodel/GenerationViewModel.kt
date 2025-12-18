@@ -5,7 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -103,6 +105,9 @@ class GenerationViewModel : ViewModel() {
     private var generationOwnerId: String? = null
     private var pendingCompletion: GenerationEvent? = null  // ImageGenerated or VideoGenerated
 
+    // Polling for completion when resuming a generation
+    private var completionPollingJob: Job? = null
+
     companion object {
         private const val PREFS_NAME = "GenerationViewModelPrefs"
         private const val PREF_IS_GENERATING = "isGenerating"
@@ -110,6 +115,7 @@ class GenerationViewModel : ViewModel() {
         private const val PREF_OWNER_ID = "ownerId"
         private const val PREF_CONTENT_TYPE = "contentType"
         private const val KEEPALIVE_INTERVAL_MS = 30000L
+        private const val COMPLETION_POLLING_INTERVAL_MS = 3000L
     }
 
     /**
@@ -464,11 +470,60 @@ class GenerationViewModel : ViewModel() {
      * Reset generation state
      */
     private fun resetGenerationState() {
+        stopCompletionPolling()
         _generationState.value = GenerationState()
         generationOwnerId = null
         pendingCompletion = null
         // Clear persisted state to prevent stale "generating" state on app restart
         applicationContext?.let { saveGenerationState(it) }
+    }
+
+    /**
+     * Start polling for generation completion.
+     * Used when resuming a generation after app restart, since WebSocket
+     * won't receive progress updates for jobs submitted with a different client ID.
+     */
+    private fun startCompletionPolling(promptId: String, contentType: ContentType) {
+        if (completionPollingJob?.isActive == true) return
+
+        completionPollingJob = viewModelScope.launch {
+            while (isActive) {
+                delay(COMPLETION_POLLING_INTERVAL_MS)
+                if (!isActive) break
+                pollForCompletion(promptId, contentType)
+            }
+        }
+    }
+
+    /**
+     * Stop polling for generation completion
+     */
+    private fun stopCompletionPolling() {
+        completionPollingJob?.cancel()
+        completionPollingJob = null
+    }
+
+    /**
+     * Poll the server to check if generation has completed
+     */
+    private fun pollForCompletion(promptId: String, contentType: ContentType) {
+        val client = comfyUIClient ?: return
+
+        client.fetchHistory(promptId) { historyJson ->
+            if (historyJson == null) return@fetchHistory
+
+            val outputs = historyJson.optJSONObject(promptId)?.optJSONObject("outputs")
+            if (outputs != null && outputs.length() > 0) {
+                val event = if (contentType == ContentType.VIDEO) {
+                    GenerationEvent.VideoGenerated(promptId)
+                } else {
+                    GenerationEvent.ImageGenerated(promptId)
+                }
+                dispatchEvent(event)
+                completeGeneration()
+                GalleryRepository.getInstance().refresh()
+            }
+        }
     }
 
     /**
@@ -524,9 +579,8 @@ class GenerationViewModel : ViewModel() {
      * Save generation state to SharedPreferences
      */
     fun saveGenerationState(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val state = _generationState.value
-        prefs.edit().apply {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
             putBoolean(PREF_IS_GENERATING, state.isGenerating)
             putString(PREF_CURRENT_PROMPT_ID, state.promptId)
             putString(PREF_OWNER_ID, state.ownerId)
@@ -537,12 +591,11 @@ class GenerationViewModel : ViewModel() {
 
     /**
      * Check server for generation completion.
-     * This is called when returning from background or reconnecting after connection loss.
+     * Called when returning from background or reconnecting after connection loss.
      * Queries the server's history API to see if the generation completed while we were away.
-     *
-     * @param onResult Callback with (completed: Boolean, promptId: String?)
+     * If not in history, checks the queue to determine if still running or truly stale.
      */
-    fun checkServerForCompletion(onResult: (completed: Boolean, promptId: String?) -> Unit) {
+    fun checkServerForCompletion(onResult: (completed: Boolean, promptId: String?) -> Unit = { _, _ -> }) {
         val state = _generationState.value
         if (!state.isGenerating || state.promptId == null) {
             onResult(false, null)
@@ -556,40 +609,106 @@ class GenerationViewModel : ViewModel() {
 
         client.fetchHistory(state.promptId) { historyJson ->
             if (historyJson == null) {
-                // Couldn't fetch history, generation status unknown
-                onResult(false, state.promptId)
-                return@fetchHistory
-            }
-
-            // Check if the prompt exists in history
-            val promptData = historyJson.optJSONObject(state.promptId)
-            if (promptData == null) {
-                // Prompt doesn't exist in history - stale state, clear it
-                resetGenerationState()
-                onResult(false, null)
-                return@fetchHistory
-            }
-
-            // Check if the prompt has outputs (generation completed)
-            val outputs = promptData.optJSONObject("outputs")
-
-            if (outputs != null && outputs.length() > 0) {
-                // Generation completed - dispatch appropriate event
-                val event = if (state.contentType == ContentType.VIDEO) {
-                    GenerationEvent.VideoGenerated(state.promptId)
-                } else {
-                    GenerationEvent.ImageGenerated(state.promptId)
+                // History fetch failed - check queue to detect stale state
+                checkIfPromptInQueue(client, state.promptId) { inQueue ->
+                    if (inQueue) {
+                        // In queue - start polling for completion
+                        startCompletionPolling(state.promptId, state.contentType)
+                        onResult(false, state.promptId)
+                    } else {
+                        // Not in queue - retry history check in case it just completed
+                        client.fetchHistory(state.promptId) { retryHistoryJson ->
+                            val retryOutputs = retryHistoryJson?.optJSONObject(state.promptId)?.optJSONObject("outputs")
+                            if (retryOutputs != null && retryOutputs.length() > 0) {
+                                dispatchCompletionEvent(state.promptId, state.contentType)
+                                onResult(true, state.promptId)
+                            } else {
+                                // Not in queue and not in history = stale state
+                                resetGenerationState()
+                                onResult(false, null)
+                            }
+                        }
+                    }
                 }
-                dispatchEvent(event)
-                // Reset generation state (ViewModels will also call completeGeneration via event)
-                resetGenerationState()
-                // Trigger gallery refresh
-                GalleryRepository.getInstance().refresh()
+                return@fetchHistory
+            }
+
+            val outputs = historyJson.optJSONObject(state.promptId)?.optJSONObject("outputs")
+            if (outputs != null && outputs.length() > 0) {
+                // Generation completed
+                dispatchCompletionEvent(state.promptId, state.contentType)
                 onResult(true, state.promptId)
             } else {
-                // Generation still running or no outputs yet
-                onResult(false, state.promptId)
+                // Not in history with outputs - check if still in queue
+                checkIfPromptInQueue(client, state.promptId) { inQueue ->
+                    if (inQueue) {
+                        // Still in queue - start polling
+                        startCompletionPolling(state.promptId, state.contentType)
+                        onResult(false, state.promptId)
+                    } else {
+                        // Not in queue and not in history = stale state
+                        resetGenerationState()
+                        onResult(false, null)
+                    }
+                }
             }
+        }
+    }
+
+    /**
+     * Helper to dispatch completion event and clean up state
+     */
+    private fun dispatchCompletionEvent(promptId: String, contentType: ContentType) {
+        val event = if (contentType == ContentType.VIDEO) {
+            GenerationEvent.VideoGenerated(promptId)
+        } else {
+            GenerationEvent.ImageGenerated(promptId)
+        }
+        dispatchEvent(event)
+        completeGeneration()
+        GalleryRepository.getInstance().refresh()
+    }
+
+    /**
+     * Check if a prompt is in the ComfyUI queue (either running or pending)
+     */
+    private fun checkIfPromptInQueue(
+        client: ComfyUIClient,
+        promptId: String,
+        callback: (inQueue: Boolean) -> Unit
+    ) {
+        client.fetchQueue { queueJson ->
+            if (queueJson == null) {
+                // Couldn't fetch queue, assume still running to be safe
+                callback(true)
+                return@fetchQueue
+            }
+
+            // Check queue_running array: [[number, prompt_id, {...}], ...]
+            val queueRunning = queueJson.optJSONArray("queue_running")
+            if (queueRunning != null) {
+                for (i in 0 until queueRunning.length()) {
+                    val entry = queueRunning.optJSONArray(i)
+                    if (entry != null && entry.length() > 1 && entry.optString(1) == promptId) {
+                        callback(true)
+                        return@fetchQueue
+                    }
+                }
+            }
+
+            // Check queue_pending array: [[number, prompt_id, {...}], ...]
+            val queuePending = queueJson.optJSONArray("queue_pending")
+            if (queuePending != null) {
+                for (i in 0 until queuePending.length()) {
+                    val entry = queuePending.optJSONArray(i)
+                    if (entry != null && entry.length() > 1 && entry.optString(1) == promptId) {
+                        callback(true)
+                        return@fetchQueue
+                    }
+                }
+            }
+
+            callback(false)
         }
     }
 
@@ -609,10 +728,8 @@ class GenerationViewModel : ViewModel() {
         }
 
         if (isGenerating && promptId != null) {
-            // Restore internal owner tracking
             generationOwnerId = ownerId
             generationContentType = contentType
-
             _generationState.value = GenerationState(
                 isGenerating = true,
                 promptId = promptId,

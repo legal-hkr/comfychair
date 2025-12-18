@@ -691,6 +691,48 @@ class ComfyUIClient(
     }
 
     /**
+     * Fetch the current queue status from the ComfyUI server
+     * Returns both pending and running queue entries
+     *
+     * @param callback Called with the queue JSON containing "queue_running" and "queue_pending" arrays,
+     *                 or null on error
+     */
+    fun fetchQueue(callback: (queueJson: JSONObject?) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(null)
+            return
+        }
+
+        val url = "$baseUrl/queue"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val queueJson = JSONObject(response.body?.string() ?: "{}")
+                            callback(queueJson)
+                        } catch (e: Exception) {
+                            callback(null)
+                        }
+                    } else {
+                        callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Fetch a generated image from the ComfyUI server
      * Downloads and decodes the image into a Bitmap
      *

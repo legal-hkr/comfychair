@@ -108,7 +108,7 @@ class MainContainerActivity : ComponentActivity() {
         super.onResume()
         // Check if there's a pending generation that may have completed while in background
         if (generationViewModel.generationState.value.isGenerating) {
-            generationViewModel.checkServerForCompletion { _, _ -> }
+            generationViewModel.checkServerForCompletion()
         }
     }
 
