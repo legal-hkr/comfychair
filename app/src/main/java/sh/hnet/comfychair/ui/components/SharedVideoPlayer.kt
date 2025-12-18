@@ -63,18 +63,21 @@ object SharedVideoPlayer {
     }
 
     /**
-     * Unregister a consumer. When count reaches 0, schedules a delayed pause
+     * Unregister a consumer. When count reaches 0, schedules a delayed stop
      * to allow for transitions (e.g., switching from preview to fullscreen).
+     * Video is stopped (not paused) so it resets to the beginning on next play.
      */
     fun unregisterConsumer() {
         consumerCount--
         if (consumerCount <= 0) {
             consumerCount = 0
-            // Schedule delayed pause to allow for transitions
+            // Schedule delayed stop to allow for transitions
             pendingStopRunnable?.let { handler.removeCallbacks(it) }
             pendingStopRunnable = Runnable {
                 if (consumerCount == 0) {
-                    exoPlayer?.pause()
+                    // Stop (not pause) so video resets to beginning on next play
+                    exoPlayer?.stop()
+                    currentUri = null  // Clear URI so prepareVideo will reload
                 }
                 pendingStopRunnable = null
             }
@@ -85,7 +88,7 @@ object SharedVideoPlayer {
     /**
      * Prepare a video from the given URI without starting playback.
      * Call startPlayback() after the surface is ready to begin from frame 0.
-     * If the URI is the same as currently loaded, does nothing (video already prepared).
+     * Always resets to the beginning, even if the same URI is already loaded.
      */
     fun prepareVideo(context: Context, uri: Uri) {
         // Cancel any pending stop
@@ -101,6 +104,10 @@ object SharedVideoPlayer {
             player.playWhenReady = false  // Don't auto-play
             player.prepare()
             currentUri = uri
+        } else {
+            // Same video - just reset to beginning and ensure it's ready
+            player.playWhenReady = false
+            player.seekTo(0)
         }
     }
 
