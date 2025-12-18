@@ -32,7 +32,7 @@
 
     <!-- Navigation strings -->
     <string name="nav_text_to_image">文生图</string>
-    <string name="nav_inpainting">图像修复</string>
+    <string name="nav_image_to_image">图生图</string>
     <string name="nav_gallery">图库</string>
 
     <!-- Configuration fragment strings -->
@@ -92,8 +92,8 @@
     <string name="video_parameters_title">视频参数</string>
     <string name="placeholder_video_description">生成的视频将显示在此处</string>
 
-    <!-- Inpainting fragment strings -->
-    <string name="inpainting_title">图像修复</string>
+    <!-- Image-to-image fragment strings -->
+    <string name="image_to_image_title">图生图</string>
     <string name="source_image_tab">原图</string>
     <string name="preview_tab">预览</string>
     <string name="megapixels_label">百万像素</string>
@@ -132,7 +132,7 @@
     <string name="share_image">分享图片</string>
     <string name="share_video">分享视频</string>
 
-    <!-- Inpainting messages -->
+    <!-- Image-to-image messages -->
     <string name="paint_mask_hint">请绘制需要修复的蒙版区域</string>
 
     <!-- Image/Video parameters section -->
@@ -196,8 +196,8 @@
     <!-- Workflow management strings -->
     <string name="workflow_section_tti_checkpoint">文生图 (Checkpoint)</string>
     <string name="workflow_section_tti_unet">文生图 (UNET)</string>
-    <string name="workflow_section_iip_checkpoint">图像修复 (Checkpoint)</string>
-    <string name="workflow_section_iip_unet">图像修复 (UNET)</string>
+    <string name="workflow_section_iti_checkpoint">图生图 (Checkpoint)</string>
+    <string name="workflow_section_iti_unet">图生图 (UNET)</string>
     <string name="workflow_section_ttv_unet">文生视频 (UNET)</string>
     <string name="workflow_section_itv_unet">图生视频 (UNET)</string>
     <string name="workflow_section_empty">暂无工作流</string>

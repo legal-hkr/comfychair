@@ -40,9 +40,9 @@ data class MaskPathData(
 )
 
 /**
- * UI state for inpainting configuration mode
+ * UI state for Image-to-image configuration mode
  */
-enum class InpaintingConfigMode {
+enum class ImageToImageConfigMode {
     CHECKPOINT,
     UNET
 }
@@ -50,17 +50,17 @@ enum class InpaintingConfigMode {
 /**
  * UI state for the view mode toggle
  */
-enum class InpaintingViewMode {
+enum class ImageToImageViewMode {
     SOURCE,
     PREVIEW
 }
 
 /**
- * UI state for the Inpainting screen
+ * UI state for the Image-to-image screen
  */
-data class InpaintingUiState(
+data class ImageToImageUiState(
     // View state
-    val viewMode: InpaintingViewMode = InpaintingViewMode.SOURCE,
+    val viewMode: ImageToImageViewMode = ImageToImageViewMode.SOURCE,
     val sourceImage: Bitmap? = null,
     val previewImage: Bitmap? = null,
     val maskPaths: List<MaskPathData> = emptyList(),
@@ -73,7 +73,7 @@ data class InpaintingUiState(
     val previewImageType: String? = null,
 
     // Configuration mode
-    val configMode: InpaintingConfigMode = InpaintingConfigMode.CHECKPOINT,
+    val configMode: ImageToImageConfigMode = ImageToImageConfigMode.CHECKPOINT,
 
     // Checkpoint mode settings
     val checkpointWorkflows: List<String> = emptyList(),
@@ -118,36 +118,36 @@ data class InpaintingUiState(
 )
 
 /**
- * Events emitted by the inpainting screen
+ * Events emitted by the Image-to-image screen
  */
-sealed class InpaintingEvent {
-    data class ShowToast(val messageResId: Int) : InpaintingEvent()
-    data class ShowToastMessage(val message: String) : InpaintingEvent()
+sealed class ImageToImageEvent {
+    data class ShowToast(val messageResId: Int) : ImageToImageEvent()
+    data class ShowToastMessage(val message: String) : ImageToImageEvent()
 }
 
 /**
- * ViewModel for the Inpainting screen
+ * ViewModel for the Image-to-image screen
  */
-class InpaintingViewModel : ViewModel() {
+class ImageToImageViewModel : ViewModel() {
 
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
     private var workflowManager: WorkflowManager? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
 
-    private val _uiState = MutableStateFlow(InpaintingUiState())
-    val uiState: StateFlow<InpaintingUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(ImageToImageUiState())
+    val uiState: StateFlow<ImageToImageUiState> = _uiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<InpaintingEvent>()
-    val events: SharedFlow<InpaintingEvent> = _events.asSharedFlow()
+    private val _events = MutableSharedFlow<ImageToImageEvent>()
+    val events: SharedFlow<ImageToImageEvent> = _events.asSharedFlow()
 
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
     companion object {
-        const val OWNER_ID = "INPAINTING"
-        private const val PREFS_NAME = "InpaintingFragmentPrefs"
-        private const val LAST_PREVIEW_FILENAME = "inpainting_last_preview.png"
+        const val OWNER_ID = "IMAGE_TO_IMAGE"
+        private const val PREFS_NAME = "ImageToImageFragmentPrefs"
+        private const val LAST_PREVIEW_FILENAME = "iti_last_preview.png"
 
         // Global preferences (shared across workflows)
         private const val PREF_CONFIG_MODE = "config_mode"
@@ -172,8 +172,8 @@ class InpaintingViewModel : ViewModel() {
     private fun loadWorkflowOptions() {
         val wm = workflowManager ?: return
 
-        val checkpointWorkflows = wm.getInpaintingCheckpointWorkflowNames()
-        val unetWorkflows = wm.getInpaintingUNETWorkflowNames()
+        val checkpointWorkflows = wm.getImageToImageCheckpointWorkflowNames()
+        val unetWorkflows = wm.getImageToImageUNETWorkflowNames()
 
         _uiState.value = _uiState.value.copy(
             checkpointWorkflows = checkpointWorkflows,
@@ -199,12 +199,12 @@ class InpaintingViewModel : ViewModel() {
 
         val configModeStr = prefs.getString(PREF_CONFIG_MODE, "CHECKPOINT") ?: "CHECKPOINT"
         val configMode = try {
-            InpaintingConfigMode.valueOf(configModeStr)
+            ImageToImageConfigMode.valueOf(configModeStr)
         } catch (e: Exception) {
-            InpaintingConfigMode.CHECKPOINT
+            ImageToImageConfigMode.CHECKPOINT
         }
 
-        val defaultPositivePrompt = context.getString(R.string.default_prompt_inpainting)
+        val defaultPositivePrompt = context.getString(R.string.default_prompt_image_to_image)
 
         // Load global preferences
         val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
@@ -327,7 +327,7 @@ class InpaintingViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             // Load source image
-            val sourceFile = File(context.filesDir, "inpainting_last_source.png")
+            val sourceFile = File(context.filesDir, "iti_last_source.png")
             if (sourceFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath)
                 _uiState.value = _uiState.value.copy(sourceImage = bitmap)
@@ -403,7 +403,7 @@ class InpaintingViewModel : ViewModel() {
     }
 
     // View mode
-    fun onViewModeChange(mode: InpaintingViewMode) {
+    fun onViewModeChange(mode: ImageToImageViewMode) {
         _uiState.value = _uiState.value.copy(viewMode = mode)
     }
 
@@ -417,7 +417,7 @@ class InpaintingViewModel : ViewModel() {
 
                 if (bitmap != null) {
                     // Save to file
-                    val file = File(context.filesDir, "inpainting_last_source.png")
+                    val file = File(context.filesDir, "iti_last_source.png")
                     FileOutputStream(file).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
@@ -428,7 +428,7 @@ class InpaintingViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                _events.emit(InpaintingEvent.ShowToast(R.string.failed_save_image))
+                _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
             }
         }
     }
@@ -583,7 +583,7 @@ class InpaintingViewModel : ViewModel() {
     }
 
     // Config mode
-    fun onConfigModeChange(mode: InpaintingConfigMode) {
+    fun onConfigModeChange(mode: ImageToImageConfigMode) {
         _uiState.value = _uiState.value.copy(configMode = mode)
         savePreferences()
     }
@@ -647,7 +647,7 @@ class InpaintingViewModel : ViewModel() {
         val error = validateCfg(cfg)
         _uiState.value = _uiState.value.copy(
             checkpointCfg = cfg,
-            cfgError = if (_uiState.value.configMode == InpaintingConfigMode.CHECKPOINT) error else _uiState.value.cfgError
+            cfgError = if (_uiState.value.configMode == ImageToImageConfigMode.CHECKPOINT) error else _uiState.value.cfgError
         )
         savePreferences()
     }
@@ -722,7 +722,7 @@ class InpaintingViewModel : ViewModel() {
         val error = validateCfg(cfg)
         _uiState.value = _uiState.value.copy(
             unetCfg = cfg,
-            cfgError = if (_uiState.value.configMode == InpaintingConfigMode.UNET) error else _uiState.value.cfgError
+            cfgError = if (_uiState.value.configMode == ImageToImageConfigMode.UNET) error else _uiState.value.cfgError
         )
         savePreferences()
     }
@@ -858,7 +858,7 @@ class InpaintingViewModel : ViewModel() {
         val state = _uiState.value
 
         return when (state.configMode) {
-            InpaintingConfigMode.CHECKPOINT -> {
+            ImageToImageConfigMode.CHECKPOINT -> {
                 state.selectedCheckpointWorkflow.isNotEmpty() &&
                 state.selectedCheckpoint.isNotEmpty() &&
                 state.megapixels.toFloatOrNull() != null &&
@@ -866,7 +866,7 @@ class InpaintingViewModel : ViewModel() {
                 state.checkpointSteps.toIntOrNull() != null &&
                 validateCfg(state.checkpointCfg) == null
             }
-            InpaintingConfigMode.UNET -> {
+            ImageToImageConfigMode.UNET -> {
                 state.selectedUnetWorkflow.isNotEmpty() &&
                 state.selectedUnet.isNotEmpty() &&
                 state.selectedVae.isNotEmpty() &&
@@ -891,7 +891,7 @@ class InpaintingViewModel : ViewModel() {
         // Generate mask
         val maskBitmap = generateMaskBitmap()
         if (maskBitmap == null) {
-            _events.emit(InpaintingEvent.ShowToast(R.string.paint_mask_hint))
+            _events.emit(ImageToImageEvent.ShowToast(R.string.paint_mask_hint))
             return null
         }
 
@@ -918,14 +918,14 @@ class InpaintingViewModel : ViewModel() {
         }
 
         if (uploadedFilename == null) {
-            _events.emit(InpaintingEvent.ShowToast(R.string.failed_save_image))
+            _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
             return null
         }
 
         // Prepare workflow JSON
         val baseWorkflow = when (state.configMode) {
-            InpaintingConfigMode.CHECKPOINT -> {
-                wm.prepareInpaintingWorkflow(
+            ImageToImageConfigMode.CHECKPOINT -> {
+                wm.prepareImageToImageWorkflow(
                     workflowName = state.selectedCheckpointWorkflow,
                     positivePrompt = state.positivePrompt,
                     negativePrompt = state.checkpointNegativePrompt,
@@ -938,8 +938,8 @@ class InpaintingViewModel : ViewModel() {
                     imageFilename = uploadedFilename
                 )
             }
-            InpaintingConfigMode.UNET -> {
-                wm.prepareInpaintingWorkflow(
+            ImageToImageConfigMode.UNET -> {
+                wm.prepareImageToImageWorkflow(
                     workflowName = state.selectedUnetWorkflow,
                     positivePrompt = state.positivePrompt,
                     negativePrompt = state.unetNegativePrompt,
@@ -956,12 +956,12 @@ class InpaintingViewModel : ViewModel() {
         } ?: return null
 
         // Inject LoRA chain if configured (use appropriate chain based on mode)
-        val workflowType = if (state.configMode == InpaintingConfigMode.CHECKPOINT) {
-            WorkflowType.IIP_CHECKPOINT
+        val workflowType = if (state.configMode == ImageToImageConfigMode.CHECKPOINT) {
+            WorkflowType.ITI_CHECKPOINT
         } else {
-            WorkflowType.IIP_UNET
+            WorkflowType.ITI_UNET
         }
-        val loraChain = if (state.configMode == InpaintingConfigMode.CHECKPOINT) {
+        val loraChain = if (state.configMode == ImageToImageConfigMode.CHECKPOINT) {
             state.checkpointLoraChain
         } else {
             state.unetLoraChain
@@ -1053,7 +1053,7 @@ class InpaintingViewModel : ViewModel() {
                                     previewImageFilename = filename,
                                     previewImageSubfolder = subfolder,
                                     previewImageType = type,
-                                    viewMode = InpaintingViewMode.PREVIEW
+                                    viewMode = ImageToImageViewMode.PREVIEW
                                 )
                                 onComplete(true)
                             }
@@ -1095,7 +1095,7 @@ class InpaintingViewModel : ViewModel() {
         // If generation is running for this screen, switch to preview mode
         val state = generationViewModel.generationState.value
         if (state.isGenerating && state.ownerId == OWNER_ID) {
-            _uiState.value = _uiState.value.copy(viewMode = InpaintingViewMode.PREVIEW)
+            _uiState.value = _uiState.value.copy(viewMode = ImageToImageViewMode.PREVIEW)
         }
 
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
@@ -1139,13 +1139,13 @@ class InpaintingViewModel : ViewModel() {
                 viewModelScope.launch {
                     val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
-                    _events.emit(InpaintingEvent.ShowToastMessage(message))
+                    _events.emit(ImageToImageEvent.ShowToastMessage(message))
                 }
                 // DON'T clear state - generation may still be running on server
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
-                    _events.emit(InpaintingEvent.ShowToastMessage(event.message))
+                    _events.emit(ImageToImageEvent.ShowToastMessage(event.message))
                 }
                 // DON'T call completeGeneration() here - this may just be a connection error
                 // The server might still complete the generation

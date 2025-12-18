@@ -14,8 +14,8 @@ import java.io.InputStream
 enum class WorkflowType {
     TTI_CHECKPOINT,    // Text-to-Image Checkpoint
     TTI_UNET,          // Text-to-Image UNET
-    IIP_CHECKPOINT,    // Inpainting Checkpoint
-    IIP_UNET,          // Inpainting UNET
+    ITI_CHECKPOINT,    // Image-to-Image Checkpoint
+    ITI_UNET,          // Image-to-Image UNET
     TTV_UNET,          // Text-to-Video UNET
     ITV_UNET           // Image-to-Video UNET
 }
@@ -68,10 +68,10 @@ class WorkflowManager(private val context: Context) {
                 "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}",
                 "{{width}}", "{{height}}", "{{steps}}"
             ),
-            WorkflowType.IIP_CHECKPOINT to listOf(
+            WorkflowType.ITI_CHECKPOINT to listOf(
                 "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{megapixels}}", "{{steps}}"
             ),
-            WorkflowType.IIP_UNET to listOf(
+            WorkflowType.ITI_UNET to listOf(
                 "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
             ),
             WorkflowType.TTV_UNET to listOf(
@@ -89,16 +89,16 @@ class WorkflowManager(private val context: Context) {
 
         // Required patterns (not placeholders but literal strings that must exist)
         val REQUIRED_PATTERNS = mapOf(
-            WorkflowType.IIP_CHECKPOINT to listOf("uploaded_image.png [input]"),
-            WorkflowType.IIP_UNET to listOf("uploaded_image.png [input]")
+            WorkflowType.ITI_CHECKPOINT to listOf("uploaded_image.png [input]"),
+            WorkflowType.ITI_UNET to listOf("uploaded_image.png [input]")
         )
 
         // Filename prefix to type mapping
         val PREFIX_TO_TYPE = mapOf(
             "tti_checkpoint_" to WorkflowType.TTI_CHECKPOINT,
             "tti_unet_" to WorkflowType.TTI_UNET,
-            "iip_checkpoint_" to WorkflowType.IIP_CHECKPOINT,
-            "iip_unet_" to WorkflowType.IIP_UNET,
+            "iti_checkpoint_" to WorkflowType.ITI_CHECKPOINT,
+            "iti_unet_" to WorkflowType.ITI_UNET,
             "ttv_unet_" to WorkflowType.TTV_UNET,
             "itv_unet_" to WorkflowType.ITV_UNET
         )
@@ -138,8 +138,8 @@ class WorkflowManager(private val context: Context) {
             R.raw.tti_checkpoint_sdxl_upscaler_latent,
             R.raw.tti_checkpoint_sdxl,
             R.raw.tti_unet_zimage_turbo,
-            R.raw.iip_checkpoint_sd_sdxl,
-            R.raw.iip_unet_zimage_turbo,
+            R.raw.iti_checkpoint_sd_sdxl,
+            R.raw.iti_unet_zimage_turbo,
             R.raw.ttv_unet_wan22_lightx2v,
             R.raw.itv_unet_wan22_lightx2v
         )
@@ -265,8 +265,8 @@ class WorkflowManager(private val context: Context) {
             classType.equals("LoadImage", ignoreCase = true)
         }
 
-        // Check for inpainting indicators
-        val hasInpaintingNodes = classTypes.any { classType ->
+        // Check for Image-to-image indicators (inpainting nodes in ComfyUI)
+        val hasImageToImageNodes = classTypes.any { classType ->
             classType.contains("SetLatentNoiseMask", ignoreCase = true) ||
             classType.contains("InpaintModel", ignoreCase = true) ||
             classType.contains("Inpaint", ignoreCase = true)
@@ -290,15 +290,15 @@ class WorkflowManager(private val context: Context) {
             // Text-to-video: has video nodes but no LoadImage
             hasVideoNodes -> WorkflowType.TTV_UNET
 
-            // Inpainting with checkpoint
-            hasInpaintingNodes && hasCheckpointLoader -> WorkflowType.IIP_CHECKPOINT
+            // Image-to-image with checkpoint
+            hasImageToImageNodes && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
 
-            // Inpainting with UNET
-            hasInpaintingNodes && hasUNETLoader -> WorkflowType.IIP_UNET
+            // Image-to-image with UNET
+            hasImageToImageNodes && hasUNETLoader -> WorkflowType.ITI_UNET
 
-            // Inpainting with LoadImage (fallback)
-            hasLoadImage && hasCheckpointLoader -> WorkflowType.IIP_CHECKPOINT
-            hasLoadImage && hasUNETLoader -> WorkflowType.IIP_UNET
+            // Image-to-image with LoadImage (fallback)
+            hasLoadImage && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
+            hasLoadImage && hasUNETLoader -> WorkflowType.ITI_UNET
 
             // Text-to-image checkpoint
             hasCheckpointLoader -> WorkflowType.TTI_CHECKPOINT
@@ -855,17 +855,17 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Get list of inpainting checkpoint workflow names for dropdown
+     * Get list of Image-to-image checkpoint workflow names for dropdown
      */
-    fun getInpaintingCheckpointWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.IIP_CHECKPOINT }.map { it.name }
+    fun getImageToImageCheckpointWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.ITI_CHECKPOINT }.map { it.name }
     }
 
     /**
-     * Get list of inpainting UNET workflow names for dropdown
+     * Get list of Image-to-image UNET workflow names for dropdown
      */
-    fun getInpaintingUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.IIP_UNET }.map { it.name }
+    fun getImageToImageUNETWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.ITI_UNET }.map { it.name }
     }
 
     /**
@@ -920,19 +920,19 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Check if a workflow is an inpainting checkpoint workflow
+     * Check if a workflow is an Image-to-image checkpoint workflow
      */
-    fun isInpaintingCheckpointWorkflow(workflowName: String): Boolean {
+    fun isImageToImageCheckpointWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.type == WorkflowType.IIP_CHECKPOINT
+        return workflow?.type == WorkflowType.ITI_CHECKPOINT
     }
 
     /**
-     * Check if a workflow is an inpainting UNET workflow
+     * Check if a workflow is an Image-to-image UNET workflow
      */
-    fun isInpaintingUNETWorkflow(workflowName: String): Boolean {
+    fun isImageToImageUNETWorkflow(workflowName: String): Boolean {
         val workflow = getWorkflowByName(workflowName)
-        return workflow?.type == WorkflowType.IIP_UNET
+        return workflow?.type == WorkflowType.ITI_UNET
     }
 
     /**
@@ -1074,7 +1074,7 @@ class WorkflowManager(private val context: Context) {
      */
     private fun findModelSourceNode(nodes: JSONObject, workflowType: WorkflowType): String? {
         val targetClassType = when (workflowType) {
-            WorkflowType.TTI_CHECKPOINT, WorkflowType.IIP_CHECKPOINT -> "CheckpointLoaderSimple"
+            WorkflowType.TTI_CHECKPOINT, WorkflowType.ITI_CHECKPOINT -> "CheckpointLoaderSimple"
             else -> "UNETLoader"
         }
 
@@ -1258,9 +1258,9 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Prepare inpainting workflow JSON with actual parameter values
+     * Prepare Image-to-image workflow JSON with actual parameter values
      */
-    fun prepareInpaintingWorkflow(
+    fun prepareImageToImageWorkflow(
         workflowName: String,
         positivePrompt: String,
         negativePrompt: String = "",

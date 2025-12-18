@@ -23,16 +23,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
-import sh.hnet.comfychair.viewmodel.InpaintingConfigMode
-import sh.hnet.comfychair.viewmodel.InpaintingUiState
+import sh.hnet.comfychair.viewmodel.ImageToImageConfigMode
+import sh.hnet.comfychair.viewmodel.ImageToImageUiState
 
 /**
- * Content for the inpainting configuration bottom sheet
+ * Content for the Image-to-image configuration bottom sheet
  */
 @Composable
-fun InpaintingConfigBottomSheetContent(
-    uiState: InpaintingUiState,
-    onConfigModeChange: (InpaintingConfigMode) -> Unit,
+fun ImageToImageConfigBottomSheetContent(
+    uiState: ImageToImageUiState,
+    onConfigModeChange: (ImageToImageConfigMode) -> Unit,
     onCheckpointNegativePromptChange: (String) -> Unit,
     onCheckpointWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
@@ -70,8 +70,8 @@ fun InpaintingConfigBottomSheetContent(
     ) {
         // Negative prompt (per-workflow)
         OutlinedTextField(
-            value = if (uiState.configMode == InpaintingConfigMode.CHECKPOINT) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
-            onValueChange = if (uiState.configMode == InpaintingConfigMode.CHECKPOINT) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
+            value = if (uiState.configMode == ImageToImageConfigMode.CHECKPOINT) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
+            onValueChange = if (uiState.configMode == ImageToImageConfigMode.CHECKPOINT) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
             label = { Text(stringResource(R.string.negative_prompt_hint)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
@@ -92,15 +92,15 @@ fun InpaintingConfigBottomSheetContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             SegmentedButton(
-                selected = uiState.configMode == InpaintingConfigMode.CHECKPOINT,
-                onClick = { onConfigModeChange(InpaintingConfigMode.CHECKPOINT) },
+                selected = uiState.configMode == ImageToImageConfigMode.CHECKPOINT,
+                onClick = { onConfigModeChange(ImageToImageConfigMode.CHECKPOINT) },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
             ) {
                 Text(stringResource(R.string.mode_checkpoint))
             }
             SegmentedButton(
-                selected = uiState.configMode == InpaintingConfigMode.UNET,
-                onClick = { onConfigModeChange(InpaintingConfigMode.UNET) },
+                selected = uiState.configMode == ImageToImageConfigMode.UNET,
+                onClick = { onConfigModeChange(ImageToImageConfigMode.UNET) },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
             ) {
                 Text(stringResource(R.string.mode_unet))
@@ -110,7 +110,7 @@ fun InpaintingConfigBottomSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         when (uiState.configMode) {
-            InpaintingConfigMode.CHECKPOINT -> {
+            ImageToImageConfigMode.CHECKPOINT -> {
                 CheckpointModeContent(
                     uiState = uiState,
                     onWorkflowChange = onCheckpointWorkflowChange,
@@ -126,7 +126,7 @@ fun InpaintingConfigBottomSheetContent(
                     onLoraStrengthChange = onCheckpointLoraStrengthChange
                 )
             }
-            InpaintingConfigMode.UNET -> {
+            ImageToImageConfigMode.UNET -> {
                 UnetModeContent(
                     uiState = uiState,
                     onWorkflowChange = onUnetWorkflowChange,
@@ -149,7 +149,7 @@ fun InpaintingConfigBottomSheetContent(
 
 @Composable
 private fun CheckpointModeContent(
-    uiState: InpaintingUiState,
+    uiState: ImageToImageUiState,
     onWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
@@ -219,8 +219,8 @@ private fun CheckpointModeContent(
             value = uiState.checkpointCfg,
             onValueChange = onCfgChange,
             label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && uiState.configMode == InpaintingConfigMode.CHECKPOINT,
-            supportingText = if (uiState.cfgError != null && uiState.configMode == InpaintingConfigMode.CHECKPOINT) {
+            isError = uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.CHECKPOINT,
+            supportingText = if (uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.CHECKPOINT) {
                 { Text(uiState.cfgError!!) }
             } else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -265,7 +265,7 @@ private fun CheckpointModeContent(
 
 @Composable
 private fun UnetModeContent(
-    uiState: InpaintingUiState,
+    uiState: ImageToImageUiState,
     onWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -343,8 +343,8 @@ private fun UnetModeContent(
             value = uiState.unetCfg,
             onValueChange = onCfgChange,
             label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && uiState.configMode == InpaintingConfigMode.UNET,
-            supportingText = if (uiState.cfgError != null && uiState.configMode == InpaintingConfigMode.UNET) {
+            isError = uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.UNET,
+            supportingText = if (uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.UNET) {
                 { Text(uiState.cfgError!!) }
             } else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

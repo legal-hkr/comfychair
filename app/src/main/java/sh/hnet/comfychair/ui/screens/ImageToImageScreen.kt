@@ -61,20 +61,20 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
-import sh.hnet.comfychair.ui.components.InpaintingConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.ImageToImageConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.MaskEditorDialog
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.InpaintingEvent
-import sh.hnet.comfychair.viewmodel.InpaintingViewMode
-import sh.hnet.comfychair.viewmodel.InpaintingViewModel
+import sh.hnet.comfychair.viewmodel.ImageToImageEvent
+import sh.hnet.comfychair.viewmodel.ImageToImageViewMode
+import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InpaintingScreen(
+fun ImageToImageScreen(
     generationViewModel: GenerationViewModel,
-    inpaintingViewModel: InpaintingViewModel,
+    imageToImageViewModel: ImageToImageViewModel,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -84,11 +84,11 @@ fun InpaintingScreen(
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
-    val uiState by inpaintingViewModel.uiState.collectAsState()
+    val uiState by imageToImageViewModel.uiState.collectAsState()
 
     // Check if THIS screen owns the current generation
     val isThisScreenGenerating = generationState.isGenerating &&
-        generationState.ownerId == InpaintingViewModel.OWNER_ID
+        generationState.ownerId == ImageToImageViewModel.OWNER_ID
 
     var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by remember { mutableStateOf(false) }
@@ -101,33 +101,33 @@ fun InpaintingScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            inpaintingViewModel.onSourceImageChange(context, it)
-            inpaintingViewModel.onViewModeChange(InpaintingViewMode.SOURCE)
+            imageToImageViewModel.onSourceImageChange(context, it)
+            imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
         }
     }
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
         generationViewModel.getClient()?.let { client ->
-            inpaintingViewModel.initialize(context, client)
+            imageToImageViewModel.initialize(context, client)
         }
     }
 
     // Fetch models when connected
     LaunchedEffect(connectionStatus) {
         if (connectionStatus == ConnectionStatus.CONNECTED) {
-            inpaintingViewModel.fetchModels()
+            imageToImageViewModel.fetchModels()
         }
     }
 
-    // Handle inpainting events
+    // Handle Image-to-image events
     LaunchedEffect(Unit) {
-        inpaintingViewModel.events.collect { event ->
+        imageToImageViewModel.events.collect { event ->
             when (event) {
-                is InpaintingEvent.ShowToast -> {
+                is ImageToImageEvent.ShowToast -> {
                     Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                 }
-                is InpaintingEvent.ShowToastMessage -> {
+                is ImageToImageEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }
@@ -136,16 +136,16 @@ fun InpaintingScreen(
 
     // Register event handler when screen is active
     DisposableEffect(Unit) {
-        inpaintingViewModel.startListening(generationViewModel)
+        imageToImageViewModel.startListening(generationViewModel)
         onDispose {
-            inpaintingViewModel.stopListening(generationViewModel)
+            imageToImageViewModel.stopListening(generationViewModel)
         }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with image options
         TopAppBar(
-            title = { Text(stringResource(R.string.inpainting_title)) },
+            title = { Text(stringResource(R.string.image_to_image_title)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
                 // Upload image button
@@ -158,7 +158,7 @@ fun InpaintingScreen(
                         Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_mask))
                     }
                     // Clear mask button
-                    IconButton(onClick = { inpaintingViewModel.clearMask() }) {
+                    IconButton(onClick = { imageToImageViewModel.clearMask() }) {
                         Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_mask))
                     }
                 }
@@ -205,11 +205,11 @@ fun InpaintingScreen(
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(
-                    enabled = (uiState.viewMode == InpaintingViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenGenerating) ||
-                              (uiState.viewMode == InpaintingViewMode.SOURCE && uiState.sourceImage != null),
+                    enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenGenerating) ||
+                              (uiState.viewMode == ImageToImageViewMode.SOURCE && uiState.sourceImage != null),
                     onClick = {
                         when (uiState.viewMode) {
-                            InpaintingViewMode.PREVIEW -> {
+                            ImageToImageViewMode.PREVIEW -> {
                                 // Launch MediaViewer for generated image
                                 uiState.previewImage?.let { bitmap ->
                                     val intent = MediaViewerActivity.createSingleImageIntent(
@@ -224,7 +224,7 @@ fun InpaintingScreen(
                                     context.startActivity(intent)
                                 }
                             }
-                            InpaintingViewMode.SOURCE -> {
+                            ImageToImageViewMode.SOURCE -> {
                                 // Launch MediaViewer for source image (without mask)
                                 uiState.sourceImage?.let { bitmap ->
                                     val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
@@ -237,7 +237,7 @@ fun InpaintingScreen(
             contentAlignment = Alignment.Center
         ) {
             when (uiState.viewMode) {
-                InpaintingViewMode.SOURCE -> {
+                ImageToImageViewMode.SOURCE -> {
                     if (uiState.sourceImage != null) {
                         // Read-only preview of source image with mask overlay
                         MaskPreview(
@@ -265,7 +265,7 @@ fun InpaintingScreen(
                         }
                     }
                 }
-                InpaintingViewMode.PREVIEW -> {
+                ImageToImageViewMode.PREVIEW -> {
                     if (uiState.previewImage != null) {
                         Image(
                             bitmap = uiState.previewImage!!.asImageBitmap(),
@@ -303,15 +303,15 @@ fun InpaintingScreen(
                 .padding(bottom = 16.dp)
         ) {
             SegmentedButton(
-                selected = uiState.viewMode == InpaintingViewMode.SOURCE,
-                onClick = { inpaintingViewModel.onViewModeChange(InpaintingViewMode.SOURCE) },
+                selected = uiState.viewMode == ImageToImageViewMode.SOURCE,
+                onClick = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE) },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
             ) {
                 Text(stringResource(R.string.source_image_tab))
             }
             SegmentedButton(
-                selected = uiState.viewMode == InpaintingViewMode.PREVIEW,
-                onClick = { inpaintingViewModel.onViewModeChange(InpaintingViewMode.PREVIEW) },
+                selected = uiState.viewMode == ImageToImageViewMode.PREVIEW,
+                onClick = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW) },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
             ) {
                 Text(stringResource(R.string.preview_tab))
@@ -321,7 +321,7 @@ fun InpaintingScreen(
         // Prompt Input
         OutlinedTextField(
             value = uiState.positivePrompt,
-            onValueChange = { inpaintingViewModel.onPositivePromptChange(it) },
+            onValueChange = { imageToImageViewModel.onPositivePromptChange(it) },
             label = { Text(stringResource(R.string.prompt_hint)) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -330,7 +330,7 @@ fun InpaintingScreen(
             maxLines = 4,
             trailingIcon = {
                 if (uiState.positivePrompt.isNotEmpty()) {
-                    IconButton(onClick = { inpaintingViewModel.onPositivePromptChange("") }) {
+                    IconButton(onClick = { imageToImageViewModel.onPositivePromptChange("") }) {
                         Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.content_description_clear))
                     }
                 }
@@ -348,13 +348,13 @@ fun InpaintingScreen(
                 isGenerating = isThisScreenGenerating,
                 isEnabled = isThisScreenGenerating || (
                     !generationState.isGenerating &&
-                    inpaintingViewModel.hasValidConfiguration() &&
+                    imageToImageViewModel.hasValidConfiguration() &&
                     uiState.positivePrompt.isNotBlank() &&
                     uiState.sourceImage != null
                 ),
                 onGenerate = {
                     scope.launch {
-                        if (!inpaintingViewModel.hasMask()) {
+                        if (!imageToImageViewModel.hasMask()) {
                             Toast.makeText(
                                 context,
                                 context.getString(R.string.paint_mask_hint),
@@ -362,13 +362,13 @@ fun InpaintingScreen(
                             ).show()
                             return@launch
                         }
-                        val workflowJson = inpaintingViewModel.prepareWorkflow()
+                        val workflowJson = imageToImageViewModel.prepareWorkflow()
                         if (workflowJson != null) {
-                            inpaintingViewModel.clearPreview()
-                            inpaintingViewModel.onViewModeChange(InpaintingViewMode.PREVIEW)
+                            imageToImageViewModel.clearPreview()
+                            imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW)
                             generationViewModel.startGeneration(
                                 workflowJson,
-                                InpaintingViewModel.OWNER_ID
+                                ImageToImageViewModel.OWNER_ID
                             ) { _, _, _ -> }
                         }
                     }
@@ -394,34 +394,34 @@ fun InpaintingScreen(
             onDismissRequest = { showOptionsSheet = false },
             sheetState = optionsSheetState
         ) {
-            InpaintingConfigBottomSheetContent(
+            ImageToImageConfigBottomSheetContent(
                 uiState = uiState,
-                onConfigModeChange = inpaintingViewModel::onConfigModeChange,
-                onCheckpointNegativePromptChange = inpaintingViewModel::onCheckpointNegativePromptChange,
-                onCheckpointWorkflowChange = inpaintingViewModel::onCheckpointWorkflowChange,
-                onCheckpointChange = inpaintingViewModel::onCheckpointChange,
-                onMegapixelsChange = inpaintingViewModel::onMegapixelsChange,
-                onCheckpointStepsChange = inpaintingViewModel::onCheckpointStepsChange,
-                onCheckpointCfgChange = inpaintingViewModel::onCheckpointCfgChange,
-                onCheckpointSamplerChange = inpaintingViewModel::onCheckpointSamplerChange,
-                onCheckpointSchedulerChange = inpaintingViewModel::onCheckpointSchedulerChange,
-                onUnetNegativePromptChange = inpaintingViewModel::onUnetNegativePromptChange,
-                onUnetWorkflowChange = inpaintingViewModel::onUnetWorkflowChange,
-                onUnetChange = inpaintingViewModel::onUnetChange,
-                onVaeChange = inpaintingViewModel::onVaeChange,
-                onClipChange = inpaintingViewModel::onClipChange,
-                onUnetStepsChange = inpaintingViewModel::onUnetStepsChange,
-                onUnetCfgChange = inpaintingViewModel::onUnetCfgChange,
-                onUnetSamplerChange = inpaintingViewModel::onUnetSamplerChange,
-                onUnetSchedulerChange = inpaintingViewModel::onUnetSchedulerChange,
-                onAddCheckpointLora = inpaintingViewModel::onAddCheckpointLora,
-                onRemoveCheckpointLora = inpaintingViewModel::onRemoveCheckpointLora,
-                onCheckpointLoraNameChange = inpaintingViewModel::onCheckpointLoraNameChange,
-                onCheckpointLoraStrengthChange = inpaintingViewModel::onCheckpointLoraStrengthChange,
-                onAddUnetLora = inpaintingViewModel::onAddUnetLora,
-                onRemoveUnetLora = inpaintingViewModel::onRemoveUnetLora,
-                onUnetLoraNameChange = inpaintingViewModel::onUnetLoraNameChange,
-                onUnetLoraStrengthChange = inpaintingViewModel::onUnetLoraStrengthChange
+                onConfigModeChange = imageToImageViewModel::onConfigModeChange,
+                onCheckpointNegativePromptChange = imageToImageViewModel::onCheckpointNegativePromptChange,
+                onCheckpointWorkflowChange = imageToImageViewModel::onCheckpointWorkflowChange,
+                onCheckpointChange = imageToImageViewModel::onCheckpointChange,
+                onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
+                onCheckpointStepsChange = imageToImageViewModel::onCheckpointStepsChange,
+                onCheckpointCfgChange = imageToImageViewModel::onCheckpointCfgChange,
+                onCheckpointSamplerChange = imageToImageViewModel::onCheckpointSamplerChange,
+                onCheckpointSchedulerChange = imageToImageViewModel::onCheckpointSchedulerChange,
+                onUnetNegativePromptChange = imageToImageViewModel::onUnetNegativePromptChange,
+                onUnetWorkflowChange = imageToImageViewModel::onUnetWorkflowChange,
+                onUnetChange = imageToImageViewModel::onUnetChange,
+                onVaeChange = imageToImageViewModel::onVaeChange,
+                onClipChange = imageToImageViewModel::onClipChange,
+                onUnetStepsChange = imageToImageViewModel::onUnetStepsChange,
+                onUnetCfgChange = imageToImageViewModel::onUnetCfgChange,
+                onUnetSamplerChange = imageToImageViewModel::onUnetSamplerChange,
+                onUnetSchedulerChange = imageToImageViewModel::onUnetSchedulerChange,
+                onAddCheckpointLora = imageToImageViewModel::onAddCheckpointLora,
+                onRemoveCheckpointLora = imageToImageViewModel::onRemoveCheckpointLora,
+                onCheckpointLoraNameChange = imageToImageViewModel::onCheckpointLoraNameChange,
+                onCheckpointLoraStrengthChange = imageToImageViewModel::onCheckpointLoraStrengthChange,
+                onAddUnetLora = imageToImageViewModel::onAddUnetLora,
+                onRemoveUnetLora = imageToImageViewModel::onRemoveUnetLora,
+                onUnetLoraNameChange = imageToImageViewModel::onUnetLoraNameChange,
+                onUnetLoraStrengthChange = imageToImageViewModel::onUnetLoraStrengthChange
             )
         }
     }
@@ -434,12 +434,12 @@ fun InpaintingScreen(
             initialBrushSize = uiState.brushSize,
             isEraserMode = uiState.isEraserMode,
             onPathAdded = { path, isEraser, brushSize ->
-                inpaintingViewModel.addMaskPath(path, isEraser, brushSize)
+                imageToImageViewModel.addMaskPath(path, isEraser, brushSize)
             },
-            onClearMask = { inpaintingViewModel.clearMask() },
-            onInvertMask = { inpaintingViewModel.invertMask() },
-            onBrushSizeChange = { inpaintingViewModel.onBrushSizeChange(it) },
-            onEraserModeChange = { inpaintingViewModel.onEraserModeChange(it) },
+            onClearMask = { imageToImageViewModel.clearMask() },
+            onInvertMask = { imageToImageViewModel.invertMask() },
+            onBrushSizeChange = { imageToImageViewModel.onBrushSizeChange(it) },
+            onEraserModeChange = { imageToImageViewModel.onEraserModeChange(it) },
             onDismiss = { showMaskEditor = false }
         )
     }

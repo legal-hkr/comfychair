@@ -247,9 +247,9 @@ class SettingsViewModel : ViewModel() {
                 val cachedFiles = listOf(
                     // Text to Image
                     "last_generated_image.png",
-                    // Inpainting
-                    "inpainting_last_preview.png",
-                    "inpainting_last_source.png",
+                    // Image to Image
+                    "iti_last_preview.png",
+                    "iti_last_source.png",
                     // Text to Video
                     "last_generated_video.mp4",
                     // Image to Video
@@ -311,7 +311,7 @@ class SettingsViewModel : ViewModel() {
                 // Clear global preferences (mode, workflow selections, prompts)
                 val prefsToDelete = listOf(
                     "TextToImageFragmentPrefs",
-                    "InpaintingFragmentPrefs",
+                    "ImageToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
                     "ImageToVideoFragmentPrefs"
                 )

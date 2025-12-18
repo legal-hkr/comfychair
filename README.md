@@ -20,29 +20,17 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - **UNET mode**: Modern diffusion workflows (Flux, Z-Image, etc.) with separate UNET, VAE, and CLIP model selection
 - **LoRA chain support**:
   - Add up to 5 LoRAs per chain with individual strength control (0.0-2.0)
-  - Text-to-Image and Inpainting: Separate LoRA chains for Checkpoint and UNET modes
-  - Text-to-Video and Image-to-Video: Separate High noise and Low noise LoRA chains
+  - Text to image and Image to image: Separate LoRA chains for Checkpoint and UNET modes
+  - Text to video and Image to video: Separate High noise and Low noise LoRA chains
   - LoRAs are dynamically injected into workflows at generation time
-- **Text-to-image generation**:
+- **Text to image**:
   - Mobile-optimized interface
   - Cancel generation at any time with one-tap interrupt
   - WebSocket-based live updates showing step-by-step progress
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
-- **Text-to-video generation**:
-  - Generate AI videos with customizable parameters
-  - High/low noise UNET and LoRA model selection
-  - Live preview during generation
-  - Save videos to device gallery or share
-- **Image-to-video generation**:
-  - Animate still images into videos
-  - Upload source image with visual preview
-  - High/low noise UNET and LoRA model selection
-  - Adjustable video length and frame rate
-  - Live preview during generation
-  - Save videos to device gallery or share
-- **Inpainting**:
-  - Upload source images for selective inpainting
+- **Image to image**:
+  - Upload source images for selective editing
   - Mask editor with paint/eraser toggle
   - Adjustable brush size with visual indicator
   - Feathered mask edges for smooth blending
@@ -50,6 +38,18 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - WebSocket-based live updates showing step-by-step progress
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
+- **Text to video**:
+  - Generate AI videos with customizable parameters
+  - High/low noise UNET and LoRA model selection
+  - Live preview during generation
+  - Save videos to device gallery or share
+- **Image to video**:
+  - Animate still images into videos
+  - Upload source image with visual preview
+  - High/low noise UNET and LoRA model selection
+  - Adjustable video length and frame rate
+  - Live preview during generation
+  - Save videos to device gallery or share
 - **Media viewer**:
   - Unified fullscreen viewer for images and videos
   - Swipe navigation between gallery items
@@ -176,10 +176,10 @@ app/src/main/
 │   │   └── WorkflowValuesStorage.kt # Per-workflow value persistence
 │   ├── viewmodel/
 │   │   ├── GenerationViewModel.kt   # Central WebSocket & generation state
-│   │   ├── TextToImageViewModel.kt  # Text-to-image screen state
-│   │   ├── TextToVideoViewModel.kt  # Text-to-video screen state
-│   │   ├── ImageToVideoViewModel.kt # Image-to-video screen state
-│   │   ├── InpaintingViewModel.kt   # Inpainting screen state
+│   │   ├── TextToImageViewModel.kt  # Text to image screen state
+│   │   ├── TextToVideoViewModel.kt  # Text to video screen state
+│   │   ├── ImageToVideoViewModel.kt # Image to video screen state
+│   │   ├── ImageToImageViewModel.kt   # Image to image screen state
 │   │   ├── GalleryViewModel.kt      # Gallery screen state
 │   │   ├── SettingsViewModel.kt     # Settings screen state
 │   │   ├── MediaViewerViewModel.kt  # Media viewer state
@@ -189,10 +189,10 @@ app/src/main/
 │       ├── theme/                   # Material 3 theme (Color, Type, Theme)
 │       ├── screens/
 │       │   ├── LoginScreen.kt       # Login/connection UI
-│       │   ├── TextToImageScreen.kt # Text-to-image generation UI
-│       │   ├── TextToVideoScreen.kt # Text-to-video generation UI
-│       │   ├── ImageToVideoScreen.kt # Image-to-video generation UI
-│       │   ├── InpaintingScreen.kt  # Inpainting UI
+│       │   ├── TextToImageScreen.kt # Text to image generation UI
+│       │   ├── TextToVideoScreen.kt # Text to video generation UI
+│       │   ├── ImageToVideoScreen.kt # Image to video generation UI
+│       │   ├── ImageToImageScreen.kt  # Image to image UI
 │       │   ├── GalleryScreen.kt     # Gallery UI with multi-select
 │       │   ├── MediaViewerScreen.kt # Fullscreen media viewer UI
 │       │   ├── ApplicationSettingsScreen.kt  # App settings UI
@@ -201,9 +201,9 @@ app/src/main/
 │       │   └── WorkflowPreviewerScreen.kt    # Workflow preview UI
 │       ├── components/
 │       │   ├── MainNavigationBar.kt          # Bottom navigation bar
-│       │   ├── ConfigBottomSheetContent.kt   # Text-to-image config
+│       │   ├── ConfigBottomSheetContent.kt   # Text to image config
 │       │   ├── VideoConfigBottomSheetContent.kt  # Video config
-│       │   ├── InpaintingConfigBottomSheetContent.kt  # Inpainting config
+│       │   ├── ImageToImageConfigBottomSheetContent.kt  # Image to image config
 │       │   ├── MaskPaintCanvas.kt            # Compose Canvas mask painting
 │       │   ├── MaskPreview.kt                # Mask preview component
 │       │   ├── MaskEditorDialog.kt           # Fullscreen mask editor
@@ -216,12 +216,13 @@ app/src/main/
 │           └── SettingsNavHost.kt   # Settings screen navigation
 ├── res/
 │   ├── raw/                         # Workflow JSON files
-│   │   ├── tti_checkpoint_default.json  # Default text-to-image checkpoint workflow
-│   │   ├── tti_unet_zimage.json         # Z-Image text-to-image UNET workflow
-│   │   ├── iip_checkpoint_default.json  # Default inpainting checkpoint workflow
-│   │   ├── iip_unet_zimage.json         # Z-Image inpainting UNET workflow
-│   │   ├── ttv_unet_wan22_lightx2v.json # WAN 2.2 text-to-video UNET workflow
-│   │   └── itv_unet_wan22_lightx2v.json # WAN 2.2 image-to-video UNET workflow
+│   │   ├── tti_checkpoint_sd.json       # SD text to image checkpoint workflow
+│   │   ├── tti_checkpoint_sdxl.json     # SDXL text to image checkpoint workflow
+│   │   ├── tti_unet_zimage_turbo.json   # Z-Image Turbo text to image UNET workflow
+│   │   ├── iti_checkpoint_sd_sdxl.json  # SD/SDXL image to image (inpainting) checkpoint workflow
+│   │   ├── iti_unet_zimage_turbo.json   # Z-Image Turbo image to image (inpainting) UNET workflow
+│   │   ├── ttv_unet_wan22_lightx2v.json # WAN 2.2 text to video UNET workflow
+│   │   └── itv_unet_wan22_lightx2v.json # WAN 2.2 image to video UNET workflow
 │   ├── values/                      # Strings, themes, colors (English default)
 │   ├── values-de/                   # German translations
 │   ├── values-fr/                   # French translations

@@ -72,8 +72,8 @@ object TemplateKeyRegistry {
     private val KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
         WorkflowType.TTI_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
         WorkflowType.TTI_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
-        WorkflowType.IIP_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler"),
-        WorkflowType.IIP_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.ITI_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.ITI_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "steps", "cfg", "sampler_name", "scheduler"),
         WorkflowType.TTV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
         WorkflowType.ITV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps", "image")
     )

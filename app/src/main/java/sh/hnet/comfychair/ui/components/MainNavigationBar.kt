@@ -33,7 +33,7 @@ import sh.hnet.comfychair.repository.GalleryRepository
 /**
  * Main navigation bar for the app with 4 destinations:
  * - Text-to-Image (icon button)
- * - Inpainting (icon button)
+ * - Image-to-Image (icon button)
  * - Text-to-Video (icon button)
  * - Image-to-Video (icon button)
  *
@@ -95,8 +95,8 @@ fun MainNavigationBar(
                     )
                 }
             }
-            // Inpainting
-            if (currentRoute == MainRoute.Inpainting.route) {
+            // Image to Image
+            if (currentRoute == MainRoute.ImageToImage.route) {
                 FilledIconButton(
                     onClick = { },
                     colors = IconButtonDefaults.filledIconButtonColors(
@@ -105,21 +105,21 @@ fun MainNavigationBar(
                     )
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.inpainting_24px),
-                        contentDescription = stringResource(R.string.nav_inpainting)
+                        painter = painterResource(R.drawable.image_to_image_24px),
+                        contentDescription = stringResource(R.string.nav_image_to_image)
                     )
                 }
             } else {
                 IconButton(onClick = {
-                    navController.navigate(MainRoute.Inpainting.route) {
+                    navController.navigate(MainRoute.ImageToImage.route) {
                         popUpTo(MainRoute.TextToImage.route) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
                 }) {
                     Icon(
-                        painter = painterResource(R.drawable.inpainting_24px),
-                        contentDescription = stringResource(R.string.nav_inpainting),
+                        painter = painterResource(R.drawable.image_to_image_24px),
+                        contentDescription = stringResource(R.string.nav_image_to_image),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

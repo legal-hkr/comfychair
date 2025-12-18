@@ -18,7 +18,7 @@ data class WorkflowDefaults(
     // Prompt parameters
     val negativePrompt: String? = null,
 
-    // Inpainting specific
+    // Image-to-image specific
     val megapixels: Float? = null,
 
     // Video specific

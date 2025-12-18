@@ -231,14 +231,14 @@ fun WorkflowsSettingsScreen(
                     }
                 }
 
-                // Inpainting (Checkpoint)
+                // Image-to-Image (Checkpoint)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_iip_checkpoint))
+                    WorkflowSectionHeader(stringResource(R.string.workflow_section_iti_checkpoint))
                 }
-                if (uiState.iipCheckpointWorkflows.isEmpty()) {
+                if (uiState.itiCheckpointWorkflows.isEmpty()) {
                     item { EmptySection() }
                 } else {
-                    items(uiState.iipCheckpointWorkflows) { workflow ->
+                    items(uiState.itiCheckpointWorkflows) { workflow ->
                         WorkflowListItem(
                             workflow = workflow,
                             onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
@@ -248,14 +248,14 @@ fun WorkflowsSettingsScreen(
                     }
                 }
 
-                // Inpainting (UNET)
+                // Image-to-Image (UNET)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_iip_unet))
+                    WorkflowSectionHeader(stringResource(R.string.workflow_section_iti_unet))
                 }
-                if (uiState.iipUnetWorkflows.isEmpty()) {
+                if (uiState.itiUnetWorkflows.isEmpty()) {
                     item { EmptySection() }
                 } else {
-                    items(uiState.iipUnetWorkflows) { workflow ->
+                    items(uiState.itiUnetWorkflows) { workflow ->
                         WorkflowListItem(
                             workflow = workflow,
                             onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
@@ -492,8 +492,8 @@ private fun UploadWorkflowDialog(
     val allTypes = listOf(
         WorkflowType.TTI_CHECKPOINT to stringResource(R.string.workflow_section_tti_checkpoint),
         WorkflowType.TTI_UNET to stringResource(R.string.workflow_section_tti_unet),
-        WorkflowType.IIP_CHECKPOINT to stringResource(R.string.workflow_section_iip_checkpoint),
-        WorkflowType.IIP_UNET to stringResource(R.string.workflow_section_iip_unet),
+        WorkflowType.ITI_CHECKPOINT to stringResource(R.string.workflow_section_iti_checkpoint),
+        WorkflowType.ITI_UNET to stringResource(R.string.workflow_section_iti_unet),
         WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
         WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet)
     )

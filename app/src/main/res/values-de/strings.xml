@@ -32,7 +32,7 @@
 
     <!-- Navigation strings -->
     <string name="nav_text_to_image">Text zu Bild</string>
-    <string name="nav_inpainting">Inpainting</string>
+    <string name="nav_image_to_image">Bild zu Bild</string>
     <string name="nav_gallery">Galerie</string>
 
     <!-- Configuration fragment strings -->
@@ -92,8 +92,8 @@
     <string name="video_parameters_title">Video-Parameter</string>
     <string name="placeholder_video_description">Generiertes Video erscheint hier</string>
 
-    <!-- Inpainting fragment strings -->
-    <string name="inpainting_title">Inpainting</string>
+    <!-- Image-to-image fragment strings -->
+    <string name="image_to_image_title">Bild zu Bild</string>
     <string name="source_image_tab">Quellbild</string>
     <string name="preview_tab">Vorschau</string>
     <string name="megapixels_label">Megapixel</string>
@@ -133,7 +133,7 @@
     <string name="share_image">Bild teilen</string>
     <string name="share_video">Video teilen</string>
 
-    <!-- Inpainting messages -->
+    <!-- Image-to-image messages -->
     <string name="paint_mask_hint">Bitte Maskenbereich für Inpainting malen</string>
 
     <!-- Image/Video parameters section -->
@@ -197,8 +197,8 @@
     <!-- Workflow management strings -->
     <string name="workflow_section_tti_checkpoint">Text zu Bild (Checkpoint)</string>
     <string name="workflow_section_tti_unet">Text zu Bild (UNET)</string>
-    <string name="workflow_section_iip_checkpoint">Inpainting (Checkpoint)</string>
-    <string name="workflow_section_iip_unet">Inpainting (UNET)</string>
+    <string name="workflow_section_iti_checkpoint">Bild zu Bild (Checkpoint)</string>
+    <string name="workflow_section_iti_unet">Bild zu Bild (UNET)</string>
     <string name="workflow_section_ttv_unet">Text zu Video (UNET)</string>
     <string name="workflow_section_itv_unet">Bild zu Video (UNET)</string>
     <string name="workflow_section_empty">Keine Workflows</string>

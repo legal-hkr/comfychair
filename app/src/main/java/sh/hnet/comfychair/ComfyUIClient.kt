@@ -1072,7 +1072,7 @@ class ComfyUIClient(
 
     /**
      * Upload an image to the ComfyUI server input folder
-     * Used for inpainting to upload the source image with mask
+     * Used for Image-to-image to upload the source image with mask
      *
      * @param imageData The PNG image data as byte array
      * @param filename The desired filename for the uploaded image

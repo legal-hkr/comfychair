@@ -14,7 +14,7 @@ import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
-import sh.hnet.comfychair.viewmodel.InpaintingViewModel
+import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 
@@ -64,7 +64,7 @@ class MainContainerActivity : ComponentActivity() {
         // Determine start destination based on active generation owner
         val startDestination = when (generationViewModel.generationState.value.ownerId) {
             TextToImageViewModel.OWNER_ID -> MainRoute.TextToImage.route
-            InpaintingViewModel.OWNER_ID -> MainRoute.Inpainting.route
+            ImageToImageViewModel.OWNER_ID -> MainRoute.ImageToImage.route
             TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo.route
             ImageToVideoViewModel.OWNER_ID -> MainRoute.ImageToVideo.route
             else -> MainRoute.TextToImage.route
