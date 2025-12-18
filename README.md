@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.6.2
+**Current version**: v0.6.3
 
 ## Overview
 
@@ -216,13 +216,17 @@ app/src/main/
 │           └── SettingsNavHost.kt   # Settings screen navigation
 ├── res/
 │   ├── raw/                         # Workflow JSON files
-│   │   ├── tti_checkpoint_sd.json       # SD text to image checkpoint workflow
-│   │   ├── tti_checkpoint_sdxl.json     # SDXL text to image checkpoint workflow
-│   │   ├── tti_unet_zimage_turbo.json   # Z-Image Turbo text to image UNET workflow
-│   │   ├── iti_checkpoint_sd_sdxl.json  # SD/SDXL image to image (inpainting) checkpoint workflow
-│   │   ├── iti_unet_zimage_turbo.json   # Z-Image Turbo image to image (inpainting) UNET workflow
-│   │   ├── ttv_unet_wan22_lightx2v.json # WAN 2.2 text to video UNET workflow
-│   │   └── itv_unet_wan22_lightx2v.json # WAN 2.2 image to video UNET workflow
+│   │   ├── tti_checkpoint_sd.json                    # SD text to image
+│   │   ├── tti_checkpoint_sdxl.json                  # SDXL text to image
+│   │   ├── tti_checkpoint_sdxl_lcm_upscaler_latent.json   # SDXL LCM with latent upscaler
+│   │   ├── tti_checkpoint_sdxl_light_upscaler_latent.json # SDXL Lightning with latent upscaler
+│   │   ├── tti_checkpoint_sdxl_upscaler_latent.json  # SDXL with latent upscaler
+│   │   ├── tti_checkpoint_flux_schnell.json          # Flux Schnell text to image
+│   │   ├── tti_unet_zimage_turbo.json                # Z-Image Turbo text to image UNET
+│   │   ├── iti_checkpoint_sd_sdxl.json               # SD/SDXL image to image (inpainting)
+│   │   ├── iti_unet_zimage_turbo.json                # Z-Image Turbo image to image UNET (inpainting)
+│   │   ├── ttv_unet_wan22_lightx2v.json              # WAN 2.2 text to video UNET
+│   │   └── itv_unet_wan22_lightx2v.json              # WAN 2.2 image to video UNET
 │   ├── values/                      # Strings, themes, colors (English default)
 │   ├── values-de/                   # German translations
 │   ├── values-fr/                   # French translations

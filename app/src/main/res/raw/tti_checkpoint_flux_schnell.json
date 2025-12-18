@@ -1,0 +1,93 @@
+{
+  "name": "Flux Schnell",
+  "description": "Default workflow for Flux Schnell generation",
+  "defaults": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 4,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "negative_prompt": ""
+  },
+  "nodes": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "2": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "batch_size": 1
+      },
+      "_meta": {
+        "title": "Empty SD3 Latent Image"
+      }
+    },
+    "3": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["1", 1]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["1", 1]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "5": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": 1,
+        "model": ["1", 0],
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["2", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "6": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["5", 0],
+        "vae": ["1", 2]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "7": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["6", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

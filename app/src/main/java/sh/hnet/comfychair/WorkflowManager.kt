@@ -137,6 +137,7 @@ class WorkflowManager(private val context: Context) {
             R.raw.tti_checkpoint_sdxl_light_upscaler_latent,
             R.raw.tti_checkpoint_sdxl_upscaler_latent,
             R.raw.tti_checkpoint_sdxl,
+            R.raw.tti_checkpoint_flux_schnell,
             R.raw.tti_unet_zimage_turbo,
             R.raw.iti_checkpoint_sd_sdxl,
             R.raw.iti_unet_zimage_turbo,
