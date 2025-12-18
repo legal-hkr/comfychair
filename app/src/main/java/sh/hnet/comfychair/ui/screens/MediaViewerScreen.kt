@@ -301,13 +301,6 @@ fun MediaViewerScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Info button
-                ActionButton(
-                    icon = Icons.Outlined.Info,
-                    label = stringResource(R.string.show_metadata),
-                    onClick = { showMetadataSheet = true }
-                )
-
                 // Delete button (only in gallery mode)
                 if (uiState.mode == ViewerMode.GALLERY) {
                     ActionButton(
@@ -329,6 +322,13 @@ fun MediaViewerScreen(
                     icon = Icons.Default.Share,
                     label = stringResource(R.string.media_viewer_share),
                     onClick = { viewModel.shareCurrentItem() }
+                )
+
+                // Info button
+                ActionButton(
+                    icon = Icons.Outlined.Info,
+                    label = stringResource(R.string.show_metadata),
+                    onClick = { showMetadataSheet = true }
                 )
             }
         }
