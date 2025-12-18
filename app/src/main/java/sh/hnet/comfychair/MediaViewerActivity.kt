@@ -176,6 +176,7 @@ class MediaViewerActivity : ComponentActivity() {
 
         setContent {
             val uiState by viewModel.uiState.collectAsState()
+            val hasDeletedItems by viewModel.hasDeletedItems.collectAsState()
 
             // Control system bars based on UI visibility
             LaunchedEffect(uiState.isUiVisible) {
@@ -191,10 +192,12 @@ class MediaViewerActivity : ComponentActivity() {
                     MediaViewerScreen(
                         viewModel = viewModel,
                         onClose = {
-                            // Set result if any items were deleted
-                            setResult(Activity.RESULT_OK, Intent().apply {
-                                putExtra(RESULT_ITEM_DELETED, true)
-                            })
+                            // Set result only if items were actually deleted
+                            if (hasDeletedItems) {
+                                setResult(Activity.RESULT_OK, Intent().apply {
+                                    putExtra(RESULT_ITEM_DELETED, true)
+                                })
+                            }
                             finish()
                         }
                     )

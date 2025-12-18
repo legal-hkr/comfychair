@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -83,6 +84,11 @@ fun MediaViewerScreen(
         if (showMetadataSheet) {
             viewModel.loadMetadata()
         }
+    }
+
+    // Handle system back button - ensures onClose() is called with proper result
+    BackHandler {
+        onClose()
     }
 
     // Handle events

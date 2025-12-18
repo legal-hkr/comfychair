@@ -240,6 +240,18 @@ class GalleryRepository private constructor() {
     fun hasData(): Boolean = hasLoadedOnce && _galleryItems.value.isNotEmpty()
 
     /**
+     * Remove an item from the local gallery list only (server deletion already done).
+     * Used by MediaViewerViewModel to sync after it deletes on server.
+     *
+     * @param promptId The prompt ID of the item to remove
+     */
+    fun removeItemLocally(promptId: String) {
+        val currentItems = _galleryItems.value.toMutableList()
+        currentItems.removeAll { it.promptId == promptId }
+        _galleryItems.value = currentItems
+    }
+
+    /**
      * Delete an item from the gallery
      */
     suspend fun deleteItem(item: GalleryItem): Boolean {

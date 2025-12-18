@@ -25,6 +25,7 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.MetadataParser
 import sh.hnet.comfychair.util.Mp4MetadataExtractor
@@ -148,6 +149,10 @@ class MediaViewerViewModel : ViewModel() {
 
     private val _isLoadingMetadata = MutableStateFlow(false)
     val isLoadingMetadata: StateFlow<Boolean> = _isLoadingMetadata.asStateFlow()
+
+    // Track whether any items were deleted during this session
+    private val _hasDeletedItems = MutableStateFlow(false)
+    val hasDeletedItems: StateFlow<Boolean> = _hasDeletedItems.asStateFlow()
 
     fun initialize(
         context: Context,
@@ -456,8 +461,14 @@ class MediaViewerViewModel : ViewModel() {
             if (success) {
                 _events.emit(MediaViewerEvent.ShowToast(R.string.history_item_deleted_success))
 
+                // Mark that items were deleted (for result reporting)
+                _hasDeletedItems.value = true
+
                 // Evict from MediaCache (uses stable key, not index)
                 MediaCache.evict(item.toCacheKey())
+
+                // Sync deletion to GalleryRepository so Gallery UI updates immediately
+                GalleryRepository.getInstance().removeItemLocally(item.promptId)
 
                 // Get fresh state after async operation
                 val currentState = _uiState.value
