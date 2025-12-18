@@ -203,7 +203,7 @@ fun TextToVideoScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .heightIn(min = 150.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(enabled = videoUri != null) {
                     // Launch MediaViewer for single video
                     videoUri?.let { uri ->
@@ -236,13 +236,13 @@ fun TextToVideoScreen(
                         isActive = isScreenVisible
                     )
                 }
-                // Show placeholder - monochrome app logo
+                // Show placeholder - app logo
                 else -> {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_launcher_foreground_monochrome),
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground),
                         contentDescription = stringResource(R.string.placeholder_video_description),
-                        modifier = Modifier.size(256.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        modifier = Modifier.size(300.dp),
+                        contentScale = ContentScale.Fit
                     )
                 }
             }

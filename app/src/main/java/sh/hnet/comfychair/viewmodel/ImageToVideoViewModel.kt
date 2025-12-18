@@ -273,7 +273,7 @@ class ImageToVideoViewModel : ViewModel() {
         val context = applicationContext ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
-            val sourceFile = File(context.filesDir, "image_to_video_last_source.png")
+            val sourceFile = File(context.filesDir, "itv_last_source.png")
             if (sourceFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath)
                 _uiState.value = _uiState.value.copy(sourceImage = bitmap)
@@ -393,7 +393,7 @@ class ImageToVideoViewModel : ViewModel() {
 
                 if (bitmap != null) {
                     // Save to file
-                    val file = File(context.filesDir, "image_to_video_last_source.png")
+                    val file = File(context.filesDir, "itv_last_source.png")
                     FileOutputStream(file).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }

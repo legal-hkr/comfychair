@@ -246,15 +246,15 @@ class SettingsViewModel : ViewModel() {
             withContext(Dispatchers.IO) {
                 val cachedFiles = listOf(
                     // Text to Image
-                    "last_generated_image.png",
+                    "tti_last_preview.png",
                     // Image to Image
                     "iti_last_preview.png",
                     "iti_last_source.png",
                     // Text to Video
-                    "last_generated_video.mp4",
+                    "ttv_last_preview.png",
                     // Image to Video
-                    "image_to_video_last_source.png",
-                    "image_to_video_last_generated.mp4"
+                    "itv_last_preview.png",
+                    "itv_last_source.png"
                 )
 
                 cachedFiles.forEach { filename ->

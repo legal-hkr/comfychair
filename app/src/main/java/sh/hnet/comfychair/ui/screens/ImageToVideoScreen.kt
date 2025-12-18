@@ -226,7 +226,7 @@ fun ImageToVideoScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .heightIn(min = 150.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(
                     enabled = (uiState.viewMode == ImageToVideoViewMode.PREVIEW && videoUri != null) ||
                               (uiState.viewMode == ImageToVideoViewMode.SOURCE && uiState.sourceImage != null),
@@ -265,16 +265,16 @@ fun ImageToVideoScreen(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        // Placeholder - monochrome app logo with tap to upload hint
+                        // Placeholder - app logo with tap to upload hint
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_launcher_foreground_monochrome),
+                            Image(
+                                painter = painterResource(R.drawable.ic_launcher_foreground),
                                 contentDescription = null,
-                                modifier = Modifier.size(256.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                modifier = Modifier.size(300.dp),
+                                contentScale = ContentScale.Fit
                             )
                             Text(
                                 text = stringResource(R.string.no_source_image),
@@ -303,13 +303,13 @@ fun ImageToVideoScreen(
                                 isActive = isScreenVisible
                             )
                         }
-                        // Show placeholder - monochrome app logo
+                        // Show placeholder - app logo
                         else -> {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_launcher_foreground_monochrome),
+                            Image(
+                                painter = painterResource(R.drawable.ic_launcher_foreground),
                                 contentDescription = stringResource(R.string.placeholder_video_description),
-                                modifier = Modifier.size(256.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                modifier = Modifier.size(300.dp),
+                                contentScale = ContentScale.Fit
                             )
                         }
                     }

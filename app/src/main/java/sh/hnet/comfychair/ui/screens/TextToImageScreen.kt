@@ -188,7 +188,7 @@ fun TextToImageScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .heightIn(min = 150.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(enabled = uiState.currentBitmap != null && !isThisScreenGenerating) {
                     // Launch MediaViewer for single image
                     uiState.currentBitmap?.let { bitmap ->
@@ -214,12 +214,12 @@ fun TextToImageScreen(
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // Placeholder - monochrome app logo
-                Icon(
-                    painter = painterResource(R.drawable.ic_launcher_foreground_monochrome),
+                // Placeholder - app logo
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = null,
-                    modifier = Modifier.size(256.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    modifier = Modifier.size(300.dp),
+                    contentScale = ContentScale.Fit
                 )
             }
 
