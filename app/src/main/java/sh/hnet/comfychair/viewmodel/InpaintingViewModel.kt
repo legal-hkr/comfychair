@@ -1091,6 +1091,13 @@ class InpaintingViewModel : ViewModel() {
      */
     fun startListening(generationViewModel: GenerationViewModel) {
         generationViewModelRef = generationViewModel
+
+        // If generation is running for this screen, switch to preview mode
+        val state = generationViewModel.generationState.value
+        if (state.isGenerating && state.ownerId == OWNER_ID) {
+            _uiState.value = _uiState.value.copy(viewMode = InpaintingViewMode.PREVIEW)
+        }
+
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
             handleGenerationEvent(event)
         }
