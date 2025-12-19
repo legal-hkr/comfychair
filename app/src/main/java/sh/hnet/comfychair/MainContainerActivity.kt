@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -135,8 +136,8 @@ class MainContainerActivity : ComponentActivity() {
         // Save generation state when going to background
         generationViewModel.saveGenerationState(this)
 
-        // Persist all dirty media to disk
-        lifecycleScope.launch {
+        // Persist all dirty media to disk synchronously to ensure completion before process death
+        runBlocking {
             MediaStateHolder.persistToDisk(applicationContext)
         }
     }
