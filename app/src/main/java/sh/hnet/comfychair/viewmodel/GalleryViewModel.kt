@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
@@ -103,8 +102,7 @@ class GalleryViewModel : ViewModel() {
         }
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    fun initialize(client: ComfyUIClient) {
+    fun initialize() {
         // MediaCache is used for all fetch operations
         // Repository is already initialized by GenerationViewModel
     }

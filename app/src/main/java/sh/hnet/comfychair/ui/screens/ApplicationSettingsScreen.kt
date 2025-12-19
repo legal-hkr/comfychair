@@ -12,15 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import java.text.SimpleDateFormat
@@ -57,7 +54,6 @@ fun ApplicationSettingsScreen(
     onNavigateToLogin: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    var showMenu by remember { mutableStateOf(false) }
 
     // Backup/restore state
     var showRestoreDialog by remember { mutableStateOf(false) }
@@ -137,45 +133,10 @@ fun ApplicationSettingsScreen(
                 title = { Text(stringResource(R.string.application_settings_title)) },
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.content_description_menu)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_generation)) },
-                                onClick = {
-                                    showMenu = false
-                                    onNavigateToGeneration()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_logout)) },
-                                onClick = {
-                                    showMenu = false
-                                    onLogout()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Logout,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-                        }
-                    }
+                    SettingsMenuDropdown(
+                        onGeneration = onNavigateToGeneration,
+                        onLogout = onLogout
+                    )
                 }
             )
         }

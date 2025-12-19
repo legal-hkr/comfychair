@@ -15,15 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.ui.res.painterResource
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Icon
@@ -52,6 +48,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
@@ -118,7 +116,6 @@ fun TextToImageScreen(
 
     // UI State
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -148,36 +145,10 @@ fun TextToImageScreen(
                     }
                 }
                 // Menu button
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.content_description_menu))
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_settings)) },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToSettings()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Settings, contentDescription = null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_logout)) },
-                            onClick = {
-                                showMenu = false
-                                onLogout()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                            }
-                        )
-                    }
-                }
+                AppMenuDropdown(
+                    onSettings = onNavigateToSettings,
+                    onLogout = onLogout
+                )
             }
         )
 
@@ -218,7 +189,7 @@ fun TextToImageScreen(
                 Image(
                     painter = painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = null,
-                    modifier = Modifier.size(300.dp),
+                    modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                     contentScale = ContentScale.Fit
                 )
             }

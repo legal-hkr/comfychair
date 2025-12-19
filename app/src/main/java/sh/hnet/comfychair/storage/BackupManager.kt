@@ -158,8 +158,8 @@ class BackupManager(private val context: Context) {
 
         // Clear video files with prompt ID suffixes in filesDir
         context.filesDir.listFiles()?.forEach { file ->
-            if ((file.name.startsWith("last_generated_video") && file.name.endsWith(".mp4")) ||
-                (file.name.startsWith("image_to_video_last_generated") && file.name.endsWith(".mp4"))) {
+            if ((file.name.startsWith("ttv_") && file.name.endsWith(".mp4")) ||
+                (file.name.startsWith("itv_") && file.name.endsWith(".mp4"))) {
                 try {
                     file.delete()
                 } catch (e: Exception) {

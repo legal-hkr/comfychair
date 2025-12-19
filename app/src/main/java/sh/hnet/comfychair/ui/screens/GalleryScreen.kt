@@ -24,20 +24,15 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -88,8 +84,6 @@ fun GalleryScreen(
     val uiState by galleryViewModel.uiState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
 
-    var showMenu by remember { mutableStateOf(false) }
-
     // Activity result launcher for MediaViewerActivity
     val mediaViewerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -108,9 +102,7 @@ fun GalleryScreen(
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
-        generationViewModel.getClient()?.let { client ->
-            galleryViewModel.initialize(client)
-        }
+        galleryViewModel.initialize()
     }
 
     // Load gallery when connected
@@ -251,36 +243,10 @@ fun GalleryScreen(
                     }
                 } else {
                     // Normal mode actions: Menu
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.content_description_menu))
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_settings)) },
-                                onClick = {
-                                    showMenu = false
-                                    onNavigateToSettings()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Settings, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_logout)) },
-                                onClick = {
-                                    showMenu = false
-                                    onLogout()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                                }
-                            )
-                        }
-                    }
+                    AppMenuDropdown(
+                        onSettings = onNavigateToSettings,
+                        onLogout = onLogout
+                    )
                 }
             }
         )

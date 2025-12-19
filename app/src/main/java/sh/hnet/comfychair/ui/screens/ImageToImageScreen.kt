@@ -17,15 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.ui.res.painterResource
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Icon
@@ -59,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.ImageToImageConfigBottomSheetContent
@@ -90,7 +88,6 @@ fun ImageToImageScreen(
     val isThisScreenGenerating = generationState.isGenerating &&
         generationState.ownerId == ImageToImageViewModel.OWNER_ID
 
-    var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showMaskEditor by remember { mutableStateOf(false) }
 
@@ -163,36 +160,10 @@ fun ImageToImageScreen(
                     }
                 }
                 // Menu button
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.content_description_menu))
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_settings)) },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToSettings()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Settings, contentDescription = null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.action_logout)) },
-                            onClick = {
-                                showMenu = false
-                                onLogout()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                            }
-                        )
-                    }
-                }
+                AppMenuDropdown(
+                    onSettings = onNavigateToSettings,
+                    onLogout = onLogout
+                )
             }
         )
 
@@ -254,7 +225,7 @@ fun ImageToImageScreen(
                             Image(
                                 painter = painterResource(R.drawable.ic_launcher_foreground),
                                 contentDescription = null,
-                                modifier = Modifier.size(300.dp),
+                                modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                                 contentScale = ContentScale.Fit
                             )
                             Text(
@@ -278,7 +249,7 @@ fun ImageToImageScreen(
                         Image(
                             painter = painterResource(R.drawable.ic_launcher_foreground),
                             contentDescription = null,
-                            modifier = Modifier.size(300.dp),
+                            modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                             contentScale = ContentScale.Fit
                         )
                     }

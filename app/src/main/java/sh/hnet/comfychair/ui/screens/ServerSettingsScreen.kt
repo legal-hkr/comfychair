@@ -13,19 +13,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -36,15 +28,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
 import sh.hnet.comfychair.viewmodel.GpuInfo
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
@@ -59,7 +49,6 @@ fun ServerSettingsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.serverSettingsState.collectAsState()
-    var showMenu by remember { mutableStateOf(false) }
 
     // Load system stats on first composition and start auto-refresh
     LaunchedEffect(Unit) {
@@ -100,45 +89,10 @@ fun ServerSettingsScreen(
                 title = { Text(stringResource(R.string.server_settings_title)) },
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.content_description_menu)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_generation)) },
-                                onClick = {
-                                    showMenu = false
-                                    onNavigateToGeneration()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_logout)) },
-                                onClick = {
-                                    showMenu = false
-                                    onLogout()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Logout,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-                        }
-                    }
+                    SettingsMenuDropdown(
+                        onGeneration = onNavigateToGeneration,
+                        onLogout = onLogout
+                    )
                 }
             )
         }

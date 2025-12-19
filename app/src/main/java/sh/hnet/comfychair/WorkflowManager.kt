@@ -835,13 +835,6 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
-     * Get list of workflow names for dropdown
-     */
-    fun getWorkflowNames(): List<String> {
-        return workflows.map { it.name }
-    }
-
-    /**
      * Get list of text-to-image checkpoint workflow names for dropdown
      */
     fun getCheckpointWorkflowNames(): List<String> {
@@ -902,38 +895,6 @@ class WorkflowManager(private val context: Context) {
      */
     fun getWorkflowDefaults(workflowName: String): WorkflowDefaults? {
         return getWorkflowByName(workflowName)?.defaults
-    }
-
-    /**
-     * Check if a workflow is a text-to-image checkpoint workflow
-     */
-    fun isCheckpointWorkflow(workflowName: String): Boolean {
-        val workflow = getWorkflowByName(workflowName)
-        return workflow?.type == WorkflowType.TTI_CHECKPOINT
-    }
-
-    /**
-     * Check if a workflow is a text-to-image UNET workflow
-     */
-    fun isUNETWorkflow(workflowName: String): Boolean {
-        val workflow = getWorkflowByName(workflowName)
-        return workflow?.type == WorkflowType.TTI_UNET
-    }
-
-    /**
-     * Check if a workflow is an Image-to-image checkpoint workflow
-     */
-    fun isImageToImageCheckpointWorkflow(workflowName: String): Boolean {
-        val workflow = getWorkflowByName(workflowName)
-        return workflow?.type == WorkflowType.ITI_CHECKPOINT
-    }
-
-    /**
-     * Check if a workflow is an Image-to-image UNET workflow
-     */
-    fun isImageToImageUNETWorkflow(workflowName: String): Boolean {
-        val workflow = getWorkflowByName(workflowName)
-        return workflow?.type == WorkflowType.ITI_UNET
     }
 
     /**

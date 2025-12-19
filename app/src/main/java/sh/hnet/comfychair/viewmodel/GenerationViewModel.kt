@@ -23,6 +23,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
@@ -350,7 +351,7 @@ class GenerationViewModel : ViewModel() {
                 }
             }
         } catch (e: Exception) {
-            // Failed to parse message
+            Logger.w("Generation", "Failed to parse WebSocket message: ${e.message}")
         }
     }
 
@@ -365,8 +366,8 @@ class GenerationViewModel : ViewModel() {
                 if (bitmap != null) {
                     dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
-            } catch (_: Exception) {
-                // Failed to decode preview image
+            } catch (e: Exception) {
+                Logger.d("Generation", "Failed to decode preview image: ${e.message}")
             }
         }
     }

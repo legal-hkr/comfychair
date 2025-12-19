@@ -21,16 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -47,9 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowPreviewerActivity
@@ -73,8 +68,6 @@ fun WorkflowsSettingsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-
-    var showMenu by remember { mutableStateOf(false) }
 
     // JSON file picker
     val jsonPickerLauncher = rememberLauncherForActivityResult(
@@ -148,36 +141,10 @@ fun WorkflowsSettingsScreen(
                     Icon(Icons.Default.Upload, contentDescription = stringResource(R.string.button_upload))
                 }
                 // Menu button
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.content_description_menu))
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_generation)) },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToGeneration()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_logout)) },
-                            onClick = {
-                                showMenu = false
-                                onLogout()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                            }
-                        )
-                    }
-                }
+                SettingsMenuDropdown(
+                    onGeneration = onNavigateToGeneration,
+                    onLogout = onLogout
+                )
             }
         )
 
