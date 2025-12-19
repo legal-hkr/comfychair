@@ -11,8 +11,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
-import sh.hnet.comfychair.connection.ConnectionValidator
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
@@ -32,10 +33,6 @@ class MainContainerActivity : ComponentActivity() {
         const val RESULT_REFRESH_NEEDED = 100
     }
 
-    // Connection information
-    private var hostname: String = ""
-    private var port: Int = 8188
-
     // ViewModel for generation state management
     private val generationViewModel: GenerationViewModel by viewModels()
 
@@ -48,8 +45,6 @@ class MainContainerActivity : ComponentActivity() {
                 // Settings cleared/restored - restart activity fresh to reload all ViewModels
                 // Using finish + start instead of recreate() to clear ViewModels
                 val intent = Intent(this, MainContainerActivity::class.java)
-                intent.putExtra("hostname", hostname)
-                intent.putExtra("port", port)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
                 finish()
@@ -67,21 +62,24 @@ class MainContainerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Get connection parameters from intent
-        hostname = intent.getStringExtra("hostname") ?: ""
-        port = intent.getIntExtra("port", 8188)
+        // Guard check - redirect to login if not connected
+        if (!ConnectionManager.isConnected) {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
+            return
+        }
 
-        // Validate connection - if changed, this clears all cached data and singletons
-        val connectionChanged = ConnectionValidator.setConnection(hostname, port)
+        // Initialize the ViewModel (uses ConnectionManager internally)
+        generationViewModel.initialize(this)
 
-        // Initialize the ViewModel with connection parameters
-        generationViewModel.initialize(this, hostname, port)
+        // Initialize MediaCache with context for image/video fetching
+        MediaCache.ensureInitialized(applicationContext)
 
-        // Load persisted media state from disk into memory (skip if connection changed)
-        if (!connectionChanged) {
-            lifecycleScope.launch {
-                MediaStateHolder.loadFromDisk(applicationContext)
-            }
+        // Load persisted media state from disk into memory
+        lifecycleScope.launch {
+            MediaStateHolder.loadFromDisk(applicationContext)
         }
 
         // Determine start destination based on active generation owner
@@ -121,8 +119,6 @@ class MainContainerActivity : ComponentActivity() {
      */
     private fun openSettings() {
         val intent = Intent(this, SettingsContainerActivity::class.java)
-        intent.putExtra("hostname", hostname)
-        intent.putExtra("port", port)
         settingsLauncher.launch(intent)
     }
 
@@ -131,8 +127,6 @@ class MainContainerActivity : ComponentActivity() {
      */
     private fun openGallery() {
         val intent = Intent(this, GalleryContainerActivity::class.java)
-        intent.putExtra("hostname", hostname)
-        intent.putExtra("port", port)
         startActivity(intent)
     }
 

@@ -26,7 +26,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.ui.screens.ApplicationSettingsScreen
@@ -39,7 +38,6 @@ import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 fun SettingsNavHost(
     settingsViewModel: SettingsViewModel,
     workflowManagementViewModel: WorkflowManagementViewModel,
-    comfyUIClient: ComfyUIClient,
     onNavigateToGeneration: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -192,7 +190,6 @@ fun SettingsNavHost(
             composable(SettingsRoute.Workflows.route) {
                 WorkflowsSettingsScreen(
                     viewModel = workflowManagementViewModel,
-                    comfyUIClient = comfyUIClient,
                     onNavigateToGeneration = onNavigateToGeneration,
                     onLogout = onLogout
                 )

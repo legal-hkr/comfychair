@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.Logger
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -93,10 +94,13 @@ object MediaCache {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // Context and client references
+    // Accessor for shared client from ConnectionManager
+    private val comfyUIClient: ComfyUIClient?
+        get() = ConnectionManager.clientOrNull
+
+    // Context for temp file operations (set once when first needed)
     private var applicationContext: Context? = null
-    private var comfyUIClient: ComfyUIClient? = null
-    private var isInitialized = false
+    private var prefetchWorkersStarted = false
 
     // Memory budget: 1/3 of max heap for bitmaps (full-res images), 1/8 for video bytes
     // Bitmaps are large (4MB+ per 1024x1024 image), so we need generous cache for smooth scrolling
@@ -146,22 +150,16 @@ object MediaCache {
     fun isActiveView(view: ActiveView): Boolean = activeView == view
 
     /**
-     * Initialize the cache with context and client.
-     * Called after connection is established.
-     *
-     * Only replaces the client if the existing one is not working.
-     * This prevents GalleryContainerActivity from overwriting a working client.
+     * Ensure prefetch workers are running.
+     * Called when cache operations start that may need prefetching.
      */
-    fun initialize(context: Context, client: ComfyUIClient) {
-        // Only replace client if we don't have a working one
-        val existingClient = comfyUIClient
-        if (existingClient == null || existingClient.getBaseUrl() == null) {
+    fun ensureInitialized(context: Context) {
+        if (applicationContext == null) {
             applicationContext = context.applicationContext
-            comfyUIClient = client
         }
-        if (!isInitialized) {
+        if (!prefetchWorkersStarted) {
             startPrefetchWorkers()
-            isInitialized = true
+            prefetchWorkersStarted = true
         }
     }
 
@@ -793,11 +791,12 @@ object MediaCache {
 
     /**
      * Reset cache (on logout/disconnect).
+     * Called by ConnectionManager when disconnecting.
      */
     fun reset() {
         clearAll()
-        comfyUIClient = null
         applicationContext = null
+        prefetchWorkersStarted = false
     }
 
     // ==================== UTILITY ====================

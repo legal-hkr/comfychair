@@ -22,6 +22,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
@@ -72,7 +73,10 @@ sealed class SettingsEvent {
  */
 class SettingsViewModel : ViewModel() {
 
-    private var comfyUIClient: ComfyUIClient? = null
+    // Accessor for shared client from ConnectionManager
+    private val comfyUIClient: ComfyUIClient?
+        get() = ConnectionManager.clientOrNull
+
     private var resourceRefreshJob: Job? = null
 
     private val _serverSettingsState = MutableStateFlow(ServerSettingsUiState())
@@ -81,17 +85,11 @@ class SettingsViewModel : ViewModel() {
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
-    fun initialize(context: Context, hostname: String, port: Int) {
-        val client = ComfyUIClient(context.applicationContext, hostname, port)
-        comfyUIClient = client
+    fun initialize(context: Context) {
         _serverSettingsState.value = _serverSettingsState.value.copy(
-            hostname = hostname,
-            port = port
+            hostname = ConnectionManager.hostname,
+            port = ConnectionManager.port
         )
-        // Test connection to determine working protocol (http or https)
-        client.testConnection { success, _, _ ->
-            // Connection test complete, protocol is now determined
-        }
     }
 
     fun loadSystemStats() {
@@ -407,9 +405,14 @@ class SettingsViewModel : ViewModel() {
 
             when (result) {
                 is RestoreResult.Success -> {
-                    // Clear in-memory caches (disk files already cleared by BackupManager)
-                    MediaCache.clearAll()
-                    MediaStateHolder.clearAll()
+                    if (result.connectionChanged) {
+                        // Disconnect and clear all caches via ConnectionManager
+                        ConnectionManager.invalidateForRestore()
+                    } else {
+                        // Just clear in-memory caches (disk files already cleared by BackupManager)
+                        MediaCache.clearAll()
+                        MediaStateHolder.clearAll()
+                    }
 
                     if (result.skippedWorkflows > 0) {
                         _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_partial))
@@ -431,6 +434,6 @@ class SettingsViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         stopResourceAutoRefresh()
-        comfyUIClient?.shutdown()
+        // Client is managed by ConnectionManager, don't shutdown here
     }
 }

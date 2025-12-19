@@ -66,6 +66,7 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
@@ -79,8 +80,6 @@ import sh.hnet.comfychair.viewmodel.MediaViewerItem
 fun GalleryScreen(
     generationViewModel: GenerationViewModel,
     galleryViewModel: GalleryViewModel,
-    hostname: String,
-    port: Int,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
@@ -161,8 +160,8 @@ fun GalleryScreen(
         val viewerItems = galleryItemsToViewerItems(uiState.items)
         val intent = MediaViewerActivity.createGalleryIntent(
             context = context,
-            hostname = hostname,
-            port = port,
+            hostname = ConnectionManager.hostname,
+            port = ConnectionManager.port,
             items = viewerItems,
             initialIndex = clickedIndex
         )

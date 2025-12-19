@@ -46,13 +46,40 @@ class ComfyUIClient(
     // Store which protocol worked (http or https)
     private var workingProtocol: String? = null
 
+    /**
+     * Set the working protocol externally.
+     * Used by ConnectionManager when creating a shared client instance.
+     *
+     * @param protocol Either "http" or "https"
+     */
+    fun setWorkingProtocol(protocol: String) {
+        workingProtocol = protocol
+    }
+
+    /**
+     * Get the current working protocol.
+     * @return "http", "https", or null if not yet determined
+     */
+    fun getWorkingProtocol(): String? = workingProtocol
+
     // Store the active WebSocket connection
     private var webSocket: WebSocket? = null
 
     // Client ID for tracking WebSocket messages
     // This must match the client_id used when submitting prompts
-    // Generate a unique ID for each client instance to support multiple concurrent users
-    private val clientId = "comfychair_android_${UUID.randomUUID()}"
+    // Can be overridden by ConnectionManager to ensure WebSocket and HTTP use the same ID
+    private var clientId = "comfychair_android_${UUID.randomUUID()}"
+
+    /**
+     * Set the client ID externally.
+     * Used by ConnectionManager to ensure WebSocket connection and prompt submission
+     * use the same client ID.
+     *
+     * @param id The client ID to use
+     */
+    fun setClientId(id: String) {
+        clientId = id
+    }
 
     /**
      * Test connection to the ComfyUI server
@@ -140,17 +167,26 @@ class ComfyUIClient(
      * @return true if connection attempt started, false if no working protocol found
      */
     fun openWebSocket(listener: WebSocketListener): Boolean {
-        // Make sure we have a working protocol from testConnection
-        val protocol = workingProtocol ?: run {
-            // No protocol set - need to test connection first
-            return false
-        }
+        return openWebSocket(clientId, listener)
+    }
 
-        // Build WebSocket URL with client_id parameter
+    /**
+     * Open WebSocket connection with a specific client ID.
+     * Used by ConnectionManager to provide a shared client ID across components.
+     *
+     * @param clientIdOverride The client ID to use for this WebSocket connection
+     * @param listener WebSocket event listener
+     * @return true if connection attempt started, false if no working protocol found
+     */
+    fun openWebSocket(clientIdOverride: String, listener: WebSocketListener): Boolean {
+        // Make sure we have a working protocol from testConnection
+        val protocol = workingProtocol ?: return false
+
+        // Build WebSocket URL with clientId parameter
         // This is crucial - ComfyUI only sends progress/preview events to the matching client_id
         // ws:// for http, wss:// for https
         val wsProtocol = if (protocol == "https") "wss" else "ws"
-        val wsUrl = "$wsProtocol://$hostname:$port/ws?clientId=$clientId"
+        val wsUrl = "$wsProtocol://$hostname:$port/ws?clientId=$clientIdOverride"
 
         // Create WebSocket request
         val request = Request.Builder()
@@ -161,6 +197,14 @@ class ComfyUIClient(
         webSocket = httpClient.newWebSocket(request, listener)
 
         return true
+    }
+
+    /**
+     * Check if the WebSocket connection is currently active.
+     * @return true if connected, false otherwise
+     */
+    fun isWebSocketConnected(): Boolean {
+        return webSocket != null
     }
 
     /**

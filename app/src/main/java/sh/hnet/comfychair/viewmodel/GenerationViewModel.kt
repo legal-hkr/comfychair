@@ -22,6 +22,7 @@ import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
@@ -74,15 +75,12 @@ sealed class GenerationEvent {
  */
 class GenerationViewModel : ViewModel() {
 
-    // ComfyUI client
-    private var comfyUIClient: ComfyUIClient? = null
-
     // Application context for gallery repository
     private var applicationContext: Context? = null
 
-    // Connection parameters
-    private var hostname: String = ""
-    private var port: Int = 8188
+    // Accessor for shared client from ConnectionManager
+    private val comfyUIClient: ComfyUIClient?
+        get() = ConnectionManager.clientOrNull
 
     // Connection state
     private val _connectionStatus = MutableStateFlow(ConnectionStatus.DISCONNECTED)
@@ -122,26 +120,21 @@ class GenerationViewModel : ViewModel() {
     }
 
     /**
-     * Initialize the ViewModel with connection parameters and context
+     * Initialize the ViewModel with context.
+     * Connection is managed by ConnectionManager.
      */
-    fun initialize(context: Context, hostname: String, port: Int) {
-        if (this.comfyUIClient != null) {
+    fun initialize(context: Context) {
+        if (this.applicationContext != null) {
             // Already initialized
             return
         }
 
         this.applicationContext = context.applicationContext
-        this.hostname = hostname
-        this.port = port
-        this.comfyUIClient = ComfyUIClient(context.applicationContext, hostname, port)
-
-        // Initialize gallery repository with client
-        GalleryRepository.getInstance().initialize(context.applicationContext, this.comfyUIClient!!)
 
         // Restore generation state
         restoreGenerationState(context)
 
-        // Connect to server
+        // Connect WebSocket
         connectToServer()
     }
 
@@ -151,14 +144,14 @@ class GenerationViewModel : ViewModel() {
     fun getClient(): ComfyUIClient? = comfyUIClient
 
     /**
-     * Get the hostname
+     * Get the hostname from ConnectionManager
      */
-    fun getHostname(): String = hostname
+    fun getHostname(): String = ConnectionManager.hostname
 
     /**
-     * Get the port
+     * Get the port from ConnectionManager
      */
-    fun getPort(): Int = port
+    fun getPort(): Int = ConnectionManager.port
 
     /**
      * Register an event handler for a specific owner (screen).
@@ -240,31 +233,23 @@ class GenerationViewModel : ViewModel() {
     }
 
     /**
-     * Connect to the ComfyUI server
+     * Connect to the ComfyUI server.
+     * Connection is already established via ConnectionManager in LoginScreen.
      */
     private fun connectToServer() {
-        val client = comfyUIClient ?: return
+        if (!ConnectionManager.isConnected) {
+            _connectionStatus.value = ConnectionStatus.FAILED
+            return
+        }
 
         _connectionStatus.value = ConnectionStatus.CONNECTING
-
-        client.testConnection { success, errorMessage, _ ->
-            if (success) {
-                openWebSocketConnection()
-            } else {
-                _connectionStatus.value = ConnectionStatus.FAILED
-                val message = applicationContext?.getString(R.string.error_failed_to_connect, errorMessage)
-                    ?: "Failed to connect: $errorMessage"
-                dispatchEvent(GenerationEvent.Error(message))
-            }
-        }
+        openWebSocketConnection()
     }
 
     /**
-     * Open WebSocket connection
+     * Open WebSocket connection via ConnectionManager
      */
     private fun openWebSocketConnection() {
-        val client = comfyUIClient ?: return
-
         val webSocketListener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 isWebSocketConnected = true
@@ -308,7 +293,7 @@ class GenerationViewModel : ViewModel() {
             }
         }
 
-        client.openWebSocket(webSocketListener)
+        ConnectionManager.openWebSocket(webSocketListener)
     }
 
     /**
@@ -754,11 +739,9 @@ class GenerationViewModel : ViewModel() {
      * Logout - close connections and reset state
      */
     fun logout() {
-        // Stop gallery background tasks
-        GalleryRepository.getInstance().reset()
+        // Disconnect from server (clears all caches including GalleryRepository)
+        ConnectionManager.disconnect()
 
-        comfyUIClient?.closeWebSocket()
-        comfyUIClient?.shutdown()
         isWebSocketConnected = false
         _connectionStatus.value = ConnectionStatus.DISCONNECTED
         resetGenerationState()
@@ -766,7 +749,7 @@ class GenerationViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        comfyUIClient?.closeWebSocket()
-        comfyUIClient?.shutdown()
+        // WebSocket is managed by ConnectionManager, don't close it here
+        // as other ViewModels may still need it
     }
 }

@@ -56,8 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowPreviewerActivity
 import sh.hnet.comfychair.WorkflowType
@@ -68,7 +68,6 @@ import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 @Composable
 fun WorkflowsSettingsScreen(
     viewModel: WorkflowManagementViewModel,
-    comfyUIClient: ComfyUIClient,
     onNavigateToGeneration: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -321,7 +320,7 @@ fun WorkflowsSettingsScreen(
             onDescriptionChange = viewModel::onUploadDescriptionChange,
             descriptionError = uiState.uploadDescriptionError,
             isValidating = uiState.isValidatingNodes,
-            onConfirm = { viewModel.proceedWithUpload(comfyUIClient) },
+            onConfirm = { viewModel.proceedWithUpload(ConnectionManager.client) },
             onDismiss = viewModel::cancelUpload
         )
     }

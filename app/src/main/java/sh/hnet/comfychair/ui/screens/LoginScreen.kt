@@ -34,13 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import sh.hnet.comfychair.CertificateIssue
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.MainContainerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ConnectionManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -147,63 +145,45 @@ fun LoginScreen() {
             val (success, _, certIssue) = result
 
             if (success) {
-                // Open WebSocket connection
-                val wsResult = suspendCoroutine { continuation ->
-                    val listener = object : WebSocketListener() {
-                        override fun onOpen(webSocket: WebSocket, response: Response) {
-                            continuation.resume(Pair(true, certIssue))
-                        }
+                // Skip WebSocket test - HTTP test is sufficient
+                // WebSocket will be established by GenerationViewModel
+                connectionState = ConnectionState.CONNECTED
 
-                        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                            continuation.resume(Pair(false, certIssue))
-                        }
-                    }
-                    val opened = client.openWebSocket(listener)
-                    if (!opened) {
-                        continuation.resume(Pair(false, certIssue))
-                    }
+                // Save connection info
+                val prefs = context.getSharedPreferences("ComfyChairPrefs", Context.MODE_PRIVATE)
+                prefs.edit().apply {
+                    putString("hostname", trimmedHostname)
+                    putInt("port", portNum)
+                    apply()
                 }
 
-                val (wsSuccess, wssCertIssue) = wsResult
-
-                if (wsSuccess) {
-                    connectionState = ConnectionState.CONNECTED
-
-                    // Save connection info
-                    val prefs = context.getSharedPreferences("ComfyChairPrefs", Context.MODE_PRIVATE)
-                    prefs.edit().apply {
-                        putString("hostname", trimmedHostname)
-                        putInt("port", portNum)
-                        apply()
+                // Handle certificate warnings
+                val navigateDelay = when (certIssue) {
+                    CertificateIssue.SELF_SIGNED -> {
+                        warningMessage = warningSelfSigned
+                        1000L
                     }
-
-                    // Handle certificate warnings
-                    val navigateDelay = when (wssCertIssue) {
-                        CertificateIssue.SELF_SIGNED -> {
-                            warningMessage = warningSelfSigned
-                            1000L
-                        }
-                        CertificateIssue.UNKNOWN_CA -> {
-                            warningMessage = warningUnknownCa
-                            1000L
-                        }
-                        CertificateIssue.NONE -> 500L
+                    CertificateIssue.UNKNOWN_CA -> {
+                        warningMessage = warningUnknownCa
+                        1000L
                     }
-
-                    delay(navigateDelay)
-
-                    // Close WebSocket and navigate
-                    client.closeWebSocket()
-                    val intent = Intent(context, MainContainerActivity::class.java).apply {
-                        putExtra("hostname", trimmedHostname)
-                        putExtra("port", portNum)
-                    }
-                    context.startActivity(intent)
-                } else {
-                    connectionState = ConnectionState.FAILED
-                    delay(2000)
-                    connectionState = ConnectionState.IDLE
+                    CertificateIssue.NONE -> 500L
                 }
+
+                delay(navigateDelay)
+
+                // Establish connection via ConnectionManager
+                val detectedProtocol = client.getWorkingProtocol() ?: "http"
+                ConnectionManager.connect(
+                    context = context.applicationContext,
+                    hostname = trimmedHostname,
+                    port = portNum,
+                    protocol = detectedProtocol
+                )
+
+                // Navigate to main activity (no Intent extras needed)
+                val intent = Intent(context, MainContainerActivity::class.java)
+                context.startActivity(intent)
             } else {
                 connectionState = ConnectionState.FAILED
                 delay(2000)

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.ui.navigation.SettingsNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.SettingsEvent
@@ -28,26 +29,20 @@ class SettingsContainerActivity : ComponentActivity() {
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
 
-    // Connection information (passed from MainContainerActivity)
-    private var hostname: String = ""
-    private var port: Int = 8188
-    private lateinit var comfyUIClient: ComfyUIClient
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Get connection parameters from intent
-        hostname = intent.getStringExtra("hostname") ?: ""
-        port = intent.getIntExtra("port", 8188)
-
-        // Initialize ComfyUIClient and test connection to determine protocol
-        comfyUIClient = ComfyUIClient(applicationContext, hostname, port)
-        comfyUIClient.testConnection { _, _, _ ->
-            // Protocol is now determined (http or https)
+        // Guard check - redirect to login if not connected
+        if (!ConnectionManager.isConnected) {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
+            return
         }
 
-        // Initialize ViewModel with connection info
-        settingsViewModel.initialize(applicationContext, hostname, port)
+        // Initialize ViewModel (uses ConnectionManager internally)
+        settingsViewModel.initialize(applicationContext)
 
         setContent {
             ComfyChairTheme {
@@ -88,7 +83,6 @@ class SettingsContainerActivity : ComponentActivity() {
                     SettingsNavHost(
                         settingsViewModel = settingsViewModel,
                         workflowManagementViewModel = workflowManagementViewModel,
-                        comfyUIClient = comfyUIClient,
                         onNavigateToGeneration = { finish() },
                         onLogout = { logout() }
                     )

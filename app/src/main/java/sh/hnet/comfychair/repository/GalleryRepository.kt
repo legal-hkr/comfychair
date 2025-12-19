@@ -14,8 +14,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
-import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
 /**
@@ -26,8 +27,9 @@ class GalleryRepository private constructor() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private var comfyUIClient: ComfyUIClient? = null
-    private var applicationContext: Context? = null
+    // Accessor for shared client from ConnectionManager
+    private val comfyUIClient: ComfyUIClient?
+        get() = ConnectionManager.clientOrNull
 
     // Gallery data state
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
@@ -71,35 +73,11 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Initialize the repository with context and client.
-     * Should be called after connection is established.
-     *
-     * Only re-initializes if the repository doesn't have a working client.
-     * This prevents GalleryContainerActivity from overwriting a working client
-     * with a broken one (missing workingProtocol).
-     */
-    @Synchronized
-    fun initialize(context: Context, client: ComfyUIClient) {
-        // Only initialize if we don't have a working client
-        // A working client has getBaseUrl() != null (workingProtocol is set)
-        val existingClient = comfyUIClient
-        if (existingClient != null && existingClient.getBaseUrl() != null) {
-            // Already have a working client, don't replace it
-            return
-        }
-
-        applicationContext = context.applicationContext
-        comfyUIClient = client
-        // Initialize shared media cache
-        MediaCache.initialize(context, client)
-    }
-
-    /**
      * Start background preloading of gallery data.
      * Called after WebSocket connection is established.
      */
     fun startBackgroundPreload() {
-        if (comfyUIClient == null || applicationContext == null) {
+        if (comfyUIClient == null) {
             return
         }
 
@@ -185,7 +163,6 @@ class GalleryRepository private constructor() {
      */
     private suspend fun loadGalleryInternal(isRefresh: Boolean): Boolean {
         val client = comfyUIClient ?: return false
-        if (applicationContext == null) return false
 
         if (isRefresh) {
             _isRefreshing.value = true
@@ -353,14 +330,11 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Reset repository state (for logout)
+     * Reset repository state (for logout/disconnect).
+     * Called by ConnectionManager when disconnecting.
      */
     fun reset() {
         clearCache()
-        comfyUIClient = null
-        applicationContext = null
-        // Reset media cache
-        MediaCache.reset()
     }
 
     /**

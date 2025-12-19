@@ -16,6 +16,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
@@ -27,10 +29,6 @@ import sh.hnet.comfychair.viewmodel.GenerationViewModel
  */
 class GalleryContainerActivity : ComponentActivity() {
 
-    // Connection information (passed from MainContainerActivity)
-    private var hostname: String = ""
-    private var port: Int = 8188
-
     // ViewModels
     private val generationViewModel: GenerationViewModel by viewModels()
     private val galleryViewModel: GalleryViewModel by viewModels()
@@ -38,12 +36,20 @@ class GalleryContainerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Get connection parameters from intent
-        hostname = intent.getStringExtra("hostname") ?: ""
-        port = intent.getIntExtra("port", 8188)
+        // Guard check - redirect to login if not connected
+        if (!ConnectionManager.isConnected) {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
+            return
+        }
 
-        // Initialize the GenerationViewModel with connection parameters
-        generationViewModel.initialize(this, hostname, port)
+        // Initialize the GenerationViewModel (uses ConnectionManager internally)
+        generationViewModel.initialize(this)
+
+        // Initialize MediaCache with context for image/video fetching
+        MediaCache.ensureInitialized(applicationContext)
 
         setContent {
             ComfyChairTheme {
@@ -65,8 +71,6 @@ class GalleryContainerActivity : ComponentActivity() {
                         GalleryScreen(
                             generationViewModel = generationViewModel,
                             galleryViewModel = galleryViewModel,
-                            hostname = hostname,
-                            port = port,
                             onNavigateToSettings = { openSettings() },
                             onLogout = { logout() },
                             modifier = Modifier.padding(paddingValues)
@@ -93,8 +97,6 @@ class GalleryContainerActivity : ComponentActivity() {
      */
     private fun openSettings() {
         val intent = Intent(this, SettingsContainerActivity::class.java)
-        intent.putExtra("hostname", hostname)
-        intent.putExtra("port", port)
         startActivity(intent)
     }
 }
