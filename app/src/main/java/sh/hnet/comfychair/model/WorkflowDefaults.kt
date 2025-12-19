@@ -23,7 +23,12 @@ data class WorkflowDefaults(
 
     // Video specific
     val length: Int? = null,
-    val frameRate: Int? = null
+    val frameRate: Int? = null,
+
+    // Workflow capability flags (for Flux support)
+    val hasNegativePrompt: Boolean = true,
+    val hasCfg: Boolean = true,
+    val hasDualClip: Boolean = false
 ) {
     companion object {
         fun fromJson(jsonObject: JSONObject?): WorkflowDefaults {
@@ -39,7 +44,11 @@ data class WorkflowDefaults(
                 negativePrompt = if (jsonObject.has("negative_prompt")) jsonObject.optString("negative_prompt") else null,
                 megapixels = jsonObject.optDouble("megapixels").takeIf { !it.isNaN() }?.toFloat(),
                 length = jsonObject.optInt("length").takeIf { it > 0 },
-                frameRate = jsonObject.optInt("frame_rate").takeIf { it > 0 }
+                frameRate = jsonObject.optInt("frame_rate").takeIf { it > 0 },
+                // Capability flags (default to true/false if not present)
+                hasNegativePrompt = jsonObject.optBoolean("has_negative_prompt", true),
+                hasCfg = jsonObject.optBoolean("has_cfg", true),
+                hasDualClip = jsonObject.optBoolean("has_dual_clip", false)
             )
         }
 
@@ -55,6 +64,10 @@ data class WorkflowDefaults(
                 defaults.megapixels?.let { put("megapixels", it.toDouble()) }
                 defaults.length?.let { put("length", it) }
                 defaults.frameRate?.let { put("frame_rate", it) }
+                // Only include capability flags if they differ from defaults
+                if (!defaults.hasNegativePrompt) put("has_negative_prompt", false)
+                if (!defaults.hasCfg) put("has_cfg", false)
+                if (defaults.hasDualClip) put("has_dual_clip", true)
             }
         }
     }

@@ -32,6 +32,8 @@ data class WorkflowValues(
     val unetModel: String? = null,
     val vaeModel: String? = null,
     val clipModel: String? = null,
+    val clip1Model: String? = null,  // For Flux dual CLIP
+    val clip2Model: String? = null,  // For Flux dual CLIP
     val highnoiseUnetModel: String? = null,
     val lownoiseUnetModel: String? = null,
     val highnoiseLoraModel: String? = null,
@@ -61,6 +63,8 @@ data class WorkflowValues(
                 unetModel = json.optString("unetModel").takeIf { it.isNotEmpty() },
                 vaeModel = json.optString("vaeModel").takeIf { it.isNotEmpty() },
                 clipModel = json.optString("clipModel").takeIf { it.isNotEmpty() },
+                clip1Model = json.optString("clip1Model").takeIf { it.isNotEmpty() },
+                clip2Model = json.optString("clip2Model").takeIf { it.isNotEmpty() },
                 highnoiseUnetModel = json.optString("highnoiseUnetModel").takeIf { it.isNotEmpty() },
                 lownoiseUnetModel = json.optString("lownoiseUnetModel").takeIf { it.isNotEmpty() },
                 highnoiseLoraModel = json.optString("highnoiseLoraModel").takeIf { it.isNotEmpty() },
@@ -88,6 +92,8 @@ data class WorkflowValues(
                 values.unetModel?.let { put("unetModel", it) }
                 values.vaeModel?.let { put("vaeModel", it) }
                 values.clipModel?.let { put("clipModel", it) }
+                values.clip1Model?.let { put("clip1Model", it) }
+                values.clip2Model?.let { put("clip2Model", it) }
                 values.highnoiseUnetModel?.let { put("highnoiseUnetModel", it) }
                 values.lownoiseUnetModel?.let { put("lownoiseUnetModel", it) }
                 values.highnoiseLoraModel?.let { put("highnoiseLoraModel", it) }

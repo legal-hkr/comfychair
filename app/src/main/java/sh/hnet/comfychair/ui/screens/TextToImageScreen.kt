@@ -285,6 +285,8 @@ fun TextToImageScreen(
                 onUnetChange = { textToImageViewModel.onUnetChange(it) },
                 onVaeChange = { textToImageViewModel.onVaeChange(it) },
                 onClipChange = { textToImageViewModel.onClipChange(it) },
+                onClip1Change = { textToImageViewModel.onClip1Change(it) },
+                onClip2Change = { textToImageViewModel.onClip2Change(it) },
                 onUnetWidthChange = { textToImageViewModel.onUnetWidthChange(it) },
                 onUnetHeightChange = { textToImageViewModel.onUnetHeightChange(it) },
                 onUnetStepsChange = { textToImageViewModel.onUnetStepsChange(it) },

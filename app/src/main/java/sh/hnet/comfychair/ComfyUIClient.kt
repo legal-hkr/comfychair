@@ -34,13 +34,23 @@ class ComfyUIClient(
     private val hostname: String,
     private val port: Int
 ) {
-    // OkHttpClient - handles all HTTP/HTTPS and WebSocket connections
-    // We configure it with reasonable timeouts and self-signed certificate support
+    // OkHttpClient for HTTP requests - short timeouts are fine
     private val httpClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)  // Max time to establish connection
             .readTimeout(10, TimeUnit.SECONDS)     // Max time to read response
             .writeTimeout(10, TimeUnit.SECONDS)    // Max time to write request
+    ).build()
+
+    // Separate OkHttpClient for WebSocket connections
+    // WebSockets need longer timeouts since data may not arrive for extended periods
+    // pingInterval keeps the connection alive during long operations
+    private val webSocketClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
+        OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)      // No read timeout for WebSocket
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .pingInterval(30, TimeUnit.SECONDS)    // Keep connection alive with pings
     ).build()
 
     // Store which protocol worked (http or https)
@@ -193,8 +203,8 @@ class ComfyUIClient(
             .url(wsUrl)
             .build()
 
-        // Open WebSocket connection
-        webSocket = httpClient.newWebSocket(request, listener)
+        // Open WebSocket connection using dedicated WebSocket client with longer timeouts
+        webSocket = webSocketClient.newWebSocket(request, listener)
 
         return true
     }

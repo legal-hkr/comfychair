@@ -200,6 +200,8 @@
     <string name="label_unet" translatable="false">UNET</string>
     <string name="label_vae" translatable="false">VAE</string>
     <string name="label_clip" translatable="false">CLIP</string>
+    <string name="label_clip1" translatable="false">CLIP 1 (T5)</string>
+    <string name="label_clip2" translatable="false">CLIP 2 (L)</string>
     <string name="label_width">Width</string>
     <string name="label_height">Height</string>
     <string name="label_steps">Steps</string>

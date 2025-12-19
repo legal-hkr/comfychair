@@ -1,17 +1,15 @@
 {
-  "name": "Z-Image Turbo",
-  "description": "Default workflow using Z-Image Turbo model",
+  "name": "Flux",
+  "description": "Workflow for Flux UNET model with dual CLIP",
   "defaults": {
-    "width": 832,
-    "height": 1216,
-    "steps": 9,
-    "cfg": 1.0,
+    "width": 1024,
+    "height": 1024,
+    "steps": 30,
     "sampler_name": "euler",
     "scheduler": "simple",
-    "negative_prompt": "blurry ugly bad",
-    "has_negative_prompt": true,
-    "has_cfg": true,
-    "has_dual_clip": false
+    "has_negative_prompt": false,
+    "has_cfg": false,
+    "has_dual_clip": true
   },
   "nodes": {
     "1": {
@@ -34,25 +32,26 @@
       }
     },
     "3": {
-      "class_type": "CLIPLoader",
+      "class_type": "DualCLIPLoader",
       "inputs": {
-        "clip_name": "{{clip_name}}",
-        "type": "lumina2",
+        "clip_name1": "{{clip_name1}}",
+        "clip_name2": "{{clip_name2}}",
+        "type": "flux",
         "device": "default"
       },
       "_meta": {
-        "title": "Load CLIP"
+        "title": "DualCLIPLoader"
       }
     },
     "4": {
-      "class_type": "EmptySD3LatentImage",
+      "class_type": "EmptyLatentImage",
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
         "batch_size": 1
       },
       "_meta": {
-        "title": "EmptySD3LatentImage"
+        "title": "Empty Latent Image"
       }
     },
     "5": {
@@ -62,52 +61,77 @@
         "clip": ["3", 0]
       },
       "_meta": {
-        "title": "CLIP Text Encode (Positive Prompt)"
+        "title": "CLIP Text Encode (Prompt)"
       }
     },
     "6": {
-      "class_type": "CLIPTextEncode",
+      "class_type": "RandomNoise",
       "inputs": {
-        "text": "{{negative_prompt}}",
-        "clip": ["3", 0]
+        "noise_seed": 0
       },
       "_meta": {
-        "title": "CLIP Text Encode (Negative Prompt)"
+        "title": "RandomNoise"
       }
     },
     "7": {
-      "class_type": "KSampler",
+      "class_type": "KSamplerSelect",
       "inputs": {
-        "seed": 0,
-        "steps": "{{steps}}",
-        "cfg": "{{cfg}}",
-        "sampler_name": "{{sampler_name}}",
-        "scheduler": "{{scheduler}}",
-        "denoise": 1,
-        "model": ["1", 0],
-        "positive": ["5", 0],
-        "negative": ["6", 0],
-        "latent_image": ["4", 0]
+        "sampler_name": "{{sampler_name}}"
       },
       "_meta": {
-        "title": "KSampler"
+        "title": "KSamplerSelect"
       }
     },
     "8": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "scheduler": "{{scheduler}}",
+        "steps": "{{steps}}",
+        "denoise": 1,
+        "model": ["1", 0]
+      },
+      "_meta": {
+        "title": "BasicScheduler"
+      }
+    },
+    "9": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": ["1", 0],
+        "conditioning": ["5", 0]
+      },
+      "_meta": {
+        "title": "BasicGuider"
+      }
+    },
+    "10": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["6", 0],
+        "guider": ["9", 0],
+        "sampler": ["7", 0],
+        "sigmas": ["8", 0],
+        "latent_image": ["4", 0]
+      },
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      }
+    },
+    "11": {
       "class_type": "VAEDecode",
       "inputs": {
-        "samples": ["7", 0],
+        "samples": ["10", 0],
         "vae": ["2", 0]
       },
       "_meta": {
         "title": "VAE Decode"
       }
     },
-    "9": {
+    "12": {
       "class_type": "SaveImage",
       "inputs": {
         "filename_prefix": "ComfyChair",
-        "images": ["8", 0]
+        "images": ["11", 0]
       },
       "_meta": {
         "title": "Save Image"

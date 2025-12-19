@@ -473,6 +473,7 @@ class BackupManager(private val context: Context) {
                 // Model names - just sanitize (don't validate against server models)
                 listOf(
                     "checkpointModel", "unetModel", "vaeModel", "clipModel",
+                    "clip1Model", "clip2Model",  // Dual CLIP for Flux
                     "highnoiseUnetModel", "lownoiseUnetModel",
                     "highnoiseLoraModel", "lownoiseLoraModel"
                 ).forEach { key ->

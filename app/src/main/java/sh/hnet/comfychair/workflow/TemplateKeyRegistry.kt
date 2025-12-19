@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowType
 
 /**
@@ -19,6 +20,8 @@ object TemplateKeyRegistry {
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
         "clip_name" to "clip_name",
+        "clip_name1" to "clip_name1",
+        "clip_name2" to "clip_name2",
         "width" to "width",
         "height" to "height",
         "steps" to "steps",
@@ -48,6 +51,8 @@ object TemplateKeyRegistry {
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
         "clip_name" to "clip_name",
+        "clip_name1" to "clip_name1",
+        "clip_name2" to "clip_name2",
         "width" to "width",
         "height" to "height",
         "steps" to "steps",
@@ -120,5 +125,47 @@ object TemplateKeyRegistry {
      */
     fun getPlaceholderForKey(key: String): String {
         return KEY_TO_PLACEHOLDER[key] ?: key
+    }
+
+    /**
+     * Analyze workflow JSON and determine actual required keys based on workflow structure.
+     * This handles Flux-style workflows with:
+     * - DualCLIPLoader (replaces clip_name with clip_name1 + clip_name2)
+     * - BasicGuider (no CFG, no negative prompt)
+     */
+    fun getRequiredKeysForWorkflow(workflowType: WorkflowType, workflowJson: JSONObject): Set<String> {
+        val baseKeys = KEYS_BY_TYPE[workflowType]?.toMutableSet() ?: return emptySet()
+
+        if (workflowType == WorkflowType.TTI_UNET) {
+            val nodesJson = workflowJson.optJSONObject("nodes") ?: return baseKeys
+
+            // Check for DualCLIPLoader (replaces clip_name with clip_name1 + clip_name2)
+            val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
+                nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
+            }
+            if (hasDualClip) {
+                baseKeys.remove("clip_name")
+                baseKeys.add("clip_name1")
+                baseKeys.add("clip_name2")
+            }
+
+            // Check for BasicGuider (no CFG, no negative prompt)
+            val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
+                nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
+            }
+            if (hasBasicGuider) {
+                baseKeys.remove("cfg")
+                baseKeys.remove("negative_text")
+            }
+        }
+
+        return baseKeys
+    }
+
+    /**
+     * Get direct keys for validation (excludes graph-traced keys), adjusted for workflow structure.
+     */
+    fun getDirectKeysForWorkflow(workflowType: WorkflowType, workflowJson: JSONObject): Set<String> {
+        return getRequiredKeysForWorkflow(workflowType, workflowJson) - GRAPH_TRACED_KEYS
     }
 }

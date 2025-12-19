@@ -43,8 +43,7 @@ class MainContainerActivity : ComponentActivity() {
     ) { result ->
         when (result.resultCode) {
             RESULT_REFRESH_NEEDED -> {
-                // Settings cleared/restored - restart activity fresh to reload all ViewModels
-                // Using finish + start instead of recreate() to clear ViewModels
+                // Settings cleared/restored or workflows changed - restart activity fresh
                 val intent = Intent(this, MainContainerActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)

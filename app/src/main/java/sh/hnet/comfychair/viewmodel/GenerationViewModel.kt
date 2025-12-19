@@ -23,7 +23,6 @@ import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
@@ -215,6 +214,7 @@ class GenerationViewModel : ViewModel() {
      */
     private fun dispatchEvent(event: GenerationEvent) {
         val handler = activeEventHandler
+
         if (handler != null) {
             viewModelScope.launch { handler(event) }
             if (event is GenerationEvent.PreviewImage) {
@@ -313,15 +313,9 @@ class GenerationViewModel : ViewModel() {
                     val currentState = _generationState.value
 
                     if (isComplete && promptId == currentState.promptId && promptId != null) {
-                        // Dispatch the appropriate event based on content type
-                        val event = if (currentState.contentType == ContentType.VIDEO) {
-                            GenerationEvent.VideoGenerated(promptId)
-                        } else {
-                            GenerationEvent.ImageGenerated(promptId)
-                        }
-                        dispatchEvent(event)
-                        // Trigger gallery refresh to include the new item
-                        GalleryRepository.getInstance().refresh()
+                        // Use dispatchCompletionEvent to ensure consistent behavior with server polling
+                        // This dispatches the event, calls completeGeneration(), and refreshes gallery
+                        dispatchCompletionEvent(promptId, currentState.contentType)
                     }
                 }
                 "progress" -> {
@@ -338,9 +332,9 @@ class GenerationViewModel : ViewModel() {
                 }
                 "execution_error" -> {
                     resetGenerationState()
-                    val message = applicationContext?.getString(R.string.error_generation_failed)
+                    val errorMessage = applicationContext?.getString(R.string.error_generation_failed)
                         ?: "Generation failed"
-                    dispatchEvent(GenerationEvent.Error(message))
+                    dispatchEvent(GenerationEvent.Error(errorMessage))
                 }
                 "status", "previewing", "execution_cached", "execution_start",
                 "execution_success", "progress_state", "executed" -> {
@@ -350,8 +344,8 @@ class GenerationViewModel : ViewModel() {
                     // Unknown message type - ignore
                 }
             }
-        } catch (e: Exception) {
-            Logger.w("Generation", "Failed to parse WebSocket message: ${e.message}")
+        } catch (_: Exception) {
+            // Ignore malformed WebSocket messages
         }
     }
 
@@ -366,8 +360,8 @@ class GenerationViewModel : ViewModel() {
                 if (bitmap != null) {
                     dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
-            } catch (e: Exception) {
-                Logger.d("Generation", "Failed to decode preview image: ${e.message}")
+            } catch (_: Exception) {
+                // Ignore malformed preview images
             }
         }
     }
@@ -388,7 +382,7 @@ class GenerationViewModel : ViewModel() {
         contentType: ContentType = ContentType.IMAGE,
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
-        val client = comfyUIClient ?: run {
+        comfyUIClient ?: run {
             onResult(false, null, applicationContext?.getString(R.string.error_client_not_initialized) ?: "Client not initialized")
             return
         }

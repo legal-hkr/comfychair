@@ -209,6 +209,8 @@ object FieldDisplayRegistry {
         "unet_name" to Pair("UNET Model", "The diffusion model to use"),
         "vae_name" to Pair("VAE", "The VAE encoder/decoder"),
         "clip_name" to Pair("CLIP", "The CLIP text encoder"),
+        "clip_name1" to Pair("CLIP 1 (T5)", "First CLIP text encoder (T5-XXL for Flux)"),
+        "clip_name2" to Pair("CLIP 2 (L)", "Second CLIP text encoder (L for Flux)"),
         "width" to Pair("Width", "Output image width"),
         "height" to Pair("Height", "Output image height"),
         "steps" to Pair("Steps", "Number of sampling steps"),

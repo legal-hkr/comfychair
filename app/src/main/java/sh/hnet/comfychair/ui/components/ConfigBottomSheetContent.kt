@@ -55,6 +55,8 @@ fun ConfigBottomSheetContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
+    onClip1Change: (String) -> Unit,
+    onClip2Change: (String) -> Unit,
     onUnetWidthChange: (String) -> Unit,
     onUnetHeightChange: (String) -> Unit,
     onUnetStepsChange: (String) -> Unit,
@@ -80,17 +82,20 @@ fun ConfigBottomSheetContent(
             .padding(bottom = 32.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // Negative prompt (per-workflow)
-        OutlinedTextField(
-            value = if (uiState.isCheckpointMode) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
-            onValueChange = if (uiState.isCheckpointMode) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
-            label = { Text(stringResource(R.string.negative_prompt_hint)) },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-            maxLines = 4
-        )
+        // Negative prompt (per-workflow) - hidden for Flux workflows
+        val showNegativePrompt = uiState.isCheckpointMode || uiState.currentWorkflowHasNegativePrompt
+        if (showNegativePrompt) {
+            OutlinedTextField(
+                value = if (uiState.isCheckpointMode) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
+                onValueChange = if (uiState.isCheckpointMode) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
+                label = { Text(stringResource(R.string.negative_prompt_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 4
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Mode Toggle
         Text(
@@ -145,6 +150,8 @@ fun ConfigBottomSheetContent(
                 onUnetChange = onUnetChange,
                 onVaeChange = onVaeChange,
                 onClipChange = onClipChange,
+                onClip1Change = onClip1Change,
+                onClip2Change = onClip2Change,
                 onWidthChange = onUnetWidthChange,
                 onHeightChange = onUnetHeightChange,
                 onStepsChange = onUnetStepsChange,
@@ -301,6 +308,8 @@ private fun UnetModeContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
+    onClip1Change: (String) -> Unit,
+    onClip2Change: (String) -> Unit,
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
     onStepsChange: (String) -> Unit,
@@ -342,13 +351,33 @@ private fun UnetModeContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // CLIP dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_clip),
-        selectedValue = uiState.selectedClip,
-        options = uiState.availableClips,
-        onValueChange = onClipChange
-    )
+    // CLIP dropdown(s) - single or dual based on workflow
+    if (uiState.currentWorkflowHasDualClip) {
+        // Dual CLIP for Flux workflows
+        ModelDropdown(
+            label = stringResource(R.string.label_clip1),
+            selectedValue = uiState.selectedClip1,
+            options = uiState.availableClips,
+            onValueChange = onClip1Change
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ModelDropdown(
+            label = stringResource(R.string.label_clip2),
+            selectedValue = uiState.selectedClip2,
+            options = uiState.availableClips,
+            onValueChange = onClip2Change
+        )
+    } else {
+        // Single CLIP for standard UNET workflows
+        ModelDropdown(
+            label = stringResource(R.string.label_clip),
+            selectedValue = uiState.selectedClip,
+            options = uiState.availableClips,
+            onValueChange = onClipChange
+        )
+    }
 
     Spacer(modifier = Modifier.height(12.dp))
 
@@ -385,7 +414,7 @@ private fun UnetModeContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // Steps and CFG
+    // Steps and CFG (CFG hidden for Flux workflows)
     Row(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = uiState.unetSteps,
@@ -400,20 +429,22 @@ private fun UnetModeContent(
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        if (uiState.currentWorkflowHasCfg) {
+            Spacer(modifier = Modifier.width(8.dp))
 
-        OutlinedTextField(
-            value = uiState.unetCfg,
-            onValueChange = onCfgChange,
-            label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && !uiState.isCheckpointMode,
-            supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
-                { Text(uiState.cfgError!!) }
-            } else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f),
-            singleLine = true
-        )
+            OutlinedTextField(
+                value = uiState.unetCfg,
+                onValueChange = onCfgChange,
+                label = { Text(stringResource(R.string.label_cfg)) },
+                isError = uiState.cfgError != null && !uiState.isCheckpointMode,
+                supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
+                    { Text(uiState.cfgError!!) }
+                } else null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+        }
     }
 
     Spacer(modifier = Modifier.height(12.dp))

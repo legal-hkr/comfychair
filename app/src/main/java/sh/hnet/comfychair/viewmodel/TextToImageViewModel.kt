@@ -56,12 +56,19 @@ data class TextToImageUiState(
     val selectedUnet: String = "",
     val selectedVae: String = "",
     val selectedClip: String = "",
+    val selectedClip1: String = "",  // For Flux dual CLIP
+    val selectedClip2: String = "",  // For Flux dual CLIP
     val unetWidth: String = "832",
     val unetHeight: String = "1216",
     val unetSteps: String = "9",
     val unetCfg: String = "1.0",
     val unetSampler: String = "euler",
     val unetScheduler: String = "simple",
+
+    // Current workflow capabilities (for conditional UI)
+    val currentWorkflowHasNegativePrompt: Boolean = true,
+    val currentWorkflowHasCfg: Boolean = true,
+    val currentWorkflowHasDualClip: Boolean = false,
 
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
@@ -247,6 +254,14 @@ class TextToImageViewModel : ViewModel() {
                     selectedClip = validateModelSelection(
                         state.selectedClip,
                         clips
+                    ),
+                    selectedClip1 = validateModelSelection(
+                        state.selectedClip1,
+                        clips
+                    ),
+                    selectedClip2 = validateModelSelection(
+                        state.selectedClip2,
+                        clips
                     )
                 )
             }
@@ -425,7 +440,13 @@ class TextToImageViewModel : ViewModel() {
             selectedUnet = savedValues?.unetModel ?: "",
             selectedVae = savedValues?.vaeModel ?: "",
             selectedClip = savedValues?.clipModel ?: "",
-            unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+            selectedClip1 = savedValues?.clip1Model ?: "",
+            selectedClip2 = savedValues?.clip2Model ?: "",
+            unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Set workflow capability flags
+            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+            currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+            currentWorkflowHasDualClip = defaults?.hasDualClip ?: false
         )
         saveConfiguration()
     }
@@ -442,6 +463,16 @@ class TextToImageViewModel : ViewModel() {
 
     fun onClipChange(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip = clip)
+        saveConfiguration()
+    }
+
+    fun onClip1Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip1 = clip)
+        saveConfiguration()
+    }
+
+    fun onClip2Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip2 = clip)
         saveConfiguration()
     }
 
@@ -707,13 +738,22 @@ class TextToImageViewModel : ViewModel() {
             validateSteps(state.checkpointSteps) == null &&
             validateCfg(state.checkpointCfg) == null
         } else {
+            // CLIP validation: dual CLIP or single CLIP based on workflow
+            val clipValid = if (state.currentWorkflowHasDualClip) {
+                state.selectedClip1.isNotEmpty() && state.selectedClip2.isNotEmpty()
+            } else {
+                state.selectedClip.isNotEmpty()
+            }
+            // CFG validation: skip if workflow doesn't have CFG
+            val cfgValid = !state.currentWorkflowHasCfg || validateCfg(state.unetCfg) == null
+
             state.selectedUnet.isNotEmpty() &&
             state.selectedVae.isNotEmpty() &&
-            state.selectedClip.isNotEmpty() &&
+            clipValid &&
             validateDimension(state.unetWidth) == null &&
             validateDimension(state.unetHeight) == null &&
             validateSteps(state.unetSteps) == null &&
-            validateCfg(state.unetCfg) == null
+            cfgValid
         }
     }
 
@@ -744,7 +784,9 @@ class TextToImageViewModel : ViewModel() {
                 negativePrompt = state.unetNegativePrompt,
                 unet = state.selectedUnet,
                 vae = state.selectedVae,
-                clip = state.selectedClip,
+                clip = if (state.currentWorkflowHasDualClip) null else state.selectedClip,
+                clip1 = if (state.currentWorkflowHasDualClip) state.selectedClip1 else null,
+                clip2 = if (state.currentWorkflowHasDualClip) state.selectedClip2 else null,
                 width = state.unetWidth.toIntOrNull() ?: 832,
                 height = state.unetHeight.toIntOrNull() ?: 1216,
                 steps = state.unetSteps.toIntOrNull() ?: 9,
@@ -801,7 +843,7 @@ class TextToImageViewModel : ViewModel() {
                         }
                     }
                     onComplete(false)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     onComplete(false)
                 }
             } else {
@@ -847,6 +889,8 @@ class TextToImageViewModel : ViewModel() {
                 unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
                 vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
+                clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
+                clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
                 loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() }
             )
         }
@@ -943,7 +987,13 @@ class TextToImageViewModel : ViewModel() {
             selectedUnet = unetSavedValues?.unetModel ?: "",
             selectedVae = unetSavedValues?.vaeModel ?: "",
             selectedClip = unetSavedValues?.clipModel ?: "",
-            unetLoraChain = unetSavedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+            selectedClip1 = unetSavedValues?.clip1Model ?: "",
+            selectedClip2 = unetSavedValues?.clip2Model ?: "",
+            unetLoraChain = unetSavedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Set workflow capability flags from defaults
+            currentWorkflowHasNegativePrompt = unetDefaults?.hasNegativePrompt ?: true,
+            currentWorkflowHasCfg = unetDefaults?.hasCfg ?: true,
+            currentWorkflowHasDualClip = unetDefaults?.hasDualClip ?: false
         )
     }
 

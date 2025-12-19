@@ -139,6 +139,7 @@ class WorkflowManager(private val context: Context) {
             R.raw.tti_checkpoint_sdxl,
             R.raw.tti_checkpoint_flux_schnell,
             R.raw.tti_unet_zimage_turbo,
+            R.raw.tti_unet_flux,
             R.raw.iti_checkpoint_sd_sdxl,
             R.raw.iti_unet_zimage_turbo,
             R.raw.ttv_unet_wan22_lightx2v,
@@ -367,8 +368,9 @@ class WorkflowManager(private val context: Context) {
             }
         }
 
-        // Get required keys for this workflow type (excludes graph-traced keys like positive_text/negative_text)
-        val requiredKeys = TemplateKeyRegistry.getDirectKeysForType(type)
+        // Get required keys for this workflow type, adjusted for workflow structure
+        // (excludes graph-traced keys like positive_text/negative_text)
+        val requiredKeys = TemplateKeyRegistry.getDirectKeysForWorkflow(type, json)
         val missingKeys = requiredKeys.filter { it !in presentKeys }
 
         // Also check for required patterns (like uploaded_image.png for inpainting)
@@ -523,7 +525,15 @@ class WorkflowManager(private val context: Context) {
             }
         }
 
-        // Create defaults object from extracted values
+        // Auto-detect capability flags from workflow structure
+        val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
+            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
+        }
+        val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
+            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
+        }
+
+        // Create defaults object from extracted values with auto-detected capability flags
         val defaults = WorkflowDefaults(
             width = (extractedDefaults["width"] as? Number)?.toInt(),
             height = (extractedDefaults["height"] as? Number)?.toInt(),
@@ -534,7 +544,11 @@ class WorkflowManager(private val context: Context) {
             negativePrompt = extractedDefaults["negative_text"] as? String,
             megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
             length = (extractedDefaults["length"] as? Number)?.toInt(),
-            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt()
+            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt(),
+            // Capability flags for Flux-style workflows
+            hasNegativePrompt = !hasBasicGuider,  // BasicGuider means no negative prompt
+            hasCfg = !hasBasicGuider,              // BasicGuider means no CFG
+            hasDualClip = hasDualClip              // DualCLIPLoader detected
         )
 
         // Create wrapped JSON with metadata and defaults
@@ -1187,7 +1201,9 @@ class WorkflowManager(private val context: Context) {
         checkpoint: String = "",
         unet: String = "",
         vae: String = "",
-        clip: String = "",
+        clip: String? = null,
+        clip1: String? = null,
+        clip2: String? = null,
         width: Int,
         height: Int,
         steps: Int,
@@ -1207,14 +1223,19 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        // Handle single CLIP or dual CLIP
+        clip?.let { processedJson = processedJson.replace("{{clip_name}}", escapeForJson(it)) }
+        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
+        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         processedJson = processedJson.replace("{{width}}", width.toString())
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
         processedJson = processedJson.replace("{{cfg}}", cfg.toString())
         processedJson = processedJson.replace("{{sampler_name}}", samplerName)
         processedJson = processedJson.replace("{{scheduler}}", scheduler)
+        // Handle both seed formats: regular KSampler and RandomNoise node
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
+        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
         return processedJson
     }

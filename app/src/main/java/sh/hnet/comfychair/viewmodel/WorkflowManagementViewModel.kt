@@ -316,12 +316,14 @@ class WorkflowManagementViewModel : ViewModel() {
      * Create field mapping state by analyzing workflow JSON
      */
     private fun createFieldMappingState(jsonContent: String, type: WorkflowType): WorkflowMappingState {
-        val requiredKeys = TemplateKeyRegistry.getKeysForType(type)
         val json = try {
             JSONObject(jsonContent)
         } catch (e: Exception) {
             return WorkflowMappingState(type, emptyList())
         }
+
+        // Use dynamic key detection based on workflow structure
+        val requiredKeys = TemplateKeyRegistry.getRequiredKeysForWorkflow(type, json)
 
         val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
 
@@ -512,6 +514,17 @@ class WorkflowManagementViewModel : ViewModel() {
                     }
                 }
             }
+
+            // Check BasicGuider nodes (Flux-style single conditioning)
+            if (classType == "BasicGuider") {
+                val conditioningInput = inputs.optJSONArray("conditioning")
+                if (conditioningInput != null && conditioningInput.length() >= 1) {
+                    val refNodeId = conditioningInput.optString(0, "")
+                    if (refNodeId == clipNodeId) {
+                        return "positive"  // BasicGuider only has positive conditioning
+                    }
+                }
+            }
         }
 
         // If direct connection not found, check for intermediate conditioning nodes
@@ -564,6 +577,17 @@ class WorkflowManagementViewModel : ViewModel() {
                     val refNodeId = negativeInput.optString(0, "")
                     if (refNodeId == intermediateNodeId) {
                         return "negative"
+                    }
+                }
+            }
+
+            // Check BasicGuider nodes (Flux-style single conditioning)
+            if (classType == "BasicGuider") {
+                val conditioningInput = inputs.optJSONArray("conditioning")
+                if (conditioningInput != null && conditioningInput.length() >= 1) {
+                    val refNodeId = conditioningInput.optString(0, "")
+                    if (refNodeId == intermediateNodeId) {
+                        return "positive"  // BasicGuider only has positive conditioning
                     }
                 }
             }
