@@ -73,6 +73,23 @@
     <string name="clear_cache_button">Cache leeren</string>
     <string name="restore_defaults_button">Standardeinstellungen wiederherstellen</string>
 
+    <!-- Backup and restore strings -->
+    <string name="backup_restore_title">Sichern und wiederherstellen</string>
+    <string name="backup_restore_description">App-Konfiguration exportieren oder importieren</string>
+    <string name="backup_create_button">Sicherung erstellen</string>
+    <string name="backup_restore_button">Aus Sicherung wiederherstellen</string>
+    <string name="backup_created_success">Sicherung erfolgreich erstellt</string>
+    <string name="backup_created_failed">Sicherung konnte nicht erstellt werden</string>
+    <string name="backup_restore_success">Einstellungen erfolgreich wiederhergestellt</string>
+    <string name="backup_restore_partial">Einstellungen teilweise wiederhergestellt. Einige Workflows wurden übersprungen.</string>
+    <string name="backup_restore_failed">Wiederherstellung fehlgeschlagen</string>
+    <string name="backup_error_invalid_json">Ungültiges Sicherungsdateiformat</string>
+    <string name="backup_error_unsupported_version">Nicht unterstützte Sicherungsversion</string>
+    <string name="backup_error_invalid_connection">Ungültige Verbindungseinstellungen in der Sicherung</string>
+    <string name="backup_restore_confirm_title">Einstellungen wiederherstellen?</string>
+    <string name="backup_restore_confirm_message">Dies ersetzt Ihre aktuellen Einstellungen. Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="backup_restore_confirm_button">Wiederherstellen</string>
+
     <!-- Gallery item strings -->
     <string name="delete_history_item">Aus Verlauf löschen</string>
     <string name="gallery_video_thumbnail_description">Miniaturansicht des generierten Videos</string>

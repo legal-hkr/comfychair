@@ -112,6 +112,7 @@
     <string name="error_generation_failed">生成失败</string>
     <string name="error_unknown">未知错误</string>
     <string name="error_connection_lost">生成过程中连接丢失</string>
+    <string name="connection_lost_generation_may_continue">连接丢失。将在重新连接后检查完成状态。</string>
     <string name="error_no_connection">未连接到服务器</string>
     <string name="error_workflow_not_found">未找到工作流</string>
     <string name="error_no_workflow_specified">未指定工作流</string>
@@ -308,4 +309,21 @@
     <string name="lora_strength_label">强度：</string>
     <string name="lora_empty_state">未添加 LoRA</string>
     <string name="remove_lora">移除 LoRA</string>
+
+    <!-- Backup and restore strings -->
+    <string name="backup_restore_title">备份与恢复</string>
+    <string name="backup_restore_description">导出或导入应用配置</string>
+    <string name="backup_create_button">创建备份</string>
+    <string name="backup_restore_button">从备份恢复</string>
+    <string name="backup_created_success">备份创建成功</string>
+    <string name="backup_created_failed">创建备份失败</string>
+    <string name="backup_restore_success">设置恢复成功</string>
+    <string name="backup_restore_partial">设置部分恢复。部分工作流已跳过。</string>
+    <string name="backup_restore_failed">恢复备份失败</string>
+    <string name="backup_error_invalid_json">无效的备份文件格式</string>
+    <string name="backup_error_unsupported_version">不支持的备份版本</string>
+    <string name="backup_error_invalid_connection">备份中的连接设置无效</string>
+    <string name="backup_restore_confirm_title">恢复设置？</string>
+    <string name="backup_restore_confirm_message">这将替换您当前的设置。此操作无法撤销。</string>
+    <string name="backup_restore_confirm_button">恢复</string>
 </resources>

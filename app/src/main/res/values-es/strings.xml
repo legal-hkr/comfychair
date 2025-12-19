@@ -309,4 +309,21 @@
     <string name="lora_strength_label">Fuerza:</string>
     <string name="lora_empty_state">Sin LoRAs añadidos</string>
     <string name="remove_lora">Eliminar LoRA</string>
+
+    <!-- Backup and restore strings -->
+    <string name="backup_restore_title">Copia de seguridad y restauración</string>
+    <string name="backup_restore_description">Exportar o importar la configuración de la aplicación</string>
+    <string name="backup_create_button">Crear copia de seguridad</string>
+    <string name="backup_restore_button">Restaurar desde copia de seguridad</string>
+    <string name="backup_created_success">Copia de seguridad creada correctamente</string>
+    <string name="backup_created_failed">Error al crear la copia de seguridad</string>
+    <string name="backup_restore_success">Configuración restaurada correctamente</string>
+    <string name="backup_restore_partial">Configuración parcialmente restaurada. Algunos workflows fueron omitidos.</string>
+    <string name="backup_restore_failed">Error al restaurar la copia de seguridad</string>
+    <string name="backup_error_invalid_json">Formato de archivo de copia de seguridad inválido</string>
+    <string name="backup_error_unsupported_version">Versión de copia de seguridad no compatible</string>
+    <string name="backup_error_invalid_connection">Configuración de conexión inválida en la copia de seguridad</string>
+    <string name="backup_restore_confirm_title">¿Restaurar configuración?</string>
+    <string name="backup_restore_confirm_message">Esto reemplazará su configuración actual. Esta acción no se puede deshacer.</string>
+    <string name="backup_restore_confirm_button">Restaurar</string>
 </resources>

@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.viewmodel
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -17,9 +18,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.storage.BackupManager
+import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
@@ -59,6 +63,8 @@ data class GpuInfo(
 sealed class SettingsEvent {
     data class ShowToast(val messageResId: Int) : SettingsEvent()
     data object RefreshNeeded : SettingsEvent()
+    data class ShowRestoreDialog(val uri: Uri) : SettingsEvent()
+    data object NavigateToLogin : SettingsEvent()
 }
 
 /**
@@ -330,6 +336,95 @@ class SettingsViewModel : ViewModel() {
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.defaults_restored_success))
             _events.emit(SettingsEvent.RefreshNeeded)
+        }
+    }
+
+    /**
+     * Create a backup and write it to the given URI.
+     */
+    fun createBackup(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val backupManager = BackupManager(context)
+                backupManager.createBackup()
+            }
+
+            result.onSuccess { json ->
+                val writeSuccess = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            outputStream.write(json.toByteArray(Charsets.UTF_8))
+                        }
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+
+                if (writeSuccess) {
+                    _events.emit(SettingsEvent.ShowToast(R.string.backup_created_success))
+                } else {
+                    _events.emit(SettingsEvent.ShowToast(R.string.backup_created_failed))
+                }
+            }.onFailure {
+                _events.emit(SettingsEvent.ShowToast(R.string.backup_created_failed))
+            }
+        }
+    }
+
+    /**
+     * Show restore confirmation dialog before restoring.
+     */
+    fun startRestore(uri: Uri) {
+        viewModelScope.launch {
+            _events.emit(SettingsEvent.ShowRestoreDialog(uri))
+        }
+    }
+
+    /**
+     * Restore configuration from a backup file at the given URI.
+     */
+    fun restoreBackup(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use {
+                        it.readText()
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            if (json == null) {
+                _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_failed))
+                return@launch
+            }
+
+            val result = withContext(Dispatchers.IO) {
+                BackupManager(context).restoreBackup(json)
+            }
+
+            when (result) {
+                is RestoreResult.Success -> {
+                    // Clear in-memory caches (disk files already cleared by BackupManager)
+                    MediaCache.clearAll()
+                    MediaStateHolder.clearAll()
+
+                    if (result.skippedWorkflows > 0) {
+                        _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_partial))
+                    } else {
+                        _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_success))
+                    }
+                    _events.emit(SettingsEvent.RefreshNeeded)
+                    if (result.connectionChanged) {
+                        _events.emit(SettingsEvent.NavigateToLogin)
+                    }
+                }
+                is RestoreResult.Failure -> {
+                    _events.emit(SettingsEvent.ShowToast(result.errorMessageResId))
+                }
+            }
         }
     }
 

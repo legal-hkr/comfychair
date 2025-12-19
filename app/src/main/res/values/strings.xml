@@ -79,6 +79,23 @@
     <string name="clear_cache_button">Clear cache</string>
     <string name="restore_defaults_button">Restore defaults</string>
 
+    <!-- Backup and restore strings -->
+    <string name="backup_restore_title">Backup and restore</string>
+    <string name="backup_restore_description">Export or import your app configuration</string>
+    <string name="backup_create_button">Create backup</string>
+    <string name="backup_restore_button">Restore from backup</string>
+    <string name="backup_created_success">Backup created successfully</string>
+    <string name="backup_created_failed">Failed to create backup</string>
+    <string name="backup_restore_success">Settings restored successfully</string>
+    <string name="backup_restore_partial">Settings partially restored. Some workflows were skipped.</string>
+    <string name="backup_restore_failed">Failed to restore backup</string>
+    <string name="backup_error_invalid_json">Invalid backup file format</string>
+    <string name="backup_error_unsupported_version">Unsupported backup version</string>
+    <string name="backup_error_invalid_connection">Invalid connection settings in backup</string>
+    <string name="backup_restore_confirm_title">Restore settings?</string>
+    <string name="backup_restore_confirm_message">This will replace your current settings. This action cannot be undone.</string>
+    <string name="backup_restore_confirm_button">Restore</string>
+
     <!-- Gallery item strings -->
     <string name="delete_history_item">Delete from history</string>
     <string name="gallery_video_thumbnail_description">Generated video thumbnail</string>

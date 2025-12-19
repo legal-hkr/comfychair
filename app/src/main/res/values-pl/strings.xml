@@ -309,4 +309,21 @@
     <string name="lora_strength_label">Siła:</string>
     <string name="lora_empty_state">Brak dodanych LoRA</string>
     <string name="remove_lora">Usuń LoRA</string>
+
+    <!-- Backup and restore strings -->
+    <string name="backup_restore_title">Kopia zapasowa i przywracanie</string>
+    <string name="backup_restore_description">Eksportuj lub importuj konfigurację aplikacji</string>
+    <string name="backup_create_button">Utwórz kopię zapasową</string>
+    <string name="backup_restore_button">Przywróć z kopii zapasowej</string>
+    <string name="backup_created_success">Kopia zapasowa utworzona pomyślnie</string>
+    <string name="backup_created_failed">Nie udało się utworzyć kopii zapasowej</string>
+    <string name="backup_restore_success">Ustawienia przywrócone pomyślnie</string>
+    <string name="backup_restore_partial">Ustawienia częściowo przywrócone. Niektóre workflows zostały pominięte.</string>
+    <string name="backup_restore_failed">Nie udało się przywrócić kopii zapasowej</string>
+    <string name="backup_error_invalid_json">Nieprawidłowy format pliku kopii zapasowej</string>
+    <string name="backup_error_unsupported_version">Nieobsługiwana wersja kopii zapasowej</string>
+    <string name="backup_error_invalid_connection">Nieprawidłowe ustawienia połączenia w kopii zapasowej</string>
+    <string name="backup_restore_confirm_title">Przywrócić ustawienia?</string>
+    <string name="backup_restore_confirm_message">Spowoduje to zastąpienie bieżących ustawień. Tej czynności nie można cofnąć.</string>
+    <string name="backup_restore_confirm_button">Przywróć</string>
 </resources>

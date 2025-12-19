@@ -309,4 +309,21 @@
     <string name="lora_strength_label">Force :</string>
     <string name="lora_empty_state">Aucun LoRA ajouté</string>
     <string name="remove_lora">Supprimer LoRA</string>
+
+    <!-- Backup and restore strings -->
+    <string name="backup_restore_title">Sauvegarde et restauration</string>
+    <string name="backup_restore_description">Exporter ou importer la configuration de l\'application</string>
+    <string name="backup_create_button">Créer une sauvegarde</string>
+    <string name="backup_restore_button">Restaurer depuis une sauvegarde</string>
+    <string name="backup_created_success">Sauvegarde créée avec succès</string>
+    <string name="backup_created_failed">Échec de la création de la sauvegarde</string>
+    <string name="backup_restore_success">Paramètres restaurés avec succès</string>
+    <string name="backup_restore_partial">Paramètres partiellement restaurés. Certains workflows ont été ignorés.</string>
+    <string name="backup_restore_failed">Échec de la restauration de la sauvegarde</string>
+    <string name="backup_error_invalid_json">Format de fichier de sauvegarde invalide</string>
+    <string name="backup_error_unsupported_version">Version de sauvegarde non prise en charge</string>
+    <string name="backup_error_invalid_connection">Paramètres de connexion invalides dans la sauvegarde</string>
+    <string name="backup_restore_confirm_title">Restaurer les paramètres ?</string>
+    <string name="backup_restore_confirm_message">Ceci remplacera vos paramètres actuels. Cette action ne peut pas être annulée.</string>
+    <string name="backup_restore_confirm_button">Restaurer</string>
 </resources>

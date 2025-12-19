@@ -21,6 +21,10 @@ import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
  */
 class SettingsContainerActivity : ComponentActivity() {
 
+    companion object {
+        const val RESULT_CONNECTION_CHANGED = 101
+    }
+
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
 
@@ -47,12 +51,21 @@ class SettingsContainerActivity : ComponentActivity() {
 
         setContent {
             ComfyChairTheme {
-                // Listen for RefreshNeeded event to set activity result
+                // Listen for RefreshNeeded and NavigateToLogin events
                 LaunchedEffect(Unit) {
                     settingsViewModel.events.collect { event ->
                         when (event) {
                             is SettingsEvent.RefreshNeeded -> {
                                 setResult(MainContainerActivity.RESULT_REFRESH_NEEDED)
+                            }
+                            is SettingsEvent.NavigateToLogin -> {
+                                // Navigate directly to MainActivity with flags to clear entire back stack
+                                // This ensures Gallery and other activities are also cleared
+                                setResult(RESULT_CONNECTION_CHANGED)
+                                val intent = Intent(this@SettingsContainerActivity, MainActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                startActivity(intent)
+                                finish()
                             }
                             else -> {} // Toast events handled in screens
                         }

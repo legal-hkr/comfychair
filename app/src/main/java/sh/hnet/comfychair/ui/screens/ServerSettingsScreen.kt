@@ -84,6 +84,12 @@ fun ServerSettingsScreen(
                 is SettingsEvent.RefreshNeeded -> {
                     // Handled by SettingsContainerActivity
                 }
+                is SettingsEvent.ShowRestoreDialog -> {
+                    // Handled by ApplicationSettingsScreen
+                }
+                is SettingsEvent.NavigateToLogin -> {
+                    // Handled by SettingsContainerActivity
+                }
             }
         }
     }

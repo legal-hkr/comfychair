@@ -1,0 +1,201 @@
+package sh.hnet.comfychair.storage
+
+import org.json.JSONObject
+import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.model.SamplerOptions
+
+/**
+ * Validation utilities for backup/restore operations.
+ * Validates JSON structure, field values, and sanitizes strings.
+ */
+class BackupValidator {
+
+    companion object {
+        // Regex patterns from LoginScreen
+        private val IP_ADDRESS_PATTERN = Regex(
+            "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}" +
+            "([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
+        )
+        private val HOSTNAME_PATTERN = Regex(
+            "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
+            "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$"
+        )
+
+        // Valid config modes for Image-to-Image
+        private val VALID_CONFIG_MODES = setOf("CHECKPOINT", "UNET")
+
+        // Max lengths for strings
+        const val MAX_PROMPT_LENGTH = 10000
+        const val MAX_WORKFLOW_NAME_LENGTH = 40
+        const val MAX_WORKFLOW_DESCRIPTION_LENGTH = 120
+
+        // Numeric ranges
+        const val MIN_PORT = 1
+        const val MAX_PORT = 65535
+        const val MIN_DIMENSION = 1
+        const val MAX_DIMENSION = 4096
+        const val MIN_STEPS = 1
+        const val MAX_STEPS = 255
+        const val MIN_CFG = 0.0f
+        const val MAX_CFG = 100.0f
+        const val MIN_MEGAPIXELS = 0.1f
+        const val MAX_MEGAPIXELS = 8.3f
+        const val MIN_LENGTH = 1
+        const val MAX_LENGTH = 129
+        const val MIN_FRAME_RATE = 1
+        const val MAX_FRAME_RATE = 120
+    }
+
+    /**
+     * Validate overall backup JSON structure.
+     * Returns true if the structure has all required top-level keys.
+     */
+    fun validateStructure(json: JSONObject): Boolean {
+        // Required top-level keys
+        val requiredKeys = listOf("version", "connection")
+        for (key in requiredKeys) {
+            if (!json.has(key)) return false
+        }
+
+        // Version must be a number
+        val version = json.optInt("version", -1)
+        if (version < 1) return false
+
+        // Connection must be an object with hostname and port
+        val connection = json.optJSONObject("connection") ?: return false
+        if (!connection.has("hostname") || !connection.has("port")) return false
+
+        return true
+    }
+
+    /**
+     * Validate hostname format (IP address or hostname).
+     */
+    fun validateHostname(hostname: String): Boolean {
+        if (hostname.isBlank()) return false
+        return IP_ADDRESS_PATTERN.matches(hostname) || HOSTNAME_PATTERN.matches(hostname)
+    }
+
+    /**
+     * Validate port number is in valid range.
+     */
+    fun validatePort(port: Int): Boolean {
+        return port in MIN_PORT..MAX_PORT
+    }
+
+    /**
+     * Validate workflow type against WorkflowType enum values.
+     */
+    fun validateWorkflowType(type: String): Boolean {
+        return try {
+            WorkflowType.valueOf(type)
+            true
+        } catch (e: IllegalArgumentException) {
+            false
+        }
+    }
+
+    /**
+     * Validate sampler against allowed list.
+     */
+    fun validateSampler(sampler: String): Boolean {
+        return sampler in SamplerOptions.SAMPLERS
+    }
+
+    /**
+     * Validate scheduler against allowed list.
+     */
+    fun validateScheduler(scheduler: String): Boolean {
+        return scheduler in SamplerOptions.SCHEDULERS
+    }
+
+    /**
+     * Validate config mode for Image-to-Image (CHECKPOINT or UNET).
+     */
+    fun validateConfigMode(mode: String): Boolean {
+        return mode.uppercase() in VALID_CONFIG_MODES
+    }
+
+    /**
+     * Validate dimension (width or height).
+     */
+    fun validateDimension(value: Int): Boolean {
+        return value in MIN_DIMENSION..MAX_DIMENSION
+    }
+
+    /**
+     * Validate steps value.
+     */
+    fun validateSteps(value: Int): Boolean {
+        return value in MIN_STEPS..MAX_STEPS
+    }
+
+    /**
+     * Validate CFG value.
+     */
+    fun validateCfg(value: Float): Boolean {
+        return value in MIN_CFG..MAX_CFG
+    }
+
+    /**
+     * Validate megapixels value.
+     */
+    fun validateMegapixels(value: Float): Boolean {
+        return value in MIN_MEGAPIXELS..MAX_MEGAPIXELS
+    }
+
+    /**
+     * Validate video length value.
+     */
+    fun validateLength(value: Int): Boolean {
+        return value in MIN_LENGTH..MAX_LENGTH
+    }
+
+    /**
+     * Validate frame rate value.
+     */
+    fun validateFrameRate(value: Int): Boolean {
+        return value in MIN_FRAME_RATE..MAX_FRAME_RATE
+    }
+
+    /**
+     * Validate workflow name format.
+     */
+    fun validateWorkflowName(name: String): Boolean {
+        if (name.isBlank() || name.length > MAX_WORKFLOW_NAME_LENGTH) return false
+        val validPattern = Regex("^[a-zA-Z0-9 _\\-\\[\\]()]+$")
+        return validPattern.matches(name)
+    }
+
+    /**
+     * Validate workflow description.
+     */
+    fun validateWorkflowDescription(description: String): Boolean {
+        return description.length <= MAX_WORKFLOW_DESCRIPTION_LENGTH
+    }
+
+    /**
+     * Sanitize string input by removing control characters and limiting length.
+     */
+    fun sanitizeString(input: String, maxLength: Int = MAX_PROMPT_LENGTH): String {
+        // Remove control characters except newlines and tabs
+        val sanitized = input.replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]"), "")
+        // Limit length
+        return if (sanitized.length > maxLength) {
+            sanitized.substring(0, maxLength)
+        } else {
+            sanitized
+        }
+    }
+
+    /**
+     * Validate and sanitize a prompt string.
+     */
+    fun validateAndSanitizePrompt(prompt: String): String? {
+        if (prompt.length > MAX_PROMPT_LENGTH * 2) {
+            // Way too long, reject entirely
+            return null
+        }
+        return sanitizeString(prompt, MAX_PROMPT_LENGTH)
+    }
+}
