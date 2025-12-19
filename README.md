@@ -73,6 +73,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **App management**:
   - Clear local cache (generated images, videos, source images, masks)
   - Restore default settings
+  - Backup configuration to JSON file (connection settings, workflow values, custom workflows)
+  - Restore configuration from backup
 - **Workflow management**:
   - View and manage custom workflows
   - Upload custom ComfyUI workflows with automatic validation
@@ -166,6 +168,8 @@ app/src/main/
 │   ├── cache/
 │   │   ├── MediaCache.kt            # In-memory media caching with prefetch
 │   │   └── MediaStateHolder.kt      # Memory-first state for generation screens
+│   ├── connection/
+│   │   └── ConnectionManager.kt     # Central connection state singleton
 │   ├── model/
 │   │   ├── LoraSelection.kt         # LoRA selection data class
 │   │   ├── SamplerOptions.kt        # Sampler and scheduler options
@@ -174,6 +178,7 @@ app/src/main/
 │   ├── navigation/
 │   │   └── AppNavigation.kt         # Navigation route definitions
 │   ├── storage/
+│   │   ├── BackupManager.kt         # Configuration backup/restore
 │   │   └── WorkflowValuesStorage.kt # Per-workflow value persistence
 │   ├── viewmodel/
 │   │   ├── GenerationViewModel.kt   # Central WebSocket & generation state
