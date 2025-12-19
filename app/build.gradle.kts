@@ -12,8 +12,8 @@ android {
         applicationId = "sh.hnet.comfychair"
         minSdk = 34
         targetSdk = 36
-        versionCode = 19
-        versionName = "v0.6.3"
+        versionCode = 20
+        versionName = "v0.6.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.runtime)
+    implementation(libs.compose.ui.text.google.fonts)
     implementation(libs.androidx.activity.compose)
     debugImplementation(libs.compose.ui.tooling)
 
