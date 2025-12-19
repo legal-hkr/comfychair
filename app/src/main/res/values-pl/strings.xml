@@ -273,6 +273,7 @@
     <string name="field_mapping_title">Mapuj wymagane pola</string>
     <string name="tap_node_to_change">Dotknij podświetlony węzeł, aby zmienić mapowanie</string>
     <string name="no_matching_nodes">Nie znaleziono pasujących węzłów</string>
+    <string name="needs_remapping">Wybierz węzeł</string>
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Nie udało się pobrać węzłów z serwera</string>

@@ -273,6 +273,7 @@
     <string name="field_mapping_title">Mapear campos requeridos</string>
     <string name="tap_node_to_change">Toque un nodo resaltado para cambiar el mapeo</string>
     <string name="no_matching_nodes">No se encontraron nodos coincidentes</string>
+    <string name="needs_remapping">Seleccionar un nodo</string>
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Error al obtener los nodos del servidor</string>

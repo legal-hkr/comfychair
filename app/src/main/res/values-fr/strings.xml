@@ -273,6 +273,7 @@
     <string name="field_mapping_title">Mapper les champs requis</string>
     <string name="tap_node_to_change">Appuyez sur un nœud en surbrillance pour modifier le mappage</string>
     <string name="no_matching_nodes">Aucun nœud correspondant trouvé</string>
+    <string name="needs_remapping">Sélectionner un nœud</string>
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Échec de la récupération des nœuds du serveur</string>

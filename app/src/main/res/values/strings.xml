@@ -304,6 +304,7 @@
     <string name="field_mapping_title">Map required fields</string>
     <string name="tap_node_to_change">Tap a highlighted node to change mapping</string>
     <string name="no_matching_nodes">No matching nodes found</string>
+    <string name="needs_remapping">Select a node</string>
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Failed to fetch server nodes</string>

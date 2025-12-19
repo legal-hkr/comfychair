@@ -71,6 +71,7 @@ fun WorkflowGraphCanvas(
     isFieldMappingMode: Boolean = false,
     highlightedNodeIds: Set<String> = emptySet(),
     mappingState: WorkflowMappingState? = null,
+    selectedFieldKey: String? = null,
     onNodeTapped: ((String) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
@@ -78,12 +79,20 @@ fun WorkflowGraphCanvas(
     val currentOffsetState = rememberUpdatedState(offset)
     val currentGraphState = rememberUpdatedState(graph)
 
-    // Calculate selected node IDs from mapping state
-    val selectedNodeIds = remember(mappingState) {
-        mappingState?.fieldMappings
-            ?.mapNotNull { it.selectedCandidate?.nodeId }
-            ?.toSet()
-            ?: emptySet()
+    // Calculate selected node IDs from mapping state - only for the currently selected field
+    val selectedNodeIds = remember(mappingState, selectedFieldKey) {
+        if (selectedFieldKey == null) {
+            // No field selected: show no SELECTED states, only CANDIDATE
+            emptySet()
+        } else {
+            // Only the node mapped to the selected field gets SELECTED state
+            mappingState?.fieldMappings
+                ?.find { it.field.fieldKey == selectedFieldKey }
+                ?.selectedCandidate
+                ?.nodeId
+                ?.let { setOf(it) }
+                ?: emptySet()
+        }
     }
 
     // Extract theme colors

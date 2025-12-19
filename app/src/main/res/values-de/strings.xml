@@ -290,6 +290,7 @@
     <string name="field_mapping_title">Pflichtfelder zuordnen</string>
     <string name="tap_node_to_change">Tippen Sie auf einen markierten Node, um die Zuordnung zu ändern</string>
     <string name="no_matching_nodes">Keine passenden Nodes gefunden</string>
+    <string name="needs_remapping">Node auswählen</string>
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Server-Nodes konnten nicht abgerufen werden</string>

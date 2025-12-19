@@ -164,6 +164,7 @@ fun WorkflowPreviewerScreen(
                         isFieldMappingMode = uiState.isFieldMappingMode,
                         highlightedNodeIds = uiState.highlightedNodeIds,
                         mappingState = uiState.mappingState,
+                        selectedFieldKey = uiState.selectedFieldKey,
                         onNodeTapped = if (uiState.isFieldMappingMode) { nodeId ->
                             viewModel.onNodeTapped(nodeId)
                         } else null,
@@ -302,21 +303,31 @@ private fun FieldMappingRow(
                 fontWeight = FontWeight.Medium
             )
 
-            if (fieldMapping.isMapped) {
-                val selectedCandidate = fieldMapping.selectedCandidate
-                Text(
-                    text = "${selectedCandidate?.nodeName} (${selectedCandidate?.classType})",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.no_matching_nodes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+            when {
+                fieldMapping.isMapped -> {
+                    val selectedCandidate = fieldMapping.selectedCandidate
+                    Text(
+                        text = "${selectedCandidate?.nodeName} (${selectedCandidate?.classType})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                fieldMapping.needsRemapping -> {
+                    Text(
+                        text = stringResource(R.string.needs_remapping),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                else -> {
+                    Text(
+                        text = stringResource(R.string.no_matching_nodes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
 

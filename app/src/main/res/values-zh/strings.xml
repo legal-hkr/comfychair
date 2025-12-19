@@ -273,6 +273,7 @@
     <string name="field_mapping_title">映射必填字段</string>
     <string name="tap_node_to_change">点击高亮节点以更改映射</string>
     <string name="no_matching_nodes">未找到匹配的节点</string>
+    <string name="needs_remapping">选择节点</string>
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">获取服务器节点失败</string>

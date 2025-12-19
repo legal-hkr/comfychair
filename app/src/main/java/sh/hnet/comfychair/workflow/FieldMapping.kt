@@ -38,8 +38,13 @@ data class FieldMappingState(
     val hasMultipleCandidates: Boolean
         get() = candidates.size > 1
 
+    /** True if a valid candidate is selected */
     val isMapped: Boolean
-        get() = candidates.isNotEmpty()
+        get() = selectedCandidate != null
+
+    /** True if candidates exist but selection was cleared (node stolen by another field) */
+    val needsRemapping: Boolean
+        get() = candidates.isNotEmpty() && selectedCandidateIndex < 0
 }
 
 /**

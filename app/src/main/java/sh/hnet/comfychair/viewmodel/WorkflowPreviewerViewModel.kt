@@ -204,17 +204,29 @@ class WorkflowPreviewerViewModel : ViewModel() {
     }
 
     /**
-     * Update the selected candidate for a field
+     * Update the selected candidate for a field.
+     * If the selected node was previously mapped to another field, clears that field's mapping.
      */
     fun updateFieldMapping(fieldKey: String, candidateIndex: Int) {
         val state = _uiState.value
         val mappingState = state.mappingState ?: return
 
+        // Get the node being selected
+        val targetField = mappingState.fieldMappings.find { it.field.fieldKey == fieldKey }
+        val selectedNodeId = targetField?.candidates?.getOrNull(candidateIndex)?.nodeId
+
         val updatedMappings = mappingState.fieldMappings.map { fieldMapping ->
-            if (fieldMapping.field.fieldKey == fieldKey) {
-                fieldMapping.copy(selectedCandidateIndex = candidateIndex)
-            } else {
-                fieldMapping
+            when {
+                // Update the target field with new selection
+                fieldMapping.field.fieldKey == fieldKey -> {
+                    fieldMapping.copy(selectedCandidateIndex = candidateIndex)
+                }
+                // Clear other field if it had this same node selected (set to -1 = unmapped)
+                selectedNodeId != null &&
+                fieldMapping.selectedCandidate?.nodeId == selectedNodeId -> {
+                    fieldMapping.copy(selectedCandidateIndex = -1)
+                }
+                else -> fieldMapping
             }
         }
 
