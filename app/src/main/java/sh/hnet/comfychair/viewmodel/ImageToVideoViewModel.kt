@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -19,12 +18,11 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.VideoUtils
-import java.io.File
-import java.io.FileOutputStream
 
 /**
  * UI state for the view mode toggle
@@ -123,7 +121,6 @@ class ImageToVideoViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "IMAGE_TO_VIDEO"
         private const val PREFS_NAME = "ImageToVideoFragmentPrefs"
-        private const val LAST_PREVIEW_FILENAME = "itv_last_preview.png"
 
         // Global preferences
         private const val KEY_WORKFLOW = "workflow"
@@ -145,24 +142,21 @@ class ImageToVideoViewModel : ViewModel() {
     }
 
     /**
-     * Load the last generated video from internal storage.
+     * Load the last generated video from in-memory cache.
      * This restores the video preview when the screen is recreated.
      */
     private fun loadLastGeneratedVideo() {
         val context = applicationContext ?: return
+        val promptId = MediaStateHolder.getCurrentItvPromptId() ?: return
 
-        // Find the most recent generated video file
-        val videoFile = context.filesDir.listFiles()
-            ?.filter { it.name.startsWith(VideoUtils.FilePrefix.IMAGE_TO_VIDEO) && it.name.endsWith(".mp4") }
-            ?.maxByOrNull { it.lastModified() }
-
-        if (videoFile != null && videoFile.exists()) {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                videoFile
-            )
-            _uiState.value = _uiState.value.copy(currentVideoUri = uri)
+        val key = MediaStateHolder.MediaKey.ItvVideo(promptId)
+        if (MediaStateHolder.hasVideoBytes(key)) {
+            viewModelScope.launch {
+                val uri = MediaStateHolder.getVideoUri(context, key)
+                if (uri != null) {
+                    _uiState.value = _uiState.value.copy(currentVideoUri = uri)
+                }
+            }
         }
     }
 
@@ -270,14 +264,10 @@ class ImageToVideoViewModel : ViewModel() {
     }
 
     private fun loadSavedSourceImage() {
-        val context = applicationContext ?: return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            val sourceFile = File(context.filesDir, "itv_last_source.png")
-            if (sourceFile.exists()) {
-                val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath)
-                _uiState.value = _uiState.value.copy(sourceImage = bitmap)
-            }
+        // Restore from in-memory cache (loaded from disk on app startup)
+        val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItvSource)
+        if (sourceImage != null) {
+            _uiState.value = _uiState.value.copy(sourceImage = sourceImage)
         }
     }
 
@@ -392,11 +382,8 @@ class ImageToVideoViewModel : ViewModel() {
                 inputStream?.close()
 
                 if (bitmap != null) {
-                    // Save to file
-                    val file = File(context.filesDir, "itv_last_source.png")
-                    FileOutputStream(file).use { out ->
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    }
+                    // Store in memory - will be persisted to disk on onStop
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap)
 
                     _uiState.value = _uiState.value.copy(sourceImage = bitmap)
                 }
@@ -759,6 +746,13 @@ class ImageToVideoViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(viewMode = ImageToVideoViewMode.PREVIEW)
         }
 
+        // Retry loading video if not loaded during initialize()
+        // This handles the race condition where MediaStateHolder.loadFromDisk()
+        // completes after initialize() but before startListening()
+        if (_uiState.value.currentVideoUri == null) {
+            loadLastGeneratedVideo()
+        }
+
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
             handleGenerationEvent(event)
         }
@@ -838,39 +832,24 @@ class ImageToVideoViewModel : ViewModel() {
     }
 
     private fun saveLastPreviewImage(bitmap: Bitmap) {
-        val ctx = applicationContext ?: return
-        try {
-            ctx.openFileOutput(LAST_PREVIEW_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            }
-        } catch (_: Exception) {
-            // Failed to save preview image
-        }
+        // Store in memory - will be persisted to disk on onStop
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvPreview, bitmap)
     }
 
     private fun restoreLastPreviewImage() {
-        val ctx = applicationContext ?: return
-        try {
-            val file = ctx.getFileStreamPath(LAST_PREVIEW_FILENAME)
-            if (file.exists()) {
-                ctx.openFileInput(LAST_PREVIEW_FILENAME).use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    if (bitmap != null) {
-                        _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            // Failed to restore preview image
+        // Restore from in-memory cache (loaded from disk on app startup)
+        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItvPreview)
+        if (bitmap != null) {
+            _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
         }
     }
 
     private fun deleteLastPreviewImage() {
-        val ctx = applicationContext ?: return
-        try {
-            ctx.getFileStreamPath(LAST_PREVIEW_FILENAME)?.delete()
-        } catch (_: Exception) {
-            // Failed to delete preview image
+        // Remove from in-memory cache AND delete from disk
+        // This prevents stale preview from being restored on app restart
+        val context = applicationContext ?: return
+        viewModelScope.launch {
+            MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItvPreview)
         }
     }
 }

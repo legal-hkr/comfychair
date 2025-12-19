@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
@@ -20,6 +19,7 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
@@ -131,8 +131,6 @@ class TextToImageViewModel : ViewModel() {
         private const val PREF_POSITIVE_PROMPT = "positive_prompt"
         private const val PREF_CHECKPOINT_WORKFLOW = "checkpointWorkflow"
         private const val PREF_UNET_WORKFLOW = "unetWorkflow"
-
-        private const val LAST_IMAGE_FILENAME = "tti_last_preview.png"
     }
 
     /**
@@ -950,30 +948,15 @@ class TextToImageViewModel : ViewModel() {
     }
 
     private fun saveLastGeneratedImage(bitmap: Bitmap) {
-        val ctx = context ?: return
-        try {
-            ctx.openFileOutput(LAST_IMAGE_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            }
-        } catch (e: Exception) {
-            // Failed to save image
-        }
+        // Store in memory - will be persisted to disk on onStop
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtiPreview, bitmap)
     }
 
     private fun restoreLastGeneratedImage() {
-        val ctx = context ?: return
-        try {
-            val file = ctx.getFileStreamPath(LAST_IMAGE_FILENAME)
-            if (file.exists()) {
-                ctx.openFileInput(LAST_IMAGE_FILENAME).use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    if (bitmap != null) {
-                        _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // Failed to restore image
+        // Restore from in-memory cache (loaded from disk on app startup)
+        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtiPreview)
+        if (bitmap != null) {
+            _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
         }
     }
 

@@ -9,6 +9,9 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
@@ -60,6 +63,11 @@ class MainContainerActivity : ComponentActivity() {
 
         // Initialize the ViewModel with connection parameters
         generationViewModel.initialize(this, hostname, port)
+
+        // Load persisted media state from disk into memory
+        lifecycleScope.launch {
+            MediaStateHolder.loadFromDisk(applicationContext)
+        }
 
         // Determine start destination based on active generation owner
         val startDestination = when (generationViewModel.generationState.value.ownerId) {
@@ -117,6 +125,11 @@ class MainContainerActivity : ComponentActivity() {
         super.onStop()
         // Save generation state when going to background
         generationViewModel.saveGenerationState(this)
+
+        // Persist all dirty media to disk
+        lifecycleScope.launch {
+            MediaStateHolder.persistToDisk(applicationContext)
+        }
     }
 
     override fun onResume() {

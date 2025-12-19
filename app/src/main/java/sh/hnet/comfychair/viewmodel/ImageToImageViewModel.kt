@@ -23,12 +23,11 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
-import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Data class representing a path drawn on the mask canvas
@@ -147,7 +146,6 @@ class ImageToImageViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "IMAGE_TO_IMAGE"
         private const val PREFS_NAME = "ImageToImageFragmentPrefs"
-        private const val LAST_PREVIEW_FILENAME = "iti_last_preview.png"
 
         // Global preferences (shared across workflows)
         private const val PREF_CONFIG_MODE = "config_mode"
@@ -323,23 +321,14 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     private fun loadSavedImages() {
-        val context = applicationContext ?: return
+        // Restore from in-memory cache (loaded from disk on app startup)
+        val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource)
+        val previewImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiPreview)
 
-        viewModelScope.launch(Dispatchers.IO) {
-            // Load source image
-            val sourceFile = File(context.filesDir, "iti_last_source.png")
-            if (sourceFile.exists()) {
-                val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath)
-                _uiState.value = _uiState.value.copy(sourceImage = bitmap)
-            }
-
-            // Load preview image
-            val previewFile = File(context.filesDir, LAST_PREVIEW_FILENAME)
-            if (previewFile.exists()) {
-                val bitmap = BitmapFactory.decodeFile(previewFile.absolutePath)
-                _uiState.value = _uiState.value.copy(previewImage = bitmap)
-            }
-        }
+        _uiState.value = _uiState.value.copy(
+            sourceImage = sourceImage,
+            previewImage = previewImage
+        )
     }
 
     fun fetchModels() {
@@ -416,11 +405,8 @@ class ImageToImageViewModel : ViewModel() {
                 inputStream?.close()
 
                 if (bitmap != null) {
-                    // Save to file
-                    val file = File(context.filesDir, "iti_last_source.png")
-                    FileOutputStream(file).use { out ->
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    }
+                    // Store in memory - will be persisted to disk on onStop
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap)
 
                     _uiState.value = _uiState.value.copy(
                         sourceImage = bitmap,
@@ -1041,22 +1027,17 @@ class ImageToImageViewModel : ViewModel() {
 
                     client.fetchImage(filename, subfolder, type) { bitmap ->
                         if (bitmap != null) {
-                            // Save to file
-                            viewModelScope.launch(Dispatchers.IO) {
-                                val file = File(context.filesDir, LAST_PREVIEW_FILENAME)
-                                FileOutputStream(file).use { out ->
-                                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                                }
+                            // Store in memory - will be persisted to disk on onStop
+                            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap)
 
-                                _uiState.value = _uiState.value.copy(
-                                    previewImage = bitmap,
-                                    previewImageFilename = filename,
-                                    previewImageSubfolder = subfolder,
-                                    previewImageType = type,
-                                    viewMode = ImageToImageViewMode.PREVIEW
-                                )
-                                onComplete(true)
-                            }
+                            _uiState.value = _uiState.value.copy(
+                                previewImage = bitmap,
+                                previewImageFilename = filename,
+                                previewImageSubfolder = subfolder,
+                                previewImageType = type,
+                                viewMode = ImageToImageViewMode.PREVIEW
+                            )
+                            onComplete(true)
                         } else {
                             onComplete(false)
                         }
@@ -1158,16 +1139,7 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     private fun saveLastPreviewImage(bitmap: Bitmap) {
-        val context = applicationContext ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val file = File(context.filesDir, LAST_PREVIEW_FILENAME)
-                FileOutputStream(file).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                }
-            } catch (_: Exception) {
-                // Failed to save preview image
-            }
-        }
+        // Store in memory - will be persisted to disk on onStop
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap)
     }
 }

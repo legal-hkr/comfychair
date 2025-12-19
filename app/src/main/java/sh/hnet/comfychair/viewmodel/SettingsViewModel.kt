@@ -19,6 +19,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
@@ -293,8 +294,9 @@ class SettingsViewModel : ViewModel() {
                 workflowManager.clearAllUserWorkflows()
             }
 
-            // Clear in-memory media cache
+            // Clear in-memory media caches
             MediaCache.clearAll()
+            MediaStateHolder.clearAll()
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.cache_cleared_success))
             _events.emit(SettingsEvent.RefreshNeeded)

@@ -2,8 +2,6 @@ package sh.hnet.comfychair.viewmodel
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +16,7 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
@@ -109,7 +108,6 @@ class TextToVideoViewModel : ViewModel() {
     companion object {
         const val OWNER_ID = "TEXT_TO_VIDEO"
         private const val PREFS_NAME = "TextToVideoFragmentPrefs"
-        private const val LAST_PREVIEW_FILENAME = "ttv_last_preview.png"
 
         // Global preferences
         private const val KEY_WORKFLOW = "workflow"
@@ -130,24 +128,21 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     /**
-     * Load the last generated video from internal storage.
+     * Load the last generated video from in-memory cache.
      * This restores the video preview when the screen is recreated.
      */
     private fun loadLastGeneratedVideo() {
         val context = applicationContext ?: return
+        val promptId = MediaStateHolder.getCurrentTtvPromptId() ?: return
 
-        // Find the most recent generated video file
-        val videoFile = context.filesDir.listFiles()
-            ?.filter { it.name.startsWith(VideoUtils.FilePrefix.TEXT_TO_VIDEO) && it.name.endsWith(".mp4") }
-            ?.maxByOrNull { it.lastModified() }
-
-        if (videoFile != null && videoFile.exists()) {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                videoFile
-            )
-            _uiState.value = _uiState.value.copy(currentVideoUri = uri)
+        val key = MediaStateHolder.MediaKey.TtvVideo(promptId)
+        if (MediaStateHolder.hasVideoBytes(key)) {
+            viewModelScope.launch {
+                val uri = MediaStateHolder.getVideoUri(context, key)
+                if (uri != null) {
+                    _uiState.value = _uiState.value.copy(currentVideoUri = uri)
+                }
+            }
         }
     }
 
@@ -655,6 +650,13 @@ class TextToVideoViewModel : ViewModel() {
     fun startListening(generationViewModel: GenerationViewModel) {
         generationViewModelRef = generationViewModel
 
+        // Retry loading video if not loaded during initialize()
+        // This handles the race condition where MediaStateHolder.loadFromDisk()
+        // completes after initialize() but before startListening()
+        if (_uiState.value.currentVideoUri == null) {
+            loadLastGeneratedVideo()
+        }
+
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
             handleGenerationEvent(event)
         }
@@ -734,39 +736,24 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     private fun saveLastPreviewImage(bitmap: Bitmap) {
-        val ctx = applicationContext ?: return
-        try {
-            ctx.openFileOutput(LAST_PREVIEW_FILENAME, Context.MODE_PRIVATE).use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            }
-        } catch (_: Exception) {
-            // Failed to save preview image
-        }
+        // Store in memory - will be persisted to disk on onStop
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtvPreview, bitmap)
     }
 
     private fun restoreLastPreviewImage() {
-        val ctx = applicationContext ?: return
-        try {
-            val file = ctx.getFileStreamPath(LAST_PREVIEW_FILENAME)
-            if (file.exists()) {
-                ctx.openFileInput(LAST_PREVIEW_FILENAME).use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    if (bitmap != null) {
-                        _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            // Failed to restore preview image
+        // Restore from in-memory cache (loaded from disk on app startup)
+        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtvPreview)
+        if (bitmap != null) {
+            _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
         }
     }
 
     private fun deleteLastPreviewImage() {
-        val ctx = applicationContext ?: return
-        try {
-            ctx.getFileStreamPath(LAST_PREVIEW_FILENAME)?.delete()
-        } catch (_: Exception) {
-            // Failed to delete preview image
+        // Remove from in-memory cache AND delete from disk
+        // This prevents stale preview from being restored on app restart
+        val context = applicationContext ?: return
+        viewModelScope.launch {
+            MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.TtvPreview)
         }
     }
 }

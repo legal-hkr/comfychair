@@ -164,7 +164,8 @@ app/src/main/
 │   ├── WorkflowManager.kt           # Workflow JSON management
 │   ├── SelfSignedCertHelper.kt      # SSL certificate handling
 │   ├── cache/
-│   │   └── MediaCache.kt            # In-memory media caching with prefetch
+│   │   ├── MediaCache.kt            # In-memory media caching with prefetch
+│   │   └── MediaStateHolder.kt      # Memory-first state for generation screens
 │   ├── model/
 │   │   ├── LoraSelection.kt         # LoRA selection data class
 │   │   ├── SamplerOptions.kt        # Sampler and scheduler options

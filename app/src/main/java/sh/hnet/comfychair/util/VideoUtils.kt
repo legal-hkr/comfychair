@@ -9,12 +9,13 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.widget.Toast
-import androidx.core.content.FileProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
-import java.io.File
+import sh.hnet.comfychair.cache.MediaStateHolder
 
 /**
  * Utility functions for video operations shared across video generation screens.
@@ -80,24 +81,25 @@ object VideoUtils {
                             return@fetchVideo
                         }
 
-                        // Clean up old generated videos with this prefix
-                        context.filesDir.listFiles()?.forEach { file ->
-                            if (file.name.startsWith(filePrefix) && file.name.endsWith(".mp4")) {
-                                file.delete()
-                            }
+                        // Store in memory - will be persisted to disk on onStop
+                        val mediaKey = when (filePrefix) {
+                            FilePrefix.TEXT_TO_VIDEO -> MediaStateHolder.MediaKey.TtvVideo(promptId)
+                            FilePrefix.IMAGE_TO_VIDEO -> MediaStateHolder.MediaKey.ItvVideo(promptId)
+                            else -> null
                         }
 
-                        // Save to internal storage with unique name to force player reload
-                        val videoFile = File(context.filesDir, "${filePrefix}${promptId}.mp4")
-                        videoFile.writeBytes(videoBytes)
+                        if (mediaKey == null) {
+                            mainHandler.post { onComplete(null) }
+                            return@fetchVideo
+                        }
 
-                        val uri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            videoFile
-                        )
+                        MediaStateHolder.putVideoBytes(mediaKey, videoBytes)
 
-                        mainHandler.post { onComplete(uri) }
+                        // Get URI for playback (creates temp file in cacheDir)
+                        CoroutineScope(Dispatchers.Main).launch {
+                            val uri = MediaStateHolder.getVideoUri(context, mediaKey)
+                            onComplete(uri)
+                        }
                     }
                     return@fetchHistory
                 }
