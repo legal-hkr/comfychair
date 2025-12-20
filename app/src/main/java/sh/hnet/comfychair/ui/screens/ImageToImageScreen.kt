@@ -65,6 +65,7 @@ import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageEvent
+import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.ImageToImageViewMode
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 
@@ -93,7 +94,7 @@ fun ImageToImageScreen(
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Image picker launcher
+    // Image picker launcher for source image
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -149,8 +150,8 @@ fun ImageToImageScreen(
                 IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
                     Icon(Icons.Default.Upload, contentDescription = stringResource(R.string.upload_source_image))
                 }
-                // Edit mask button (only when source image exists)
-                if (uiState.sourceImage != null) {
+                // Edit mask button (only in inpainting mode when source image exists)
+                if (uiState.sourceImage != null && uiState.mode == ImageToImageMode.INPAINTING) {
                     IconButton(onClick = { showMaskEditor = true }) {
                         Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_mask))
                     }
@@ -210,12 +211,22 @@ fun ImageToImageScreen(
             when (uiState.viewMode) {
                 ImageToImageViewMode.SOURCE -> {
                     if (uiState.sourceImage != null) {
-                        // Read-only preview of source image with mask overlay
-                        MaskPreview(
-                            sourceImage = uiState.sourceImage,
-                            maskPaths = uiState.maskPaths,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (uiState.mode == ImageToImageMode.INPAINTING) {
+                            // Read-only preview of source image with mask overlay
+                            MaskPreview(
+                                sourceImage = uiState.sourceImage,
+                                maskPaths = uiState.maskPaths,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            // Editing mode: show plain source image without mask
+                            Image(
+                                bitmap = uiState.sourceImage!!.asImageBitmap(),
+                                contentDescription = stringResource(R.string.content_description_source_image),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     } else {
                         // Placeholder - app logo
                         Column(
@@ -325,7 +336,8 @@ fun ImageToImageScreen(
                 ),
                 onGenerate = {
                     scope.launch {
-                        if (!imageToImageViewModel.hasMask()) {
+                        // In inpainting mode, require mask
+                        if (uiState.mode == ImageToImageMode.INPAINTING && !imageToImageViewModel.hasMask()) {
                             Toast.makeText(
                                 context,
                                 context.getString(R.string.paint_mask_hint),
@@ -340,7 +352,21 @@ fun ImageToImageScreen(
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 ImageToImageViewModel.OWNER_ID
-                            ) { _, _, _ -> }
+                            ) { success, _, errorMessage ->
+                                if (!success) {
+                                    Toast.makeText(
+                                        context,
+                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.error_generation_failed),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 },
@@ -367,25 +393,51 @@ fun ImageToImageScreen(
         ) {
             ImageToImageConfigBottomSheetContent(
                 uiState = uiState,
-                // Unified workflow callback
+                // Mode selection
+                onModeChange = imageToImageViewModel::onModeChange,
+                // Reference image callbacks (editing mode)
+                onReferenceImage1Change = { uri -> imageToImageViewModel.onReferenceImage1Change(context, uri) },
+                onReferenceImage2Change = { uri -> imageToImageViewModel.onReferenceImage2Change(context, uri) },
+                onClearReferenceImage1 = imageToImageViewModel::onClearReferenceImage1,
+                onClearReferenceImage2 = imageToImageViewModel::onClearReferenceImage2,
+                // Inpainting workflow callback
                 onWorkflowChange = imageToImageViewModel::onWorkflowChange,
-                // Model selection callbacks
+                // Inpainting model selection callbacks
                 onCheckpointChange = imageToImageViewModel::onCheckpointChange,
                 onUnetChange = imageToImageViewModel::onUnetChange,
                 onVaeChange = imageToImageViewModel::onVaeChange,
                 onClipChange = imageToImageViewModel::onClipChange,
-                // Unified parameter callbacks
+                // Inpainting parameter callbacks
                 onNegativePromptChange = imageToImageViewModel::onNegativePromptChange,
                 onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
                 onStepsChange = imageToImageViewModel::onStepsChange,
                 onCfgChange = imageToImageViewModel::onCfgChange,
                 onSamplerChange = imageToImageViewModel::onSamplerChange,
                 onSchedulerChange = imageToImageViewModel::onSchedulerChange,
-                // Unified LoRA chain callbacks
+                // Inpainting LoRA chain callbacks
                 onAddLora = imageToImageViewModel::onAddLora,
                 onRemoveLora = imageToImageViewModel::onRemoveLora,
                 onLoraNameChange = imageToImageViewModel::onLoraNameChange,
-                onLoraStrengthChange = imageToImageViewModel::onLoraStrengthChange
+                onLoraStrengthChange = imageToImageViewModel::onLoraStrengthChange,
+                // Editing workflow callback
+                onEditingWorkflowChange = imageToImageViewModel::onEditingWorkflowChange,
+                // Editing model selection callbacks
+                onEditingUnetChange = imageToImageViewModel::onEditingUnetChange,
+                onEditingLoraChange = imageToImageViewModel::onEditingLoraChange,
+                onEditingVaeChange = imageToImageViewModel::onEditingVaeChange,
+                onEditingClipChange = imageToImageViewModel::onEditingClipChange,
+                // Editing parameter callbacks
+                onEditingNegativePromptChange = imageToImageViewModel::onEditingNegativePromptChange,
+                onEditingMegapixelsChange = imageToImageViewModel::onEditingMegapixelsChange,
+                onEditingStepsChange = imageToImageViewModel::onEditingStepsChange,
+                onEditingCfgChange = imageToImageViewModel::onEditingCfgChange,
+                onEditingSamplerChange = imageToImageViewModel::onEditingSamplerChange,
+                onEditingSchedulerChange = imageToImageViewModel::onEditingSchedulerChange,
+                // Editing LoRA chain callbacks
+                onAddEditingLora = imageToImageViewModel::onAddEditingLora,
+                onRemoveEditingLora = imageToImageViewModel::onRemoveEditingLora,
+                onEditingLoraNameChange = imageToImageViewModel::onEditingLoraNameChange,
+                onEditingLoraStrengthChange = imageToImageViewModel::onEditingLoraStrengthChange
             )
         }
     }

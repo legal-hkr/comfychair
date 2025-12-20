@@ -1,0 +1,257 @@
+{
+  "name": "QwenImage Edit (Lightning)",
+  "description": "QwenImage Edit workflow with optional reference images (Lightning LoRA)",
+  "defaults": {
+    "megapixels": 2.0,
+    "steps": 4,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple"
+  },
+  "nodes": {
+    "1": {
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "inputs": {
+        "lora_name": "{{lora_name}}",
+        "strength_model": 1,
+        "model": [
+          "1",
+          0
+        ]
+      },
+      "class_type": "LoraLoaderModelOnly",
+      "_meta": {
+        "title": "Load LoRA (Mandatory)"
+      }
+    },
+    "3": {
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "qwen_image",
+        "device": "default"
+      },
+      "class_type": "CLIPLoader",
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "4": {
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "class_type": "VAELoader",
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "5": {
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image (Source)"
+      }
+    },
+    "6": {
+      "inputs": {
+        "image": "reference_image_1.png [input]"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image (Reference 1)"
+      }
+    },
+    "7": {
+      "inputs": {
+        "image": "reference_image_2.png [input]"
+      },
+      "class_type": "LoadImage",
+      "_meta": {
+        "title": "Load Image (Reference 2)"
+      }
+    },
+    "8": {
+      "inputs": {
+        "upscale_method": "lanczos",
+        "megapixels": "{{megapixels}}",
+        "image": [
+          "5",
+          0
+        ]
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    },
+    "9": {
+      "inputs": {
+        "prompt": "{{positive_prompt}}",
+        "clip": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ],
+        "image1": [
+          "8",
+          0
+        ],
+        "image2": [
+          "6",
+          0
+        ],
+        "image3": [
+          "7",
+          0
+        ]
+      },
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "_meta": {
+        "title": "TextEncodeQwenImageEditPlus (Positive)"
+      }
+    },
+    "10": {
+      "inputs": {
+        "prompt": "{{negative_prompt}}",
+        "clip": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ],
+        "image1": [
+          "8",
+          0
+        ],
+        "image2": [
+          "6",
+          0
+        ],
+        "image3": [
+          "7",
+          0
+        ]
+      },
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "_meta": {
+        "title": "TextEncodeQwenImageEditPlus (Negative)"
+      }
+    },
+    "11": {
+      "inputs": {
+        "pixels": [
+          "8",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ]
+      },
+      "class_type": "VAEEncode",
+      "_meta": {
+        "title": "VAE Encode"
+      }
+    },
+    "12": {
+      "inputs": {
+        "shift": 3,
+        "model": [
+          "2",
+          0
+        ]
+      },
+      "class_type": "ModelSamplingAuraFlow",
+      "_meta": {
+        "title": "ModelSamplingAuraFlow"
+      }
+    },
+    "13": {
+      "inputs": {
+        "strength": 1,
+        "model": [
+          "12",
+          0
+        ]
+      },
+      "class_type": "CFGNorm",
+      "_meta": {
+        "title": "CFGNorm"
+      }
+    },
+    "14": {
+      "inputs": {
+        "seed": 0,
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": 1,
+        "model": [
+          "13",
+          0
+        ],
+        "positive": [
+          "9",
+          0
+        ],
+        "negative": [
+          "10",
+          0
+        ],
+        "latent_image": [
+          "11",
+          0
+        ]
+      },
+      "class_type": "KSampler",
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "15": {
+      "inputs": {
+        "samples": [
+          "14",
+          0
+        ],
+        "vae": [
+          "4",
+          0
+        ]
+      },
+      "class_type": "VAEDecode",
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "16": {
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": [
+          "15",
+          0
+        ]
+      },
+      "class_type": "SaveImage",
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

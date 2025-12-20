@@ -1,6 +1,6 @@
 {
   "name": "SDXL LCM with latent upscaling",
-  "description": "Default workflow for SDXL LCM generation with latent upscaling",
+  "description": "Workflow for SDXL LCM generation with latent upscaling",
   "defaults": {
     "width": 832,
     "height": 1216,

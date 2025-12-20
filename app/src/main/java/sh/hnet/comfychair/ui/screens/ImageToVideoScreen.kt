@@ -364,11 +364,17 @@ fun ImageToVideoScreen(
                                 if (!success) {
                                     Toast.makeText(
                                         context,
-                                        context.getString(R.string.error_failed_start_generation, errorMessage ?: context.getString(R.string.error_unknown)),
-                                        Toast.LENGTH_SHORT
+                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        Toast.LENGTH_LONG
                                     ).show()
                                 }
                             }
+                        } else {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.error_failed_load_workflow),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 },

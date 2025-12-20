@@ -35,6 +35,7 @@ data class WorkflowManagementUiState(
     val ttiUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itiCheckpointWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itiUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val iteUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val ttvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
 
@@ -117,6 +118,7 @@ class WorkflowManagementViewModel : ViewModel() {
             ttiUnetWorkflows = wm.getWorkflowsByType(WorkflowType.TTI_UNET),
             itiCheckpointWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT),
             itiUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_UNET),
+            iteUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITE_UNET),
             ttvUnetWorkflows = wm.getWorkflowsByType(WorkflowType.TTV_UNET),
             itvUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITV_UNET)
         )

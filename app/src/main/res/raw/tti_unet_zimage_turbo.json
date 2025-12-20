@@ -1,6 +1,6 @@
 {
   "name": "Z-Image Turbo",
-  "description": "Default workflow using Z-Image Turbo model",
+  "description": "Workflow using Z-Image Turbo model",
   "defaults": {
     "width": 832,
     "height": 1216,

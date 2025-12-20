@@ -231,6 +231,23 @@ fun WorkflowsSettingsScreen(
                     }
                 }
 
+                // Image editing (UNET)
+                item {
+                    WorkflowSectionHeader(stringResource(R.string.workflow_section_ite_unet))
+                }
+                if (uiState.iteUnetWorkflows.isEmpty()) {
+                    item { EmptySection() }
+                } else {
+                    items(uiState.iteUnetWorkflows) { workflow ->
+                        WorkflowListItem(
+                            workflow = workflow,
+                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
+                            onEdit = { viewModel.onEditWorkflow(it) },
+                            onDelete = { viewModel.onDeleteWorkflow(it) }
+                        )
+                    }
+                }
+
                 // Text-to-Video (UNET)
                 item {
                     WorkflowSectionHeader(stringResource(R.string.workflow_section_ttv_unet))
@@ -460,6 +477,7 @@ private fun UploadWorkflowDialog(
         WorkflowType.TTI_UNET to stringResource(R.string.workflow_section_tti_unet),
         WorkflowType.ITI_CHECKPOINT to stringResource(R.string.workflow_section_iti_checkpoint),
         WorkflowType.ITI_UNET to stringResource(R.string.workflow_section_iti_unet),
+        WorkflowType.ITE_UNET to stringResource(R.string.workflow_section_ite_unet),
         WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
         WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet)
     )

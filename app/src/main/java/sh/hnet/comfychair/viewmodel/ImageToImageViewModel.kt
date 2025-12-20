@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
@@ -54,6 +55,23 @@ enum class ImageToImageViewMode {
     SOURCE,
     PREVIEW
 }
+
+/**
+ * UI state for the Image-to-Image mode (Inpainting vs Editing)
+ */
+enum class ImageToImageMode {
+    INPAINTING,  // Existing: requires mask
+    EDITING      // New: no mask, optional reference images
+}
+
+/**
+ * Represents a workflow item for Image Editing (ITE_UNET)
+ */
+data class IteWorkflowItem(
+    val name: String,           // Internal workflow name
+    val displayName: String,    // Display name for dropdown
+    val type: WorkflowType      // Always ITE_UNET for this type
+)
 
 /**
  * UI state for the Image-to-image screen
@@ -115,7 +133,36 @@ data class ImageToImageUiState(
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
     val unetLoraChain: List<LoraSelection> = emptyList(),
-    val availableLoras: List<String> = emptyList()
+    val availableLoras: List<String> = emptyList(),
+
+    // ==================== Editing Mode State ====================
+    // Mode selection (Editing vs Inpainting)
+    val mode: ImageToImageMode = ImageToImageMode.EDITING,
+
+    // Editing mode workflows (ITE_UNET only)
+    val editingWorkflows: List<IteWorkflowItem> = emptyList(),
+    val selectedEditingWorkflow: String = "",
+
+    // Editing mode models (separate from UNET/Checkpoint mode)
+    val selectedEditingUnet: String = "",
+    val selectedEditingLora: String = "",  // Mandatory LoRA for editing
+    val selectedEditingVae: String = "",
+    val selectedEditingClip: String = "",
+
+    // Editing parameters
+    val editingMegapixels: String = "2.0",
+    val editingSteps: String = "4",
+    val editingCfg: String = "1.0",
+    val editingSampler: String = "euler",
+    val editingScheduler: String = "simple",
+    val editingNegativePrompt: String = "",
+
+    // Reference images (optional, for editing mode)
+    val referenceImage1: Bitmap? = null,
+    val referenceImage2: Bitmap? = null,
+
+    // Optional LoRA chain for editing (in addition to mandatory LoRA)
+    val editingLoraChain: List<LoraSelection> = emptyList()
 )
 
 /**
@@ -152,6 +199,8 @@ class ImageToImageViewModel : ViewModel() {
         // Global preferences
         private const val PREF_POSITIVE_PROMPT = "positive_prompt"
         private const val PREF_SELECTED_WORKFLOW = "selectedWorkflow"
+        private const val PREF_MODE = "mode"
+        private const val PREF_SELECTED_EDITING_WORKFLOW = "selectedEditingWorkflow"
 
         private const val FEATHER_RADIUS = 8
     }
@@ -168,18 +217,14 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     private fun loadWorkflowOptions() {
-        val wm = workflowManager ?: run {
-            return
-        }
-        val ctx = applicationContext ?: run {
-            return
-        }
+        val wm = workflowManager ?: return
+        val ctx = applicationContext ?: return
 
         val checkpointWorkflows = wm.getImageToImageCheckpointWorkflowNames()
         val unetWorkflows = wm.getImageToImageUNETWorkflowNames()
+        val editingWorkflows = wm.getImageEditingUNETWorkflowNames()
 
-
-        // Create unified workflow list with type prefix for display
+        // Create unified workflow list with type prefix for display (for Inpainting mode)
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
         val unetPrefix = ctx.getString(R.string.mode_unet)
 
@@ -203,15 +248,29 @@ class ImageToImageViewModel : ViewModel() {
             ))
         }
 
+        // Create editing workflow list (ITE_UNET only)
+        val editingWorkflowItems = editingWorkflows.map { name ->
+            IteWorkflowItem(
+                name = name,
+                displayName = name,
+                type = WorkflowType.ITE_UNET
+            )
+        }.sortedBy { it.displayName }
+
         val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
         val defaultWorkflow = sortedWorkflows.firstOrNull()?.name ?: ""
         val selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
         val isCheckpoint = sortedWorkflows.find { it.name == selectedWorkflow }?.type == WorkflowType.ITI_CHECKPOINT
 
+        val defaultEditingWorkflow = editingWorkflowItems.firstOrNull()?.name ?: ""
+        val selectedEditingWorkflow = if (_uiState.value.selectedEditingWorkflow.isEmpty()) defaultEditingWorkflow else _uiState.value.selectedEditingWorkflow
+
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
             selectedWorkflow = selectedWorkflow,
-            isCheckpointMode = isCheckpoint
+            isCheckpointMode = isCheckpoint,
+            editingWorkflows = editingWorkflowItems,
+            selectedEditingWorkflow = selectedEditingWorkflow
         )
     }
 
@@ -224,11 +283,23 @@ class ImageToImageViewModel : ViewModel() {
         // Load global preferences
         val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
         val savedWorkflow = prefs.getString(PREF_SELECTED_WORKFLOW, null)
+        val savedMode = prefs.getString(PREF_MODE, ImageToImageMode.EDITING.name)
+        val savedEditingWorkflow = prefs.getString(PREF_SELECTED_EDITING_WORKFLOW, null)
 
-        // Update positive prompt first
-        _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
+        // Restore mode
+        val mode = try {
+            ImageToImageMode.valueOf(savedMode ?: ImageToImageMode.EDITING.name)
+        } catch (e: Exception) {
+            ImageToImageMode.EDITING
+        }
 
-        // Determine which workflow to select
+        // Update positive prompt and mode first
+        _uiState.value = _uiState.value.copy(
+            positivePrompt = positivePrompt,
+            mode = mode
+        )
+
+        // Determine which inpainting workflow to select
         val state = _uiState.value
         val workflowToLoad = when {
             // Use saved workflow if it exists in available workflows
@@ -240,9 +311,22 @@ class ImageToImageViewModel : ViewModel() {
             else -> ""
         }
 
-        // Load workflow and its values (this sets mode and values)
+        // Load inpainting workflow and its values (this sets mode and values)
         if (workflowToLoad.isNotEmpty()) {
             loadWorkflowValues(workflowToLoad)
+        }
+
+        // Determine which editing workflow to select
+        val editingWorkflowToLoad = when {
+            savedEditingWorkflow != null && state.editingWorkflows.any { it.name == savedEditingWorkflow } -> savedEditingWorkflow
+            state.selectedEditingWorkflow.isNotEmpty() -> state.selectedEditingWorkflow
+            state.editingWorkflows.isNotEmpty() -> state.editingWorkflows.first().name
+            else -> ""
+        }
+
+        // Load editing workflow values
+        if (editingWorkflowToLoad.isNotEmpty()) {
+            loadEditingWorkflowValues(editingWorkflowToLoad)
         }
     }
 
@@ -304,6 +388,40 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     /**
+     * Load editing workflow values without triggering save (used during initialization)
+     */
+    private fun loadEditingWorkflowValues(workflowName: String) {
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
+
+        // Load saved values or defaults
+        val savedValues = storage.loadValues(workflowName)
+        val defaults = manager.getWorkflowDefaults(workflowName)
+
+        val state = _uiState.value
+        _uiState.value = state.copy(
+            selectedEditingWorkflow = workflowName,
+            editingMegapixels = savedValues?.megapixels?.toString()
+                ?: defaults?.megapixels?.toString() ?: "2.0",
+            editingSteps = savedValues?.steps?.toString()
+                ?: defaults?.steps?.toString() ?: "4",
+            editingCfg = savedValues?.cfg?.toString()
+                ?: defaults?.cfg?.toString() ?: "1.0",
+            editingSampler = savedValues?.samplerName
+                ?: defaults?.samplerName ?: "euler",
+            editingScheduler = savedValues?.scheduler
+                ?: defaults?.scheduler ?: "simple",
+            editingNegativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
+            selectedEditingUnet = savedValues?.unetModel ?: state.selectedEditingUnet,
+            selectedEditingLora = savedValues?.loraModel ?: state.selectedEditingLora,
+            selectedEditingVae = savedValues?.vaeModel ?: state.selectedEditingVae,
+            selectedEditingClip = savedValues?.clipModel ?: state.selectedEditingClip,
+            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+        )
+    }
+
+    /**
      * Save current workflow values to per-workflow storage
      */
     private fun saveWorkflowValues(workflowName: String, isCheckpointMode: Boolean) {
@@ -342,20 +460,52 @@ class ImageToImageViewModel : ViewModel() {
         storage.saveValues(workflowName, values)
     }
 
+    /**
+     * Save current editing workflow values to per-workflow storage
+     */
+    private fun saveEditingWorkflowValues(workflowName: String) {
+        val storage = workflowValuesStorage ?: return
+        val state = _uiState.value
+
+        val values = WorkflowValues(
+            workflowId = workflowName,
+            megapixels = state.editingMegapixels.toFloatOrNull(),
+            steps = state.editingSteps.toIntOrNull(),
+            cfg = state.editingCfg.toFloatOrNull(),
+            samplerName = state.editingSampler,
+            scheduler = state.editingScheduler,
+            negativePrompt = state.editingNegativePrompt.takeIf { it.isNotEmpty() },
+            unetModel = state.selectedEditingUnet.takeIf { it.isNotEmpty() },
+            loraModel = state.selectedEditingLora.takeIf { it.isNotEmpty() },
+            vaeModel = state.selectedEditingVae.takeIf { it.isNotEmpty() },
+            clipModel = state.selectedEditingClip.takeIf { it.isNotEmpty() },
+            loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() }
+        )
+
+        storage.saveValues(workflowName, values)
+    }
+
     private fun savePreferences() {
         val context = applicationContext ?: return
         val state = _uiState.value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Save global preferences (prompt and selected workflow)
+        // Save global preferences (prompt, mode, and selected workflows)
         prefs.edit()
             .putString(PREF_POSITIVE_PROMPT, state.positivePrompt)
+            .putString(PREF_MODE, state.mode.name)
             .putString(PREF_SELECTED_WORKFLOW, state.selectedWorkflow)
+            .putString(PREF_SELECTED_EDITING_WORKFLOW, state.selectedEditingWorkflow)
             .apply()
 
-        // Save per-workflow values for the currently selected workflow
+        // Save per-workflow values for the currently selected inpainting workflow
         if (state.selectedWorkflow.isNotEmpty()) {
             saveWorkflowValues(state.selectedWorkflow, state.isCheckpointMode)
+        }
+
+        // Save per-workflow values for the currently selected editing workflow
+        if (state.selectedEditingWorkflow.isNotEmpty()) {
+            saveEditingWorkflowValues(state.selectedEditingWorkflow)
         }
     }
 
@@ -363,71 +513,86 @@ class ImageToImageViewModel : ViewModel() {
         // Restore from in-memory cache (loaded from disk on app startup)
         val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource)
         val previewImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiPreview)
+        val referenceImage1 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage1)
+        val referenceImage2 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage2)
 
         _uiState.value = _uiState.value.copy(
             sourceImage = sourceImage,
-            previewImage = previewImage
+            previewImage = previewImage,
+            referenceImage1 = referenceImage1,
+            referenceImage2 = referenceImage2
         )
     }
 
     fun fetchModels() {
-        val client = comfyUIClient ?: run {
-            return
-        }
+        val client = comfyUIClient ?: return
 
         viewModelScope.launch {
             // Fetch checkpoints
             client.fetchCheckpoints { checkpoints ->
-                _uiState.value = _uiState.value.copy(
-                    checkpoints = checkpoints ?: emptyList()
-                )
-                // Auto-select first if none selected
-                if (_uiState.value.selectedCheckpoint.isEmpty() && checkpoints?.isNotEmpty() == true) {
-                    _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoints.first())
+                _uiState.update { state ->
+                    state.copy(
+                        checkpoints = checkpoints ?: emptyList(),
+                        selectedCheckpoint = if (state.selectedCheckpoint.isEmpty() && checkpoints?.isNotEmpty() == true)
+                            checkpoints.first() else state.selectedCheckpoint
+                    )
                 }
             }
 
             // Fetch UNETs
             client.fetchUNETs { unets ->
-                _uiState.value = _uiState.value.copy(
-                    unets = unets ?: emptyList()
-                )
-                if (_uiState.value.selectedUnet.isEmpty() && unets?.isNotEmpty() == true) {
-                    _uiState.value = _uiState.value.copy(selectedUnet = unets.first())
+                _uiState.update { state ->
+                    state.copy(
+                        unets = unets ?: emptyList(),
+                        selectedUnet = if (state.selectedUnet.isEmpty() && unets?.isNotEmpty() == true)
+                            unets.first() else state.selectedUnet,
+                        selectedEditingUnet = if (state.selectedEditingUnet.isEmpty() && unets?.isNotEmpty() == true)
+                            unets.first() else state.selectedEditingUnet
+                    )
                 }
             }
 
             // Fetch VAEs
             client.fetchVAEs { vaes ->
-                _uiState.value = _uiState.value.copy(
-                    vaes = vaes ?: emptyList()
-                )
-                if (_uiState.value.selectedVae.isEmpty() && vaes?.isNotEmpty() == true) {
-                    _uiState.value = _uiState.value.copy(selectedVae = vaes.first())
+                _uiState.update { state ->
+                    state.copy(
+                        vaes = vaes ?: emptyList(),
+                        selectedVae = if (state.selectedVae.isEmpty() && vaes?.isNotEmpty() == true)
+                            vaes.first() else state.selectedVae,
+                        selectedEditingVae = if (state.selectedEditingVae.isEmpty() && vaes?.isNotEmpty() == true)
+                            vaes.first() else state.selectedEditingVae
+                    )
                 }
             }
 
             // Fetch CLIPs
             client.fetchCLIPs { clips ->
-                _uiState.value = _uiState.value.copy(
-                    clips = clips ?: emptyList()
-                )
-                if (_uiState.value.selectedClip.isEmpty() && clips?.isNotEmpty() == true) {
-                    _uiState.value = _uiState.value.copy(selectedClip = clips.first())
+                _uiState.update { state ->
+                    state.copy(
+                        clips = clips ?: emptyList(),
+                        selectedClip = if (state.selectedClip.isEmpty() && clips?.isNotEmpty() == true)
+                            clips.first() else state.selectedClip,
+                        selectedEditingClip = if (state.selectedEditingClip.isEmpty() && clips?.isNotEmpty() == true)
+                            clips.first() else state.selectedEditingClip
+                    )
                 }
             }
 
             // Fetch LoRAs
             client.fetchLoRAs { loras ->
-                val state = _uiState.value
-                // Filter out any LoRAs in the chains that are no longer available
-                val filteredCheckpointChain = state.checkpointLoraChain.filter { it.name in loras }
-                val filteredUnetChain = state.unetLoraChain.filter { it.name in loras }
-                _uiState.value = state.copy(
-                    availableLoras = loras,
-                    checkpointLoraChain = filteredCheckpointChain,
-                    unetLoraChain = filteredUnetChain
-                )
+                _uiState.update { state ->
+                    val filteredCheckpointChain = state.checkpointLoraChain.filter { it.name in loras }
+                    val filteredUnetChain = state.unetLoraChain.filter { it.name in loras }
+                    val filteredEditingChain = state.editingLoraChain.filter { it.name in loras }
+                    state.copy(
+                        availableLoras = loras,
+                        checkpointLoraChain = filteredCheckpointChain,
+                        unetLoraChain = filteredUnetChain,
+                        editingLoraChain = filteredEditingChain,
+                        selectedEditingLora = if (state.selectedEditingLora.isEmpty() && loras.isNotEmpty())
+                            loras.first() else state.selectedEditingLora
+                    )
+                }
             }
         }
     }
@@ -435,6 +600,65 @@ class ImageToImageViewModel : ViewModel() {
     // View mode
     fun onViewModeChange(mode: ImageToImageViewMode) {
         _uiState.value = _uiState.value.copy(viewMode = mode)
+    }
+
+    // Image-to-Image mode (Inpainting vs Editing)
+    fun onModeChange(mode: ImageToImageMode) {
+        _uiState.value = _uiState.value.copy(mode = mode)
+        savePreferences()
+    }
+
+    // Reference image handlers (for Editing mode)
+    fun onReferenceImage1Change(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                if (bitmap != null) {
+                    // Store in memory - will be persisted to disk on onStop
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, bitmap)
+                    _uiState.value = _uiState.value.copy(referenceImage1 = bitmap)
+                }
+            } catch (e: Exception) {
+                _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
+            }
+        }
+    }
+
+    fun onReferenceImage2Change(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                if (bitmap != null) {
+                    // Store in memory - will be persisted to disk on onStop
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, bitmap)
+                    _uiState.value = _uiState.value.copy(referenceImage2 = bitmap)
+                }
+            } catch (e: Exception) {
+                _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
+            }
+        }
+    }
+
+    fun onClearReferenceImage1() {
+        val context = applicationContext ?: return
+        viewModelScope.launch {
+            MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.IteReferenceImage1)
+            _uiState.value = _uiState.value.copy(referenceImage1 = null)
+        }
+    }
+
+    fun onClearReferenceImage2() {
+        val context = applicationContext ?: return
+        viewModelScope.launch {
+            MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.IteReferenceImage2)
+            _uiState.value = _uiState.value.copy(referenceImage2 = null)
+        }
     }
 
     // Source image
@@ -854,6 +1078,149 @@ class ImageToImageViewModel : ViewModel() {
         }
     }
 
+    // ==================== Editing Mode Callbacks ====================
+
+    fun onEditingWorkflowChange(workflowName: String) {
+        val state = _uiState.value
+        val manager = workflowManager ?: return
+        val storage = workflowValuesStorage ?: return
+
+        // Save current editing workflow values before switching
+        if (state.selectedEditingWorkflow.isNotEmpty()) {
+            saveEditingWorkflowValues(state.selectedEditingWorkflow)
+        }
+
+        // Load new workflow's saved values or defaults
+        val savedValues = storage.loadValues(workflowName)
+        val defaults = manager.getWorkflowDefaults(workflowName)
+
+        _uiState.value = state.copy(
+            selectedEditingWorkflow = workflowName,
+            editingMegapixels = savedValues?.megapixels?.toString()
+                ?: defaults?.megapixels?.toString() ?: "2.0",
+            editingSteps = savedValues?.steps?.toString()
+                ?: defaults?.steps?.toString() ?: "4",
+            editingCfg = savedValues?.cfg?.toString()
+                ?: defaults?.cfg?.toString() ?: "1.0",
+            editingSampler = savedValues?.samplerName
+                ?: defaults?.samplerName ?: "euler",
+            editingScheduler = savedValues?.scheduler
+                ?: defaults?.scheduler ?: "simple",
+            editingNegativePrompt = savedValues?.negativePrompt
+                ?: defaults?.negativePrompt ?: "",
+            selectedEditingUnet = savedValues?.unetModel ?: state.selectedEditingUnet,
+            selectedEditingLora = savedValues?.loraModel ?: state.selectedEditingLora,
+            selectedEditingVae = savedValues?.vaeModel ?: state.selectedEditingVae,
+            selectedEditingClip = savedValues?.clipModel ?: state.selectedEditingClip,
+            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+        )
+
+        savePreferences()
+    }
+
+    fun onEditingUnetChange(unet: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingUnet = unet)
+        savePreferences()
+    }
+
+    fun onEditingLoraChange(lora: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingLora = lora)
+        savePreferences()
+    }
+
+    fun onEditingVaeChange(vae: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingVae = vae)
+        savePreferences()
+    }
+
+    fun onEditingClipChange(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingClip = clip)
+        savePreferences()
+    }
+
+    fun onEditingMegapixelsChange(megapixels: String) {
+        val error = validateMegapixels(megapixels)
+        _uiState.value = _uiState.value.copy(
+            editingMegapixels = megapixels,
+            megapixelsError = error
+        )
+        savePreferences()
+    }
+
+    fun onEditingStepsChange(steps: String) {
+        _uiState.value = _uiState.value.copy(editingSteps = steps)
+        savePreferences()
+    }
+
+    fun onEditingCfgChange(cfg: String) {
+        val error = validateCfg(cfg)
+        _uiState.value = _uiState.value.copy(editingCfg = cfg, cfgError = error)
+        savePreferences()
+    }
+
+    fun onEditingSamplerChange(sampler: String) {
+        _uiState.value = _uiState.value.copy(editingSampler = sampler)
+        savePreferences()
+    }
+
+    fun onEditingSchedulerChange(scheduler: String) {
+        _uiState.value = _uiState.value.copy(editingScheduler = scheduler)
+        savePreferences()
+    }
+
+    fun onEditingNegativePromptChange(negativePrompt: String) {
+        _uiState.value = _uiState.value.copy(editingNegativePrompt = negativePrompt)
+        savePreferences()
+    }
+
+    // ==================== Editing Mode LoRA Chain Callbacks ====================
+
+    fun onAddEditingLora() {
+        val state = _uiState.value
+        if (state.editingLoraChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
+        val availableLoras = state.availableLoras
+        if (availableLoras.isEmpty()) return
+
+        val newLora = LoraSelection(
+            name = availableLoras.first(),
+            strength = LoraSelection.DEFAULT_STRENGTH
+        )
+        _uiState.value = state.copy(editingLoraChain = state.editingLoraChain + newLora)
+        savePreferences()
+    }
+
+    fun onRemoveEditingLora(index: Int) {
+        val state = _uiState.value
+        val currentChain = state.editingLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain.removeAt(index)
+            _uiState.value = state.copy(editingLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    fun onEditingLoraNameChange(index: Int, name: String) {
+        val state = _uiState.value
+        val currentChain = state.editingLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain[index] = currentChain[index].copy(name = name)
+            _uiState.value = state.copy(editingLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    fun onEditingLoraStrengthChange(index: Int, strength: Float) {
+        val state = _uiState.value
+        val currentChain = state.editingLoraChain.toMutableList()
+        if (index in currentChain.indices) {
+            currentChain[index] = currentChain[index].copy(strength = strength)
+            _uiState.value = state.copy(editingLoraChain = currentChain)
+            savePreferences()
+        }
+    }
+
+    // ==================== Validation ====================
+
     private fun validateMegapixels(value: String): String? {
         val mp = value.toFloatOrNull()
             ?: return applicationContext?.getString(R.string.error_invalid_number) ?: "Invalid number"
@@ -873,34 +1240,152 @@ class ImageToImageViewModel : ViewModel() {
     fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
 
-        return if (state.isCheckpointMode) {
-            state.selectedWorkflow.isNotEmpty() &&
-            state.selectedCheckpoint.isNotEmpty() &&
-            state.megapixels.toFloatOrNull() != null &&
-            state.megapixelsError == null &&
-            state.checkpointSteps.toIntOrNull() != null &&
-            validateCfg(state.checkpointCfg) == null
-        } else {
-            state.selectedWorkflow.isNotEmpty() &&
-            state.selectedUnet.isNotEmpty() &&
-            state.selectedVae.isNotEmpty() &&
-            state.selectedClip.isNotEmpty() &&
-            state.unetSteps.toIntOrNull() != null &&
-            validateCfg(state.unetCfg) == null
+        return when (state.mode) {
+            ImageToImageMode.EDITING -> {
+                // Editing mode: workflow, UNET, LoRA (mandatory), VAE, CLIP, steps, and valid CFG
+                val workflowOk = state.selectedEditingWorkflow.isNotEmpty()
+                val unetOk = state.selectedEditingUnet.isNotEmpty()
+                val loraOk = state.selectedEditingLora.isNotEmpty()
+                val vaeOk = state.selectedEditingVae.isNotEmpty()
+                val clipOk = state.selectedEditingClip.isNotEmpty()
+                val stepsOk = state.editingSteps.toIntOrNull() != null
+                val megapixelsOk = state.editingMegapixels.toFloatOrNull() != null
+                val cfgOk = validateCfg(state.editingCfg) == null
+
+                workflowOk && unetOk && loraOk && vaeOk && clipOk && stepsOk && megapixelsOk && cfgOk
+            }
+            ImageToImageMode.INPAINTING -> {
+                // Inpainting mode: check based on workflow type
+                if (state.isCheckpointMode) {
+                    state.selectedWorkflow.isNotEmpty() &&
+                    state.selectedCheckpoint.isNotEmpty() &&
+                    state.megapixels.toFloatOrNull() != null &&
+                    state.megapixelsError == null &&
+                    state.checkpointSteps.toIntOrNull() != null &&
+                    validateCfg(state.checkpointCfg) == null
+                } else {
+                    state.selectedWorkflow.isNotEmpty() &&
+                    state.selectedUnet.isNotEmpty() &&
+                    state.selectedVae.isNotEmpty() &&
+                    state.selectedClip.isNotEmpty() &&
+                    state.unetSteps.toIntOrNull() != null &&
+                    validateCfg(state.unetCfg) == null
+                }
+            }
         }
     }
 
     /**
-     * Upload source image with mask to ComfyUI and prepare workflow
+     * Upload source image (with mask for inpainting, without for editing) to ComfyUI and prepare workflow
      */
     suspend fun prepareWorkflow(): String? {
         val client = comfyUIClient ?: return null
         val wm = workflowManager ?: return null
-        val context = applicationContext ?: return null
         val state = _uiState.value
-
         val sourceImage = state.sourceImage ?: return null
 
+        return when (state.mode) {
+            ImageToImageMode.EDITING -> prepareEditingWorkflow(client, wm, sourceImage, state)
+            ImageToImageMode.INPAINTING -> prepareInpaintingWorkflow(client, wm, sourceImage, state)
+        }
+    }
+
+    /**
+     * Prepare workflow for Editing mode (no mask, optional reference images)
+     */
+    private suspend fun prepareEditingWorkflow(
+        client: ComfyUIClient,
+        wm: WorkflowManager,
+        sourceImage: Bitmap,
+        state: ImageToImageUiState
+    ): String? {
+        // Convert source image to PNG bytes
+        val sourceBytes = withContext(Dispatchers.IO) {
+            val outputStream = java.io.ByteArrayOutputStream()
+            sourceImage.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            outputStream.toByteArray()
+        }
+
+        // Upload source image
+        val uploadedSource: String? = withContext(Dispatchers.IO) {
+            kotlin.coroutines.suspendCoroutine { continuation ->
+                client.uploadImage(sourceBytes, "editing_source.png") { success, filename, _ ->
+                    continuation.resumeWith(Result.success(if (success) filename else null))
+                }
+            }
+        }
+
+        if (uploadedSource == null) {
+            _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
+            return null
+        }
+
+        // Upload reference image 1 (if present)
+        var uploadedRef1: String? = null
+        if (state.referenceImage1 != null) {
+            val ref1Bytes = withContext(Dispatchers.IO) {
+                val outputStream = java.io.ByteArrayOutputStream()
+                state.referenceImage1.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.toByteArray()
+            }
+            uploadedRef1 = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.uploadImage(ref1Bytes, "reference_1.png") { success, filename, _ ->
+                        continuation.resumeWith(Result.success(if (success) filename else null))
+                    }
+                }
+            }
+        }
+
+        // Upload reference image 2 (if present)
+        var uploadedRef2: String? = null
+        if (state.referenceImage2 != null) {
+            val ref2Bytes = withContext(Dispatchers.IO) {
+                val outputStream = java.io.ByteArrayOutputStream()
+                state.referenceImage2.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.toByteArray()
+            }
+            uploadedRef2 = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.uploadImage(ref2Bytes, "reference_2.png") { success, filename, _ ->
+                        continuation.resumeWith(Result.success(if (success) filename else null))
+                    }
+                }
+            }
+        }
+
+        // Prepare editing workflow JSON
+        val baseWorkflow = wm.prepareImageEditingWorkflow(
+            workflowName = state.selectedEditingWorkflow,
+            positivePrompt = state.positivePrompt,
+            negativePrompt = state.editingNegativePrompt,
+            unet = state.selectedEditingUnet,
+            lora = state.selectedEditingLora,
+            vae = state.selectedEditingVae,
+            clip = state.selectedEditingClip,
+            megapixels = state.editingMegapixels.toFloatOrNull() ?: 2.0f,
+            steps = state.editingSteps.toIntOrNull() ?: 4,
+            cfg = state.editingCfg.toFloatOrNull() ?: 1.0f,
+            samplerName = state.editingSampler,
+            scheduler = state.editingScheduler,
+            sourceImageFilename = uploadedSource,
+            referenceImage1Filename = uploadedRef1,
+            referenceImage2Filename = uploadedRef2
+        ) ?: return null
+
+        // Inject additional LoRA chain if configured
+        return wm.injectLoraChain(baseWorkflow, state.editingLoraChain, WorkflowType.ITE_UNET)
+    }
+
+    /**
+     * Prepare workflow for Inpainting mode (requires mask)
+     */
+    private suspend fun prepareInpaintingWorkflow(
+        client: ComfyUIClient,
+        wm: WorkflowManager,
+        sourceImage: Bitmap,
+        state: ImageToImageUiState
+    ): String? {
         // Generate mask
         val maskBitmap = generateMaskBitmap()
         if (maskBitmap == null) {
@@ -924,7 +1409,7 @@ class ImageToImageViewModel : ViewModel() {
         // Upload to ComfyUI
         val uploadedFilename: String? = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(imageBytes, "inpaint_source.png") { success, filename, errorMessage ->
+                client.uploadImage(imageBytes, "inpaint_source.png") { success, filename, _ ->
                     continuation.resumeWith(Result.success(if (success) filename else null))
                 }
             }

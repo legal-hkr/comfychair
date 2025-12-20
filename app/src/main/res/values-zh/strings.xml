@@ -163,6 +163,8 @@
     <string name="button_options">选项</string>
 
     <!-- Configuration bottom sheet labels -->
+    <string name="mode_inpainting">修复</string>
+    <string name="mode_editing">编辑</string>
     <string name="label_workflow">工作流</string>
     <string name="label_width">宽度</string>
     <string name="label_height">高度</string>
@@ -193,6 +195,7 @@
     <string name="workflow_section_tti_unet">文生图 (UNET)</string>
     <string name="workflow_section_iti_checkpoint">图生图 (Checkpoint)</string>
     <string name="workflow_section_iti_unet">图生图 (UNET)</string>
+    <string name="workflow_section_ite_unet">图像编辑 (UNET)</string>
     <string name="workflow_section_ttv_unet">文生视频 (UNET)</string>
     <string name="workflow_section_itv_unet">图生视频 (UNET)</string>
     <string name="workflow_section_empty">暂无工作流</string>
@@ -225,6 +228,9 @@
     <string name="content_description_clear">清除</string>
     <string name="content_description_generated_image">生成的图片</string>
     <string name="content_description_preview">预览</string>
+    <string name="content_description_reference_image_1">参考图像 1</string>
+    <string name="content_description_reference_image_2">参考图像 2</string>
+    <string name="content_description_source_image">源图像</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">暂无图片</string>

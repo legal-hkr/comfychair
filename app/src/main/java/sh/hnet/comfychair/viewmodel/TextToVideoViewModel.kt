@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
@@ -278,20 +279,20 @@ class TextToVideoViewModel : ViewModel() {
 
         viewModelScope.launch {
             // Load UNETs
-            withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchUNETs { unets ->
-                        continuation.resumeWith(Result.success(unets))
+            val unets = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
+                    client.fetchUNETs { fetchedUnets ->
+                        continuation.resumeWith(Result.success(fetchedUnets))
                     }
                 }
-            }.let { unets ->
-                val state = _uiState.value
+            }
+            // Use atomic update to avoid race conditions
+            _uiState.update { state ->
                 val highnoiseUnet = state.deferredHighnoiseUnet?.takeIf { it in unets }
                     ?: unets.firstOrNull() ?: ""
                 val lownoiseUnet = state.deferredLownoiseUnet?.takeIf { it in unets }
                     ?: unets.firstOrNull() ?: ""
-
-                _uiState.value = state.copy(
+                state.copy(
                     availableUnets = unets,
                     selectedHighnoiseUnet = highnoiseUnet,
                     selectedLownoiseUnet = lownoiseUnet,
@@ -301,23 +302,21 @@ class TextToVideoViewModel : ViewModel() {
             }
 
             // Load LoRAs
-            withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchLoRAs { loras ->
-                        continuation.resumeWith(Result.success(loras))
+            val loras = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
+                    client.fetchLoRAs { fetchedLoras ->
+                        continuation.resumeWith(Result.success(fetchedLoras))
                     }
                 }
-            }.let { loras ->
-                val state = _uiState.value
+            }
+            _uiState.update { state ->
                 val highnoiseLora = state.deferredHighnoiseLora?.takeIf { it in loras }
                     ?: loras.firstOrNull() ?: ""
                 val lownoiseLora = state.deferredLownoiseLora?.takeIf { it in loras }
                     ?: loras.firstOrNull() ?: ""
-                // Filter out any LoRAs in the chains that are no longer available
                 val filteredHighnoiseChain = state.highnoiseLoraChain.filter { it.name in loras }
                 val filteredLownoiseChain = state.lownoiseLoraChain.filter { it.name in loras }
-
-                _uiState.value = state.copy(
+                state.copy(
                     availableLoras = loras,
                     selectedHighnoiseLora = highnoiseLora,
                     selectedLownoiseLora = lownoiseLora,
@@ -329,18 +328,17 @@ class TextToVideoViewModel : ViewModel() {
             }
 
             // Load VAEs
-            withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchVAEs { vaes ->
-                        continuation.resumeWith(Result.success(vaes))
+            val vaes = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
+                    client.fetchVAEs { fetchedVaes ->
+                        continuation.resumeWith(Result.success(fetchedVaes))
                     }
                 }
-            }.let { vaes ->
-                val state = _uiState.value
+            }
+            _uiState.update { state ->
                 val vae = state.deferredVae?.takeIf { it in vaes }
                     ?: vaes.firstOrNull() ?: ""
-
-                _uiState.value = state.copy(
+                state.copy(
                     availableVaes = vaes,
                     selectedVae = vae,
                     deferredVae = null
@@ -348,18 +346,17 @@ class TextToVideoViewModel : ViewModel() {
             }
 
             // Load CLIPs
-            withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchCLIPs { clips ->
-                        continuation.resumeWith(Result.success(clips))
+            val clips = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
+                    client.fetchCLIPs { fetchedClips ->
+                        continuation.resumeWith(Result.success(fetchedClips))
                     }
                 }
-            }.let { clips ->
-                val state = _uiState.value
+            }
+            _uiState.update { state ->
                 val clip = state.deferredClip?.takeIf { it in clips }
                     ?: clips.firstOrNull() ?: ""
-
-                _uiState.value = state.copy(
+                state.copy(
                     availableClips = clips,
                     selectedClip = clip,
                     deferredClip = null

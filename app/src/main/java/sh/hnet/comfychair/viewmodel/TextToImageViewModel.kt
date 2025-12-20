@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
@@ -245,9 +246,9 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchCheckpoints(client: ComfyUIClient) {
         client.fetchCheckpoints { checkpoints ->
-            viewModelScope.launch {
-                val state = _uiState.value
-                _uiState.value = state.copy(
+            // Use atomic update to avoid race conditions with concurrent callbacks
+            _uiState.update { state ->
+                state.copy(
                     availableCheckpoints = checkpoints,
                     selectedCheckpoint = validateModelSelection(
                         state.selectedCheckpoint,
@@ -262,9 +263,8 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchUnets(client: ComfyUIClient) {
         client.fetchUNETs { unets ->
-            viewModelScope.launch {
-                val state = _uiState.value
-                _uiState.value = state.copy(
+            _uiState.update { state ->
+                state.copy(
                     availableUnets = unets,
                     selectedUnet = validateModelSelection(
                         state.selectedUnet,
@@ -277,9 +277,8 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchVaes(client: ComfyUIClient) {
         client.fetchVAEs { vaes ->
-            viewModelScope.launch {
-                val state = _uiState.value
-                _uiState.value = state.copy(
+            _uiState.update { state ->
+                state.copy(
                     availableVaes = vaes,
                     selectedVae = validateModelSelection(
                         state.selectedVae,
@@ -292,9 +291,8 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchClips(client: ComfyUIClient) {
         client.fetchCLIPs { clips ->
-            viewModelScope.launch {
-                val state = _uiState.value
-                _uiState.value = state.copy(
+            _uiState.update { state ->
+                state.copy(
                     availableClips = clips,
                     selectedClip = validateModelSelection(
                         state.selectedClip,
@@ -315,12 +313,11 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchLoras(client: ComfyUIClient) {
         client.fetchLoRAs { loras ->
-            viewModelScope.launch {
-                val state = _uiState.value
+            _uiState.update { state ->
                 // Filter out any LoRAs in the chains that are no longer available
                 val filteredCheckpointChain = state.checkpointLoraChain.filter { it.name in loras }
                 val filteredUnetChain = state.unetLoraChain.filter { it.name in loras }
-                _uiState.value = state.copy(
+                state.copy(
                     availableLoras = loras,
                     checkpointLoraChain = filteredCheckpointChain,
                     unetLoraChain = filteredUnetChain

@@ -1,6 +1,6 @@
 {
   "name": "SDXL Light with latent upscaling",
-  "description": "Default workflow for SDXL Light generation with latent upscaling",
+  "description": "Workflow for SDXL Light generation with latent upscaling",
   "defaults": {
     "width": 832,
     "height": 1216,

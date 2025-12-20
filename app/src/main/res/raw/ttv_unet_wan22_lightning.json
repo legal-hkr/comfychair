@@ -1,6 +1,6 @@
 {
-  "name": "Wan 2.2 I2V (LightX2V)",
-  "description": "Default workflow for Wan 2.2 image to video generation (LightX2V LoRA)",
+  "name": "Wan 2.2 (Lightning)",
+  "description": "Workflow for Wan 2.2 video generation (Lightning LoRA)",
   "defaults": {
     "width": 480,
     "height": 800,
@@ -50,12 +50,15 @@
       }
     },
     "5": {
-      "class_type": "LoadImage",
+      "class_type": "EmptyHunyuanLatentVideo",
       "inputs": {
-        "image": "{{image_filename}}"
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "length": "{{length}}",
+        "batch_size": 1
       },
       "_meta": {
-        "title": "Load Image"
+        "title": "Empty HunyuanVideo 1.0 Latent"
       }
     },
     "6": {
@@ -79,22 +82,6 @@
       }
     },
     "8": {
-      "class_type": "WanImageToVideo",
-      "inputs": {
-        "width": "{{width}}",
-        "height": "{{height}}",
-        "length": "{{length}}",
-        "batch_size": 1,
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "vae": ["2", 0],
-        "start_image": ["5", 0]
-      },
-      "_meta": {
-        "title": "WanImageToVideo"
-      }
-    },
-    "9": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "{{highnoise_lora_name}}",
@@ -105,7 +92,7 @@
         "title": "LoraLoaderModelOnly (High Noise)"
       }
     },
-    "10": {
+    "9": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "{{lownoise_lora_name}}",
@@ -116,6 +103,16 @@
         "title": "LoraLoaderModelOnly (Low Noise)"
       }
     },
+    "10": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "shift": 5.000000000000001,
+        "model": ["8", 0]
+      },
+      "_meta": {
+        "title": "ModelSamplingSD3 (High Noise)"
+      }
+    },
     "11": {
       "class_type": "ModelSamplingSD3",
       "inputs": {
@@ -123,20 +120,10 @@
         "model": ["9", 0]
       },
       "_meta": {
-        "title": "ModelSamplingSD3 (High Noise)"
-      }
-    },
-    "12": {
-      "class_type": "ModelSamplingSD3",
-      "inputs": {
-        "shift": 5.000000000000001,
-        "model": ["10", 0]
-      },
-      "_meta": {
         "title": "ModelSamplingSD3 (Low Noise)"
       }
     },
-    "13": {
+    "12": {
       "class_type": "KSamplerAdvanced",
       "inputs": {
         "add_noise": "enable",
@@ -148,16 +135,16 @@
         "start_at_step": 0,
         "end_at_step": 2,
         "return_with_leftover_noise": "enable",
-        "model": ["11", 0],
-        "positive": ["8", 0],
-        "negative": ["8", 1],
-        "latent_image": ["8", 2]
+        "model": ["10", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
       },
       "_meta": {
         "title": "KSampler (Advanced) - High Noise"
       }
     },
-    "14": {
+    "13": {
       "class_type": "KSamplerAdvanced",
       "inputs": {
         "add_noise": "disable",
@@ -169,42 +156,43 @@
         "start_at_step": 2,
         "end_at_step": 4,
         "return_with_leftover_noise": "disable",
-        "model": ["12", 0],
-        "positive": ["8", 0],
-        "negative": ["8", 1],
-        "latent_image": ["13", 0]
+        "model": ["11", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["12", 0]
       },
       "_meta": {
         "title": "KSampler (Advanced) - Low Noise"
       }
     },
-    "15": {
+    "14": {
       "class_type": "VAEDecode",
       "inputs": {
-        "samples": ["14", 0],
+        "samples": ["13", 0],
         "vae": ["2", 0]
       },
       "_meta": {
         "title": "VAE Decode"
       }
     },
-    "16": {
+    "15": {
       "class_type": "CreateVideo",
       "inputs": {
         "fps": "{{frame_rate}}",
-        "images": ["15", 0]
+        "images": ["14", 0]
       },
       "_meta": {
         "title": "Create Video"
       }
     },
-    "17": {
+    "16": {
       "class_type": "SaveVideo",
       "inputs": {
         "filename_prefix": "video/ComfyChair",
         "format": "auto",
         "codec": "auto",
-        "video": ["16", 0]
+        "video-preview": "",
+        "video": ["15", 0]
       },
       "_meta": {
         "title": "Save Video"

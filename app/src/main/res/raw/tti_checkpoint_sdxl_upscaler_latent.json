@@ -1,6 +1,6 @@
 {
   "name": "SDXL with latent upscaling",
-  "description": "Default workflow for SDXL generation with latent upscaling",
+  "description": "Workflow for SDXL generation with latent upscaling",
   "defaults": {
     "width": 1024,
     "height": 1024,

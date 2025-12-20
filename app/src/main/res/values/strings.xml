@@ -187,6 +187,8 @@
     <!-- Configuration bottom sheet labels -->
     <string name="mode_checkpoint" translatable="false">Checkpoint</string>
     <string name="mode_unet" translatable="false">UNET</string>
+    <string name="mode_inpainting">Inpainting</string>
+    <string name="mode_editing">Editing</string>
     <string name="label_workflow">Workflow</string>
     <string name="label_checkpoint" translatable="false">Checkpoint</string>
     <string name="label_unet" translatable="false">UNET</string>
@@ -224,6 +226,7 @@
     <string name="workflow_section_tti_unet">Text to image (UNET)</string>
     <string name="workflow_section_iti_checkpoint">Image to image (Checkpoint)</string>
     <string name="workflow_section_iti_unet">Image to image (UNET)</string>
+    <string name="workflow_section_ite_unet">Image editing (UNET)</string>
     <string name="workflow_section_ttv_unet">Text to video (UNET)</string>
     <string name="workflow_section_itv_unet">Image to video (UNET)</string>
     <string name="workflow_section_empty">No workflows</string>
@@ -256,6 +259,9 @@
     <string name="content_description_clear">Clear</string>
     <string name="content_description_generated_image">Generated image</string>
     <string name="content_description_preview">Preview</string>
+    <string name="content_description_reference_image_1">Reference image 1</string>
+    <string name="content_description_reference_image_2">Reference image 2</string>
+    <string name="content_description_source_image">Source image</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">No images yet</string>

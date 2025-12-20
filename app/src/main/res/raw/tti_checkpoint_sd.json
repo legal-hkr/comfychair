@@ -1,6 +1,6 @@
 {
   "name": "SD",
-  "description": "Default workflow for SD generation",
+  "description": "Workflow for SD generation",
   "defaults": {
     "width": 512,
     "height": 512,

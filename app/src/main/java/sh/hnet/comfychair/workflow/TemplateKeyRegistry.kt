@@ -86,6 +86,7 @@ object TemplateKeyRegistry {
         WorkflowType.TTI_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler"),
         WorkflowType.ITI_CHECKPOINT to setOf("positive_text", "negative_text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler"),
         WorkflowType.ITI_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "steps", "cfg", "sampler_name", "scheduler"),
+        WorkflowType.ITE_UNET to setOf("positive_text", "negative_text", "unet_name", "vae_name", "clip_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "image"),
         WorkflowType.TTV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
         WorkflowType.ITV_UNET to setOf("positive_text", "negative_text", "unet_name", "lora_name", "vae_name", "clip_name", "width", "height", "length", "fps", "image")
     )

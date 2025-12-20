@@ -1,6 +1,6 @@
 {
   "name": "Flux Schnell",
-  "description": "Default workflow for Flux Schnell generation",
+  "description": "Workflow for Flux Schnell generation",
   "defaults": {
     "width": 1024,
     "height": 1024,

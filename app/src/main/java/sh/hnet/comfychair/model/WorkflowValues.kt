@@ -30,6 +30,7 @@ data class WorkflowValues(
     // Model selections (always saved, never in defaults)
     val checkpointModel: String? = null,
     val unetModel: String? = null,
+    val loraModel: String? = null,  // Mandatory LoRA for editing mode
     val vaeModel: String? = null,
     val clipModel: String? = null,
     val clip1Model: String? = null,  // For Flux dual CLIP
@@ -61,6 +62,7 @@ data class WorkflowValues(
                 frameRate = json.optInt("frameRate").takeIf { it > 0 },
                 checkpointModel = json.optString("checkpointModel").takeIf { it.isNotEmpty() },
                 unetModel = json.optString("unetModel").takeIf { it.isNotEmpty() },
+                loraModel = json.optString("loraModel").takeIf { it.isNotEmpty() },
                 vaeModel = json.optString("vaeModel").takeIf { it.isNotEmpty() },
                 clipModel = json.optString("clipModel").takeIf { it.isNotEmpty() },
                 clip1Model = json.optString("clip1Model").takeIf { it.isNotEmpty() },
@@ -90,6 +92,7 @@ data class WorkflowValues(
                 values.frameRate?.let { put("frameRate", it) }
                 values.checkpointModel?.let { put("checkpointModel", it) }
                 values.unetModel?.let { put("unetModel", it) }
+                values.loraModel?.let { put("loraModel", it) }
                 values.vaeModel?.let { put("vaeModel", it) }
                 values.clipModel?.let { put("clipModel", it) }
                 values.clip1Model?.let { put("clip1Model", it) }

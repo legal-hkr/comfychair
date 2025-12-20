@@ -640,16 +640,25 @@ class ComfyUIClient(
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
+                    val responseBody = response.body?.string() ?: ""
                     if (response.isSuccessful) {
                         try {
-                            val json = JSONObject(response.body?.string() ?: "{}")
+                            val json = JSONObject(responseBody)
                             val promptId = json.optString("prompt_id")
                             callback(true, promptId, null)
                         } catch (e: Exception) {
                             callback(false, null, "Failed to parse response: ${e.message}")
                         }
                     } else {
-                        callback(false, null, "Server returned error: ${response.code}")
+                        // Try to extract error details from response body
+                        val errorDetail = try {
+                            val errorJson = JSONObject(responseBody)
+                            errorJson.optString("error", "") +
+                                (errorJson.optJSONObject("node_errors")?.toString() ?: "")
+                        } catch (e: Exception) {
+                            responseBody.take(500) // Truncate long responses
+                        }
+                        callback(false, null, "Server error ${response.code}: $errorDetail")
                     }
                 }
             }

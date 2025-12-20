@@ -14,8 +14,9 @@ import java.io.InputStream
 enum class WorkflowType {
     TTI_CHECKPOINT,    // Text-to-Image Checkpoint
     TTI_UNET,          // Text-to-Image UNET
-    ITI_CHECKPOINT,    // Image-to-Image Checkpoint
-    ITI_UNET,          // Image-to-Image UNET
+    ITI_CHECKPOINT,    // Image-to-Image Inpainting Checkpoint
+    ITI_UNET,          // Image-to-Image Inpainting UNET
+    ITE_UNET,          // Image-to-Image Editing UNET
     TTV_UNET,          // Text-to-Video UNET
     ITV_UNET           // Image-to-Video UNET
 }
@@ -74,6 +75,10 @@ class WorkflowManager(private val context: Context) {
             WorkflowType.ITI_UNET to listOf(
                 "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
             ),
+            WorkflowType.ITE_UNET to listOf(
+                "{{positive_prompt}}", "{{unet_name}}",
+                "{{vae_name}}", "{{clip_name}}", "{{megapixels}}", "{{steps}}"
+            ),
             WorkflowType.TTV_UNET to listOf(
                 "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
                 "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
@@ -90,7 +95,8 @@ class WorkflowManager(private val context: Context) {
         // Required patterns (not placeholders but literal strings that must exist)
         val REQUIRED_PATTERNS = mapOf(
             WorkflowType.ITI_CHECKPOINT to listOf("uploaded_image.png [input]"),
-            WorkflowType.ITI_UNET to listOf("uploaded_image.png [input]")
+            WorkflowType.ITI_UNET to listOf("uploaded_image.png [input]"),
+            WorkflowType.ITE_UNET to listOf("uploaded_image.png [input]")
         )
 
         // Filename prefix to type mapping
@@ -99,6 +105,7 @@ class WorkflowManager(private val context: Context) {
             "tti_unet_" to WorkflowType.TTI_UNET,
             "iti_checkpoint_" to WorkflowType.ITI_CHECKPOINT,
             "iti_unet_" to WorkflowType.ITI_UNET,
+            "ite_unet_" to WorkflowType.ITE_UNET,
             "ttv_unet_" to WorkflowType.TTV_UNET,
             "itv_unet_" to WorkflowType.ITV_UNET
         )
@@ -286,11 +293,17 @@ class WorkflowManager(private val context: Context) {
             classType.equals("LoadImage", ignoreCase = true)
         }
 
-        // Check for Image-to-image indicators (inpainting nodes in ComfyUI)
-        val hasImageToImageNodes = classTypes.any { classType ->
+        // Check for Image-to-image inpainting indicators (mask nodes in ComfyUI)
+        val hasInpaintingNodes = classTypes.any { classType ->
             classType.contains("SetLatentNoiseMask", ignoreCase = true) ||
             classType.contains("InpaintModel", ignoreCase = true) ||
             classType.contains("Inpaint", ignoreCase = true)
+        }
+
+        // Check for Image-to-image editing indicators (QwenImage Edit style)
+        val hasImageEditingNodes = classTypes.any { classType ->
+            classType.contains("TextEncodeQwenImageEditPlus", ignoreCase = true) ||
+            classType.contains("QwenImageEdit", ignoreCase = true)
         }
 
         // Check for checkpoint loader
@@ -311,13 +324,16 @@ class WorkflowManager(private val context: Context) {
             // Text-to-video: has video nodes but no LoadImage
             hasVideoNodes -> WorkflowType.TTV_UNET
 
-            // Image-to-image with checkpoint
-            hasImageToImageNodes && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
+            // Image-to-image editing (no mask, uses QwenImageEdit-style nodes)
+            hasImageEditingNodes && hasUNETLoader -> WorkflowType.ITE_UNET
 
-            // Image-to-image with UNET
-            hasImageToImageNodes && hasUNETLoader -> WorkflowType.ITI_UNET
+            // Image-to-image inpainting with checkpoint
+            hasInpaintingNodes && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
 
-            // Image-to-image with LoadImage (fallback)
+            // Image-to-image inpainting with UNET
+            hasInpaintingNodes && hasUNETLoader -> WorkflowType.ITI_UNET
+
+            // Image-to-image with LoadImage (fallback to inpainting)
             hasLoadImage && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
             hasLoadImage && hasUNETLoader -> WorkflowType.ITI_UNET
 
@@ -910,6 +926,13 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
+     * Get list of Image-to-Image Editing UNET workflow names for dropdown
+     */
+    fun getImageEditingUNETWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.ITE_UNET }.map { it.name }
+    }
+
+    /**
      * Get workflow by name
      */
     fun getWorkflowByName(name: String): Workflow? {
@@ -1300,6 +1323,134 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
         return processedJson
+    }
+
+    /**
+     * Prepare Image-to-Image Editing workflow JSON with actual parameter values.
+     * This is for the QwenImage Edit-style workflows that use reference images instead of masks.
+     */
+    fun prepareImageEditingWorkflow(
+        workflowName: String,
+        positivePrompt: String,
+        negativePrompt: String = "",
+        unet: String,
+        lora: String,
+        vae: String,
+        clip: String,
+        megapixels: Float = 2.0f,
+        steps: Int,
+        cfg: Float = 1.0f,
+        samplerName: String = "euler",
+        scheduler: String = "simple",
+        sourceImageFilename: String,
+        referenceImage1Filename: String? = null,
+        referenceImage2Filename: String? = null
+    ): String? {
+        val workflow = getWorkflowByName(workflowName) ?: return null
+
+        val randomSeed = (0..999999999999).random()
+        val escapedPositivePrompt = escapeForJson(positivePrompt)
+        val escapedNegativePrompt = escapeForJson(negativePrompt)
+
+        // First pass: simple placeholder replacements
+        var processedJson = workflow.jsonContent
+        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
+        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
+        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
+        processedJson = processedJson.replace("{{lora_name}}", escapeForJson(lora))
+        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
+        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
+        processedJson = processedJson.replace("{{steps}}", steps.toString())
+        processedJson = processedJson.replace("{{cfg}}", cfg.toString())
+        processedJson = processedJson.replace("{{sampler_name}}", samplerName)
+        processedJson = processedJson.replace("{{scheduler}}", scheduler)
+
+        // Replace source image placeholder
+        val escapedSourceFilename = escapeForJson(sourceImageFilename)
+        processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
+
+        // Replace reference images if provided
+        if (referenceImage1Filename != null) {
+            processedJson = processedJson.replace("reference_image_1.png [input]", "${escapeForJson(referenceImage1Filename)} [input]")
+        }
+        if (referenceImage2Filename != null) {
+            processedJson = processedJson.replace("reference_image_2.png [input]", "${escapeForJson(referenceImage2Filename)} [input]")
+        }
+
+        // Handle seed
+        processedJson = processedJson.replace("\"seed\": 42", "\"seed\": $randomSeed")
+        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
+
+        // Second pass: remove unused reference image nodes and their connections
+        try {
+            val json = JSONObject(processedJson)
+            val nodes = json.optJSONObject("nodes") ?: return processedJson
+
+            // Find and remove reference image nodes that weren't provided
+            // Also remove connections to those nodes from other nodes
+            val nodesToRemove = mutableListOf<String>()
+            val nodeIdToImageInput = mutableMapOf<String, String>() // nodeId -> "image2" or "image3"
+
+            // Scan for LoadImage nodes with reference image placeholders
+            val nodeIds = nodes.keys()
+            while (nodeIds.hasNext()) {
+                val nodeId = nodeIds.next()
+                val node = nodes.optJSONObject(nodeId) ?: continue
+                val inputs = node.optJSONObject("inputs") ?: continue
+                val classType = node.optString("class_type")
+
+                if (classType == "LoadImage") {
+                    val imageName = inputs.optString("image", "")
+                    if (imageName == "reference_image_1.png [input]" && referenceImage1Filename == null) {
+                        nodesToRemove.add(nodeId)
+                        nodeIdToImageInput[nodeId] = "image2"
+                    } else if (imageName == "reference_image_2.png [input]" && referenceImage2Filename == null) {
+                        nodesToRemove.add(nodeId)
+                        nodeIdToImageInput[nodeId] = "image3"
+                    }
+                }
+            }
+
+            // Remove the nodes
+            for (nodeId in nodesToRemove) {
+                nodes.remove(nodeId)
+            }
+
+            // Remove connections to removed nodes from all other nodes
+            val allNodeIds = nodes.keys()
+            while (allNodeIds.hasNext()) {
+                val nodeId = allNodeIds.next()
+                val node = nodes.optJSONObject(nodeId) ?: continue
+                val inputs = node.optJSONObject("inputs") ?: continue
+
+                // Check each input for connections to removed nodes
+                val inputsToRemove = mutableListOf<String>()
+                val inputKeys = inputs.keys()
+                while (inputKeys.hasNext()) {
+                    val inputKey = inputKeys.next()
+                    val inputValue = inputs.opt(inputKey)
+
+                    // Connection format is [nodeId, outputIndex] as JSONArray
+                    if (inputValue is JSONArray && inputValue.length() == 2) {
+                        val connectedNodeId = inputValue.optString(0)
+                        if (connectedNodeId in nodesToRemove) {
+                            inputsToRemove.add(inputKey)
+                        }
+                    }
+                }
+
+                // Remove the connections
+                for (inputKey in inputsToRemove) {
+                    inputs.remove(inputKey)
+                }
+            }
+
+            return json.toString()
+        } catch (e: Exception) {
+            // If JSON parsing fails, return the string-processed version
+            return processedJson
+        }
     }
 
     /**

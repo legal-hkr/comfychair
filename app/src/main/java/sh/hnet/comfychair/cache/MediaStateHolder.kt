@@ -37,6 +37,10 @@ object MediaStateHolder {
         data object ItiSource : MediaKey("iti_last_source.png")
         data object ItvSource : MediaKey("itv_last_source.png")
 
+        // Reference images for ITE (Image Editing) workflow
+        data object IteReferenceImage1 : MediaKey("ite_reference_1.png")
+        data object IteReferenceImage2 : MediaKey("ite_reference_2.png")
+
         // Generated videos (with prompt ID for uniqueness)
         data class TtvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.TEXT_TO_VIDEO}$promptId.mp4")
         data class ItvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}$promptId.mp4")
@@ -161,7 +165,9 @@ object MediaStateHolder {
                 MediaKey.ItiSource,
                 MediaKey.TtvPreview,
                 MediaKey.ItvPreview,
-                MediaKey.ItvSource
+                MediaKey.ItvSource,
+                MediaKey.IteReferenceImage1,
+                MediaKey.IteReferenceImage2
             )
 
             for (key in bitmapKeys) {

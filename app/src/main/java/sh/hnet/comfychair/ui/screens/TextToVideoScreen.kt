@@ -270,8 +270,8 @@ fun TextToVideoScreen(
                             if (!success) {
                                 Toast.makeText(
                                     context,
-                                    context.getString(R.string.error_failed_start_generation, errorMessage ?: context.getString(R.string.error_unknown)),
-                                    Toast.LENGTH_SHORT
+                                    errorMessage ?: context.getString(R.string.error_generation_failed),
+                                    Toast.LENGTH_LONG
                                 ).show()
                             }
                         }

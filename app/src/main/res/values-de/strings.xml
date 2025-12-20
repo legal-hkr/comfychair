@@ -180,6 +180,8 @@
     <string name="button_options">Optionen</string>
 
     <!-- Configuration bottom sheet labels -->
+    <string name="mode_inpainting">Inpainting</string>
+    <string name="mode_editing">Bearbeitung</string>
     <string name="label_workflow">Workflow</string>
     <string name="label_width">Breite</string>
     <string name="label_height">Höhe</string>
@@ -210,6 +212,7 @@
     <string name="workflow_section_tti_unet">Text zu Bild (UNET)</string>
     <string name="workflow_section_iti_checkpoint">Bild zu Bild (Checkpoint)</string>
     <string name="workflow_section_iti_unet">Bild zu Bild (UNET)</string>
+    <string name="workflow_section_ite_unet">Bildbearbeitung (UNET)</string>
     <string name="workflow_section_ttv_unet">Text zu Video (UNET)</string>
     <string name="workflow_section_itv_unet">Bild zu Video (UNET)</string>
     <string name="workflow_section_empty">Keine Workflows</string>
@@ -242,6 +245,9 @@
     <string name="content_description_clear">Leeren</string>
     <string name="content_description_generated_image">Generiertes Bild</string>
     <string name="content_description_preview">Vorschau</string>
+    <string name="content_description_reference_image_1">Referenzbild 1</string>
+    <string name="content_description_reference_image_2">Referenzbild 2</string>
+    <string name="content_description_source_image">Quellbild</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">Noch keine Bilder</string>

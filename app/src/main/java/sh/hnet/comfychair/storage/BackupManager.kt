@@ -143,6 +143,8 @@ class BackupManager(private val context: Context) {
             "tti_last_preview.png",
             "iti_last_preview.png",
             "iti_last_source.png",
+            "ite_reference_1.png",
+            "ite_reference_2.png",
             "ttv_last_preview.png",
             "itv_last_preview.png",
             "itv_last_source.png"
@@ -215,6 +217,9 @@ class BackupManager(private val context: Context) {
         return JSONObject().apply {
             put("selectedWorkflow", prefs.getString("selectedWorkflow", "") ?: "")
             put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
+            // Editing mode preferences
+            put("mode", prefs.getString("mode", "INPAINTING") ?: "INPAINTING")
+            put("selectedEditingWorkflow", prefs.getString("selectedEditingWorkflow", "") ?: "")
         }
     }
 
@@ -380,6 +385,15 @@ class BackupManager(private val context: Context) {
                     putString("positive_prompt", it)
                 }
             }
+
+            // Editing mode preferences
+            json.optString("mode").takeIf { it == "INPAINTING" || it == "EDITING" }?.let {
+                putString("mode", it)
+            }
+            json.optString("selectedEditingWorkflow").takeIf { it.isNotEmpty() }?.let {
+                putString("selectedEditingWorkflow", validator.sanitizeString(it, 100))
+            }
+
             apply()
         }
     }
@@ -484,7 +498,7 @@ class BackupManager(private val context: Context) {
 
                 // Model names - just sanitize (don't validate against server models)
                 listOf(
-                    "checkpointModel", "unetModel", "vaeModel", "clipModel",
+                    "checkpointModel", "unetModel", "loraModel", "vaeModel", "clipModel",
                     "clip1Model", "clip2Model",  // Dual CLIP for Flux
                     "highnoiseUnetModel", "lownoiseUnetModel",
                     "highnoiseLoraModel", "lownoiseLoraModel"

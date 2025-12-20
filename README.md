@@ -30,11 +30,18 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
 - **Image to image**:
-  - Upload source images for selective editing
-  - Mask editor with paint/eraser toggle
-  - Adjustable brush size with visual indicator
-  - Feathered mask edges for smooth blending
-  - Megapixels-based sizing for checkpoint workflows
+  - Two modes: **Editing** (transformation) and **Inpainting** (mask-based)
+  - **Editing mode**:
+    - Transform images without masks using AI editing
+    - Optional reference images (up to 2) for guided transformation
+    - Mandatory LoRA selection for editing workflows
+    - Megapixels-based output sizing
+  - **Inpainting mode**:
+    - Upload source images for selective editing
+    - Mask editor with paint/eraser toggle
+    - Adjustable brush size with visual indicator
+    - Feathered mask edges for smooth blending
+    - Megapixels-based sizing for checkpoint workflows
   - WebSocket-based live updates showing step-by-step progress
   - Live preview images during generation (when supported by server)
   - Error notifications via Toast messages
@@ -231,6 +238,7 @@ app/src/main/
 │   │   ├── tti_unet_zimage_turbo.json                # Z-Image Turbo text to image UNET
 │   │   ├── iti_checkpoint_sd_sdxl.json               # SD/SDXL image to image (inpainting)
 │   │   ├── iti_unet_zimage_turbo.json                # Z-Image Turbo image to image UNET (inpainting)
+│   │   ├── ite_unet_qwenimage.json                   # Qwen image editing UNET
 │   │   ├── ttv_unet_wan22_lightx2v.json              # WAN 2.2 text to video UNET
 │   │   └── itv_unet_wan22_lightx2v.json              # WAN 2.2 image to video UNET
 │   ├── values/                      # Strings, themes, colors (English default)
