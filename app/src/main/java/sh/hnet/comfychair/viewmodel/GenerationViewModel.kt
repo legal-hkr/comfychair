@@ -214,6 +214,7 @@ class GenerationViewModel : ViewModel() {
      */
     private fun dispatchEvent(event: GenerationEvent) {
         val handler = activeEventHandler
+        val eventType = event::class.simpleName
 
         if (handler != null) {
             viewModelScope.launch { handler(event) }

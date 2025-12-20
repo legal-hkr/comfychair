@@ -367,32 +367,25 @@ fun ImageToImageScreen(
         ) {
             ImageToImageConfigBottomSheetContent(
                 uiState = uiState,
-                onConfigModeChange = imageToImageViewModel::onConfigModeChange,
-                onCheckpointNegativePromptChange = imageToImageViewModel::onCheckpointNegativePromptChange,
-                onCheckpointWorkflowChange = imageToImageViewModel::onCheckpointWorkflowChange,
+                // Unified workflow callback
+                onWorkflowChange = imageToImageViewModel::onWorkflowChange,
+                // Model selection callbacks
                 onCheckpointChange = imageToImageViewModel::onCheckpointChange,
-                onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
-                onCheckpointStepsChange = imageToImageViewModel::onCheckpointStepsChange,
-                onCheckpointCfgChange = imageToImageViewModel::onCheckpointCfgChange,
-                onCheckpointSamplerChange = imageToImageViewModel::onCheckpointSamplerChange,
-                onCheckpointSchedulerChange = imageToImageViewModel::onCheckpointSchedulerChange,
-                onUnetNegativePromptChange = imageToImageViewModel::onUnetNegativePromptChange,
-                onUnetWorkflowChange = imageToImageViewModel::onUnetWorkflowChange,
                 onUnetChange = imageToImageViewModel::onUnetChange,
                 onVaeChange = imageToImageViewModel::onVaeChange,
                 onClipChange = imageToImageViewModel::onClipChange,
-                onUnetStepsChange = imageToImageViewModel::onUnetStepsChange,
-                onUnetCfgChange = imageToImageViewModel::onUnetCfgChange,
-                onUnetSamplerChange = imageToImageViewModel::onUnetSamplerChange,
-                onUnetSchedulerChange = imageToImageViewModel::onUnetSchedulerChange,
-                onAddCheckpointLora = imageToImageViewModel::onAddCheckpointLora,
-                onRemoveCheckpointLora = imageToImageViewModel::onRemoveCheckpointLora,
-                onCheckpointLoraNameChange = imageToImageViewModel::onCheckpointLoraNameChange,
-                onCheckpointLoraStrengthChange = imageToImageViewModel::onCheckpointLoraStrengthChange,
-                onAddUnetLora = imageToImageViewModel::onAddUnetLora,
-                onRemoveUnetLora = imageToImageViewModel::onRemoveUnetLora,
-                onUnetLoraNameChange = imageToImageViewModel::onUnetLoraNameChange,
-                onUnetLoraStrengthChange = imageToImageViewModel::onUnetLoraStrengthChange
+                // Unified parameter callbacks
+                onNegativePromptChange = imageToImageViewModel::onNegativePromptChange,
+                onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
+                onStepsChange = imageToImageViewModel::onStepsChange,
+                onCfgChange = imageToImageViewModel::onCfgChange,
+                onSamplerChange = imageToImageViewModel::onSamplerChange,
+                onSchedulerChange = imageToImageViewModel::onSchedulerChange,
+                // Unified LoRA chain callbacks
+                onAddLora = imageToImageViewModel::onAddLora,
+                onRemoveLora = imageToImageViewModel::onRemoveLora,
+                onLoraNameChange = imageToImageViewModel::onLoraNameChange,
+                onLoraStrengthChange = imageToImageViewModel::onLoraStrengthChange
             )
         }
     }

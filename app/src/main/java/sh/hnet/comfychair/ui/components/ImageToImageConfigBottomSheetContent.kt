@@ -10,56 +10,54 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
-import sh.hnet.comfychair.viewmodel.ImageToImageConfigMode
 import sh.hnet.comfychair.viewmodel.ImageToImageUiState
+import sh.hnet.comfychair.viewmodel.ItiWorkflowItem
 
 /**
- * Content for the Image-to-image configuration bottom sheet
+ * Content for the Image-to-image configuration bottom sheet.
+ * Mode (Checkpoint/UNET) is automatically derived from the selected workflow.
  */
 @Composable
 fun ImageToImageConfigBottomSheetContent(
     uiState: ImageToImageUiState,
-    onConfigModeChange: (ImageToImageConfigMode) -> Unit,
-    onCheckpointNegativePromptChange: (String) -> Unit,
-    onCheckpointWorkflowChange: (String) -> Unit,
+    // Unified workflow callback
+    onWorkflowChange: (String) -> Unit,
+    // Model selection callbacks
     onCheckpointChange: (String) -> Unit,
-    onMegapixelsChange: (String) -> Unit,
-    onCheckpointStepsChange: (String) -> Unit,
-    onCheckpointCfgChange: (String) -> Unit,
-    onCheckpointSamplerChange: (String) -> Unit,
-    onCheckpointSchedulerChange: (String) -> Unit,
-    onUnetNegativePromptChange: (String) -> Unit,
-    onUnetWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
-    onUnetStepsChange: (String) -> Unit,
-    onUnetCfgChange: (String) -> Unit,
-    onUnetSamplerChange: (String) -> Unit,
-    onUnetSchedulerChange: (String) -> Unit,
-    // Checkpoint LoRA chain callbacks
-    onAddCheckpointLora: () -> Unit,
-    onRemoveCheckpointLora: (Int) -> Unit,
-    onCheckpointLoraNameChange: (Int, String) -> Unit,
-    onCheckpointLoraStrengthChange: (Int, Float) -> Unit,
-    // UNET LoRA chain callbacks
-    onAddUnetLora: () -> Unit,
-    onRemoveUnetLora: (Int) -> Unit,
-    onUnetLoraNameChange: (Int, String) -> Unit,
-    onUnetLoraStrengthChange: (Int, Float) -> Unit
+    // Unified parameter callbacks
+    onNegativePromptChange: (String) -> Unit,
+    onMegapixelsChange: (String) -> Unit,
+    onStepsChange: (String) -> Unit,
+    onCfgChange: (String) -> Unit,
+    onSamplerChange: (String) -> Unit,
+    onSchedulerChange: (String) -> Unit,
+    // Unified LoRA chain callbacks
+    onAddLora: () -> Unit,
+    onRemoveLora: (Int) -> Unit,
+    onLoraNameChange: (Int, String) -> Unit,
+    onLoraStrengthChange: (Int, Float) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -70,8 +68,8 @@ fun ImageToImageConfigBottomSheetContent(
     ) {
         // Negative prompt (per-workflow)
         OutlinedTextField(
-            value = if (uiState.configMode == ImageToImageConfigMode.CHECKPOINT) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
-            onValueChange = if (uiState.configMode == ImageToImageConfigMode.CHECKPOINT) onCheckpointNegativePromptChange else onUnetNegativePromptChange,
+            value = if (uiState.isCheckpointMode) uiState.checkpointNegativePrompt else uiState.unetNegativePrompt,
+            onValueChange = onNegativePromptChange,
             label = { Text(stringResource(R.string.negative_prompt_hint)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
@@ -80,69 +78,47 @@ fun ImageToImageConfigBottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mode label
-        Text(
-            text = stringResource(R.string.label_mode),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
+        // Unified Workflow Dropdown (shows all workflows with type prefix)
+        ItiWorkflowDropdown(
+            label = stringResource(R.string.label_workflow),
+            selectedWorkflow = uiState.selectedWorkflow,
+            workflows = uiState.availableWorkflows,
+            onWorkflowChange = onWorkflowChange
         )
-
-        // Mode toggle (Checkpoint / UNET)
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            SegmentedButton(
-                selected = uiState.configMode == ImageToImageConfigMode.CHECKPOINT,
-                onClick = { onConfigModeChange(ImageToImageConfigMode.CHECKPOINT) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-            ) {
-                Text(stringResource(R.string.mode_checkpoint))
-            }
-            SegmentedButton(
-                selected = uiState.configMode == ImageToImageConfigMode.UNET,
-                onClick = { onConfigModeChange(ImageToImageConfigMode.UNET) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-            ) {
-                Text(stringResource(R.string.mode_unet))
-            }
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        when (uiState.configMode) {
-            ImageToImageConfigMode.CHECKPOINT -> {
-                CheckpointModeContent(
-                    uiState = uiState,
-                    onWorkflowChange = onCheckpointWorkflowChange,
-                    onCheckpointChange = onCheckpointChange,
-                    onMegapixelsChange = onMegapixelsChange,
-                    onStepsChange = onCheckpointStepsChange,
-                    onCfgChange = onCheckpointCfgChange,
-                    onSamplerChange = onCheckpointSamplerChange,
-                    onSchedulerChange = onCheckpointSchedulerChange,
-                    onAddLora = onAddCheckpointLora,
-                    onRemoveLora = onRemoveCheckpointLora,
-                    onLoraNameChange = onCheckpointLoraNameChange,
-                    onLoraStrengthChange = onCheckpointLoraStrengthChange
-                )
-            }
-            ImageToImageConfigMode.UNET -> {
-                UnetModeContent(
-                    uiState = uiState,
-                    onWorkflowChange = onUnetWorkflowChange,
-                    onUnetChange = onUnetChange,
-                    onVaeChange = onVaeChange,
-                    onClipChange = onClipChange,
-                    onStepsChange = onUnetStepsChange,
-                    onCfgChange = onUnetCfgChange,
-                    onSamplerChange = onUnetSamplerChange,
-                    onSchedulerChange = onUnetSchedulerChange,
-                    onAddLora = onAddUnetLora,
-                    onRemoveLora = onRemoveUnetLora,
-                    onLoraNameChange = onUnetLoraNameChange,
-                    onLoraStrengthChange = onUnetLoraStrengthChange
-                )
-            }
+        if (uiState.isCheckpointMode) {
+            // Checkpoint mode configuration
+            CheckpointModeContent(
+                uiState = uiState,
+                onCheckpointChange = onCheckpointChange,
+                onMegapixelsChange = onMegapixelsChange,
+                onStepsChange = onStepsChange,
+                onCfgChange = onCfgChange,
+                onSamplerChange = onSamplerChange,
+                onSchedulerChange = onSchedulerChange,
+                onAddLora = onAddLora,
+                onRemoveLora = onRemoveLora,
+                onLoraNameChange = onLoraNameChange,
+                onLoraStrengthChange = onLoraStrengthChange
+            )
+        } else {
+            // UNET mode configuration
+            UnetModeContent(
+                uiState = uiState,
+                onUnetChange = onUnetChange,
+                onVaeChange = onVaeChange,
+                onClipChange = onClipChange,
+                onStepsChange = onStepsChange,
+                onCfgChange = onCfgChange,
+                onSamplerChange = onSamplerChange,
+                onSchedulerChange = onSchedulerChange,
+                onAddLora = onAddLora,
+                onRemoveLora = onRemoveLora,
+                onLoraNameChange = onLoraNameChange,
+                onLoraStrengthChange = onLoraStrengthChange
+            )
         }
     }
 }
@@ -150,7 +126,6 @@ fun ImageToImageConfigBottomSheetContent(
 @Composable
 private fun CheckpointModeContent(
     uiState: ImageToImageUiState,
-    onWorkflowChange: (String) -> Unit,
     onCheckpointChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
     onStepsChange: (String) -> Unit,
@@ -162,16 +137,6 @@ private fun CheckpointModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
-    // Workflow dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_workflow),
-        options = uiState.checkpointWorkflows,
-        selectedValue = uiState.selectedCheckpointWorkflow,
-        onValueChange = onWorkflowChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
     // Checkpoint dropdown
     ModelDropdown(
         label = stringResource(R.string.label_checkpoint),
@@ -219,8 +184,8 @@ private fun CheckpointModeContent(
             value = uiState.checkpointCfg,
             onValueChange = onCfgChange,
             label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.CHECKPOINT,
-            supportingText = if (uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.CHECKPOINT) {
+            isError = uiState.cfgError != null && uiState.isCheckpointMode,
+            supportingText = if (uiState.cfgError != null && uiState.isCheckpointMode) {
                 { Text(uiState.cfgError!!) }
             } else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -266,7 +231,6 @@ private fun CheckpointModeContent(
 @Composable
 private fun UnetModeContent(
     uiState: ImageToImageUiState,
-    onWorkflowChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
@@ -279,16 +243,6 @@ private fun UnetModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
-    // Workflow dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_workflow),
-        options = uiState.unetWorkflows,
-        selectedValue = uiState.selectedUnetWorkflow,
-        onValueChange = onWorkflowChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
     // UNET dropdown
     ModelDropdown(
         label = stringResource(R.string.label_unet),
@@ -343,8 +297,8 @@ private fun UnetModeContent(
             value = uiState.unetCfg,
             onValueChange = onCfgChange,
             label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.UNET,
-            supportingText = if (uiState.cfgError != null && uiState.configMode == ImageToImageConfigMode.UNET) {
+            isError = uiState.cfgError != null && !uiState.isCheckpointMode,
+            supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
                 { Text(uiState.cfgError!!) }
             } else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -385,4 +339,56 @@ private fun UnetModeContent(
         onLoraNameChange = onLoraNameChange,
         onLoraStrengthChange = onLoraStrengthChange
     )
+}
+
+/**
+ * Dropdown for unified workflow selection with type prefix display
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ItiWorkflowDropdown(
+    label: String,
+    selectedWorkflow: String,
+    workflows: List<ItiWorkflowItem>,
+    onWorkflowChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Find display name for selected workflow
+    val selectedDisplayName = workflows.find { it.name == selectedWorkflow }?.displayName ?: selectedWorkflow
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedDisplayName,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+            singleLine = true
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            workflows.forEach { workflow ->
+                DropdownMenuItem(
+                    text = { Text(workflow.displayName) },
+                    onClick = {
+                        onWorkflowChange(workflow.name)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+            }
+        }
+    }
 }

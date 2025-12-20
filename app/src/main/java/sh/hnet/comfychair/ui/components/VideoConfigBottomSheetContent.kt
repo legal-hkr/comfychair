@@ -10,16 +10,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.viewmodel.TextToVideoUiState
+import sh.hnet.comfychair.viewmodel.TtvWorkflowItem
 
 /**
  * Content for the video configuration bottom sheet
@@ -70,11 +80,11 @@ fun VideoConfigBottomSheetContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Workflow dropdown
-        ModelDropdown(
+        TtvWorkflowDropdown(
             label = stringResource(R.string.label_workflow),
-            selectedValue = uiState.selectedWorkflow,
-            options = uiState.availableWorkflows,
-            onValueChange = onWorkflowChange
+            selectedWorkflow = uiState.selectedWorkflow,
+            workflows = uiState.availableWorkflows,
+            onWorkflowChange = onWorkflowChange
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -234,5 +244,56 @@ fun VideoConfigBottomSheetContent(
             onLoraNameChange = onLownoiseLoraChainNameChange,
             onLoraStrengthChange = onLownoiseLoraChainStrengthChange
         )
+    }
+}
+
+/**
+ * Dropdown for selecting Text-to-Video workflows with displayName shown
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TtvWorkflowDropdown(
+    label: String,
+    selectedWorkflow: String,
+    workflows: List<TtvWorkflowItem>,
+    onWorkflowChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Find display name for selected workflow
+    val selectedDisplayName = workflows.find { it.name == selectedWorkflow }?.displayName ?: selectedWorkflow
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedDisplayName,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+            singleLine = true
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            workflows.forEach { workflow ->
+                DropdownMenuItem(
+                    text = { Text(workflow.displayName) },
+                    onClick = {
+                        onWorkflowChange(workflow.name)
+                        expanded = false
+                    }
+                )
+            }
+        }
     }
 }

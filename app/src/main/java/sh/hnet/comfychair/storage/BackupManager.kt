@@ -205,19 +205,15 @@ class BackupManager(private val context: Context) {
     private fun readTextToImagePrefs(): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
         return JSONObject().apply {
-            put("isCheckpointMode", prefs.getBoolean("isCheckpointMode", true))
+            put("selectedWorkflow", prefs.getString("selectedWorkflow", "") ?: "")
             put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
-            put("checkpointWorkflow", prefs.getString("checkpointWorkflow", "") ?: "")
-            put("unetWorkflow", prefs.getString("unetWorkflow", "") ?: "")
         }
     }
 
     private fun readImageToImagePrefs(): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_IMAGE, Context.MODE_PRIVATE)
         return JSONObject().apply {
-            put("configMode", prefs.getString("config_mode", "CHECKPOINT") ?: "CHECKPOINT")
-            put("checkpointWorkflow", prefs.getString("checkpoint_workflow", "") ?: "")
-            put("unetWorkflow", prefs.getString("unet_workflow", "") ?: "")
+            put("selectedWorkflow", prefs.getString("selectedWorkflow", "") ?: "")
             put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
         }
     }
@@ -331,19 +327,28 @@ class BackupManager(private val context: Context) {
     private fun restoreTextToImagePrefs(json: JSONObject) {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
         prefs.edit().apply {
-            if (json.has("isCheckpointMode")) {
-                putBoolean("isCheckpointMode", json.optBoolean("isCheckpointMode", true))
+            // Handle new format (selectedWorkflow)
+            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
+                putString("selectedWorkflow", validator.sanitizeString(it, 100))
             }
+
+            // Legacy support: if old format detected, derive selectedWorkflow
+            if (!json.has("selectedWorkflow") && json.has("isCheckpointMode")) {
+                val isCheckpoint = json.optBoolean("isCheckpointMode", true)
+                val workflow = if (isCheckpoint) {
+                    json.optString("checkpointWorkflow", "")
+                } else {
+                    json.optString("unetWorkflow", "")
+                }
+                if (workflow.isNotEmpty()) {
+                    putString("selectedWorkflow", validator.sanitizeString(workflow, 100))
+                }
+            }
+
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
                     putString("positive_prompt", it)
                 }
-            }
-            json.optString("checkpointWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("checkpointWorkflow", validator.sanitizeString(it, 100))
-            }
-            json.optString("unetWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("unetWorkflow", validator.sanitizeString(it, 100))
             }
             apply()
         }
@@ -352,17 +357,24 @@ class BackupManager(private val context: Context) {
     private fun restoreImageToImagePrefs(json: JSONObject) {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_IMAGE, Context.MODE_PRIVATE)
         prefs.edit().apply {
-            json.optString("configMode").takeIf { it.isNotEmpty() }?.let { mode ->
-                if (validator.validateConfigMode(mode)) {
-                    putString("config_mode", mode.uppercase())
+            // Handle new format (selectedWorkflow)
+            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
+                putString("selectedWorkflow", validator.sanitizeString(it, 100))
+            }
+
+            // Legacy support: if old format detected, derive selectedWorkflow
+            if (!json.has("selectedWorkflow") && json.has("configMode")) {
+                val isCheckpoint = json.optString("configMode", "CHECKPOINT").uppercase() == "CHECKPOINT"
+                val workflow = if (isCheckpoint) {
+                    json.optString("checkpointWorkflow", "")
+                } else {
+                    json.optString("unetWorkflow", "")
+                }
+                if (workflow.isNotEmpty()) {
+                    putString("selectedWorkflow", validator.sanitizeString(workflow, 100))
                 }
             }
-            json.optString("checkpointWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("checkpoint_workflow", validator.sanitizeString(it, 100))
-            }
-            json.optString("unetWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("unet_workflow", validator.sanitizeString(it, 100))
-            }
+
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
                     putString("positive_prompt", it)

@@ -24,7 +24,6 @@
     <string name="button_generate">Générer</string>
 
     <!-- Configuration panel strings -->
-    <string name="config_panel_title">Paramètres</string>
 
     <!-- Gallery screen strings -->
     <string name="gallery_title">Galerie</string>
@@ -108,10 +107,8 @@
     <!-- Error and status messages -->
     <string name="error_failed_load_workflow">Échec du chargement du workflow</string>
     <string name="error_failed_start_generation">Échec du démarrage de la génération : %s</string>
-    <string name="error_failed_to_connect">Échec de la connexion : %s</string>
     <string name="error_generation_failed">Échec de la génération</string>
     <string name="error_unknown">Erreur inconnue</string>
-    <string name="error_connection_lost">Connexion perdue pendant la génération</string>
     <string name="connection_lost_generation_may_continue">Connexion perdue. Vérification de l\'achèvement après reconnexion.</string>
     <string name="error_no_connection">Pas de connexion au serveur</string>
     <string name="error_workflow_not_found">Workflow introuvable</string>
@@ -161,14 +158,11 @@
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Génération</string>
-    <string name="menu_settings">Paramètres</string>
-    <string name="menu_logout">Déconnexion</string>
     <string name="action_settings">Paramètres</string>
     <string name="action_logout">Déconnexion</string>
     <string name="button_options">Options</string>
 
     <!-- Configuration bottom sheet labels -->
-    <string name="label_mode">Mode</string>
     <string name="label_workflow">Workflow</string>
     <string name="label_width">Largeur</string>
     <string name="label_height">Hauteur</string>
@@ -303,7 +297,6 @@
 
     <!-- LoRA chain editor strings -->
     <string name="lora_chain_title">Chaîne LoRA (optionnel)</string>
-    <string name="additional_lora_chain_title">LoRAs supplémentaires (optionnel)</string>
     <string name="highnoise_lora_chain_title">LoRAs High noise (optionnel)</string>
     <string name="lownoise_lora_chain_title">LoRAs Low noise (optionnel)</string>
     <string name="add_lora_button">Ajouter LoRA</string>

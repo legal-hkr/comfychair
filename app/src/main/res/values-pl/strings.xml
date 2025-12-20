@@ -24,7 +24,6 @@
     <string name="button_generate">Generuj</string>
 
     <!-- Configuration panel strings -->
-    <string name="config_panel_title">Ustawienia</string>
 
     <!-- Gallery screen strings -->
     <string name="gallery_title">Galeria</string>
@@ -108,10 +107,8 @@
     <!-- Error and status messages -->
     <string name="error_failed_load_workflow">Nie udało się załadować workflow</string>
     <string name="error_failed_start_generation">Nie udało się rozpocząć generowania: %s</string>
-    <string name="error_failed_to_connect">Nie udało się połączyć: %s</string>
     <string name="error_generation_failed">Generowanie nie powiodło się</string>
     <string name="error_unknown">Nieznany błąd</string>
-    <string name="error_connection_lost">Utracono połączenie podczas generowania</string>
     <string name="connection_lost_generation_may_continue">Utracono połączenie. Sprawdzenie zakończenia po ponownym połączeniu.</string>
     <string name="error_no_connection">Brak połączenia z serwerem</string>
     <string name="error_workflow_not_found">Nie znaleziono workflow</string>
@@ -161,14 +158,11 @@
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generowanie</string>
-    <string name="menu_settings">Ustawienia</string>
-    <string name="menu_logout">Wyloguj</string>
     <string name="action_settings">Ustawienia</string>
     <string name="action_logout">Wyloguj</string>
     <string name="button_options">Opcje</string>
 
     <!-- Configuration bottom sheet labels -->
-    <string name="label_mode">Tryb</string>
     <string name="label_workflow">Workflow</string>
     <string name="label_width">Szerokość</string>
     <string name="label_height">Wysokość</string>
@@ -303,7 +297,6 @@
 
     <!-- LoRA chain editor strings -->
     <string name="lora_chain_title">Łańcuch LoRA (opcjonalnie)</string>
-    <string name="additional_lora_chain_title">Dodatkowe LoRA (opcjonalnie)</string>
     <string name="highnoise_lora_chain_title">LoRA wysokiego szumu (opcjonalnie)</string>
     <string name="lownoise_lora_chain_title">LoRA niskiego szumu (opcjonalnie)</string>
     <string name="add_lora_button">Dodaj LoRA</string>

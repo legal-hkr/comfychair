@@ -685,7 +685,8 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val historyJson = JSONObject(response.body?.string() ?: "{}")
+                            val body = response.body?.string() ?: "{}"
+                            val historyJson = JSONObject(body)
                             callback(historyJson)
                         } catch (e: Exception) {
                             callback(null)

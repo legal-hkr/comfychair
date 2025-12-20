@@ -271,37 +271,28 @@ fun TextToImageScreen(
         ) {
             ConfigBottomSheetContent(
                 uiState = uiState,
-                onModeChange = { textToImageViewModel.onModeChange(it) },
-                onCheckpointWorkflowChange = { textToImageViewModel.onCheckpointWorkflowChange(it) },
-                onCheckpointChange = { textToImageViewModel.onCheckpointChange(it) },
-                onCheckpointWidthChange = { textToImageViewModel.onCheckpointWidthChange(it) },
-                onCheckpointHeightChange = { textToImageViewModel.onCheckpointHeightChange(it) },
-                onCheckpointStepsChange = { textToImageViewModel.onCheckpointStepsChange(it) },
-                onCheckpointCfgChange = { textToImageViewModel.onCheckpointCfgChange(it) },
-                onCheckpointSamplerChange = { textToImageViewModel.onCheckpointSamplerChange(it) },
-                onCheckpointSchedulerChange = { textToImageViewModel.onCheckpointSchedulerChange(it) },
-                onCheckpointNegativePromptChange = { textToImageViewModel.onCheckpointNegativePromptChange(it) },
-                onUnetWorkflowChange = { textToImageViewModel.onUnetWorkflowChange(it) },
-                onUnetChange = { textToImageViewModel.onUnetChange(it) },
-                onVaeChange = { textToImageViewModel.onVaeChange(it) },
-                onClipChange = { textToImageViewModel.onClipChange(it) },
-                onClip1Change = { textToImageViewModel.onClip1Change(it) },
-                onClip2Change = { textToImageViewModel.onClip2Change(it) },
-                onUnetWidthChange = { textToImageViewModel.onUnetWidthChange(it) },
-                onUnetHeightChange = { textToImageViewModel.onUnetHeightChange(it) },
-                onUnetStepsChange = { textToImageViewModel.onUnetStepsChange(it) },
-                onUnetCfgChange = { textToImageViewModel.onUnetCfgChange(it) },
-                onUnetSamplerChange = { textToImageViewModel.onUnetSamplerChange(it) },
-                onUnetSchedulerChange = { textToImageViewModel.onUnetSchedulerChange(it) },
-                onUnetNegativePromptChange = { textToImageViewModel.onUnetNegativePromptChange(it) },
-                onAddCheckpointLora = textToImageViewModel::onAddCheckpointLora,
-                onRemoveCheckpointLora = textToImageViewModel::onRemoveCheckpointLora,
-                onCheckpointLoraNameChange = textToImageViewModel::onCheckpointLoraNameChange,
-                onCheckpointLoraStrengthChange = textToImageViewModel::onCheckpointLoraStrengthChange,
-                onAddUnetLora = textToImageViewModel::onAddUnetLora,
-                onRemoveUnetLora = textToImageViewModel::onRemoveUnetLora,
-                onUnetLoraNameChange = textToImageViewModel::onUnetLoraNameChange,
-                onUnetLoraStrengthChange = textToImageViewModel::onUnetLoraStrengthChange
+                // Unified workflow callback
+                onWorkflowChange = textToImageViewModel::onWorkflowChange,
+                // Model selection callbacks
+                onCheckpointChange = textToImageViewModel::onCheckpointChange,
+                onUnetChange = textToImageViewModel::onUnetChange,
+                onVaeChange = textToImageViewModel::onVaeChange,
+                onClipChange = textToImageViewModel::onClipChange,
+                onClip1Change = textToImageViewModel::onClip1Change,
+                onClip2Change = textToImageViewModel::onClip2Change,
+                // Unified parameter callbacks
+                onNegativePromptChange = textToImageViewModel::onNegativePromptChange,
+                onWidthChange = textToImageViewModel::onWidthChange,
+                onHeightChange = textToImageViewModel::onHeightChange,
+                onStepsChange = textToImageViewModel::onStepsChange,
+                onCfgChange = textToImageViewModel::onCfgChange,
+                onSamplerChange = textToImageViewModel::onSamplerChange,
+                onSchedulerChange = textToImageViewModel::onSchedulerChange,
+                // Unified LoRA chain callbacks
+                onAddLora = textToImageViewModel::onAddLora,
+                onRemoveLora = textToImageViewModel::onRemoveLora,
+                onLoraNameChange = textToImageViewModel::onLoraNameChange,
+                onLoraStrengthChange = textToImageViewModel::onLoraStrengthChange
             )
         }
     }

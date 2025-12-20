@@ -16,11 +16,21 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.VideoUtils
+
+/**
+ * Represents a workflow item with display name and type prefix
+ */
+data class TtvWorkflowItem(
+    val name: String,           // Internal workflow name
+    val displayName: String,    // "[UNET] LightX2V"
+    val type: WorkflowType      // TTV_UNET
+)
 
 /**
  * UI state for the Text-to-Video screen
@@ -32,7 +42,7 @@ data class TextToVideoUiState(
 
     // Workflow selection
     val selectedWorkflow: String = "",
-    val availableWorkflows: List<String> = emptyList(),
+    val availableWorkflows: List<TtvWorkflowItem> = emptyList(),
 
     // Model selections
     val selectedHighnoiseUnet: String = "",
@@ -147,13 +157,26 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     private fun loadWorkflows() {
-        val workflows = workflowManager?.getVideoUNETWorkflowNames() ?: emptyList()
-        _uiState.value = _uiState.value.copy(availableWorkflows = workflows)
+        val wm = workflowManager ?: return
+        val ctx = applicationContext ?: return
 
-        // Select first workflow if none selected
-        if (_uiState.value.selectedWorkflow.isEmpty() && workflows.isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(selectedWorkflow = workflows.first())
+        val unetWorkflows = wm.getVideoUNETWorkflowNames()
+        val unetPrefix = ctx.getString(R.string.mode_unet)
+
+        val unifiedWorkflows = unetWorkflows.map { name ->
+            TtvWorkflowItem(
+                name = name,
+                displayName = "[$unetPrefix] $name",
+                type = WorkflowType.TTV_UNET
+            )
         }
+
+        val defaultWorkflow = unifiedWorkflows.firstOrNull()?.name ?: ""
+
+        _uiState.value = _uiState.value.copy(
+            availableWorkflows = unifiedWorkflows,
+            selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
+        )
     }
 
     private fun restorePreferences() {
@@ -167,7 +190,7 @@ class TextToVideoViewModel : ViewModel() {
         val defaultPositivePrompt = context.getString(R.string.default_prompt_text_to_video)
         val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
 
-        val workflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.contains(savedWorkflow)) {
+        val workflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.any { it.name == savedWorkflow }) {
             savedWorkflow
         } else {
             _uiState.value.selectedWorkflow

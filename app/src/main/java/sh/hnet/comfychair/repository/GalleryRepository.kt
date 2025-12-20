@@ -162,7 +162,9 @@ class GalleryRepository private constructor() {
      * @return true if load succeeded, false otherwise
      */
     private suspend fun loadGalleryInternal(isRefresh: Boolean): Boolean {
-        val client = comfyUIClient ?: return false
+        val client = comfyUIClient ?: run {
+            return false
+        }
 
         if (isRefresh) {
             _isRefreshing.value = true
