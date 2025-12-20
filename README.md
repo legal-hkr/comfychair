@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.6.4
+**Current version**: v0.7.0
 
 ## Overview
 
@@ -235,12 +235,14 @@ app/src/main/
 │   │   ├── tti_checkpoint_sdxl_light_upscaler_latent.json # SDXL Lightning with latent upscaler
 │   │   ├── tti_checkpoint_sdxl_upscaler_latent.json  # SDXL with latent upscaler
 │   │   ├── tti_checkpoint_flux_schnell.json          # Flux Schnell text to image
+│   │   ├── tti_unet_flux.json                        # Flux text to image UNET
 │   │   ├── tti_unet_zimage_turbo.json                # Z-Image Turbo text to image UNET
-│   │   ├── iti_checkpoint_sd_sdxl.json               # SD/SDXL image to image (inpainting)
+│   │   ├── ite_unet_qwenimage_lightning.json         # Qwen Lightning image editing UNET
+│   │   ├── iti_checkpoint_sd.json                    # SD image to image (inpainting)
+│   │   ├── iti_checkpoint_sdxl.json                  # SDXL image to image (inpainting)
 │   │   ├── iti_unet_zimage_turbo.json                # Z-Image Turbo image to image UNET (inpainting)
-│   │   ├── ite_unet_qwenimage.json                   # Qwen image editing UNET
-│   │   ├── ttv_unet_wan22_lightx2v.json              # WAN 2.2 text to video UNET
-│   │   └── itv_unet_wan22_lightx2v.json              # WAN 2.2 image to video UNET
+│   │   ├── ttv_unet_wan22_lightning.json             # WAN 2.2 Lightning text to video UNET
+│   │   └── itv_unet_wan22_lightning.json             # WAN 2.2 Lightning image to video UNET
 │   ├── values/                      # Strings, themes, colors (English default)
 │   ├── values-de/                   # German translations
 │   ├── values-fr/                   # French translations
