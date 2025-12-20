@@ -129,22 +129,11 @@ class WorkflowManager(private val context: Context) {
 
     /**
      * Load built-in workflow JSON files from res/raw
+     * Auto-discovers all workflow resources by scanning R.raw fields that match workflow prefixes
      */
     private fun loadBuiltInWorkflows() {
-        val workflowResources = listOf(
-            R.raw.tti_checkpoint_sd,
-            R.raw.tti_checkpoint_sdxl_lcm_upscaler_latent,
-            R.raw.tti_checkpoint_sdxl_light_upscaler_latent,
-            R.raw.tti_checkpoint_sdxl_upscaler_latent,
-            R.raw.tti_checkpoint_sdxl,
-            R.raw.tti_checkpoint_flux_schnell,
-            R.raw.tti_unet_zimage_turbo,
-            R.raw.tti_unet_flux,
-            R.raw.iti_checkpoint_sd_sdxl,
-            R.raw.iti_unet_zimage_turbo,
-            R.raw.ttv_unet_wan22_lightx2v,
-            R.raw.itv_unet_wan22_lightx2v
-        )
+        // Get all workflow resource IDs by scanning R.raw fields
+        val workflowResources = discoverWorkflowResources()
 
         for (resId in workflowResources) {
             try {
@@ -163,6 +152,36 @@ class WorkflowManager(private val context: Context) {
                 // Failed to load workflow
             }
         }
+    }
+
+    /**
+     * Discover all workflow resources in R.raw using reflection
+     * Looks for fields matching workflow prefixes (tti_checkpoint_, tti_unet_, etc.)
+     */
+    private fun discoverWorkflowResources(): List<Int> {
+        val resources = mutableListOf<Int>()
+        val prefixes = PREFIX_TO_TYPE.keys
+
+        try {
+            // Use reflection to scan R.raw class fields
+            val rawClass = R.raw::class.java
+            for (field in rawClass.fields) {
+                val fieldName = field.name
+                // Check if field name matches any workflow prefix
+                if (prefixes.any { fieldName.startsWith(it) }) {
+                    try {
+                        val resId = field.getInt(null)
+                        resources.add(resId)
+                    } catch (e: Exception) {
+                        // Skip fields that can't be read
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Reflection failed, return empty list
+        }
+
+        return resources
     }
 
     /**

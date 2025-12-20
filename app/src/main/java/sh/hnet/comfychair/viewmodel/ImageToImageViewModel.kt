@@ -203,21 +203,14 @@ class ImageToImageViewModel : ViewModel() {
             ))
         }
 
-        // Set default workflow if none selected
-        val currentWorkflow = _uiState.value.selectedWorkflow
-        val defaultWorkflow = when {
-            currentWorkflow.isNotEmpty() && unifiedWorkflows.any { it.name == currentWorkflow } -> currentWorkflow
-            unifiedWorkflows.isNotEmpty() -> unifiedWorkflows[0].name
-            else -> ""
-        }
-
-
-        // Determine mode from selected workflow
-        val isCheckpoint = unifiedWorkflows.find { it.name == defaultWorkflow }?.type == WorkflowType.ITI_CHECKPOINT
+        val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
+        val defaultWorkflow = sortedWorkflows.firstOrNull()?.name ?: ""
+        val selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
+        val isCheckpoint = sortedWorkflows.find { it.name == selectedWorkflow }?.type == WorkflowType.ITI_CHECKPOINT
 
         _uiState.value = _uiState.value.copy(
-            availableWorkflows = unifiedWorkflows,
-            selectedWorkflow = defaultWorkflow,
+            availableWorkflows = sortedWorkflows,
+            selectedWorkflow = selectedWorkflow,
             isCheckpointMode = isCheckpoint
         )
     }

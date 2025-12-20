@@ -171,10 +171,11 @@ class TextToVideoViewModel : ViewModel() {
             )
         }
 
-        val defaultWorkflow = unifiedWorkflows.firstOrNull()?.name ?: ""
+        val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
+        val defaultWorkflow = sortedWorkflows.firstOrNull()?.name ?: ""
 
         _uiState.value = _uiState.value.copy(
-            availableWorkflows = unifiedWorkflows,
+            availableWorkflows = sortedWorkflows,
             selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
         )
     }
