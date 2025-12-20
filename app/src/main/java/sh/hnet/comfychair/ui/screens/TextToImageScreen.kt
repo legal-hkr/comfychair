@@ -281,7 +281,8 @@ fun TextToImageScreen(
 
         ModalBottomSheet(
             onDismissRequest = { showOptionsBottomSheet = false },
-            sheetState = sheetState
+            sheetState = sheetState,
+            contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             ConfigBottomSheetContent(
                 uiState = uiState,

@@ -16,6 +16,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,7 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
@@ -479,7 +483,8 @@ fun WorkflowDropdown(
 }
 
 /**
- * Reusable dropdown component for model selection
+ * Reusable dropdown component for model selection.
+ * Displays directory paths in a dimmed color for better readability.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -515,7 +520,7 @@ fun ModelDropdown(
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option) },
+                    text = { ModelPathText(option) },
                     onClick = {
                         onValueChange(option)
                         expanded = false
@@ -524,5 +529,33 @@ fun ModelDropdown(
                 )
             }
         }
+    }
+}
+
+/**
+ * Displays a model path with the directory portion dimmed.
+ * Handles both forward slashes (Unix) and backslashes (Windows).
+ */
+@Composable
+fun ModelPathText(path: String) {
+    // Find the last separator (either / or \)
+    val lastSlashIndex = maxOf(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+
+    if (lastSlashIndex > 0) {
+        val directoryPart = path.substring(0, lastSlashIndex + 1)
+        val filenamePart = path.substring(lastSlashIndex + 1)
+
+        val dimmedColor = LocalContentColor.current.copy(alpha = 0.5f)
+
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = dimmedColor)) {
+                    append(directoryPart)
+                }
+                append(filenamePart)
+            }
+        )
+    } else {
+        Text(path)
     }
 }

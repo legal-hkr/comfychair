@@ -389,7 +389,8 @@ fun ImageToImageScreen(
     if (showOptionsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
-            sheetState = optionsSheetState
+            sheetState = optionsSheetState,
+            contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             ImageToImageConfigBottomSheetContent(
                 uiState = uiState,

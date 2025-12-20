@@ -302,7 +302,8 @@ fun TextToVideoScreen(
     if (showOptionsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
-            sheetState = configSheetState
+            sheetState = configSheetState,
+            contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             VideoConfigBottomSheetContent(
                 uiState = uiState,
