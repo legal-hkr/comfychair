@@ -25,6 +25,7 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.SeasonalPrompts
 import java.io.File
 import java.io.IOException
 
@@ -902,7 +903,7 @@ class TextToImageViewModel : ViewModel() {
         val ctx = context ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        val defaultPositivePrompt = ctx.getString(R.string.default_prompt_text_to_image)
+        val defaultPositivePrompt = SeasonalPrompts.getTextToImagePrompt()
 
         // Load global preferences
         val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt

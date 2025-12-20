@@ -24,6 +24,7 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.VideoUtils
 
 /**
@@ -203,7 +204,7 @@ class ImageToVideoViewModel : ViewModel() {
 
         // Load global preferences
         val savedWorkflow = prefs.getString(KEY_WORKFLOW, "") ?: ""
-        val defaultPositivePrompt = context.getString(R.string.default_prompt_image_to_video)
+        val defaultPositivePrompt = SeasonalPrompts.getImageToVideoPrompt()
         val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
 
         val workflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.any { it.name == savedWorkflow }) {

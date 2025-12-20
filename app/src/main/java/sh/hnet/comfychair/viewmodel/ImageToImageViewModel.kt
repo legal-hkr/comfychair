@@ -28,6 +28,7 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
@@ -278,7 +279,7 @@ class ImageToImageViewModel : ViewModel() {
         val context = applicationContext ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        val defaultPositivePrompt = context.getString(R.string.default_prompt_image_to_image)
+        val defaultPositivePrompt = SeasonalPrompts.getImageToImagePrompt()
 
         // Load global preferences
         val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
