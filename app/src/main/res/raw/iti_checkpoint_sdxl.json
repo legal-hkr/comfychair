@@ -1,0 +1,113 @@
+{
+  "name": "SDXL inpainting",
+  "description": "Workflow for SDXL inpainting",
+  "defaults": {
+    "megapixels": 2.0,
+    "steps": 20,
+    "cfg": 8.0,
+    "sampler_name": "euler",
+    "scheduler": "normal",
+    "negative_prompt": ""
+  },
+  "nodes": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "2": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "3": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": "{{megapixels}}",
+        "image": ["2", 0]
+      },
+      "_meta": {
+        "title": "ImageScaleToTotalPixels"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["1", 1]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["1", 1]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "6": {
+      "class_type": "VAEEncodeForInpaint",
+      "inputs": {
+        "grow_mask_by": 14,
+        "pixels": ["3", 0],
+        "vae": ["1", 2],
+        "mask": ["2", 1]
+      },
+      "_meta": {
+        "title": "VAE Encode (for Inpainting)"
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 42,
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": 0.8,
+        "model": ["1", 0],
+        "positive": ["4", 0],
+        "negative": ["5", 0],
+        "latent_image": ["6", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["7", 0],
+        "vae": ["1", 2]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["8", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

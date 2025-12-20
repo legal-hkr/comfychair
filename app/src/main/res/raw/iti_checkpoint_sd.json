@@ -1,6 +1,6 @@
 {
-  "name": "SD and SDXL inpainting",
-  "description": "Workflow for SD and SDXL inpainting",
+  "name": "SD inpainting",
+  "description": "Workflow for SD inpainting",
   "defaults": {
     "megapixels": 1.0,
     "steps": 20,
