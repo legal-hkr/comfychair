@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -27,6 +26,7 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.storage.AppSettings
 
 /**
  * Generation state data class
@@ -217,7 +217,6 @@ class GenerationViewModel : ViewModel() {
      */
     private fun dispatchEvent(event: GenerationEvent) {
         val handler = activeEventHandler
-        val eventType = event::class.simpleName
 
         if (handler != null) {
             viewModelScope.launch { handler(event) }
@@ -340,16 +339,12 @@ class GenerationViewModel : ViewModel() {
                         ?: "Generation failed"
                     dispatchEvent(GenerationEvent.Error(errorMessage))
                 }
+                // Known message types - no action needed
                 "status", "previewing", "execution_cached", "execution_start",
-                "execution_success", "progress_state", "executed" -> {
-                    // Known message types - no action needed
-                }
-                else -> {
-                    // Unknown message type - ignore
-                }
+                "execution_success", "progress_state", "executed" -> { }
             }
         } catch (_: Exception) {
-            // Ignore malformed WebSocket messages
+            // Ignore parsing errors
         }
     }
 
@@ -357,6 +352,12 @@ class GenerationViewModel : ViewModel() {
      * Handle binary WebSocket messages (preview images)
      */
     private fun handleWebSocketBinaryMessage(bytes: ByteString) {
+        // Check if live preview is enabled
+        val context = applicationContext
+        if (context != null && !AppSettings.isLivePreviewEnabled(context)) {
+            return
+        }
+
         if (bytes.size > 8 && _generationState.value.isGenerating) {
             try {
                 val pngBytes = bytes.substring(8).toByteArray()
@@ -365,7 +366,7 @@ class GenerationViewModel : ViewModel() {
                     dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
             } catch (_: Exception) {
-                // Ignore malformed preview images
+                // Ignore decoding errors
             }
         }
     }

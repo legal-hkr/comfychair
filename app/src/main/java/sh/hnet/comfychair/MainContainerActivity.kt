@@ -9,12 +9,11 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
@@ -74,12 +73,23 @@ class MainContainerActivity : ComponentActivity() {
         // Initialize the ViewModel (uses ConnectionManager internally)
         generationViewModel.initialize(this)
 
+        // Set caching mode based on user preference
+        val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
+        MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
+        MediaCache.setMemoryFirstMode(isMemoryFirst)
+
         // Initialize MediaCache with context for image/video fetching
         MediaCache.ensureInitialized(applicationContext)
 
-        // Load persisted media state from disk into memory
-        lifecycleScope.launch {
-            MediaStateHolder.loadFromDisk(applicationContext)
+        // Load saved media state before screens initialize
+        if (isMemoryFirst) {
+            // Memory-first: load everything from disk into memory
+            runBlocking {
+                MediaStateHolder.loadFromDisk(applicationContext)
+            }
+        } else {
+            // Disk-first: just discover video promptIds (bytes read on-demand)
+            MediaStateHolder.discoverVideoPromptIds(applicationContext)
         }
 
         // Determine start destination based on active generation owner
@@ -136,8 +146,13 @@ class MainContainerActivity : ComponentActivity() {
         generationViewModel.saveGenerationState(this)
 
         // Persist all dirty media to disk synchronously to ensure completion before process death
-        runBlocking {
-            MediaStateHolder.persistToDisk(applicationContext)
+        // Only persist in memory-first mode (disk-first writes immediately, no persistence needed)
+        // Also skip if media cache is disabled
+        val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
+        if (isMemoryFirst && !AppSettings.isMediaCacheDisabled(this)) {
+            runBlocking {
+                MediaStateHolder.persistToDisk(applicationContext)
+            }
         }
     }
 

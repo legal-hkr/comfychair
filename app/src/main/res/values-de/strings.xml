@@ -69,6 +69,14 @@
     <!-- App management strings -->
     <string name="app_management_title">App-Verwaltung</string>
     <string name="app_management_description">Lokale App-Daten und Einstellungen verwalten</string>
+    <string name="live_preview_label">Live-Vorschau anzeigen</string>
+    <string name="live_preview_description">Zwischenbilder während der Generierung anzeigen</string>
+    <string name="memory_first_cache_label">Speicher-First-Cache</string>
+    <string name="memory_first_cache_description">Schneller Zugriff, höhere Speichernutzung. Deaktivieren für langsame Netzwerke oder Geräte mit wenig Speicher.</string>
+    <string name="disable_media_cache_label">Medien-Cache deaktivieren</string>
+    <string name="disable_media_cache_description">Vorschaubilder und Videos nicht auf Festplatte speichern</string>
+    <string name="reset_prompts_button">Prompts zurücksetzen</string>
+    <string name="reset_prompts_success">Prompts auf Standardwerte zurückgesetzt</string>
     <string name="clear_cache_button">Cache leeren</string>
     <string name="restore_defaults_button">Standardeinstellungen wiederherstellen</string>
 

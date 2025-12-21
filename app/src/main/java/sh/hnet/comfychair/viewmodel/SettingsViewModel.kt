@@ -23,6 +23,7 @@ import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
@@ -82,6 +83,15 @@ class SettingsViewModel : ViewModel() {
     private val _serverSettingsState = MutableStateFlow(ServerSettingsUiState())
     val serverSettingsState: StateFlow<ServerSettingsUiState> = _serverSettingsState.asStateFlow()
 
+    private val _isLivePreviewEnabled = MutableStateFlow(true)
+    val isLivePreviewEnabled: StateFlow<Boolean> = _isLivePreviewEnabled.asStateFlow()
+
+    private val _isMemoryFirstCache = MutableStateFlow(true)
+    val isMemoryFirstCache: StateFlow<Boolean> = _isMemoryFirstCache.asStateFlow()
+
+    private val _isMediaCacheDisabled = MutableStateFlow(false)
+    val isMediaCacheDisabled: StateFlow<Boolean> = _isMediaCacheDisabled.asStateFlow()
+
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
@@ -90,6 +100,10 @@ class SettingsViewModel : ViewModel() {
             hostname = ConnectionManager.hostname,
             port = ConnectionManager.port
         )
+        // Load settings
+        _isLivePreviewEnabled.value = AppSettings.isLivePreviewEnabled(context)
+        _isMemoryFirstCache.value = AppSettings.isMemoryFirstCache(context)
+        _isMediaCacheDisabled.value = AppSettings.isMediaCacheDisabled(context)
     }
 
     fun loadSystemStats() {
@@ -255,6 +269,9 @@ class SettingsViewModel : ViewModel() {
                     // Image to Image
                     "iti_last_preview.png",
                     "iti_last_source.png",
+                    // Image to Image Editing (reference images)
+                    "ite_reference_1.png",
+                    "ite_reference_2.png",
                     // Text to Video
                     "ttv_last_preview.png",
                     // Image to Video
@@ -334,6 +351,91 @@ class SettingsViewModel : ViewModel() {
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.defaults_restored_success))
             _events.emit(SettingsEvent.RefreshNeeded)
+        }
+    }
+
+    /**
+     * Reset prompts to seasonal defaults.
+     * Clears positive prompts from SharedPreferences (so ViewModels will load seasonal defaults)
+     * and clears negative prompts from per-workflow saved values.
+     */
+    fun resetPrompts(context: Context) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                // Clear positive_prompt from all 4 SharedPreferences
+                val prefNames = listOf(
+                    "TextToImageFragmentPrefs",
+                    "ImageToImageFragmentPrefs",
+                    "TextToVideoFragmentPrefs",
+                    "ImageToVideoFragmentPrefs"
+                )
+
+                for (prefName in prefNames) {
+                    val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .remove("positive_prompt")
+                        .apply()
+                }
+
+                // Clear negative prompts from per-workflow saved values
+                val workflowValuesStorage = WorkflowValuesStorage(context)
+                workflowValuesStorage.clearAllNegativePrompts()
+            }
+
+            _events.emit(SettingsEvent.ShowToast(R.string.reset_prompts_success))
+            _events.emit(SettingsEvent.RefreshNeeded)
+        }
+    }
+
+    /**
+     * Set whether live preview should be enabled.
+     */
+    fun setLivePreviewEnabled(context: Context, enabled: Boolean) {
+        viewModelScope.launch {
+            AppSettings.setLivePreviewEnabled(context, enabled)
+            _isLivePreviewEnabled.value = enabled
+        }
+    }
+
+    /**
+     * Set whether memory-first caching should be enabled.
+     * When disabled, switches to disk-first mode and forces media cache to be enabled.
+     */
+    fun setMemoryFirstCache(context: Context, enabled: Boolean) {
+        viewModelScope.launch {
+            // Persist current state before changing mode
+            // This is critical because activity restart may skip onStop()
+            if (MediaStateHolder.isMemoryFirstMode() && !enabled) {
+                // Switching FROM memory-first: persist before clearing
+                MediaStateHolder.persistToDisk(context)
+            }
+
+            AppSettings.setMemoryFirstCache(context, enabled)
+            _isMemoryFirstCache.value = enabled
+
+            if (!enabled) {
+                // When switching to disk-first, disable media cache must be OFF
+                AppSettings.setMediaCacheDisabled(context, false)
+                _isMediaCacheDisabled.value = false
+            }
+
+            _events.emit(SettingsEvent.RefreshNeeded)
+        }
+    }
+
+    /**
+     * Set whether media cache should be disabled.
+     * When enabled, clears the cache first and prevents future disk persistence.
+     * Only applicable in memory-first mode.
+     */
+    fun setMediaCacheDisabled(context: Context, disabled: Boolean) {
+        viewModelScope.launch {
+            if (disabled) {
+                // Clear cache first when disabling media cache
+                clearCache(context)
+            }
+            AppSettings.setMediaCacheDisabled(context, disabled)
+            _isMediaCacheDisabled.value = disabled
         }
     }
 

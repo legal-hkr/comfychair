@@ -1005,13 +1005,13 @@ class TextToImageViewModel : ViewModel() {
     }
 
     private fun saveLastGeneratedImage(bitmap: Bitmap) {
-        // Store in memory - will be persisted to disk on onStop
-        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtiPreview, bitmap)
+        // Store in memory (or disk if disk-first mode)
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtiPreview, bitmap, context)
     }
 
     private fun restoreLastGeneratedImage() {
-        // Restore from in-memory cache (loaded from disk on app startup)
-        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtiPreview)
+        // Restore from cache (memory in memory-first mode, disk in disk-first mode)
+        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtiPreview, context)
         if (bitmap != null) {
             _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
         }

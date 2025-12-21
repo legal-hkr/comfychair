@@ -81,7 +81,7 @@ object VideoUtils {
                             return@fetchVideo
                         }
 
-                        // Store in memory - will be persisted to disk on onStop
+                        // Store in memory/disk based on caching mode
                         val mediaKey = when (filePrefix) {
                             FilePrefix.TEXT_TO_VIDEO -> MediaStateHolder.MediaKey.TtvVideo(promptId)
                             FilePrefix.IMAGE_TO_VIDEO -> MediaStateHolder.MediaKey.ItvVideo(promptId)
@@ -93,7 +93,8 @@ object VideoUtils {
                             return@fetchVideo
                         }
 
-                        MediaStateHolder.putVideoBytes(mediaKey, videoBytes)
+                        // Pass context for disk-first mode support
+                        MediaStateHolder.putVideoBytes(mediaKey, videoBytes, context)
 
                         // Get URI for playback (creates temp file in cacheDir)
                         CoroutineScope(Dispatchers.Main).launch {

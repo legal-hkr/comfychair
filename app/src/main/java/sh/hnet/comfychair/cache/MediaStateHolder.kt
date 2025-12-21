@@ -6,22 +6,22 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.util.VideoUtils
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Singleton that holds in-memory media state for generation screens.
+ * Singleton that holds media state for generation screens.
  *
- * During runtime, all preview images, source images, and video bytes are stored
- * in memory. They are only persisted to disk when the app goes to background (onStop).
- * This eliminates frequent disk I/O during active generation.
+ * Supports two caching modes:
+ * - Memory-first (default): Media stored in RAM, persisted to disk on app background.
+ *   This eliminates frequent disk I/O during active generation.
+ * - Disk-first: Media written directly to disk, read from disk when needed.
+ *   This minimizes RAM usage for low-end devices with slow networks.
  */
 object MediaStateHolder {
-
-    private const val TAG = "MediaStateHolder"
 
     /**
      * Keys for different media types stored in the holder.
@@ -46,11 +46,14 @@ object MediaStateHolder {
         data class ItvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}$promptId.mp4")
     }
 
-    // In-memory storage
+    // Caching mode - true for memory-first (default), false for disk-first
+    private var isMemoryFirstMode = true
+
+    // In-memory storage (used in memory-first mode)
     private val bitmaps = ConcurrentHashMap<MediaKey, Bitmap>()
     private val videoBytes = ConcurrentHashMap<MediaKey, ByteArray>()
 
-    // Dirty flags - tracks what needs to be persisted to disk
+    // Dirty flags - tracks what needs to be persisted to disk (memory-first mode only)
     private val dirtyBitmaps = ConcurrentHashMap.newKeySet<MediaKey>()
     private val dirtyVideos = ConcurrentHashMap.newKeySet<MediaKey>()
 
@@ -59,58 +62,209 @@ object MediaStateHolder {
     private var currentItvPromptId: String? = null
 
     /**
-     * Store a bitmap in memory and mark it as dirty for persistence.
+     * Set the caching mode.
+     * @param enabled true for memory-first (default), false for disk-first
+     * @param context Required for content migration when switching modes
      */
-    fun putBitmap(key: MediaKey, bitmap: Bitmap) {
-        bitmaps[key] = bitmap
-        dirtyBitmaps.add(key)
+    fun setMemoryFirstMode(enabled: Boolean, context: Context? = null) {
+        if (isMemoryFirstMode == enabled) return  // No change
+
+        if (enabled) {
+            // Switching TO memory-first: load disk content into memory
+            context?.let { ctx ->
+                runBlocking {
+                    loadFromDisk(ctx)
+                }
+                // Disk files remain as backup - don't clear them
+            }
+        } else {
+            // Switching TO disk-first: persist memory content to disk first
+            context?.let { ctx ->
+                runBlocking {
+                    persistToDisk(ctx)
+                }
+            }
+            // Now safe to clear in-memory caches
+            bitmaps.clear()
+            videoBytes.clear()
+            dirtyBitmaps.clear()
+            dirtyVideos.clear()
+        }
+
+        isMemoryFirstMode = enabled
     }
 
     /**
-     * Get a bitmap from memory.
-     * Returns null if not in memory.
+     * Clear all disk cache files created during disk-first mode.
      */
-    fun getBitmap(key: MediaKey): Bitmap? = bitmaps[key]
+    private fun clearDiskCache(context: Context) {
+        val allKeys = listOf(
+            MediaKey.TtiPreview,
+            MediaKey.ItiPreview,
+            MediaKey.ItiSource,
+            MediaKey.TtvPreview,
+            MediaKey.ItvPreview,
+            MediaKey.ItvSource,
+            MediaKey.IteReferenceImage1,
+            MediaKey.IteReferenceImage2
+        )
+
+        for (key in allKeys) {
+            try {
+                val file = context.getFileStreamPath(key.filename)
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (_: Exception) {
+                // Ignore deletion failures
+            }
+        }
+
+        // Also delete any video files
+        try {
+            context.filesDir.listFiles()?.filter { file ->
+                file.name.startsWith(VideoUtils.FilePrefix.TEXT_TO_VIDEO) ||
+                file.name.startsWith(VideoUtils.FilePrefix.IMAGE_TO_VIDEO)
+            }?.forEach { file ->
+                file.delete()
+            }
+        } catch (_: Exception) {
+            // Ignore deletion failures
+        }
+    }
 
     /**
-     * Store video bytes in memory and mark as dirty for persistence.
+     * Check if memory-first mode is enabled.
      */
-    fun putVideoBytes(key: MediaKey, bytes: ByteArray) {
-        videoBytes[key] = bytes
-        dirtyVideos.add(key)
+    fun isMemoryFirstMode(): Boolean = isMemoryFirstMode
 
+    /**
+     * Store a bitmap. In memory-first mode, stores in RAM. In disk-first mode, writes to disk.
+     * @param context Required for disk-first mode, optional for memory-first mode.
+     */
+    fun putBitmap(key: MediaKey, bitmap: Bitmap, context: Context? = null) {
+        if (isMemoryFirstMode) {
+            // Memory-first: store in memory, mark as dirty for later persistence
+            bitmaps[key] = bitmap
+            dirtyBitmaps.add(key)
+        } else {
+            // Disk-first: write to disk immediately, don't store in memory
+            context?.let { ctx ->
+                try {
+                    ctx.openFileOutput(key.filename, Context.MODE_PRIVATE).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                } catch (_: Exception) {
+                    // Ignore write failures
+                }
+            }
+        }
+    }
+
+    /**
+     * Get a bitmap. In memory-first mode, returns from RAM. In disk-first mode, reads from disk.
+     * @param context Required for disk-first mode, optional for memory-first mode.
+     */
+    fun getBitmap(key: MediaKey, context: Context? = null): Bitmap? {
+        return if (isMemoryFirstMode) {
+            // Memory-first: return from RAM
+            bitmaps[key]
+        } else {
+            // Disk-first: read from disk each time
+            context?.let { ctx ->
+                try {
+                    val file = ctx.getFileStreamPath(key.filename)
+                    if (file.exists()) {
+                        BitmapFactory.decodeFile(file.absolutePath)
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+    }
+
+    /**
+     * Store video bytes. In memory-first mode, stores in RAM. In disk-first mode, writes to disk.
+     * @param context Required for disk-first mode, optional for memory-first mode.
+     */
+    fun putVideoBytes(key: MediaKey, bytes: ByteArray, context: Context? = null) {
         // Track prompt ID for persistence
         when (key) {
             is MediaKey.TtvVideo -> currentTtvPromptId = key.promptId
             is MediaKey.ItvVideo -> currentItvPromptId = key.promptId
             else -> { }
         }
+
+        if (isMemoryFirstMode) {
+            // Memory-first: store in memory, mark as dirty for later persistence
+            videoBytes[key] = bytes
+            dirtyVideos.add(key)
+        } else {
+            // Disk-first: write to disk immediately, don't store in memory
+            context?.let { ctx ->
+                try {
+                    File(ctx.filesDir, key.filename).writeBytes(bytes)
+                } catch (_: Exception) {
+                    // Ignore write failures
+                }
+            }
+        }
     }
 
     /**
-     * Get video bytes from memory.
-     * Returns null if not in memory.
+     * Get video bytes. In memory-first mode, returns from RAM. In disk-first mode, reads from disk.
+     * @param context Required for disk-first mode, optional for memory-first mode.
      */
-    fun getVideoBytes(key: MediaKey): ByteArray? = videoBytes[key]
+    fun getVideoBytes(key: MediaKey, context: Context? = null): ByteArray? {
+        return if (isMemoryFirstMode) {
+            // Memory-first: return from RAM
+            videoBytes[key]
+        } else {
+            // Disk-first: read from disk each time
+            context?.let { ctx ->
+                try {
+                    val file = File(ctx.filesDir, key.filename)
+                    if (file.exists()) {
+                        file.readBytes()
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+    }
 
     /**
      * Get a video URI for ExoPlayer playback.
-     * Creates a temp file in cacheDir from the in-memory bytes.
-     * Returns null if video bytes are not in memory.
+     * In memory-first mode, creates a temp file from in-memory bytes.
+     * In disk-first mode, returns URI directly to the stored file.
      */
     suspend fun getVideoUri(context: Context, key: MediaKey): Uri? {
-        val bytes = videoBytes[key] ?: return null
         return withContext(Dispatchers.IO) {
             try {
-                val tempFile = File(context.cacheDir, "playback_${key.filename.hashCode()}.mp4")
-                tempFile.writeBytes(bytes)
-                FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    tempFile
-                )
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to create video URI for ${key.filename}", e)
+                if (isMemoryFirstMode) {
+                    // Memory-first: create temp file from in-memory bytes
+                    val bytes = videoBytes[key] ?: return@withContext null
+                    val tempFile = File(context.cacheDir, "playback_${key.filename.hashCode()}.mp4")
+                    tempFile.writeBytes(bytes)
+                    FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        tempFile
+                    )
+                } else {
+                    // Disk-first: return URI to the stored file directly
+                    val file = File(context.filesDir, key.filename)
+                    if (file.exists()) {
+                        FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                    } else null
+                }
+            } catch (_: Exception) {
                 null
             }
         }
@@ -131,9 +285,8 @@ object MediaStateHolder {
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                     dirtyBitmaps.remove(key)
-                    Logger.d(TAG, "Persisted bitmap: ${key.filename}")
-                } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to persist bitmap: ${key.filename}", e)
+                } catch (_: Exception) {
+                    // Ignore persistence failures
                 }
             }
 
@@ -144,9 +297,8 @@ object MediaStateHolder {
                 try {
                     File(context.filesDir, key.filename).writeBytes(bytes)
                     dirtyVideos.remove(key)
-                    Logger.d(TAG, "Persisted video: ${key.filename}")
-                } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to persist video: ${key.filename}", e)
+                } catch (_: Exception) {
+                    // Ignore persistence failures
                 }
             }
         }
@@ -178,11 +330,10 @@ object MediaStateHolder {
                         if (bitmap != null) {
                             bitmaps[key] = bitmap
                             // NOT dirty - already on disk
-                            Logger.d(TAG, "Loaded bitmap: ${key.filename}")
                         }
                     }
-                } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to load bitmap: ${key.filename}", e)
+                } catch (_: Exception) {
+                    // Ignore load failures
                 }
             }
 
@@ -191,14 +342,12 @@ object MediaStateHolder {
                 val key = MediaKey.TtvVideo(promptId)
                 videoBytes[key] = bytes
                 currentTtvPromptId = promptId
-                Logger.d(TAG, "Loaded video: ${key.filename}")
             }
 
             loadLatestVideoFile(context, VideoUtils.FilePrefix.IMAGE_TO_VIDEO) { promptId, bytes ->
                 val key = MediaKey.ItvVideo(promptId)
                 videoBytes[key] = bytes
                 currentItvPromptId = promptId
-                Logger.d(TAG, "Loaded video: ${key.filename}")
             }
         }
     }
@@ -219,8 +368,8 @@ object MediaStateHolder {
                     val bytes = file.readBytes()
                     onLoaded(promptId, bytes)
                 }
-        } catch (e: Exception) {
-            Logger.e(TAG, "Failed to load video with prefix: $prefix", e)
+        } catch (_: Exception) {
+            // Ignore load failures
         }
     }
 
@@ -252,10 +401,9 @@ object MediaStateHolder {
                 val file = context.getFileStreamPath(key.filename)
                 if (file.exists()) {
                     file.delete()
-                    Logger.d(TAG, "Deleted from disk: ${key.filename}")
                 }
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to delete from disk: ${key.filename}", e)
+            } catch (_: Exception) {
+                // Ignore deletion failures
             }
         }
     }
@@ -271,7 +419,6 @@ object MediaStateHolder {
         dirtyVideos.clear()
         currentTtvPromptId = null
         currentItvPromptId = null
-        Logger.d(TAG, "Cleared all media state")
     }
 
     /**
@@ -285,12 +432,74 @@ object MediaStateHolder {
     fun getCurrentItvPromptId(): String? = currentItvPromptId
 
     /**
-     * Check if a bitmap exists in memory.
+     * Discover video prompt IDs from disk without loading bytes into memory.
+     * Used in disk-first mode to enable video restoration on app restart.
+     * In disk-first mode, videos are read on-demand, but we still need to know
+     * which promptIds have saved videos.
      */
-    fun hasBitmap(key: MediaKey): Boolean = bitmaps.containsKey(key)
+    fun discoverVideoPromptIds(context: Context) {
+        // Discover TTV video
+        try {
+            context.filesDir.listFiles()
+                ?.filter { it.name.startsWith(VideoUtils.FilePrefix.TEXT_TO_VIDEO) && it.name.endsWith(".mp4") }
+                ?.maxByOrNull { it.lastModified() }
+                ?.let { file ->
+                    currentTtvPromptId = file.name
+                        .removePrefix(VideoUtils.FilePrefix.TEXT_TO_VIDEO)
+                        .removeSuffix(".mp4")
+                }
+        } catch (_: Exception) {
+            // Ignore discovery failures
+        }
+
+        // Discover ITV video
+        try {
+            context.filesDir.listFiles()
+                ?.filter { it.name.startsWith(VideoUtils.FilePrefix.IMAGE_TO_VIDEO) && it.name.endsWith(".mp4") }
+                ?.maxByOrNull { it.lastModified() }
+                ?.let { file ->
+                    currentItvPromptId = file.name
+                        .removePrefix(VideoUtils.FilePrefix.IMAGE_TO_VIDEO)
+                        .removeSuffix(".mp4")
+                }
+        } catch (_: Exception) {
+            // Ignore discovery failures
+        }
+    }
 
     /**
-     * Check if video bytes exist in memory.
+     * Check if a bitmap exists. In memory-first mode, checks RAM. In disk-first mode, checks disk.
+     * @param context Required for disk-first mode, optional for memory-first mode.
      */
-    fun hasVideoBytes(key: MediaKey): Boolean = videoBytes.containsKey(key)
+    fun hasBitmap(key: MediaKey, context: Context? = null): Boolean {
+        return if (isMemoryFirstMode) {
+            bitmaps.containsKey(key)
+        } else {
+            context?.let { ctx ->
+                try {
+                    ctx.getFileStreamPath(key.filename).exists()
+                } catch (e: Exception) {
+                    false
+                }
+            } ?: false
+        }
+    }
+
+    /**
+     * Check if video bytes exist. In memory-first mode, checks RAM. In disk-first mode, checks disk.
+     * @param context Required for disk-first mode, optional for memory-first mode.
+     */
+    fun hasVideoBytes(key: MediaKey, context: Context? = null): Boolean {
+        return if (isMemoryFirstMode) {
+            videoBytes.containsKey(key)
+        } else {
+            context?.let { ctx ->
+                try {
+                    File(ctx.filesDir, key.filename).exists()
+                } catch (e: Exception) {
+                    false
+                }
+            } ?: false
+        }
+    }
 }

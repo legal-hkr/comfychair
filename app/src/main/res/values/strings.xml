@@ -73,6 +73,14 @@
     <!-- App management strings -->
     <string name="app_management_title">App management</string>
     <string name="app_management_description">Manage local app data and settings</string>
+    <string name="live_preview_label">Show live preview</string>
+    <string name="live_preview_description">Display intermediate images during generation</string>
+    <string name="memory_first_cache_label">In-memory first cache</string>
+    <string name="memory_first_cache_description">Fast access, higher memory usage. Disable for slow networks or low-memory devices.</string>
+    <string name="disable_media_cache_label">Disable media cache</string>
+    <string name="disable_media_cache_description">Do not save preview images and videos to disk</string>
+    <string name="reset_prompts_button">Reset prompts</string>
+    <string name="reset_prompts_success">Prompts reset to defaults</string>
     <string name="clear_cache_button">Clear cache</string>
     <string name="restore_defaults_button">Restore defaults</string>
 

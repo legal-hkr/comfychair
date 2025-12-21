@@ -16,7 +16,6 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
 /**
@@ -204,8 +203,7 @@ class GalleryRepository private constructor() {
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
             return true
-        } catch (e: Exception) {
-            Logger.e("GalleryRepo", "Failed to load gallery", e)
+        } catch (_: Exception) {
             return false
         } finally {
             _isLoading.value = false

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
@@ -140,20 +141,21 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     /**
-     * Load the last generated video from in-memory cache.
+     * Load the last generated video from cache.
      * This restores the video preview when the screen is recreated.
+     * Uses runBlocking to ensure synchronous restoration like TTI/ITI.
      */
     private fun loadLastGeneratedVideo() {
         val context = applicationContext ?: return
         val promptId = MediaStateHolder.getCurrentTtvPromptId() ?: return
 
         val key = MediaStateHolder.MediaKey.TtvVideo(promptId)
-        if (MediaStateHolder.hasVideoBytes(key)) {
-            viewModelScope.launch {
-                val uri = MediaStateHolder.getVideoUri(context, key)
-                if (uri != null) {
-                    _uiState.value = _uiState.value.copy(currentVideoUri = uri)
-                }
+        if (MediaStateHolder.hasVideoBytes(key, context)) {
+            val uri = runBlocking {
+                MediaStateHolder.getVideoUri(context, key)
+            }
+            if (uri != null) {
+                _uiState.value = _uiState.value.copy(currentVideoUri = uri)
             }
         }
     }
@@ -758,13 +760,13 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     private fun saveLastPreviewImage(bitmap: Bitmap) {
-        // Store in memory - will be persisted to disk on onStop
-        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtvPreview, bitmap)
+        // Store in cache (memory or disk based on mode)
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtvPreview, bitmap, applicationContext)
     }
 
     private fun restoreLastPreviewImage() {
-        // Restore from in-memory cache (loaded from disk on app startup)
-        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtvPreview)
+        // Restore from cache (memory in memory-first mode, disk in disk-first mode)
+        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtvPreview, applicationContext)
         if (bitmap != null) {
             _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
         }

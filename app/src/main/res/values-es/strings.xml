@@ -69,6 +69,14 @@
     <!-- App management strings -->
     <string name="app_management_title">Gestión de la aplicación</string>
     <string name="app_management_description">Gestionar datos y configuración local de la aplicación</string>
+    <string name="live_preview_label">Mostrar vista previa en vivo</string>
+    <string name="live_preview_description">Mostrar imágenes intermedias durante la generación</string>
+    <string name="memory_first_cache_label">Caché en memoria primero</string>
+    <string name="memory_first_cache_description">Acceso rápido, mayor uso de memoria. Desactivar para redes lentas o dispositivos con poca memoria.</string>
+    <string name="disable_media_cache_label">Desactivar caché de medios</string>
+    <string name="disable_media_cache_description">No guardar imágenes de vista previa ni videos en disco</string>
+    <string name="reset_prompts_button">Restablecer prompts</string>
+    <string name="reset_prompts_success">Prompts restablecidos a los valores predeterminados</string>
     <string name="clear_cache_button">Vaciar caché</string>
     <string name="restore_defaults_button">Restaurar valores predeterminados</string>
 

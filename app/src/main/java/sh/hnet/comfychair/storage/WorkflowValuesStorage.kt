@@ -46,6 +46,24 @@ class WorkflowValuesStorage(context: Context) {
         prefs.edit().clear().apply()
     }
 
+    /**
+     * Clear negative prompts from all saved workflow values.
+     * Called when user resets prompts to defaults.
+     */
+    fun clearAllNegativePrompts() {
+        val allKeys = prefs.all.keys.filter { it.startsWith("workflow_") }
+        for (key in allKeys) {
+            val json = prefs.getString(key, null) ?: continue
+            val values = try {
+                WorkflowValues.fromJson(json)
+            } catch (e: Exception) {
+                continue
+            }
+            val updated = values.copy(negativePrompt = "")
+            prefs.edit().putString(key, WorkflowValues.toJson(updated)).apply()
+        }
+    }
+
     private fun keyFor(workflowId: String): String = "workflow_$workflowId"
 
     companion object {

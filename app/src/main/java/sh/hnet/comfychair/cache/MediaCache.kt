@@ -2,6 +2,7 @@ package sh.hnet.comfychair.cache
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -15,8 +16,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.util.Logger
 import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.coroutines.resume
@@ -79,16 +80,16 @@ data class PrefetchRequest(
 }
 
 /**
- * Centralized in-memory media cache singleton.
+ * Centralized media cache singleton for Gallery and MediaViewer.
  *
- * Provides shared caching between Gallery and MediaViewer with:
+ * Supports two caching modes:
+ * - Memory-first (default): In-memory caching with priority-based eviction and prefetching
+ * - Disk-first: Write to disk cache, read from disk when needed (minimal RAM for low-end devices)
+ *
+ * Provides:
  * - Single bitmap cache for all images (thumbnails and full-size are the same)
  * - Priority-based eviction to protect items near current view position
  * - Smart prefetching with priority queue
- * - Session-only storage (cleared when app closes)
- *
- * All data is stored in RAM only. Videos are cached as ByteArray and
- * converted to temp file URIs on-demand for ExoPlayer playback.
  */
 object MediaCache {
 
@@ -101,6 +102,9 @@ object MediaCache {
     // Context for temp file operations (set once when first needed)
     private var applicationContext: Context? = null
     private var prefetchWorkersStarted = false
+
+    // Caching mode - true for memory-first (default), false for disk-first
+    private var isMemoryFirstMode = true
 
     // Memory budget: 1/3 of max heap for bitmaps (full-res images), 1/8 for video bytes
     // Bitmaps are large (4MB+ per 1024x1024 image), so we need generous cache for smooth scrolling
@@ -119,6 +123,114 @@ object MediaCache {
         maxSize = videoCacheSize,
         sizeOf = { _, bytes -> bytes.size / 1024 }
     )
+
+    // Disk cache directory name
+    private const val DISK_CACHE_DIR = "gallery_cache"
+
+    /**
+     * Set the caching mode.
+     * @param enabled true for memory-first (default), false for disk-first
+     */
+    fun setMemoryFirstMode(enabled: Boolean) {
+        if (isMemoryFirstMode == enabled) return  // No change
+
+        if (!enabled) {
+            // Switching TO disk-first: clear in-memory caches
+            // Gallery content is fetched from server on-demand, no migration needed
+            bitmapCache.evictAll()
+            videoCache.evictAll()
+            videoUriCache.clear()
+            videoDimensionsCache.clear()
+            prefetchQueue.clear()
+            inProgressKeys.clear()
+            completionCallbacks.clear()
+        }
+        // Switching TO memory-first: no action needed
+        // Content will be fetched on-demand and cached in memory
+
+        isMemoryFirstMode = enabled
+    }
+
+    /**
+     * Check if memory-first mode is enabled.
+     */
+    fun isMemoryFirstMode(): Boolean = isMemoryFirstMode
+
+    /**
+     * Get the disk cache directory.
+     */
+    private fun getDiskCacheDir(context: Context): File {
+        return File(context.cacheDir, DISK_CACHE_DIR).apply { mkdirs() }
+    }
+
+    /**
+     * Get the disk cache file for a given key.
+     */
+    private fun getDiskCacheFile(context: Context, key: MediaCacheKey, isVideo: Boolean): File {
+        val ext = if (isVideo) "mp4" else "png"
+        return File(getDiskCacheDir(context), "${key.keyString}.$ext")
+    }
+
+    /**
+     * Check if an item exists in disk cache.
+     */
+    private fun existsInDiskCache(context: Context, key: MediaCacheKey, isVideo: Boolean): Boolean {
+        return getDiskCacheFile(context, key, isVideo).exists()
+    }
+
+    /**
+     * Read a bitmap from disk cache.
+     */
+    private fun readBitmapFromDisk(context: Context, key: MediaCacheKey): Bitmap? {
+        return try {
+            val file = getDiskCacheFile(context, key, false)
+            if (file.exists()) {
+                BitmapFactory.decodeFile(file.absolutePath)
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Write a bitmap to disk cache.
+     */
+    private fun writeBitmapToDisk(context: Context, key: MediaCacheKey, bitmap: Bitmap) {
+        try {
+            val file = getDiskCacheFile(context, key, false)
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+        } catch (_: Exception) {
+            // Ignore write failures
+        }
+    }
+
+    /**
+     * Read video bytes from disk cache.
+     */
+    private fun readVideoBytesFromDisk(context: Context, key: MediaCacheKey): ByteArray? {
+        return try {
+            val file = getDiskCacheFile(context, key, true)
+            if (file.exists()) {
+                file.readBytes()
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Write video bytes to disk cache.
+     */
+    private fun writeVideoToDisk(context: Context, key: MediaCacheKey, bytes: ByteArray) {
+        try {
+            val file = getDiskCacheFile(context, key, true)
+            file.writeBytes(bytes)
+        } catch (_: Exception) {
+            // Ignore write failures
+        }
+    }
 
     // Cache of video URIs (lightweight - just stores Uri references)
     private val videoUriCache = ConcurrentHashMap<String, Uri>()
@@ -340,6 +452,7 @@ object MediaCache {
     /**
      * Fetch bitmap with caching.
      * Returns cached version immediately if available.
+     * In disk-first mode, checks disk cache first then fetches from server and saves to disk.
      */
     suspend fun fetchBitmap(
         key: MediaCacheKey,
@@ -349,18 +462,43 @@ object MediaCache {
         priority: Int = PriorityLruCache.PRIORITY_DEFAULT
     ): Bitmap? {
         val keyStr = key.keyString
-
-        // Check cache first
-        bitmapCache.get(keyStr)?.let { return it }
-
         val client = comfyUIClient ?: return null
         val context = applicationContext ?: return null
 
-        return withContext(Dispatchers.IO) {
-            if (isVideo) {
-                fetchVideoBitmap(key, subfolder, type, client, context, priority)
-            } else {
-                fetchImageBitmap(key, subfolder, type, client, priority)
+        if (isMemoryFirstMode) {
+            // Memory-first: check memory cache first
+            bitmapCache.get(keyStr)?.let { return it }
+
+            return withContext(Dispatchers.IO) {
+                if (isVideo) {
+                    fetchVideoBitmap(key, subfolder, type, client, context, priority)
+                } else {
+                    fetchImageBitmap(key, subfolder, type, client, priority)
+                }
+            }
+        } else {
+            // Disk-first: check disk cache first, fetch and save to disk if not found
+            return withContext(Dispatchers.IO) {
+                // Check disk cache first
+                if (!isVideo) {
+                    readBitmapFromDisk(context, key)?.let { return@withContext it }
+                } else {
+                    // For video, check if we have cached video and extract thumbnail
+                    if (existsInDiskCache(context, key, true)) {
+                        val videoBytes = readVideoBytesFromDisk(context, key)
+                        if (videoBytes != null) {
+                            val (_, thumbnail) = extractVideoData(keyStr, videoBytes, context)
+                            return@withContext thumbnail
+                        }
+                    }
+                }
+
+                // Fetch from server
+                if (isVideo) {
+                    fetchVideoBitmapDiskFirst(key, subfolder, type, client, context)
+                } else {
+                    fetchImageBitmapDiskFirst(key, subfolder, type, client, context)
+                }
             }
         }
     }
@@ -426,10 +564,56 @@ object MediaCache {
         return thumbnail
     }
 
+    // Disk-first versions of fetch methods
+
+    private suspend fun fetchImageBitmapDiskFirst(
+        key: MediaCacheKey,
+        subfolder: String,
+        type: String,
+        client: ComfyUIClient,
+        context: Context
+    ): Bitmap? {
+        val bitmap = suspendCancellableCoroutine { continuation ->
+            client.fetchImage(key.filename, subfolder, type) { bmp ->
+                continuation.resume(bmp)
+            }
+        }
+
+        // Write to disk cache (don't keep in memory)
+        bitmap?.let { writeBitmapToDisk(context, key, it) }
+
+        return bitmap
+    }
+
+    private suspend fun fetchVideoBitmapDiskFirst(
+        key: MediaCacheKey,
+        subfolder: String,
+        type: String,
+        client: ComfyUIClient,
+        context: Context
+    ): Bitmap? {
+        val keyStr = key.keyString
+
+        // Fetch video bytes
+        val videoBytes = suspendCancellableCoroutine<ByteArray?> { continuation ->
+            client.fetchVideo(key.filename, subfolder, type) { bytes ->
+                continuation.resume(bytes)
+            }
+        } ?: return null
+
+        // Write video to disk cache
+        writeVideoToDisk(context, key, videoBytes)
+
+        // Extract and return thumbnail (don't cache dimensions in memory for disk-first)
+        val (_, thumbnail) = extractVideoData(keyStr, videoBytes, context)
+        return thumbnail
+    }
+
     // ==================== FULL-SIZE IMAGE OPERATIONS ====================
 
     /**
      * Fetch full-size image with caching.
+     * In disk-first mode, checks disk cache first then fetches from server and saves to disk.
      *
      * @param priority Cache priority level (default: PRIORITY_CURRENT for direct requests)
      */
@@ -439,22 +623,37 @@ object MediaCache {
         type: String,
         priority: Int = PriorityLruCache.PRIORITY_CURRENT
     ): Bitmap? {
-        val keyStr = key.keyString
-
-        // Check cache first
-        bitmapCache.get(keyStr)?.let { return it }
-
         val client = comfyUIClient ?: return null
+        val context = applicationContext ?: return null
 
-        return withContext(Dispatchers.IO) {
-            val bitmap = suspendCancellableCoroutine { continuation ->
-                client.fetchImage(key.filename, subfolder, type) { bmp ->
-                    continuation.resume(bmp)
+        if (isMemoryFirstMode) {
+            // Memory-first: check memory cache first
+            bitmapCache.get(key.keyString)?.let { return it }
+
+            return withContext(Dispatchers.IO) {
+                val bitmap = suspendCancellableCoroutine { continuation ->
+                    client.fetchImage(key.filename, subfolder, type) { bmp ->
+                        continuation.resume(bmp)
+                    }
                 }
-            }
 
-            bitmap?.let { bitmapCache.put(keyStr, it, priority) }
-            bitmap
+                bitmap?.let { bitmapCache.put(key.keyString, it, priority) }
+                bitmap
+            }
+        } else {
+            // Disk-first: check disk cache first, fetch and save to disk if not found
+            return withContext(Dispatchers.IO) {
+                readBitmapFromDisk(context, key)?.let { return@withContext it }
+
+                val bitmap = suspendCancellableCoroutine { continuation ->
+                    client.fetchImage(key.filename, subfolder, type) { bmp ->
+                        continuation.resume(bmp)
+                    }
+                }
+
+                bitmap?.let { writeBitmapToDisk(context, key, it) }
+                bitmap
+            }
         }
     }
 
@@ -469,28 +668,44 @@ object MediaCache {
 
     /**
      * Fetch video bytes with caching.
+     * In disk-first mode, checks disk cache first then fetches from server and saves to disk.
      */
     suspend fun fetchVideoBytes(
         key: MediaCacheKey,
         subfolder: String,
         type: String
     ): ByteArray? {
-        val keyStr = key.keyString
-
-        // Check cache first
-        videoCache.get(keyStr)?.let { return it }
-
         val client = comfyUIClient ?: return null
+        val context = applicationContext ?: return null
 
-        return withContext(Dispatchers.IO) {
-            val bytes = suspendCancellableCoroutine { continuation ->
-                client.fetchVideo(key.filename, subfolder, type) { videoBytes ->
-                    continuation.resume(videoBytes)
+        if (isMemoryFirstMode) {
+            // Memory-first: check memory cache first
+            videoCache.get(key.keyString)?.let { return it }
+
+            return withContext(Dispatchers.IO) {
+                val bytes = suspendCancellableCoroutine { continuation ->
+                    client.fetchVideo(key.filename, subfolder, type) { videoBytes ->
+                        continuation.resume(videoBytes)
+                    }
                 }
-            }
 
-            bytes?.let { videoCache.put(keyStr, it, PriorityLruCache.PRIORITY_DEFAULT) }
-            bytes
+                bytes?.let { videoCache.put(key.keyString, it, PriorityLruCache.PRIORITY_DEFAULT) }
+                bytes
+            }
+        } else {
+            // Disk-first: check disk cache first, fetch and save to disk if not found
+            return withContext(Dispatchers.IO) {
+                readVideoBytesFromDisk(context, key)?.let { return@withContext it }
+
+                val bytes = suspendCancellableCoroutine { continuation ->
+                    client.fetchVideo(key.filename, subfolder, type) { videoBytes ->
+                        continuation.resume(videoBytes)
+                    }
+                }
+
+                bytes?.let { writeVideoToDisk(context, key, it) }
+                bytes
+            }
         }
     }
 
@@ -512,35 +727,53 @@ object MediaCache {
 
     /**
      * Get video URI for ExoPlayer playback.
-     * Creates a temp file from cached bytes if available, or returns cached URI.
+     * In memory-first mode, creates a temp file from cached bytes.
+     * In disk-first mode, returns URI directly to the cached file.
      * Returns null if bytes not cached - call fetchVideoBytes first.
      */
     suspend fun getVideoUri(key: MediaCacheKey, context: Context): Uri? {
         val keyStr = key.keyString
 
-        // Return cached URI if available
-        videoUriCache[keyStr]?.let { return it }
+        if (isMemoryFirstMode) {
+            // Memory-first: return cached URI if available
+            videoUriCache[keyStr]?.let { return it }
 
-        val bytes = videoCache.get(keyStr) ?: return null
+            val bytes = videoCache.get(keyStr) ?: return null
 
-        return withContext(Dispatchers.IO) {
-            try {
-                // Create temp file for playback
-                val tempFile = File(context.cacheDir, "playback_${keyStr.hashCode()}.mp4")
-                tempFile.writeBytes(bytes)
+            return withContext(Dispatchers.IO) {
+                try {
+                    // Create temp file for playback
+                    val tempFile = File(context.cacheDir, "playback_${keyStr.hashCode()}.mp4")
+                    tempFile.writeBytes(bytes)
 
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    tempFile
-                )
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        tempFile
+                    )
 
-                // Cache the URI for future use
-                videoUriCache[keyStr] = uri
-                uri
-            } catch (e: Exception) {
-                Logger.e("MediaCache", "Failed to create video URI for $keyStr", e)
-                null
+                    // Cache the URI for future use
+                    videoUriCache[keyStr] = uri
+                    uri
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        } else {
+            // Disk-first: return URI directly to the cached file
+            return withContext(Dispatchers.IO) {
+                try {
+                    val file = getDiskCacheFile(context, key, true)
+                    if (file.exists()) {
+                        FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
             }
         }
     }
@@ -686,12 +919,18 @@ object MediaCache {
     )
 
     private fun isCached(key: MediaCacheKey, isVideo: Boolean): Boolean {
-        val keyStr = key.keyString
-        return if (isVideo) {
-            // Video is cached when bytes are downloaded (URI can be created on-demand)
-            videoCache.get(keyStr) != null
+        if (isMemoryFirstMode) {
+            // Memory-first: check in-memory cache
+            val keyStr = key.keyString
+            return if (isVideo) {
+                videoCache.get(keyStr) != null
+            } else {
+                bitmapCache.get(keyStr) != null
+            }
         } else {
-            bitmapCache.get(keyStr) != null
+            // Disk-first: check disk cache
+            val context = applicationContext ?: return false
+            return existsInDiskCache(context, key, isVideo)
         }
     }
 
@@ -753,6 +992,7 @@ object MediaCache {
 
     /**
      * Remove item from all caches (after deletion).
+     * In disk-first mode, also removes from disk cache.
      */
     fun evict(key: MediaCacheKey) {
         val keyStr = key.keyString
@@ -760,10 +1000,22 @@ object MediaCache {
         videoCache.remove(keyStr)
         videoUriCache.remove(keyStr)
         videoDimensionsCache.remove(keyStr)
+
+        // In disk-first mode, also remove from disk
+        if (!isMemoryFirstMode) {
+            applicationContext?.let { context ->
+                try {
+                    getDiskCacheFile(context, key, false).delete()
+                    getDiskCacheFile(context, key, true).delete()
+                } catch (_: Exception) {
+                    // Ignore deletion failures
+                }
+            }
+        }
     }
 
     /**
-     * Clear all caches.
+     * Clear all caches (memory and disk).
      */
     fun clearAll() {
         bitmapCache.evictAll()
@@ -773,12 +1025,21 @@ object MediaCache {
         prefetchQueue.clear()
         inProgressKeys.clear()
         completionCallbacks.clear()
+
+        // Also clear disk cache
+        applicationContext?.let { context ->
+            try {
+                getDiskCacheDir(context).deleteRecursively()
+            } catch (_: Exception) {
+                // Ignore deletion failures
+            }
+        }
     }
 
     /**
      * Clear bitmap and video thumbnail caches for refresh.
      * This forces thumbnails to be re-fetched from the server.
-     * Does not clear video URIs (temp files) as they may still be in use.
+     * In disk-first mode, also clears the disk cache.
      */
     fun clearForRefresh() {
         bitmapCache.evictAll()
@@ -787,6 +1048,17 @@ object MediaCache {
         prefetchQueue.clear()
         inProgressKeys.clear()
         completionCallbacks.clear()
+
+        // In disk-first mode, also clear disk cache
+        if (!isMemoryFirstMode) {
+            applicationContext?.let { context ->
+                try {
+                    getDiskCacheDir(context).deleteRecursively()
+                } catch (_: Exception) {
+                    // Ignore deletion failures
+                }
+            }
+        }
     }
 
     /**
@@ -797,6 +1069,7 @@ object MediaCache {
         clearAll()
         applicationContext = null
         prefetchWorkersStarted = false
+        isMemoryFirstMode = true  // Reset to default
     }
 
     // ==================== UTILITY ====================
@@ -825,8 +1098,7 @@ object MediaCache {
                 ?: thumbnail?.height ?: 0
             retriever.release()
             Pair(VideoDimensions(width, height), thumbnail)
-        } catch (e: Exception) {
-            Logger.e("MediaCache", "Failed to extract video metadata/thumbnail for $keyStr", e)
+        } catch (_: Exception) {
             Pair(null, null)
         } finally {
             tempFile.delete()

@@ -511,11 +511,11 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     private fun loadSavedImages() {
-        // Restore from in-memory cache (loaded from disk on app startup)
-        val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource)
-        val previewImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiPreview)
-        val referenceImage1 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage1)
-        val referenceImage2 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage2)
+        // Restore from cache (memory in memory-first mode, disk in disk-first mode)
+        val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource, applicationContext)
+        val previewImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiPreview, applicationContext)
+        val referenceImage1 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, applicationContext)
+        val referenceImage2 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, applicationContext)
 
         _uiState.value = _uiState.value.copy(
             sourceImage = sourceImage,
@@ -618,8 +618,8 @@ class ImageToImageViewModel : ViewModel() {
                 inputStream?.close()
 
                 if (bitmap != null) {
-                    // Store in memory - will be persisted to disk on onStop
-                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, bitmap)
+                    // Store in cache (memory or disk based on mode)
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, bitmap, context)
                     _uiState.value = _uiState.value.copy(referenceImage1 = bitmap)
                 }
             } catch (e: Exception) {
@@ -636,8 +636,8 @@ class ImageToImageViewModel : ViewModel() {
                 inputStream?.close()
 
                 if (bitmap != null) {
-                    // Store in memory - will be persisted to disk on onStop
-                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, bitmap)
+                    // Store in cache (memory or disk based on mode)
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, bitmap, context)
                     _uiState.value = _uiState.value.copy(referenceImage2 = bitmap)
                 }
             } catch (e: Exception) {
@@ -671,8 +671,8 @@ class ImageToImageViewModel : ViewModel() {
                 inputStream?.close()
 
                 if (bitmap != null) {
-                    // Store in memory - will be persisted to disk on onStop
-                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap)
+                    // Store in cache (memory or disk based on mode)
+                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, context)
 
                     _uiState.value = _uiState.value.copy(
                         sourceImage = bitmap,
@@ -1537,8 +1537,8 @@ class ImageToImageViewModel : ViewModel() {
 
                     client.fetchImage(filename, subfolder, type) { bitmap ->
                         if (bitmap != null) {
-                            // Store in memory - will be persisted to disk on onStop
-                            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap)
+                            // Store in cache (memory or disk based on mode)
+                            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap, context)
 
                             _uiState.value = _uiState.value.copy(
                                 previewImage = bitmap,
@@ -1649,7 +1649,7 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     private fun saveLastPreviewImage(bitmap: Bitmap) {
-        // Store in memory - will be persisted to disk on onStop
-        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap)
+        // Store in cache (memory or disk based on mode)
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap, applicationContext)
     }
 }

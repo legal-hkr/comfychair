@@ -69,6 +69,14 @@
     <!-- App management strings -->
     <string name="app_management_title">应用管理</string>
     <string name="app_management_description">管理本地应用数据和设置</string>
+    <string name="live_preview_label">显示实时预览</string>
+    <string name="live_preview_description">在生成过程中显示中间图像</string>
+    <string name="memory_first_cache_label">内存优先缓存</string>
+    <string name="memory_first_cache_description">快速访问，内存占用较高。对于慢速网络或低内存设备请禁用。</string>
+    <string name="disable_media_cache_label">禁用媒体缓存</string>
+    <string name="disable_media_cache_description">不将预览图像和视频保存到磁盘</string>
+    <string name="reset_prompts_button">重置提示词</string>
+    <string name="reset_prompts_success">提示词已恢复为默认值</string>
     <string name="clear_cache_button">清空缓存</string>
     <string name="restore_defaults_button">恢复默认设置</string>
 

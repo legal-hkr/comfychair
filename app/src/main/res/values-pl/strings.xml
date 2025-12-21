@@ -69,6 +69,14 @@
     <!-- App management strings -->
     <string name="app_management_title">Zarządzanie aplikacją</string>
     <string name="app_management_description">Zarządzaj lokalnymi danymi i ustawieniami aplikacji</string>
+    <string name="live_preview_label">Pokaż podgląd na żywo</string>
+    <string name="live_preview_description">Wyświetlaj obrazy pośrednie podczas generowania</string>
+    <string name="memory_first_cache_label">Pamięć podręczna w pamięci RAM</string>
+    <string name="memory_first_cache_description">Szybki dostęp, większe zużycie pamięci. Wyłącz dla wolnych sieci lub urządzeń z małą ilością pamięci.</string>
+    <string name="disable_media_cache_label">Wyłącz pamięć podręczną mediów</string>
+    <string name="disable_media_cache_description">Nie zapisuj podglądów obrazów i filmów na dysku</string>
+    <string name="reset_prompts_button">Resetuj prompty</string>
+    <string name="reset_prompts_success">Prompty przywrócone do domyślnych</string>
     <string name="clear_cache_button">Wyczyść pamięć podręczną</string>
     <string name="restore_defaults_button">Przywróć ustawienia domyślne</string>
 
