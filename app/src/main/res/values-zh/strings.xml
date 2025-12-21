@@ -113,6 +113,8 @@
     <string name="button_cancel_generation">取消生成</string>
 
     <!-- Error and status messages -->
+    <string name="error_not_comfyui_server">不是 ComfyUI 服务器</string>
+    <string name="error_invalid_server_response">无效的服务器响应</string>
     <string name="error_failed_load_workflow">加载工作流失败</string>
     <string name="error_failed_start_generation">启动生成失败：%s</string>
     <string name="error_generation_failed">生成失败</string>

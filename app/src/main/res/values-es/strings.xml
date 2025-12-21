@@ -113,6 +113,8 @@
     <string name="button_cancel_generation">Cancelar generación</string>
 
     <!-- Error and status messages -->
+    <string name="error_not_comfyui_server">No es un servidor ComfyUI</string>
+    <string name="error_invalid_server_response">Respuesta del servidor inválida</string>
     <string name="error_failed_load_workflow">Error al cargar el workflow</string>
     <string name="error_failed_start_generation">Error al iniciar la generación: %s</string>
     <string name="error_generation_failed">La generación falló</string>

@@ -2,6 +2,7 @@ package sh.hnet.comfychair.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -148,7 +149,7 @@ fun LoginScreen() {
                 }
             }
 
-            val (success, _, certIssue) = result
+            val (success, errorMessage, certIssue) = result
 
             if (success) {
                 // Skip WebSocket test - HTTP test is sufficient
@@ -192,6 +193,10 @@ fun LoginScreen() {
                 context.startActivity(intent)
             } else {
                 connectionState = ConnectionState.FAILED
+                // Show error Toast
+                errorMessage?.let { msg ->
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                }
                 delay(2000)
                 connectionState = ConnectionState.IDLE
             }
@@ -222,12 +227,16 @@ fun LoginScreen() {
         val savedHostname = prefs.getString("hostname", "") ?: ""
         val savedPort = prefs.getInt("port", 8188)
 
+        // Check if user explicitly logged out - don't auto-connect in that case
+        val shouldAutoConnect = !ConnectionManager.userInitiatedLogout
+        ConnectionManager.clearLogoutFlag()
+
         if (savedHostname.isNotEmpty()) {
             hostname = savedHostname
             port = savedPort.toString()
 
-            // Auto-connect after a small delay
-            if (!hasAutoConnected) {
+            // Auto-connect after a small delay (only on fresh app launch, not after logout)
+            if (!hasAutoConnected && shouldAutoConnect) {
                 hasAutoConnected = true
                 delay(500)
                 if (connectionState == ConnectionState.IDLE) {

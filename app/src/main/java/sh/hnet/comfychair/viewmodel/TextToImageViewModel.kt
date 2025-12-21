@@ -26,8 +26,10 @@ import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
+import sh.hnet.comfychair.util.ValidationUtils
 import java.io.File
 import java.io.IOException
 
@@ -319,13 +321,10 @@ class TextToImageViewModel : ViewModel() {
     private fun fetchLoras(client: ComfyUIClient) {
         client.fetchLoRAs { loras ->
             _uiState.update { state ->
-                // Filter out any LoRAs in the chains that are no longer available
-                val filteredCheckpointChain = state.checkpointLoraChain.filter { it.name in loras }
-                val filteredUnetChain = state.unetLoraChain.filter { it.name in loras }
                 state.copy(
                     availableLoras = loras,
-                    checkpointLoraChain = filteredCheckpointChain,
-                    unetLoraChain = filteredUnetChain
+                    checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, loras),
+                    unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, loras)
                 )
             }
         }
@@ -336,11 +335,7 @@ class TextToImageViewModel : ViewModel() {
      * Returns current if valid, otherwise defaults to first available
      */
     private fun validateModelSelection(current: String, available: List<String>): String {
-        return when {
-            current.isNotEmpty() && available.contains(current) -> current
-            available.isNotEmpty() -> available[0]
-            else -> ""
-        }
+        return ValidationUtils.validateModelSelection(current, available)
     }
 
     // Update functions for UI state
@@ -476,7 +471,7 @@ class TextToImageViewModel : ViewModel() {
     // Unified parameter callbacks - route to appropriate mode-specific state
 
     fun onWidthChange(width: String) {
-        val error = validateDimension(width)
+        val error = ValidationUtils.validateDimension(width, context)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointWidth = width, widthError = error)
         } else {
@@ -486,7 +481,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun onHeightChange(height: String) {
-        val error = validateDimension(height)
+        val error = ValidationUtils.validateDimension(height, context)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointHeight = height, heightError = error)
         } else {
@@ -496,7 +491,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun onStepsChange(steps: String) {
-        val error = validateSteps(steps)
+        val error = ValidationUtils.validateSteps(steps, context)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointSteps = steps, stepsError = error)
         } else {
@@ -506,7 +501,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun onCfgChange(cfg: String) {
-        val error = validateCfg(cfg)
+        val error = ValidationUtils.validateCfg(cfg, context)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointCfg = cfg, cfgError = error)
         } else {
@@ -538,17 +533,13 @@ class TextToImageViewModel : ViewModel() {
     fun onAddLora() {
         val state = _uiState.value
         val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        if (chain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
-        if (state.availableLoras.isEmpty()) return
+        val newChain = LoraChainManager.addLora(chain, state.availableLoras)
+        if (newChain === chain) return // No change
 
-        val newLora = LoraSelection(
-            name = state.availableLoras.first(),
-            strength = LoraSelection.DEFAULT_STRENGTH
-        )
         if (state.isCheckpointMode) {
-            _uiState.value = state.copy(checkpointLoraChain = state.checkpointLoraChain + newLora)
+            _uiState.value = state.copy(checkpointLoraChain = newChain)
         } else {
-            _uiState.value = state.copy(unetLoraChain = state.unetLoraChain + newLora)
+            _uiState.value = state.copy(unetLoraChain = newChain)
         }
         saveConfiguration()
     }
@@ -556,12 +547,13 @@ class TextToImageViewModel : ViewModel() {
     fun onRemoveLora(index: Int) {
         val state = _uiState.value
         val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        if (index !in chain.indices) return
+        val newChain = LoraChainManager.removeLora(chain, index)
+        if (newChain === chain) return // No change
 
         if (state.isCheckpointMode) {
-            _uiState.value = state.copy(checkpointLoraChain = state.checkpointLoraChain.toMutableList().apply { removeAt(index) })
+            _uiState.value = state.copy(checkpointLoraChain = newChain)
         } else {
-            _uiState.value = state.copy(unetLoraChain = state.unetLoraChain.toMutableList().apply { removeAt(index) })
+            _uiState.value = state.copy(unetLoraChain = newChain)
         }
         saveConfiguration()
     }
@@ -569,14 +561,13 @@ class TextToImageViewModel : ViewModel() {
     fun onLoraNameChange(index: Int, name: String) {
         val state = _uiState.value
         val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        if (index !in chain.indices) return
+        val newChain = LoraChainManager.updateLoraName(chain, index, name)
+        if (newChain === chain) return // No change
 
-        val updatedChain = chain.toMutableList()
-        updatedChain[index] = updatedChain[index].copy(name = name)
         if (state.isCheckpointMode) {
-            _uiState.value = state.copy(checkpointLoraChain = updatedChain)
+            _uiState.value = state.copy(checkpointLoraChain = newChain)
         } else {
-            _uiState.value = state.copy(unetLoraChain = updatedChain)
+            _uiState.value = state.copy(unetLoraChain = newChain)
         }
         saveConfiguration()
     }
@@ -584,15 +575,13 @@ class TextToImageViewModel : ViewModel() {
     fun onLoraStrengthChange(index: Int, strength: Float) {
         val state = _uiState.value
         val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        if (index !in chain.indices) return
+        val newChain = LoraChainManager.updateLoraStrength(chain, index, strength)
+        if (newChain === chain) return // No change
 
-        val clampedStrength = strength.coerceIn(LoraSelection.MIN_STRENGTH, LoraSelection.MAX_STRENGTH)
-        val updatedChain = chain.toMutableList()
-        updatedChain[index] = updatedChain[index].copy(strength = clampedStrength)
         if (state.isCheckpointMode) {
-            _uiState.value = state.copy(checkpointLoraChain = updatedChain)
+            _uiState.value = state.copy(checkpointLoraChain = newChain)
         } else {
-            _uiState.value = state.copy(unetLoraChain = updatedChain)
+            _uiState.value = state.copy(unetLoraChain = newChain)
         }
         saveConfiguration()
     }
@@ -686,30 +675,6 @@ class TextToImageViewModel : ViewModel() {
 
     // Validation
 
-    private fun validateDimension(value: String): String? {
-        if (value.isEmpty()) return null
-        val intValue = value.toIntOrNull()
-        return if (intValue == null || intValue !in 1..4096) {
-            context?.getString(R.string.error_dimension_range) ?: "Must be 1-4096"
-        } else null
-    }
-
-    private fun validateSteps(value: String): String? {
-        if (value.isEmpty()) return null
-        val intValue = value.toIntOrNull()
-        return if (intValue == null || intValue !in 1..255) {
-            context?.getString(R.string.error_steps_range) ?: "Must be 1-255"
-        } else null
-    }
-
-    private fun validateCfg(value: String): String? {
-        if (value.isEmpty()) return null
-        val floatValue = value.toFloatOrNull()
-        return if (floatValue == null || floatValue !in 0.0f..100.0f) {
-            context?.getString(R.string.error_cfg_range) ?: "Must be 0.0-100.0"
-        } else null
-    }
-
     /**
      * Validate current configuration before generation
      */
@@ -720,10 +685,10 @@ class TextToImageViewModel : ViewModel() {
 
         return if (state.isCheckpointMode) {
             state.selectedCheckpoint.isNotEmpty() &&
-            validateDimension(state.checkpointWidth) == null &&
-            validateDimension(state.checkpointHeight) == null &&
-            validateSteps(state.checkpointSteps) == null &&
-            validateCfg(state.checkpointCfg) == null
+            ValidationUtils.validateDimension(state.checkpointWidth) == null &&
+            ValidationUtils.validateDimension(state.checkpointHeight) == null &&
+            ValidationUtils.validateSteps(state.checkpointSteps) == null &&
+            ValidationUtils.validateCfg(state.checkpointCfg) == null
         } else {
             // CLIP validation: dual CLIP or single CLIP based on workflow
             val clipValid = if (state.currentWorkflowHasDualClip) {
@@ -732,14 +697,14 @@ class TextToImageViewModel : ViewModel() {
                 state.selectedClip.isNotEmpty()
             }
             // CFG validation: skip if workflow doesn't have CFG
-            val cfgValid = !state.currentWorkflowHasCfg || validateCfg(state.unetCfg) == null
+            val cfgValid = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.unetCfg) == null
 
             state.selectedUnet.isNotEmpty() &&
             state.selectedVae.isNotEmpty() &&
             clipValid &&
-            validateDimension(state.unetWidth) == null &&
-            validateDimension(state.unetHeight) == null &&
-            validateSteps(state.unetSteps) == null &&
+            ValidationUtils.validateDimension(state.unetWidth) == null &&
+            ValidationUtils.validateDimension(state.unetHeight) == null &&
+            ValidationUtils.validateSteps(state.unetSteps) == null &&
             cfgValid
         }
     }

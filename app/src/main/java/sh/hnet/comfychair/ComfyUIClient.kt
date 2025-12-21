@@ -13,7 +13,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.Logger
 import sh.hnet.comfychair.util.Obfuscator
 import java.io.IOException
 import java.util.UUID
@@ -151,13 +150,38 @@ class ComfyUIClient(
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
                     if (response.isSuccessful) {
-                        // Connection successful!
-                        // Save which protocol worked for future use
-                        workingProtocol = protocol
-                        // Check what type of certificate issue was detected
-                        val certIssue = SelfSignedCertHelper.certificateIssue
-                        DebugLogger.i(TAG, "Connection successful (protocol: $protocol)")
-                        callback(true, null, certIssue)
+                        // Validate this is actually a ComfyUI server by checking response content
+                        try {
+                            val body = response.body?.string() ?: "{}"
+                            val json = JSONObject(body)
+                            // ComfyUI's /system_stats returns a "system" object with "os" field
+                            val system = json.optJSONObject("system")
+                            if (system != null && system.has("os")) {
+                                // Valid ComfyUI server
+                                workingProtocol = protocol
+                                val certIssue = SelfSignedCertHelper.certificateIssue
+                                DebugLogger.i(TAG, "Connection successful (protocol: $protocol)")
+                                callback(true, null, certIssue)
+                            } else {
+                                // Response doesn't match ComfyUI format
+                                DebugLogger.w(TAG, "Invalid response: not a ComfyUI server")
+                                if (protocol == "https") {
+                                    tryConnection("http", callback)
+                                } else {
+                                    callback(false, context?.getString(R.string.error_not_comfyui_server)
+                                        ?: "Not a ComfyUI server", CertificateIssue.NONE)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Response is not valid JSON - not a ComfyUI server
+                            DebugLogger.w(TAG, "Invalid response: ${e.message}")
+                            if (protocol == "https") {
+                                tryConnection("http", callback)
+                            } else {
+                                callback(false, context?.getString(R.string.error_invalid_server_response)
+                                    ?: "Invalid server response", CertificateIssue.NONE)
+                            }
+                        }
                     } else {
                         // Got response but status code indicates error (e.g., 404, 500)
                         if (protocol == "https") {

@@ -203,6 +203,15 @@ fun SettingsNavHost(
             startDestination = SettingsRoute.Workflows.route,
             modifier = Modifier.padding(paddingValues)
         ) {
+            // Order matches BottomAppBar: Workflows → Application → Server → About
+            composable(SettingsRoute.Workflows.route) {
+                WorkflowsSettingsScreen(
+                    viewModel = workflowManagementViewModel,
+                    onNavigateToGeneration = onNavigateToGeneration,
+                    onLogout = onLogout
+                )
+            }
+
             composable(SettingsRoute.Application.route) {
                 ApplicationSettingsScreen(
                     viewModel = settingsViewModel,
@@ -216,14 +225,6 @@ fun SettingsNavHost(
                 ServerSettingsScreen(
                     viewModel = settingsViewModel,
                     onNavigateBack = onNavigateToGeneration,
-                    onNavigateToGeneration = onNavigateToGeneration,
-                    onLogout = onLogout
-                )
-            }
-
-            composable(SettingsRoute.Workflows.route) {
-                WorkflowsSettingsScreen(
-                    viewModel = workflowManagementViewModel,
                     onNavigateToGeneration = onNavigateToGeneration,
                     onLogout = onLogout
                 )

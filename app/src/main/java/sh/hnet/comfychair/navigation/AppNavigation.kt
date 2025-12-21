@@ -15,8 +15,8 @@ sealed class MainRoute(val route: String) {
  * Navigation routes for the settings container
  */
 sealed class SettingsRoute(val route: String) {
+    data object Workflows : SettingsRoute("workflows_settings")
     data object Application : SettingsRoute("application_settings")
     data object Server : SettingsRoute("server_settings")
-    data object Workflows : SettingsRoute("workflows_settings")
     data object About : SettingsRoute("about_settings")
 }

@@ -24,8 +24,10 @@ import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
+import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.VideoUtils
 
 /**
@@ -321,8 +323,8 @@ class TextToVideoViewModel : ViewModel() {
                     ?: loras.firstOrNull() ?: ""
                 val lownoiseLora = state.deferredLownoiseLora?.takeIf { it in loras }
                     ?: loras.firstOrNull() ?: ""
-                val filteredHighnoiseChain = state.highnoiseLoraChain.filter { it.name in loras }
-                val filteredLownoiseChain = state.lownoiseLoraChain.filter { it.name in loras }
+                val filteredHighnoiseChain = LoraChainManager.filterUnavailable(state.highnoiseLoraChain, loras)
+                val filteredLownoiseChain = LoraChainManager.filterUnavailable(state.lownoiseLoraChain, loras)
                 state.copy(
                     availableLoras = loras,
                     selectedHighnoiseLora = highnoiseLora,
@@ -444,25 +446,25 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     fun onWidthChange(width: String) {
-        val error = validateDimension(width)
+        val error = ValidationUtils.validateDimension(width, applicationContext)
         _uiState.value = _uiState.value.copy(width = width, widthError = error)
         if (error == null) savePreferences()
     }
 
     fun onHeightChange(height: String) {
-        val error = validateDimension(height)
+        val error = ValidationUtils.validateDimension(height, applicationContext)
         _uiState.value = _uiState.value.copy(height = height, heightError = error)
         if (error == null) savePreferences()
     }
 
     fun onLengthChange(length: String) {
-        val error = validateLength(length)
+        val error = validateVideoLength(length)
         _uiState.value = _uiState.value.copy(length = length, lengthError = error)
         if (error == null) savePreferences()
     }
 
     fun onFpsChange(fps: String) {
-        val error = validateFps(fps)
+        val error = ValidationUtils.validateFrameRate(fps, applicationContext)
         _uiState.value = _uiState.value.copy(fps = fps, fpsError = error)
         if (error == null) savePreferences()
     }
@@ -479,86 +481,76 @@ class TextToVideoViewModel : ViewModel() {
 
     // High noise LoRA chain operations
     fun onAddHighnoiseLora() {
-        val currentChain = _uiState.value.highnoiseLoraChain
-        if (currentChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
-        val availableLoras = _uiState.value.availableLoras
-        if (availableLoras.isEmpty()) return
+        val state = _uiState.value
+        val newChain = LoraChainManager.addLora(state.highnoiseLoraChain, state.availableLoras)
+        if (newChain === state.highnoiseLoraChain) return // No change
 
-        val newLora = LoraSelection(
-            name = availableLoras.first(),
-            strength = LoraSelection.DEFAULT_STRENGTH
-        )
-        _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain + newLora)
+        _uiState.value = state.copy(highnoiseLoraChain = newChain)
         savePreferences()
     }
 
     fun onRemoveHighnoiseLora(index: Int) {
-        val currentChain = _uiState.value.highnoiseLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain.removeAt(index)
-            _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain)
-            savePreferences()
-        }
+        val state = _uiState.value
+        val newChain = LoraChainManager.removeLora(state.highnoiseLoraChain, index)
+        if (newChain === state.highnoiseLoraChain) return // No change
+
+        _uiState.value = state.copy(highnoiseLoraChain = newChain)
+        savePreferences()
     }
 
     fun onHighnoiseLoraChainNameChange(index: Int, name: String) {
-        val currentChain = _uiState.value.highnoiseLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(name = name)
-            _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain)
-            savePreferences()
-        }
+        val state = _uiState.value
+        val newChain = LoraChainManager.updateLoraName(state.highnoiseLoraChain, index, name)
+        if (newChain === state.highnoiseLoraChain) return // No change
+
+        _uiState.value = state.copy(highnoiseLoraChain = newChain)
+        savePreferences()
     }
 
     fun onHighnoiseLoraChainStrengthChange(index: Int, strength: Float) {
-        val currentChain = _uiState.value.highnoiseLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(strength = strength)
-            _uiState.value = _uiState.value.copy(highnoiseLoraChain = currentChain)
-            savePreferences()
-        }
+        val state = _uiState.value
+        val newChain = LoraChainManager.updateLoraStrength(state.highnoiseLoraChain, index, strength)
+        if (newChain === state.highnoiseLoraChain) return // No change
+
+        _uiState.value = state.copy(highnoiseLoraChain = newChain)
+        savePreferences()
     }
 
     // Low noise LoRA chain operations
     fun onAddLownoiseLora() {
-        val currentChain = _uiState.value.lownoiseLoraChain
-        if (currentChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
-        val availableLoras = _uiState.value.availableLoras
-        if (availableLoras.isEmpty()) return
+        val state = _uiState.value
+        val newChain = LoraChainManager.addLora(state.lownoiseLoraChain, state.availableLoras)
+        if (newChain === state.lownoiseLoraChain) return // No change
 
-        val newLora = LoraSelection(
-            name = availableLoras.first(),
-            strength = LoraSelection.DEFAULT_STRENGTH
-        )
-        _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain + newLora)
+        _uiState.value = state.copy(lownoiseLoraChain = newChain)
         savePreferences()
     }
 
     fun onRemoveLownoiseLora(index: Int) {
-        val currentChain = _uiState.value.lownoiseLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain.removeAt(index)
-            _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain)
-            savePreferences()
-        }
+        val state = _uiState.value
+        val newChain = LoraChainManager.removeLora(state.lownoiseLoraChain, index)
+        if (newChain === state.lownoiseLoraChain) return // No change
+
+        _uiState.value = state.copy(lownoiseLoraChain = newChain)
+        savePreferences()
     }
 
     fun onLownoiseLoraChainNameChange(index: Int, name: String) {
-        val currentChain = _uiState.value.lownoiseLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(name = name)
-            _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain)
-            savePreferences()
-        }
+        val state = _uiState.value
+        val newChain = LoraChainManager.updateLoraName(state.lownoiseLoraChain, index, name)
+        if (newChain === state.lownoiseLoraChain) return // No change
+
+        _uiState.value = state.copy(lownoiseLoraChain = newChain)
+        savePreferences()
     }
 
     fun onLownoiseLoraChainStrengthChange(index: Int, strength: Float) {
-        val currentChain = _uiState.value.lownoiseLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(strength = strength)
-            _uiState.value = _uiState.value.copy(lownoiseLoraChain = currentChain)
-            savePreferences()
-        }
+        val state = _uiState.value
+        val newChain = LoraChainManager.updateLoraStrength(state.lownoiseLoraChain, index, strength)
+        if (newChain === state.lownoiseLoraChain) return // No change
+
+        _uiState.value = state.copy(lownoiseLoraChain = newChain)
+        savePreferences()
     }
 
     fun onPreviewBitmapChange(bitmap: Bitmap) {
@@ -570,20 +562,11 @@ class TextToVideoViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
     }
 
-    private fun validateDimension(value: String): String? {
-        val num = value.toIntOrNull()
-        return when {
-            value.isEmpty() -> applicationContext?.getString(R.string.error_required)
-                ?: "Required"
-            num == null -> applicationContext?.getString(R.string.error_invalid_number)
-                ?: "Invalid number"
-            num !in 1..4096 -> applicationContext?.getString(R.string.error_dimension_range)
-                ?: "Must be 1-4096"
-            else -> null
-        }
-    }
-
-    private fun validateLength(value: String): String? {
+    /**
+     * Video length validation with special requirement for "steps of 4" (1, 5, 9, 13...).
+     * This is specific to video generation workflows.
+     */
+    private fun validateVideoLength(value: String): String? {
         val num = value.toIntOrNull()
         return when {
             value.isEmpty() -> applicationContext?.getString(R.string.error_required)
@@ -594,19 +577,6 @@ class TextToVideoViewModel : ViewModel() {
                 ?: "Must be 1-129"
             (num - 1) % 4 != 0 -> applicationContext?.getString(R.string.error_length_step)
                 ?: "Must be 1, 5, 9, 13... (steps of 4)"
-            else -> null
-        }
-    }
-
-    private fun validateFps(value: String): String? {
-        val num = value.toIntOrNull()
-        return when {
-            value.isEmpty() -> applicationContext?.getString(R.string.error_required)
-                ?: "Required"
-            num == null -> applicationContext?.getString(R.string.error_invalid_number)
-                ?: "Invalid number"
-            num !in 1..120 -> applicationContext?.getString(R.string.error_fps_range)
-                ?: "Must be 1-120"
             else -> null
         }
     }

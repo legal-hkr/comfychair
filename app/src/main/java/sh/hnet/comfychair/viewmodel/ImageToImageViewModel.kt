@@ -29,8 +29,10 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
+import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
@@ -586,14 +588,11 @@ class ImageToImageViewModel : ViewModel() {
             // Fetch LoRAs
             client.fetchLoRAs { loras ->
                 _uiState.update { state ->
-                    val filteredCheckpointChain = state.checkpointLoraChain.filter { it.name in loras }
-                    val filteredUnetChain = state.unetLoraChain.filter { it.name in loras }
-                    val filteredEditingChain = state.editingLoraChain.filter { it.name in loras }
                     state.copy(
                         availableLoras = loras,
-                        checkpointLoraChain = filteredCheckpointChain,
-                        unetLoraChain = filteredUnetChain,
-                        editingLoraChain = filteredEditingChain,
+                        checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, loras),
+                        unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, loras),
+                        editingLoraChain = LoraChainManager.filterUnavailable(state.editingLoraChain, loras),
                         selectedEditingLora = if (state.selectedEditingLora.isEmpty() && loras.isNotEmpty())
                             loras.first() else state.selectedEditingLora
                     )
@@ -928,7 +927,7 @@ class ImageToImageViewModel : ViewModel() {
     // ==================== Unified Parameter Callbacks ====================
 
     fun onMegapixelsChange(megapixels: String) {
-        val error = validateMegapixels(megapixels)
+        val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
         _uiState.value = _uiState.value.copy(
             megapixels = megapixels,
             megapixelsError = error
@@ -967,7 +966,7 @@ class ImageToImageViewModel : ViewModel() {
      */
     fun onCfgChange(cfg: String) {
         val state = _uiState.value
-        val error = validateCfg(cfg)
+        val error = ValidationUtils.validateCfg(cfg, applicationContext)
         _uiState.value = if (state.isCheckpointMode) {
             state.copy(checkpointCfg = cfg, cfgError = error)
         } else {
@@ -1012,75 +1011,58 @@ class ImageToImageViewModel : ViewModel() {
 
     fun onAddLora() {
         val state = _uiState.value
-        val currentChain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        if (currentChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
-        val availableLoras = state.availableLoras
-        if (availableLoras.isEmpty()) return
+        val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
+        val newChain = LoraChainManager.addLora(chain, state.availableLoras)
+        if (newChain === chain) return // No change
 
-        val newLora = LoraSelection(
-            name = availableLoras.first(),
-            strength = LoraSelection.DEFAULT_STRENGTH
-        )
         _uiState.value = if (state.isCheckpointMode) {
-            state.copy(checkpointLoraChain = currentChain + newLora)
+            state.copy(checkpointLoraChain = newChain)
         } else {
-            state.copy(unetLoraChain = currentChain + newLora)
+            state.copy(unetLoraChain = newChain)
         }
         savePreferences()
     }
 
     fun onRemoveLora(index: Int) {
         val state = _uiState.value
-        val currentChain = if (state.isCheckpointMode) {
-            state.checkpointLoraChain.toMutableList()
+        val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
+        val newChain = LoraChainManager.removeLora(chain, index)
+        if (newChain === chain) return // No change
+
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointLoraChain = newChain)
         } else {
-            state.unetLoraChain.toMutableList()
+            state.copy(unetLoraChain = newChain)
         }
-        if (index in currentChain.indices) {
-            currentChain.removeAt(index)
-            _uiState.value = if (state.isCheckpointMode) {
-                state.copy(checkpointLoraChain = currentChain)
-            } else {
-                state.copy(unetLoraChain = currentChain)
-            }
-            savePreferences()
-        }
+        savePreferences()
     }
 
     fun onLoraNameChange(index: Int, name: String) {
         val state = _uiState.value
-        val currentChain = if (state.isCheckpointMode) {
-            state.checkpointLoraChain.toMutableList()
+        val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
+        val newChain = LoraChainManager.updateLoraName(chain, index, name)
+        if (newChain === chain) return // No change
+
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointLoraChain = newChain)
         } else {
-            state.unetLoraChain.toMutableList()
+            state.copy(unetLoraChain = newChain)
         }
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(name = name)
-            _uiState.value = if (state.isCheckpointMode) {
-                state.copy(checkpointLoraChain = currentChain)
-            } else {
-                state.copy(unetLoraChain = currentChain)
-            }
-            savePreferences()
-        }
+        savePreferences()
     }
 
     fun onLoraStrengthChange(index: Int, strength: Float) {
         val state = _uiState.value
-        val currentChain = if (state.isCheckpointMode) {
-            state.checkpointLoraChain.toMutableList()
+        val chain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
+        val newChain = LoraChainManager.updateLoraStrength(chain, index, strength)
+        if (newChain === chain) return // No change
+
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointLoraChain = newChain)
         } else {
-            state.unetLoraChain.toMutableList()
+            state.copy(unetLoraChain = newChain)
         }
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(strength = strength)
-            _uiState.value = if (state.isCheckpointMode) {
-                state.copy(checkpointLoraChain = currentChain)
-            } else {
-                state.copy(unetLoraChain = currentChain)
-            }
-            savePreferences()
-        }
+        savePreferences()
     }
 
     // ==================== Editing Mode Callbacks ====================
@@ -1144,7 +1126,7 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     fun onEditingMegapixelsChange(megapixels: String) {
-        val error = validateMegapixels(megapixels)
+        val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
         _uiState.value = _uiState.value.copy(
             editingMegapixels = megapixels,
             megapixelsError = error
@@ -1158,7 +1140,7 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     fun onEditingCfgChange(cfg: String) {
-        val error = validateCfg(cfg)
+        val error = ValidationUtils.validateCfg(cfg, applicationContext)
         _uiState.value = _uiState.value.copy(editingCfg = cfg, cfgError = error)
         savePreferences()
     }
@@ -1182,65 +1164,41 @@ class ImageToImageViewModel : ViewModel() {
 
     fun onAddEditingLora() {
         val state = _uiState.value
-        if (state.editingLoraChain.size >= LoraSelection.MAX_CHAIN_LENGTH) return
-        val availableLoras = state.availableLoras
-        if (availableLoras.isEmpty()) return
+        val newChain = LoraChainManager.addLora(state.editingLoraChain, state.availableLoras)
+        if (newChain === state.editingLoraChain) return // No change
 
-        val newLora = LoraSelection(
-            name = availableLoras.first(),
-            strength = LoraSelection.DEFAULT_STRENGTH
-        )
-        _uiState.value = state.copy(editingLoraChain = state.editingLoraChain + newLora)
+        _uiState.value = state.copy(editingLoraChain = newChain)
         savePreferences()
     }
 
     fun onRemoveEditingLora(index: Int) {
         val state = _uiState.value
-        val currentChain = state.editingLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain.removeAt(index)
-            _uiState.value = state.copy(editingLoraChain = currentChain)
-            savePreferences()
-        }
+        val newChain = LoraChainManager.removeLora(state.editingLoraChain, index)
+        if (newChain === state.editingLoraChain) return // No change
+
+        _uiState.value = state.copy(editingLoraChain = newChain)
+        savePreferences()
     }
 
     fun onEditingLoraNameChange(index: Int, name: String) {
         val state = _uiState.value
-        val currentChain = state.editingLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(name = name)
-            _uiState.value = state.copy(editingLoraChain = currentChain)
-            savePreferences()
-        }
+        val newChain = LoraChainManager.updateLoraName(state.editingLoraChain, index, name)
+        if (newChain === state.editingLoraChain) return // No change
+
+        _uiState.value = state.copy(editingLoraChain = newChain)
+        savePreferences()
     }
 
     fun onEditingLoraStrengthChange(index: Int, strength: Float) {
         val state = _uiState.value
-        val currentChain = state.editingLoraChain.toMutableList()
-        if (index in currentChain.indices) {
-            currentChain[index] = currentChain[index].copy(strength = strength)
-            _uiState.value = state.copy(editingLoraChain = currentChain)
-            savePreferences()
-        }
+        val newChain = LoraChainManager.updateLoraStrength(state.editingLoraChain, index, strength)
+        if (newChain === state.editingLoraChain) return // No change
+
+        _uiState.value = state.copy(editingLoraChain = newChain)
+        savePreferences()
     }
 
     // ==================== Validation ====================
-
-    private fun validateMegapixels(value: String): String? {
-        val mp = value.toFloatOrNull()
-            ?: return applicationContext?.getString(R.string.error_invalid_number) ?: "Invalid number"
-        return if (mp < 0.1f || mp > 8.3f) {
-            applicationContext?.getString(R.string.error_megapixels_range) ?: "Must be 0.1-8.3"
-        } else null
-    }
-
-    private fun validateCfg(value: String): String? {
-        if (value.isEmpty()) return null
-        val floatValue = value.toFloatOrNull()
-        return if (floatValue == null || floatValue !in 0.0f..100.0f) {
-            applicationContext?.getString(R.string.error_cfg_range) ?: "Must be 0.0-100.0"
-        } else null
-    }
 
     fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
@@ -1255,7 +1213,7 @@ class ImageToImageViewModel : ViewModel() {
                 val clipOk = state.selectedEditingClip.isNotEmpty()
                 val stepsOk = state.editingSteps.toIntOrNull() != null
                 val megapixelsOk = state.editingMegapixels.toFloatOrNull() != null
-                val cfgOk = validateCfg(state.editingCfg) == null
+                val cfgOk = ValidationUtils.validateCfg(state.editingCfg) == null
 
                 workflowOk && unetOk && loraOk && vaeOk && clipOk && stepsOk && megapixelsOk && cfgOk
             }
@@ -1267,14 +1225,14 @@ class ImageToImageViewModel : ViewModel() {
                     state.megapixels.toFloatOrNull() != null &&
                     state.megapixelsError == null &&
                     state.checkpointSteps.toIntOrNull() != null &&
-                    validateCfg(state.checkpointCfg) == null
+                    ValidationUtils.validateCfg(state.checkpointCfg) == null
                 } else {
                     state.selectedWorkflow.isNotEmpty() &&
                     state.selectedUnet.isNotEmpty() &&
                     state.selectedVae.isNotEmpty() &&
                     state.selectedClip.isNotEmpty() &&
                     state.unetSteps.toIntOrNull() != null &&
-                    validateCfg(state.unetCfg) == null
+                    ValidationUtils.validateCfg(state.unetCfg) == null
                 }
             }
         }
