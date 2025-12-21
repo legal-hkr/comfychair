@@ -9,6 +9,8 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import java.util.UUID
 
 /**
@@ -39,6 +41,7 @@ sealed class ConnectionState {
  * 3. Call [disconnect] on logout or connection change
  */
 object ConnectionManager {
+    private const val TAG = "Connection"
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -103,17 +106,20 @@ object ConnectionManager {
      */
     @Synchronized
     fun connect(context: Context, hostname: String, port: Int, protocol: String) {
+        DebugLogger.i(TAG, "Connecting to ${Obfuscator.hostname(hostname)} (protocol: $protocol)")
         val current = connectionState.value
 
         // Check if already connected to the same server
         if (current is ConnectionState.Connected &&
             current.hostname == hostname &&
             current.port == port) {
+            DebugLogger.d(TAG, "Already connected to same server, skipping")
             return
         }
 
         // Disconnect from previous server if any
         if (current is ConnectionState.Connected) {
+            DebugLogger.d(TAG, "Disconnecting from previous server")
             invalidateAll()
             _client?.shutdown()
         }
@@ -134,6 +140,7 @@ object ConnectionManager {
             protocol = protocol,
             clientId = _clientId!!
         )
+        DebugLogger.i(TAG, "Connected successfully")
     }
 
     /**
@@ -146,11 +153,13 @@ object ConnectionManager {
             return
         }
 
+        DebugLogger.i(TAG, "Disconnecting")
         invalidateAll()
         _client?.shutdown()
         _client = null
         _clientId = null
         _connectionState.value = ConnectionState.Disconnected
+        DebugLogger.i(TAG, "Disconnected")
     }
 
     /**
@@ -158,6 +167,7 @@ object ConnectionManager {
      * Same as disconnect - clears everything and returns to login.
      */
     fun invalidateForRestore() {
+        DebugLogger.i(TAG, "Invalidating for restore")
         disconnect()
     }
 
@@ -178,8 +188,15 @@ object ConnectionManager {
      * @return true if connection attempt started
      */
     fun openWebSocket(listener: WebSocketListener): Boolean {
-        val client = _client ?: return false
-        val id = _clientId ?: return false
+        val client = _client ?: run {
+            DebugLogger.w(TAG, "Cannot open WebSocket: client is null")
+            return false
+        }
+        val id = _clientId ?: run {
+            DebugLogger.w(TAG, "Cannot open WebSocket: clientId is null")
+            return false
+        }
+        DebugLogger.i(TAG, "Opening WebSocket connection")
         return client.openWebSocket(id, listener)
     }
 
@@ -187,6 +204,7 @@ object ConnectionManager {
      * Close the active WebSocket connection.
      */
     fun closeWebSocket() {
+        DebugLogger.i(TAG, "Closing WebSocket connection")
         _client?.closeWebSocket()
     }
 

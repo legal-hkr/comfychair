@@ -14,6 +14,7 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
@@ -69,6 +70,9 @@ class MainContainerActivity : ComponentActivity() {
             finish()
             return
         }
+
+        // Enable debug logging based on saved preference (must be early to capture init logs)
+        DebugLogger.setEnabled(AppSettings.isDebugLoggingEnabled(this))
 
         // Initialize the ViewModel (uses ConnectionManager internally)
         generationViewModel.initialize(this)

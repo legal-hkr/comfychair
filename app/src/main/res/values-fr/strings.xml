@@ -334,4 +334,26 @@
     <string name="backup_restore_confirm_title">Restaurer les paramètres ?</string>
     <string name="backup_restore_confirm_message">Ceci remplacera vos paramètres actuels. Cette action ne peut pas être annulée.</string>
     <string name="backup_restore_confirm_button">Restaurer</string>
+
+    <!-- About screen strings -->
+    <string name="nav_about_settings">À propos</string>
+    <string name="about_settings_title">À propos</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license_title">Licence</string>
+    <string name="about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="about_source_title">Code source</string>
+
+    <!-- Debug Logging strings -->
+    <string name="debug_logging_title">Journalisation de débogage</string>
+    <string name="debug_logging_description">Capturer les journaux opérationnels pour le dépannage</string>
+    <string name="debug_logging_enable_label">Activer la journalisation</string>
+    <string name="debug_logging_enable_description">Les journaux sont conservés en mémoire uniquement</string>
+    <string name="debug_logging_view_button">Afficher les journaux</string>
+    <string name="debug_log_title">Journal de débogage</string>
+    <string name="debug_log_empty">Aucune entrée de journal</string>
+    <string name="debug_log_refresh">Actualiser</string>
+    <string name="debug_log_save">Save</string>
+    <string name="debug_log_follow">Suivre</string>
+    <string name="debug_log_saved">Journal enregistré avec succès</string>
+    <string name="debug_log_save_failed">Échec de l\'enregistrement du journal</string>
 </resources>

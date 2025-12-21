@@ -353,4 +353,26 @@
     <string name="lora_strength_label">Strength:</string>
     <string name="lora_empty_state">No LoRAs added</string>
     <string name="remove_lora">Remove LoRA</string>
+
+    <!-- About screen strings -->
+    <string name="nav_about_settings">About</string>
+    <string name="about_settings_title">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license_title">License</string>
+    <string name="about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="about_source_title">Source Code</string>
+
+    <!-- Debug Logging strings -->
+    <string name="debug_logging_title">Debug Logging</string>
+    <string name="debug_logging_description">Capture operational logs for troubleshooting</string>
+    <string name="debug_logging_enable_label">Enable logging</string>
+    <string name="debug_logging_enable_description">Logs are kept in memory only</string>
+    <string name="debug_logging_view_button">View Logs</string>
+    <string name="debug_log_title">Debug Log</string>
+    <string name="debug_log_empty">No log entries</string>
+    <string name="debug_log_refresh">Refresh</string>
+    <string name="debug_log_save">Save</string>
+    <string name="debug_log_follow">Follow</string>
+    <string name="debug_log_saved">Log saved successfully</string>
+    <string name="debug_log_save_failed">Failed to save log</string>
 </resources>

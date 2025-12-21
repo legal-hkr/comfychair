@@ -334,4 +334,26 @@
     <string name="lora_strength_label">Stärke:</string>
     <string name="lora_empty_state">Keine LoRAs hinzugefügt</string>
     <string name="remove_lora">LoRA entfernen</string>
+
+    <!-- About screen strings -->
+    <string name="nav_about_settings">Über</string>
+    <string name="about_settings_title">Über</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_license_title">Lizenz</string>
+    <string name="about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="about_source_title">Quellcode</string>
+
+    <!-- Debug Logging strings -->
+    <string name="debug_logging_title">Debug-Protokollierung</string>
+    <string name="debug_logging_description">Betriebsprotokolle zur Fehlerbehebung erfassen</string>
+    <string name="debug_logging_enable_label">Protokollierung aktivieren</string>
+    <string name="debug_logging_enable_description">Protokolle werden nur im Speicher gehalten</string>
+    <string name="debug_logging_view_button">Protokolle anzeigen</string>
+    <string name="debug_log_title">Debug-Protokoll</string>
+    <string name="debug_log_empty">Keine Protokolleinträge</string>
+    <string name="debug_log_refresh">Aktualisieren</string>
+    <string name="debug_log_save">Save</string>
+    <string name="debug_log_follow">Folgen</string>
+    <string name="debug_log_saved">Protokoll erfolgreich gespeichert</string>
+    <string name="debug_log_save_failed">Protokoll konnte nicht gespeichert werden</string>
 </resources>

@@ -25,6 +25,8 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import java.io.File
 import java.io.IOException
@@ -141,6 +143,7 @@ class TextToImageViewModel : ViewModel() {
     private var generationViewModelRef: GenerationViewModel? = null
 
     companion object {
+        private const val TAG = "TextToImage"
         const val OWNER_ID = "TEXT_TO_IMAGE"
         private const val PREFS_NAME = "TextToImageFragmentPrefs"
 
@@ -155,6 +158,7 @@ class TextToImageViewModel : ViewModel() {
     fun initialize(context: Context, client: ComfyUIClient) {
         if (this.workflowManager != null) return // Already initialized
 
+        DebugLogger.i(TAG, "Initializing")
 
         this.context = context.applicationContext
         this.comfyUIClient = client
@@ -746,6 +750,14 @@ class TextToImageViewModel : ViewModel() {
     fun prepareWorkflowJson(): String? {
         val manager = workflowManager ?: return null
         val state = _uiState.value
+
+        DebugLogger.i(TAG, "Preparing workflow: ${state.selectedWorkflow}")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(state.positivePrompt)}")
+        if (state.isCheckpointMode) {
+            DebugLogger.d(TAG, "Dimensions: ${state.checkpointWidth}x${state.checkpointHeight}, Steps: ${state.checkpointSteps}")
+        } else {
+            DebugLogger.d(TAG, "Dimensions: ${state.unetWidth}x${state.unetHeight}, Steps: ${state.unetSteps}")
+        }
 
         val baseWorkflow = if (state.isCheckpointMode) {
             manager.prepareWorkflow(

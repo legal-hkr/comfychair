@@ -20,7 +20,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -83,27 +82,25 @@ fun ServerSettingsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.server_settings_title)) },
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                actions = {
-                    SettingsMenuDropdown(
-                        onGeneration = onNavigateToGeneration,
-                        onLogout = onLogout
-                    )
-                }
-            )
-        }
-    ) { paddingValues ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text(stringResource(R.string.server_settings_title)) },
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            actions = {
+                SettingsMenuDropdown(
+                    onGeneration = onNavigateToGeneration,
+                    onLogout = onLogout
+                )
+            }
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
             // Server Information Card
             Card(
                 modifier = Modifier.fillMaxWidth()
@@ -288,6 +285,9 @@ fun ServerSettingsScreen(
                     }
                 }
             }
+
+            // Bottom padding
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

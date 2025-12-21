@@ -4,9 +4,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -23,7 +26,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +44,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.LogViewerDialog
 import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import java.text.SimpleDateFormat
@@ -62,10 +66,14 @@ fun ApplicationSettingsScreen(
     val isLivePreviewEnabled by viewModel.isLivePreviewEnabled.collectAsState()
     val isMemoryFirstCache by viewModel.isMemoryFirstCache.collectAsState()
     val isMediaCacheDisabled by viewModel.isMediaCacheDisabled.collectAsState()
+    val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
 
     // Backup/restore state
     var showRestoreDialog by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Debug logging state
+    var showLogViewer by remember { mutableStateOf(false) }
 
     // File picker for creating backup
     val backupSaveLauncher = rememberLauncherForActivityResult(
@@ -79,6 +87,22 @@ fun ApplicationSettingsScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { viewModel.startRestore(it) }
+    }
+
+    // File picker for saving debug logs
+    val logSaveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        uri?.let { saveUri ->
+            try {
+                context.contentResolver.openOutputStream(saveUri)?.use { outputStream ->
+                    outputStream.write(DebugLogger.exportToString().toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, R.string.debug_log_saved, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.debug_log_save_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // Handle events
@@ -135,26 +159,26 @@ fun ApplicationSettingsScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.application_settings_title)) },
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                actions = {
-                    SettingsMenuDropdown(
-                        onGeneration = onNavigateToGeneration,
-                        onLogout = onLogout
-                    )
-                }
-            )
-        }
-    ) { paddingValues ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text(stringResource(R.string.application_settings_title)) },
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            actions = {
+                SettingsMenuDropdown(
+                    onGeneration = onNavigateToGeneration,
+                    onLogout = onLogout
+                )
+            }
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
             // App Management Card
             Card(
                 modifier = Modifier.fillMaxWidth()
@@ -347,6 +371,84 @@ fun ApplicationSettingsScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Debug Logging Card
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.debug_logging_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = stringResource(R.string.debug_logging_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Enable toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.debug_logging_enable_label),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = stringResource(R.string.debug_logging_enable_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isDebugLoggingEnabled,
+                            onCheckedChange = { viewModel.setDebugLoggingEnabled(context, it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // View logs button
+                    Button(
+                        onClick = { showLogViewer = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isDebugLoggingEnabled
+                    ) {
+                        Icon(Icons.Default.BugReport, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.debug_logging_view_button))
+                    }
+                }
+            }
+
+            // Bottom padding
+            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    // Log viewer dialog
+    if (showLogViewer) {
+        LogViewerDialog(
+            onDismiss = { showLogViewer = false },
+            onSave = {
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                logSaveLauncher.launch("comfychair_log_$timestamp.txt")
+            }
+        )
     }
 }

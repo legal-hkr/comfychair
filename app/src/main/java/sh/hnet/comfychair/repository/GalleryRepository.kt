@@ -16,6 +16,7 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
 /**
@@ -58,6 +59,8 @@ class GalleryRepository private constructor() {
     private val pendingDeletions = mutableSetOf<String>()
 
     companion object {
+        private const val TAG = "GalleryRepo"
+
         @Volatile
         private var instance: GalleryRepository? = null
 
@@ -151,6 +154,7 @@ class GalleryRepository private constructor() {
             return
         }
 
+        DebugLogger.d(TAG, "Starting background refresh")
         scope.launch {
             loadGalleryInternal(isRefresh = true)
         }
@@ -318,6 +322,7 @@ class GalleryRepository private constructor() {
      * Clear cached data (for logout/disconnect)
      */
     fun clearCache() {
+        DebugLogger.i(TAG, "Clearing cache")
         _galleryItems.value = emptyList()
         _lastRefreshTime.value = 0L
         hasLoadedOnce = false
@@ -334,6 +339,7 @@ class GalleryRepository private constructor() {
      * Called by ConnectionManager when disconnecting.
      */
     fun reset() {
+        DebugLogger.i(TAG, "Resetting repository")
         clearCache()
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.BottomAppBar
@@ -28,6 +29,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.SettingsRoute
+import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
 import sh.hnet.comfychair.ui.screens.ApplicationSettingsScreen
 import sh.hnet.comfychair.ui.screens.ServerSettingsScreen
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
@@ -147,6 +149,38 @@ fun SettingsNavHost(
                             )
                         }
                     }
+
+                    // About Settings
+                    if (currentRoute == SettingsRoute.About.route) {
+                        FilledIconButton(
+                            onClick = { },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.Info,
+                                contentDescription = stringResource(R.string.nav_about_settings)
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = {
+                            navController.navigate(SettingsRoute.About.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }) {
+                            Icon(
+                                Icons.Filled.Info,
+                                contentDescription = stringResource(R.string.nav_about_settings),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 },
                 floatingActionButton = {
                     // Back to generation FAB
@@ -190,6 +224,13 @@ fun SettingsNavHost(
             composable(SettingsRoute.Workflows.route) {
                 WorkflowsSettingsScreen(
                     viewModel = workflowManagementViewModel,
+                    onNavigateToGeneration = onNavigateToGeneration,
+                    onLogout = onLogout
+                )
+            }
+
+            composable(SettingsRoute.About.route) {
+                AboutSettingsScreen(
                     onNavigateToGeneration = onNavigateToGeneration,
                     onLogout = onLogout
                 )

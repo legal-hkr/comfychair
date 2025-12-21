@@ -27,6 +27,8 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Generation state data class
@@ -113,6 +115,7 @@ class GenerationViewModel : ViewModel() {
     private var completionPollingJob: Job? = null
 
     companion object {
+        private const val TAG = "Generation"
         private const val PREFS_NAME = "GenerationViewModelPrefs"
         private const val PREF_IS_GENERATING = "isGenerating"
         private const val PREF_CURRENT_PROMPT_ID = "currentPromptId"
@@ -129,9 +132,11 @@ class GenerationViewModel : ViewModel() {
     fun initialize(context: Context) {
         if (this.applicationContext != null) {
             // Already initialized
+            DebugLogger.d(TAG, "Already initialized, skipping")
             return
         }
 
+        DebugLogger.i(TAG, "Initializing")
         this.applicationContext = context.applicationContext
 
         // Restore generation state
@@ -256,6 +261,7 @@ class GenerationViewModel : ViewModel() {
     private fun openWebSocketConnection() {
         val webSocketListener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                DebugLogger.i(TAG, "WebSocket connected")
                 isWebSocketConnected = true
                 reconnectAttempts = 0
                 _connectionStatus.value = ConnectionStatus.CONNECTED
@@ -265,6 +271,7 @@ class GenerationViewModel : ViewModel() {
 
                 // Check if there's a pending generation that completed while we were disconnected
                 if (_generationState.value.isGenerating) {
+                    DebugLogger.d(TAG, "Checking for pending generation completion")
                     checkServerForCompletion()
                 }
             }
@@ -278,6 +285,7 @@ class GenerationViewModel : ViewModel() {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                DebugLogger.e(TAG, "WebSocket connection failed: ${t.message}")
                 isWebSocketConnected = false
 
                 if (_generationState.value.isGenerating) {
@@ -289,6 +297,7 @@ class GenerationViewModel : ViewModel() {
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                DebugLogger.i(TAG, "WebSocket closed (code: $code)")
                 isWebSocketConnected = false
 
                 if (code != 1000) {
@@ -312,13 +321,17 @@ class GenerationViewModel : ViewModel() {
                 "executing" -> {
                     val data = message.optJSONObject("data")
                     val promptId = data?.optString("prompt_id")
+                    val node = data?.optString("node")
                     val isComplete = data?.isNull("node") == true
                     val currentState = _generationState.value
 
                     if (isComplete && promptId == currentState.promptId && promptId != null) {
+                        DebugLogger.i(TAG, "Generation complete (promptId: ${Obfuscator.promptId(promptId)})")
                         // Use dispatchCompletionEvent to ensure consistent behavior with server polling
                         // This dispatches the event, calls completeGeneration(), and refreshes gallery
                         dispatchCompletionEvent(promptId, currentState.contentType)
+                    } else if (node != null) {
+                        DebugLogger.d(TAG, "WS: executing node $node")
                     }
                 }
                 "progress" -> {
@@ -327,24 +340,52 @@ class GenerationViewModel : ViewModel() {
                     val max = data?.optInt("max", 0) ?: 0
 
                     if (max > 0) {
+                        DebugLogger.d(TAG, "WS: progress $value/$max")
                         _generationState.value = _generationState.value.copy(
                             progress = value,
                             maxProgress = max
                         )
                     }
                 }
+                "execution_start" -> {
+                    val data = message.optJSONObject("data")
+                    val promptId = data?.optString("prompt_id")
+                    DebugLogger.i(TAG, "WS: execution_start (promptId: ${Obfuscator.promptId(promptId)})")
+                }
                 "execution_error" -> {
+                    val data = message.optJSONObject("data")
+                    val errorMsg = data?.optString("exception_message", "Unknown error")
+                    DebugLogger.e(TAG, "WS: execution_error - $errorMsg")
                     resetGenerationState()
                     val errorMessage = applicationContext?.getString(R.string.error_generation_failed)
                         ?: "Generation failed"
                     dispatchEvent(GenerationEvent.Error(errorMessage))
                 }
-                // Known message types - no action needed
-                "status", "previewing", "execution_cached", "execution_start",
-                "execution_success", "progress_state", "executed" -> { }
+                "execution_cached" -> {
+                    val data = message.optJSONObject("data")
+                    val nodes = data?.optJSONArray("nodes")?.length() ?: 0
+                    DebugLogger.d(TAG, "WS: execution_cached ($nodes nodes)")
+                }
+                "status" -> {
+                    val data = message.optJSONObject("data")
+                    val status = data?.optJSONObject("status")
+                    val queueRemaining = status?.optInt("exec_info")
+                    if (queueRemaining != null) {
+                        DebugLogger.d(TAG, "WS: status (queue: $queueRemaining)")
+                    }
+                }
+                // Known message types - just log them
+                "previewing" -> DebugLogger.d(TAG, "WS: previewing")
+                "executed" -> DebugLogger.d(TAG, "WS: executed")
+                "execution_success" -> DebugLogger.d(TAG, "WS: execution_success")
+                else -> {
+                    if (messageType.isNotEmpty()) {
+                        DebugLogger.d(TAG, "WS: $messageType")
+                    }
+                }
             }
-        } catch (_: Exception) {
-            // Ignore parsing errors
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "WS: failed to parse message: ${e.message}")
         }
     }
 
@@ -363,10 +404,11 @@ class GenerationViewModel : ViewModel() {
                 val pngBytes = bytes.substring(8).toByteArray()
                 val bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
                 if (bitmap != null) {
+                    DebugLogger.d(TAG, "WS: preview image received (${bitmap.width}x${bitmap.height})")
                     dispatchEvent(GenerationEvent.PreviewImage(bitmap))
                 }
-            } catch (_: Exception) {
-                // Ignore decoding errors
+            } catch (e: Exception) {
+                DebugLogger.w(TAG, "WS: failed to decode preview: ${e.message}")
             }
         }
     }
@@ -387,7 +429,9 @@ class GenerationViewModel : ViewModel() {
         contentType: ContentType = ContentType.IMAGE,
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
+        DebugLogger.i(TAG, "Starting generation (owner: $ownerId, type: $contentType)")
         comfyUIClient ?: run {
+            DebugLogger.e(TAG, "Cannot start generation: client not initialized")
             onResult(false, null, applicationContext?.getString(R.string.error_client_not_initialized) ?: "Client not initialized")
             return
         }
@@ -397,6 +441,7 @@ class GenerationViewModel : ViewModel() {
         generationContentType = contentType
 
         if (!isWebSocketConnected) {
+            DebugLogger.d(TAG, "WebSocket not connected, reconnecting...")
             reconnectWebSocket()
 
             viewModelScope.launch {
@@ -404,6 +449,7 @@ class GenerationViewModel : ViewModel() {
                 if (isWebSocketConnected) {
                     submitWorkflow(workflowJson, onResult)
                 } else {
+                    DebugLogger.e(TAG, "WebSocket reconnection failed")
                     onResult(false, null, applicationContext?.getString(R.string.error_websocket_not_connected) ?: "WebSocket not connected")
                 }
             }
@@ -421,9 +467,11 @@ class GenerationViewModel : ViewModel() {
     ) {
         val client = comfyUIClient ?: return
 
+        DebugLogger.d(TAG, "Submitting workflow to server")
         val mainHandler = Handler(Looper.getMainLooper())
         client.submitPrompt(workflowJson) { success, promptId, errorMessage ->
             if (success && promptId != null) {
+                DebugLogger.i(TAG, "Workflow submitted successfully (promptId: ${Obfuscator.promptId(promptId)})")
                 _generationState.value = GenerationState(
                     isGenerating = true,
                     promptId = promptId,
@@ -436,6 +484,7 @@ class GenerationViewModel : ViewModel() {
                 applicationContext?.let { saveGenerationState(it) }
                 mainHandler.post { onResult(true, promptId, null) }
             } else {
+                DebugLogger.e(TAG, "Workflow submission failed: $errorMessage")
                 mainHandler.post { onResult(false, null, errorMessage) }
             }
         }
@@ -445,13 +494,20 @@ class GenerationViewModel : ViewModel() {
      * Cancel the current generation
      */
     fun cancelGeneration(onResult: (success: Boolean) -> Unit) {
+        DebugLogger.i(TAG, "Cancelling generation")
         val client = comfyUIClient ?: run {
+            DebugLogger.w(TAG, "Cannot cancel: client not initialized")
             onResult(false)
             return
         }
 
         val mainHandler = Handler(Looper.getMainLooper())
         client.interruptExecution { success ->
+            if (success) {
+                DebugLogger.i(TAG, "Generation cancelled successfully")
+            } else {
+                DebugLogger.w(TAG, "Failed to cancel generation")
+            }
             resetGenerationState()
             dispatchEvent(GenerationEvent.GenerationCancelled)
             mainHandler.post { onResult(success) }
@@ -462,6 +518,7 @@ class GenerationViewModel : ViewModel() {
      * Complete generation (called after image is fetched)
      */
     fun completeGeneration() {
+        DebugLogger.i(TAG, "Generation completed")
         resetGenerationState()
     }
 

@@ -23,6 +23,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.util.DebugLogger
 import java.io.File
 
 /**
@@ -65,6 +66,10 @@ sealed class GalleryEvent {
  * Uses GalleryRepository for data management and background loading.
  */
 class GalleryViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "Gallery"
+    }
 
     private val repository = GalleryRepository.getInstance()
 
@@ -113,6 +118,7 @@ class GalleryViewModel : ViewModel() {
      * The repository handles background refreshing.
      */
     fun loadGallery() {
+        DebugLogger.d(TAG, "Loading gallery")
         // Repository already has data from background preload, no need to reload
         // unless explicitly refreshed by user
         if (!repository.hasData()) {
@@ -125,11 +131,14 @@ class GalleryViewModel : ViewModel() {
      * Shows the refresh indicator and displays a Toast on completion.
      */
     fun manualRefresh() {
+        DebugLogger.i(TAG, "Manual refresh")
         repository.manualRefresh { success ->
             viewModelScope.launch {
                 if (success) {
+                    DebugLogger.d(TAG, "Refresh successful")
                     _events.emit(GalleryEvent.ShowToast(R.string.gallery_refresh_success))
                 } else {
+                    DebugLogger.w(TAG, "Refresh failed")
                     _events.emit(GalleryEvent.ShowToast(R.string.gallery_refresh_failed))
                 }
             }
@@ -141,15 +150,19 @@ class GalleryViewModel : ViewModel() {
      * Used when returning from other screens or after external changes.
      */
     fun refresh() {
+        DebugLogger.d(TAG, "Background refresh")
         repository.refresh()
     }
 
     fun deleteItem(item: GalleryItem) {
+        DebugLogger.i(TAG, "Deleting item: ${item.promptId}")
         viewModelScope.launch {
             val success = repository.deleteItem(item)
             if (success) {
+                DebugLogger.d(TAG, "Delete successful")
                 _events.emit(GalleryEvent.ShowToast(R.string.history_item_deleted_success))
             } else {
+                DebugLogger.w(TAG, "Delete failed")
                 _events.emit(GalleryEvent.ShowToast(R.string.history_item_deleted_failed))
             }
         }

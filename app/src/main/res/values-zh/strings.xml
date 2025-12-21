@@ -334,4 +334,26 @@
     <string name="backup_restore_confirm_title">恢复设置？</string>
     <string name="backup_restore_confirm_message">这将替换您当前的设置。此操作无法撤销。</string>
     <string name="backup_restore_confirm_button">恢复</string>
+
+    <!-- About screen strings -->
+    <string name="nav_about_settings">关于</string>
+    <string name="about_settings_title">关于</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_license_title">许可证</string>
+    <string name="about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="about_source_title">源代码</string>
+
+    <!-- Debug Logging strings -->
+    <string name="debug_logging_title">调试日志</string>
+    <string name="debug_logging_description">捕获操作日志以进行故障排除</string>
+    <string name="debug_logging_enable_label">启用日志记录</string>
+    <string name="debug_logging_enable_description">日志仅保存在内存中</string>
+    <string name="debug_logging_view_button">查看日志</string>
+    <string name="debug_log_title">调试日志</string>
+    <string name="debug_log_empty">无日志条目</string>
+    <string name="debug_log_refresh">刷新</string>
+    <string name="debug_log_save">Save</string>
+    <string name="debug_log_follow">跟随</string>
+    <string name="debug_log_saved">日志保存成功</string>
+    <string name="debug_log_save_failed">保存日志失败</string>
 </resources>

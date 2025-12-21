@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.VideoUtils
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -22,6 +23,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   This minimizes RAM usage for low-end devices with slow networks.
  */
 object MediaStateHolder {
+
+    private const val TAG = "MediaState"
 
     /**
      * Keys for different media types stored in the holder.
@@ -69,6 +72,7 @@ object MediaStateHolder {
     fun setMemoryFirstMode(enabled: Boolean, context: Context? = null) {
         if (isMemoryFirstMode == enabled) return  // No change
 
+        DebugLogger.i(TAG, "Switching to ${if (enabled) "memory-first" else "disk-first"} mode")
         if (enabled) {
             // Switching TO memory-first: load disk content into memory
             context?.let { ctx ->
@@ -275,6 +279,11 @@ object MediaStateHolder {
      * Called from MainContainerActivity.onStop().
      */
     suspend fun persistToDisk(context: Context) {
+        val bitmapCount = dirtyBitmaps.size
+        val videoCount = dirtyVideos.size
+        if (bitmapCount > 0 || videoCount > 0) {
+            DebugLogger.d(TAG, "Persisting to disk: $bitmapCount bitmaps, $videoCount videos")
+        }
         withContext(Dispatchers.IO) {
             // Persist dirty bitmaps
             val bitmapsToPersist = dirtyBitmaps.toList()
@@ -413,6 +422,7 @@ object MediaStateHolder {
      * Called during cache clearing.
      */
     fun clearAll() {
+        DebugLogger.i(TAG, "Clearing all media from memory")
         bitmaps.clear()
         videoBytes.clear()
         dirtyBitmaps.clear()

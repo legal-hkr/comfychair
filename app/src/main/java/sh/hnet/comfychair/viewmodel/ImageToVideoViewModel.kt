@@ -25,6 +25,8 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.VideoUtils
 
@@ -132,6 +134,7 @@ class ImageToVideoViewModel : ViewModel() {
     private var generationViewModelRef: GenerationViewModel? = null
 
     companion object {
+        private const val TAG = "ImageToVideo"
         const val OWNER_ID = "IMAGE_TO_VIDEO"
         private const val PREFS_NAME = "ImageToVideoFragmentPrefs"
 
@@ -141,6 +144,7 @@ class ImageToVideoViewModel : ViewModel() {
     }
 
     fun initialize(context: Context, client: ComfyUIClient) {
+        DebugLogger.i(TAG, "Initializing")
         applicationContext = context.applicationContext
         workflowManager = WorkflowManager(context)
         workflowValuesStorage = WorkflowValuesStorage(context)

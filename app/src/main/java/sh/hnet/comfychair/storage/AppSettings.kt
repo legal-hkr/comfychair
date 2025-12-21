@@ -11,6 +11,7 @@ object AppSettings {
     private const val KEY_MEDIA_CACHE_DISABLED = "media_cache_disabled"
     private const val KEY_MEMORY_FIRST_CACHE = "memory_first_cache"
     private const val KEY_LIVE_PREVIEW_ENABLED = "live_preview_enabled"
+    private const val KEY_DEBUG_LOGGING_ENABLED = "debug_logging_enabled"
 
     /**
      * Check if live preview is enabled.
@@ -69,6 +70,26 @@ object AppSettings {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_MEDIA_CACHE_DISABLED, disabled)
+            .apply()
+    }
+
+    /**
+     * Check if debug logging is enabled.
+     * When enabled, operational logs are captured in memory for troubleshooting.
+     * Default is false (off).
+     */
+    fun isDebugLoggingEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DEBUG_LOGGING_ENABLED, false)
+    }
+
+    /**
+     * Set whether debug logging should be enabled.
+     */
+    fun setDebugLoggingEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_DEBUG_LOGGING_ENABLED, enabled)
             .apply()
     }
 }

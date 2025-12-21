@@ -334,4 +334,26 @@
     <string name="backup_restore_confirm_title">Przywrócić ustawienia?</string>
     <string name="backup_restore_confirm_message">Spowoduje to zastąpienie bieżących ustawień. Tej czynności nie można cofnąć.</string>
     <string name="backup_restore_confirm_button">Przywróć</string>
+
+    <!-- About screen strings -->
+    <string name="nav_about_settings">O aplikacji</string>
+    <string name="about_settings_title">O aplikacji</string>
+    <string name="about_version">Wersja %1$s</string>
+    <string name="about_license_title">Licencja</string>
+    <string name="about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="about_source_title">Kod źródłowy</string>
+
+    <!-- Debug Logging strings -->
+    <string name="debug_logging_title">Logowanie debugowania</string>
+    <string name="debug_logging_description">Przechwytuj logi operacyjne do rozwiązywania problemów</string>
+    <string name="debug_logging_enable_label">Włącz logowanie</string>
+    <string name="debug_logging_enable_description">Logi są przechowywane tylko w pamięci</string>
+    <string name="debug_logging_view_button">Wyświetl logi</string>
+    <string name="debug_log_title">Log debugowania</string>
+    <string name="debug_log_empty">Brak wpisów w logu</string>
+    <string name="debug_log_refresh">Odśwież</string>
+    <string name="debug_log_save">Save</string>
+    <string name="debug_log_follow">Śledź</string>
+    <string name="debug_log_saved">Log zapisany pomyślnie</string>
+    <string name="debug_log_save_failed">Nie udało się zapisać logu</string>
 </resources>

@@ -23,6 +23,8 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.VideoUtils
 
@@ -119,6 +121,7 @@ class TextToVideoViewModel : ViewModel() {
     private var generationViewModelRef: GenerationViewModel? = null
 
     companion object {
+        private const val TAG = "TextToVideo"
         const val OWNER_ID = "TEXT_TO_VIDEO"
         private const val PREFS_NAME = "TextToVideoFragmentPrefs"
 
@@ -128,6 +131,7 @@ class TextToVideoViewModel : ViewModel() {
     }
 
     fun initialize(context: Context, client: ComfyUIClient) {
+        DebugLogger.i(TAG, "Initializing")
         applicationContext = context.applicationContext
         workflowManager = WorkflowManager(context)
         workflowValuesStorage = WorkflowValuesStorage(context)

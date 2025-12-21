@@ -31,6 +31,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -165,121 +166,79 @@ fun WorkflowsSettingsScreen(
             ) {
                 // Text-to-Image (Checkpoint)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_tti_checkpoint))
-                }
-                if (uiState.ttiCheckpointWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.ttiCheckpointWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_tti_checkpoint),
+                        workflows = uiState.ttiCheckpointWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Text-to-Image (UNET)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_tti_unet))
-                }
-                if (uiState.ttiUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.ttiUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_tti_unet),
+                        workflows = uiState.ttiUnetWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Image-to-Image (Checkpoint)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_iti_checkpoint))
-                }
-                if (uiState.itiCheckpointWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.itiCheckpointWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_iti_checkpoint),
+                        workflows = uiState.itiCheckpointWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Image-to-Image (UNET)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_iti_unet))
-                }
-                if (uiState.itiUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.itiUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_iti_unet),
+                        workflows = uiState.itiUnetWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Image editing (UNET)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_ite_unet))
-                }
-                if (uiState.iteUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.iteUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_ite_unet),
+                        workflows = uiState.iteUnetWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Text-to-Video (UNET)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_ttv_unet))
-                }
-                if (uiState.ttvUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.ttvUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_ttv_unet),
+                        workflows = uiState.ttvUnetWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Image-to-Video (UNET)
                 item {
-                    WorkflowSectionHeader(stringResource(R.string.workflow_section_itv_unet))
-                }
-                if (uiState.itvUnetWorkflows.isEmpty()) {
-                    item { EmptySection() }
-                } else {
-                    items(uiState.itvUnetWorkflows) { workflow ->
-                        WorkflowListItem(
-                            workflow = workflow,
-                            onClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, workflow.id)) },
-                            onEdit = { viewModel.onEditWorkflow(it) },
-                            onDelete = { viewModel.onDeleteWorkflow(it) }
-                        )
-                    }
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_itv_unet),
+                        workflows = uiState.itvUnetWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
                 }
 
                 // Bottom padding
@@ -374,82 +333,113 @@ private fun parseMappingsFromJson(jsonString: String): Map<String, Pair<String, 
     return mappings
 }
 
+/**
+ * A complete workflow section with header and segmented list card.
+ */
 @Composable
-private fun WorkflowSectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-    )
-}
-
-@Composable
-private fun EmptySection() {
-    Text(
-        text = stringResource(R.string.workflow_section_empty),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-}
-
-@Composable
-private fun WorkflowListItem(
-    workflow: WorkflowManager.Workflow,
-    onClick: () -> Unit,
+private fun WorkflowSection(
+    title: String,
+    workflows: List<WorkflowManager.Workflow>,
+    onWorkflowClick: (WorkflowManager.Workflow) -> Unit,
     onEdit: (WorkflowManager.Workflow) -> Unit,
     onDelete: (WorkflowManager.Workflow) -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = workflow.name,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                if (workflow.description.isNotEmpty()) {
-                    Text(
-                        text = workflow.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (workflow.isBuiltIn) {
-                    Text(
-                        text = stringResource(R.string.workflow_built_in_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+    Column {
+        // Section header
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        )
+
+        if (workflows.isEmpty()) {
+            // Empty state
+            Text(
+                text = stringResource(R.string.workflow_section_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        } else {
+            // Card containing all workflows with dividers
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    workflows.forEachIndexed { index, workflow ->
+                        WorkflowListItemContent(
+                            workflow = workflow,
+                            onClick = { onWorkflowClick(workflow) },
+                            onEdit = { onEdit(workflow) },
+                            onDelete = { onDelete(workflow) }
+                        )
+                        if (index < workflows.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                    }
                 }
             }
+        }
+    }
+}
 
-            // Edit/Delete buttons (only for user workflows)
-            if (!workflow.isBuiltIn) {
-                IconButton(onClick = { onEdit(workflow) }) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = stringResource(R.string.edit),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = { onDelete(workflow) }) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.delete),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+/**
+ * Content for a single workflow item (without Card wrapper).
+ */
+@Composable
+private fun WorkflowListItemContent(
+    workflow: WorkflowManager.Workflow,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = workflow.name,
+                style = MaterialTheme.typography.titleSmall
+            )
+            if (workflow.description.isNotEmpty()) {
+                Text(
+                    text = workflow.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (workflow.isBuiltIn) {
+                Text(
+                    text = stringResource(R.string.workflow_built_in_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // Edit/Delete buttons (only for user workflows)
+        if (!workflow.isBuiltIn) {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.edit),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete),
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

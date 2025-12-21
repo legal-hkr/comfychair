@@ -4,6 +4,8 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.model.WorkflowDefaults
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import java.io.File
 import java.io.InputStream
@@ -56,6 +58,7 @@ class WorkflowManager(private val context: Context) {
     )
 
     companion object {
+        private const val TAG = "Workflow"
         private const val USER_WORKFLOWS_PREFS = "UserWorkflowsPrefs"
         private const val USER_WORKFLOWS_KEY = "user_workflows_json"
         private const val USER_WORKFLOWS_DIR = "user_workflows"
@@ -1253,6 +1256,16 @@ class WorkflowManager(private val context: Context) {
         samplerName: String = "euler",
         scheduler: String = "normal"
     ): String? {
+        DebugLogger.i(TAG, "Preparing workflow: $workflowName")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
+        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Steps: $steps, CFG: $cfg")
+        DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
+        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
+        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
+        clip?.let { DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(it)}") }
+        clip1?.let { DebugLogger.d(TAG, "CLIP1: ${Obfuscator.modelName(it)}") }
+        clip2?.let { DebugLogger.d(TAG, "CLIP2: ${Obfuscator.modelName(it)}") }
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
@@ -1300,6 +1313,15 @@ class WorkflowManager(private val context: Context) {
         scheduler: String = "normal",
         imageFilename: String
     ): String? {
+        DebugLogger.i(TAG, "Preparing ITI workflow: $workflowName")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
+        DebugLogger.d(TAG, "Megapixels: $megapixels, Steps: $steps, CFG: $cfg")
+        DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
+        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
+        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
+        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
+        DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
@@ -1346,6 +1368,17 @@ class WorkflowManager(private val context: Context) {
         referenceImage1Filename: String? = null,
         referenceImage2Filename: String? = null
     ): String? {
+        DebugLogger.i(TAG, "Preparing ITE workflow: $workflowName")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
+        DebugLogger.d(TAG, "Megapixels: $megapixels, Steps: $steps, CFG: $cfg")
+        DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
+        DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(lora)}")
+        DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
+        DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
+        DebugLogger.d(TAG, "Source: ${Obfuscator.filename(sourceImageFilename)}")
+        referenceImage1Filename?.let { DebugLogger.d(TAG, "Reference1: ${Obfuscator.filename(it)}") }
+        referenceImage2Filename?.let { DebugLogger.d(TAG, "Reference2: ${Obfuscator.filename(it)}") }
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
@@ -1471,6 +1504,14 @@ class WorkflowManager(private val context: Context) {
         length: Int,
         fps: Int = 16
     ): String? {
+        DebugLogger.i(TAG, "Preparing TTV workflow: $workflowName")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
+        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
+        DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
+        DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}, CLIP: ${Obfuscator.modelName(clip)}")
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
@@ -1515,6 +1556,15 @@ class WorkflowManager(private val context: Context) {
         fps: Int = 16,
         imageFilename: String
     ): String? {
+        DebugLogger.i(TAG, "Preparing ITV workflow: $workflowName")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
+        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
+        DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
+        DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}, CLIP: ${Obfuscator.modelName(clip)}")
+        DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
         val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()

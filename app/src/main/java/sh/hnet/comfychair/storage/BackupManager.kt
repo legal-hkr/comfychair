@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.util.DebugLogger
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -30,6 +31,7 @@ sealed class RestoreResult {
  *
  * Backup includes:
  * - Connection settings (hostname, port)
+ * - App settings (live preview, memory cache, debug logging)
  * - Screen preferences (selected workflows, prompts, modes)
  * - Per-workflow saved values
  * - User-uploaded workflows (metadata + file contents)
@@ -37,11 +39,13 @@ sealed class RestoreResult {
 class BackupManager(private val context: Context) {
 
     companion object {
+        private const val TAG = "BackupManager"
         const val BACKUP_VERSION = 1
         private const val USER_WORKFLOWS_DIR = "user_workflows"
 
         // SharedPreferences names
         private const val PREFS_CONNECTION = "ComfyChairPrefs"
+        private const val PREFS_APP_SETTINGS = "AppSettings"
         private const val PREFS_TEXT_TO_IMAGE = "TextToImageFragmentPrefs"
         private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
         private const val PREFS_TEXT_TO_VIDEO = "TextToVideoFragmentPrefs"
@@ -57,20 +61,27 @@ class BackupManager(private val context: Context) {
      * Returns JSON string on success, or failure with error.
      */
     fun createBackup(): Result<String> {
+        DebugLogger.i(TAG, "Creating backup...")
         return try {
+            val appSettings = readAppSettings()
+            DebugLogger.d(TAG, "Backup appSettings: $appSettings")
+
             val backup = JSONObject().apply {
                 put("version", BACKUP_VERSION)
                 put("exportedAt", getIso8601Timestamp())
                 put("appVersion", getAppVersionName())
 
                 put("connection", readConnectionPrefs())
+                put("appSettings", appSettings)
                 put("screenPreferences", readScreenPreferences())
                 put("workflowValues", readWorkflowValues())
                 put("userWorkflows", readUserWorkflows())
             }
 
+            DebugLogger.i(TAG, "Backup created successfully")
             Result.success(backup.toString(2))
         } catch (e: Exception) {
+            DebugLogger.e(TAG, "Backup creation failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -82,51 +93,76 @@ class BackupManager(private val context: Context) {
      * Clears cached media files before restoring.
      */
     fun restoreBackup(jsonString: String): RestoreResult {
+        DebugLogger.i(TAG, "Starting backup restore...")
+        DebugLogger.d(TAG, "Backup JSON length: ${jsonString.length} chars")
+
         val json = try {
             JSONObject(jsonString)
         } catch (e: Exception) {
+            DebugLogger.e(TAG, "Failed to parse backup JSON: ${e.message}")
             return RestoreResult.Failure(R.string.backup_error_invalid_json)
         }
 
         // Validate basic structure
         if (!validator.validateStructure(json)) {
+            DebugLogger.e(TAG, "Backup structure validation failed")
             return RestoreResult.Failure(R.string.backup_error_invalid_json)
         }
 
         // Check version
         val version = json.optInt("version", -1)
+        DebugLogger.d(TAG, "Backup version: $version (current: $BACKUP_VERSION)")
         if (version > BACKUP_VERSION) {
+            DebugLogger.e(TAG, "Unsupported backup version: $version")
             return RestoreResult.Failure(R.string.backup_error_unsupported_version)
         }
 
         // Restore connection (must succeed)
         val connection = json.optJSONObject("connection")
         if (connection == null) {
+            DebugLogger.e(TAG, "No connection object in backup")
             return RestoreResult.Failure(R.string.backup_error_invalid_connection)
         }
 
+        DebugLogger.d(TAG, "Restoring connection settings...")
         val connectionChanged = restoreConnectionPrefs(connection)
             ?: return RestoreResult.Failure(R.string.backup_error_invalid_connection)
+        DebugLogger.d(TAG, "Connection restored, changed: $connectionChanged")
 
         // Clear cached media files before restoring new configuration
+        DebugLogger.d(TAG, "Clearing cache files...")
         clearCacheFiles()
+
+        // Restore app settings (lenient - skip invalid)
+        val appSettingsJson = json.optJSONObject("appSettings")
+        DebugLogger.d(TAG, "appSettings in backup: ${appSettingsJson != null}")
+        if (appSettingsJson != null) {
+            DebugLogger.d(TAG, "appSettings content: $appSettingsJson")
+            restoreAppSettings(appSettingsJson)
+        } else {
+            DebugLogger.w(TAG, "No appSettings found in backup")
+        }
 
         // Restore screen preferences (lenient - skip invalid)
         json.optJSONObject("screenPreferences")?.let { prefs ->
+            DebugLogger.d(TAG, "Restoring screen preferences...")
             restoreScreenPreferences(prefs)
         }
 
         // Restore workflow values (lenient - skip invalid)
         json.optJSONObject("workflowValues")?.let { values ->
+            DebugLogger.d(TAG, "Restoring workflow values...")
             restoreWorkflowValues(values)
         }
 
         // Restore user workflows (lenient - count skipped)
         var skippedWorkflows = 0
         json.optJSONArray("userWorkflows")?.let { workflows ->
+            DebugLogger.d(TAG, "Restoring ${workflows.length()} user workflows...")
             skippedWorkflows = restoreUserWorkflows(workflows)
         }
 
+        DebugLogger.i(TAG, "Backup restore completed. Connection changed: $connectionChanged, skipped workflows: $skippedWorkflows")
         return RestoreResult.Success(
             connectionChanged = connectionChanged,
             skippedWorkflows = skippedWorkflows
@@ -192,6 +228,16 @@ class BackupManager(private val context: Context) {
         return JSONObject().apply {
             put("hostname", prefs.getString("hostname", "") ?: "")
             put("port", prefs.getInt("port", 8188))
+        }
+    }
+
+    private fun readAppSettings(): JSONObject {
+        val prefs = context.getSharedPreferences(PREFS_APP_SETTINGS, Context.MODE_PRIVATE)
+        return JSONObject().apply {
+            put("livePreviewEnabled", prefs.getBoolean("live_preview_enabled", true))
+            put("memoryFirstCache", prefs.getBoolean("memory_first_cache", true))
+            put("mediaCacheDisabled", prefs.getBoolean("media_cache_disabled", false))
+            put("debugLoggingEnabled", prefs.getBoolean("debug_logging_enabled", false))
         }
     }
 
@@ -320,6 +366,64 @@ class BackupManager(private val context: Context) {
         }
 
         return changed
+    }
+
+    private fun restoreAppSettings(json: JSONObject) {
+        DebugLogger.d(TAG, "restoreAppSettings called with: $json")
+
+        val prefs = context.getSharedPreferences(PREFS_APP_SETTINGS, Context.MODE_PRIVATE)
+
+        // Read current values before restore
+        val currentLivePreview = prefs.getBoolean("live_preview_enabled", true)
+        val currentMemoryFirst = prefs.getBoolean("memory_first_cache", true)
+        val currentMediaCacheDisabled = prefs.getBoolean("media_cache_disabled", false)
+        val currentDebugLogging = prefs.getBoolean("debug_logging_enabled", false)
+        DebugLogger.d(TAG, "Current appSettings - livePreview: $currentLivePreview, memoryFirst: $currentMemoryFirst, mediaCacheDisabled: $currentMediaCacheDisabled, debugLogging: $currentDebugLogging")
+
+        val editor = prefs.edit()
+
+        // Only restore if the key exists in the backup
+        if (json.has("livePreviewEnabled")) {
+            val value = json.optBoolean("livePreviewEnabled", true)
+            DebugLogger.d(TAG, "Restoring livePreviewEnabled: $value")
+            editor.putBoolean("live_preview_enabled", value)
+        } else {
+            DebugLogger.d(TAG, "livePreviewEnabled not in backup, skipping")
+        }
+
+        if (json.has("memoryFirstCache")) {
+            val value = json.optBoolean("memoryFirstCache", true)
+            DebugLogger.d(TAG, "Restoring memoryFirstCache: $value")
+            editor.putBoolean("memory_first_cache", value)
+        } else {
+            DebugLogger.d(TAG, "memoryFirstCache not in backup, skipping")
+        }
+
+        if (json.has("mediaCacheDisabled")) {
+            val value = json.optBoolean("mediaCacheDisabled", false)
+            DebugLogger.d(TAG, "Restoring mediaCacheDisabled: $value")
+            editor.putBoolean("media_cache_disabled", value)
+        } else {
+            DebugLogger.d(TAG, "mediaCacheDisabled not in backup, skipping")
+        }
+
+        if (json.has("debugLoggingEnabled")) {
+            val value = json.optBoolean("debugLoggingEnabled", false)
+            DebugLogger.d(TAG, "Restoring debugLoggingEnabled: $value")
+            editor.putBoolean("debug_logging_enabled", value)
+        } else {
+            DebugLogger.d(TAG, "debugLoggingEnabled not in backup, skipping")
+        }
+
+        val commitResult = editor.commit()
+        DebugLogger.d(TAG, "AppSettings commit result: $commitResult")
+
+        // Verify values after restore
+        val newLivePreview = prefs.getBoolean("live_preview_enabled", true)
+        val newMemoryFirst = prefs.getBoolean("memory_first_cache", true)
+        val newMediaCacheDisabled = prefs.getBoolean("media_cache_disabled", false)
+        val newDebugLogging = prefs.getBoolean("debug_logging_enabled", false)
+        DebugLogger.d(TAG, "After restore appSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $newDebugLogging")
     }
 
     private fun restoreScreenPreferences(json: JSONObject) {

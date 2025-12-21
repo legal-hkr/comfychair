@@ -27,6 +27,7 @@ import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * UI state for server settings screen
@@ -74,6 +75,10 @@ sealed class SettingsEvent {
  */
 class SettingsViewModel : ViewModel() {
 
+    companion object {
+        private const val TAG = "SettingsViewModel"
+    }
+
     // Accessor for shared client from ConnectionManager
     private val comfyUIClient: ComfyUIClient?
         get() = ConnectionManager.clientOrNull
@@ -92,6 +97,9 @@ class SettingsViewModel : ViewModel() {
     private val _isMediaCacheDisabled = MutableStateFlow(false)
     val isMediaCacheDisabled: StateFlow<Boolean> = _isMediaCacheDisabled.asStateFlow()
 
+    private val _isDebugLoggingEnabled = MutableStateFlow(false)
+    val isDebugLoggingEnabled: StateFlow<Boolean> = _isDebugLoggingEnabled.asStateFlow()
+
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
@@ -104,6 +112,10 @@ class SettingsViewModel : ViewModel() {
         _isLivePreviewEnabled.value = AppSettings.isLivePreviewEnabled(context)
         _isMemoryFirstCache.value = AppSettings.isMemoryFirstCache(context)
         _isMediaCacheDisabled.value = AppSettings.isMediaCacheDisabled(context)
+        _isDebugLoggingEnabled.value = AppSettings.isDebugLoggingEnabled(context)
+
+        // Initialize debug logger with saved state
+        DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
     }
 
     fun loadSystemStats() {
@@ -440,6 +452,16 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
+     * Set whether debug logging should be enabled.
+     * When enabled, logs are captured in memory for troubleshooting.
+     */
+    fun setDebugLoggingEnabled(context: Context, enabled: Boolean) {
+        AppSettings.setDebugLoggingEnabled(context, enabled)
+        _isDebugLoggingEnabled.value = enabled
+        DebugLogger.setEnabled(enabled)
+    }
+
+    /**
      * Create a backup and write it to the given URI.
      */
     fun createBackup(context: Context, uri: Uri) {
@@ -485,6 +507,11 @@ class SettingsViewModel : ViewModel() {
      * Restore configuration from a backup file at the given URI.
      */
     fun restoreBackup(context: Context, uri: Uri) {
+        // Capture debug logging state BEFORE restore - if it was enabled, keep it enabled
+        // so we can debug restore issues even if the backup has logging disabled
+        val wasDebugLoggingEnabled = _isDebugLoggingEnabled.value
+
+        DebugLogger.i(TAG, "restoreBackup called (debug logging was: $wasDebugLoggingEnabled)")
         viewModelScope.launch {
             val json = withContext(Dispatchers.IO) {
                 try {
@@ -492,18 +519,24 @@ class SettingsViewModel : ViewModel() {
                         it.readText()
                     }
                 } catch (e: Exception) {
+                    DebugLogger.e(TAG, "Failed to read backup file: ${e.message}")
                     null
                 }
             }
 
             if (json == null) {
+                DebugLogger.e(TAG, "Backup file read returned null")
                 _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_failed))
                 return@launch
             }
 
+            DebugLogger.d(TAG, "Backup file read, length: ${json.length}")
+
             val result = withContext(Dispatchers.IO) {
                 BackupManager(context).restoreBackup(json)
             }
+
+            DebugLogger.d(TAG, "Restore result: $result")
 
             when (result) {
                 is RestoreResult.Success -> {
@@ -516,6 +549,10 @@ class SettingsViewModel : ViewModel() {
                         MediaStateHolder.clearAll()
                     }
 
+                    // Reload AppSettings into ViewModel state, preserving debug logging if it was enabled
+                    DebugLogger.d(TAG, "Reloading AppSettings into ViewModel...")
+                    reloadAppSettings(context, preserveDebugLogging = wasDebugLoggingEnabled)
+
                     if (result.skippedWorkflows > 0) {
                         _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_partial))
                     } else {
@@ -527,10 +564,46 @@ class SettingsViewModel : ViewModel() {
                     }
                 }
                 is RestoreResult.Failure -> {
+                    DebugLogger.e(TAG, "Restore failed with error: ${result.errorMessageResId}")
                     _events.emit(SettingsEvent.ShowToast(result.errorMessageResId))
                 }
             }
         }
+    }
+
+    /**
+     * Reload AppSettings from SharedPreferences into ViewModel StateFlows.
+     * Called after restore to update the UI with restored values.
+     *
+     * @param preserveDebugLogging If true and debug logging was enabled before restore,
+     *        keep it enabled regardless of the backup's value. This ensures we can debug
+     *        restore issues even if the backup has logging disabled.
+     */
+    private fun reloadAppSettings(context: Context, preserveDebugLogging: Boolean = false) {
+        val newLivePreview = AppSettings.isLivePreviewEnabled(context)
+        val newMemoryFirst = AppSettings.isMemoryFirstCache(context)
+        val newMediaCacheDisabled = AppSettings.isMediaCacheDisabled(context)
+        val restoredDebugLogging = AppSettings.isDebugLoggingEnabled(context)
+
+        // If debug logging was enabled before restore, keep it enabled
+        val finalDebugLogging = if (preserveDebugLogging && !restoredDebugLogging) {
+            DebugLogger.i(TAG, "Preserving debug logging (was enabled before restore, backup had it disabled)")
+            // Also save back to SharedPreferences so it persists
+            AppSettings.setDebugLoggingEnabled(context, true)
+            true
+        } else {
+            restoredDebugLogging
+        }
+
+        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $finalDebugLogging (restored: $restoredDebugLogging)")
+
+        _isLivePreviewEnabled.value = newLivePreview
+        _isMemoryFirstCache.value = newMemoryFirst
+        _isMediaCacheDisabled.value = newMediaCacheDisabled
+        _isDebugLoggingEnabled.value = finalDebugLogging
+
+        // Update DebugLogger state to match
+        DebugLogger.setEnabled(finalDebugLogging)
     }
 
     override fun onCleared() {

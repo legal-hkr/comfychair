@@ -12,7 +12,9 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Logger
+import sh.hnet.comfychair.util.Obfuscator
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -34,6 +36,10 @@ class ComfyUIClient(
     private val hostname: String,
     private val port: Int
 ) {
+    companion object {
+        private const val TAG = "API"
+    }
+
     // OkHttpClient for HTTP requests - short timeouts are fine
     private val httpClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
         OkHttpClient.Builder()
@@ -101,6 +107,7 @@ class ComfyUIClient(
      *                 - certIssue: the type of certificate issue detected (NONE, SELF_SIGNED, UNKNOWN_CA)
      */
     fun testConnection(callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue) -> Unit) {
+        DebugLogger.i(TAG, "Testing connection to ${Obfuscator.hostname(hostname)}")
         // Reset the certificate issue detection
         SelfSignedCertHelper.reset()
         // Try HTTPS first (more secure)
@@ -149,6 +156,7 @@ class ComfyUIClient(
                         workingProtocol = protocol
                         // Check what type of certificate issue was detected
                         val certIssue = SelfSignedCertHelper.certificateIssue
+                        DebugLogger.i(TAG, "Connection successful (protocol: $protocol)")
                         callback(true, null, certIssue)
                     } else {
                         // Got response but status code indicates error (e.g., 404, 500)
@@ -157,6 +165,7 @@ class ComfyUIClient(
                             tryConnection("http", callback)
                         } else {
                             // Both protocols failed
+                            DebugLogger.w(TAG, "Connection failed: server error ${response.code}")
                             callback(false, "Server returned error: ${response.code}", CertificateIssue.NONE)
                         }
                     }
@@ -190,13 +199,18 @@ class ComfyUIClient(
      */
     fun openWebSocket(clientIdOverride: String, listener: WebSocketListener): Boolean {
         // Make sure we have a working protocol from testConnection
-        val protocol = workingProtocol ?: return false
+        val protocol = workingProtocol ?: run {
+            DebugLogger.w(TAG, "Cannot open WebSocket: no working protocol")
+            return false
+        }
 
         // Build WebSocket URL with clientId parameter
         // This is crucial - ComfyUI only sends progress/preview events to the matching client_id
         // ws:// for http, wss:// for https
         val wsProtocol = if (protocol == "https") "wss" else "ws"
         val wsUrl = "$wsProtocol://$hostname:$port/ws?clientId=$clientIdOverride"
+
+        DebugLogger.i(TAG, "Opening WebSocket connection")
 
         // Create WebSocket request
         val request = Request.Builder()
@@ -225,6 +239,7 @@ class ComfyUIClient(
      * @param reason Optional reason for closing
      */
     fun closeWebSocket(code: Int = 1000, reason: String? = null) {
+        DebugLogger.i(TAG, "Closing WebSocket (code: $code)")
         webSocket?.close(code, reason)
         webSocket = null
     }
@@ -306,7 +321,9 @@ class ComfyUIClient(
      *                 - checkpoints: List of checkpoint filenames, or empty list on error
      */
     fun fetchCheckpoints(callback: (checkpoints: List<String>) -> Unit) {
+        DebugLogger.d(TAG, "Fetching checkpoints")
         val baseUrl = getBaseUrl() ?: run {
+            DebugLogger.w(TAG, "Cannot fetch checkpoints: no connection")
             callback(emptyList())
             return
         }
@@ -320,6 +337,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch checkpoints: ${e.message}")
                 callback(emptyList())
             }
 
@@ -345,11 +363,14 @@ class ComfyUIClient(
                                     checkpoints.add(checkpoint)
                                 }
                             }
+                            DebugLogger.d(TAG, "Fetched ${checkpoints.size} checkpoints")
                             callback(checkpoints)
                         } catch (e: Exception) {
+                            DebugLogger.w(TAG, "Failed to parse checkpoints: ${e.message}")
                             callback(emptyList())
                         }
                     } else {
+                        DebugLogger.w(TAG, "Checkpoint fetch failed: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -365,6 +386,7 @@ class ComfyUIClient(
      *                 - unets: List of UNET model filenames, or empty list on error
      */
     fun fetchUNETs(callback: (unets: List<String>) -> Unit) {
+        DebugLogger.d(TAG, "Fetching UNETs")
         val baseUrl = getBaseUrl() ?: run {
             callback(emptyList())
             return
@@ -379,6 +401,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch UNETs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -404,8 +427,10 @@ class ComfyUIClient(
                                     unets.add(unet)
                                 }
                             }
+                            DebugLogger.d(TAG, "Fetched ${unets.size} UNETs")
                             callback(unets)
                         } catch (e: Exception) {
+                            DebugLogger.w(TAG, "Failed to parse UNETs: ${e.message}")
                             callback(emptyList())
                         }
                     } else {
@@ -424,6 +449,7 @@ class ComfyUIClient(
      *                 - vaes: List of VAE model filenames, or empty list on error
      */
     fun fetchVAEs(callback: (vaes: List<String>) -> Unit) {
+        DebugLogger.d(TAG, "Fetching VAEs")
         val baseUrl = getBaseUrl() ?: run {
             callback(emptyList())
             return
@@ -438,6 +464,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch VAEs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -463,11 +490,14 @@ class ComfyUIClient(
                                     vaes.add(vae)
                                 }
                             }
+                            DebugLogger.d(TAG, "Fetched ${vaes.size} VAEs")
                             callback(vaes)
                         } catch (e: Exception) {
+                            DebugLogger.w(TAG, "Failed to parse VAEs: ${e.message}")
                             callback(emptyList())
                         }
                     } else {
+                        DebugLogger.w(TAG, "VAE fetch failed: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -483,6 +513,7 @@ class ComfyUIClient(
      *                 - clips: List of CLIP model filenames, or empty list on error
      */
     fun fetchCLIPs(callback: (clips: List<String>) -> Unit) {
+        DebugLogger.d(TAG, "Fetching CLIPs")
         val baseUrl = getBaseUrl() ?: run {
             callback(emptyList())
             return
@@ -497,6 +528,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch CLIPs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -522,11 +554,14 @@ class ComfyUIClient(
                                     clips.add(clip)
                                 }
                             }
+                            DebugLogger.d(TAG, "Fetched ${clips.size} CLIPs")
                             callback(clips)
                         } catch (e: Exception) {
+                            DebugLogger.w(TAG, "Failed to parse CLIPs: ${e.message}")
                             callback(emptyList())
                         }
                     } else {
+                        DebugLogger.w(TAG, "CLIP fetch failed: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -542,6 +577,7 @@ class ComfyUIClient(
      *                 - loras: List of LoRA model filenames, or empty list on error
      */
     fun fetchLoRAs(callback: (loras: List<String>) -> Unit) {
+        DebugLogger.d(TAG, "Fetching LoRAs")
         val baseUrl = getBaseUrl() ?: run {
             callback(emptyList())
             return
@@ -556,6 +592,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch LoRAs: ${e.message}")
                 callback(emptyList())
             }
 
@@ -581,11 +618,14 @@ class ComfyUIClient(
                                     loras.add(lora)
                                 }
                             }
+                            DebugLogger.d(TAG, "Fetched ${loras.size} LoRAs")
                             callback(loras)
                         } catch (e: Exception) {
+                            DebugLogger.w(TAG, "Failed to parse LoRAs: ${e.message}")
                             callback(emptyList())
                         }
                     } else {
+                        DebugLogger.w(TAG, "LoRA fetch failed: ${response.code}")
                         callback(emptyList())
                     }
                 }
@@ -607,7 +647,9 @@ class ComfyUIClient(
         workflowJson: String,
         callback: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
+        DebugLogger.i(TAG, "Submitting prompt")
         val baseUrl = getBaseUrl() ?: run {
+            DebugLogger.w(TAG, "Submit failed: no connection")
             callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
             return
         }
@@ -635,6 +677,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.e(TAG, "Submit failed: ${e.message}")
                 callback(false, null, "Failed to submit prompt: ${e.message}")
             }
 
@@ -645,8 +688,10 @@ class ComfyUIClient(
                         try {
                             val json = JSONObject(responseBody)
                             val promptId = json.optString("prompt_id")
+                            DebugLogger.i(TAG, "Prompt submitted (promptId: ${Obfuscator.promptId(promptId)})")
                             callback(true, promptId, null)
                         } catch (e: Exception) {
+                            DebugLogger.e(TAG, "Failed to parse submit response: ${e.message}")
                             callback(false, null, "Failed to parse response: ${e.message}")
                         }
                     } else {
@@ -658,6 +703,7 @@ class ComfyUIClient(
                         } catch (e: Exception) {
                             responseBody.take(500) // Truncate long responses
                         }
+                        DebugLogger.e(TAG, "Server error ${response.code}")
                         callback(false, null, "Server error ${response.code}: $errorDetail")
                     }
                 }
@@ -812,6 +858,7 @@ class ComfyUIClient(
         type: String = "output",
         callback: (bitmap: Bitmap?) -> Unit
     ) {
+        DebugLogger.d(TAG, "Fetching image: ${Obfuscator.filename(filename)}")
         val baseUrl = getBaseUrl() ?: run {
             callback(null)
             return
@@ -917,6 +964,7 @@ class ComfyUIClient(
         type: String = "output",
         callback: (bytes: ByteArray?) -> Unit
     ) {
+        DebugLogger.d(TAG, "Fetching video: ${Obfuscator.filename(filename)}")
         val baseUrl = getBaseUrl() ?: run {
             callback(null)
             return
@@ -958,7 +1006,9 @@ class ComfyUIClient(
      * @param callback Called with the result: success true/false
      */
     fun interruptExecution(callback: (success: Boolean) -> Unit) {
+        DebugLogger.i(TAG, "Interrupting execution")
         val baseUrl = getBaseUrl() ?: run {
+            DebugLogger.w(TAG, "Cannot interrupt: no connection")
             callback(false)
             return
         }
@@ -972,11 +1022,17 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.e(TAG, "Interrupt failed: ${e.message}")
                 callback(false)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
+                    if (response.isSuccessful) {
+                        DebugLogger.i(TAG, "Interrupt successful")
+                    } else {
+                        DebugLogger.w(TAG, "Interrupt failed: ${response.code}")
+                    }
                     callback(response.isSuccessful)
                 }
             }
@@ -1154,7 +1210,9 @@ class ComfyUIClient(
         overwrite: Boolean = true,
         callback: (success: Boolean, filename: String?, errorMessage: String?) -> Unit
     ) {
+        DebugLogger.i(TAG, "Uploading image: ${Obfuscator.filename(filename)} (${imageData.size} bytes)")
         val baseUrl = getBaseUrl() ?: run {
+            DebugLogger.w(TAG, "Upload failed: no connection")
             callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
             return
         }
@@ -1180,6 +1238,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.e(TAG, "Upload failed: ${e.message}")
                 callback(false, null, "Upload failed: ${e.message}")
             }
 
@@ -1189,11 +1248,14 @@ class ComfyUIClient(
                         try {
                             val json = JSONObject(response.body?.string() ?: "{}")
                             val savedFilename = json.optString("name", filename)
+                            DebugLogger.i(TAG, "Upload successful")
                             callback(true, savedFilename, null)
                         } catch (e: Exception) {
+                            DebugLogger.e(TAG, "Failed to parse upload response: ${e.message}")
                             callback(false, null, "Failed to parse response: ${e.message}")
                         }
                     } else {
+                        DebugLogger.e(TAG, "Upload error: ${response.code}")
                         callback(false, null, "Server error: ${response.code}")
                     }
                 }

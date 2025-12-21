@@ -28,6 +28,8 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
@@ -194,6 +196,7 @@ class ImageToImageViewModel : ViewModel() {
     private var generationViewModelRef: GenerationViewModel? = null
 
     companion object {
+        private const val TAG = "ImageToImage"
         const val OWNER_ID = "IMAGE_TO_IMAGE"
         private const val PREFS_NAME = "ImageToImageFragmentPrefs"
 
@@ -207,6 +210,7 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     fun initialize(context: Context, client: ComfyUIClient) {
+        DebugLogger.i(TAG, "Initializing")
         applicationContext = context.applicationContext
         comfyUIClient = client
         workflowManager = WorkflowManager(context)
@@ -1285,6 +1289,9 @@ class ImageToImageViewModel : ViewModel() {
         val state = _uiState.value
         val sourceImage = state.sourceImage ?: return null
 
+        DebugLogger.i(TAG, "Preparing workflow (mode: ${state.mode})")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(state.positivePrompt)}")
+
         return when (state.mode) {
             ImageToImageMode.EDITING -> prepareEditingWorkflow(client, wm, sourceImage, state)
             ImageToImageMode.INPAINTING -> prepareInpaintingWorkflow(client, wm, sourceImage, state)
@@ -1300,6 +1307,8 @@ class ImageToImageViewModel : ViewModel() {
         sourceImage: Bitmap,
         state: ImageToImageUiState
     ): String? {
+        DebugLogger.d(TAG, "Preparing editing workflow: ${state.selectedEditingWorkflow}")
+        DebugLogger.d(TAG, "Steps: ${state.editingSteps}, Megapixels: ${state.editingMegapixels}")
         // Convert source image to PNG bytes
         val sourceBytes = withContext(Dispatchers.IO) {
             val outputStream = java.io.ByteArrayOutputStream()
@@ -1581,6 +1590,7 @@ class ImageToImageViewModel : ViewModel() {
      * This registers this ViewModel as the active event handler.
      */
     fun startListening(generationViewModel: GenerationViewModel) {
+        DebugLogger.d(TAG, "Starting event listener")
         generationViewModelRef = generationViewModel
 
         // If generation is running for this screen, switch to preview mode
@@ -1614,19 +1624,25 @@ class ImageToImageViewModel : ViewModel() {
      * Handle generation events from the GenerationViewModel.
      */
     private fun handleGenerationEvent(event: GenerationEvent) {
+        DebugLogger.d(TAG, "Generation event: ${event::class.simpleName}")
         when (event) {
             is GenerationEvent.PreviewImage -> {
                 onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
+                DebugLogger.i(TAG, "Image generated, fetching result")
                 fetchGeneratedImage(event.promptId) { success ->
                     if (success) {
+                        DebugLogger.i(TAG, "Image fetch successful")
                         generationViewModelRef?.completeGeneration()
+                    } else {
+                        DebugLogger.w(TAG, "Image fetch failed")
                     }
                     // If not successful, don't complete - will retry on next return
                 }
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
+                DebugLogger.w(TAG, "Connection lost during generation")
                 viewModelScope.launch {
                     val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."

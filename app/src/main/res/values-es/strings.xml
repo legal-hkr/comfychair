@@ -334,4 +334,26 @@
     <string name="backup_restore_confirm_title">¿Restaurar configuración?</string>
     <string name="backup_restore_confirm_message">Esto reemplazará su configuración actual. Esta acción no se puede deshacer.</string>
     <string name="backup_restore_confirm_button">Restaurar</string>
+
+    <!-- About screen strings -->
+    <string name="nav_about_settings">Acerca de</string>
+    <string name="about_settings_title">Acerca de</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="about_license_title">Licencia</string>
+    <string name="about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="about_source_title">Código fuente</string>
+
+    <!-- Debug Logging strings -->
+    <string name="debug_logging_title">Registro de depuración</string>
+    <string name="debug_logging_description">Capturar registros operacionales para solución de problemas</string>
+    <string name="debug_logging_enable_label">Habilitar registro</string>
+    <string name="debug_logging_enable_description">Los registros se mantienen solo en memoria</string>
+    <string name="debug_logging_view_button">Ver registros</string>
+    <string name="debug_log_title">Registro de depuración</string>
+    <string name="debug_log_empty">Sin entradas de registro</string>
+    <string name="debug_log_refresh">Actualizar</string>
+    <string name="debug_log_save">Save</string>
+    <string name="debug_log_follow">Seguir</string>
+    <string name="debug_log_saved">Registro guardado correctamente</string>
+    <string name="debug_log_save_failed">Error al guardar el registro</string>
 </resources>
