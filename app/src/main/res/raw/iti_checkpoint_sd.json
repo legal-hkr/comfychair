@@ -33,6 +33,7 @@
       "inputs": {
         "upscale_method": "nearest-exact",
         "megapixels": "{{megapixels}}",
+        "resolution_steps": 1,
         "image": ["2", 0]
       },
       "_meta": {
