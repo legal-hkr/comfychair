@@ -3,6 +3,8 @@ package sh.hnet.comfychair.viewmodel
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -418,6 +420,7 @@ class GenerationViewModel : ViewModel() {
     ) {
         val client = comfyUIClient ?: return
 
+        val mainHandler = Handler(Looper.getMainLooper())
         client.submitPrompt(workflowJson) { success, promptId, errorMessage ->
             if (success && promptId != null) {
                 _generationState.value = GenerationState(
@@ -430,9 +433,9 @@ class GenerationViewModel : ViewModel() {
                 )
                 // Save state immediately after starting
                 applicationContext?.let { saveGenerationState(it) }
-                onResult(true, promptId, null)
+                mainHandler.post { onResult(true, promptId, null) }
             } else {
-                onResult(false, null, errorMessage)
+                mainHandler.post { onResult(false, null, errorMessage) }
             }
         }
     }
@@ -446,10 +449,11 @@ class GenerationViewModel : ViewModel() {
             return
         }
 
+        val mainHandler = Handler(Looper.getMainLooper())
         client.interruptExecution { success ->
             resetGenerationState()
             dispatchEvent(GenerationEvent.GenerationCancelled)
-            onResult(success)
+            mainHandler.post { onResult(success) }
         }
     }
 
