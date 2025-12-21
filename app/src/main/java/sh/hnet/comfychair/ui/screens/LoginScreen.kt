@@ -263,8 +263,11 @@ fun LoginScreen() {
         verticalArrangement = Arrangement.Center
     ) {
         // App logo and name
+        // The text has a -16dp offset to tuck it closer to the icon (which has built-in padding).
+        // To keep the visual center aligned, we offset the entire Row by half that amount (-8dp).
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.offset(x = (-8).dp)
         ) {
             Image(
                 painter = painterResource(R.drawable.ic_launcher_foreground),
