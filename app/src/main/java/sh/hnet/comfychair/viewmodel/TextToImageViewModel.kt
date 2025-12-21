@@ -668,7 +668,10 @@ class TextToImageViewModel : ViewModel() {
                     _events.emit(TextToImageEvent.ShowToastMessage(event.message))
                 }
             }
-            is GenerationEvent.ClearPreviewForResume -> clearPreview()
+            is GenerationEvent.ClearPreviewForResume -> {
+                // Don't clear - keep the preview visible during navigation
+                // New live previews will naturally replace the current one
+            }
             else -> {}
         }
     }

@@ -1616,7 +1616,8 @@ class ImageToImageViewModel : ViewModel() {
                 // The server might still complete the generation
             }
             is GenerationEvent.ClearPreviewForResume -> {
-                clearPreview()
+                // Don't clear - keep the preview visible during navigation
+                // New live previews will naturally replace the current one
             }
             else -> {}
         }

@@ -365,12 +365,12 @@
     <string name="about_source_title">Source Code</string>
 
     <!-- Debug Logging strings -->
-    <string name="debug_logging_title">Debug Logging</string>
+    <string name="debug_logging_title">Debug logging</string>
     <string name="debug_logging_description">Capture operational logs for troubleshooting</string>
     <string name="debug_logging_enable_label">Enable logging</string>
     <string name="debug_logging_enable_description">Logs are kept in memory only</string>
-    <string name="debug_logging_view_button">View Logs</string>
-    <string name="debug_log_title">Debug Log</string>
+    <string name="debug_logging_view_button">View logs</string>
+    <string name="debug_log_title">Debug log</string>
     <string name="debug_log_empty">No log entries</string>
     <string name="debug_log_refresh">Refresh</string>
     <string name="debug_log_save">Save</string>
