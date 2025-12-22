@@ -16,17 +16,23 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.foundation.isSystemInDarkTheme
 import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.NodeCategory
+import sh.hnet.comfychair.workflow.SlotColors
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
@@ -54,7 +60,11 @@ private data class CanvasColors(
     val selectedBorder: Color,
     val textPrimary: Color,
     val textSecondary: Color,
-    val edgeColor: Color
+    val edgeColor: Color,
+    val slotColors: Map<String, Color>,
+    val categoryColors: Map<NodeCategory, SlotColors.NodeColorPair>,
+    val positivePromptColors: SlotColors.NodeColorPair,
+    val negativePromptColors: SlotColors.NodeColorPair
 )
 
 /**
@@ -96,6 +106,7 @@ fun WorkflowGraphCanvas(
     }
 
     // Extract theme colors
+    val isDarkTheme = isSystemInDarkTheme()
     val colors = CanvasColors(
         nodeBackground = MaterialTheme.colorScheme.surfaceContainer,
         nodeHeaderBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -105,7 +116,11 @@ fun WorkflowGraphCanvas(
         selectedBorder = MaterialTheme.colorScheme.primary,
         textPrimary = MaterialTheme.colorScheme.onSurface,
         textSecondary = MaterialTheme.colorScheme.onSurfaceVariant,
-        edgeColor = MaterialTheme.colorScheme.outlineVariant
+        edgeColor = MaterialTheme.colorScheme.outlineVariant,
+        slotColors = SlotColors.getSlotColorMap(isDarkTheme),
+        categoryColors = SlotColors.getCategoryColorMap(isDarkTheme),
+        positivePromptColors = SlotColors.getPositivePromptColors(isDarkTheme),
+        negativePromptColors = SlotColors.getNegativePromptColors(isDarkTheme)
     )
 
     Canvas(
@@ -180,11 +195,21 @@ fun WorkflowGraphCanvas(
                     isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
                     else -> NodeHighlightState.NONE
                 }
+
+                // Determine color pair - special handling for positive/negative prompts
+                val titleLower = node.title.lowercase()
+                val colorPair = when {
+                    titleLower.contains("positive") -> colors.positivePromptColors
+                    titleLower.contains("negative") -> colors.negativePromptColors
+                    else -> colors.categoryColors[node.category]
+                }
+
                 drawNode(
                     node = node,
                     showTemplateHighlight = showTemplateHighlight && !isFieldMappingMode,
                     colors = colors,
-                    mappingHighlightState = highlightState
+                    mappingHighlightState = highlightState,
+                    colorPair = colorPair
                 )
             }
         }
@@ -198,7 +223,8 @@ private fun DrawScope.drawNode(
     node: WorkflowNode,
     showTemplateHighlight: Boolean,
     colors: CanvasColors,
-    mappingHighlightState: NodeHighlightState = NodeHighlightState.NONE
+    mappingHighlightState: NodeHighlightState = NodeHighlightState.NONE,
+    colorPair: SlotColors.NodeColorPair? = null
 ) {
     val isTemplateHighlighted = showTemplateHighlight && node.hasTemplateVariables
 
@@ -214,35 +240,48 @@ private fun DrawScope.drawNode(
     }
 
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+    val cornerRadius = 16f
 
-    // Node background (body)
+    // Use color pair for header and body if available, otherwise use defaults
+    val headerColor = colorPair?.header ?: colors.nodeHeaderBackground
+    val bodyColor = colorPair?.body ?: colors.nodeBackground
+
+    // Create clip path for the entire node shape
+    val nodeClipPath = Path().apply {
+        addRoundRect(
+            RoundRect(
+                left = node.x,
+                top = node.y,
+                right = node.x + node.width,
+                bottom = node.y + node.height,
+                cornerRadius = CornerRadius(cornerRadius)
+            )
+        )
+    }
+
+    // Node background (body) - use category body color
     drawRoundRect(
-        color = colors.nodeBackground,
+        color = bodyColor,
         topLeft = Offset(node.x, node.y),
         size = Size(node.width, node.height),
-        cornerRadius = CornerRadius(16f)
+        cornerRadius = CornerRadius(cornerRadius)
     )
 
-    // Header background (darker) - draw as rect that gets clipped by the rounded node
-    drawRect(
-        color = colors.nodeHeaderBackground,
-        topLeft = Offset(node.x, node.y),
-        size = Size(node.width, headerHeight)
-    )
-    // Redraw top corners rounded
-    drawRoundRect(
-        color = colors.nodeHeaderBackground,
-        topLeft = Offset(node.x, node.y),
-        size = Size(node.width, 32f),
-        cornerRadius = CornerRadius(16f)
-    )
+    // Header background - clipped to node shape so corners are rounded
+    clipPath(nodeClipPath) {
+        drawRect(
+            color = headerColor,
+            topLeft = Offset(node.x, node.y),
+            size = Size(node.width, headerHeight)
+        )
+    }
 
     // Node border
     drawRoundRect(
         color = borderColor,
         topLeft = Offset(node.x, node.y),
         size = Size(node.width, node.height),
-        cornerRadius = CornerRadius(16f),
+        cornerRadius = CornerRadius(cornerRadius),
         style = Stroke(width = borderWidth)
     )
 
@@ -324,6 +363,11 @@ private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, co
     val endX = targetNode.x
     val endY = targetNode.y + calculateInputY(targetNode, edge.targetInputName)
 
+    // Resolve color from slot type, fallback to default
+    val edgeColor = edge.slotType?.let { slotType ->
+        colors.slotColors[slotType.uppercase()]
+    } ?: colors.edgeColor
+
     // Draw bezier curve
     val path = Path().apply {
         moveTo(startX, startY)
@@ -338,18 +382,18 @@ private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, co
     // Draw the path
     drawPath(
         path = path,
-        color = colors.edgeColor,
+        color = edgeColor,
         style = Stroke(width = 4f)
     )
 
     // Draw small circle at connection points
     drawCircle(
-        color = colors.edgeColor,
+        color = edgeColor,
         radius = 8f,
         center = Offset(startX, startY)
     )
     drawCircle(
-        color = colors.edgeColor,
+        color = edgeColor,
         radius = 8f,
         center = Offset(endX, endY)
     )

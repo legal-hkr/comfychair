@@ -338,6 +338,53 @@ class ComfyUIClient(
     }
 
     /**
+     * Fetch the full /object_info response from the ComfyUI server.
+     * Returns the complete node type information including inputs/outputs.
+     * Used for resolving slot types for edge coloring in workflow previewer.
+     *
+     * @param callback Called with the result:
+     *                 - objectInfo: The full JSON object, or null on error
+     */
+    fun fetchFullObjectInfo(callback: (objectInfo: JSONObject?) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(null)
+            return
+        }
+
+        val url = "$baseUrl/object_info"
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch object_info: ${e.message}")
+                callback(null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val responseBody = response.body?.string() ?: "{}"
+                            val json = JSONObject(responseBody)
+                            callback(json)
+                        } catch (e: Exception) {
+                            DebugLogger.w(TAG, "Failed to parse object_info: ${e.message}")
+                            callback(null)
+                        }
+                    } else {
+                        DebugLogger.w(TAG, "object_info request failed: ${response.code}")
+                        callback(null)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Fetch available checkpoints from the ComfyUI server
      * Retrieves the list of checkpoint models that can be used for generation
      *

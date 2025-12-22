@@ -19,6 +19,9 @@ import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowParser
 import sh.hnet.comfychair.workflow.WorkflowPreviewerUiState
+import sh.hnet.comfychair.workflow.WorkflowGraph
+import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.connection.ConnectionManager
 
 /**
  * Events emitted by the Workflow Previewer
@@ -41,6 +44,7 @@ class WorkflowPreviewerViewModel : ViewModel() {
 
     private val parser = WorkflowParser()
     private val layoutEngine = WorkflowLayoutEngine()
+    private val nodeTypeRegistry = NodeTypeRegistry()
 
     private var canvasWidth: Float = 0f
     private var canvasHeight: Float = 0f
@@ -51,62 +55,69 @@ class WorkflowPreviewerViewModel : ViewModel() {
     fun initialize(context: Context, workflowId: String?, workflowJson: String?) {
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-        try {
-            val jsonContent: String
-            val name: String
-            val description: String
+        // Fetch object_info first for edge type resolution, then parse workflow
+        fetchObjectInfo { _ ->
+            // Continue regardless of success - edges will use default color if fetch failed
+            try {
+                val jsonContent: String
+                val name: String
+                val description: String
 
-            if (workflowJson != null) {
-                // Direct JSON content provided
-                jsonContent = workflowJson
-                name = "Workflow Preview"
-                description = ""
-            } else if (workflowId != null) {
-                // Load from WorkflowManager
-                val workflowManager = WorkflowManager(context)
-                val workflow = workflowManager.getWorkflowById(workflowId)
+                if (workflowJson != null) {
+                    // Direct JSON content provided
+                    jsonContent = workflowJson
+                    name = "Workflow Preview"
+                    description = ""
+                } else if (workflowId != null) {
+                    // Load from WorkflowManager
+                    val workflowManager = WorkflowManager(context)
+                    val workflow = workflowManager.getWorkflowById(workflowId)
 
-                if (workflow == null) {
+                    if (workflow == null) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = context.getString(R.string.error_workflow_not_found)
+                        )
+                        return@fetchObjectInfo
+                    }
+
+                    jsonContent = workflow.jsonContent
+                    name = workflow.name
+                    description = workflow.description
+                } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = context.getString(R.string.error_workflow_not_found)
+                        errorMessage = context.getString(R.string.error_no_workflow_specified)
                     )
-                    return
+                    return@fetchObjectInfo
                 }
 
-                jsonContent = workflow.jsonContent
-                name = workflow.name
-                description = workflow.description
-            } else {
+                // Parse the workflow
+                var graph = parser.parse(jsonContent, name, description)
+
+                // Layout the graph
+                graph = layoutEngine.layoutGraph(graph)
+
+                // Resolve edge types for colored connections
+                graph = resolveEdgeTypes(graph)
+
+                // Calculate bounds
+                val bounds = layoutEngine.calculateBounds(graph)
+
+                _uiState.value = _uiState.value.copy(
+                    graph = graph,
+                    workflowName = name,
+                    isLoading = false,
+                    errorMessage = null,
+                    graphBounds = bounds,
+                    isFieldMappingMode = false
+                )
+            } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = context.getString(R.string.error_no_workflow_specified)
+                    errorMessage = "Failed to load workflow: ${e.message}"
                 )
-                return
             }
-
-            // Parse the workflow
-            var graph = parser.parse(jsonContent, name, description)
-
-            // Layout the graph
-            graph = layoutEngine.layoutGraph(graph)
-
-            // Calculate bounds
-            val bounds = layoutEngine.calculateBounds(graph)
-
-            _uiState.value = _uiState.value.copy(
-                graph = graph,
-                workflowName = name,
-                isLoading = false,
-                errorMessage = null,
-                graphBounds = bounds,
-                isFieldMappingMode = false
-            )
-        } catch (e: Exception) {
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                errorMessage = "Failed to load workflow: ${e.message}"
-            )
         }
     }
 
@@ -121,36 +132,43 @@ class WorkflowPreviewerViewModel : ViewModel() {
     ) {
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-        try {
-            // Parse the workflow
-            var graph = parser.parse(jsonContent, name, description)
+        // Fetch object_info first for edge type resolution, then parse workflow
+        fetchObjectInfo { _ ->
+            // Continue regardless of success - edges will use default color if fetch failed
+            try {
+                // Parse the workflow
+                var graph = parser.parse(jsonContent, name, description)
 
-            // Layout the graph
-            graph = layoutEngine.layoutGraph(graph)
+                // Layout the graph
+                graph = layoutEngine.layoutGraph(graph)
 
-            // Calculate bounds
-            val bounds = layoutEngine.calculateBounds(graph)
+                // Resolve edge types for colored connections
+                graph = resolveEdgeTypes(graph)
 
-            // Calculate highlighted nodes from mapping state
-            val highlightedNodes = calculateHighlightedNodes(mappingState)
+                // Calculate bounds
+                val bounds = layoutEngine.calculateBounds(graph)
 
-            _uiState.value = _uiState.value.copy(
-                graph = graph,
-                workflowName = name,
-                isLoading = false,
-                errorMessage = null,
-                graphBounds = bounds,
-                isFieldMappingMode = true,
-                mappingState = mappingState,
-                highlightedNodeIds = highlightedNodes,
-                canConfirmMapping = mappingState.allFieldsMapped,
-                showTemplateHighlight = false  // Disable default highlight in mapping mode
-            )
-        } catch (e: Exception) {
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                errorMessage = "Failed to load workflow: ${e.message}"
-            )
+                // Calculate highlighted nodes from mapping state
+                val highlightedNodes = calculateHighlightedNodes(mappingState)
+
+                _uiState.value = _uiState.value.copy(
+                    graph = graph,
+                    workflowName = name,
+                    isLoading = false,
+                    errorMessage = null,
+                    graphBounds = bounds,
+                    isFieldMappingMode = true,
+                    mappingState = mappingState,
+                    highlightedNodeIds = highlightedNodes,
+                    canConfirmMapping = mappingState.allFieldsMapped,
+                    showTemplateHighlight = false  // Disable default highlight in mapping mode
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Failed to load workflow: ${e.message}"
+                )
+            }
         }
     }
 
@@ -296,6 +314,46 @@ class WorkflowPreviewerViewModel : ViewModel() {
         viewModelScope.launch {
             _events.emit(WorkflowPreviewerEvent.MappingCancelled)
         }
+    }
+
+    /**
+     * Fetch object_info from the ComfyUI server to populate node type registry.
+     * Calls the callback with true if successful, false otherwise.
+     */
+    private fun fetchObjectInfo(callback: (success: Boolean) -> Unit) {
+        val client = ConnectionManager.clientOrNull
+        if (client == null) {
+            callback(false)
+            return
+        }
+
+        client.fetchFullObjectInfo { objectInfo ->
+            if (objectInfo != null) {
+                nodeTypeRegistry.parseObjectInfo(objectInfo)
+                callback(true)
+            } else {
+                callback(false)
+            }
+        }
+    }
+
+    /**
+     * Resolve edge types using the node type registry.
+     * Adds slotType to each edge based on the source node's output type.
+     */
+    private fun resolveEdgeTypes(graph: WorkflowGraph): WorkflowGraph {
+        if (!nodeTypeRegistry.isPopulated()) {
+            return graph
+        }
+
+        val resolvedEdges = graph.edges.map { edge ->
+            val sourceNode = graph.nodes.find { it.id == edge.sourceNodeId }
+            val slotType = sourceNode?.let {
+                nodeTypeRegistry.getOutputType(it.classType, edge.sourceOutputIndex)
+            }
+            edge.copy(slotType = slotType)
+        }
+        return graph.copy(edges = resolvedEdges)
     }
 
     /**

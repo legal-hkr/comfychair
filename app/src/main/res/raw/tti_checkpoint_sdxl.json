@@ -1,6 +1,6 @@
 {
   "name": "SDXL",
-  "description": "Default workflow for SDXL generation",
+  "description": "Workflow for SDXL generation",
   "defaults": {
     "width": 1024,
     "height": 1024,

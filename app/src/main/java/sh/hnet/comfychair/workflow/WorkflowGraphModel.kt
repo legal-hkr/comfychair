@@ -36,7 +36,8 @@ data class WorkflowEdge(
     val sourceNodeId: String,
     val sourceOutputIndex: Int,
     val targetNodeId: String,
-    val targetInputName: String
+    val targetInputName: String,
+    val slotType: String? = null  // Type for edge coloring (e.g., "MODEL", "CLIP", "LATENT")
 )
 
 /**
