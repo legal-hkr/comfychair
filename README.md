@@ -2,7 +2,7 @@
 
 A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
 
-**Current version**: v0.7.1
+**Current version**: v0.7.2
 
 ## Overview
 
@@ -86,6 +86,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - View and manage custom workflows
   - Upload custom ComfyUI workflows with automatic validation
   - Visual workflow previewer with node graph display
+  - Colored nodes and connections matching ComfyUI's visual style
   - Field mapping UI for required template fields
   - Edit workflow name and description
   - Default generation settings extracted during workflow import
