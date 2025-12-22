@@ -970,7 +970,7 @@ class WorkflowManager(private val context: Context) {
             .replace("\u000C", "\\f")
     }
 
-    // ==================== LoRA CHAIN INJECTION ====================
+    // LoRA chain injection
 
     /**
      * Inject a chain of LoRA loaders into a workflow JSON.
@@ -1233,8 +1233,6 @@ class WorkflowManager(private val context: Context) {
             })
         }
     }
-
-    // ==================== END LoRA CHAIN INJECTION ====================
 
     /**
      * Prepare workflow JSON with actual parameter values

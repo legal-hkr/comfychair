@@ -36,6 +36,7 @@ fun AboutSettingsScreen(
 ) {
     val context = LocalContext.current
 
+    // UI composition
     SettingsScreenScaffold(
         title = stringResource(R.string.about_settings_title),
         onNavigateToGeneration = onNavigateToGeneration,

@@ -22,13 +22,16 @@ import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
  */
 class SettingsContainerActivity : ComponentActivity() {
 
+    // Constants
     companion object {
         const val RESULT_CONNECTION_CHANGED = 101
     }
 
-    private val settingsViewModel: SettingsViewModel by viewModels()
+    // ViewModels
     private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
+    // Lifecycle methods
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -91,6 +94,7 @@ class SettingsContainerActivity : ComponentActivity() {
         }
     }
 
+    // Navigation helpers
     /**
      * Log out from the server and return to MainActivity
      */

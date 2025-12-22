@@ -84,6 +84,7 @@ fun GalleryScreen(
     val uiState by galleryViewModel.uiState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
 
+    // State and effects
     // Activity result launcher for MediaViewerActivity
     val mediaViewerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -112,7 +113,7 @@ fun GalleryScreen(
         }
     }
 
-    // Handle events
+    // Event handling
     LaunchedEffect(Unit) {
         galleryViewModel.events.collect { event ->
             when (event) {

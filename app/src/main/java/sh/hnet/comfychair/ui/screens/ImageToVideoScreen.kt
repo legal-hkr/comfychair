@@ -83,6 +83,7 @@ fun ImageToVideoScreen(
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // State and effects
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val uiState by imageToVideoViewModel.uiState.collectAsState()
@@ -135,7 +136,7 @@ fun ImageToVideoScreen(
         }
     }
 
-    // Handle events from ViewModel
+    // Event handling
     LaunchedEffect(Unit) {
         imageToVideoViewModel.events.collect { event ->
             when (event) {

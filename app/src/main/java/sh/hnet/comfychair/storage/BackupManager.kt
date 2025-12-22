@@ -221,7 +221,7 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    // ==================== READ METHODS ====================
+    // Read methods
 
     private fun readConnectionPrefs(): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_CONNECTION, Context.MODE_PRIVATE)
@@ -338,7 +338,7 @@ class BackupManager(private val context: Context) {
         return result
     }
 
-    // ==================== RESTORE METHODS ====================
+    // Restore methods
 
     /**
      * Restore connection preferences.
@@ -710,7 +710,7 @@ class BackupManager(private val context: Context) {
         return skipped
     }
 
-    // ==================== UTILITIES ====================
+    // Utilities
 
     private fun getIso8601Timestamp(): String {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)

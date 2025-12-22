@@ -42,6 +42,7 @@ fun ServerSettingsScreen(
     val context = LocalContext.current
     val uiState by viewModel.serverSettingsState.collectAsState()
 
+    // State and effects
     // Load system stats on first composition and start auto-refresh
     LaunchedEffect(Unit) {
         viewModel.loadSystemStats()
@@ -55,7 +56,7 @@ fun ServerSettingsScreen(
         }
     }
 
-    // Handle events
+    // Event handling
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
@@ -75,6 +76,7 @@ fun ServerSettingsScreen(
         }
     }
 
+    // UI composition
     SettingsScreenScaffold(
         title = stringResource(R.string.server_settings_title),
         onNavigateToGeneration = onNavigateToGeneration,

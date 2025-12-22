@@ -255,9 +255,7 @@ object ConnectionManager {
         MediaCache.reset()
     }
 
-    // ===================
-    // WebSocket Management
-    // ===================
+    // WebSocket management
 
     /**
      * Open WebSocket connection with centralized event handling.

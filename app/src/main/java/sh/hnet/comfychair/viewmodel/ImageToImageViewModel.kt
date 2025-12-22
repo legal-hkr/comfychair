@@ -140,7 +140,7 @@ data class ImageToImageUiState(
     val unetLoraChain: List<LoraSelection> = emptyList(),
     val availableLoras: List<String> = emptyList(),
 
-    // ==================== Editing Mode State ====================
+    // Editing mode state
     // Mode selection (Editing vs Inpainting)
     val mode: ImageToImageMode = ImageToImageMode.EDITING,
 
@@ -183,6 +183,7 @@ sealed class ImageToImageEvent {
  */
 class ImageToImageViewModel : ViewModel() {
 
+    // State
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
     private var workflowManager: WorkflowManager? = null
@@ -197,6 +198,7 @@ class ImageToImageViewModel : ViewModel() {
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
+    // Constants
     companion object {
         private const val TAG = "ImageToImage"
         const val OWNER_ID = "IMAGE_TO_IMAGE"
@@ -211,6 +213,7 @@ class ImageToImageViewModel : ViewModel() {
         private const val FEATHER_RADIUS = 8
     }
 
+    // Initialization
     fun initialize(context: Context, client: ComfyUIClient) {
         DebugLogger.i(TAG, "Initializing")
         applicationContext = context.applicationContext
@@ -837,7 +840,7 @@ class ImageToImageViewModel : ViewModel() {
         return result
     }
 
-    // ==================== Unified Workflow Change ====================
+    // Unified workflow change
 
     /**
      * Unified workflow selection - automatically determines mode from workflow type
@@ -902,7 +905,7 @@ class ImageToImageViewModel : ViewModel() {
         savePreferences()
     }
 
-    // ==================== Model Selection Callbacks ====================
+    // Model selection callbacks
 
     fun onCheckpointChange(checkpoint: String) {
         _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoint)
@@ -924,7 +927,7 @@ class ImageToImageViewModel : ViewModel() {
         savePreferences()
     }
 
-    // ==================== Unified Parameter Callbacks ====================
+    // Unified parameter callbacks
 
     fun onMegapixelsChange(megapixels: String) {
         val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
@@ -1007,7 +1010,7 @@ class ImageToImageViewModel : ViewModel() {
         savePreferences()
     }
 
-    // ==================== Unified LoRA Chain Callbacks ====================
+    // Unified LoRA chain callbacks
 
     fun onAddLora() {
         val state = _uiState.value
@@ -1065,7 +1068,7 @@ class ImageToImageViewModel : ViewModel() {
         savePreferences()
     }
 
-    // ==================== Editing Mode Callbacks ====================
+    // Editing mode callbacks
 
     fun onEditingWorkflowChange(workflowName: String) {
         val state = _uiState.value
@@ -1160,7 +1163,7 @@ class ImageToImageViewModel : ViewModel() {
         savePreferences()
     }
 
-    // ==================== Editing Mode LoRA Chain Callbacks ====================
+    // Editing mode LoRA chain callbacks
 
     fun onAddEditingLora() {
         val state = _uiState.value
@@ -1198,7 +1201,7 @@ class ImageToImageViewModel : ViewModel() {
         savePreferences()
     }
 
-    // ==================== Validation ====================
+    // Validation
 
     fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
@@ -1541,7 +1544,7 @@ class ImageToImageViewModel : ViewModel() {
         )
     }
 
-    // Event listener management
+    // Event handling
 
     /**
      * Start listening for generation events from the GenerationViewModel.

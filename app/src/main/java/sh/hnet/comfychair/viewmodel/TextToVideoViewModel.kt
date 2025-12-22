@@ -108,6 +108,7 @@ sealed class TextToVideoEvent {
  */
 class TextToVideoViewModel : ViewModel() {
 
+    // State
     private val _uiState = MutableStateFlow(TextToVideoUiState())
     val uiState: StateFlow<TextToVideoUiState> = _uiState.asStateFlow()
 
@@ -122,6 +123,7 @@ class TextToVideoViewModel : ViewModel() {
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
+    // Constants
     companion object {
         private const val TAG = "TextToVideo"
         const val OWNER_ID = "TEXT_TO_VIDEO"

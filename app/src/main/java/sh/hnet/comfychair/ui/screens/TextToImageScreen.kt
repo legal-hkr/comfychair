@@ -71,6 +71,7 @@ fun TextToImageScreen(
 ) {
     val context = LocalContext.current
 
+    // State and effects
     // Initialize ViewModels
     LaunchedEffect(Unit) {
         val client = generationViewModel.getClient()
@@ -103,7 +104,7 @@ fun TextToImageScreen(
         }
     }
 
-    // Handle events (toasts)
+    // Event handling
     LaunchedEffect(Unit) {
         textToImageViewModel.events.collect { event ->
             when (event) {
@@ -114,7 +115,7 @@ fun TextToImageScreen(
         }
     }
 
-    // UI State
+    // UI composition
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
 
     Column(

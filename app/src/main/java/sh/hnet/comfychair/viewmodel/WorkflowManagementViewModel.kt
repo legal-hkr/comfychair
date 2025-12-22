@@ -89,6 +89,7 @@ sealed class WorkflowManagementEvent {
  */
 class WorkflowManagementViewModel : ViewModel() {
 
+    // State
     private val _uiState = MutableStateFlow(WorkflowManagementUiState())
     val uiState: StateFlow<WorkflowManagementUiState> = _uiState.asStateFlow()
 
@@ -98,6 +99,7 @@ class WorkflowManagementViewModel : ViewModel() {
     private var workflowManager: WorkflowManager? = null
     private var applicationContext: Context? = null
 
+    // Initialization
     /**
      * Initialize the ViewModel with context
      */
@@ -124,7 +126,7 @@ class WorkflowManagementViewModel : ViewModel() {
         )
     }
 
-    // ==================== New Upload Flow ====================
+    // New upload flow
 
     /**
      * Handle file selection from file picker - new flow without filename prefix requirement
@@ -669,7 +671,7 @@ class WorkflowManagementViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(pendingWorkflowForMapping = null)
     }
 
-    // ==================== Edit Flow ====================
+    // Edit flow
 
     fun onEditWorkflow(workflow: WorkflowManager.Workflow) {
         if (workflow.isBuiltIn) return
@@ -730,7 +732,7 @@ class WorkflowManagementViewModel : ViewModel() {
         )
     }
 
-    // ==================== Delete Flow ====================
+    // Delete flow
 
     fun onDeleteWorkflow(workflow: WorkflowManager.Workflow) {
         if (workflow.isBuiltIn) return

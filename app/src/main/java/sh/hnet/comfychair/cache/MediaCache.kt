@@ -275,7 +275,7 @@ object MediaCache {
         }
     }
 
-    // ==================== BITMAP OPERATIONS ====================
+    // Bitmap operations
 
     /**
      * Get bitmap from cache (sync).
@@ -291,7 +291,7 @@ object MediaCache {
         bitmapCache.put(key.keyString, bitmap, priority)
     }
 
-    // ==================== NAVIGATION PRIORITIES ====================
+    // Navigation priorities
 
     /**
      * Update bitmap priorities based on current navigation position.
@@ -609,7 +609,7 @@ object MediaCache {
         return thumbnail
     }
 
-    // ==================== FULL-SIZE IMAGE OPERATIONS ====================
+    // Full-size image operations
 
     /**
      * Fetch full-size image with caching.
@@ -657,7 +657,7 @@ object MediaCache {
         }
     }
 
-    // ==================== VIDEO OPERATIONS ====================
+    // Video operations
 
     /**
      * Get video bytes from memory cache (sync).
@@ -805,7 +805,7 @@ object MediaCache {
         return getVideoUri(key, context)
     }
 
-    // ==================== PREFETCHING ====================
+    // Prefetching
 
     // Track completion callbacks for in-progress fetches
     private val completionCallbacks = ConcurrentHashMap<String, MutableList<() -> Unit>>()
@@ -988,7 +988,7 @@ object MediaCache {
         }
     }
 
-    // ==================== CACHE MANAGEMENT ====================
+    // Cache management
 
     /**
      * Remove item from all caches (after deletion).
@@ -1072,7 +1072,7 @@ object MediaCache {
         isMemoryFirstMode = true  // Reset to default
     }
 
-    // ==================== UTILITY ====================
+    // Utilities
 
     /**
      * Extract video dimensions and thumbnail from video bytes.

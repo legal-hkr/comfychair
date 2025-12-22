@@ -76,6 +76,7 @@ fun TextToVideoScreen(
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // State and effects
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val uiState by textToVideoViewModel.uiState.collectAsState()
@@ -127,7 +128,7 @@ fun TextToVideoScreen(
         }
     }
 
-    // Handle events (toasts)
+    // Event handling
     LaunchedEffect(Unit) {
         textToVideoViewModel.events.collect { event ->
             when (event) {
@@ -138,6 +139,7 @@ fun TextToVideoScreen(
         }
     }
 
+    // UI composition
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with save/share actions
         TopAppBar(

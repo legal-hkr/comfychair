@@ -130,6 +130,7 @@ sealed class TextToImageEvent {
  */
 class TextToImageViewModel : ViewModel() {
 
+    // State
     private val _uiState = MutableStateFlow(TextToImageUiState())
     val uiState: StateFlow<TextToImageUiState> = _uiState.asStateFlow()
 
@@ -144,6 +145,7 @@ class TextToImageViewModel : ViewModel() {
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
+    // Constants
     companion object {
         private const val TAG = "TextToImage"
         const val OWNER_ID = "TEXT_TO_IMAGE"
@@ -154,6 +156,7 @@ class TextToImageViewModel : ViewModel() {
         private const val PREF_SELECTED_WORKFLOW = "selectedWorkflow"
     }
 
+    // Initialization
     /**
      * Initialize the ViewModel with dependencies
      */
@@ -338,7 +341,7 @@ class TextToImageViewModel : ViewModel() {
         return ValidationUtils.validateModelSelection(current, available)
     }
 
-    // Update functions for UI state
+    // State management
 
     fun onPositivePromptChange(positivePrompt: String) {
         _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
@@ -594,6 +597,7 @@ class TextToImageViewModel : ViewModel() {
         bitmap?.let { saveLastGeneratedImage(it) }
     }
 
+    // Preview management
     /**
      * Clear the preview image when starting a new generation.
      */
@@ -619,7 +623,7 @@ class TextToImageViewModel : ViewModel() {
         saveLastGeneratedImage(bitmap)
     }
 
-    // Event listener management
+    // Event handling
 
     /**
      * Start listening for generation events from the GenerationViewModel.
@@ -997,7 +1001,7 @@ class TextToImageViewModel : ViewModel() {
         }
     }
 
-    // Image save/share operations
+    // Image operations
 
     fun saveToGallery(onResult: (success: Boolean) -> Unit) {
         val ctx = context ?: run { onResult(false); return }

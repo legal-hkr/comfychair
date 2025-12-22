@@ -80,6 +80,7 @@ fun ImageToImageScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // State and effects
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
@@ -118,7 +119,7 @@ fun ImageToImageScreen(
         }
     }
 
-    // Handle Image-to-image events
+    // Event handling
     LaunchedEffect(Unit) {
         imageToImageViewModel.events.collect { event ->
             when (event) {
@@ -140,6 +141,7 @@ fun ImageToImageScreen(
         }
     }
 
+    // UI composition
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with image options
         TopAppBar(

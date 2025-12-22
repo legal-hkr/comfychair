@@ -1,7 +1,8 @@
 package sh.hnet.comfychair.navigation
 
 /**
- * Navigation routes for the main container (generation screens)
+ * Navigation routes for the main container (generation screens).
+ * FAB: Gallery
  */
 sealed class MainRoute(val route: String) {
     data object TextToImage : MainRoute("text_to_image")
@@ -12,7 +13,8 @@ sealed class MainRoute(val route: String) {
 }
 
 /**
- * Navigation routes for the settings container
+ * Navigation routes for the settings container.
+ * FAB: Back to Generation
  */
 sealed class SettingsRoute(val route: String) {
     data object Workflows : SettingsRoute("workflows_settings")

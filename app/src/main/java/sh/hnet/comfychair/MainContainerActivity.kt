@@ -30,14 +30,15 @@ import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
  */
 class MainContainerActivity : ComponentActivity() {
 
+    // Constants
     companion object {
         const val RESULT_REFRESH_NEEDED = 100
     }
 
-    // ViewModel for generation state management
+    // ViewModels
     private val generationViewModel: GenerationViewModel by viewModels()
 
-    // Settings activity launcher
+    // Activity result launchers
     private val settingsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -59,6 +60,7 @@ class MainContainerActivity : ComponentActivity() {
         }
     }
 
+    // Lifecycle methods
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -120,14 +122,7 @@ class MainContainerActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Log out from the server and return to MainActivity
-     */
-    private fun logout() {
-        generationViewModel.logout()
-        finish()
-    }
-
+    // Navigation helpers
     /**
      * Open the Settings activity
      */
@@ -142,6 +137,14 @@ class MainContainerActivity : ComponentActivity() {
     private fun openGallery() {
         val intent = Intent(this, GalleryContainerActivity::class.java)
         startActivity(intent)
+    }
+
+    /**
+     * Log out from the server and return to MainActivity
+     */
+    private fun logout() {
+        generationViewModel.logout()
+        finish()
     }
 
     override fun onStop() {

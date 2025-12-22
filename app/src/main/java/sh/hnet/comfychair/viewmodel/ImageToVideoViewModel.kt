@@ -121,6 +121,7 @@ sealed class ImageToVideoEvent {
  */
 class ImageToVideoViewModel : ViewModel() {
 
+    // State
     private val _uiState = MutableStateFlow(ImageToVideoUiState())
     val uiState: StateFlow<ImageToVideoUiState> = _uiState.asStateFlow()
 
@@ -135,6 +136,7 @@ class ImageToVideoViewModel : ViewModel() {
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
+    // Constants
     companion object {
         private const val TAG = "ImageToVideo"
         const val OWNER_ID = "IMAGE_TO_VIDEO"

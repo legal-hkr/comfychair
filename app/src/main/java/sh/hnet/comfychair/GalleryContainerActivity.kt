@@ -33,6 +33,7 @@ class GalleryContainerActivity : ComponentActivity() {
     private val generationViewModel: GenerationViewModel by viewModels()
     private val galleryViewModel: GalleryViewModel by viewModels()
 
+    // Lifecycle methods
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -81,6 +82,16 @@ class GalleryContainerActivity : ComponentActivity() {
         }
     }
 
+    // Navigation helpers
+
+    /**
+     * Open the Settings activity
+     */
+    private fun openSettings() {
+        val intent = Intent(this, SettingsContainerActivity::class.java)
+        startActivity(intent)
+    }
+
     /**
      * Log out from the server and return to MainActivity
      */
@@ -90,13 +101,5 @@ class GalleryContainerActivity : ComponentActivity() {
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)
         finish()
-    }
-
-    /**
-     * Open the Settings activity
-     */
-    private fun openSettings() {
-        val intent = Intent(this, SettingsContainerActivity::class.java)
-        startActivity(intent)
     }
 }

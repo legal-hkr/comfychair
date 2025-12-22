@@ -59,6 +59,7 @@ fun ApplicationSettingsScreen(
     val isMediaCacheDisabled by viewModel.isMediaCacheDisabled.collectAsState()
     val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
 
+    // State and effects
     // Backup/restore state
     var showRestoreDialog by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
@@ -96,7 +97,7 @@ fun ApplicationSettingsScreen(
         }
     }
 
-    // Handle events
+    // Event handling
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {

@@ -67,10 +67,12 @@ sealed class GalleryEvent {
  */
 class GalleryViewModel : ViewModel() {
 
+    // Constants
     companion object {
         private const val TAG = "Gallery"
     }
 
+    // State
     private val repository = GalleryRepository.getInstance()
 
     // Selection state (local to this ViewModel)

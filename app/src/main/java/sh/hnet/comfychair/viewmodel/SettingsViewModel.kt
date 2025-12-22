@@ -75,10 +75,12 @@ sealed class SettingsEvent {
  */
 class SettingsViewModel : ViewModel() {
 
+    // Constants
     companion object {
         private const val TAG = "SettingsViewModel"
     }
 
+    // State
     // Accessor for shared client from ConnectionManager
     private val comfyUIClient: ComfyUIClient?
         get() = ConnectionManager.clientOrNull
