@@ -184,6 +184,15 @@ fun TextToVideoScreen(
             }
         )
 
+        // Progress indicator - below app bar, only show if THIS screen's job is executing
+        if (isThisScreenExecuting && generationState.maxProgress > 0) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Video preview area
         Box(
             modifier = Modifier
@@ -233,15 +242,6 @@ fun TextToVideoScreen(
                     )
                 }
             }
-        }
-
-        // Progress indicator - below preview container, only show if THIS screen's job is executing
-        if (isThisScreenExecuting && generationState.maxProgress > 0) {
-            GenerationProgressBar(
-                progress = generationState.progress,
-                maxProgress = generationState.maxProgress,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
 
         // Prompt Input

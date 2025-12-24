@@ -185,6 +185,15 @@ fun ImageToImageScreen(
             }
         )
 
+        // Progress indicator - below app bar, only show if THIS screen's job is executing
+        if (isThisScreenExecuting) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Image Preview Area
         // Only allow tapping final generated image or source image, not live previews during generation
         Box(
@@ -283,15 +292,6 @@ fun ImageToImageScreen(
                     }
                 }
             }
-        }
-
-        // Progress indicator - below preview container, only show if THIS screen's job is executing
-        if (isThisScreenExecuting) {
-            GenerationProgressBar(
-                progress = generationState.progress,
-                maxProgress = generationState.maxProgress,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
 
         // View mode toggle

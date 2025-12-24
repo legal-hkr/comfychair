@@ -207,6 +207,15 @@ fun ImageToVideoScreen(
             }
         )
 
+        // Progress indicator - below app bar, only show if THIS screen's job is executing
+        if (isThisScreenExecuting && generationState.maxProgress > 0) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Preview area
         Box(
             modifier = Modifier
@@ -302,15 +311,6 @@ fun ImageToVideoScreen(
                     }
                 }
             }
-        }
-
-        // Progress indicator - below preview container, only show if THIS screen's job is executing
-        if (isThisScreenExecuting && generationState.maxProgress > 0) {
-            GenerationProgressBar(
-                progress = generationState.progress,
-                maxProgress = generationState.maxProgress,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
 
         // View mode toggle

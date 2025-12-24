@@ -167,6 +167,15 @@ fun TextToImageScreen(
             }
         )
 
+        // Progress indicator - below app bar, only show if THIS screen's job is executing
+        if (isThisScreenExecuting) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Image Preview Area
         // Only allow tapping final generated image, not live previews during generation
         Box(
@@ -208,15 +217,6 @@ fun TextToImageScreen(
                     contentScale = ContentScale.Fit
                 )
             }
-        }
-
-        // Progress indicator - below preview container, only show if THIS screen's job is executing
-        if (isThisScreenExecuting) {
-            GenerationProgressBar(
-                progress = generationState.progress,
-                maxProgress = generationState.maxProgress,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
 
         // Prompt Input
