@@ -107,10 +107,11 @@ fun TextToImageScreen(
         }
     }
 
-    // Re-attempt handler registration when this screen's job becomes the executing one
-    // This handles the case where registration was rejected while another job was executing
-    LaunchedEffect(generationState.ownerId) {
-        if (generationState.ownerId == TextToImageViewModel.OWNER_ID) {
+    // Handle when this screen's job becomes the executing one
+    // Clear preview and re-attempt handler registration
+    LaunchedEffect(queueState.executingOwnerId) {
+        if (queueState.executingOwnerId == TextToImageViewModel.OWNER_ID) {
+            textToImageViewModel.clearPreview()
             textToImageViewModel.startListening(generationViewModel)
         }
     }
@@ -250,10 +251,6 @@ fun TextToImageScreen(
                     if (textToImageViewModel.validateConfiguration()) {
                         val workflowJson = textToImageViewModel.prepareWorkflowJson()
                         if (workflowJson != null) {
-                            // Only clear preview when starting first job (empty queue)
-                            if (queueState.totalQueueSize == 0) {
-                                textToImageViewModel.clearPreview()
-                            }
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 TextToImageViewModel.OWNER_ID

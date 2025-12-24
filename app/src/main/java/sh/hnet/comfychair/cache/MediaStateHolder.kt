@@ -442,6 +442,22 @@ object MediaStateHolder {
     fun getCurrentItvPromptId(): String? = currentItvPromptId
 
     /**
+     * Clear the current Text-to-Video prompt ID tracking.
+     * This prevents video restoration on subsequent screen initializations.
+     */
+    fun clearCurrentTtvPromptId() {
+        currentTtvPromptId = null
+    }
+
+    /**
+     * Clear the current Image-to-Video prompt ID tracking.
+     * This prevents video restoration on subsequent screen initializations.
+     */
+    fun clearCurrentItvPromptId() {
+        currentItvPromptId = null
+    }
+
+    /**
      * Discover video prompt IDs from disk without loading bytes into memory.
      * Used in disk-first mode to enable video restoration on app restart.
      * In disk-first mode, videos are read on-demand, but we still need to know

@@ -728,6 +728,8 @@ class ImageToVideoViewModel : ViewModel() {
 
     fun clearPreview() {
         _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
+        // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
+        MediaStateHolder.clearCurrentItvPromptId()
     }
 
     // Event listener management

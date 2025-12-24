@@ -131,10 +131,11 @@ fun TextToVideoScreen(
         }
     }
 
-    // Re-attempt handler registration when this screen's job becomes the executing one
-    // This handles the case where registration was rejected while another job was executing
-    LaunchedEffect(generationState.ownerId) {
-        if (generationState.ownerId == TextToVideoViewModel.OWNER_ID) {
+    // Handle when this screen's job becomes the executing one
+    // Clear preview and re-attempt handler registration
+    LaunchedEffect(queueState.executingOwnerId) {
+        if (queueState.executingOwnerId == TextToVideoViewModel.OWNER_ID) {
+            textToVideoViewModel.clearPreview()
             textToVideoViewModel.startListening(generationViewModel)
         }
     }
@@ -274,10 +275,6 @@ fun TextToVideoScreen(
                 onGenerate = {
                     val workflowJson = textToVideoViewModel.prepareWorkflow()
                     if (workflowJson != null) {
-                        // Only clear preview when starting first job (empty queue)
-                        if (queueState.totalQueueSize == 0) {
-                            textToVideoViewModel.clearPreview()
-                        }
                         generationViewModel.startGeneration(
                             workflowJson,
                             TextToVideoViewModel.OWNER_ID,

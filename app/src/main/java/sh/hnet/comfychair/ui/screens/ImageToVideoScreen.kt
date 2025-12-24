@@ -161,10 +161,12 @@ fun ImageToVideoScreen(
         }
     }
 
-    // Re-attempt handler registration when this screen's job becomes the executing one
-    // This handles the case where registration was rejected while another job was executing
-    LaunchedEffect(generationState.ownerId) {
-        if (generationState.ownerId == ImageToVideoViewModel.OWNER_ID) {
+    // Handle when this screen's job becomes the executing one
+    // Clear preview, switch to preview tab, and re-attempt handler registration
+    LaunchedEffect(queueState.executingOwnerId) {
+        if (queueState.executingOwnerId == ImageToVideoViewModel.OWNER_ID) {
+            imageToVideoViewModel.clearPreview()
+            imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
             imageToVideoViewModel.startListening(generationViewModel)
         }
     }
@@ -366,11 +368,6 @@ fun ImageToVideoScreen(
                     scope.launch {
                         val workflowJson = imageToVideoViewModel.prepareWorkflow()
                         if (workflowJson != null) {
-                            // Only clear preview and switch view when starting first job (empty queue)
-                            if (queueState.totalQueueSize == 0) {
-                                imageToVideoViewModel.clearPreview()
-                                imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
-                            }
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 ImageToVideoViewModel.OWNER_ID,
