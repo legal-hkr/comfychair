@@ -1085,7 +1085,8 @@ object MediaCache {
      */
     private fun extractVideoData(keyStr: String, videoBytes: ByteArray, context: Context): Pair<VideoDimensions?, Bitmap?> {
         // Use key hash + thread ID for unique temp filename to prevent race conditions
-        val uniqueId = "${keyStr.hashCode()}_${Thread.currentThread().threadId()}"
+        @Suppress("DEPRECATION")
+        val uniqueId = "${keyStr.hashCode()}_${Thread.currentThread().id}"
         val tempFile = File(context.cacheDir, "temp_meta_$uniqueId.mp4")
         return try {
             tempFile.writeBytes(videoBytes)
