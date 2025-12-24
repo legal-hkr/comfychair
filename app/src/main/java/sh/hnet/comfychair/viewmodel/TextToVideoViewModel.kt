@@ -123,6 +123,9 @@ class TextToVideoViewModel : ViewModel() {
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
+    // Track which promptId we've already cleared preview for (prevents duplicate clears on navigation)
+    private var lastClearedForPromptId: String? = null
+
     // Constants
     companion object {
         private const val TAG = "TextToVideo"
@@ -560,7 +563,25 @@ class TextToVideoViewModel : ViewModel() {
         saveLastPreviewImage(bitmap)
     }
 
+    /**
+     * Clear preview for a specific execution. Only clears if this is a new promptId
+     * to prevent duplicate clears when navigating back to the screen.
+     */
+    fun clearPreviewForExecution(promptId: String) {
+        if (promptId == lastClearedForPromptId) {
+            DebugLogger.d(TAG, "clearPreviewForExecution: already cleared for $promptId, skipping")
+            return
+        }
+        DebugLogger.d(TAG, "clearPreviewForExecution: clearing for new promptId=$promptId")
+        lastClearedForPromptId = promptId
+        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
+        // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
+        MediaStateHolder.clearCurrentTtvPromptId()
+    }
+
     fun clearPreview() {
+        DebugLogger.d(TAG, "clearPreview called")
+        lastClearedForPromptId = null // Reset tracking when manually clearing
         _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
         MediaStateHolder.clearCurrentTtvPromptId()
@@ -650,6 +671,7 @@ class TextToVideoViewModel : ViewModel() {
      * @param generationViewModel The shared GenerationViewModel
      */
     fun startListening(generationViewModel: GenerationViewModel) {
+        DebugLogger.d(TAG, "startListening called")
         generationViewModelRef = generationViewModel
 
         // Retry loading video if not loaded during initialize()
@@ -684,11 +706,13 @@ class TextToVideoViewModel : ViewModel() {
      * Handle generation events from the GenerationViewModel.
      */
     private fun handleGenerationEvent(event: GenerationEvent) {
+        DebugLogger.d(TAG, "Generation event: ${event::class.simpleName}")
         when (event) {
             is GenerationEvent.PreviewImage -> {
                 onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.VideoGenerated -> {
+                DebugLogger.i(TAG, "Video generated, fetching result")
                 fetchGeneratedVideo(event.promptId)
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
@@ -718,8 +742,15 @@ class TextToVideoViewModel : ViewModel() {
      * Called when VideoGenerated event is received.
      */
     private fun fetchGeneratedVideo(promptId: String) {
-        val context = applicationContext ?: return
-        val client = comfyUIClient ?: return
+        DebugLogger.d(TAG, "fetchGeneratedVideo: promptId=$promptId")
+        val context = applicationContext ?: run {
+            DebugLogger.w(TAG, "fetchGeneratedVideo: no application context")
+            return
+        }
+        val client = comfyUIClient ?: run {
+            DebugLogger.w(TAG, "fetchGeneratedVideo: no client")
+            return
+        }
 
         VideoUtils.fetchVideoFromHistory(
             context = context,
@@ -728,10 +759,13 @@ class TextToVideoViewModel : ViewModel() {
             filePrefix = VideoUtils.FilePrefix.TEXT_TO_VIDEO
         ) { uri ->
             if (uri != null) {
+                DebugLogger.i(TAG, "Video fetch successful: $uri")
                 // Clear preview bitmap so video player takes display precedence
                 _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null)
                 deleteLastPreviewImage()
                 generationViewModelRef?.completeGeneration(promptId)
+            } else {
+                DebugLogger.w(TAG, "Video fetch failed (uri is null)")
             }
             // If uri is null, don't complete generation - will retry on next return
         }

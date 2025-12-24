@@ -198,6 +198,9 @@ class ImageToImageViewModel : ViewModel() {
     // Reference to GenerationViewModel for event handling
     private var generationViewModelRef: GenerationViewModel? = null
 
+    // Track which promptId we've already cleared preview for (prevents duplicate clears on navigation)
+    private var lastClearedForPromptId: String? = null
+
     // Constants
     companion object {
         private const val TAG = "ImageToImage"
@@ -1535,7 +1538,25 @@ class ImageToImageViewModel : ViewModel() {
         saveLastPreviewImage(bitmap)
     }
 
+    /**
+     * Clear preview for a specific execution. Only clears if this is a new promptId
+     * to prevent duplicate clears when navigating back to the screen.
+     */
+    fun clearPreviewForExecution(promptId: String) {
+        if (promptId == lastClearedForPromptId) {
+            return // Already cleared for this promptId
+        }
+        lastClearedForPromptId = promptId
+        _uiState.value = _uiState.value.copy(
+            previewImage = null,
+            previewImageFilename = null,
+            previewImageSubfolder = null,
+            previewImageType = null
+        )
+    }
+
     fun clearPreview() {
+        lastClearedForPromptId = null // Reset tracking when manually clearing
         _uiState.value = _uiState.value.copy(
             previewImage = null,
             previewImageFilename = null,

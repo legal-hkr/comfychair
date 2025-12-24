@@ -131,11 +131,13 @@ fun TextToVideoScreen(
         }
     }
 
-    // Handle when this screen's job becomes the executing one
-    // Clear preview and re-attempt handler registration
-    LaunchedEffect(queueState.executingOwnerId) {
-        if (queueState.executingOwnerId == TextToVideoViewModel.OWNER_ID) {
-            textToVideoViewModel.clearPreview()
+    // Handle when a NEW job starts executing for this screen
+    // Using both executingPromptId and executingOwnerId as keys handles the race condition
+    // where execution_start arrives before job registration (owner becomes known later)
+    LaunchedEffect(queueState.executingPromptId, queueState.executingOwnerId) {
+        val promptId = queueState.executingPromptId
+        if (queueState.executingOwnerId == TextToVideoViewModel.OWNER_ID && promptId != null) {
+            textToVideoViewModel.clearPreviewForExecution(promptId)
             textToVideoViewModel.startListening(generationViewModel)
         }
     }

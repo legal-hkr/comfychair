@@ -144,11 +144,13 @@ fun ImageToImageScreen(
         }
     }
 
-    // Handle when this screen's job becomes the executing one
-    // Clear preview, switch to preview tab, and re-attempt handler registration
-    LaunchedEffect(queueState.executingOwnerId) {
-        if (queueState.executingOwnerId == ImageToImageViewModel.OWNER_ID) {
-            imageToImageViewModel.clearPreview()
+    // Handle when a NEW job starts executing for this screen
+    // Using both executingPromptId and executingOwnerId as keys handles the race condition
+    // where execution_start arrives before job registration (owner becomes known later)
+    LaunchedEffect(queueState.executingPromptId, queueState.executingOwnerId) {
+        val promptId = queueState.executingPromptId
+        if (queueState.executingOwnerId == ImageToImageViewModel.OWNER_ID && promptId != null) {
+            imageToImageViewModel.clearPreviewForExecution(promptId)
             imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW)
             imageToImageViewModel.startListening(generationViewModel)
         }

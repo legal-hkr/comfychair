@@ -89,17 +89,33 @@ object JobRegistry {
     fun registerJob(promptId: String, ownerId: String, contentType: ContentType) {
         DebugLogger.i(TAG, "Registering job: ${Obfuscator.promptId(promptId)} (owner: $ownerId, type: $contentType)")
 
+        val currentState = _queueState.value
+
+        // Determine initial status - if this job is already executing, mark it as such
+        val isAlreadyExecuting = currentState.executingPromptId == promptId
+        val initialStatus = if (isAlreadyExecuting) JobStatus.EXECUTING else JobStatus.PENDING
+
         val job = TrackedJob(
             promptId = promptId,
             ownerId = ownerId,
             contentType = contentType,
-            status = JobStatus.PENDING
+            status = initialStatus
         )
 
-        val currentState = _queueState.value
         val newJobs = currentState.ownJobs + (promptId to job)
 
-        _queueState.value = currentState.copy(ownJobs = newJobs)
+        // If this job is already executing (execution_start came before registration),
+        // update the executing owner info now that we know it
+        if (isAlreadyExecuting) {
+            DebugLogger.d(TAG, "Job was already executing, updating owner to: $ownerId")
+            _queueState.value = currentState.copy(
+                ownJobs = newJobs,
+                executingOwnerId = ownerId,
+                executingContentType = contentType
+            )
+        } else {
+            _queueState.value = currentState.copy(ownJobs = newJobs)
+        }
     }
 
     /**
