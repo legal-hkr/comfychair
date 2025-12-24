@@ -237,8 +237,9 @@ fun MaskPaintCanvas(
         }
 
         // Draw mask paths using native canvas for proper transformation
+        // Use full opacity for strokes - transparency is applied when layer is composited
         val maskPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.argb(180, 255, 0, 0) // Semi-transparent red
+            color = android.graphics.Color.argb(255, 255, 0, 0) // Full red (transparency applied at layer level)
             style = android.graphics.Paint.Style.STROKE
             strokeJoin = android.graphics.Paint.Join.ROUND
             strokeCap = android.graphics.Paint.Cap.ROUND
@@ -253,11 +254,17 @@ fun MaskPaintCanvas(
             isAntiAlias = true
         }
 
+        // Paint used when compositing the mask layer back - applies uniform transparency
+        val layerPaint = android.graphics.Paint().apply {
+            alpha = 180 // Semi-transparent overlay for the entire mask
+        }
+
         // Draw mask overlay with layer support for eraser (PorterDuff.Mode.CLEAR needs a layer)
         if (sourceImage != null && imgRect.width > 0 && imgRect.height > 0) {
             // Save layer for the mask overlay - this allows CLEAR mode to work
+            // The layerPaint applies uniform transparency when the layer is composited back
             val layerBounds = android.graphics.RectF(imgRect.left, imgRect.top, imgRect.right, imgRect.bottom)
-            drawContext.canvas.nativeCanvas.saveLayer(layerBounds, null)
+            drawContext.canvas.nativeCanvas.saveLayer(layerBounds, layerPaint)
 
             // Clip and transform to image coordinates
             drawContext.canvas.nativeCanvas.clipRect(
