@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
@@ -87,10 +88,10 @@ fun ImageToVideoScreen(
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val uiState by imageToVideoViewModel.uiState.collectAsState()
+    val queueState by JobRegistry.queueState.collectAsState()
 
-    // Check if THIS screen owns the current generation
-    val isThisScreenGenerating = generationState.isGenerating &&
-        generationState.ownerId == ImageToVideoViewModel.OWNER_ID
+    // Check if THIS screen owns the currently executing job (for progress bar)
+    val isThisScreenExecuting = queueState.executingOwnerId == ImageToVideoViewModel.OWNER_ID
 
     var showOptionsSheet by remember { mutableStateOf(false) }
 
@@ -286,8 +287,8 @@ fun ImageToVideoScreen(
                         }
                     }
 
-                    // Progress indicator - only show if THIS screen started generation
-                    if (isThisScreenGenerating && generationState.maxProgress > 0) {
+                    // Progress indicator - only show if THIS screen's job is executing
+                    if (isThisScreenExecuting && generationState.maxProgress > 0) {
                         GenerationProgressBar(
                             progress = generationState.progress,
                             maxProgress = generationState.maxProgress,
@@ -348,15 +349,18 @@ fun ImageToVideoScreen(
                 .padding(bottom = 16.dp)
         ) {
             GenerationButton(
-                isGenerating = isThisScreenGenerating,
-                isEnabled = isThisScreenGenerating ||
-                    (!generationState.isGenerating && imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank()),
+                queueSize = queueState.totalQueueSize,
+                isExecuting = queueState.isExecuting,
+                isEnabled = imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank(),
                 onGenerate = {
                     scope.launch {
                         val workflowJson = imageToVideoViewModel.prepareWorkflow()
                         if (workflowJson != null) {
-                            imageToVideoViewModel.clearPreview()
-                            imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
+                            // Only clear preview and switch view when starting first job (empty queue)
+                            if (queueState.totalQueueSize == 0) {
+                                imageToVideoViewModel.clearPreview()
+                                imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW)
+                            }
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 ImageToVideoViewModel.OWNER_ID,
@@ -379,7 +383,16 @@ fun ImageToVideoScreen(
                         }
                     }
                 },
-                onCancel = { generationViewModel.cancelGeneration { } },
+                onCancelCurrent = { generationViewModel.cancelGeneration { } },
+                onClearQueue = {
+                    generationViewModel.getClient()?.clearQueue { success ->
+                        val messageRes = if (success) R.string.queue_cleared_success
+                                       else R.string.queue_cleared_failed
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
                 modifier = Modifier.weight(1f)
             )
 

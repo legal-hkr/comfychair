@@ -1592,10 +1592,11 @@ class ImageToImageViewModel : ViewModel() {
             }
             is GenerationEvent.ImageGenerated -> {
                 DebugLogger.i(TAG, "Image generated, fetching result")
-                fetchGeneratedImage(event.promptId) { success ->
+                val promptId = event.promptId
+                fetchGeneratedImage(promptId) { success ->
                     if (success) {
                         DebugLogger.i(TAG, "Image fetch successful")
-                        generationViewModelRef?.completeGeneration()
+                        generationViewModelRef?.completeGeneration(promptId)
                     } else {
                         DebugLogger.w(TAG, "Image fetch failed")
                     }

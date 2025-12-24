@@ -111,6 +111,13 @@
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">Annuler la génération</string>
+    <string name="button_add_to_queue">Ajouter à la file (%d)</string>
+
+    <!-- Queue menu strings -->
+    <string name="menu_cancel_current">Annuler l\'actuel</string>
+    <string name="menu_add_to_end_of_queue">Ajouter à la fin de la file</string>
+    <string name="menu_add_to_front_of_queue">Ajouter au début de la file</string>
+    <string name="content_description_queue_menu">Menu de la file</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Ce n\'est pas un serveur ComfyUI</string>

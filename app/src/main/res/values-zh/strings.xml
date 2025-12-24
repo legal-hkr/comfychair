@@ -111,6 +111,13 @@
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">取消生成</string>
+    <string name="button_add_to_queue">添加到队列 (%d)</string>
+
+    <!-- Queue menu strings -->
+    <string name="menu_cancel_current">取消当前</string>
+    <string name="menu_add_to_end_of_queue">添加到队列末尾</string>
+    <string name="menu_add_to_front_of_queue">添加到队列开头</string>
+    <string name="content_description_queue_menu">队列菜单</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">不是 ComfyUI 服务器</string>

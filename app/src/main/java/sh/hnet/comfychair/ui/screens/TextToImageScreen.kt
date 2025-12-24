@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
@@ -84,10 +85,10 @@ fun TextToImageScreen(
     val generationState by generationViewModel.generationState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
     val uiState by textToImageViewModel.uiState.collectAsState()
+    val queueState by JobRegistry.queueState.collectAsState()
 
-    // Check if THIS screen owns the current generation
-    val isThisScreenGenerating = generationState.isGenerating &&
-        generationState.ownerId == TextToImageViewModel.OWNER_ID
+    // Check if THIS screen owns the currently executing job (for progress bar)
+    val isThisScreenExecuting = queueState.executingOwnerId == TextToImageViewModel.OWNER_ID
 
     // Fetch models when connected
     LaunchedEffect(connectionStatus) {
@@ -161,7 +162,7 @@ fun TextToImageScreen(
                 .weight(1f)
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable(enabled = uiState.currentBitmap != null && !isThisScreenGenerating) {
+                .clickable(enabled = uiState.currentBitmap != null && !isThisScreenExecuting) {
                     // Launch MediaViewer for single image
                     uiState.currentBitmap?.let { bitmap ->
                         val intent = MediaViewerActivity.createSingleImageIntent(
@@ -195,8 +196,8 @@ fun TextToImageScreen(
                 )
             }
 
-            // Progress indicator - only show if THIS screen started generation
-            if (isThisScreenGenerating) {
+            // Progress indicator - only show if THIS screen's job is executing
+            if (isThisScreenExecuting) {
                 GenerationProgressBar(
                     progress = generationState.progress,
                     maxProgress = generationState.maxProgress,
@@ -232,14 +233,17 @@ fun TextToImageScreen(
                 .padding(bottom = 16.dp)
         ) {
             GenerationButton(
-                isGenerating = isThisScreenGenerating,
-                isEnabled = isThisScreenGenerating ||
-                    (!generationState.isGenerating && uiState.positivePrompt.isNotBlank()),
+                queueSize = queueState.totalQueueSize,
+                isExecuting = queueState.isExecuting,
+                isEnabled = uiState.positivePrompt.isNotBlank(),
                 onGenerate = {
                     if (textToImageViewModel.validateConfiguration()) {
                         val workflowJson = textToImageViewModel.prepareWorkflowJson()
                         if (workflowJson != null) {
-                            textToImageViewModel.clearPreview()
+                            // Only clear preview when starting first job (empty queue)
+                            if (queueState.totalQueueSize == 0) {
+                                textToImageViewModel.clearPreview()
+                            }
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 TextToImageViewModel.OWNER_ID
@@ -261,7 +265,16 @@ fun TextToImageScreen(
                         }
                     }
                 },
-                onCancel = { generationViewModel.cancelGeneration { } },
+                onCancelCurrent = { generationViewModel.cancelGeneration { } },
+                onClearQueue = {
+                    generationViewModel.getClient()?.clearQueue { success ->
+                        val messageRes = if (success) R.string.queue_cleared_success
+                                       else R.string.queue_cleared_failed
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
                 modifier = Modifier.weight(1f)
             )
 

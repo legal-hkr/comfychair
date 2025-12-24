@@ -133,6 +133,13 @@
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">Cancel generation</string>
+    <string name="button_add_to_queue">Add to queue (%d)</string>
+
+    <!-- Queue menu strings -->
+    <string name="menu_cancel_current">Cancel current</string>
+    <string name="menu_add_to_end_of_queue">Add to end of queue</string>
+    <string name="menu_add_to_front_of_queue">Add to front of queue</string>
+    <string name="content_description_queue_menu">Queue menu</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Not a ComfyUI server</string>

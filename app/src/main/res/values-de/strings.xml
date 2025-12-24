@@ -128,6 +128,13 @@
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">Generierung abbrechen</string>
+    <string name="button_add_to_queue">Zur Warteschlange (%d)</string>
+
+    <!-- Queue menu strings -->
+    <string name="menu_cancel_current">Aktuellen abbrechen</string>
+    <string name="menu_add_to_end_of_queue">An Ende der Warteschlange</string>
+    <string name="menu_add_to_front_of_queue">An Anfang der Warteschlange</string>
+    <string name="content_description_queue_menu">Warteschlangenmenü</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Kein ComfyUI-Server</string>

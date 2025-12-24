@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
@@ -80,10 +81,10 @@ fun TextToVideoScreen(
     // Collect state
     val generationState by generationViewModel.generationState.collectAsState()
     val uiState by textToVideoViewModel.uiState.collectAsState()
+    val queueState by JobRegistry.queueState.collectAsState()
 
-    // Check if THIS screen owns the current generation
-    val isThisScreenGenerating = generationState.isGenerating &&
-        generationState.ownerId == TextToVideoViewModel.OWNER_ID
+    // Check if THIS screen owns the currently executing job (for progress bar)
+    val isThisScreenExecuting = queueState.executingOwnerId == TextToVideoViewModel.OWNER_ID
 
     var showOptionsSheet by remember { mutableStateOf(false) }
 
@@ -220,8 +221,8 @@ fun TextToVideoScreen(
                 }
             }
 
-            // Progress indicator - only show if THIS screen started generation
-            if (isThisScreenGenerating && generationState.maxProgress > 0) {
+            // Progress indicator - only show if THIS screen's job is executing
+            if (isThisScreenExecuting && generationState.maxProgress > 0) {
                 GenerationProgressBar(
                     progress = generationState.progress,
                     maxProgress = generationState.maxProgress,
@@ -257,13 +258,16 @@ fun TextToVideoScreen(
                 .padding(bottom = 16.dp)
         ) {
             GenerationButton(
-                isGenerating = isThisScreenGenerating,
-                isEnabled = isThisScreenGenerating ||
-                    (!generationState.isGenerating && textToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank()),
+                queueSize = queueState.totalQueueSize,
+                isExecuting = queueState.isExecuting,
+                isEnabled = textToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank(),
                 onGenerate = {
                     val workflowJson = textToVideoViewModel.prepareWorkflow()
                     if (workflowJson != null) {
-                        textToVideoViewModel.clearPreview()
+                        // Only clear preview when starting first job (empty queue)
+                        if (queueState.totalQueueSize == 0) {
+                            textToVideoViewModel.clearPreview()
+                        }
                         generationViewModel.startGeneration(
                             workflowJson,
                             TextToVideoViewModel.OWNER_ID,
@@ -285,7 +289,16 @@ fun TextToVideoScreen(
                         ).show()
                     }
                 },
-                onCancel = { generationViewModel.cancelGeneration { } },
+                onCancelCurrent = { generationViewModel.cancelGeneration { } },
+                onClearQueue = {
+                    generationViewModel.getClient()?.clearQueue { success ->
+                        val messageRes = if (success) R.string.queue_cleared_success
+                                       else R.string.queue_cleared_failed
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
                 modifier = Modifier.weight(1f)
             )
 

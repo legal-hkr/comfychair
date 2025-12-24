@@ -654,9 +654,10 @@ class TextToImageViewModel : ViewModel() {
         when (event) {
             is GenerationEvent.PreviewImage -> onCurrentBitmapChange(event.bitmap)
             is GenerationEvent.ImageGenerated -> {
-                fetchGeneratedImage(event.promptId) { success ->
+                val promptId = event.promptId
+                fetchGeneratedImage(promptId) { success ->
                     if (success) {
-                        generationViewModelRef?.completeGeneration()
+                        generationViewModelRef?.completeGeneration(promptId)
                     }
                 }
             }

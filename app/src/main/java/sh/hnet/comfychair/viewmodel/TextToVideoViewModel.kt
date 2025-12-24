@@ -729,7 +729,7 @@ class TextToVideoViewModel : ViewModel() {
                 // Clear preview bitmap so video player takes display precedence
                 _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null)
                 deleteLastPreviewImage()
-                generationViewModelRef?.completeGeneration()
+                generationViewModelRef?.completeGeneration(promptId)
             }
             // If uri is null, don't complete generation - will retry on next return
         }

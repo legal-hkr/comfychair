@@ -24,6 +24,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
@@ -253,6 +254,7 @@ object ConnectionManager {
         GalleryRepository.getInstance().reset()
         MediaStateHolder.clearAll()
         MediaCache.reset()
+        JobRegistry.clear()
     }
 
     // WebSocket management
@@ -353,6 +355,9 @@ object ConnectionManager {
 
                     if (isComplete && !promptId.isNullOrEmpty()) {
                         DebugLogger.i(TAG, "WS: executing complete (promptId: ${Obfuscator.promptId(promptId)})")
+                        // Notify JobRegistry of completion and refresh gallery
+                        JobRegistry.markCompleted(promptId)
+                        GalleryRepository.getInstance().refresh()
                         WebSocketMessage.ExecutionComplete(promptId)
                     } else {
                         DebugLogger.d(TAG, "WS: executing node $node")
@@ -372,6 +377,10 @@ object ConnectionManager {
                     val data = message.optJSONObject("data")
                     val promptId = data?.optString("prompt_id") ?: ""
                     DebugLogger.i(TAG, "WS: execution_start (promptId: ${Obfuscator.promptId(promptId)})")
+                    // Notify JobRegistry that this job is now executing
+                    if (promptId.isNotEmpty()) {
+                        JobRegistry.markExecuting(promptId)
+                    }
                     WebSocketMessage.ExecutionStart(promptId)
                 }
                 "execution_error" -> {
@@ -379,6 +388,10 @@ object ConnectionManager {
                     val promptId = data?.optString("prompt_id")
                     val errorMsg = data?.optString("exception_message", "Unknown error") ?: "Unknown error"
                     DebugLogger.e(TAG, "WS: execution_error - $errorMsg")
+                    // Notify JobRegistry of the failure
+                    if (!promptId.isNullOrEmpty()) {
+                        JobRegistry.markFailed(promptId)
+                    }
                     WebSocketMessage.ExecutionError(promptId, errorMsg)
                 }
                 "execution_success" -> {
@@ -396,8 +409,11 @@ object ConnectionManager {
                 "status" -> {
                     val data = message.optJSONObject("data")
                     val status = data?.optJSONObject("status")
-                    val queueRemaining = status?.optInt("exec_info")
+                    val execInfo = status?.optJSONObject("exec_info")
+                    val queueRemaining = execInfo?.optInt("queue_remaining") ?: 0
                     DebugLogger.d(TAG, "WS: status (queue: $queueRemaining)")
+                    // Update JobRegistry with queue size
+                    JobRegistry.updateFromStatus(queueRemaining)
                     WebSocketMessage.Status(queueRemaining)
                 }
                 "previewing", "executed" -> {
@@ -496,6 +512,21 @@ object ConnectionManager {
                 openWebSocket()
             } else {
                 scheduleReconnect()
+            }
+        }
+    }
+
+    /**
+     * Poll the server queue and update JobRegistry.
+     * Used to validate jobs on app restart and sync state.
+     */
+    fun pollQueueStatus() {
+        val client = _client ?: return
+        client.fetchQueue { queueJson ->
+            if (queueJson != null) {
+                val running = queueJson.optJSONArray("queue_running")
+                val pending = queueJson.optJSONArray("queue_pending")
+                JobRegistry.updateFromServerQueue(running, pending)
             }
         }
     }

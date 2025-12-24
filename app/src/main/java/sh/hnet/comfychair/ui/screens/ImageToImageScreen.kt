@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
@@ -85,10 +86,10 @@ fun ImageToImageScreen(
     val generationState by generationViewModel.generationState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
     val uiState by imageToImageViewModel.uiState.collectAsState()
+    val queueState by JobRegistry.queueState.collectAsState()
 
-    // Check if THIS screen owns the current generation
-    val isThisScreenGenerating = generationState.isGenerating &&
-        generationState.ownerId == ImageToImageViewModel.OWNER_ID
+    // Check if THIS screen owns the currently executing job (for progress bar)
+    val isThisScreenExecuting = queueState.executingOwnerId == ImageToImageViewModel.OWNER_ID
 
     var showOptionsSheet by remember { mutableStateOf(false) }
     var showMaskEditor by remember { mutableStateOf(false) }
@@ -179,7 +180,7 @@ fun ImageToImageScreen(
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(
-                    enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenGenerating) ||
+                    enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting) ||
                               (uiState.viewMode == ImageToImageViewMode.SOURCE && uiState.sourceImage != null),
                     onClick = {
                         when (uiState.viewMode) {
@@ -267,8 +268,8 @@ fun ImageToImageScreen(
                         )
                     }
 
-                    // Progress indicator - only show if THIS screen started generation
-                    if (isThisScreenGenerating) {
+                    // Progress indicator - only show if THIS screen's job is executing
+                    if (isThisScreenExecuting) {
                         GenerationProgressBar(
                             progress = generationState.progress,
                             maxProgress = generationState.maxProgress,
@@ -329,13 +330,11 @@ fun ImageToImageScreen(
                 .padding(bottom = 16.dp)
         ) {
             GenerationButton(
-                isGenerating = isThisScreenGenerating,
-                isEnabled = isThisScreenGenerating || (
-                    !generationState.isGenerating &&
-                    imageToImageViewModel.hasValidConfiguration() &&
+                queueSize = queueState.totalQueueSize,
+                isExecuting = queueState.isExecuting,
+                isEnabled = imageToImageViewModel.hasValidConfiguration() &&
                     uiState.positivePrompt.isNotBlank() &&
-                    uiState.sourceImage != null
-                ),
+                    uiState.sourceImage != null,
                 onGenerate = {
                     scope.launch {
                         // In inpainting mode, require mask
@@ -349,8 +348,11 @@ fun ImageToImageScreen(
                         }
                         val workflowJson = imageToImageViewModel.prepareWorkflow()
                         if (workflowJson != null) {
-                            imageToImageViewModel.clearPreview()
-                            imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW)
+                            // Only clear preview and switch view when starting first job (empty queue)
+                            if (queueState.totalQueueSize == 0) {
+                                imageToImageViewModel.clearPreview()
+                                imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW)
+                            }
                             generationViewModel.startGeneration(
                                 workflowJson,
                                 ImageToImageViewModel.OWNER_ID
@@ -372,7 +374,16 @@ fun ImageToImageScreen(
                         }
                     }
                 },
-                onCancel = { generationViewModel.cancelGeneration { } },
+                onCancelCurrent = { generationViewModel.cancelGeneration { } },
+                onClearQueue = {
+                    generationViewModel.getClient()?.clearQueue { success ->
+                        val messageRes = if (success) R.string.queue_cleared_success
+                                       else R.string.queue_cleared_failed
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
                 modifier = Modifier.weight(1f)
             )
 

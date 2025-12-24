@@ -111,6 +111,13 @@
 
     <!-- Generation button states -->
     <string name="button_cancel_generation">Cancelar generación</string>
+    <string name="button_add_to_queue">Añadir a la cola (%d)</string>
+
+    <!-- Queue menu strings -->
+    <string name="menu_cancel_current">Cancelar actual</string>
+    <string name="menu_add_to_end_of_queue">Agregar al final de la cola</string>
+    <string name="menu_add_to_front_of_queue">Agregar al frente de la cola</string>
+    <string name="content_description_queue_menu">Menú de cola</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">No es un servidor ComfyUI</string>

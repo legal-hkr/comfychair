@@ -21,6 +21,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.connection.WebSocketMessage
 import sh.hnet.comfychair.connection.WebSocketState
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
@@ -104,9 +105,12 @@ class GenerationViewModel : ViewModel() {
     private var activeEventHandler: ((GenerationEvent) -> Unit)? = null
     private var activeEventHandlerOwnerId: String? = null  // Track who registered the handler
     private var generationOwnerId: String? = null
-    private var pendingCompletion: GenerationEvent? = null  // ImageGenerated or VideoGenerated
-    private var bufferedPreview: Bitmap? = null  // Buffer for preview when no handler registered
-    private var pendingClearPreview: Boolean = false  // Buffer for ClearPreviewForResume when no handler
+
+    // Per-owner buffered events (keyed by ownerId)
+    // This prevents events from one owner overwriting another's when jobs overlap
+    private val pendingCompletions = mutableMapOf<String, GenerationEvent>()  // ImageGenerated or VideoGenerated
+    private val bufferedPreviews = mutableMapOf<String, Bitmap>()  // Preview when no handler registered
+    private val pendingClearPreviews = mutableSetOf<String>()  // ClearPreviewForResume when no handler
 
     // Polling for completion when resuming a generation
     private var completionPollingJob: Job? = null
@@ -139,6 +143,9 @@ class GenerationViewModel : ViewModel() {
         DebugLogger.i(TAG, "Initializing")
         this.applicationContext = context.applicationContext
 
+        // Restore JobRegistry state from persistence
+        JobRegistry.restoreState(context)
+
         // Restore generation state
         restoreGenerationState(context)
 
@@ -149,6 +156,8 @@ class GenerationViewModel : ViewModel() {
         // Open WebSocket connection via ConnectionManager
         if (ConnectionManager.isConnected) {
             ConnectionManager.openWebSocket()
+            // Poll queue to validate restored jobs against server
+            ConnectionManager.pollQueueStatus()
         } else {
             _connectionStatus.value = ConnectionStatus.FAILED
         }
@@ -252,8 +261,42 @@ class GenerationViewModel : ViewModel() {
                     dispatchEvent(GenerationEvent.Error(errorMessage))
                 }
             }
-            // Informational messages - no action needed
-            is WebSocketMessage.ExecutionStart -> {}
+            // When a job starts executing, update generation state to track it
+            is WebSocketMessage.ExecutionStart -> {
+                val promptId = message.promptId
+                if (promptId.isNotEmpty()) {
+                    // Look up job info from JobRegistry
+                    val owner = JobRegistry.findOwner(promptId)
+                    val contentType = JobRegistry.findContentType(promptId)
+
+                    if (owner != null && contentType != null) {
+                        val previousOwner = generationOwnerId
+                        val ownerChanged = previousOwner != null && previousOwner != owner
+
+                        // This is one of our jobs - update state to track it
+                        DebugLogger.d(TAG, "Tracking execution start for our job (promptId: ${Obfuscator.promptId(promptId)}, owner: $owner)")
+                        if (ownerChanged) {
+                            DebugLogger.i(TAG, "OWNER CHANGE: $previousOwner -> $owner, currentHandler=$activeEventHandlerOwnerId")
+                        }
+
+                        generationOwnerId = owner
+                        generationContentType = contentType
+                        _generationState.value = GenerationState(
+                            isGenerating = true,
+                            promptId = promptId,
+                            progress = 0,
+                            maxProgress = 100,
+                            ownerId = owner,
+                            contentType = contentType
+                        )
+
+                        // If handler doesn't match new owner, log warning
+                        if (activeEventHandlerOwnerId != null && activeEventHandlerOwnerId != owner) {
+                            DebugLogger.w(TAG, "Handler mismatch after ExecutionStart: handler=$activeEventHandlerOwnerId, newOwner=$owner")
+                        }
+                    }
+                }
+            }
             is WebSocketMessage.Executing -> {}
             is WebSocketMessage.ExecutionCached -> {}
             is WebSocketMessage.Status -> {}
@@ -282,36 +325,59 @@ class GenerationViewModel : ViewModel() {
      * If there's a buffered preview or pending completion, it will be delivered immediately.
      */
     fun registerEventHandler(ownerId: String, handler: (GenerationEvent) -> Unit) {
-        // Only allow registration if this owner started generation OR no generation is active
-        if (ownerId == generationOwnerId || generationOwnerId == null) {
+        val state = _generationState.value
+        val executingOwner = state.ownerId
+
+        // Check if this owner has pending buffered events that need delivery
+        val hasPendingEvents = pendingCompletions.containsKey(ownerId) ||
+                               bufferedPreviews.containsKey(ownerId) ||
+                               pendingClearPreviews.contains(ownerId)
+
+        DebugLogger.d(TAG, "registerEventHandler: ownerId=$ownerId, executingOwner=$executingOwner, " +
+                "generationOwnerId=$generationOwnerId, currentHandler=$activeEventHandlerOwnerId, hasPending=$hasPendingEvents")
+
+        // Allow registration if:
+        // 1. This owner matches the executing job, OR
+        // 2. No generation is active, OR
+        // 3. This owner has pending buffered events that need delivery
+        if (ownerId == executingOwner || executingOwner == null || hasPendingEvents) {
+            DebugLogger.d(TAG, "Handler registration ACCEPTED for $ownerId (reason: ${
+                when {
+                    ownerId == executingOwner -> "matches executing"
+                    executingOwner == null -> "no active generation"
+                    hasPendingEvents -> "has pending events"
+                    else -> "unknown"
+                }
+            })")
             activeEventHandler = handler
             activeEventHandlerOwnerId = ownerId
 
-            // Deliver pending ClearPreviewForResume if exists (must be before preview delivery)
-            if (pendingClearPreview) {
+            // Deliver pending ClearPreviewForResume if exists for THIS owner (must be before preview delivery)
+            if (pendingClearPreviews.remove(ownerId)) {
+                DebugLogger.d(TAG, "Delivering buffered ClearPreviewForResume to $ownerId")
                 viewModelScope.launch { handler(GenerationEvent.ClearPreviewForResume) }
-                pendingClearPreview = false
             }
 
-            // Deliver buffered preview if exists
-            bufferedPreview?.let { bitmap ->
+            // Deliver buffered preview if exists for THIS owner
+            bufferedPreviews.remove(ownerId)?.let { bitmap ->
+                DebugLogger.d(TAG, "Delivering buffered PreviewImage to $ownerId")
                 viewModelScope.launch { handler(GenerationEvent.PreviewImage(bitmap)) }
-                bufferedPreview = null
             }
 
-            // Deliver pending completion if exists
-            pendingCompletion?.let { completion ->
+            // Deliver pending completion if exists for THIS owner
+            pendingCompletions.remove(ownerId)?.let { completion ->
+                DebugLogger.d(TAG, "Delivering buffered ${completion::class.simpleName} to $ownerId")
                 viewModelScope.launch { handler(completion) }
-                pendingCompletion = null
             }
 
             // If generation is active but completion wasn't detected yet,
             // trigger a server check in case completion happened before handler registered
-            val state = _generationState.value
-            if (state.isGenerating && pendingCompletion == null && ownerId == state.ownerId) {
+            if (state.isGenerating && !pendingCompletions.containsKey(ownerId) && ownerId == state.ownerId) {
                 DebugLogger.d(TAG, "Handler registered during active generation, verifying status")
                 checkServerForCompletion()
             }
+        } else {
+            DebugLogger.d(TAG, "Handler registration REJECTED for $ownerId (executing owner is $executingOwner)")
         }
     }
 
@@ -321,40 +387,72 @@ class GenerationViewModel : ViewModel() {
      * If the owner started generation that's still running, keep handler active for pending completion.
      */
     fun unregisterEventHandler(ownerId: String) {
+        val state = _generationState.value
+        val executingOwner = state.ownerId
+
+        DebugLogger.d(TAG, "unregisterEventHandler: ownerId=$ownerId, executingOwner=$executingOwner, " +
+                "currentHandler=$activeEventHandlerOwnerId, isGenerating=${state.isGenerating}")
+
         // Only clear handler if THIS owner registered it
         if (activeEventHandlerOwnerId != ownerId) {
+            DebugLogger.d(TAG, "Unregister SKIPPED: another owner ($activeEventHandlerOwnerId) registered the handler")
             return  // Another screen registered the handler, don't clear it
         }
 
-        // Don't clear handler if this owner started generation that's still running
-        if (generationOwnerId == ownerId && _generationState.value.isGenerating) {
+        // Don't clear handler if this owner's job is currently executing
+        if (executingOwner == ownerId && state.isGenerating) {
+            DebugLogger.d(TAG, "Unregister SKIPPED: $ownerId's job is still executing")
             return
         }
 
+        DebugLogger.d(TAG, "Unregister ACCEPTED: clearing handler for $ownerId")
         activeEventHandler = null
         activeEventHandlerOwnerId = null
     }
 
     /**
      * Dispatch event to active handler, falling back to SharedFlow.
-     * If no handler is active, buffer previews and store completion events for later.
+     * If no handler is active OR handler doesn't match executing owner, buffer events.
      * Handler is invoked on the main thread to ensure proper UI state updates.
      */
     private fun dispatchEvent(event: GenerationEvent) {
         val handler = activeEventHandler
+        val state = _generationState.value
+        val eventName = event::class.simpleName
+        val executingOwner = state.ownerId
 
-        if (handler != null) {
+        // Check if handler matches executing job owner
+        val handlerMatchesExecuting = activeEventHandlerOwnerId == executingOwner
+
+        // Only log non-preview events to avoid spam
+        if (event !is GenerationEvent.PreviewImage) {
+            DebugLogger.d(TAG, "dispatchEvent: $eventName, executingOwner=$executingOwner, " +
+                    "handlerOwner=$activeEventHandlerOwnerId, hasHandler=${handler != null}, matches=$handlerMatchesExecuting")
+        }
+
+        // Only dispatch to handler if it matches the executing job's owner
+        if (handler != null && handlerMatchesExecuting) {
             viewModelScope.launch { handler(event) }
-            if (event is GenerationEvent.PreviewImage) {
-                bufferedPreview = null
+            if (event is GenerationEvent.PreviewImage && executingOwner != null) {
+                bufferedPreviews.remove(executingOwner)
             }
         } else {
-            // No handler - buffer for later delivery
-            when (event) {
-                is GenerationEvent.PreviewImage -> bufferedPreview = event.bitmap
-                is GenerationEvent.ImageGenerated, is GenerationEvent.VideoGenerated -> pendingCompletion = event
-                is GenerationEvent.ClearPreviewForResume -> pendingClearPreview = true
-                else -> {}
+            // No matching handler - buffer for later delivery to the correct owner
+            // Use executingOwner as the key so this owner can retrieve it later
+            if (executingOwner != null) {
+                if (event !is GenerationEvent.PreviewImage) {
+                    if (handler != null && !handlerMatchesExecuting) {
+                        DebugLogger.d(TAG, "Handler mismatch, buffering $eventName for $executingOwner (current handler: $activeEventHandlerOwnerId)")
+                    } else {
+                        DebugLogger.d(TAG, "No handler, buffering $eventName for $executingOwner")
+                    }
+                }
+                when (event) {
+                    is GenerationEvent.PreviewImage -> bufferedPreviews[executingOwner] = event.bitmap
+                    is GenerationEvent.ImageGenerated, is GenerationEvent.VideoGenerated -> pendingCompletions[executingOwner] = event
+                    is GenerationEvent.ClearPreviewForResume -> pendingClearPreviews.add(executingOwner)
+                    else -> {}
+                }
             }
         }
         // Also emit to SharedFlow for backwards compatibility
@@ -420,16 +518,35 @@ class GenerationViewModel : ViewModel() {
         client.submitPrompt(workflowJson) { success, promptId, errorMessage ->
             if (success && promptId != null) {
                 DebugLogger.i(TAG, "Workflow submitted successfully (promptId: ${Obfuscator.promptId(promptId)})")
-                _generationState.value = GenerationState(
-                    isGenerating = true,
-                    promptId = promptId,
-                    progress = 0,
-                    maxProgress = 100,
-                    ownerId = generationOwnerId,
-                    contentType = generationContentType
-                )
-                // Save state immediately after starting
-                applicationContext?.let { saveGenerationState(it) }
+
+                // Register job with JobRegistry for queue tracking
+                generationOwnerId?.let { ownerId ->
+                    JobRegistry.registerJob(promptId, ownerId, generationContentType)
+                    // Save JobRegistry state for persistence
+                    applicationContext?.let { ctx -> JobRegistry.saveState(ctx) }
+                }
+
+                // Determine if we should set up GenerationState now
+                // There's a race condition: ExecutionStart might fire before we register the job.
+                // Check both:
+                // 1. Nothing executing (first job or queue was empty)
+                // 2. This job is already executing (race: ExecutionStart fired before registration)
+                val queueState = JobRegistry.queueState.value
+                val isThisJobExecuting = queueState.executingPromptId == promptId
+                val shouldSetState = isThisJobExecuting || !queueState.isExecuting
+
+                if (shouldSetState) {
+                    _generationState.value = GenerationState(
+                        isGenerating = true,
+                        promptId = promptId,
+                        progress = 0,
+                        maxProgress = 100,
+                        ownerId = generationOwnerId,
+                        contentType = generationContentType
+                    )
+                    // Save state immediately after starting
+                    applicationContext?.let { saveGenerationState(it) }
+                }
                 mainHandler.post { onResult(true, promptId, null) }
             } else {
                 DebugLogger.e(TAG, "Workflow submission failed: $errorMessage")
@@ -464,22 +581,41 @@ class GenerationViewModel : ViewModel() {
 
     /**
      * Complete generation (called after image is fetched)
+     * @param promptId Optional promptId to verify - only resets if matches current generation.
+     *                 This prevents late completion calls from clearing state for a different job.
      */
-    fun completeGeneration() {
+    fun completeGeneration(promptId: String? = null) {
+        val currentPromptId = _generationState.value.promptId
+
+        // If promptId specified, only reset if it matches current generation
+        // This prevents race condition where a late completion clears a new job's state
+        if (promptId != null && promptId != currentPromptId) {
+            DebugLogger.d(TAG, "Ignoring completion for old job (${Obfuscator.promptId(promptId)}) - current is (${Obfuscator.promptId(currentPromptId ?: "")})")
+            return
+        }
+
         DebugLogger.i(TAG, "Generation completed")
         resetGenerationState()
     }
 
     /**
      * Reset generation state
+     * Clears transient buffers (previews, clear flags) but preserves pending completions
+     * since they need to survive until the handler registers to receive them
      */
     private fun resetGenerationState() {
         stopCompletionPolling()
+
+        // Clear transient buffers (previews can be discarded, completion events cannot)
+        val currentOwner = generationOwnerId
+        if (currentOwner != null) {
+            // DON'T clear pendingCompletions - they must survive until handler retrieves them
+            bufferedPreviews.remove(currentOwner)
+            pendingClearPreviews.remove(currentOwner)
+        }
+
         _generationState.value = GenerationState()
         generationOwnerId = null
-        pendingCompletion = null
-        bufferedPreview = null
-        pendingClearPreview = false
         // Clear persisted state to prevent stale "generating" state on app restart
         applicationContext?.let { saveGenerationState(it) }
     }
@@ -526,7 +662,7 @@ class GenerationViewModel : ViewModel() {
                     GenerationEvent.ImageGenerated(promptId)
                 }
                 dispatchEvent(event)
-                completeGeneration()
+                completeGeneration(promptId)
                 GalleryRepository.getInstance().refresh()
             }
         }
@@ -619,7 +755,7 @@ class GenerationViewModel : ViewModel() {
             GenerationEvent.ImageGenerated(promptId)
         }
         dispatchEvent(event)
-        completeGeneration()
+        completeGeneration(promptId)  // Pass promptId to prevent clearing state for a different job
         GalleryRepository.getInstance().refresh()
     }
 
@@ -697,7 +833,10 @@ class GenerationViewModel : ViewModel() {
      * Logout - close connections and reset state
      */
     fun logout() {
-        // Logout from server (sets flag to prevent auto-reconnect, clears all caches)
+        // Clear JobRegistry persisted state
+        applicationContext?.let { JobRegistry.clearPersistedState(it) }
+
+        // Logout from server (sets flag to prevent auto-reconnect, clears all caches including JobRegistry)
         ConnectionManager.logout()
 
         _connectionStatus.value = ConnectionStatus.DISCONNECTED
