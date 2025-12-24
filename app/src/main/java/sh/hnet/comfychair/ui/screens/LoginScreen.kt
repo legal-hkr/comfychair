@@ -230,7 +230,7 @@ fun LoginScreen() {
         val savedPort = prefs.getInt("port", 8188)
 
         // Check if user explicitly logged out - don't auto-connect in that case
-        val shouldAutoConnect = !ConnectionManager.userInitiatedLogout
+        val shouldAutoConnect = !ConnectionManager.isUserInitiatedLogout
         ConnectionManager.clearLogoutFlag()
 
         if (savedHostname.isNotEmpty()) {

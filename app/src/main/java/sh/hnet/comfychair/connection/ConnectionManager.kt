@@ -97,14 +97,14 @@ object ConnectionManager {
      * Flag indicating that the user explicitly logged out.
      * Used to prevent auto-connect on the login screen after logout.
      */
-    var userInitiatedLogout: Boolean = false
+    var isUserInitiatedLogout: Boolean = false
         private set
 
     /**
      * Clear the logout flag. Called after login screen checks it.
      */
     fun clearLogoutFlag() {
-        userInitiatedLogout = false
+        isUserInitiatedLogout = false
     }
 
     /**
@@ -242,7 +242,7 @@ object ConnectionManager {
      */
     fun logout() {
         DebugLogger.i(TAG, "User initiated logout")
-        userInitiatedLogout = true
+        isUserInitiatedLogout = true
         reconnectAttempts = MAX_RECONNECT_ATTEMPTS  // Prevent reconnection attempts
         disconnect()
     }

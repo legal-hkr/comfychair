@@ -4,7 +4,7 @@ A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
 
 **The app is still in heavy development.**
 
-**Current version**: v0.7.3
+**Current version**: v0.7.4
 
 ## Overview
 

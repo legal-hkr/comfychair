@@ -101,7 +101,7 @@ object MediaCache {
 
     // Context for temp file operations (set once when first needed)
     private var applicationContext: Context? = null
-    private var prefetchWorkersStarted = false
+    private var isPrefetchWorkersStarted = false
 
     // Caching mode - true for memory-first (default), false for disk-first
     private var isMemoryFirstMode = true
@@ -269,9 +269,9 @@ object MediaCache {
         if (applicationContext == null) {
             applicationContext = context.applicationContext
         }
-        if (!prefetchWorkersStarted) {
+        if (!isPrefetchWorkersStarted) {
             startPrefetchWorkers()
-            prefetchWorkersStarted = true
+            isPrefetchWorkersStarted = true
         }
     }
 
@@ -1068,7 +1068,7 @@ object MediaCache {
     fun reset() {
         clearAll()
         applicationContext = null
-        prefetchWorkersStarted = false
+        isPrefetchWorkersStarted = false
         isMemoryFirstMode = true  // Reset to default
     }
 
