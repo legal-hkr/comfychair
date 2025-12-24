@@ -107,6 +107,14 @@ fun TextToImageScreen(
         }
     }
 
+    // Re-attempt handler registration when this screen's job becomes the executing one
+    // This handles the case where registration was rejected while another job was executing
+    LaunchedEffect(generationState.ownerId) {
+        if (generationState.ownerId == TextToImageViewModel.OWNER_ID) {
+            textToImageViewModel.startListening(generationViewModel)
+        }
+    }
+
     // Event handling
     LaunchedEffect(Unit) {
         textToImageViewModel.events.collect { event ->
@@ -197,15 +205,15 @@ fun TextToImageScreen(
                     contentScale = ContentScale.Fit
                 )
             }
+        }
 
-            // Progress indicator - only show if THIS screen's job is executing
-            if (isThisScreenExecuting) {
-                GenerationProgressBar(
-                    progress = generationState.progress,
-                    maxProgress = generationState.maxProgress,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
+        // Progress indicator - below preview container, only show if THIS screen's job is executing
+        if (isThisScreenExecuting) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // Prompt Input

@@ -161,6 +161,14 @@ fun ImageToVideoScreen(
         }
     }
 
+    // Re-attempt handler registration when this screen's job becomes the executing one
+    // This handles the case where registration was rejected while another job was executing
+    LaunchedEffect(generationState.ownerId) {
+        if (generationState.ownerId == ImageToVideoViewModel.OWNER_ID) {
+            imageToVideoViewModel.startListening(generationViewModel)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with upload and save/share actions
         TopAppBar(
@@ -288,17 +296,17 @@ fun ImageToVideoScreen(
                             )
                         }
                     }
-
-                    // Progress indicator - only show if THIS screen's job is executing
-                    if (isThisScreenExecuting && generationState.maxProgress > 0) {
-                        GenerationProgressBar(
-                            progress = generationState.progress,
-                            maxProgress = generationState.maxProgress,
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-                    }
                 }
             }
+        }
+
+        // Progress indicator - below preview container, only show if THIS screen's job is executing
+        if (isThisScreenExecuting && generationState.maxProgress > 0) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // View mode toggle

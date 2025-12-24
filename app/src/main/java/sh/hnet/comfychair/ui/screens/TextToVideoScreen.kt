@@ -131,6 +131,14 @@ fun TextToVideoScreen(
         }
     }
 
+    // Re-attempt handler registration when this screen's job becomes the executing one
+    // This handles the case where registration was rejected while another job was executing
+    LaunchedEffect(generationState.ownerId) {
+        if (generationState.ownerId == TextToVideoViewModel.OWNER_ID) {
+            textToVideoViewModel.startListening(generationViewModel)
+        }
+    }
+
     // Event handling
     LaunchedEffect(Unit) {
         textToVideoViewModel.events.collect { event ->
@@ -222,15 +230,15 @@ fun TextToVideoScreen(
                     )
                 }
             }
+        }
 
-            // Progress indicator - only show if THIS screen's job is executing
-            if (isThisScreenExecuting && generationState.maxProgress > 0) {
-                GenerationProgressBar(
-                    progress = generationState.progress,
-                    maxProgress = generationState.maxProgress,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
+        // Progress indicator - below preview container, only show if THIS screen's job is executing
+        if (isThisScreenExecuting && generationState.maxProgress > 0) {
+            GenerationProgressBar(
+                progress = generationState.progress,
+                maxProgress = generationState.maxProgress,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // Prompt Input

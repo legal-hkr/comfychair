@@ -290,9 +290,11 @@ class GenerationViewModel : ViewModel() {
                             contentType = contentType
                         )
 
-                        // If handler doesn't match new owner, log warning
+                        // If handler doesn't match new owner, clear it so correct screen can register
                         if (activeEventHandlerOwnerId != null && activeEventHandlerOwnerId != owner) {
-                            DebugLogger.w(TAG, "Handler mismatch after ExecutionStart: handler=$activeEventHandlerOwnerId, newOwner=$owner")
+                            DebugLogger.w(TAG, "Handler mismatch after ExecutionStart: handler=$activeEventHandlerOwnerId, newOwner=$owner - clearing handler")
+                            activeEventHandler = null
+                            activeEventHandlerOwnerId = null
                         }
                     }
                 }
