@@ -236,7 +236,7 @@ fun ImageToImageScreen(
                             modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.ic_launcher_foreground),
+                                painter = painterResource(R.drawable.ic_comfychair_foreground),
                                 contentDescription = null,
                                 modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                                 contentScale = ContentScale.Fit
@@ -260,7 +260,7 @@ fun ImageToImageScreen(
                     } else {
                         // Placeholder - app logo
                         Image(
-                            painter = painterResource(R.drawable.ic_launcher_foreground),
+                            painter = painterResource(R.drawable.ic_comfychair_foreground),
                             contentDescription = null,
                             modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                             contentScale = ContentScale.Fit

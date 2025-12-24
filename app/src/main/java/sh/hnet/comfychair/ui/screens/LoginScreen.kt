@@ -270,14 +270,14 @@ fun LoginScreen() {
             modifier = Modifier.offset(x = (-8).dp)
         ) {
             Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
+                painter = painterResource(R.drawable.ic_comfychair_foreground),
                 contentDescription = null,
                 modifier = Modifier.size(112.dp)
             )
             Text(
                 text = stringResource(R.string.app_name),
-                fontSize = 44.sp,
-                fontFamily = FontFamily.Cursive,
+                fontSize = 36.sp,
+                fontFamily = FontFamily.Serif,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.offset(x = (-16).dp)
             )

@@ -51,7 +51,7 @@ fun AboutSettingsScreen(
 
             // App Logo (300dp)
             Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                painter = painterResource(id = R.drawable.ic_comfychair_foreground),
                 contentDescription = stringResource(R.string.app_name),
                 modifier = Modifier.size(300.dp)
             )

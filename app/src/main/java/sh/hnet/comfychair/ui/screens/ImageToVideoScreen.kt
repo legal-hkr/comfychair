@@ -243,7 +243,7 @@ fun ImageToVideoScreen(
                             modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.ic_launcher_foreground),
+                                painter = painterResource(R.drawable.ic_comfychair_foreground),
                                 contentDescription = null,
                                 modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                                 contentScale = ContentScale.Fit
@@ -278,7 +278,7 @@ fun ImageToVideoScreen(
                         // Show placeholder - app logo
                         else -> {
                             Image(
-                                painter = painterResource(R.drawable.ic_launcher_foreground),
+                                painter = painterResource(R.drawable.ic_comfychair_foreground),
                                 contentDescription = stringResource(R.string.placeholder_video_description),
                                 modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                                 contentScale = ContentScale.Fit
