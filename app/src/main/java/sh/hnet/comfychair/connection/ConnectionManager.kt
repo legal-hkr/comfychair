@@ -355,9 +355,8 @@ object ConnectionManager {
 
                     if (isComplete && !promptId.isNullOrEmpty()) {
                         DebugLogger.i(TAG, "WS: executing complete (promptId: ${Obfuscator.promptId(promptId)})")
-                        // Notify JobRegistry of completion and refresh gallery
+                        // Notify JobRegistry of completion (JobRegistry handles gallery refresh)
                         JobRegistry.markCompleted(promptId)
-                        GalleryRepository.getInstance().refresh()
                         WebSocketMessage.ExecutionComplete(promptId)
                     } else {
                         DebugLogger.d(TAG, "WS: executing node $node")
@@ -398,6 +397,10 @@ object ConnectionManager {
                     val data = message.optJSONObject("data")
                     val promptId = data?.optString("prompt_id") ?: ""
                     DebugLogger.i(TAG, "WS: execution_success (promptId: ${Obfuscator.promptId(promptId)})")
+                    // Also notify JobRegistry - execution_success is another completion signal
+                    if (promptId.isNotEmpty()) {
+                        JobRegistry.markCompleted(promptId)
+                    }
                     WebSocketMessage.ExecutionSuccess(promptId)
                 }
                 "execution_cached" -> {

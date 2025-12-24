@@ -22,7 +22,6 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.connection.WebSocketMessage
 import sh.hnet.comfychair.connection.WebSocketState
 import sh.hnet.comfychair.queue.JobRegistry
-import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
@@ -667,7 +666,7 @@ class GenerationViewModel : ViewModel() {
                 }
                 dispatchEvent(event)
                 completeGeneration(promptId)
-                GalleryRepository.getInstance().refresh()
+                // Gallery refresh handled by JobRegistry.markCompleted() via WebSocket event
             }
         }
     }
@@ -760,7 +759,7 @@ class GenerationViewModel : ViewModel() {
         }
         dispatchEvent(event)
         completeGeneration(promptId)  // Pass promptId to prevent clearing state for a different job
-        GalleryRepository.getInstance().refresh()
+        // Gallery refresh handled by JobRegistry.markCompleted() via WebSocket event
     }
 
     /**

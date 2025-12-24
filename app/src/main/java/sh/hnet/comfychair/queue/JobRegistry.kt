@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.viewmodel.ContentType
@@ -200,6 +201,11 @@ object JobRegistry {
             executingContentType = if (isCurrentlyExecuting) null else currentState.executingContentType,
             ownJobs = newJobs
         )
+
+        // Trigger gallery refresh - single source of truth for completion-triggered refreshes
+        // Handles both in-app jobs and external jobs (from other clients)
+        DebugLogger.d(TAG, "Triggering gallery refresh for job completion")
+        GalleryRepository.getInstance().refresh()
     }
 
     /**
@@ -249,14 +255,29 @@ object JobRegistry {
      * Update queue size from WebSocket status message.
      * The status message contains exec_info with the queue remaining count.
      *
+     * When the queue size decreases, it indicates a job completed.
+     * For external jobs (from other clients), we don't receive `executing` or
+     * `execution_success` messages, so we detect completion via queue size decrease.
+     *
      * @param queueRemaining Number of items in the server queue
      */
     @Synchronized
     fun updateFromStatus(queueRemaining: Int) {
         val currentState = _queueState.value
-        if (currentState.totalQueueSize != queueRemaining) {
+        val previousSize = currentState.totalQueueSize
+
+        if (previousSize != queueRemaining) {
             DebugLogger.d(TAG, "Queue size updated: $queueRemaining")
             _queueState.value = currentState.copy(totalQueueSize = queueRemaining)
+
+            // Detect job completion via queue size decrease
+            // This handles external jobs that don't send execution messages to our client
+            if (queueRemaining < previousSize) {
+                val completedCount = previousSize - queueRemaining
+                DebugLogger.d(TAG, "Detected $completedCount job(s) completed via queue decrease")
+                // Trigger gallery refresh for external job completions
+                GalleryRepository.getInstance().refresh()
+            }
         }
     }
 

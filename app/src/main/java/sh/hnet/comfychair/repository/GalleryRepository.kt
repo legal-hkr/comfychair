@@ -151,6 +151,12 @@ class GalleryRepository private constructor() {
      */
     fun refresh() {
         if (_isLoading.value || _isRefreshing.value) {
+            DebugLogger.d(TAG, "Refresh skipped - already in progress (loading=${_isLoading.value}, refreshing=${_isRefreshing.value})")
+            return
+        }
+
+        if (comfyUIClient == null) {
+            DebugLogger.w(TAG, "Refresh skipped - no client available")
             return
         }
 
@@ -203,11 +209,14 @@ class GalleryRepository private constructor() {
                 items = items.filter { it.promptId !in deletionsSnapshot }
             }
 
+            val previousCount = _galleryItems.value.size
             _galleryItems.value = items
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
+            DebugLogger.d(TAG, "Gallery refresh complete: ${items.size} items (was $previousCount)")
             return true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "Gallery refresh failed: ${e.message}")
             return false
         } finally {
             _isLoading.value = false
