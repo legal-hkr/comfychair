@@ -393,6 +393,33 @@ fun ImageToVideoScreen(
                     }
                 },
                 onCancelCurrent = { generationViewModel.cancelGeneration { } },
+                onAddToFrontOfQueue = {
+                    scope.launch {
+                        val workflowJson = imageToVideoViewModel.prepareWorkflow()
+                        if (workflowJson != null) {
+                            generationViewModel.startGeneration(
+                                workflowJson,
+                                ImageToVideoViewModel.OWNER_ID,
+                                ContentType.VIDEO,
+                                front = true
+                            ) { success, _, errorMessage ->
+                                if (!success) {
+                                    Toast.makeText(
+                                        context,
+                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.error_failed_load_workflow),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
                 onClearQueue = {
                     generationViewModel.getClient()?.clearQueue { success ->
                         val messageRes = if (success) R.string.queue_cleared_success

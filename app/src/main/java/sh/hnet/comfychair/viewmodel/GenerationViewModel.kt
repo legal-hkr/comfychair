@@ -475,9 +475,10 @@ class GenerationViewModel : ViewModel() {
         workflowJson: String,
         ownerId: String,
         contentType: ContentType = ContentType.IMAGE,
+        front: Boolean = false,
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
-        DebugLogger.i(TAG, "Starting generation (owner: $ownerId, type: $contentType)")
+        DebugLogger.i(TAG, "Starting generation (owner: $ownerId, type: $contentType${if (front) ", front" else ""})")
         comfyUIClient ?: run {
             DebugLogger.e(TAG, "Cannot start generation: client not initialized")
             onResult(false, null, applicationContext?.getString(R.string.error_client_not_initialized) ?: "Client not initialized")
@@ -495,14 +496,14 @@ class GenerationViewModel : ViewModel() {
             viewModelScope.launch {
                 delay(2000)
                 if (ConnectionManager.isWebSocketConnected) {
-                    submitWorkflow(workflowJson, onResult)
+                    submitWorkflow(workflowJson, front, onResult)
                 } else {
                     DebugLogger.e(TAG, "WebSocket connection failed")
                     onResult(false, null, applicationContext?.getString(R.string.error_websocket_not_connected) ?: "WebSocket not connected")
                 }
             }
         } else {
-            submitWorkflow(workflowJson, onResult)
+            submitWorkflow(workflowJson, front, onResult)
         }
     }
 
@@ -511,13 +512,14 @@ class GenerationViewModel : ViewModel() {
      */
     private fun submitWorkflow(
         workflowJson: String,
+        front: Boolean = false,
         onResult: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
         val client = comfyUIClient ?: return
 
         DebugLogger.d(TAG, "Submitting workflow to server")
         val mainHandler = Handler(Looper.getMainLooper())
-        client.submitPrompt(workflowJson) { success, promptId, errorMessage ->
+        client.submitPrompt(workflowJson, front) { success, promptId, errorMessage ->
             if (success && promptId != null) {
                 DebugLogger.i(TAG, "Workflow submitted successfully (promptId: ${Obfuscator.promptId(promptId)})")
 

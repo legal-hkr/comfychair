@@ -716,9 +716,10 @@ class ComfyUIClient(
      */
     fun submitPrompt(
         workflowJson: String,
+        front: Boolean = false,
         callback: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
     ) {
-        DebugLogger.i(TAG, "Submitting prompt")
+        DebugLogger.i(TAG, "Submitting prompt${if (front) " (front of queue)" else ""}")
         val baseUrl = getBaseUrl() ?: run {
             DebugLogger.w(TAG, "Submit failed: no connection")
             callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
@@ -736,6 +737,9 @@ class ComfyUIClient(
         val promptRequest = JSONObject().apply {
             put("prompt", nodesObject)
             put("client_id", clientId)
+            if (front) {
+                put("front", true)
+            }
         }
 
         val requestBody = promptRequest.toString()

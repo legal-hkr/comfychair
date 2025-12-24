@@ -384,6 +384,41 @@ fun ImageToImageScreen(
                     }
                 },
                 onCancelCurrent = { generationViewModel.cancelGeneration { } },
+                onAddToFrontOfQueue = {
+                    scope.launch {
+                        // In inpainting mode, require mask
+                        if (uiState.mode == ImageToImageMode.INPAINTING && !imageToImageViewModel.hasMask()) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.paint_mask_hint),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@launch
+                        }
+                        val workflowJson = imageToImageViewModel.prepareWorkflow()
+                        if (workflowJson != null) {
+                            generationViewModel.startGeneration(
+                                workflowJson,
+                                ImageToImageViewModel.OWNER_ID,
+                                front = true
+                            ) { success, _, errorMessage ->
+                                if (!success) {
+                                    Toast.makeText(
+                                        context,
+                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.error_generation_failed),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
                 onClearQueue = {
                     generationViewModel.getClient()?.clearQueue { success ->
                         val messageRes = if (success) R.string.queue_cleared_success
