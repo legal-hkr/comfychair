@@ -99,6 +99,7 @@ class SettingsContainerActivity : ComponentActivity() {
      * Log out from the server and return to MainActivity
      */
     private fun logout() {
+        ConnectionManager.logout()
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)
