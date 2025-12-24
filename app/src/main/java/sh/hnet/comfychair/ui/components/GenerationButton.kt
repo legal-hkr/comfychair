@@ -17,8 +17,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -129,18 +131,7 @@ fun GenerationButton(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                // Cancel current - at top, only enabled when executing
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.menu_cancel_current)) },
-                    onClick = {
-                        showMenu = false
-                        onCancelCurrent()
-                    },
-                    enabled = isExecuting,
-                    leadingIcon = {
-                        Icon(Icons.Default.Cancel, contentDescription = null)
-                    }
-                )
+                // Queue management actions (above gap)
                 // Add to front of queue
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.menu_add_to_front_of_queue)) },
@@ -161,6 +152,28 @@ fun GenerationButton(
                     },
                     leadingIcon = {
                         Icon(Icons.Default.Delete, contentDescription = null)
+                    }
+                )
+
+                // Gap divider separating queue actions from cancel
+                HorizontalDivider()
+
+                // Cancel current (below gap) - destructive action separated
+                // Use error/warning color when enabled to indicate destructive action
+                val cancelColor = if (isExecuting) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MenuDefaults.itemColors().disabledTextColor
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.menu_cancel_current), color = cancelColor) },
+                    onClick = {
+                        showMenu = false
+                        onCancelCurrent()
+                    },
+                    enabled = isExecuting,
+                    leadingIcon = {
+                        Icon(Icons.Default.Cancel, contentDescription = null, tint = cancelColor)
                     }
                 )
             }
