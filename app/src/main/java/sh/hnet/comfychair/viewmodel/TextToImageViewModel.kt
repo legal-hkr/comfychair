@@ -613,6 +613,9 @@ class TextToImageViewModel : ViewModel() {
             return // Already cleared for this promptId
         }
         lastClearedForPromptId = promptId
+        // Evict from cache so restoreLastGeneratedImage() won't restore the old preview
+        // when navigating back to this screen during generation
+        MediaStateHolder.evict(MediaStateHolder.MediaKey.TtiPreview)
         _uiState.value = _uiState.value.copy(
             currentBitmap = null,
             currentImageFilename = null,

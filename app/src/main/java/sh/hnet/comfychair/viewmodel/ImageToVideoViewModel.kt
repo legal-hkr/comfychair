@@ -740,6 +740,9 @@ class ImageToVideoViewModel : ViewModel() {
         }
         DebugLogger.d(TAG, "clearPreviewForExecution: clearing for new promptId=$promptId")
         lastClearedForPromptId = promptId
+        // Evict preview from cache so restoreLastPreviewImage() won't restore the old preview
+        // when navigating back to this screen during generation
+        MediaStateHolder.evict(MediaStateHolder.MediaKey.ItvPreview)
         _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
         MediaStateHolder.clearCurrentItvPromptId()

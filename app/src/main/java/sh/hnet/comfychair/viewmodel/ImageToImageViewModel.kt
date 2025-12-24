@@ -1547,6 +1547,9 @@ class ImageToImageViewModel : ViewModel() {
             return // Already cleared for this promptId
         }
         lastClearedForPromptId = promptId
+        // Evict from cache so loadSavedImages() won't restore the old preview
+        // when navigating back to this screen during generation
+        MediaStateHolder.evict(MediaStateHolder.MediaKey.ItiPreview)
         _uiState.value = _uiState.value.copy(
             previewImage = null,
             previewImageFilename = null,
