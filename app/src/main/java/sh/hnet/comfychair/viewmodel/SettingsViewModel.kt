@@ -37,7 +37,6 @@ data class ServerSettingsUiState(
     val port: Int = 8188,
     val systemStats: SystemStats? = null,
     val isLoadingStats: Boolean = false,
-    val isClearingQueue: Boolean = false,
     val isClearingHistory: Boolean = false
 )
 
@@ -222,31 +221,6 @@ class SettingsViewModel : ViewModel() {
             ramFreeGB = ramFreeGB,
             gpus = gpus
         )
-    }
-
-    fun clearQueue() {
-        val client = comfyUIClient ?: return
-
-        _serverSettingsState.value = _serverSettingsState.value.copy(isClearingQueue = true)
-
-        viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.clearQueue { success ->
-                        continuation.resumeWith(Result.success(success))
-                    }
-                }
-            }
-
-            _serverSettingsState.value = _serverSettingsState.value.copy(isClearingQueue = false)
-
-            val messageResId = if (success) {
-                sh.hnet.comfychair.R.string.queue_cleared_success
-            } else {
-                sh.hnet.comfychair.R.string.queue_cleared_failed
-            }
-            _events.emit(SettingsEvent.ShowToast(messageResId))
-        }
     }
 
     fun clearHistory() {

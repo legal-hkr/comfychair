@@ -243,19 +243,6 @@ fun ServerSettingsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = { viewModel.clearQueue() },
-                        enabled = !uiState.isClearingQueue,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text(stringResource(R.string.clear_queue_button))
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
                         onClick = { viewModel.clearHistory() },
                         enabled = !uiState.isClearingHistory,
                         modifier = Modifier.fillMaxWidth(),
