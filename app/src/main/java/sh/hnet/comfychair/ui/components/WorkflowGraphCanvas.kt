@@ -350,16 +350,16 @@ private fun DrawScope.drawNode(
 }
 
 /**
- * Draw an edge (connection) between two nodes
+ * Draw an edge (connection) between two nodes.
+ * Uses bezier curves that depart/arrive horizontally for a natural look.
  */
 private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, colors: CanvasColors) {
     val sourceNode = nodes.find { it.id == edge.sourceNodeId } ?: return
     val targetNode = nodes.find { it.id == edge.targetNodeId } ?: return
 
-    // Calculate connection points
+    // Connection points: always exit right side of source, enter left side of target
     val startX = sourceNode.x + sourceNode.width
     val startY = sourceNode.y + sourceNode.height / 2
-
     val endX = targetNode.x
     val endY = targetNode.y + calculateInputY(targetNode, edge.targetInputName)
 
@@ -368,15 +368,51 @@ private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, co
         colors.slotColors[slotType.uppercase()]
     } ?: colors.edgeColor
 
-    // Draw bezier curve
+    // Minimum control point offset to ensure wire is visible leaving/entering nodes
+    val minOffset = 20f
+
     val path = Path().apply {
         moveTo(startX, startY)
-        val controlOffset = (endX - startX) / 2
-        cubicTo(
-            startX + controlOffset, startY,
-            endX - controlOffset, endY,
-            endX, endY
-        )
+
+        if (startX < endX) {
+            // Normal case: source is to the left of target
+            // Control point offset based on horizontal distance, with minimum
+            val xDist = endX - startX
+            val offset = maxOf(xDist * 0.4f, minOffset)
+            cubicTo(
+                startX + offset, startY,  // First control: right of start, same Y (horizontal departure)
+                endX - offset, endY,      // Second control: left of end, same Y (horizontal arrival)
+                endX, endY
+            )
+        } else {
+            // Complex case: source is to the right of or same column as target
+            // Need to loop around - go right, then curve back left
+            val loopOffset = maxOf(80f, minOffset)
+            val verticalDist = kotlin.math.abs(endY - startY)
+            val midY = (startY + endY) / 2
+
+            if (verticalDist < 50f) {
+                // Nodes are at similar height - need bigger loop
+                val farRight = maxOf(startX, endX) + loopOffset
+                cubicTo(
+                    farRight, startY,
+                    farRight, endY,
+                    endX, endY
+                )
+            } else {
+                // Nodes have vertical separation - route through middle
+                cubicTo(
+                    startX + loopOffset, startY,
+                    startX + loopOffset, midY,
+                    (startX + endX) / 2, midY
+                )
+                cubicTo(
+                    endX - loopOffset, midY,
+                    endX - loopOffset, endY,
+                    endX, endY
+                )
+            }
+        }
     }
 
     // Draw the path

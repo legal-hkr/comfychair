@@ -444,16 +444,20 @@ class WorkflowPreviewerViewModel : ViewModel() {
             return
         }
 
-        // Calculate scale to fit
-        val scaleX = canvasWidth / bounds.width
-        val scaleY = canvasHeight / bounds.height
-        val scale = minOf(scaleX, scaleY, 1.5f) * 0.9f // 90% of fit, max 1.5x
+        // Small top padding, reserve space for bottom toolbar
+        val topPadding = 8f
+        val bottomToolbarPadding = 100f
+        val availableHeight = canvasHeight - topPadding - bottomToolbarPadding
 
-        // Calculate offset to center
+        // Calculate scale to fit in available area
+        val scaleX = canvasWidth / bounds.width
+        val scaleY = availableHeight / bounds.height
+        val scale = minOf(scaleX, scaleY, 1.5f) * 0.95f // 95% of fit, max 1.5x
+
+        // Calculate offset - center horizontally, anchor to top vertically
         val scaledWidth = bounds.width * scale
-        val scaledHeight = bounds.height * scale
         val offsetX = (canvasWidth - scaledWidth) / 2 - bounds.minX * scale
-        val offsetY = (canvasHeight - scaledHeight) / 2 - bounds.minY * scale
+        val offsetY = topPadding - bounds.minY * scale
 
         _uiState.value = _uiState.value.copy(
             scale = scale,

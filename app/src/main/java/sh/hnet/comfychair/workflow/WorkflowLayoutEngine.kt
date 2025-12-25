@@ -13,6 +13,10 @@ class WorkflowLayoutEngine {
         const val HORIZONTAL_SPACING = 240f
         const val VERTICAL_SPACING = 80f
         const val INPUT_ROW_HEIGHT = 40f
+
+        // Serpentine layout constants
+        const val COLUMNS_PER_ROW = 2
+        const val ROW_SPACING = 120f
     }
 
     /**
@@ -186,7 +190,8 @@ class WorkflowLayoutEngine {
     }
 
     /**
-     * Calculate final x, y positions for all nodes
+     * Calculate final x, y positions for all nodes using serpentine layout.
+     * Layers are arranged in rows of COLUMNS_PER_ROW columns each.
      */
     private fun positionNodes(
         graph: WorkflowGraph,
@@ -195,28 +200,47 @@ class WorkflowLayoutEngine {
         val updatedNodes = graph.nodes.toMutableList()
         val nodeIndexMap = graph.nodes.mapIndexed { index, node -> node.id to index }.toMap()
 
-        var currentX = NODE_PADDING
+        // Group layers into rows
+        val rows = layers.chunked(COLUMNS_PER_ROW)
 
-        for (layer in layers) {
-            var currentY = NODE_PADDING
-            var maxWidth = 0f
+        // First pass: calculate the height of each row (max height of all layers in that row)
+        val rowHeights = rows.map { rowLayers ->
+            rowLayers.maxOfOrNull { layer ->
+                var layerHeight = 0f
+                for (node in layer) {
+                    layerHeight += calculateNodeHeight(node) + VERTICAL_SPACING
+                }
+                // Remove trailing spacing
+                if (layer.isNotEmpty()) layerHeight -= VERTICAL_SPACING
+                layerHeight
+            } ?: 0f
+        }
 
-            for (node in layer) {
-                val nodeIndex = nodeIndexMap[node.id] ?: continue
-                val height = calculateNodeHeight(node)
+        // Second pass: position nodes in serpentine pattern
+        var currentRowY = NODE_PADDING
 
-                updatedNodes[nodeIndex] = node.copy(
-                    x = currentX,
-                    y = currentY,
-                    width = NODE_WIDTH,
-                    height = height
-                )
+        rows.forEachIndexed { rowIndex, rowLayers ->
+            rowLayers.forEachIndexed { columnIndex, layer ->
+                val columnX = NODE_PADDING + columnIndex * (NODE_WIDTH + HORIZONTAL_SPACING)
+                var currentY = currentRowY
 
-                currentY += height + VERTICAL_SPACING
-                maxWidth = maxOf(maxWidth, NODE_WIDTH)
+                for (node in layer) {
+                    val nodeIndex = nodeIndexMap[node.id] ?: continue
+                    val height = calculateNodeHeight(node)
+
+                    updatedNodes[nodeIndex] = node.copy(
+                        x = columnX,
+                        y = currentY,
+                        width = NODE_WIDTH,
+                        height = height
+                    )
+
+                    currentY += height + VERTICAL_SPACING
+                }
             }
 
-            currentX += maxWidth + HORIZONTAL_SPACING
+            // Move to next row
+            currentRowY += rowHeights[rowIndex] + ROW_SPACING
         }
 
         return graph.copy(nodes = updatedNodes)
