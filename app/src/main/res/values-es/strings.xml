@@ -199,6 +199,14 @@
     <string name="error_fps_range">Debe ser 1–120</string>
     <string name="error_invalid_number">Número inválido</string>
 
+    <!-- Node attribute editor -->
+    <string name="node_editor_title">Editar nodo</string>
+    <string name="node_editor_reset">Restablecer</string>
+    <string name="node_editor_close">Cerrar</string>
+    <string name="node_editor_no_editable_inputs">Sin entradas editables</string>
+    <string name="node_editor_range_min">Mín: %1$s</string>
+    <string name="node_editor_range_max">Máx: %1$s</string>
+
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplicación</string>
     <string name="nav_server_settings">Servidor</string>
@@ -210,8 +218,8 @@
     <!-- Workflow management strings -->
     <string name="workflow_section_tti_checkpoint">Texto a imagen (Checkpoint)</string>
     <string name="workflow_section_tti_unet">Texto a imagen (UNET)</string>
-    <string name="workflow_section_iti_checkpoint">Imagen a imagen (Checkpoint)</string>
-    <string name="workflow_section_iti_unet">Imagen a imagen (UNET)</string>
+    <string name="workflow_section_iti_checkpoint">Inpainting (Checkpoint)</string>
+    <string name="workflow_section_iti_unet">Inpainting (UNET)</string>
     <string name="workflow_section_ite_unet">Edición de imagen (UNET)</string>
     <string name="workflow_section_ttv_unet">Texto a vídeo (UNET)</string>
     <string name="workflow_section_itv_unet">Imagen a vídeo (UNET)</string>

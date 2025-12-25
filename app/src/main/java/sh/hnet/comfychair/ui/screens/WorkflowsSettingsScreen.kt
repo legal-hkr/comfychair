@@ -187,7 +187,18 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
-                // Image-to-Image (Checkpoint)
+                // Image editing (UNET)
+                item {
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_ite_unet),
+                        workflows = uiState.iteUnetWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
+                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
+                }
+
+                // Inpainting (Checkpoint)
                 item {
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_iti_checkpoint),
@@ -198,22 +209,11 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
-                // Image-to-Image (UNET)
+                // Inpainting (UNET)
                 item {
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_iti_unet),
                         workflows = uiState.itiUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
-                    )
-                }
-
-                // Image editing (UNET)
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_ite_unet),
-                        workflows = uiState.iteUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
@@ -466,9 +466,9 @@ private fun UploadWorkflowDialog(
     val allTypes = listOf(
         WorkflowType.TTI_CHECKPOINT to stringResource(R.string.workflow_section_tti_checkpoint),
         WorkflowType.TTI_UNET to stringResource(R.string.workflow_section_tti_unet),
+        WorkflowType.ITE_UNET to stringResource(R.string.workflow_section_ite_unet),
         WorkflowType.ITI_CHECKPOINT to stringResource(R.string.workflow_section_iti_checkpoint),
         WorkflowType.ITI_UNET to stringResource(R.string.workflow_section_iti_unet),
-        WorkflowType.ITE_UNET to stringResource(R.string.workflow_section_ite_unet),
         WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
         WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet)
     )

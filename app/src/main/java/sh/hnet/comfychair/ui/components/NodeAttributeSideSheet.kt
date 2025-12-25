@@ -372,9 +372,9 @@ private fun IntEditor(
                 Text(error)
             } else if (min != null || max != null) {
                 val rangeText = when {
-                    min != null && max != null -> "$min – $max"
-                    min != null -> "Min: $min"
-                    else -> "Max: $max"
+                    min != null && max != null -> stringResource(R.string.node_editor_range_min_max, min.toString(), max.toString())
+                    min != null -> stringResource(R.string.node_editor_range_min, min.toString())
+                    else -> stringResource(R.string.node_editor_range_max, max.toString())
                 }
                 Text(rangeText)
             }
@@ -411,9 +411,9 @@ private fun FloatEditor(
                 Text(error)
             } else if (min != null || max != null) {
                 val rangeText = when {
-                    min != null && max != null -> "$min – $max"
-                    min != null -> "Min: $min"
-                    else -> "Max: $max"
+                    min != null && max != null -> stringResource(R.string.node_editor_range_min_max, min.toString(), max.toString())
+                    min != null -> stringResource(R.string.node_editor_range_min, min.toString())
+                    else -> stringResource(R.string.node_editor_range_max, max.toString())
                 }
                 Text(rangeText)
             }

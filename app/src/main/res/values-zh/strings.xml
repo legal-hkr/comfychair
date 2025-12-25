@@ -199,6 +199,14 @@
     <string name="error_fps_range">必须在 1–120 之间</string>
     <string name="error_invalid_number">无效的数字</string>
 
+    <!-- Node attribute editor -->
+    <string name="node_editor_title">编辑节点</string>
+    <string name="node_editor_reset">重置</string>
+    <string name="node_editor_close">关闭</string>
+    <string name="node_editor_no_editable_inputs">没有可编辑的输入</string>
+    <string name="node_editor_range_min">最小：%1$s</string>
+    <string name="node_editor_range_max">最大：%1$s</string>
+
     <!-- Settings screen strings -->
     <string name="nav_application_settings">应用</string>
     <string name="nav_server_settings">服务器</string>
@@ -210,8 +218,8 @@
     <!-- Workflow management strings -->
     <string name="workflow_section_tti_checkpoint">文生图 (Checkpoint)</string>
     <string name="workflow_section_tti_unet">文生图 (UNET)</string>
-    <string name="workflow_section_iti_checkpoint">图生图 (Checkpoint)</string>
-    <string name="workflow_section_iti_unet">图生图 (UNET)</string>
+    <string name="workflow_section_iti_checkpoint">图像修复 (Checkpoint)</string>
+    <string name="workflow_section_iti_unet">图像修复 (UNET)</string>
     <string name="workflow_section_ite_unet">图像编辑 (UNET)</string>
     <string name="workflow_section_ttv_unet">文生视频 (UNET)</string>
     <string name="workflow_section_itv_unet">图生视频 (UNET)</string>

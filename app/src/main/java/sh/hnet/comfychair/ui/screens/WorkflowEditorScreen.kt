@@ -430,7 +430,7 @@ private fun WorkflowEditorFloatingToolbar(
 
             // Zoom percentage
             Text(
-                text = "${(scale * 100).toInt()}%",
+                text = stringResource(R.string.workflow_editor_zoom_percentage, (scale * 100).toInt()),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
@@ -565,7 +565,11 @@ private fun FieldMappingRow(
                 fieldMapping.isMapped -> {
                     val selectedCandidate = fieldMapping.selectedCandidate
                     Text(
-                        text = "${selectedCandidate?.nodeName} (${selectedCandidate?.classType})",
+                        text = stringResource(
+                            R.string.workflow_editor_node_info,
+                            selectedCandidate?.nodeName ?: "",
+                            selectedCandidate?.classType ?: ""
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
