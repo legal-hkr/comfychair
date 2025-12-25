@@ -167,41 +167,65 @@ fun WorkflowEditorScreen(
                 }
 
                 uiState.graph != null -> {
-                    // Animated offset and scale for smooth transitions when opening/closing side sheet
+                    // Animated values for smooth transitions
                     val animatedOffset = remember { Animatable(uiState.offset, Offset.VectorConverter) }
                     val animatedScale = remember { Animatable(uiState.scale) }
-                    val previousEditingState = remember { mutableStateOf(uiState.isEditingNode) }
-                    val previousEditingNodeId = remember { mutableStateOf(uiState.selectedNodeForEditing?.id) }
 
-                    // Animate offset and scale when entering/leaving editing mode or switching nodes
-                    LaunchedEffect(uiState.offset, uiState.scale, uiState.isEditingNode, uiState.selectedNodeForEditing?.id) {
-                        val editingModeChanged = previousEditingState.value != uiState.isEditingNode
-                        val editingNodeChanged = uiState.isEditingNode &&
-                            previousEditingNodeId.value != uiState.selectedNodeForEditing?.id
+                    // Track previous state - refs are updated INSIDE LaunchedEffect, not during composition
+                    // This allows synchronous transition detection during composition
+                    val wasEditingRef = remember { mutableStateOf(uiState.isEditingNode) }
+                    val previousNodeIdRef = remember { mutableStateOf<String?>(null) }
+                    val isAnimatingTransition = remember { mutableStateOf(false) }
 
-                        previousEditingState.value = uiState.isEditingNode
-                        previousEditingNodeId.value = uiState.selectedNodeForEditing?.id
+                    // Detect transition SYNCHRONOUSLY during composition by comparing current state
+                    // with refs that haven't been updated yet (they're updated in LaunchedEffect)
+                    val isStartingTransition = wasEditingRef.value != uiState.isEditingNode ||
+                        (uiState.isEditingNode && previousNodeIdRef.value != uiState.selectedNodeForEditing?.id)
+
+                    // Animate during mode/node transitions
+                    LaunchedEffect(uiState.isEditingNode, uiState.selectedNodeForEditing?.id) {
+                        val wasEditing = wasEditingRef.value
+                        val previousNodeId = previousNodeIdRef.value
+                        val isEditing = uiState.isEditingNode
+                        val editingModeChanged = wasEditing != isEditing
+                        val editingNodeChanged = isEditing && previousNodeId != uiState.selectedNodeForEditing?.id
 
                         if (editingModeChanged || editingNodeChanged) {
-                            // Animate when transitioning to/from editing mode or switching nodes
+                            isAnimatingTransition.value = true
+
+                            // Stop any running animations
+                            animatedOffset.stop()
+                            animatedScale.stop()
+
+                            // Animate to new position
                             launch {
-                                animatedOffset.animateTo(
-                                    uiState.offset,
-                                    animationSpec = tween(durationMillis = 250)
-                                )
+                                animatedOffset.animateTo(uiState.offset, tween(250))
                             }
                             launch {
-                                animatedScale.animateTo(
-                                    uiState.scale,
-                                    animationSpec = tween(durationMillis = 250)
-                                )
+                                animatedScale.animateTo(uiState.scale, tween(250))
+                                isAnimatingTransition.value = false
                             }
-                        } else {
-                            // Snap immediately for user-initiated changes (pan/zoom)
+                        }
+
+                        // Update refs AFTER animation starts - this is critical for synchronous detection
+                        wasEditingRef.value = isEditing
+                        previousNodeIdRef.value = uiState.selectedNodeForEditing?.id
+                    }
+
+                    // Keep animated values synced in normal mode (for smooth transitions when entering editing)
+                    LaunchedEffect(uiState.offset, uiState.scale) {
+                        if (!uiState.isEditingNode && !isAnimatingTransition.value) {
                             animatedOffset.snapTo(uiState.offset)
                             animatedScale.snapTo(uiState.scale)
                         }
                     }
+
+                    // Display logic:
+                    // - Normal mode (no transition): raw values for responsive gestures
+                    // - Editing mode or during transition: animated values for smooth animation
+                    val useAnimatedValues = uiState.isEditingNode || isStartingTransition || isAnimatingTransition.value
+                    val displayScale = if (useAnimatedValues) animatedScale.value else uiState.scale
+                    val displayOffset = if (useAnimatedValues) animatedOffset.value else uiState.offset
 
                     // Graph canvas with optional side sheet
                     Row(modifier = Modifier.fillMaxSize()) {
@@ -213,8 +237,8 @@ fun WorkflowEditorScreen(
                         ) {
                             WorkflowGraphCanvas(
                                 graph = uiState.graph!!,
-                                scale = animatedScale.value,
-                                offset = animatedOffset.value,
+                                scale = displayScale,
+                                offset = displayOffset,
                                 showTemplateHighlight = uiState.showTemplateHighlight && !uiState.isFieldMappingMode,
                                 isFieldMappingMode = uiState.isFieldMappingMode,
                                 highlightedNodeIds = uiState.highlightedNodeIds,
