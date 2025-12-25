@@ -206,6 +206,7 @@
     <string name="node_editor_no_editable_inputs">Sin entradas editables</string>
     <string name="node_editor_range_min">Mín: %1$s</string>
     <string name="node_editor_range_max">Máx: %1$s</string>
+    <string name="node_editor_ui_field_prefix">IU: %1$s</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplicación</string>
@@ -275,7 +276,6 @@
     <string name="workflow_editor_zoom_in">Acercar</string>
     <string name="workflow_editor_zoom_out">Alejar</string>
     <string name="workflow_editor_reset_zoom">Restablecer vista</string>
-    <string name="workflow_editor_highlight_templates">Resaltar plantillas</string>
     <string name="workflow_editor_error_loading">Error al cargar el workflow</string>
 
     <!-- Workflow upload dialog strings -->

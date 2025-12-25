@@ -206,6 +206,7 @@
     <string name="node_editor_no_editable_inputs">Aucune entrée modifiable</string>
     <string name="node_editor_range_min">Min : %1$s</string>
     <string name="node_editor_range_max">Max : %1$s</string>
+    <string name="node_editor_ui_field_prefix">IU : %1$s</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Application</string>
@@ -275,7 +276,6 @@
     <string name="workflow_editor_zoom_in">Zoom avant</string>
     <string name="workflow_editor_zoom_out">Zoom arrière</string>
     <string name="workflow_editor_reset_zoom">Réinitialiser la vue</string>
-    <string name="workflow_editor_highlight_templates">Mettre en évidence les modèles</string>
     <string name="workflow_editor_error_loading">Échec du chargement du workflow</string>
 
     <!-- Workflow upload dialog strings -->

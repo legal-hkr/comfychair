@@ -30,6 +30,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.res.stringResource
+import sh.hnet.comfychair.R
+import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.SlotColors
@@ -75,7 +78,6 @@ fun WorkflowGraphCanvas(
     graph: WorkflowGraph,
     scale: Float,
     offset: Offset,
-    showTemplateHighlight: Boolean,
     onTransform: (scale: Float, offset: Offset) -> Unit,
     modifier: Modifier = Modifier,
     isFieldMappingMode: Boolean = false,
@@ -109,6 +111,9 @@ fun WorkflowGraphCanvas(
                 ?: emptySet()
         }
     }
+
+    // Get UI field prefix for template display names
+    val uiFieldPrefix = stringResource(R.string.node_editor_ui_field_prefix)
 
     // Extract theme colors
     val isDarkTheme = isSystemInDarkTheme()
@@ -197,6 +202,16 @@ fun WorkflowGraphCanvas(
                 drawEdge(edge, graph.nodes, colors)
             }
 
+            // Build a map of node ID -> (input name -> wire color) for connected inputs
+            val nodeInputColors: Map<String, Map<String, Int>> = buildMap {
+                graph.edges.forEach { edge ->
+                    val wireColor = edge.slotType?.let { colors.slotColors[it.uppercase()] }
+                        ?: colors.edgeColor
+                    val nodeColors = getOrPut(edge.targetNodeId) { mutableMapOf() }
+                    (nodeColors as MutableMap)[edge.targetInputName] = wireColor.toArgb()
+                }
+            }
+
             // Draw nodes
             graph.nodes.forEach { node ->
                 val highlightState = when {
@@ -222,12 +237,13 @@ fun WorkflowGraphCanvas(
 
                 drawNode(
                     node = node,
-                    showTemplateHighlight = showTemplateHighlight && !isFieldMappingMode,
                     colors = colors,
                     highlightState = highlightState,
                     colorPair = colorPair,
                     nodeEdits = nodeEdits,
-                    editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet()
+                    editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
+                    uiFieldPrefix = uiFieldPrefix,
+                    inputWireColors = nodeInputColors[node.id] ?: emptyMap()
                 )
             }
         }
@@ -239,17 +255,15 @@ fun WorkflowGraphCanvas(
  */
 private fun DrawScope.drawNode(
     node: WorkflowNode,
-    showTemplateHighlight: Boolean,
     colors: CanvasColors,
     highlightState: NodeHighlightState = NodeHighlightState.NONE,
     colorPair: SlotColors.NodeColorPair? = null,
     nodeEdits: Map<String, Any> = emptyMap(),
-    editableInputNames: Set<String> = emptySet()
+    editableInputNames: Set<String> = emptySet(),
+    uiFieldPrefix: String = "UI: %1\$s",
+    inputWireColors: Map<String, Int> = emptyMap()
 ) {
-    // Template highlight only affects text with actual {{...}} patterns
-    val showTemplateTextHighlight = showTemplateHighlight
-
-    // Determine border color and width based on highlight state (not template highlight)
+    // Determine border color and width based on highlight state
     val (borderColor, borderWidth) = when (highlightState) {
         NodeHighlightState.SELECTED -> colors.selectedBorder to 8f
         NodeHighlightState.CANDIDATE -> colors.candidateBorder to 6f
@@ -314,6 +328,7 @@ private fun DrawScope.drawNode(
     val textPrimaryArgb = colors.textPrimary.toArgb()
     val textSecondaryArgb = colors.textSecondary.toArgb()
     val templateHighlightArgb = colors.templateTextHighlight.toArgb()
+    val headerColorArgb = headerColor.toArgb()
 
     drawContext.canvas.nativeCanvas.apply {
         // Title text
@@ -333,13 +348,6 @@ private fun DrawScope.drawNode(
             isAntiAlias = true
         }
 
-        val templatePaint = Paint().apply {
-            color = templateHighlightArgb
-            textSize = 22f
-            typeface = Typeface.DEFAULT_BOLD
-            isAntiAlias = true
-        }
-
         // Paint for editable inputs (when side sheet is open)
         val editablePaint = Paint().apply {
             color = colors.selectedBorder.toArgb()
@@ -348,34 +356,116 @@ private fun DrawScope.drawNode(
             isAntiAlias = true
         }
 
+        // Paint for value text inside boxes
+        val valueTextPaint = Paint().apply {
+            color = textPrimaryArgb
+            textSize = 20f
+            isAntiAlias = true
+        }
+
+        // Paint for template value text (bold, no box)
+        val templateValuePaint = Paint().apply {
+            color = templateHighlightArgb
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            isAntiAlias = true
+        }
+
+        // Paint for value box background (uses header color)
+        val valueBoxPaint = Paint().apply {
+            color = headerColorArgb
+            isAntiAlias = true
+        }
+
+        // Red color for edited values
+        val editedColorArgb = android.graphics.Color.RED
+
         var inputY = node.y + headerHeight + 32f
         node.inputs.forEach { (name, value) ->
-            // Get the current value - use edit if available, otherwise original
-            val currentValue = nodeEdits[name] ?: when (value) {
+            // Get the original value
+            val originalValue = when (value) {
                 is InputValue.Literal -> value.value
                 is InputValue.Connection -> null
             }
 
-            val valueStr = currentValue?.let { formatInputValue(it) }
+            // Get the current value - use edit if available, otherwise original
+            val editedValue = nodeEdits[name]
+            val currentValue = editedValue ?: originalValue
+
+            // Check if this value has been edited AND is different from original
+            val isEdited = editedValue != null && editedValue != originalValue
+
+            val valueStr = currentValue?.let { formatInputValue(it, uiFieldPrefix) }
 
             // Check if value contains actual {{...}} template pattern
             val hasTemplatePattern = currentValue?.toString()?.let { str ->
                 str.contains("{{") && str.contains("}}")
             } ?: false
 
-            // Determine which paint to use
-            val paint = when {
+            // Determine which paint to use for the key name
+            val wireColor = inputWireColors[name]
+            val keyPaint = when {
                 // Editable inputs highlighted when side sheet is open
                 name in editableInputNames -> editablePaint
-                // Template values highlighted when toggle is on
-                hasTemplatePattern && showTemplateTextHighlight -> templatePaint
+                // Connected inputs: bold with blended wire color
+                wireColor != null -> {
+                    // Blend wire color with standard text color (50/50)
+                    val blendedColor = blendColors(wireColor, textSecondaryArgb, 0.5f)
+                    Paint().apply {
+                        color = blendedColor
+                        textSize = 22f
+                        typeface = Typeface.DEFAULT_BOLD
+                        isAntiAlias = true
+                    }
+                }
                 // Normal
                 else -> inputPaint
             }
 
-            val displayText = if (valueStr != null) "$name: $valueStr" else name
-            val truncated = truncateText(displayText, node.width - 32f, paint)
-            drawText(truncated, node.x + 16f, inputY, paint)
+            // Draw key name on the left
+            drawText(name, node.x + 16f, inputY, keyPaint)
+
+            // Draw value on the right if present
+            if (valueStr != null) {
+                val boxPaddingH = 8f
+                val boxPaddingV = 6f
+                val textHeight = 20f // Approximate text height based on font size
+                val boxHeight = textHeight + boxPaddingV * 2
+                val boxRight = node.x + node.width - 12f
+                val boxWidth = node.width * 0.5f
+                val boxLeft = boxRight - boxWidth
+                val maxValueWidth = boxWidth - boxPaddingH * 2
+
+                // Choose paint based on whether this is a template or edited value
+                val valuePaint = when {
+                    hasTemplatePattern -> templateValuePaint
+                    isEdited -> Paint().apply {
+                        color = blendColors(textPrimaryArgb, editedColorArgb, 0.5f)
+                        textSize = 20f
+                        typeface = Typeface.DEFAULT_BOLD
+                        isAntiAlias = true
+                    }
+                    else -> valueTextPaint
+                }
+
+                // Truncate value to fit in available space
+                val truncatedValue = truncateText(valueStr, maxValueWidth, valuePaint)
+
+                // Center the box vertically on the text baseline
+                val boxTop = inputY - textHeight - boxPaddingV + 4f
+                val boxBottom = boxTop + boxHeight
+
+                // Draw rounded rectangle background only for non-template values
+                if (!hasTemplatePattern) {
+                    val boxRect = android.graphics.RectF(boxLeft, boxTop, boxRight, boxBottom)
+                    drawRoundRect(boxRect, 6f, 6f, valueBoxPaint)
+                }
+
+                // Draw value text left-aligned with padding
+                val textX = boxLeft + boxPaddingH
+                val textY = inputY
+                drawText(truncatedValue, textX, textY, valuePaint)
+            }
 
             inputY += WorkflowLayoutEngine.INPUT_ROW_HEIGHT
         }
@@ -496,12 +586,21 @@ private fun truncateText(text: String, maxWidth: Float, paint: Paint): String {
 }
 
 /**
- * Format an input value for display
+ * Format an input value for display.
+ * Template placeholders like {{clip_name}} are converted to UI display names.
  */
-private fun formatInputValue(value: Any): String {
+private fun formatInputValue(value: Any, uiFieldPrefix: String): String {
     return when (value) {
         is String -> {
-            if (value.length > 20) {
+            // Check for template pattern {{placeholder_name}}
+            val templateRegex = Regex("""\{\{(\w+)\}\}""")
+            val match = templateRegex.matchEntire(value)
+            if (match != null) {
+                // Extract placeholder name and get display name
+                val placeholderName = match.groupValues[1]
+                val displayName = FieldDisplayRegistry.getDisplayName(placeholderName)
+                uiFieldPrefix.format(displayName)
+            } else if (value.length > 20) {
                 "\"${value.take(17)}...\""
             } else {
                 "\"$value\""
@@ -511,4 +610,20 @@ private fun formatInputValue(value: Any): String {
         is Boolean -> value.toString()
         else -> value.toString().take(20)
     }
+}
+
+/**
+ * Blend two ARGB colors together.
+ * @param color1 First color (ARGB int)
+ * @param color2 Second color (ARGB int)
+ * @param ratio Blend ratio (0.0 = all color1, 1.0 = all color2)
+ * @return Blended color as ARGB int
+ */
+private fun blendColors(color1: Int, color2: Int, ratio: Float): Int {
+    val inverseRatio = 1f - ratio
+    val a = (android.graphics.Color.alpha(color1) * inverseRatio + android.graphics.Color.alpha(color2) * ratio).toInt()
+    val r = (android.graphics.Color.red(color1) * inverseRatio + android.graphics.Color.red(color2) * ratio).toInt()
+    val g = (android.graphics.Color.green(color1) * inverseRatio + android.graphics.Color.green(color2) * ratio).toInt()
+    val b = (android.graphics.Color.blue(color1) * inverseRatio + android.graphics.Color.blue(color2) * ratio).toInt()
+    return android.graphics.Color.argb(a, r, g, b)
 }

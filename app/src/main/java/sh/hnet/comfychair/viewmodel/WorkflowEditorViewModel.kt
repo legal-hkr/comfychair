@@ -183,8 +183,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     isFieldMappingMode = true,
                     mappingState = mappingState,
                     highlightedNodeIds = highlightedNodes,
-                    canConfirmMapping = mappingState.allFieldsMapped,
-                    showTemplateHighlight = false  // Disable default highlight in mapping mode
+                    canConfirmMapping = mappingState.allFieldsMapped
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -528,15 +527,6 @@ class WorkflowEditorViewModel : ViewModel() {
             FitMode.FIT_ALL -> fitToWidth()
             FitMode.FIT_WIDTH -> fitToScreen()
         }
-    }
-
-    /**
-     * Toggle template variable highlighting
-     */
-    fun toggleTemplateHighlight() {
-        _uiState.value = _uiState.value.copy(
-            showTemplateHighlight = !_uiState.value.showTemplateHighlight
-        )
     }
 
     // ===========================================

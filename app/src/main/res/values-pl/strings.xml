@@ -206,6 +206,7 @@
     <string name="node_editor_no_editable_inputs">Brak edytowalnych pól</string>
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
+    <string name="node_editor_ui_field_prefix">UI: %1$s</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplikacja</string>
@@ -275,7 +276,6 @@
     <string name="workflow_editor_zoom_in">Powiększ</string>
     <string name="workflow_editor_zoom_out">Pomniejsz</string>
     <string name="workflow_editor_reset_zoom">Resetuj widok</string>
-    <string name="workflow_editor_highlight_templates">Podświetl szablony</string>
     <string name="workflow_editor_error_loading">Nie udało się załadować workflow</string>
 
     <!-- Workflow upload dialog strings -->

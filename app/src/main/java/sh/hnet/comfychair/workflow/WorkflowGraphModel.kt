@@ -75,7 +75,6 @@ data class WorkflowEditorUiState(
     val errorMessage: String? = null,
     val scale: Float = 1f,
     val offset: Offset = Offset.Zero,
-    val showTemplateHighlight: Boolean = true,
     val graphBounds: GraphBounds = GraphBounds(),
 
     // Field mapping mode

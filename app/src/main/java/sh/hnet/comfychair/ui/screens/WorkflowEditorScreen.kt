@@ -35,12 +35,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FitScreen
-import androidx.compose.material.icons.filled.Highlight
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingToolbarColors
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -228,7 +226,6 @@ fun WorkflowEditorScreen(
                             graph = uiState.graph!!,
                             scale = displayScale,
                             offset = displayOffset,
-                            showTemplateHighlight = uiState.showTemplateHighlight && !uiState.isFieldMappingMode,
                             isFieldMappingMode = uiState.isFieldMappingMode,
                             highlightedNodeIds = uiState.highlightedNodeIds,
                             mappingState = uiState.mappingState,
@@ -328,7 +325,6 @@ fun WorkflowEditorScreen(
                 isFieldMappingMode = uiState.isFieldMappingMode,
                 canConfirmMapping = uiState.canConfirmMapping,
                 scale = uiState.scale,
-                showHighlight = uiState.showTemplateHighlight,
                 onConfirmMapping = { viewModel.confirmMapping() },
                 onZoomIn = {
                     shouldAnimateZoomChange.value = true
@@ -341,8 +337,7 @@ fun WorkflowEditorScreen(
                 onResetZoom = {
                     shouldAnimateZoomChange.value = true
                     viewModel.resetView()
-                },
-                onToggleHighlight = { viewModel.toggleTemplateHighlight() }
+                }
             )
         }
 
@@ -399,12 +394,10 @@ private fun WorkflowEditorFloatingToolbar(
     isFieldMappingMode: Boolean,
     canConfirmMapping: Boolean,
     scale: Float,
-    showHighlight: Boolean,
     onConfirmMapping: () -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onResetZoom: () -> Unit,
-    onToggleHighlight: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Custom colors that properly follow the system theme
@@ -453,8 +446,8 @@ private fun WorkflowEditorFloatingToolbar(
                 )
             }
 
+            // Confirm mapping button (only in field mapping mode)
             if (isFieldMappingMode) {
-                // Confirm mapping button
                 IconButton(
                     onClick = onConfirmMapping,
                     enabled = canConfirmMapping
@@ -466,17 +459,6 @@ private fun WorkflowEditorFloatingToolbar(
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    )
-                }
-            } else {
-                // Template highlight toggle - uses tonal toggle button for visual feedback
-                FilledTonalIconToggleButton(
-                    checked = showHighlight,
-                    onCheckedChange = { onToggleHighlight() }
-                ) {
-                    Icon(
-                        Icons.Default.Highlight,
-                        contentDescription = stringResource(R.string.workflow_editor_highlight_templates)
                     )
                 }
             }

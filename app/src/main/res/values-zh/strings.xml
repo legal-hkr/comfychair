@@ -206,6 +206,7 @@
     <string name="node_editor_no_editable_inputs">没有可编辑的输入</string>
     <string name="node_editor_range_min">最小：%1$s</string>
     <string name="node_editor_range_max">最大：%1$s</string>
+    <string name="node_editor_ui_field_prefix">界面：%1$s</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">应用</string>
@@ -275,7 +276,6 @@
     <string name="workflow_editor_zoom_in">放大</string>
     <string name="workflow_editor_zoom_out">缩小</string>
     <string name="workflow_editor_reset_zoom">重置视图</string>
-    <string name="workflow_editor_highlight_templates">高亮显示模板</string>
     <string name="workflow_editor_error_loading">加载工作流失败</string>
 
     <!-- Workflow upload dialog strings -->

@@ -245,6 +245,7 @@
     <string name="node_editor_range_min_max">%1$s – %2$s</string>
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
+    <string name="node_editor_ui_field_prefix">UI: %1$s</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Application</string>
@@ -314,7 +315,6 @@
     <string name="workflow_editor_zoom_in">Zoom in</string>
     <string name="workflow_editor_zoom_out">Zoom out</string>
     <string name="workflow_editor_reset_zoom">Reset view</string>
-    <string name="workflow_editor_highlight_templates">Highlight templates</string>
     <string name="workflow_editor_error_loading">Failed to load workflow</string>
     <string name="workflow_editor_zoom_percentage" translatable="false">%1$d%%</string>
     <string name="workflow_editor_node_info" translatable="false">%1$s (%2$s)</string>

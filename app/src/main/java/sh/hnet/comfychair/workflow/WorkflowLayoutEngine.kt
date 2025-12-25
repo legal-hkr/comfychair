@@ -6,7 +6,7 @@ package sh.hnet.comfychair.workflow
 class WorkflowLayoutEngine {
 
     companion object {
-        const val NODE_WIDTH = 360f
+        const val NODE_WIDTH = 420f
         const val NODE_MIN_HEIGHT = 160f
         const val NODE_HEADER_HEIGHT = 64f
         const val NODE_PADDING = 48f
