@@ -3,7 +3,9 @@ package sh.hnet.comfychair
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.model.WorkflowDefaults
+import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
@@ -116,6 +118,7 @@ class WorkflowManager(private val context: Context) {
 
     // Available workflows loaded from res/raw and user storage
     private val workflows = mutableListOf<Workflow>()
+    private val workflowValuesStorage by lazy { WorkflowValuesStorage(context) }
 
     init {
         loadAllWorkflows()
@@ -1283,6 +1286,68 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
+     * Apply node attribute edits from storage to the processed workflow JSON.
+     * This allows users to customize node attributes via the Workflow Editor
+     * that will be applied when generating.
+     *
+     * @param processedJson The workflow JSON after placeholder replacement
+     * @param workflowId The workflow ID to load edits for
+     * @return The JSON with node attribute edits applied
+     */
+    private fun applyNodeAttributeEdits(processedJson: String, workflowId: String): String {
+        // Load edits from storage
+        val values = workflowValuesStorage.loadValues(workflowId) ?: return processedJson
+        val editsJson = values.nodeAttributeEdits ?: return processedJson
+        val edits = NodeAttributeEdits.fromJson(editsJson)
+
+        if (edits.isEmpty()) return processedJson
+
+        // Parse the workflow JSON
+        val json = try {
+            JSONObject(processedJson)
+        } catch (e: Exception) {
+            DebugLogger.e(TAG, "Failed to parse workflow JSON for edits: ${e.message}")
+            return processedJson
+        }
+
+        // Get the nodes object (could be at root level or under "nodes" key)
+        val nodesJson = if (json.has("nodes")) {
+            json.optJSONObject("nodes") ?: json
+        } else {
+            json
+        }
+
+        // Apply edits to each node
+        var modified = false
+        edits.edits.forEach { (nodeId, nodeEdits) ->
+            val node = nodesJson.optJSONObject(nodeId)
+            if (node != null) {
+                val inputs = node.optJSONObject("inputs")
+                if (inputs != null) {
+                    nodeEdits.forEach { (inputName, value) ->
+                        // Only apply if input exists (don't add new inputs)
+                        if (inputs.has(inputName)) {
+                            when (value) {
+                                is String -> inputs.put(inputName, value)
+                                is Int -> inputs.put(inputName, value)
+                                is Long -> inputs.put(inputName, value.toInt())
+                                is Float -> inputs.put(inputName, value.toDouble())
+                                is Double -> inputs.put(inputName, value)
+                                is Boolean -> inputs.put(inputName, value)
+                                else -> inputs.put(inputName, value.toString())
+                            }
+                            modified = true
+                            DebugLogger.d(TAG, "Applied edit: node $nodeId, $inputName = $value")
+                        }
+                    }
+                }
+            }
+        }
+
+        return if (modified) json.toString() else processedJson
+    }
+
+    /**
      * Prepare workflow JSON with actual parameter values
      */
     fun prepareWorkflow(
@@ -1338,7 +1403,8 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
         processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
-        return processedJson
+        // Apply node attribute edits from the Workflow Editor
+        return applyNodeAttributeEdits(processedJson, workflow.id)
     }
 
     /**
@@ -1387,10 +1453,10 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{sampler_name}}", samplerName)
         processedJson = processedJson.replace("{{scheduler}}", scheduler)
         processedJson = processedJson.replace("uploaded_image.png [input]", "${escapeForJson(imageFilename)} [input]")
-        processedJson = processedJson.replace("\"seed\": 42", "\"seed\": $randomSeed")
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
-        return processedJson
+        // Apply node attribute edits from the Workflow Editor
+        return applyNodeAttributeEdits(processedJson, workflow.id)
     }
 
     /**
@@ -1458,7 +1524,6 @@ class WorkflowManager(private val context: Context) {
         }
 
         // Handle seed
-        processedJson = processedJson.replace("\"seed\": 42", "\"seed\": $randomSeed")
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
         // Second pass: remove unused reference image nodes and their connections
@@ -1525,10 +1590,11 @@ class WorkflowManager(private val context: Context) {
                 }
             }
 
-            return json.toString()
+            // Apply node attribute edits from the Workflow Editor
+            return applyNodeAttributeEdits(json.toString(), workflow.id)
         } catch (e: Exception) {
-            // If JSON parsing fails, return the string-processed version
-            return processedJson
+            // If JSON parsing fails, return the string-processed version with edits applied
+            return applyNodeAttributeEdits(processedJson, workflow.id)
         }
     }
 
@@ -1577,10 +1643,10 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{length}}", length.toString())
         processedJson = processedJson.replace("{{frame_rate}}", fps.toString())
-        processedJson = processedJson.replace("\"noise_seed\": 42", "\"noise_seed\": $randomSeed")
         processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
-        return processedJson
+        // Apply node attribute edits from the Workflow Editor
+        return applyNodeAttributeEdits(processedJson, workflow.id)
     }
 
     /**
@@ -1631,10 +1697,10 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("{{length}}", length.toString())
         processedJson = processedJson.replace("{{frame_rate}}", fps.toString())
         processedJson = processedJson.replace("{{image_filename}}", escapeForJson(imageFilename))
-        processedJson = processedJson.replace("\"noise_seed\": 42", "\"noise_seed\": $randomSeed")
         processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
-        return processedJson
+        // Apply node attribute edits from the Workflow Editor
+        return applyNodeAttributeEdits(processedJson, workflow.id)
     }
 
     /**

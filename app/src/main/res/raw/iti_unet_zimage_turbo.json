@@ -85,7 +85,7 @@
     "8": {
       "class_type": "KSampler",
       "inputs": {
-        "seed": 42,
+        "seed": 0,
         "steps": "{{steps}}",
         "cfg": "{{cfg}}",
         "sampler_name": "{{sampler_name}}",

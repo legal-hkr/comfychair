@@ -140,7 +140,7 @@
       "class_type": "KSamplerAdvanced",
       "inputs": {
         "add_noise": "enable",
-        "noise_seed": 42,
+        "noise_seed": 0,
         "steps": 4,
         "cfg": 1,
         "sampler_name": "euler",
