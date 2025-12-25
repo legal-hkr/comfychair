@@ -36,11 +36,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Highlight
-import androidx.compose.material.icons.filled.HighlightOff
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingToolbarColors
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -407,8 +407,6 @@ private fun WorkflowEditorFloatingToolbar(
     onToggleHighlight: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val highlightColor = MaterialTheme.colorScheme.tertiary
-
     // Custom colors that properly follow the system theme
     val toolbarColors = FloatingToolbarColors(
         toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -471,12 +469,14 @@ private fun WorkflowEditorFloatingToolbar(
                     )
                 }
             } else {
-                // Template highlight toggle
-                IconButton(onClick = onToggleHighlight) {
+                // Template highlight toggle - uses tonal toggle button for visual feedback
+                FilledTonalIconToggleButton(
+                    checked = showHighlight,
+                    onCheckedChange = { onToggleHighlight() }
+                ) {
                     Icon(
-                        if (showHighlight) Icons.Default.Highlight else Icons.Default.HighlightOff,
-                        contentDescription = stringResource(R.string.workflow_editor_highlight_templates),
-                        tint = if (showHighlight) highlightColor else MaterialTheme.colorScheme.onSurface
+                        Icons.Default.Highlight,
+                        contentDescription = stringResource(R.string.workflow_editor_highlight_templates)
                     )
                 }
             }

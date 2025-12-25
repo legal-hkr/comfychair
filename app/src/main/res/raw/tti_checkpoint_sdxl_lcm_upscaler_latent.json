@@ -80,7 +80,7 @@
         "cfg": "{{cfg}}",
         "sampler_name": "{{sampler_name}}",
         "scheduler": "{{scheduler}}",
-        "denoise": 1,
+        "denoise": 1.0,
         "model": ["2", 0],
         "positive": ["4", 0],
         "negative": ["5", 0],

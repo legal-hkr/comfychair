@@ -87,7 +87,7 @@
       "inputs": {
         "scheduler": "{{scheduler}}",
         "steps": "{{steps}}",
-        "denoise": 1,
+        "denoise": 1.0,
         "model": ["1", 0]
       },
       "_meta": {

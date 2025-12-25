@@ -98,7 +98,7 @@
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "{{highnoise_lora_name}}",
-        "strength_model": 1.0000000000000002,
+        "strength_model": 1.0,
         "model": ["3", 0]
       },
       "_meta": {
@@ -109,7 +109,7 @@
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "{{lownoise_lora_name}}",
-        "strength_model": 1.0000000000000002,
+        "strength_model": 1.0,
         "model": ["4", 0]
       },
       "_meta": {
@@ -119,7 +119,7 @@
     "11": {
       "class_type": "ModelSamplingSD3",
       "inputs": {
-        "shift": 5.000000000000001,
+        "shift": 5.0,
         "model": ["9", 0]
       },
       "_meta": {
@@ -129,7 +129,7 @@
     "12": {
       "class_type": "ModelSamplingSD3",
       "inputs": {
-        "shift": 5.000000000000001,
+        "shift": 5.0,
         "model": ["10", 0]
       },
       "_meta": {
@@ -142,7 +142,7 @@
         "add_noise": "enable",
         "noise_seed": 0,
         "steps": 4,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "start_at_step": 0,
@@ -163,7 +163,7 @@
         "add_noise": "disable",
         "noise_seed": 0,
         "steps": 4,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "start_at_step": 2,
