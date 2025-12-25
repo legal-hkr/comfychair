@@ -229,6 +229,19 @@
     <string name="error_length_step">Must be 1, 5, 9, 13… (steps of 4)</string>
     <string name="error_fps_range">Must be 1–120</string>
     <string name="error_invalid_number">Invalid number</string>
+    <string name="error_invalid_integer">Must be a whole number</string>
+    <string name="error_value_min">Minimum: %1$d</string>
+    <string name="error_value_max">Maximum: %1$d</string>
+    <string name="error_value_min_float">Minimum: %1$.2f</string>
+    <string name="error_value_max_float">Maximum: %1$.2f</string>
+    <string name="error_invalid_option">Invalid option</string>
+    <string name="error_string_too_long">Maximum length: %1$d</string>
+
+    <!-- Node attribute editor -->
+    <string name="node_editor_title">Edit Node</string>
+    <string name="node_editor_reset">Reset</string>
+    <string name="node_editor_close">Close</string>
+    <string name="node_editor_no_editable_inputs">No editable inputs</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Application</string>
@@ -293,13 +306,13 @@
     <string name="media_viewer_previous">Previous</string>
     <string name="media_viewer_next">Next</string>
 
-    <!-- Workflow previewer strings -->
-    <string name="workflow_previewer_title">Workflow preview</string>
-    <string name="workflow_previewer_zoom_in">Zoom in</string>
-    <string name="workflow_previewer_zoom_out">Zoom out</string>
-    <string name="workflow_previewer_reset_zoom">Reset view</string>
-    <string name="workflow_previewer_highlight_templates">Highlight templates</string>
-    <string name="workflow_previewer_error_loading">Failed to load workflow</string>
+    <!-- Workflow editor strings -->
+    <string name="workflow_editor_title">Workflow editor</string>
+    <string name="workflow_editor_zoom_in">Zoom in</string>
+    <string name="workflow_editor_zoom_out">Zoom out</string>
+    <string name="workflow_editor_reset_zoom">Reset view</string>
+    <string name="workflow_editor_highlight_templates">Highlight templates</string>
+    <string name="workflow_editor_error_loading">Failed to load workflow</string>
 
     <!-- Workflow upload dialog strings -->
     <string name="workflow_type_label">Workflow type</string>

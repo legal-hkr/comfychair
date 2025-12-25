@@ -43,7 +43,10 @@ data class WorkflowValues(
     // LoRA chains (JSON serialized using LoraSelection.toJsonString/fromJsonString)
     val loraChain: String? = null,
     val highnoiseLoraChain: String? = null,
-    val lownoiseLoraChain: String? = null
+    val lownoiseLoraChain: String? = null,
+
+    // Node attribute edits (JSON serialized using NodeAttributeEdits.toJson/fromJson)
+    val nodeAttributeEdits: String? = null
 ) {
     companion object {
         fun fromJson(jsonString: String): WorkflowValues {
@@ -73,7 +76,8 @@ data class WorkflowValues(
                 lownoiseLoraModel = json.optString("lownoiseLoraModel").takeIf { it.isNotEmpty() },
                 loraChain = json.optString("loraChain").takeIf { it.isNotEmpty() },
                 highnoiseLoraChain = json.optString("highnoiseLoraChain").takeIf { it.isNotEmpty() },
-                lownoiseLoraChain = json.optString("lownoiseLoraChain").takeIf { it.isNotEmpty() }
+                lownoiseLoraChain = json.optString("lownoiseLoraChain").takeIf { it.isNotEmpty() },
+                nodeAttributeEdits = json.optString("nodeAttributeEdits").takeIf { it.isNotEmpty() }
             )
         }
 
@@ -104,6 +108,7 @@ data class WorkflowValues(
                 values.loraChain?.let { put("loraChain", it) }
                 values.highnoiseLoraChain?.let { put("highnoiseLoraChain", it) }
                 values.lownoiseLoraChain?.let { put("lownoiseLoraChain", it) }
+                values.nodeAttributeEdits?.let { put("nodeAttributeEdits", it) }
             }.toString()
         }
     }

@@ -279,13 +279,13 @@
     <string name="media_viewer_previous">Zurück</string>
     <string name="media_viewer_next">Weiter</string>
 
-    <!-- Workflow previewer strings -->
-    <string name="workflow_previewer_title">Workflow-Vorschau</string>
-    <string name="workflow_previewer_zoom_in">Vergrößern</string>
-    <string name="workflow_previewer_zoom_out">Verkleinern</string>
-    <string name="workflow_previewer_reset_zoom">Ansicht zurücksetzen</string>
-    <string name="workflow_previewer_highlight_templates">Vorlagen hervorheben</string>
-    <string name="workflow_previewer_error_loading">Workflow konnte nicht geladen werden</string>
+    <!-- Workflow editor strings -->
+    <string name="workflow_editor_title">Workflow-Editor</string>
+    <string name="workflow_editor_zoom_in">Vergrößern</string>
+    <string name="workflow_editor_zoom_out">Verkleinern</string>
+    <string name="workflow_editor_reset_zoom">Ansicht zurücksetzen</string>
+    <string name="workflow_editor_highlight_templates">Vorlagen hervorheben</string>
+    <string name="workflow_editor_error_loading">Workflow konnte nicht geladen werden</string>
 
     <!-- Workflow upload dialog strings -->
     <string name="workflow_type_label">Workflow-Typ</string>

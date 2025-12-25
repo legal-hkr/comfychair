@@ -57,7 +57,7 @@ data class WorkflowManagementUiState(
     val missingFields: List<String> = emptyList(),
     val showDuplicateNameDialog: Boolean = false,
 
-    // Pending workflow for previewer
+    // Pending workflow for editor
     val pendingWorkflowForMapping: PendingWorkflowUpload? = null,
 
     // Edit dialog state
@@ -80,7 +80,7 @@ data class WorkflowManagementUiState(
 sealed class WorkflowManagementEvent {
     data class ShowToast(val messageResId: Int) : WorkflowManagementEvent()
     data class ShowToastMessage(val message: String) : WorkflowManagementEvent()
-    data class LaunchPreviewer(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
+    data class LaunchEditor(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
     object WorkflowsChanged : WorkflowManagementEvent()
 }
 
@@ -202,7 +202,7 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     /**
-     * Proceed with upload - validate and launch previewer
+     * Proceed with upload - validate and launch editor
      */
     fun proceedWithUpload(comfyUIClient: ComfyUIClient) {
         val state = _uiState.value
@@ -296,7 +296,7 @@ class WorkflowManagementViewModel : ViewModel() {
                     return@launch
                 }
 
-                // Prepare pending upload and launch previewer
+                // Prepare pending upload and launch editor
                 val pendingUpload = PendingWorkflowUpload(
                     jsonContent = state.pendingUploadJsonContent,
                     name = name,
@@ -311,7 +311,7 @@ class WorkflowManagementViewModel : ViewModel() {
                     pendingWorkflowForMapping = pendingUpload
                 )
 
-                _events.emit(WorkflowManagementEvent.LaunchPreviewer(pendingUpload))
+                _events.emit(WorkflowManagementEvent.LaunchEditor(pendingUpload))
             }
         }
     }
@@ -635,7 +635,7 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     /**
-     * Complete the upload after mapping is confirmed in previewer
+     * Complete the upload after mapping is confirmed in editor
      */
     fun completeUpload(fieldMappings: Map<String, Pair<String, String>>) {
         val pending = _uiState.value.pendingWorkflowForMapping ?: return

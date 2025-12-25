@@ -1,8 +1,13 @@
 package sh.hnet.comfychair.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,8 +49,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,18 +66,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
-import sh.hnet.comfychair.viewmodel.WorkflowPreviewerViewModel
+import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 
 /**
- * Main screen for the workflow previewer
+ * Main screen for the workflow editor
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkflowPreviewerScreen(
-    viewModel: WorkflowPreviewerViewModel,
+fun WorkflowEditorScreen(
+    viewModel: WorkflowEditorViewModel,
     onClose: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -77,7 +89,7 @@ fun WorkflowPreviewerScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = uiState.workflowName.ifEmpty { stringResource(R.string.workflow_previewer_title) },
+                        text = uiState.workflowName.ifEmpty { stringResource(R.string.workflow_editor_title) },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -141,7 +153,7 @@ fun WorkflowPreviewerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = stringResource(R.string.workflow_previewer_error_loading),
+                            text = stringResource(R.string.workflow_editor_error_loading),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -155,33 +167,121 @@ fun WorkflowPreviewerScreen(
                 }
 
                 uiState.graph != null -> {
-                    // Graph canvas
-                    WorkflowGraphCanvas(
-                        graph = uiState.graph!!,
-                        scale = uiState.scale,
-                        offset = uiState.offset,
-                        showTemplateHighlight = uiState.showTemplateHighlight && !uiState.isFieldMappingMode,
-                        isFieldMappingMode = uiState.isFieldMappingMode,
-                        highlightedNodeIds = uiState.highlightedNodeIds,
-                        mappingState = uiState.mappingState,
-                        selectedFieldKey = uiState.selectedFieldKey,
-                        onNodeTapped = if (uiState.isFieldMappingMode) { nodeId ->
-                            viewModel.onNodeTapped(nodeId)
-                        } else null,
-                        onTransform = { scale, offset ->
-                            viewModel.onTransform(scale, offset)
-                        },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .onSizeChanged { size ->
-                                with(density) {
-                                    viewModel.setCanvasSize(
-                                        size.width.toFloat(),
-                                        size.height.toFloat()
-                                    )
-                                }
+                    // Animated offset and scale for smooth transitions when opening/closing side sheet
+                    val animatedOffset = remember { Animatable(uiState.offset, Offset.VectorConverter) }
+                    val animatedScale = remember { Animatable(uiState.scale) }
+                    val previousEditingState = remember { mutableStateOf(uiState.isEditingNode) }
+                    val previousEditingNodeId = remember { mutableStateOf(uiState.selectedNodeForEditing?.id) }
+
+                    // Animate offset and scale when entering/leaving editing mode or switching nodes
+                    LaunchedEffect(uiState.offset, uiState.scale, uiState.isEditingNode, uiState.selectedNodeForEditing?.id) {
+                        val editingModeChanged = previousEditingState.value != uiState.isEditingNode
+                        val editingNodeChanged = uiState.isEditingNode &&
+                            previousEditingNodeId.value != uiState.selectedNodeForEditing?.id
+
+                        previousEditingState.value = uiState.isEditingNode
+                        previousEditingNodeId.value = uiState.selectedNodeForEditing?.id
+
+                        if (editingModeChanged || editingNodeChanged) {
+                            // Animate when transitioning to/from editing mode or switching nodes
+                            launch {
+                                animatedOffset.animateTo(
+                                    uiState.offset,
+                                    animationSpec = tween(durationMillis = 250)
+                                )
                             }
-                    )
+                            launch {
+                                animatedScale.animateTo(
+                                    uiState.scale,
+                                    animationSpec = tween(durationMillis = 250)
+                                )
+                            }
+                        } else {
+                            // Snap immediately for user-initiated changes (pan/zoom)
+                            animatedOffset.snapTo(uiState.offset)
+                            animatedScale.snapTo(uiState.scale)
+                        }
+                    }
+
+                    // Graph canvas with optional side sheet
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        // Canvas takes remaining space
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        ) {
+                            WorkflowGraphCanvas(
+                                graph = uiState.graph!!,
+                                scale = animatedScale.value,
+                                offset = animatedOffset.value,
+                                showTemplateHighlight = uiState.showTemplateHighlight && !uiState.isFieldMappingMode,
+                                isFieldMappingMode = uiState.isFieldMappingMode,
+                                highlightedNodeIds = uiState.highlightedNodeIds,
+                                mappingState = uiState.mappingState,
+                                selectedFieldKey = uiState.selectedFieldKey,
+                                editingNodeId = uiState.selectedNodeForEditing?.id,
+                                nodeAttributeEdits = uiState.nodeAttributeEdits,
+                                editableInputNames = uiState.editableInputNames,
+                                enableManualTransform = !uiState.isEditingNode,
+                                onNodeTapped = { nodeId ->
+                                    if (uiState.isFieldMappingMode) {
+                                        viewModel.onNodeTapped(nodeId)
+                                    } else {
+                                        // Find the node and open editor
+                                        val node = uiState.graph?.nodes?.find { it.id == nodeId }
+                                        if (node != null) {
+                                            viewModel.onNodeTappedForEditing(node)
+                                        }
+                                    }
+                                },
+                                onTapOutsideNodes = {
+                                    // Close side sheet when tapping outside nodes (only in editing mode)
+                                    if (uiState.isEditingNode) {
+                                        viewModel.dismissNodeEditor()
+                                    }
+                                },
+                                onTransform = { scale, offset ->
+                                    viewModel.onTransform(scale, offset)
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .onSizeChanged { size ->
+                                        with(density) {
+                                            viewModel.setCanvasSize(
+                                                size.width.toFloat(),
+                                                size.height.toFloat()
+                                            )
+                                        }
+                                    }
+                            )
+                        }
+
+                        // Side sheet for node attribute editing
+                        AnimatedVisibility(
+                            visible = uiState.isEditingNode && uiState.selectedNodeForEditing != null,
+                            enter = slideInHorizontally(initialOffsetX = { it }),
+                            exit = slideOutHorizontally(targetOffsetX = { it })
+                        ) {
+                            uiState.selectedNodeForEditing?.let { node ->
+                                NodeAttributeSideSheet(
+                                    node = node,
+                                    nodeDefinition = uiState.nodeDefinitions[node.classType],
+                                    currentEdits = uiState.nodeAttributeEdits[node.id] ?: emptyMap(),
+                                    onEditChange = { inputName, value ->
+                                        viewModel.updateNodeAttribute(node.id, inputName, value)
+                                    },
+                                    onResetToDefault = { inputName ->
+                                        viewModel.resetNodeAttribute(node.id, inputName)
+                                    },
+                                    onDismiss = { viewModel.dismissNodeEditor() },
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(0.6f)
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -385,7 +485,7 @@ private fun BottomControls(
             ) {
                 Icon(
                     Icons.Default.Remove,
-                    contentDescription = stringResource(R.string.workflow_previewer_zoom_out)
+                    contentDescription = stringResource(R.string.workflow_editor_zoom_out)
                 )
             }
 
@@ -407,7 +507,7 @@ private fun BottomControls(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = stringResource(R.string.workflow_previewer_zoom_in)
+                    contentDescription = stringResource(R.string.workflow_editor_zoom_in)
                 )
             }
 
@@ -422,7 +522,7 @@ private fun BottomControls(
             ) {
                 Icon(
                     Icons.Default.FitScreen,
-                    contentDescription = stringResource(R.string.workflow_previewer_reset_zoom)
+                    contentDescription = stringResource(R.string.workflow_editor_reset_zoom)
                 )
             }
 
@@ -437,7 +537,7 @@ private fun BottomControls(
             ) {
                 Icon(
                     if (showHighlight) Icons.Default.Highlight else Icons.Default.HighlightOff,
-                    contentDescription = stringResource(R.string.workflow_previewer_highlight_templates)
+                    contentDescription = stringResource(R.string.workflow_editor_highlight_templates)
                 )
             }
         }

@@ -262,13 +262,13 @@
     <string name="media_viewer_previous">上一个</string>
     <string name="media_viewer_next">下一个</string>
 
-    <!-- Workflow previewer strings -->
-    <string name="workflow_previewer_title">工作流预览</string>
-    <string name="workflow_previewer_zoom_in">放大</string>
-    <string name="workflow_previewer_zoom_out">缩小</string>
-    <string name="workflow_previewer_reset_zoom">重置视图</string>
-    <string name="workflow_previewer_highlight_templates">高亮显示模板</string>
-    <string name="workflow_previewer_error_loading">加载工作流失败</string>
+    <!-- Workflow editor strings -->
+    <string name="workflow_editor_title">工作流编辑器</string>
+    <string name="workflow_editor_zoom_in">放大</string>
+    <string name="workflow_editor_zoom_out">缩小</string>
+    <string name="workflow_editor_reset_zoom">重置视图</string>
+    <string name="workflow_editor_highlight_templates">高亮显示模板</string>
+    <string name="workflow_editor_error_loading">加载工作流失败</string>
 
     <!-- Workflow upload dialog strings -->
     <string name="workflow_type_label">工作流类型</string>

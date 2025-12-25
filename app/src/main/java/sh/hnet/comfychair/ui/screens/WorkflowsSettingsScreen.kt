@@ -55,7 +55,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.WorkflowManager
-import sh.hnet.comfychair.WorkflowPreviewerActivity
+import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
@@ -80,12 +80,12 @@ fun WorkflowsSettingsScreen(
         }
     }
 
-    // Previewer launcher for mapping mode
-    val previewerLauncher = rememberLauncherForActivityResult(
+    // Editor launcher for mapping mode
+    val editorLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val mappingsJson = result.data?.getStringExtra(WorkflowPreviewerActivity.EXTRA_RESULT_MAPPINGS)
+            val mappingsJson = result.data?.getStringExtra(WorkflowEditorActivity.EXTRA_RESULT_MAPPINGS)
             if (mappingsJson != null) {
                 // Parse mappings and complete upload
                 val mappings = parseMappingsFromJson(mappingsJson)
@@ -111,18 +111,18 @@ fun WorkflowsSettingsScreen(
                 is WorkflowManagementEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
                 }
-                is WorkflowManagementEvent.LaunchPreviewer -> {
+                is WorkflowManagementEvent.LaunchEditor -> {
                     val pending = event.pendingUpload
                     val mappingState = pending.mappingState
                     if (mappingState != null) {
-                        val intent = WorkflowPreviewerActivity.createIntentForMapping(
+                        val intent = WorkflowEditorActivity.createIntentForMapping(
                             context = context,
                             jsonContent = pending.jsonContent,
                             name = pending.name,
                             description = pending.description,
                             mappingState = mappingState
                         )
-                        previewerLauncher.launch(intent)
+                        editorLauncher.launch(intent)
                     }
                 }
                 is WorkflowManagementEvent.WorkflowsChanged -> {
@@ -170,7 +170,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_tti_checkpoint),
                         workflows = uiState.ttiCheckpointWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
@@ -181,7 +181,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_tti_unet),
                         workflows = uiState.ttiUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
@@ -192,7 +192,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_iti_checkpoint),
                         workflows = uiState.itiCheckpointWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
@@ -203,7 +203,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_iti_unet),
                         workflows = uiState.itiUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
@@ -214,7 +214,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_ite_unet),
                         workflows = uiState.iteUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
@@ -225,7 +225,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_ttv_unet),
                         workflows = uiState.ttvUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
@@ -236,7 +236,7 @@ fun WorkflowsSettingsScreen(
                     WorkflowSection(
                         title = stringResource(R.string.workflow_section_itv_unet),
                         workflows = uiState.itvUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowPreviewerActivity.createIntent(context, it.id)) },
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEdit = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )

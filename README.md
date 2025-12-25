@@ -14,7 +14,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 **REQUIRES UPDATING**
 
-<img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-options.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/imagetovideo-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/gallery-mediaviewer.png" width="200"/> <img src="screenshots/gallery-metadataviewer.png" width="200"/> <img src="screenshots/settings-workflows.png" width="200"/> <img src="screenshots/settings-workflows-previewer.png" width="200"/> <img src="screenshots/settings-server.png" width="200"/>
+<img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-options.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/imagetovideo-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/gallery-mediaviewer.png" width="200"/> <img src="screenshots/gallery-metadataviewer.png" width="200"/> <img src="screenshots/settings-workflows.png" width="200"/> <img src="screenshots/settings-workflows-editor.png" width="200"/> <img src="screenshots/settings-server.png" width="200"/>
 
 ## Features
 
@@ -84,7 +84,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Workflow management**:
   - View and manage custom workflows
   - Upload custom ComfyUI workflows with automatic validation
-  - Visual workflow previewer with node graph display
+  - Visual workflow editor with node graph display
   - Colored nodes and connections matching ComfyUI's visual style
   - Field mapping UI for required template fields
   - Edit workflow name and description

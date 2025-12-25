@@ -262,13 +262,13 @@
     <string name="media_viewer_previous">Précédent</string>
     <string name="media_viewer_next">Suivant</string>
 
-    <!-- Workflow previewer strings -->
-    <string name="workflow_previewer_title">Aperçu du workflow</string>
-    <string name="workflow_previewer_zoom_in">Zoom avant</string>
-    <string name="workflow_previewer_zoom_out">Zoom arrière</string>
-    <string name="workflow_previewer_reset_zoom">Réinitialiser la vue</string>
-    <string name="workflow_previewer_highlight_templates">Mettre en évidence les modèles</string>
-    <string name="workflow_previewer_error_loading">Échec du chargement du workflow</string>
+    <!-- Workflow editor strings -->
+    <string name="workflow_editor_title">Éditeur de workflow</string>
+    <string name="workflow_editor_zoom_in">Zoom avant</string>
+    <string name="workflow_editor_zoom_out">Zoom arrière</string>
+    <string name="workflow_editor_reset_zoom">Réinitialiser la vue</string>
+    <string name="workflow_editor_highlight_templates">Mettre en évidence les modèles</string>
+    <string name="workflow_editor_error_loading">Échec du chargement du workflow</string>
 
     <!-- Workflow upload dialog strings -->
     <string name="workflow_type_label">Type de workflow</string>

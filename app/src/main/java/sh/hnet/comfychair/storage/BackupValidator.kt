@@ -198,4 +198,82 @@ class BackupValidator {
         }
         return sanitizeString(prompt, MAX_PROMPT_LENGTH)
     }
+
+    /**
+     * Validate and sanitize node attribute edits JSON.
+     * Structure: {"nodeId": {"inputName": value, ...}, ...}
+     * Returns sanitized JSON or null if invalid.
+     */
+    fun sanitizeNodeAttributeEdits(json: String?): String? {
+        if (json.isNullOrBlank()) return null
+
+        return try {
+            val root = JSONObject(json)
+            val sanitized = JSONObject()
+
+            val nodeIds = root.keys()
+            while (nodeIds.hasNext()) {
+                val nodeId = nodeIds.next()
+
+                // Validate nodeId format (non-empty, alphanumeric + underscore)
+                if (nodeId.isBlank() || nodeId.length > 100) continue
+                if (!nodeId.matches(Regex("^[a-zA-Z0-9_]+$"))) continue
+
+                val nodeEdits = root.optJSONObject(nodeId) ?: continue
+                val sanitizedEdits = JSONObject()
+
+                val inputNames = nodeEdits.keys()
+                while (inputNames.hasNext()) {
+                    val inputName = inputNames.next()
+
+                    // Validate inputName format (non-empty, alphanumeric + underscore)
+                    if (inputName.isBlank() || inputName.length > 100) continue
+                    if (!inputName.matches(Regex("^[a-zA-Z0-9_]+$"))) continue
+
+                    val value = nodeEdits.opt(inputName)
+                    if (value == null || value == JSONObject.NULL) continue
+
+                    // Validate and sanitize value based on type
+                    when (value) {
+                        is String -> {
+                            val sanitizedValue = sanitizeString(value, MAX_PROMPT_LENGTH)
+                            if (sanitizedValue.isNotEmpty()) {
+                                sanitizedEdits.put(inputName, sanitizedValue)
+                            }
+                        }
+                        is Int -> {
+                            // Allow any reasonable int range
+                            if (value in Int.MIN_VALUE..Int.MAX_VALUE) {
+                                sanitizedEdits.put(inputName, value)
+                            }
+                        }
+                        is Long -> {
+                            // Coerce to int if in range
+                            if (value in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
+                                sanitizedEdits.put(inputName, value.toInt())
+                            }
+                        }
+                        is Double -> {
+                            // Allow reasonable float ranges, reject NaN/Infinity
+                            if (!value.isNaN() && !value.isInfinite()) {
+                                sanitizedEdits.put(inputName, value)
+                            }
+                        }
+                        is Boolean -> {
+                            sanitizedEdits.put(inputName, value)
+                        }
+                        // Skip other types
+                    }
+                }
+
+                if (sanitizedEdits.length() > 0) {
+                    sanitized.put(nodeId, sanitizedEdits)
+                }
+            }
+
+            if (sanitized.length() > 0) sanitized.toString() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

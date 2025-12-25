@@ -66,9 +66,9 @@ data class WorkflowGraph(
 )
 
 /**
- * UI state for the workflow previewer
+ * UI state for the workflow editor
  */
-data class WorkflowPreviewerUiState(
+data class WorkflowEditorUiState(
     val graph: WorkflowGraph? = null,
     val workflowName: String = "",
     val isLoading: Boolean = true,
@@ -83,7 +83,16 @@ data class WorkflowPreviewerUiState(
     val mappingState: WorkflowMappingState? = null,
     val selectedFieldKey: String? = null,
     val highlightedNodeIds: Set<String> = emptySet(),
-    val canConfirmMapping: Boolean = false
+    val canConfirmMapping: Boolean = false,
+
+    // Node attribute editing mode
+    val isEditingNode: Boolean = false,
+    val selectedNodeForEditing: WorkflowNode? = null,
+    val nodeAttributeEdits: Map<String, Map<String, Any>> = emptyMap(),
+    val nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap(),
+    val editableInputNames: Set<String> = emptySet(),
+    val savedScaleBeforeEditing: Float? = null,
+    val savedOffsetBeforeEditing: Offset? = null
 )
 
 /**

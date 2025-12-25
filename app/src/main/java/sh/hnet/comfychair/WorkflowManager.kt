@@ -970,6 +970,54 @@ class WorkflowManager(private val context: Context) {
             .replace("\u000C", "\\f")
     }
 
+    /**
+     * Apply node attribute edits to a workflow JSON.
+     * This modifies the input values in specific nodes based on user edits.
+     *
+     * @param workflowJson The workflow JSON string (with or without "nodes" wrapper)
+     * @param edits Map of nodeId -> (inputName -> value)
+     * @return Modified workflow JSON with edits applied
+     */
+    fun applyNodeAttributeEdits(
+        workflowJson: String,
+        edits: Map<String, Map<String, Any>>
+    ): String {
+        if (edits.isEmpty()) return workflowJson
+
+        return try {
+            val json = JSONObject(workflowJson)
+            val nodes = json.optJSONObject("nodes") ?: json
+
+            for ((nodeId, nodeEdits) in edits) {
+                val node = nodes.optJSONObject(nodeId) ?: continue
+                val inputs = node.optJSONObject("inputs") ?: continue
+
+                for ((inputName, value) in nodeEdits) {
+                    // Only update if the input exists and is not a connection
+                    if (inputs.has(inputName)) {
+                        val currentValue = inputs.opt(inputName)
+                        // Don't overwrite connections (JSONArray format)
+                        if (currentValue !is JSONArray) {
+                            when (value) {
+                                is String -> inputs.put(inputName, value)
+                                is Int -> inputs.put(inputName, value)
+                                is Long -> inputs.put(inputName, value.toInt())
+                                is Float -> inputs.put(inputName, value.toDouble())
+                                is Double -> inputs.put(inputName, value)
+                                is Boolean -> inputs.put(inputName, value)
+                                else -> inputs.put(inputName, value.toString())
+                            }
+                        }
+                    }
+                }
+            }
+
+            json.toString()
+        } catch (e: Exception) {
+            workflowJson
+        }
+    }
+
     // LoRA chain injection
 
     /**

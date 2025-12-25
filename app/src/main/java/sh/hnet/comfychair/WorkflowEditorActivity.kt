@@ -12,23 +12,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import sh.hnet.comfychair.ui.screens.WorkflowPreviewerScreen
+import sh.hnet.comfychair.ui.screens.WorkflowEditorScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
-import sh.hnet.comfychair.viewmodel.WorkflowPreviewerEvent
-import sh.hnet.comfychair.viewmodel.WorkflowPreviewerViewModel
+import sh.hnet.comfychair.viewmodel.WorkflowEditorEvent
+import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 
 /**
- * Fullscreen activity for viewing workflow graphs.
+ * Fullscreen activity for editing workflow graphs.
  * Follows the MediaViewerActivity pattern.
  *
  * Can operate in two modes:
  * 1. View mode: Display an existing workflow graph
  * 2. Mapping mode: Allow user to confirm/adjust field-to-node mappings for new workflow upload
  */
-class WorkflowPreviewerActivity : ComponentActivity() {
+class WorkflowEditorActivity : ComponentActivity() {
 
-    private val viewModel: WorkflowPreviewerViewModel by viewModels()
+    private val viewModel: WorkflowEditorViewModel by viewModels()
 
     companion object {
         private const val EXTRA_WORKFLOW_ID = "workflow_id"
@@ -44,7 +44,7 @@ class WorkflowPreviewerActivity : ComponentActivity() {
          * Create intent to preview a workflow by ID
          */
         fun createIntent(context: Context, workflowId: String): Intent {
-            return Intent(context, WorkflowPreviewerActivity::class.java).apply {
+            return Intent(context, WorkflowEditorActivity::class.java).apply {
                 putExtra(EXTRA_WORKFLOW_ID, workflowId)
             }
         }
@@ -53,7 +53,7 @@ class WorkflowPreviewerActivity : ComponentActivity() {
          * Create intent to preview raw workflow JSON
          */
         fun createIntentForJson(context: Context, jsonContent: String): Intent {
-            return Intent(context, WorkflowPreviewerActivity::class.java).apply {
+            return Intent(context, WorkflowEditorActivity::class.java).apply {
                 putExtra(EXTRA_WORKFLOW_JSON, jsonContent)
             }
         }
@@ -68,7 +68,7 @@ class WorkflowPreviewerActivity : ComponentActivity() {
             description: String,
             mappingState: WorkflowMappingState
         ): Intent {
-            return Intent(context, WorkflowPreviewerActivity::class.java).apply {
+            return Intent(context, WorkflowEditorActivity::class.java).apply {
                 putExtra(EXTRA_WORKFLOW_JSON, jsonContent)
                 putExtra(EXTRA_IS_MAPPING_MODE, true)
                 putExtra(EXTRA_WORKFLOW_NAME, name)
@@ -114,13 +114,13 @@ class WorkflowPreviewerActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     viewModel.events.collect { event ->
                         when (event) {
-                            is WorkflowPreviewerEvent.MappingConfirmed -> {
+                            is WorkflowEditorEvent.MappingConfirmed -> {
                                 setResult(Activity.RESULT_OK, Intent().apply {
                                     putExtra(EXTRA_RESULT_MAPPINGS, event.mappingsJson)
                                 })
                                 finish()
                             }
-                            is WorkflowPreviewerEvent.MappingCancelled -> {
+                            is WorkflowEditorEvent.MappingCancelled -> {
                                 setResult(Activity.RESULT_CANCELED)
                                 finish()
                             }
@@ -129,7 +129,7 @@ class WorkflowPreviewerActivity : ComponentActivity() {
                 }
 
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    WorkflowPreviewerScreen(
+                    WorkflowEditorScreen(
                         viewModel = viewModel,
                         onClose = {
                             if (isMappingMode) {

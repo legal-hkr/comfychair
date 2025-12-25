@@ -340,7 +340,7 @@ class ComfyUIClient(
     /**
      * Fetch the full /object_info response from the ComfyUI server.
      * Returns the complete node type information including inputs/outputs.
-     * Used for resolving slot types for edge coloring in workflow previewer.
+     * Used for resolving slot types for edge coloring in workflow editor.
      *
      * @param callback Called with the result:
      *                 - objectInfo: The full JSON object, or null on error

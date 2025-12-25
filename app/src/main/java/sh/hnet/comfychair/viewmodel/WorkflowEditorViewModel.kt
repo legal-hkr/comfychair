@@ -18,29 +18,34 @@ import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowParser
-import sh.hnet.comfychair.workflow.WorkflowPreviewerUiState
+import sh.hnet.comfychair.workflow.WorkflowEditorUiState
 import sh.hnet.comfychair.workflow.WorkflowGraph
+import sh.hnet.comfychair.workflow.WorkflowNode
+import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.NodeAttributeEdits
+import sh.hnet.comfychair.storage.WorkflowValuesStorage
 
 /**
- * Events emitted by the Workflow Previewer
+ * Events emitted by the Workflow Editor
  */
-sealed class WorkflowPreviewerEvent {
-    data class MappingConfirmed(val mappingsJson: String) : WorkflowPreviewerEvent()
-    object MappingCancelled : WorkflowPreviewerEvent()
+sealed class WorkflowEditorEvent {
+    data class MappingConfirmed(val mappingsJson: String) : WorkflowEditorEvent()
+    object MappingCancelled : WorkflowEditorEvent()
 }
 
 /**
- * ViewModel for the Workflow Previewer screen
+ * ViewModel for the Workflow Editor screen
  */
-class WorkflowPreviewerViewModel : ViewModel() {
+class WorkflowEditorViewModel : ViewModel() {
 
-    private val _uiState = MutableStateFlow(WorkflowPreviewerUiState())
-    val uiState: StateFlow<WorkflowPreviewerUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(WorkflowEditorUiState())
+    val uiState: StateFlow<WorkflowEditorUiState> = _uiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<WorkflowPreviewerEvent>()
-    val events: SharedFlow<WorkflowPreviewerEvent> = _events.asSharedFlow()
+    private val _events = MutableSharedFlow<WorkflowEditorEvent>()
+    val events: SharedFlow<WorkflowEditorEvent> = _events.asSharedFlow()
 
     private val parser = WorkflowParser()
     private val layoutEngine = WorkflowLayoutEngine()
@@ -48,12 +53,18 @@ class WorkflowPreviewerViewModel : ViewModel() {
 
     private var canvasWidth: Float = 0f
     private var canvasHeight: Float = 0f
+    private var currentWorkflowId: String? = null
+    private var workflowValuesStorage: WorkflowValuesStorage? = null
 
     /**
-     * Initialize the previewer with a workflow ID (view mode)
+     * Initialize the editor with a workflow ID (view mode)
      */
     fun initialize(context: Context, workflowId: String?, workflowJson: String?) {
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+        // Set up storage for node attribute edits
+        workflowValuesStorage = WorkflowValuesStorage(context)
+        currentWorkflowId = workflowId
 
         // Fetch object_info first for edge type resolution, then parse workflow
         fetchObjectInfo { _ ->
@@ -104,13 +115,21 @@ class WorkflowPreviewerViewModel : ViewModel() {
                 // Calculate bounds
                 val bounds = layoutEngine.calculateBounds(graph)
 
+                // Build node definitions map
+                val nodeDefinitions = buildNodeDefinitionsMap(graph)
+
+                // Load existing node attribute edits
+                val existingEdits = loadNodeAttributeEdits()
+
                 _uiState.value = _uiState.value.copy(
                     graph = graph,
                     workflowName = name,
                     isLoading = false,
                     errorMessage = null,
                     graphBounds = bounds,
-                    isFieldMappingMode = false
+                    isFieldMappingMode = false,
+                    nodeDefinitions = nodeDefinitions,
+                    nodeAttributeEdits = existingEdits
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -122,7 +141,7 @@ class WorkflowPreviewerViewModel : ViewModel() {
     }
 
     /**
-     * Initialize the previewer for field mapping mode (new workflow upload)
+     * Initialize the editor for field mapping mode (new workflow upload)
      */
     fun initializeForMapping(
         jsonContent: String,
@@ -302,7 +321,7 @@ class WorkflowPreviewerViewModel : ViewModel() {
         val mappingsJson = getFinalMappingsJson()
         if (mappingsJson != null) {
             viewModelScope.launch {
-                _events.emit(WorkflowPreviewerEvent.MappingConfirmed(mappingsJson))
+                _events.emit(WorkflowEditorEvent.MappingConfirmed(mappingsJson))
             }
         }
     }
@@ -312,7 +331,7 @@ class WorkflowPreviewerViewModel : ViewModel() {
      */
     fun cancelMapping() {
         viewModelScope.launch {
-            _events.emit(WorkflowPreviewerEvent.MappingCancelled)
+            _events.emit(WorkflowEditorEvent.MappingCancelled)
         }
     }
 
@@ -479,5 +498,208 @@ class WorkflowPreviewerViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             showTemplateHighlight = !_uiState.value.showTemplateHighlight
         )
+    }
+
+    // ===========================================
+    // Node Attribute Editing
+    // ===========================================
+
+    /**
+     * Build a map of classType -> NodeTypeDefinition for all nodes in the graph.
+     */
+    private fun buildNodeDefinitionsMap(graph: WorkflowGraph): Map<String, NodeTypeDefinition> {
+        val definitions = mutableMapOf<String, NodeTypeDefinition>()
+        graph.nodes.forEach { node ->
+            if (node.classType !in definitions) {
+                nodeTypeRegistry.getNodeDefinition(node.classType)?.let {
+                    definitions[node.classType] = it
+                }
+            }
+        }
+        return definitions
+    }
+
+    /**
+     * Load node attribute edits from storage.
+     */
+    private fun loadNodeAttributeEdits(): Map<String, Map<String, Any>> {
+        val workflowId = currentWorkflowId ?: return emptyMap()
+        val storage = workflowValuesStorage ?: return emptyMap()
+
+        val values = storage.loadValues(workflowId)
+        val editsJson = values?.nodeAttributeEdits ?: return emptyMap()
+
+        return NodeAttributeEdits.fromJson(editsJson).edits
+    }
+
+    /**
+     * Handle node tap for editing (view mode only, not mapping mode).
+     */
+    fun onNodeTappedForEditing(node: WorkflowNode) {
+        val state = _uiState.value
+
+        // Don't allow editing in mapping mode
+        if (state.isFieldMappingMode) return
+
+        // Only save current scale and offset if NOT already editing
+        // This preserves the original view state when switching between nodes
+        val savedScale = if (state.isEditingNode) state.savedScaleBeforeEditing else state.scale
+        val savedOffset = if (state.isEditingNode) state.savedOffsetBeforeEditing else state.offset
+
+        // Calculate available space
+        // When already editing, canvasWidth already reflects the reduced size (side sheet is open)
+        // When not editing, we need to account for side sheet that will take ~60% of width
+        val padding = 48f
+        val availableWidth = if (state.isEditingNode) {
+            // Side sheet already open - canvasWidth is already the visible area
+            canvasWidth - padding * 2
+        } else {
+            // Side sheet will open - account for it taking 60% of screen
+            canvasWidth * 0.4f - padding * 2
+        }
+        val availableHeight = canvasHeight - padding * 2
+
+        // Calculate scale to fit the node in available space
+        val scaleToFitWidth = if (node.width > 0) availableWidth / node.width else 1f
+        val scaleToFitHeight = if (node.height > 0) availableHeight / node.height else 1f
+        val newScale = minOf(scaleToFitWidth, scaleToFitHeight)
+            .coerceIn(0.5f, 2.0f)  // Limit zoom range
+
+        // Calculate new offset to:
+        // - Vertically center the node
+        // - Horizontally align node to left (with padding)
+        val nodeCenterY = node.y + node.height / 2
+        val targetY = canvasHeight / 2
+        val leftPadding = padding
+
+        val newOffsetX = leftPadding - node.x * newScale
+        val newOffsetY = targetY - nodeCenterY * newScale
+
+        // Compute editable input names (same logic as NodeAttributeSideSheet.buildEditableInputs)
+        val nodeDefinition = state.nodeDefinitions[node.classType]
+        val editableInputNames = node.inputs.filter { (name, value) ->
+            // Skip connections
+            if (value is InputValue.Connection) return@filter false
+
+            // Skip template variables
+            if (value is InputValue.Literal) {
+                val strValue = value.value.toString()
+                if (strValue.contains("{{") && strValue.contains("}}")) return@filter false
+            }
+
+            // Skip force-input fields
+            val definition = nodeDefinition?.inputs?.find { it.name == name }
+            if (definition?.forceInput == true) return@filter false
+
+            true
+        }.keys
+
+        _uiState.value = state.copy(
+            isEditingNode = true,
+            selectedNodeForEditing = node,
+            editableInputNames = editableInputNames,
+            savedScaleBeforeEditing = savedScale,
+            savedOffsetBeforeEditing = savedOffset,
+            scale = newScale,
+            offset = Offset(newOffsetX, newOffsetY)
+        )
+    }
+
+    /**
+     * Dismiss the node editor and restore previous view.
+     */
+    fun dismissNodeEditor() {
+        val state = _uiState.value
+
+        // Save edits before closing
+        saveNodeAttributeEdits()
+
+        // Restore previous scale and offset
+        val restoredScale = state.savedScaleBeforeEditing ?: state.scale
+        val restoredOffset = state.savedOffsetBeforeEditing ?: state.offset
+
+        _uiState.value = state.copy(
+            isEditingNode = false,
+            selectedNodeForEditing = null,
+            editableInputNames = emptySet(),
+            savedScaleBeforeEditing = null,
+            savedOffsetBeforeEditing = null,
+            scale = restoredScale,
+            offset = restoredOffset
+        )
+    }
+
+    /**
+     * Update a node attribute value.
+     */
+    fun updateNodeAttribute(nodeId: String, inputName: String, value: Any) {
+        val state = _uiState.value
+        val currentEdits = state.nodeAttributeEdits.toMutableMap()
+
+        val nodeEdits = currentEdits[nodeId]?.toMutableMap() ?: mutableMapOf()
+        nodeEdits[inputName] = value
+        currentEdits[nodeId] = nodeEdits
+
+        _uiState.value = state.copy(nodeAttributeEdits = currentEdits)
+    }
+
+    /**
+     * Reset a node attribute to its default value.
+     */
+    fun resetNodeAttribute(nodeId: String, inputName: String) {
+        val state = _uiState.value
+        val currentEdits = state.nodeAttributeEdits.toMutableMap()
+
+        val nodeEdits = currentEdits[nodeId]?.toMutableMap() ?: return
+        nodeEdits.remove(inputName)
+
+        if (nodeEdits.isEmpty()) {
+            currentEdits.remove(nodeId)
+        } else {
+            currentEdits[nodeId] = nodeEdits
+        }
+
+        _uiState.value = state.copy(nodeAttributeEdits = currentEdits)
+    }
+
+    /**
+     * Save node attribute edits to storage.
+     */
+    private fun saveNodeAttributeEdits() {
+        val workflowId = currentWorkflowId ?: return
+        val storage = workflowValuesStorage ?: return
+        val edits = _uiState.value.nodeAttributeEdits
+
+        if (edits.isEmpty()) {
+            // Clear the edits from storage
+            val currentValues = storage.loadValues(workflowId)
+            if (currentValues != null && currentValues.nodeAttributeEdits != null) {
+                storage.saveValues(workflowId, currentValues.copy(nodeAttributeEdits = null))
+            }
+            return
+        }
+
+        val editsJson = NodeAttributeEdits(edits).toJson()
+
+        val currentValues = storage.loadValues(workflowId)
+        if (currentValues != null) {
+            storage.saveValues(workflowId, currentValues.copy(nodeAttributeEdits = editsJson))
+        } else {
+            // Create new values with just the edits
+            storage.saveValues(
+                workflowId,
+                sh.hnet.comfychair.model.WorkflowValues(
+                    workflowId = workflowId,
+                    nodeAttributeEdits = editsJson
+                )
+            )
+        }
+    }
+
+    /**
+     * Get edits for a specific node.
+     */
+    fun getEditsForNode(nodeId: String): Map<String, Any> {
+        return _uiState.value.nodeAttributeEdits[nodeId] ?: emptyMap()
     }
 }

@@ -55,9 +55,9 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ComfyChair.Fullscreen" />
 
-        <!-- WorkflowPreviewerActivity - Workflow graph viewer -->
+        <!-- WorkflowEditorActivity - Workflow graph editor -->
         <activity
-            android:name=".WorkflowPreviewerActivity"
+            android:name=".WorkflowEditorActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
 

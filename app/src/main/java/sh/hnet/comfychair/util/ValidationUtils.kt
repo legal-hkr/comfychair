@@ -149,4 +149,98 @@ object ValidationUtils {
             else -> ""
         }
     }
+
+    // ===========================================
+    // Node Attribute Editor Validation Functions
+    // ===========================================
+
+    /**
+     * Validate an integer value with min/max constraints.
+     * @param value The value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (nullable = no limit)
+     * @param max Maximum allowed value (nullable = no limit)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateInt(
+        value: String,
+        context: Context? = null,
+        min: Int? = null,
+        max: Int? = null
+    ): String? {
+        if (value.isEmpty()) return null
+        val intValue = value.toIntOrNull()
+            ?: return context?.getString(R.string.error_invalid_integer) ?: "Must be a whole number"
+
+        if (min != null && intValue < min) {
+            return context?.getString(R.string.error_value_min, min) ?: "Minimum: $min"
+        }
+        if (max != null && intValue > max) {
+            return context?.getString(R.string.error_value_max, max) ?: "Maximum: $max"
+        }
+        return null
+    }
+
+    /**
+     * Validate a float/double value with min/max constraints.
+     * @param value The value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (nullable = no limit)
+     * @param max Maximum allowed value (nullable = no limit)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateFloat(
+        value: String,
+        context: Context? = null,
+        min: Float? = null,
+        max: Float? = null
+    ): String? {
+        if (value.isEmpty()) return null
+        val floatValue = value.toFloatOrNull()
+            ?: return context?.getString(R.string.error_invalid_number) ?: "Must be a number"
+
+        if (min != null && floatValue < min) {
+            return context?.getString(R.string.error_value_min_float, min) ?: "Minimum: $min"
+        }
+        if (max != null && floatValue > max) {
+            return context?.getString(R.string.error_value_max_float, max) ?: "Maximum: $max"
+        }
+        return null
+    }
+
+    /**
+     * Validate a value against a list of allowed options.
+     * @param value The value to validate
+     * @param options List of valid options
+     * @param context Optional context for localized error message
+     * @return Error message if invalid, null if valid
+     */
+    fun validateEnum(
+        value: String,
+        options: List<String>,
+        context: Context? = null
+    ): String? {
+        if (value.isEmpty()) return null
+        return if (value !in options) {
+            context?.getString(R.string.error_invalid_option) ?: "Invalid option"
+        } else null
+    }
+
+    /**
+     * Validate a string value with max length constraint.
+     * @param value The value to validate
+     * @param maxLength Maximum allowed length (default 10000)
+     * @param context Optional context for localized error message
+     * @return Error message if invalid, null if valid
+     */
+    fun validateString(
+        value: String,
+        maxLength: Int = 10000,
+        context: Context? = null
+    ): String? {
+        return if (value.length > maxLength) {
+            context?.getString(R.string.error_string_too_long, maxLength)
+                ?: "Maximum length: $maxLength"
+        } else null
+    }
 }

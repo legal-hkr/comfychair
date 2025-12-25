@@ -55,7 +55,7 @@ private data class CanvasColors(
     val nodeBackground: Color,
     val nodeHeaderBackground: Color,
     val nodeBorder: Color,
-    val highlightBorder: Color,
+    val templateTextHighlight: Color,
     val candidateBorder: Color,
     val selectedBorder: Color,
     val textPrimary: Color,
@@ -82,7 +82,12 @@ fun WorkflowGraphCanvas(
     highlightedNodeIds: Set<String> = emptySet(),
     mappingState: WorkflowMappingState? = null,
     selectedFieldKey: String? = null,
-    onNodeTapped: ((String) -> Unit)? = null
+    editingNodeId: String? = null,
+    nodeAttributeEdits: Map<String, Map<String, Any>> = emptyMap(),
+    editableInputNames: Set<String> = emptySet(),
+    enableManualTransform: Boolean = true,
+    onNodeTapped: ((String) -> Unit)? = null,
+    onTapOutsideNodes: (() -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -111,7 +116,7 @@ fun WorkflowGraphCanvas(
         nodeBackground = MaterialTheme.colorScheme.surfaceContainer,
         nodeHeaderBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
         nodeBorder = MaterialTheme.colorScheme.outline,
-        highlightBorder = MaterialTheme.colorScheme.tertiary,
+        templateTextHighlight = MaterialTheme.colorScheme.secondary,
         candidateBorder = MaterialTheme.colorScheme.secondary,
         selectedBorder = MaterialTheme.colorScheme.primary,
         textPrimary = MaterialTheme.colorScheme.onSurface,
@@ -125,8 +130,8 @@ fun WorkflowGraphCanvas(
 
     Canvas(
         modifier = modifier
-            .pointerInput(isFieldMappingMode, onNodeTapped) {
-                if (isFieldMappingMode && onNodeTapped != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes) {
+                if (onNodeTapped != null || onTapOutsideNodes != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
@@ -139,42 +144,46 @@ fun WorkflowGraphCanvas(
                         }
 
                         if (tappedNode != null) {
-                            onNodeTapped(tappedNode.id)
+                            onNodeTapped?.invoke(tappedNode.id)
+                        } else {
+                            onTapOutsideNodes?.invoke()
                         }
                     }
                 }
             }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    do {
-                        val event = awaitPointerEvent()
-                        val zoom = event.calculateZoom()
-                        val pan = event.calculatePan()
-                        val centroid = event.calculateCentroid()
+            .pointerInput(enableManualTransform) {
+                if (enableManualTransform) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            val centroid = event.calculateCentroid()
 
-                        if (zoom != 1f || pan != Offset.Zero) {
-                            val oldScale = currentScaleState.value
-                            val newScale = (oldScale * zoom).coerceIn(0.2f, 3f)
-                            val oldOffset = currentOffsetState.value
+                            if (zoom != 1f || pan != Offset.Zero) {
+                                val oldScale = currentScaleState.value
+                                val newScale = (oldScale * zoom).coerceIn(0.2f, 3f)
+                                val oldOffset = currentOffsetState.value
 
-                            // When zooming, adjust offset to keep the pinch centroid stationary
-                            // The point under the centroid in graph coords should stay under the centroid
-                            val zoomChange = newScale / oldScale
-                            val newOffset = Offset(
-                                x = centroid.x - (centroid.x - oldOffset.x) * zoomChange + pan.x,
-                                y = centroid.y - (centroid.y - oldOffset.y) * zoomChange + pan.y
-                            )
-                            onTransform(newScale, newOffset)
-                        }
-
-                        // Consume changes to prevent scrolling
-                        event.changes.forEach { change ->
-                            if (change.positionChanged()) {
-                                change.consume()
+                                // When zooming, adjust offset to keep the pinch centroid stationary
+                                // The point under the centroid in graph coords should stay under the centroid
+                                val zoomChange = newScale / oldScale
+                                val newOffset = Offset(
+                                    x = centroid.x - (centroid.x - oldOffset.x) * zoomChange + pan.x,
+                                    y = centroid.y - (centroid.y - oldOffset.y) * zoomChange + pan.y
+                                )
+                                onTransform(newScale, newOffset)
                             }
-                        }
-                    } while (event.changes.any { it.pressed })
+
+                            // Consume changes to prevent scrolling
+                            event.changes.forEach { change ->
+                                if (change.positionChanged()) {
+                                    change.consume()
+                                }
+                            }
+                        } while (event.changes.any { it.pressed })
+                    }
                 }
             }
     ) {
@@ -193,6 +202,7 @@ fun WorkflowGraphCanvas(
                 val highlightState = when {
                     isFieldMappingMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
                     isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
+                    editingNodeId == node.id -> NodeHighlightState.SELECTED
                     else -> NodeHighlightState.NONE
                 }
 
@@ -204,12 +214,20 @@ fun WorkflowGraphCanvas(
                     else -> colors.categoryColors[node.category]
                 }
 
+                // Get edits for this node
+                val nodeEdits = nodeAttributeEdits[node.id] ?: emptyMap()
+
+                // Editable inputs are only highlighted when this node is being edited
+                val highlightEditableInputs = editingNodeId == node.id
+
                 drawNode(
                     node = node,
                     showTemplateHighlight = showTemplateHighlight && !isFieldMappingMode,
                     colors = colors,
-                    mappingHighlightState = highlightState,
-                    colorPair = colorPair
+                    highlightState = highlightState,
+                    colorPair = colorPair,
+                    nodeEdits = nodeEdits,
+                    editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet()
                 )
             }
         }
@@ -223,20 +241,19 @@ private fun DrawScope.drawNode(
     node: WorkflowNode,
     showTemplateHighlight: Boolean,
     colors: CanvasColors,
-    mappingHighlightState: NodeHighlightState = NodeHighlightState.NONE,
-    colorPair: SlotColors.NodeColorPair? = null
+    highlightState: NodeHighlightState = NodeHighlightState.NONE,
+    colorPair: SlotColors.NodeColorPair? = null,
+    nodeEdits: Map<String, Any> = emptyMap(),
+    editableInputNames: Set<String> = emptySet()
 ) {
-    val isTemplateHighlighted = showTemplateHighlight && node.hasTemplateVariables
+    // Template highlight only affects text with actual {{...}} patterns
+    val showTemplateTextHighlight = showTemplateHighlight
 
-    // Determine border color and width based on highlight state
-    val (borderColor, borderWidth) = when (mappingHighlightState) {
+    // Determine border color and width based on highlight state (not template highlight)
+    val (borderColor, borderWidth) = when (highlightState) {
         NodeHighlightState.SELECTED -> colors.selectedBorder to 8f
         NodeHighlightState.CANDIDATE -> colors.candidateBorder to 6f
-        NodeHighlightState.NONE -> if (isTemplateHighlighted) {
-            colors.highlightBorder to 6f
-        } else {
-            colors.nodeBorder to 3f
-        }
+        NodeHighlightState.NONE -> colors.nodeBorder to 3f
     }
 
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
@@ -296,7 +313,7 @@ private fun DrawScope.drawNode(
     // Draw text using native canvas
     val textPrimaryArgb = colors.textPrimary.toArgb()
     val textSecondaryArgb = colors.textSecondary.toArgb()
-    val highlightArgb = colors.highlightBorder.toArgb()
+    val templateHighlightArgb = colors.templateTextHighlight.toArgb()
 
     drawContext.canvas.nativeCanvas.apply {
         // Title text
@@ -316,8 +333,16 @@ private fun DrawScope.drawNode(
             isAntiAlias = true
         }
 
-        val highlightPaint = Paint().apply {
-            color = highlightArgb
+        val templatePaint = Paint().apply {
+            color = templateHighlightArgb
+            textSize = 22f
+            typeface = Typeface.DEFAULT_BOLD
+            isAntiAlias = true
+        }
+
+        // Paint for editable inputs (when side sheet is open)
+        val editablePaint = Paint().apply {
+            color = colors.selectedBorder.toArgb()
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
             isAntiAlias = true
@@ -325,25 +350,33 @@ private fun DrawScope.drawNode(
 
         var inputY = node.y + headerHeight + 32f
         node.inputs.forEach { (name, value) ->
-            val valueStr = when (value) {
-                is InputValue.Literal -> formatInputValue(value.value)
+            // Get the current value - use edit if available, otherwise original
+            val currentValue = nodeEdits[name] ?: when (value) {
+                is InputValue.Literal -> value.value
                 is InputValue.Connection -> null
             }
 
-            // Check if this input key is a known template key
-            val isTemplateKey = name in node.templateInputKeys
+            val valueStr = currentValue?.let { formatInputValue(it) }
 
-            if (isTemplateKey && isTemplateHighlighted) {
-                // Draw highlighted: entire row in highlight color
-                val displayText = if (valueStr != null) "$name: $valueStr" else name
-                val truncated = truncateText(displayText, node.width - 32f, highlightPaint)
-                drawText(truncated, node.x + 16f, inputY, highlightPaint)
-            } else {
-                // Draw normal
-                val displayText = if (valueStr != null) "$name: $valueStr" else name
-                val truncated = truncateText(displayText, node.width - 32f, inputPaint)
-                drawText(truncated, node.x + 16f, inputY, inputPaint)
+            // Check if value contains actual {{...}} template pattern
+            val hasTemplatePattern = currentValue?.toString()?.let { str ->
+                str.contains("{{") && str.contains("}}")
+            } ?: false
+
+            // Determine which paint to use
+            val paint = when {
+                // Editable inputs highlighted when side sheet is open
+                name in editableInputNames -> editablePaint
+                // Template values highlighted when toggle is on
+                hasTemplatePattern && showTemplateTextHighlight -> templatePaint
+                // Normal
+                else -> inputPaint
             }
+
+            val displayText = if (valueStr != null) "$name: $valueStr" else name
+            val truncated = truncateText(displayText, node.width - 32f, paint)
+            drawText(truncated, node.x + 16f, inputY, paint)
+
             inputY += WorkflowLayoutEngine.INPUT_ROW_HEIGHT
         }
     }
