@@ -56,6 +56,10 @@ class WorkflowEditorViewModel : ViewModel() {
     private var currentWorkflowId: String? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
 
+    // Fit mode for reset zoom button toggle
+    private enum class FitMode { FIT_ALL, FIT_WIDTH }
+    private var lastFitMode: FitMode = FitMode.FIT_ALL
+
     /**
      * Initialize the editor with a workflow ID (view mode)
      */
@@ -455,9 +459,9 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Fit the graph to the screen
+     * Fit the entire graph to the screen (both width and height)
      */
-    fun fitToScreen() {
+    private fun fitToScreen() {
         val bounds = _uiState.value.graphBounds
         if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
             return
@@ -482,13 +486,48 @@ class WorkflowEditorViewModel : ViewModel() {
             scale = scale,
             offset = Offset(offsetX, offsetY)
         )
+        lastFitMode = FitMode.FIT_ALL
     }
 
     /**
-     * Reset view to fit screen
+     * Fit the graph width to the screen, showing the top of the graph
+     */
+    private fun fitToWidth() {
+        val bounds = _uiState.value.graphBounds
+        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
+            return
+        }
+
+        // Small padding on sides
+        val horizontalPadding = 16f
+        val availableWidth = canvasWidth - horizontalPadding * 2
+
+        // Calculate scale to fit width only
+        val scale = minOf(availableWidth / bounds.width, 1.5f) // max 1.5x
+
+        // Calculate offset - center horizontally, anchor to top vertically
+        val scaledWidth = bounds.width * scale
+        val offsetX = (canvasWidth - scaledWidth) / 2 - bounds.minX * scale
+        val topPadding = 8f
+        val offsetY = topPadding - bounds.minY * scale
+
+        _uiState.value = _uiState.value.copy(
+            scale = scale,
+            offset = Offset(offsetX, offsetY)
+        )
+        lastFitMode = FitMode.FIT_WIDTH
+    }
+
+    /**
+     * Reset view - toggles between fit all and fit width modes
+     * 1st tap: fit entire graph (show all)
+     * 2nd tap: fit to width (crop height, show top)
      */
     fun resetView() {
-        fitToScreen()
+        when (lastFitMode) {
+            FitMode.FIT_ALL -> fitToWidth()
+            FitMode.FIT_WIDTH -> fitToScreen()
+        }
     }
 
     /**
