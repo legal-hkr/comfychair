@@ -4,7 +4,7 @@ A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
 
 **The app is still in heavy development.**
 
-**Current version**: v0.7.4
+**Current version**: v0.7.5
 
 ## Overview
 
@@ -86,6 +86,11 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Upload custom ComfyUI workflows with automatic validation
   - Visual workflow editor with node graph display
   - Colored nodes and connections matching ComfyUI's visual style
+  - Node attribute editing via side sheet (tap nodes to edit parameters)
+  - Template values highlighted with "UI:" prefix for easy identification
+  - Connected inputs styled with wire colors
+  - Edited values highlighted for easy identification
+  - Material Design 3 Expressive floating toolbar with Fit All / Fit Width zoom
   - Field mapping UI for required template fields
   - Edit workflow name and description
   - Default generation settings extracted during workflow import
