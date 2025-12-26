@@ -77,7 +77,8 @@ private data class CanvasColors(
     val slotColors: Map<String, Color>,
     val categoryColors: Map<NodeCategory, SlotColors.NodeColorPair>,
     val positivePromptColors: SlotColors.NodeColorPair,
-    val negativePromptColors: SlotColors.NodeColorPair
+    val negativePromptColors: SlotColors.NodeColorPair,
+    val isDarkTheme: Boolean
 )
 
 /**
@@ -161,7 +162,8 @@ fun WorkflowGraphCanvas(
         slotColors = SlotColors.getSlotColorMap(isDarkTheme),
         categoryColors = SlotColors.getCategoryColorMap(isDarkTheme),
         positivePromptColors = SlotColors.getPositivePromptColors(isDarkTheme),
-        negativePromptColors = SlotColors.getNegativePromptColors(isDarkTheme)
+        negativePromptColors = SlotColors.getNegativePromptColors(isDarkTheme),
+        isDarkTheme = isDarkTheme
     )
 
     // Constants for slot detection
@@ -682,7 +684,46 @@ private fun DrawScope.drawNode(
             drawText(name, node.x + 16f, inputY, keyPaint)
 
             // Draw value on the right if present (only for literal inputs)
-            if (valueStr != null) {
+            if (currentValue is Boolean) {
+                // Draw a toggle switch for boolean values
+                val toggleWidth = 44f
+                val toggleHeight = 24f
+                val toggleRight = node.x + node.width - 12f
+                val toggleLeft = toggleRight - toggleWidth
+                val toggleTop = inputY - 18f
+                val toggleBottom = toggleTop + toggleHeight
+                val toggleRadius = toggleHeight / 2
+
+                // Draw track (on: selectedBorder/primary, off: nodeBorder/outline)
+                val trackPaint = Paint().apply {
+                    color = if (currentValue) colors.selectedBorder.toArgb() else colors.nodeBorder.toArgb()
+                    isAntiAlias = true
+                }
+                val trackRect = android.graphics.RectF(toggleLeft, toggleTop, toggleRight, toggleBottom)
+                drawRoundRect(trackRect, toggleRadius, toggleRadius, trackPaint)
+
+                // Draw thumb
+                // Light mode: always white; Dark mode: black when on, white when off
+                val thumbRadius = (toggleHeight - 8f) / 2
+                val thumbPadding = 4f
+                val thumbCenterY = toggleTop + toggleHeight / 2
+                val thumbCenterX = if (currentValue) {
+                    toggleRight - thumbPadding - thumbRadius
+                } else {
+                    toggleLeft + thumbPadding + thumbRadius
+                }
+
+                val thumbColor = if (colors.isDarkTheme && currentValue) {
+                    android.graphics.Color.BLACK
+                } else {
+                    android.graphics.Color.WHITE
+                }
+                val thumbPaint = Paint().apply {
+                    color = thumbColor
+                    isAntiAlias = true
+                }
+                drawCircle(thumbCenterX, thumbCenterY, thumbRadius, thumbPaint)
+            } else if (valueStr != null) {
                 val boxPaddingH = 8f
                 val boxPaddingV = 6f
                 val textHeight = 20f // Approximate text height based on font size
