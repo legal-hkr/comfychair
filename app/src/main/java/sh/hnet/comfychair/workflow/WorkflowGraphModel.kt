@@ -193,8 +193,19 @@ data class WorkflowEditorUiState(
     val showDuplicateNameDialog: Boolean = false,
 
     // Discard confirmation
-    val showDiscardConfirmation: Boolean = false
+    val showDiscardConfirmation: Boolean = false,
+    val discardAction: DiscardAction = DiscardAction.EXIT_EDIT_MODE
 )
+
+/**
+ * Action to take after confirming discard
+ */
+enum class DiscardAction {
+    /** Exit edit mode but stay in editor (return to view mode) */
+    EXIT_EDIT_MODE,
+    /** Close the editor entirely */
+    CLOSE_EDITOR
+}
 
 /**
  * Bounds of the graph for proper centering and zoom calculations

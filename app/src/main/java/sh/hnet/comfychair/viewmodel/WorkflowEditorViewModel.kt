@@ -22,6 +22,7 @@ import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowParser
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
+import sh.hnet.comfychair.workflow.DiscardAction
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowEdge
@@ -85,6 +86,10 @@ class WorkflowEditorViewModel : ViewModel() {
     // Mutable graph for editing operations
     private var mutableGraph: MutableWorkflowGraph? = null
     private var nodeIdCounter: Int = 0
+
+    // Original graph before editing (for discard/restore)
+    private var originalGraph: WorkflowGraph? = null
+    private var originalBounds: GraphBounds? = null
 
     /**
      * Initialize the editor with a workflow ID (view mode)
@@ -495,20 +500,31 @@ class WorkflowEditorViewModel : ViewModel() {
     // ========== Create Mode Methods ==========
 
     /**
-     * Check if there are unsaved changes that would be lost in create mode
+     * Check if there are unsaved changes that would be lost
      */
     fun hasUnsavedWork(): Boolean {
         val state = _uiState.value
-        if (!state.isCreateMode) return false
-        val graph = mutableGraph?.toImmutable() ?: return false
-        return graph.nodes.isNotEmpty()
+
+        // Check the hasUnsavedChanges flag (set when nodes are added/deleted/rewired)
+        if (state.hasUnsavedChanges) return true
+
+        // For create mode, also check if any nodes exist
+        if (state.isCreateMode) {
+            val graph = mutableGraph?.toImmutable() ?: return false
+            return graph.nodes.isNotEmpty()
+        }
+
+        return false
     }
 
     /**
-     * Show discard confirmation dialog
+     * Show discard confirmation dialog with specified action
      */
-    fun showDiscardConfirmation() {
-        _uiState.value = _uiState.value.copy(showDiscardConfirmation = true)
+    fun showDiscardConfirmation(action: DiscardAction = DiscardAction.EXIT_EDIT_MODE) {
+        _uiState.value = _uiState.value.copy(
+            showDiscardConfirmation = true,
+            discardAction = action
+        )
     }
 
     /**
@@ -519,21 +535,41 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Confirm discard and close editor
+     * Confirm discard - action depends on discardAction state
      */
     fun confirmDiscard() {
+        val action = _uiState.value.discardAction
         _uiState.value = _uiState.value.copy(showDiscardConfirmation = false)
-        viewModelScope.launch {
-            _events.emit(WorkflowEditorEvent.CreateCancelled)
+
+        when (action) {
+            DiscardAction.EXIT_EDIT_MODE -> exitEditMode()
+            DiscardAction.CLOSE_EDITOR -> {
+                viewModelScope.launch {
+                    _events.emit(WorkflowEditorEvent.CreateCancelled)
+                }
+            }
         }
     }
 
     /**
-     * Handle close button in create mode - show confirmation if work exists
+     * Handle exit edit mode button - show confirmation if unsaved changes exist,
+     * otherwise just exit edit mode. This returns to view mode but stays in editor.
+     */
+    fun handleExitEditModeWithConfirmation() {
+        if (hasUnsavedWork()) {
+            showDiscardConfirmation(DiscardAction.EXIT_EDIT_MODE)
+        } else {
+            exitEditMode()
+        }
+    }
+
+    /**
+     * Handle close button in create mode - show confirmation if work exists,
+     * then close the editor.
      */
     fun handleCreateModeClose() {
         if (hasUnsavedWork()) {
-            showDiscardConfirmation()
+            showDiscardConfirmation(DiscardAction.CLOSE_EDITOR)
         } else {
             viewModelScope.launch {
                 _events.emit(WorkflowEditorEvent.CreateCancelled)
@@ -543,11 +579,11 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Handle close button in edit-existing mode.
-     * Shows discard confirmation if there are unsaved changes.
+     * Shows discard confirmation if there are unsaved changes, then closes editor.
      */
     fun handleEditExistingModeClose() {
         if (hasUnsavedWork()) {
-            showDiscardConfirmation()
+            showDiscardConfirmation(DiscardAction.CLOSE_EDITOR)
         } else {
             viewModelScope.launch {
                 _events.emit(WorkflowEditorEvent.CreateCancelled)
@@ -1638,9 +1674,15 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Enter edit mode - creates a mutable copy of the graph for editing.
+     * Saves the original graph and bounds for restoration on discard.
      */
     fun enterEditMode() {
-        val graph = _uiState.value.graph ?: return
+        val state = _uiState.value
+        val graph = state.graph ?: return
+
+        // Save original state for restoration on discard
+        originalGraph = graph
+        originalBounds = state.graphBounds
 
         // Initialize mutable graph
         mutableGraph = MutableWorkflowGraph.fromImmutable(graph)
@@ -1648,7 +1690,7 @@ class WorkflowEditorViewModel : ViewModel() {
         // Initialize node ID counter based on existing IDs
         nodeIdCounter = graph.nodes.mapNotNull { it.id.toIntOrNull() }.maxOrNull()?.plus(1) ?: 1
 
-        _uiState.value = _uiState.value.copy(
+        _uiState.value = state.copy(
             isEditMode = true,
             selectedNodeIds = emptySet(),
             hasUnsavedChanges = false
@@ -1656,11 +1698,21 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Exit edit mode - discards unsaved changes.
+     * Exit edit mode - discards unsaved changes and restores original graph.
      */
     fun exitEditMode() {
+        // Restore original graph and bounds
+        val restoredGraph = originalGraph
+        val restoredBounds = originalBounds
+
+        // Clear mutable state
         mutableGraph = null
+        originalGraph = null
+        originalBounds = null
+
         _uiState.value = _uiState.value.copy(
+            graph = restoredGraph ?: _uiState.value.graph,
+            graphBounds = restoredBounds ?: _uiState.value.graphBounds,
             isEditMode = false,
             selectedNodeIds = emptySet(),
             hasUnsavedChanges = false,
