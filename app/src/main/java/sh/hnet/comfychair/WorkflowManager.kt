@@ -467,6 +467,194 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
+     * Generate a unique name for duplicating a workflow.
+     * Returns "Name 1", "Name 2", etc. until a unique name is found.
+     */
+    fun generateUniqueDuplicateName(baseName: String): String {
+        var counter = 1
+        var candidateName = "$baseName $counter"
+        while (isWorkflowNameTaken(candidateName)) {
+            counter++
+            candidateName = "$baseName $counter"
+        }
+        return candidateName
+    }
+
+    /**
+     * Duplicate a workflow (built-in or user) as a new user workflow.
+     * The duplicate is always a user workflow that can be edited.
+     */
+    fun duplicateWorkflow(
+        sourceWorkflowId: String,
+        newName: String,
+        newDescription: String
+    ): Result<Workflow> {
+        val sourceWorkflow = workflows.find { it.id == sourceWorkflowId }
+            ?: return Result.failure(Exception("Source workflow not found"))
+
+        // Validate new name
+        val nameError = validateWorkflowName(newName)
+        if (nameError != null) {
+            return Result.failure(Exception(nameError))
+        }
+
+        // Check for duplicate name
+        if (isWorkflowNameTaken(newName)) {
+            return Result.failure(Exception(context.getString(R.string.duplicate_name_message)))
+        }
+
+        // Generate filename for the new workflow
+        val filename = generateFilename(sourceWorkflow.type, newName)
+
+        // Parse and update the JSON with new name and description
+        val json = try {
+            JSONObject(sourceWorkflow.jsonContent)
+        } catch (e: Exception) {
+            return Result.failure(Exception("Failed to parse source workflow"))
+        }
+
+        // Update metadata in the JSON
+        if (json.has("name")) {
+            json.put("name", newName)
+        }
+        if (json.has("description")) {
+            json.put("description", newDescription)
+        }
+
+        val updatedJsonContent = json.toString(2)
+
+        // Save the new workflow file
+        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        if (!dir.exists()) dir.mkdirs()
+
+        val file = File(dir, filename)
+        try {
+            file.writeText(updatedJsonContent)
+        } catch (e: Exception) {
+            return Result.failure(Exception(context.getString(R.string.workflow_error_save_failed, e.message ?: "")))
+        }
+
+        // Create the new workflow entry
+        val newId = "user_${filename.substringBeforeLast(".")}"
+        val newWorkflow = Workflow(
+            id = newId,
+            name = newName,
+            description = newDescription,
+            jsonContent = updatedJsonContent,
+            type = sourceWorkflow.type,
+            isBuiltIn = false,
+            defaults = sourceWorkflow.defaults
+        )
+
+        // Save metadata
+        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null)
+        val metadataArray = if (existingJson != null) JSONArray(existingJson) else JSONArray()
+
+        val newMetadata = JSONObject().apply {
+            put("id", newId)
+            put("filename", filename)
+            put("name", newName)
+            put("description", newDescription)
+            put("type", sourceWorkflow.type.name)
+            put("defaults", WorkflowDefaults.toJson(newWorkflow.defaults))
+        }
+        metadataArray.put(newMetadata)
+
+        prefs.edit().putString(USER_WORKFLOWS_KEY, metadataArray.toString()).apply()
+
+        // Add to in-memory list
+        workflows.add(newWorkflow)
+
+        DebugLogger.i(TAG, "Duplicated workflow: ${sourceWorkflow.name} -> $newName (id: $newId)")
+
+        return Result.success(newWorkflow)
+    }
+
+    /**
+     * Export a workflow to ComfyUI format (just the nodes, without our wrapper metadata).
+     * This is the inverse of importing - strips name, description, defaults, fieldMappings
+     * and returns only the raw ComfyUI workflow JSON.
+     *
+     * @return Result containing the JSON string in ComfyUI format, or error
+     */
+    fun exportWorkflowToComfyUIFormat(workflowId: String): Result<String> {
+        val workflow = workflows.find { it.id == workflowId }
+            ?: return Result.failure(Exception("Workflow not found"))
+
+        val json = try {
+            JSONObject(workflow.jsonContent)
+        } catch (e: Exception) {
+            return Result.failure(Exception("Failed to parse workflow JSON"))
+        }
+
+        // Extract the nodes object (ComfyUI format is just the nodes)
+        val nodesJson = if (json.has("nodes") && json.optJSONObject("nodes") != null) {
+            json.getJSONObject("nodes")
+        } else {
+            // Already in raw format
+            json
+        }
+
+        // Replace any placeholders ({{placeholder}}) with default values if available
+        val defaults = workflow.defaults
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            for (inputKey in inputs.keys()) {
+                val value = inputs.opt(inputKey)
+                if (value is String && value.startsWith("{{") && value.endsWith("}}")) {
+                    // This is a placeholder, try to replace with default
+                    val placeholderName = value.substring(2, value.length - 2)
+                    val defaultValue = getDefaultValueForPlaceholder(placeholderName, defaults)
+                    if (defaultValue != null) {
+                        inputs.put(inputKey, defaultValue)
+                    }
+                }
+            }
+        }
+
+        DebugLogger.i(TAG, "Exported workflow to ComfyUI format: ${workflow.name}")
+
+        return Result.success(nodesJson.toString(2))
+    }
+
+    /**
+     * Get default value for a placeholder name.
+     */
+    private fun getDefaultValueForPlaceholder(placeholder: String, defaults: WorkflowDefaults): Any? {
+        return when (placeholder) {
+            "width" -> defaults.width
+            "height" -> defaults.height
+            "steps" -> defaults.steps
+            "cfg" -> defaults.cfg
+            "sampler_name", "sampler" -> defaults.samplerName
+            "scheduler" -> defaults.scheduler
+            "denoise" -> 1.0  // Common default
+            "positive_prompt", "positive_text" -> ""
+            "negative_prompt", "negative_text" -> defaults.negativePrompt ?: ""
+            "seed" -> -1  // Random seed
+            "batch_size" -> 1  // Default batch size
+            "megapixels" -> defaults.megapixels
+            "length" -> defaults.length
+            "frame_rate", "fps" -> defaults.frameRate
+            else -> null
+        }
+    }
+
+    /**
+     * Generate a sanitized filename for export (without type prefix).
+     */
+    fun generateExportFilename(workflowName: String): String {
+        val sanitized = workflowName
+            .replace(Regex("[^a-zA-Z0-9 _\\-]"), "")
+            .replace(Regex("\\s+"), "_")
+            .trim('_')
+        return "$sanitized.json"
+    }
+
+    /**
      * Generate filename from workflow type and name
      */
     fun generateFilename(type: WorkflowType, name: String): String {
@@ -1028,7 +1216,7 @@ class WorkflowManager(private val context: Context) {
      * Get workflows by type
      */
     fun getWorkflowsByType(type: WorkflowType): List<Workflow> {
-        return workflows.filter { it.type == type }
+        return workflows.filter { it.type == type }.sortedBy { it.name.lowercase() }
     }
 
     /**

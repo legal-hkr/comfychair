@@ -70,6 +70,16 @@ data class WorkflowManagementUiState(
     val showDeleteDialog: Boolean = false,
     val workflowToDelete: WorkflowManager.Workflow? = null,
 
+    // Duplicate dialog state
+    val showDuplicateDialog: Boolean = false,
+    val duplicatingWorkflow: WorkflowManager.Workflow? = null,
+    val duplicateName: String = "",
+    val duplicateDescription: String = "",
+    val duplicateNameError: String? = null,
+
+    // Export state
+    val exportingWorkflow: WorkflowManager.Workflow? = null,
+
     // Loading state
     val isLoading: Boolean = false
 )
@@ -81,6 +91,7 @@ sealed class WorkflowManagementEvent {
     data class ShowToast(val messageResId: Int) : WorkflowManagementEvent()
     data class ShowToastMessage(val message: String) : WorkflowManagementEvent()
     data class LaunchEditor(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
+    data class LaunchExportFilePicker(val suggestedFilename: String) : WorkflowManagementEvent()
     object WorkflowsChanged : WorkflowManagementEvent()
 }
 
@@ -785,5 +796,147 @@ class WorkflowManagementViewModel : ViewModel() {
             showDeleteDialog = false,
             workflowToDelete = null
         )
+    }
+
+    // Duplicate flow
+
+    fun onDuplicateWorkflow(workflow: WorkflowManager.Workflow) {
+        val wm = workflowManager ?: return
+
+        // Generate a unique name for the duplicate
+        val suggestedName = wm.generateUniqueDuplicateName(workflow.name)
+
+        _uiState.value = _uiState.value.copy(
+            showDuplicateDialog = true,
+            duplicatingWorkflow = workflow,
+            duplicateName = suggestedName,
+            duplicateDescription = workflow.description,
+            duplicateNameError = null
+        )
+    }
+
+    fun onDuplicateNameChange(name: String) {
+        val error = if (name.length > 40) applicationContext?.getString(R.string.workflow_name_error_too_long) else null
+        _uiState.value = _uiState.value.copy(
+            duplicateName = name.take(40),
+            duplicateNameError = error
+        )
+    }
+
+    fun onDuplicateDescriptionChange(description: String) {
+        _uiState.value = _uiState.value.copy(
+            duplicateDescription = description.take(120)
+        )
+    }
+
+    fun confirmDuplicate() {
+        val state = _uiState.value
+        val wm = workflowManager ?: return
+        val workflow = state.duplicatingWorkflow ?: return
+
+        val name = state.duplicateName.trim()
+        val description = state.duplicateDescription.trim()
+
+        // Validate name
+        val nameError = wm.validateWorkflowName(name)
+        if (nameError != null) {
+            _uiState.value = _uiState.value.copy(duplicateNameError = nameError)
+            return
+        }
+
+        // Check for duplicate name
+        if (wm.isWorkflowNameTaken(name)) {
+            _uiState.value = _uiState.value.copy(duplicateNameError = applicationContext?.getString(R.string.duplicate_name_message))
+            return
+        }
+
+        viewModelScope.launch {
+            val result = wm.duplicateWorkflow(
+                sourceWorkflowId = workflow.id,
+                newName = name,
+                newDescription = description
+            )
+
+            if (result.isSuccess) {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_duplicate_success))
+                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                loadWorkflows()
+            } else {
+                _events.emit(WorkflowManagementEvent.ShowToastMessage(
+                    result.exceptionOrNull()?.message ?: "Duplicate failed"
+                ))
+            }
+
+            _uiState.value = _uiState.value.copy(
+                showDuplicateDialog = false,
+                duplicatingWorkflow = null,
+                duplicateName = "",
+                duplicateDescription = "",
+                duplicateNameError = null
+            )
+        }
+    }
+
+    fun cancelDuplicate() {
+        _uiState.value = _uiState.value.copy(
+            showDuplicateDialog = false,
+            duplicatingWorkflow = null,
+            duplicateName = "",
+            duplicateDescription = "",
+            duplicateNameError = null
+        )
+    }
+
+    // Export flow
+
+    fun onExportWorkflow(workflow: WorkflowManager.Workflow) {
+        val wm = workflowManager ?: return
+
+        val suggestedFilename = wm.generateExportFilename(workflow.name)
+
+        _uiState.value = _uiState.value.copy(exportingWorkflow = workflow)
+
+        viewModelScope.launch {
+            _events.emit(WorkflowManagementEvent.LaunchExportFilePicker(suggestedFilename))
+        }
+    }
+
+    fun performExport(context: Context, uri: Uri) {
+        val wm = workflowManager ?: return
+        val workflow = _uiState.value.exportingWorkflow ?: return
+
+        viewModelScope.launch {
+            val result = wm.exportWorkflowToComfyUIFormat(workflow.id)
+
+            if (result.isSuccess) {
+                val jsonContent = result.getOrThrow()
+                val writeSuccess = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(jsonContent.toByteArray(Charsets.UTF_8))
+                        }
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+
+                if (writeSuccess) {
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_export_success))
+                } else {
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_export_failed))
+                }
+            } else {
+                _events.emit(WorkflowManagementEvent.ShowToastMessage(
+                    result.exceptionOrNull()?.message ?: "Export failed"
+                ))
+            }
+
+            _uiState.value = _uiState.value.copy(exportingWorkflow = null)
+        }
+    }
+
+    fun cancelExport() {
+        _uiState.value = _uiState.value.copy(exportingWorkflow = null)
     }
 }

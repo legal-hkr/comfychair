@@ -265,6 +265,15 @@
     <string name="workflow_delete_failed">Workflow konnte nicht gelöscht werden</string>
     <string name="workflow_update_success">Workflow aktualisiert</string>
     <string name="workflow_update_failed">Workflow konnte nicht aktualisiert werden</string>
+    <string name="workflow_duplicate_success">Workflow dupliziert</string>
+    <string name="workflow_menu_edit_structure">Workflow bearbeiten</string>
+    <string name="workflow_menu_rename">Umbenennen</string>
+    <string name="workflow_menu_duplicate">Duplizieren</string>
+    <string name="workflow_menu_delete">Löschen</string>
+    <string name="workflow_menu_export">Exportieren</string>
+    <string name="duplicate_workflow_title">Workflow duplizieren</string>
+    <string name="workflow_export_success">Workflow exportiert</string>
+    <string name="workflow_export_failed">Workflow konnte nicht exportiert werden</string>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menü</string>

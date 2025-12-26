@@ -22,11 +22,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -46,7 +50,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -118,6 +124,18 @@ fun WorkflowsSettingsScreen(
         }
     }
 
+    // Export file picker launcher
+    var exportFilename by remember { mutableStateOf("workflow.json") }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.performExport(context, uri)
+        } else {
+            viewModel.cancelExport()
+        }
+    }
+
     // Initialize ViewModel
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
@@ -146,6 +164,10 @@ fun WorkflowsSettingsScreen(
                         )
                         editorLauncher.launch(intent)
                     }
+                }
+                is WorkflowManagementEvent.LaunchExportFilePicker -> {
+                    exportFilename = event.suggestedFilename
+                    exportLauncher.launch(event.suggestedFilename)
                 }
                 is WorkflowManagementEvent.WorkflowsChanged -> {
                     // Handled by SettingsContainerActivity to set result
@@ -202,7 +224,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.ttiCheckpointWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -214,7 +238,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.ttiUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -226,7 +252,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.iteUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -238,7 +266,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.itiCheckpointWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -250,7 +280,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.itiUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -262,7 +294,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.ttvUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -274,7 +308,9 @@ fun WorkflowsSettingsScreen(
                         workflows = uiState.itvUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onEditMetadata = { viewModel.onEditWorkflow(it) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { viewModel.onExportWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -349,6 +385,19 @@ fun WorkflowsSettingsScreen(
             onDismiss = viewModel::cancelDelete
         )
     }
+
+    // Duplicate dialog
+    if (uiState.showDuplicateDialog) {
+        DuplicateWorkflowDialog(
+            name = uiState.duplicateName,
+            onNameChange = viewModel::onDuplicateNameChange,
+            nameError = uiState.duplicateNameError,
+            description = uiState.duplicateDescription,
+            onDescriptionChange = viewModel::onDuplicateDescriptionChange,
+            onConfirm = viewModel::confirmDuplicate,
+            onDismiss = viewModel::cancelDuplicate
+        )
+    }
 }
 
 /**
@@ -380,7 +429,9 @@ private fun WorkflowSection(
     workflows: List<WorkflowManager.Workflow>,
     onWorkflowClick: (WorkflowManager.Workflow) -> Unit,
     onEditStructure: (WorkflowManager.Workflow) -> Unit,
-    onEditMetadata: (WorkflowManager.Workflow) -> Unit,
+    onRename: (WorkflowManager.Workflow) -> Unit,
+    onDuplicate: (WorkflowManager.Workflow) -> Unit,
+    onExport: (WorkflowManager.Workflow) -> Unit,
     onDelete: (WorkflowManager.Workflow) -> Unit
 ) {
     Column {
@@ -411,7 +462,9 @@ private fun WorkflowSection(
                             workflow = workflow,
                             onClick = { onWorkflowClick(workflow) },
                             onEditStructure = { onEditStructure(workflow) },
-                            onEditMetadata = { onEditMetadata(workflow) },
+                            onRename = { onRename(workflow) },
+                            onDuplicate = { onDuplicate(workflow) },
+                            onExport = { onExport(workflow) },
                             onDelete = { onDelete(workflow) }
                         )
                         if (index < workflows.size - 1) {
@@ -435,14 +488,18 @@ private fun WorkflowListItemContent(
     workflow: WorkflowManager.Workflow,
     onClick: () -> Unit,
     onEditStructure: () -> Unit,
-    onEditMetadata: () -> Unit,
+    onRename: () -> Unit,
+    onDuplicate: () -> Unit,
+    onExport: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showContextMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -466,30 +523,95 @@ private fun WorkflowListItemContent(
             }
         }
 
-        // Edit/Delete buttons (only for user workflows)
-        if (!workflow.isBuiltIn) {
-            // Structural edit button (Tune icon)
-            IconButton(onClick = onEditStructure) {
+        // Context menu
+        Box {
+            IconButton(onClick = { showContextMenu = true }) {
                 Icon(
-                    Icons.Default.Tune,
-                    contentDescription = stringResource(R.string.edit_structure),
+                    Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.content_description_menu),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // Metadata edit button (Edit icon)
-            IconButton(onClick = onEditMetadata) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+
+            DropdownMenu(
+                expanded = showContextMenu,
+                onDismissRequest = { showContextMenu = false }
+            ) {
+                // Edit workflow (structure) - only for custom workflows
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.workflow_menu_edit_structure)) },
+                    onClick = {
+                        showContextMenu = false
+                        onEditStructure()
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Tune, contentDescription = null)
+                    },
+                    enabled = !workflow.isBuiltIn
                 )
-            }
-            // Delete button
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.error
+
+                // Rename - only for custom workflows
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.workflow_menu_rename)) },
+                    onClick = {
+                        showContextMenu = false
+                        onRename()
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Edit, contentDescription = null)
+                    },
+                    enabled = !workflow.isBuiltIn
+                )
+
+                // Duplicate - available for all workflows
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.workflow_menu_duplicate)) },
+                    onClick = {
+                        showContextMenu = false
+                        onDuplicate()
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                    }
+                )
+
+                // Export - available for all workflows
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.workflow_menu_export)) },
+                    onClick = {
+                        showContextMenu = false
+                        onExport()
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                    }
+                )
+
+                // Divider above Delete
+                HorizontalDivider()
+
+                // Delete - only for custom workflows
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(R.string.workflow_menu_delete),
+                            color = if (!workflow.isBuiltIn) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    },
+                    onClick = {
+                        showContextMenu = false
+                        onDelete()
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = if (!workflow.isBuiltIn) MaterialTheme.colorScheme.error
+                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    },
+                    enabled = !workflow.isBuiltIn
                 )
             }
         }
@@ -763,6 +885,56 @@ private fun DeleteWorkflowDialog(
                     stringResource(R.string.button_delete),
                     color = MaterialTheme.colorScheme.error
                 )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.button_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun DuplicateWorkflowDialog(
+    name: String,
+    onNameChange: (String) -> Unit,
+    nameError: String?,
+    description: String,
+    onDescriptionChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.duplicate_workflow_title)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text(stringResource(R.string.workflow_name_label)) },
+                    singleLine = true,
+                    isError = nameError != null,
+                    supportingText = nameError?.let { { Text(it) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = onDescriptionChange,
+                    label = { Text(stringResource(R.string.workflow_description_label)) },
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = name.isNotBlank() && nameError == null
+            ) {
+                Text(stringResource(R.string.button_save))
             }
         },
         dismissButton = {

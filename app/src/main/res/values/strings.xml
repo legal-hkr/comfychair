@@ -323,6 +323,15 @@
     <string name="workflow_delete_failed">Failed to delete workflow</string>
     <string name="workflow_update_success">Workflow updated</string>
     <string name="workflow_update_failed">Failed to update workflow</string>
+    <string name="workflow_duplicate_success">Workflow duplicated</string>
+    <string name="workflow_menu_edit_structure">Edit workflow</string>
+    <string name="workflow_menu_rename">Rename</string>
+    <string name="workflow_menu_duplicate">Duplicate</string>
+    <string name="workflow_menu_delete">Delete</string>
+    <string name="workflow_menu_export">Export</string>
+    <string name="duplicate_workflow_title">Duplicate workflow</string>
+    <string name="workflow_export_success">Workflow exported</string>
+    <string name="workflow_export_failed">Failed to export workflow</string>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menu</string>
