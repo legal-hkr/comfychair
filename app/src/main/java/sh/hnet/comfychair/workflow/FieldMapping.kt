@@ -230,6 +230,11 @@ object FieldDisplayRegistry {
         "scheduler" to Pair(R.string.label_scheduler, R.string.field_desc_scheduler),
         // LoRA fields
         "lora_name" to Pair(R.string.label_lora, R.string.field_desc_lora),
+        // High/Low noise model variants (for video workflows)
+        "highnoise_unet_name" to Pair(R.string.highnoise_unet_label, R.string.field_desc_unet),
+        "lownoise_unet_name" to Pair(R.string.lownoise_unet_label, R.string.field_desc_unet),
+        "highnoise_lora_name" to Pair(R.string.highnoise_lora_label, R.string.field_desc_lora),
+        "lownoise_lora_name" to Pair(R.string.lownoise_lora_label, R.string.field_desc_lora),
         // Video fields
         "length" to Pair(R.string.length_label, R.string.field_desc_length),
         "frame_rate" to Pair(R.string.field_frame_rate, R.string.field_desc_frame_rate),
