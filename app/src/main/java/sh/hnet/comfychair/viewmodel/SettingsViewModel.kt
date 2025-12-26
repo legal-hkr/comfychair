@@ -299,8 +299,8 @@ class SettingsViewModel : ViewModel() {
                 }
 
                 // Clear user-uploaded workflows
-                val workflowManager = WorkflowManager(context)
-                workflowManager.clearAllUserWorkflows()
+                WorkflowManager.ensureInitialized(context)
+                WorkflowManager.clearAllUserWorkflows()
             }
 
             // Clear in-memory media caches

@@ -138,7 +138,6 @@ class TextToImageViewModel : ViewModel() {
     private val _events = MutableSharedFlow<TextToImageEvent>()
     val events: SharedFlow<TextToImageEvent> = _events.asSharedFlow()
 
-    private var workflowManager: WorkflowManager? = null
     private var comfyUIClient: ComfyUIClient? = null
     private var context: Context? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
@@ -165,13 +164,13 @@ class TextToImageViewModel : ViewModel() {
      * Initialize the ViewModel with dependencies
      */
     fun initialize(context: Context, client: ComfyUIClient) {
-        if (this.workflowManager != null) return // Already initialized
+        if (this.context != null) return // Already initialized
 
         DebugLogger.i(TAG, "Initializing")
 
         this.context = context.applicationContext
         this.comfyUIClient = client
-        this.workflowManager = WorkflowManager(context)
+        WorkflowManager.ensureInitialized(context)
         this.workflowValuesStorage = WorkflowValuesStorage(context)
 
         // Load workflows from resources
@@ -189,15 +188,12 @@ class TextToImageViewModel : ViewModel() {
      * Load available workflows from WorkflowManager and create unified list
      */
     private fun loadWorkflows() {
-        val manager = workflowManager ?: run {
-            return
-        }
         val ctx = context ?: run {
             return
         }
 
-        val checkpointWorkflows = manager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT)
-        val unetWorkflows = manager.getWorkflowsByType(WorkflowType.TTI_UNET)
+        val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT)
+        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_UNET)
 
         // Create unified workflow list with type prefix for display
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -370,7 +366,6 @@ class TextToImageViewModel : ViewModel() {
      */
     fun onWorkflowChange(workflowName: String) {
         val state = _uiState.value
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Find workflow item to determine type
@@ -384,7 +379,7 @@ class TextToImageViewModel : ViewModel() {
 
         // Load new workflow's saved values or defaults
         val savedValues = storage.loadValues(workflowName)
-        val defaults = manager.getWorkflowDefaults(workflowName)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
@@ -747,7 +742,6 @@ class TextToImageViewModel : ViewModel() {
      * Prepare workflow JSON for generation
      */
     fun prepareWorkflowJson(): String? {
-        val manager = workflowManager ?: return null
         val state = _uiState.value
 
         DebugLogger.i(TAG, "Preparing workflow: ${state.selectedWorkflow}")
@@ -759,7 +753,7 @@ class TextToImageViewModel : ViewModel() {
         }
 
         val baseWorkflow = if (state.isCheckpointMode) {
-            manager.prepareWorkflow(
+            WorkflowManager.prepareWorkflow(
                 workflowName = state.selectedWorkflow,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.checkpointNegativePrompt,
@@ -772,7 +766,7 @@ class TextToImageViewModel : ViewModel() {
                 scheduler = state.checkpointScheduler
             )
         } else {
-            manager.prepareWorkflow(
+            WorkflowManager.prepareWorkflow(
                 workflowName = state.selectedWorkflow,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.unetNegativePrompt,
@@ -793,7 +787,7 @@ class TextToImageViewModel : ViewModel() {
         // Inject LoRA chain if present (using the appropriate chain for the mode)
         val workflowType = if (state.isCheckpointMode) WorkflowType.TTI_CHECKPOINT else WorkflowType.TTI_UNET
         val loraChain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        return manager.injectLoraChain(baseWorkflow, loraChain, workflowType)
+        return WorkflowManager.injectLoraChain(baseWorkflow, loraChain, workflowType)
     }
 
     /**
@@ -946,7 +940,6 @@ class TextToImageViewModel : ViewModel() {
      * Load workflow values without triggering save (used during initialization)
      */
     private fun loadWorkflowValues(workflowName: String) {
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Find workflow item to determine type
@@ -956,7 +949,7 @@ class TextToImageViewModel : ViewModel() {
 
         // Load saved values or defaults
         val savedValues = storage.loadValues(workflowName)
-        val defaults = manager.getWorkflowDefaults(workflowName)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         if (isCheckpoint) {
             _uiState.value = state.copy(

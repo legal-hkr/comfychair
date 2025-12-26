@@ -228,6 +228,7 @@
     <string name="node_editor_rename">Node umbenennen</string>
     <string name="node_editor_rename_title">Node umbenennen</string>
     <string name="node_editor_rename_label">Node-Name</string>
+    <string name="node_editor_bypass">Umgehen</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Anwendung</string>

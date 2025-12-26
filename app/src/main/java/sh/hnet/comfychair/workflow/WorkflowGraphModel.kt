@@ -14,6 +14,7 @@ data class WorkflowNode(
     val inputs: Map<String, InputValue>,
     val outputs: List<String> = emptyList(),  // Output types: ["MODEL", "CLIP", "VAE"]
     val templateInputKeys: Set<String>,
+    val mode: Int = 0,  // 0=active, 2=muted, 4=bypassed
     var x: Float = 0f,
     var y: Float = 0f,
     var width: Float = 0f,
@@ -21,6 +22,10 @@ data class WorkflowNode(
 ) {
     /** True if this node has any template input keys */
     val hasTemplateVariables: Boolean get() = templateInputKeys.isNotEmpty()
+    /** True if node is bypassed (mode=4) - execution skips this node but continues */
+    val isBypassed: Boolean get() = mode == 4
+    /** True if node is muted (mode=2) - execution stops at this node */
+    val isMuted: Boolean get() = mode == 2
 }
 
 /**

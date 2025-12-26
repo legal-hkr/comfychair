@@ -99,7 +99,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.platform.LocalContext
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 
 /**
@@ -330,6 +329,13 @@ fun WorkflowEditorScreen(
                                     showRenameDialog = true
                                 }
                             },
+                            onBypassToggle = { nodeId ->
+                                // Toggle bypass state for the node
+                                val node = uiState.graph?.nodes?.find { it.id == nodeId }
+                                if (node != null) {
+                                    viewModel.toggleNodeBypass(nodeId, !node.isBypassed)
+                                }
+                            },
                             onTransform = { scale, offset ->
                                 viewModel.onTransform(scale, offset)
                             },
@@ -412,7 +418,7 @@ fun WorkflowEditorScreen(
                     // If we have a workflow ID (existing or in edit mode), save directly
                     // Otherwise (upload mode), return mappings to calling activity
                     if (uiState.editingWorkflowId != null || uiState.isCreateMode) {
-                        viewModel.confirmMappingAndSave(context, WorkflowManager(context))
+                        viewModel.confirmMappingAndSave(context)
                     } else {
                         viewModel.confirmMapping()
                     }
@@ -575,10 +581,7 @@ fun WorkflowEditorScreen(
                 descriptionError = uiState.saveDialogDescriptionError,
                 isValidating = uiState.isSaveValidating,
                 onConfirm = {
-                    viewModel.proceedWithSave(
-                        context = context,
-                        workflowManager = WorkflowManager(context)
-                    )
+                    viewModel.proceedWithSave(context)
                 },
                 onDismiss = { viewModel.cancelSaveDialog() }
             )

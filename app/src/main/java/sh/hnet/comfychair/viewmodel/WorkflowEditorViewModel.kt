@@ -118,8 +118,8 @@ class WorkflowEditorViewModel : ViewModel() {
                     description = ""
                 } else if (workflowId != null) {
                     // Load from WorkflowManager
-                    val workflowManager = WorkflowManager(context)
-                    val workflow = workflowManager.getWorkflowById(workflowId)
+                    WorkflowManager.ensureInitialized(context)
+                    val workflow = WorkflowManager.getWorkflowById(workflowId)
 
                     if (workflow == null) {
                         _uiState.value = _uiState.value.copy(
@@ -292,8 +292,8 @@ class WorkflowEditorViewModel : ViewModel() {
 
         fetchObjectInfo { _ ->
             try {
-                val workflowManager = WorkflowManager(context)
-                val workflow = workflowManager.getWorkflowById(workflowId)
+                WorkflowManager.ensureInitialized(context)
+                val workflow = WorkflowManager.getWorkflowById(workflowId)
 
                 if (workflow == null) {
                     _uiState.value = _uiState.value.copy(
@@ -758,7 +758,7 @@ class WorkflowEditorViewModel : ViewModel() {
     /**
      * Proceed with save - validates and enters mapping mode.
      */
-    fun proceedWithSave(context: Context, workflowManager: WorkflowManager) {
+    fun proceedWithSave(context: Context) {
         DebugLogger.i(TAG, "proceedWithSave: Starting validation")
         val state = _uiState.value
         val graph = mutableGraph?.toImmutable()
@@ -777,7 +777,7 @@ class WorkflowEditorViewModel : ViewModel() {
         DebugLogger.d(TAG, "proceedWithSave: name='$name', type=$selectedType, nodes=${graph.nodes.size}")
 
         // Validate name format
-        val nameError = workflowManager.validateWorkflowName(name)
+        val nameError = WorkflowManager.validateWorkflowName(name)
         if (nameError != null) {
             DebugLogger.w(TAG, "proceedWithSave: Name validation failed: $nameError")
             _uiState.value = _uiState.value.copy(
@@ -787,7 +787,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         // Validate description
-        val descError = workflowManager.validateWorkflowDescription(description)
+        val descError = WorkflowManager.validateWorkflowDescription(description)
         if (descError != null) {
             DebugLogger.w(TAG, "proceedWithSave: Description validation failed: $descError")
             _uiState.value = _uiState.value.copy(
@@ -797,7 +797,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         // Check for duplicate name
-        if (workflowManager.isWorkflowNameTaken(name)) {
+        if (WorkflowManager.isWorkflowNameTaken(name)) {
             DebugLogger.w(TAG, "proceedWithSave: Duplicate name detected")
             _uiState.value = _uiState.value.copy(showDuplicateNameDialog = true)
             return
@@ -1193,7 +1193,7 @@ class WorkflowEditorViewModel : ViewModel() {
     /**
      * Confirm mapping and save the workflow (for create mode and edit-existing mode)
      */
-    fun confirmMappingAndSave(context: Context, workflowManager: WorkflowManager) {
+    fun confirmMappingAndSave(context: Context) {
         DebugLogger.i(TAG, "confirmMappingAndSave: Starting save process")
         val state = _uiState.value
         val pending = pendingSaveData
@@ -1228,14 +1228,14 @@ class WorkflowEditorViewModel : ViewModel() {
         // Save using WorkflowManager - update if editing existing workflow, create if new
         val result = if (state.editingWorkflowId != null) {
             DebugLogger.i(TAG, "confirmMappingAndSave: Calling WorkflowManager.updateUserWorkflowWithMapping for id=${state.editingWorkflowId}")
-            workflowManager.updateUserWorkflowWithMapping(
+            WorkflowManager.updateUserWorkflowWithMapping(
                 workflowId = state.editingWorkflowId,
                 jsonContent = jsonContent,
                 fieldMappings = fieldMappings
             )
         } else {
             DebugLogger.i(TAG, "confirmMappingAndSave: Calling WorkflowManager.addUserWorkflowWithMapping")
-            workflowManager.addUserWorkflowWithMapping(
+            WorkflowManager.addUserWorkflowWithMapping(
                 name = pending.name,
                 description = pending.description,
                 jsonContent = jsonContent,
@@ -1671,6 +1671,55 @@ class WorkflowEditorViewModel : ViewModel() {
             graph = updatedGraph,
             selectedNodeForEditing = updatedSelectedNode,
             hasUnsavedChanges = true
+        )
+    }
+
+    /**
+     * Toggle the bypass state of a node.
+     * Bypassed nodes (mode=4) are skipped during execution but connections pass through.
+     */
+    fun toggleNodeBypass(nodeId: String, bypassed: Boolean) {
+        DebugLogger.d(TAG, "toggleNodeBypass: nodeId=$nodeId, bypassed=$bypassed")
+        val state = _uiState.value
+        val graph = state.graph ?: return
+
+        val newMode = if (bypassed) 4 else 0
+
+        // Find the node and create an updated copy
+        val updatedNodes = graph.nodes.map { node ->
+            if (node.id == nodeId) {
+                DebugLogger.d(TAG, "toggleNodeBypass: Changing mode from ${node.mode} to $newMode for node '${node.title}'")
+                node.copy(mode = newMode)
+            } else {
+                node
+            }
+        }
+
+        val updatedGraph = graph.copy(nodes = updatedNodes)
+
+        // Get the updated node for the side sheet
+        val updatedSelectedNode = state.selectedNodeForEditing?.let { selected ->
+            if (selected.id == nodeId) {
+                selected.copy(mode = newMode)
+            } else {
+                selected
+            }
+        }
+
+        // Also update mutableGraph so the change is persisted when saving
+        mutableGraph?.let { mGraph ->
+            val nodeIndex = mGraph.nodes.indexOfFirst { it.id == nodeId }
+            if (nodeIndex >= 0) {
+                val oldNode = mGraph.nodes[nodeIndex]
+                mGraph.nodes[nodeIndex] = oldNode.copy(mode = newMode)
+                DebugLogger.d(TAG, "toggleNodeBypass: Updated mutableGraph")
+            }
+        }
+
+        _uiState.value = state.copy(
+            graph = updatedGraph,
+            selectedNodeForEditing = updatedSelectedNode,
+            hasUnsavedChanges = mutableGraph != null  // Only mark unsaved if we can actually save
         )
     }
 

@@ -211,6 +211,7 @@
     <string name="node_editor_rename">重命名节点</string>
     <string name="node_editor_rename_title">重命名节点</string>
     <string name="node_editor_rename_label">节点名称</string>
+    <string name="node_editor_bypass">跳过</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">应用</string>

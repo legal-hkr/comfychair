@@ -129,7 +129,6 @@ class ImageToVideoViewModel : ViewModel() {
     private val _events = MutableSharedFlow<ImageToVideoEvent>()
     val events: SharedFlow<ImageToVideoEvent> = _events.asSharedFlow()
 
-    private var workflowManager: WorkflowManager? = null
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
@@ -154,7 +153,7 @@ class ImageToVideoViewModel : ViewModel() {
     fun initialize(context: Context, client: ComfyUIClient) {
         DebugLogger.i(TAG, "Initializing")
         applicationContext = context.applicationContext
-        workflowManager = WorkflowManager(context)
+        WorkflowManager.ensureInitialized(context)
         workflowValuesStorage = WorkflowValuesStorage(context)
         comfyUIClient = client
 
@@ -187,10 +186,9 @@ class ImageToVideoViewModel : ViewModel() {
     }
 
     private fun loadWorkflows() {
-        val wm = workflowManager ?: return
         val ctx = applicationContext ?: return
 
-        val unetWorkflows = wm.getWorkflowsByType(WorkflowType.ITV_UNET)
+        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV_UNET)
         val unetPrefix = ctx.getString(R.string.mode_unet)
 
         val unifiedWorkflows = unetWorkflows.map { workflow ->
@@ -213,7 +211,6 @@ class ImageToVideoViewModel : ViewModel() {
 
     private fun restorePreferences() {
         val context = applicationContext ?: return
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -231,7 +228,7 @@ class ImageToVideoViewModel : ViewModel() {
         // Load per-workflow values
         // Use workflow name directly as storage key for consistency
         val savedValues = storage.loadValues(workflow)
-        val defaults = manager.getWorkflowDefaults(workflow)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflow)
 
         _uiState.value = _uiState.value.copy(
             selectedWorkflow = workflow,
@@ -432,7 +429,6 @@ class ImageToVideoViewModel : ViewModel() {
 
     fun onWorkflowChange(workflow: String) {
         val state = _uiState.value
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Save current workflow values before switching
@@ -443,7 +439,7 @@ class ImageToVideoViewModel : ViewModel() {
         // Load new workflow's saved values or defaults
         // Use workflow name directly as storage key for consistency
         val savedValues = storage.loadValues(workflow)
-        val defaults = manager.getWorkflowDefaults(workflow)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflow)
 
         _uiState.value = state.copy(
             selectedWorkflow = workflow,
@@ -631,7 +627,6 @@ class ImageToVideoViewModel : ViewModel() {
      */
     suspend fun prepareWorkflow(): String? {
         val client = comfyUIClient ?: return null
-        val wm = workflowManager ?: return null
         val context = applicationContext ?: return null
         val state = _uiState.value
 
@@ -682,7 +677,7 @@ class ImageToVideoViewModel : ViewModel() {
             return null
         }
 
-        val baseWorkflow = wm.prepareImageToVideoWorkflow(
+        val baseWorkflow = WorkflowManager.prepareImageToVideoWorkflow(
             workflowName = state.selectedWorkflow,
             positivePrompt = state.positivePrompt,
             negativePrompt = state.negativePrompt,
@@ -702,10 +697,10 @@ class ImageToVideoViewModel : ViewModel() {
         // Inject additional LoRAs if configured (separate chains for high noise and low noise)
         var workflow = baseWorkflow
         if (state.highnoiseLoraChain.isNotEmpty()) {
-            workflow = wm.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
+            workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
         }
         if (state.lownoiseLoraChain.isNotEmpty()) {
-            workflow = wm.injectAdditionalVideoLoras(workflow, state.lownoiseLoraChain, isHighNoise = false)
+            workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.lownoiseLoraChain, isHighNoise = false)
         }
         return workflow
     }

@@ -98,6 +98,12 @@ class WorkflowSerializer {
         }
         nodeJson.put("inputs", inputsJson)
 
+        // Add mode if not default (0=active, 2=muted, 4=bypassed)
+        if (node.mode != 0) {
+            DebugLogger.d(TAG, "Serializing node ${node.id} with mode=${node.mode} (${if (node.mode == 4) "bypassed" else if (node.mode == 2) "muted" else "unknown"})")
+            nodeJson.put("mode", node.mode)
+        }
+
         return nodeJson
     }
 

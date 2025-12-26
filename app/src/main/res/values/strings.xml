@@ -251,6 +251,7 @@
     <string name="node_editor_rename">Rename node</string>
     <string name="node_editor_rename_title">Rename node</string>
     <string name="node_editor_rename_label">Node name</string>
+    <string name="node_editor_bypass">Bypass</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Positive prompt</string>

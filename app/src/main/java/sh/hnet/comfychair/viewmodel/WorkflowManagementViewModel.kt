@@ -107,7 +107,6 @@ class WorkflowManagementViewModel : ViewModel() {
     private val _events = MutableSharedFlow<WorkflowManagementEvent>()
     val events: SharedFlow<WorkflowManagementEvent> = _events.asSharedFlow()
 
-    private var workflowManager: WorkflowManager? = null
     private var applicationContext: Context? = null
 
     // Initialization
@@ -116,7 +115,7 @@ class WorkflowManagementViewModel : ViewModel() {
      */
     fun initialize(context: Context) {
         applicationContext = context.applicationContext
-        workflowManager = WorkflowManager(context)
+        WorkflowManager.ensureInitialized(context)
         loadWorkflows()
     }
 
@@ -124,16 +123,14 @@ class WorkflowManagementViewModel : ViewModel() {
      * Load all workflows and organize by type
      */
     fun loadWorkflows() {
-        val wm = workflowManager ?: return
-
         _uiState.value = _uiState.value.copy(
-            ttiCheckpointWorkflows = wm.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT),
-            ttiUnetWorkflows = wm.getWorkflowsByType(WorkflowType.TTI_UNET),
-            itiCheckpointWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT),
-            itiUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_UNET),
-            iteUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITE_UNET),
-            ttvUnetWorkflows = wm.getWorkflowsByType(WorkflowType.TTV_UNET),
-            itvUnetWorkflows = wm.getWorkflowsByType(WorkflowType.ITV_UNET)
+            ttiCheckpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT),
+            ttiUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_UNET),
+            itiCheckpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT),
+            itiUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET),
+            iteUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET),
+            ttvUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV_UNET),
+            itvUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV_UNET)
         )
     }
 
@@ -143,7 +140,7 @@ class WorkflowManagementViewModel : ViewModel() {
      * Also emits WorkflowsChanged to notify parent activities (triggers generation screen refresh).
      */
     fun reloadAndRefreshWorkflows() {
-        workflowManager?.reloadWorkflows()
+        WorkflowManager.reloadWorkflows()
         loadWorkflows()
         viewModelScope.launch {
             _events.emit(WorkflowManagementEvent.WorkflowsChanged)
@@ -175,8 +172,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 // Auto-detect type as suggestion (user can override)
-                val wm = workflowManager
-                val detectedType = wm?.detectWorkflowType(jsonContent)
+                val detectedType = WorkflowManager.detectWorkflowType(jsonContent)
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -230,28 +226,27 @@ class WorkflowManagementViewModel : ViewModel() {
      */
     fun proceedWithUpload(context: Context, comfyUIClient: ComfyUIClient) {
         val state = _uiState.value
-        val wm = workflowManager ?: return
 
         val selectedType = state.uploadSelectedType ?: return
         val name = state.uploadName.trim()
         val description = state.uploadDescription.trim()
 
         // Validate name format
-        val nameError = wm.validateWorkflowName(name)
+        val nameError = WorkflowManager.validateWorkflowName(name)
         if (nameError != null) {
             _uiState.value = _uiState.value.copy(uploadNameError = nameError)
             return
         }
 
         // Validate description format
-        val descError = wm.validateWorkflowDescription(description)
+        val descError = WorkflowManager.validateWorkflowDescription(description)
         if (descError != null) {
             _uiState.value = _uiState.value.copy(uploadDescriptionError = descError)
             return
         }
 
         // Check for duplicate name
-        if (wm.isWorkflowNameTaken(name)) {
+        if (WorkflowManager.isWorkflowNameTaken(name)) {
             _uiState.value = _uiState.value.copy(showDuplicateNameDialog = true)
             return
         }
@@ -269,7 +264,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 // Extract class types from workflow
-                val classTypesResult = wm.extractClassTypes(state.pendingUploadJsonContent)
+                val classTypesResult = WorkflowManager.extractClassTypes(state.pendingUploadJsonContent)
                 if (classTypesResult.isFailure) {
                     _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
@@ -278,7 +273,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 val workflowClassTypes = classTypesResult.getOrThrow()
 
                 // Validate nodes
-                val missingNodes = wm.validateNodesAgainstServer(workflowClassTypes, availableNodes)
+                val missingNodes = WorkflowManager.validateNodesAgainstServer(workflowClassTypes, availableNodes)
                 if (missingNodes.isNotEmpty()) {
                     _uiState.value = _uiState.value.copy(
                         isValidatingNodes = false,
@@ -289,7 +284,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 // Validate required fields for type
-                val keyValidation = wm.validateWorkflowKeys(state.pendingUploadJsonContent, selectedType)
+                val keyValidation = WorkflowManager.validateWorkflowKeys(state.pendingUploadJsonContent, selectedType)
                 when (keyValidation) {
                     is WorkflowValidationResult.MissingKeys -> {
                         _uiState.value = _uiState.value.copy(
@@ -664,10 +659,9 @@ class WorkflowManagementViewModel : ViewModel() {
      */
     fun completeUpload(fieldMappings: Map<String, Pair<String, String>>) {
         val pending = _uiState.value.pendingWorkflowForMapping ?: return
-        val wm = workflowManager ?: return
 
         viewModelScope.launch {
-            val result = wm.addUserWorkflowWithMapping(
+            val result = WorkflowManager.addUserWorkflowWithMapping(
                 name = pending.name,
                 description = pending.description,
                 jsonContent = pending.jsonContent,
@@ -719,13 +713,12 @@ class WorkflowManagementViewModel : ViewModel() {
 
     fun confirmEdit() {
         val state = _uiState.value
-        val wm = workflowManager ?: return
         val workflow = state.editingWorkflow ?: return
 
         if (state.editName.isBlank()) return
 
         viewModelScope.launch {
-            val success = wm.updateUserWorkflowMetadata(
+            val success = WorkflowManager.updateUserWorkflowMetadata(
                 workflowId = workflow.id,
                 name = state.editName,
                 description = state.editDescription
@@ -770,11 +763,10 @@ class WorkflowManagementViewModel : ViewModel() {
 
     fun confirmDelete() {
         val state = _uiState.value
-        val wm = workflowManager ?: return
         val workflow = state.workflowToDelete ?: return
 
         viewModelScope.launch {
-            val success = wm.deleteUserWorkflow(workflow.id)
+            val success = WorkflowManager.deleteUserWorkflow(workflow.id)
 
             if (success) {
                 _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_delete_success))
@@ -801,10 +793,8 @@ class WorkflowManagementViewModel : ViewModel() {
     // Duplicate flow
 
     fun onDuplicateWorkflow(workflow: WorkflowManager.Workflow) {
-        val wm = workflowManager ?: return
-
         // Generate a unique name for the duplicate
-        val suggestedName = wm.generateUniqueDuplicateName(workflow.name)
+        val suggestedName = WorkflowManager.generateUniqueDuplicateName(workflow.name)
 
         _uiState.value = _uiState.value.copy(
             showDuplicateDialog = true,
@@ -831,27 +821,26 @@ class WorkflowManagementViewModel : ViewModel() {
 
     fun confirmDuplicate() {
         val state = _uiState.value
-        val wm = workflowManager ?: return
         val workflow = state.duplicatingWorkflow ?: return
 
         val name = state.duplicateName.trim()
         val description = state.duplicateDescription.trim()
 
         // Validate name
-        val nameError = wm.validateWorkflowName(name)
+        val nameError = WorkflowManager.validateWorkflowName(name)
         if (nameError != null) {
             _uiState.value = _uiState.value.copy(duplicateNameError = nameError)
             return
         }
 
         // Check for duplicate name
-        if (wm.isWorkflowNameTaken(name)) {
+        if (WorkflowManager.isWorkflowNameTaken(name)) {
             _uiState.value = _uiState.value.copy(duplicateNameError = applicationContext?.getString(R.string.duplicate_name_message))
             return
         }
 
         viewModelScope.launch {
-            val result = wm.duplicateWorkflow(
+            val result = WorkflowManager.duplicateWorkflow(
                 sourceWorkflowId = workflow.id,
                 newName = name,
                 newDescription = description
@@ -890,9 +879,7 @@ class WorkflowManagementViewModel : ViewModel() {
     // Export flow
 
     fun onExportWorkflow(workflow: WorkflowManager.Workflow) {
-        val wm = workflowManager ?: return
-
-        val suggestedFilename = wm.generateExportFilename(workflow.name)
+        val suggestedFilename = WorkflowManager.generateExportFilename(workflow.name)
 
         _uiState.value = _uiState.value.copy(exportingWorkflow = workflow)
 
@@ -902,11 +889,10 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     fun performExport(context: Context, uri: Uri) {
-        val wm = workflowManager ?: return
         val workflow = _uiState.value.exportingWorkflow ?: return
 
         viewModelScope.launch {
-            val result = wm.exportWorkflowToComfyUIFormat(workflow.id)
+            val result = WorkflowManager.exportWorkflowToComfyUIFormat(workflow.id)
 
             if (result.isSuccess) {
                 val jsonContent = result.getOrThrow()

@@ -39,14 +39,19 @@ sealed class WorkflowValidationResult {
 /**
  * WorkflowManager - Manages ComfyUI workflow JSON files
  *
- * This class handles:
+ * This singleton handles:
  * - Loading workflow JSON files from res/raw (built-in) and internal storage (user-uploaded)
  * - Extracting workflow names and descriptions
  * - Validating workflows against required placeholders
  * - Replacing template variables with actual values
  * - Providing workflow data for API calls
  */
-class WorkflowManager(private val context: Context) {
+object WorkflowManager {
+
+    private const val TAG = "Workflow"
+    private const val USER_WORKFLOWS_PREFS = "UserWorkflowsPrefs"
+    private const val USER_WORKFLOWS_KEY = "user_workflows_json"
+    private const val USER_WORKFLOWS_DIR = "user_workflows"
 
     // Workflow data class
     data class Workflow(
@@ -59,70 +64,86 @@ class WorkflowManager(private val context: Context) {
         val defaults: WorkflowDefaults = WorkflowDefaults()
     )
 
-    companion object {
-        private const val TAG = "Workflow"
-        private const val USER_WORKFLOWS_PREFS = "UserWorkflowsPrefs"
-        private const val USER_WORKFLOWS_KEY = "user_workflows_json"
-        private const val USER_WORKFLOWS_DIR = "user_workflows"
+    // Context initialization
+    private lateinit var applicationContext: Context
+    private var isInitialized = false
 
-        // Required placeholders per workflow type
-        val REQUIRED_PLACEHOLDERS = mapOf(
-            WorkflowType.TTI_CHECKPOINT to listOf(
-                "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{width}}", "{{height}}", "{{steps}}"
-            ),
-            WorkflowType.TTI_UNET to listOf(
-                "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}",
-                "{{width}}", "{{height}}", "{{steps}}"
-            ),
-            WorkflowType.ITI_CHECKPOINT to listOf(
-                "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{megapixels}}", "{{steps}}"
-            ),
-            WorkflowType.ITI_UNET to listOf(
-                "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
-            ),
-            WorkflowType.ITE_UNET to listOf(
-                "{{positive_prompt}}", "{{unet_name}}",
-                "{{vae_name}}", "{{clip_name}}", "{{megapixels}}", "{{steps}}"
-            ),
-            WorkflowType.TTV_UNET to listOf(
-                "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
-                "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
-                "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}"
-            ),
-            WorkflowType.ITV_UNET to listOf(
-                "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
-                "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
-                "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}",
-                "{{image_filename}}"
-            )
-        )
-
-        // Required patterns (not placeholders but literal strings that must exist)
-        val REQUIRED_PATTERNS = mapOf(
-            WorkflowType.ITI_CHECKPOINT to listOf("uploaded_image.png [input]"),
-            WorkflowType.ITI_UNET to listOf("uploaded_image.png [input]"),
-            WorkflowType.ITE_UNET to listOf("uploaded_image.png [input]")
-        )
-
-        // Filename prefix to type mapping
-        val PREFIX_TO_TYPE = mapOf(
-            "tti_checkpoint_" to WorkflowType.TTI_CHECKPOINT,
-            "tti_unet_" to WorkflowType.TTI_UNET,
-            "iti_checkpoint_" to WorkflowType.ITI_CHECKPOINT,
-            "iti_unet_" to WorkflowType.ITI_UNET,
-            "ite_unet_" to WorkflowType.ITE_UNET,
-            "ttv_unet_" to WorkflowType.TTV_UNET,
-            "itv_unet_" to WorkflowType.ITV_UNET
-        )
+    /**
+     * Initialize the WorkflowManager with application context.
+     * Must be called before first use.
+     */
+    @Synchronized
+    fun initialize(context: Context) {
+        if (!isInitialized) {
+            applicationContext = context.applicationContext
+            loadAllWorkflows()
+            isInitialized = true
+            DebugLogger.i(TAG, "WorkflowManager initialized")
+        }
     }
+
+    /**
+     * Ensure initialized, or initialize lazily with provided context.
+     */
+    fun ensureInitialized(context: Context) {
+        if (!isInitialized) {
+            initialize(context)
+        }
+    }
+
+    // Required placeholders per workflow type
+    val REQUIRED_PLACEHOLDERS = mapOf(
+        WorkflowType.TTI_CHECKPOINT to listOf(
+            "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{width}}", "{{height}}", "{{steps}}"
+        ),
+        WorkflowType.TTI_UNET to listOf(
+            "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}",
+            "{{width}}", "{{height}}", "{{steps}}"
+        ),
+        WorkflowType.ITI_CHECKPOINT to listOf(
+            "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{megapixels}}", "{{steps}}"
+        ),
+        WorkflowType.ITI_UNET to listOf(
+            "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
+        ),
+        WorkflowType.ITE_UNET to listOf(
+            "{{positive_prompt}}", "{{unet_name}}",
+            "{{vae_name}}", "{{clip_name}}", "{{megapixels}}", "{{steps}}"
+        ),
+        WorkflowType.TTV_UNET to listOf(
+            "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
+            "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
+            "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}"
+        ),
+        WorkflowType.ITV_UNET to listOf(
+            "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
+            "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
+            "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}",
+            "{{image_filename}}"
+        )
+    )
+
+    // Required patterns (not placeholders but literal strings that must exist)
+    val REQUIRED_PATTERNS = mapOf(
+        WorkflowType.ITI_CHECKPOINT to listOf("uploaded_image.png [input]"),
+        WorkflowType.ITI_UNET to listOf("uploaded_image.png [input]"),
+        WorkflowType.ITE_UNET to listOf("uploaded_image.png [input]")
+    )
+
+    // Filename prefix to type mapping
+    val PREFIX_TO_TYPE = mapOf(
+        "tti_checkpoint_" to WorkflowType.TTI_CHECKPOINT,
+        "tti_unet_" to WorkflowType.TTI_UNET,
+        "iti_checkpoint_" to WorkflowType.ITI_CHECKPOINT,
+        "iti_unet_" to WorkflowType.ITI_UNET,
+        "ite_unet_" to WorkflowType.ITE_UNET,
+        "ttv_unet_" to WorkflowType.TTV_UNET,
+        "itv_unet_" to WorkflowType.ITV_UNET
+    )
 
     // Available workflows loaded from res/raw and user storage
     private val workflows = mutableListOf<Workflow>()
-    private val workflowValuesStorage by lazy { WorkflowValuesStorage(context) }
-
-    init {
-        loadAllWorkflows()
-    }
+    private val workflowValuesStorage by lazy { WorkflowValuesStorage(applicationContext) }
 
     /**
      * Load all workflows (built-in and user-uploaded)
@@ -150,13 +171,13 @@ class WorkflowManager(private val context: Context) {
 
         for (resId in workflowResources) {
             try {
-                val inputStream: InputStream = context.resources.openRawResource(resId)
+                val inputStream: InputStream = applicationContext.resources.openRawResource(resId)
                 val jsonContent = inputStream.bufferedReader().use { it.readText() }
                 val jsonObject = JSONObject(jsonContent)
 
                 val name = jsonObject.optString("name", "Unnamed Workflow")
                 val description = jsonObject.optString("description", "")
-                val id = context.resources.getResourceEntryName(resId)
+                val id = applicationContext.resources.getResourceEntryName(resId)
                 val type = parseWorkflowType(id) ?: continue
                 val defaults = WorkflowDefaults.fromJson(jsonObject.optJSONObject("defaults"))
 
@@ -201,12 +222,12 @@ class WorkflowManager(private val context: Context) {
      * Load user-uploaded workflows from internal storage
      */
     private fun loadUserWorkflows() {
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val metadataJson = prefs.getString(USER_WORKFLOWS_KEY, null) ?: return
 
         try {
             val metadataArray = JSONArray(metadataJson)
-            val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+            val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
 
             for (i in 0 until metadataArray.length()) {
                 val metadata = metadataArray.getJSONObject(i)
@@ -524,7 +545,7 @@ class WorkflowManager(private val context: Context) {
         val updatedJsonContent = json.toString(2)
 
         // Save the new workflow file
-        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
         if (!dir.exists()) dir.mkdirs()
 
         val file = File(dir, filename)
@@ -547,7 +568,7 @@ class WorkflowManager(private val context: Context) {
         )
 
         // Save metadata
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null)
         val metadataArray = if (existingJson != null) JSONArray(existingJson) else JSONArray()
 
@@ -670,7 +691,7 @@ class WorkflowManager(private val context: Context) {
      * Check if a filename already exists in user workflows
      */
     fun isFilenameExists(filename: String): Boolean {
-        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
         return File(dir, filename).exists()
     }
 
@@ -679,11 +700,11 @@ class WorkflowManager(private val context: Context) {
      * @return error message if invalid, null if valid
      */
     fun validateWorkflowName(name: String): String? {
-        if (name.isBlank()) return context.getString(R.string.error_required)
-        if (name.length > 40) return context.getString(R.string.workflow_name_error_too_long)
+        if (name.isBlank()) return applicationContext.getString(R.string.error_required)
+        if (name.length > 40) return applicationContext.getString(R.string.workflow_name_error_too_long)
         val validPattern = Regex("^[a-zA-Z0-9 _\\-\\[\\]()]+$")
         if (!validPattern.matches(name)) {
-            return context.getString(R.string.workflow_name_error_invalid_chars)
+            return applicationContext.getString(R.string.workflow_name_error_invalid_chars)
         }
         return null
     }
@@ -693,7 +714,7 @@ class WorkflowManager(private val context: Context) {
      * @return error message if invalid, null if valid
      */
     fun validateWorkflowDescription(description: String): String? {
-        if (description.length > 120) return context.getString(R.string.workflow_description_error_too_long)
+        if (description.length > 120) return applicationContext.getString(R.string.workflow_description_error_too_long)
         return null
     }
 
@@ -812,7 +833,7 @@ class WorkflowManager(private val context: Context) {
         }
 
         // Save file
-        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
         if (!dir.exists()) dir.mkdirs()
 
         val file = File(dir, filename)
@@ -824,7 +845,7 @@ class WorkflowManager(private val context: Context) {
 
         // Save metadata
         val id = "user_${filename.substringBeforeLast(".")}"
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null)
         val metadataArray = if (existingJson != null) JSONArray(existingJson) else JSONArray()
 
@@ -953,7 +974,7 @@ class WorkflowManager(private val context: Context) {
         }
 
         // Get filename from preferences
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val metadataJson = prefs.getString(USER_WORKFLOWS_KEY, null)
             ?: return Result.failure(Exception("Workflow metadata not found"))
 
@@ -972,7 +993,7 @@ class WorkflowManager(private val context: Context) {
         }
 
         // Save file
-        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
         val file = File(dir, filename)
         try {
             file.writeText(finalJson.toString(2))
@@ -1069,7 +1090,7 @@ class WorkflowManager(private val context: Context) {
         }
 
         // Save file
-        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
         if (!dir.exists()) dir.mkdirs()
 
         val file = File(dir, prefixedFilename)
@@ -1081,7 +1102,7 @@ class WorkflowManager(private val context: Context) {
 
         // Save metadata
         val id = "user_${prefixedFilename.substringBeforeLast(".")}"
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null)
         val metadataArray = if (existingJson != null) JSONArray(existingJson) else JSONArray()
 
@@ -1113,7 +1134,7 @@ class WorkflowManager(private val context: Context) {
         workflows.removeAll { it.id == workflowId }
 
         // Remove file
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null) ?: return false
 
         try {
@@ -1132,7 +1153,7 @@ class WorkflowManager(private val context: Context) {
 
             // Delete file
             filename?.let {
-                val file = File(context.filesDir, "$USER_WORKFLOWS_DIR/$it")
+                val file = File(applicationContext.filesDir, "$USER_WORKFLOWS_DIR/$it")
                 file.delete()
             }
 
@@ -1154,7 +1175,7 @@ class WorkflowManager(private val context: Context) {
             workflows.removeAll { !it.isBuiltIn }
 
             // Delete all files in user workflows directory
-            val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+            val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
             if (dir.exists()) {
                 dir.listFiles()?.forEach { file ->
                     file.delete()
@@ -1162,7 +1183,7 @@ class WorkflowManager(private val context: Context) {
             }
 
             // Clear preferences
-            val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+            val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
             prefs.edit().remove(USER_WORKFLOWS_KEY).apply()
 
             return true
@@ -1185,7 +1206,7 @@ class WorkflowManager(private val context: Context) {
         workflows[workflowIndex] = workflow.copy(name = name, description = description)
 
         // Update in preferences
-        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null) ?: return false
 
         try {
@@ -1354,6 +1375,183 @@ class WorkflowManager(private val context: Context) {
 
             json.toString()
         } catch (e: Exception) {
+            workflowJson
+        }
+    }
+
+    // Bypass handling
+
+    /**
+     * Infer the expected data type from an input name using ComfyUI naming conventions.
+     * This allows type-based matching when rewiring connections around bypassed nodes.
+     */
+    private fun inferTypeFromInputName(inputName: String): String? {
+        val lowerName = inputName.lowercase()
+        return when {
+            lowerName in listOf("samples", "latent_image", "latent", "latent_images") -> "LATENT"
+            lowerName in listOf("model", "unet") || lowerName.startsWith("model") -> "MODEL"
+            lowerName in listOf("clip", "clip_l", "clip_g") || lowerName.startsWith("clip") -> "CLIP"
+            lowerName == "vae" -> "VAE"
+            lowerName in listOf("positive", "negative", "conditioning", "cond") -> "CONDITIONING"
+            lowerName in listOf("image", "images", "pixels") -> "IMAGE"
+            lowerName == "mask" -> "MASK"
+            lowerName == "noise" -> "NOISE"
+            else -> null
+        }
+    }
+
+    /**
+     * Find a connection input on a node that matches the expected type.
+     * Returns the connection JSONArray [sourceNodeId, outputIndex] or null.
+     */
+    private fun findConnectionByType(nodeInputs: JSONObject, expectedType: String): JSONArray? {
+        val inputKeys = nodeInputs.keys()
+        while (inputKeys.hasNext()) {
+            val inputKey = inputKeys.next()
+            val inputValue = nodeInputs.opt(inputKey)
+
+            // Only consider connections (array format)
+            if (inputValue is JSONArray && inputValue.length() >= 2) {
+                val inputType = inferTypeFromInputName(inputKey)
+                if (inputType == expectedType) {
+                    DebugLogger.d(TAG, "findConnectionByType: Found $expectedType input '$inputKey' -> [${inputValue.optString(0)}, ${inputValue.optInt(1)}]")
+                    return inputValue
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Follow a connection through any bypassed nodes to find the final non-bypassed source.
+     * Uses type inference to match the correct input when traversing bypassed nodes.
+     */
+    private fun resolveBypassChain(
+        nodes: JSONObject,
+        sourceNodeId: String,
+        sourceOutputIndex: Int,
+        expectedType: String,
+        bypassedNodeIds: Set<String>,
+        depth: Int = 0
+    ): JSONArray? {
+        if (depth > 10) {
+            DebugLogger.w(TAG, "resolveBypassChain: Max depth reached, possible cycle")
+            return null
+        }
+
+        if (sourceNodeId !in bypassedNodeIds) {
+            // Found non-bypassed source
+            return JSONArray().apply {
+                put(sourceNodeId)
+                put(sourceOutputIndex)
+            }
+        }
+
+        // Source is bypassed - find matching input and follow it
+        val bypassedNode = nodes.optJSONObject(sourceNodeId) ?: return null
+        val bypassedInputs = bypassedNode.optJSONObject("inputs") ?: return null
+
+        val matchingConnection = findConnectionByType(bypassedInputs, expectedType)
+        if (matchingConnection != null) {
+            val nextSourceId = matchingConnection.optString(0, "")
+            val nextOutputIndex = matchingConnection.optInt(1, 0)
+            DebugLogger.d(TAG, "resolveBypassChain: Following $expectedType through bypassed $sourceNodeId to $nextSourceId[$nextOutputIndex]")
+            return resolveBypassChain(nodes, nextSourceId, nextOutputIndex, expectedType, bypassedNodeIds, depth + 1)
+        }
+
+        DebugLogger.w(TAG, "resolveBypassChain: No $expectedType input found on bypassed node $sourceNodeId")
+        return null
+    }
+
+    /**
+     * Apply bypass logic to a workflow JSON before submission to ComfyUI API.
+     * ComfyUI's API doesn't automatically handle the mode property - we need to
+     * manually remove bypassed nodes and rewire connections around them.
+     *
+     * Uses type-inference to correctly match inputs and outputs when rewiring:
+     * 1. Infer the expected type from the target node's input name
+     * 2. Find the matching type input on the bypassed node
+     * 3. Follow the connection chain to the original non-bypassed source
+     *
+     * @param workflowJson The workflow JSON string (with or without "nodes" wrapper)
+     * @return Modified workflow JSON with bypassed nodes removed and connections rewired
+     */
+    fun applyBypassedNodes(workflowJson: String): String {
+        return try {
+            val json = JSONObject(workflowJson)
+            val hasWrapper = json.has("nodes") && json.optJSONObject("nodes") != null
+            val nodes = if (hasWrapper) json.getJSONObject("nodes") else json
+
+            // Find all bypassed nodes (mode=4)
+            val bypassedNodeIds = mutableSetOf<String>()
+            val nodeIds = nodes.keys().asSequence().toList()
+            for (nodeId in nodeIds) {
+                val node = nodes.optJSONObject(nodeId) ?: continue
+                val mode = node.optInt("mode", 0)
+                if (mode == 4) {
+                    bypassedNodeIds.add(nodeId)
+                    DebugLogger.d(TAG, "applyBypassedNodes: Found bypassed node $nodeId (${node.optString("class_type")})")
+                }
+            }
+
+            if (bypassedNodeIds.isEmpty()) {
+                DebugLogger.d(TAG, "applyBypassedNodes: No bypassed nodes found")
+                return workflowJson
+            }
+
+            // Rewire connections using type-based matching
+            for (nodeId in nodeIds) {
+                if (nodeId in bypassedNodeIds) continue
+                val node = nodes.optJSONObject(nodeId) ?: continue
+                val inputs = node.optJSONObject("inputs") ?: continue
+
+                val inputKeys = inputs.keys().asSequence().toList()
+                for (inputKey in inputKeys) {
+                    val inputValue = inputs.opt(inputKey)
+                    if (inputValue is JSONArray && inputValue.length() >= 2) {
+                        val sourceNodeId = inputValue.optString(0, "")
+
+                        if (sourceNodeId in bypassedNodeIds) {
+                            // This input references a bypassed node - need to rewire using type matching
+                            val expectedType = inferTypeFromInputName(inputKey)
+
+                            if (expectedType != null) {
+                                DebugLogger.d(TAG, "applyBypassedNodes: Input '$inputKey' on node $nodeId expects type $expectedType")
+
+                                val resolvedSource = resolveBypassChain(
+                                    nodes,
+                                    sourceNodeId,
+                                    inputValue.optInt(1, 0),
+                                    expectedType,
+                                    bypassedNodeIds
+                                )
+
+                                if (resolvedSource != null) {
+                                    DebugLogger.d(TAG, "applyBypassedNodes: Rewiring node $nodeId input '$inputKey' ($expectedType) from bypassed $sourceNodeId to ${resolvedSource.optString(0)}[${resolvedSource.optInt(1)}]")
+                                    inputs.put(inputKey, resolvedSource)
+                                } else {
+                                    DebugLogger.w(TAG, "applyBypassedNodes: Could not find $expectedType source for node $nodeId input '$inputKey' - removing connection")
+                                    inputs.remove(inputKey)
+                                }
+                            } else {
+                                DebugLogger.w(TAG, "applyBypassedNodes: Unknown type for input '$inputKey' on node $nodeId - removing connection")
+                                inputs.remove(inputKey)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Remove bypassed nodes from the JSON
+            for (bypassedId in bypassedNodeIds) {
+                nodes.remove(bypassedId)
+                DebugLogger.d(TAG, "applyBypassedNodes: Removed bypassed node $bypassedId")
+            }
+
+            DebugLogger.i(TAG, "applyBypassedNodes: Processed ${bypassedNodeIds.size} bypassed nodes")
+            json.toString()
+        } catch (e: Exception) {
+            DebugLogger.e(TAG, "applyBypassedNodes: Error processing bypass: ${e.message}")
             workflowJson
         }
     }
@@ -1741,7 +1939,7 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
         // Apply node attribute edits from the Workflow Editor
-        return applyNodeAttributeEdits(processedJson, workflow.id)
+        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
     }
 
     /**
@@ -1793,7 +1991,7 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
         // Apply node attribute edits from the Workflow Editor
-        return applyNodeAttributeEdits(processedJson, workflow.id)
+        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
     }
 
     /**
@@ -1931,7 +2129,7 @@ class WorkflowManager(private val context: Context) {
             return applyNodeAttributeEdits(json.toString(), workflow.id)
         } catch (e: Exception) {
             // If JSON parsing fails, return the string-processed version with edits applied
-            return applyNodeAttributeEdits(processedJson, workflow.id)
+            return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
         }
     }
 
@@ -1983,7 +2181,7 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
         // Apply node attribute edits from the Workflow Editor
-        return applyNodeAttributeEdits(processedJson, workflow.id)
+        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
     }
 
     /**
@@ -2037,7 +2235,7 @@ class WorkflowManager(private val context: Context) {
         processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
 
         // Apply node attribute edits from the Workflow Editor
-        return applyNodeAttributeEdits(processedJson, workflow.id)
+        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
     }
 
     /**

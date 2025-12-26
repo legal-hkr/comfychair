@@ -123,7 +123,8 @@ fun WorkflowGraphCanvas(
     onTapOutsideNodes: (() -> Unit)? = null,
     onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
     onInputSlotTapped: ((SlotPosition) -> Unit)? = null,
-    onRenameNodeTapped: ((String) -> Unit)? = null
+    onRenameNodeTapped: ((String) -> Unit)? = null,
+    onBypassToggle: ((String) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -160,6 +161,14 @@ fun WorkflowGraphCanvas(
     // Load edit icon drawable
     val editIconDrawable = remember(context) {
         ContextCompat.getDrawable(context, R.drawable.edit_24px)
+    }
+
+    // Load bypass visibility icons
+    val visibilityOnDrawable = remember(context) {
+        ContextCompat.getDrawable(context, R.drawable.visibility_24px)
+    }
+    val visibilityOffDrawable = remember(context) {
+        ContextCompat.getDrawable(context, R.drawable.visibility_off_24px)
     }
 
     // Extract theme colors
@@ -253,8 +262,8 @@ fun WorkflowGraphCanvas(
 
     Canvas(
         modifier = modifier
-            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped) {
-                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onBypassToggle) {
+                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onBypassToggle != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
@@ -309,19 +318,32 @@ fun WorkflowGraphCanvas(
                             }
                         }
 
-                        // In edit mode, check for taps on the edit icon in node headers
-                        if (inEditMode && onRenameNodeTapped != null) {
+                        // In edit mode, check for taps on header icons
+                        if (inEditMode) {
                             val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
                             for (node in graph.nodes) {
-                                // Edit icon is in the top-right corner of the header
-                                val iconRight = node.x + node.width - 8f
-                                val iconLeft = iconRight - 32f
                                 val iconTop = node.y + 8f
                                 val iconBottom = node.y + headerHeight - 8f
 
-                                if (graphX >= iconLeft && graphX <= iconRight &&
+                                // Edit icon is in the top-right corner of the header
+                                val editIconRight = node.x + node.width - 8f
+                                val editIconLeft = editIconRight - 32f
+
+                                if (onRenameNodeTapped != null &&
+                                    graphX >= editIconLeft && graphX <= editIconRight &&
                                     graphY >= iconTop && graphY <= iconBottom) {
                                     onRenameNodeTapped(node.id)
+                                    return@detectTapGestures
+                                }
+
+                                // Bypass icon is to the left of the edit icon
+                                val bypassIconRight = editIconLeft - 8f
+                                val bypassIconLeft = bypassIconRight - 32f
+
+                                if (onBypassToggle != null &&
+                                    graphX >= bypassIconLeft && graphX <= bypassIconRight &&
+                                    graphY >= iconTop && graphY <= iconBottom) {
+                                    onBypassToggle(node.id)
                                     return@detectTapGestures
                                 }
                             }
@@ -448,7 +470,9 @@ fun WorkflowGraphCanvas(
                     displayNameResolver = displayNameResolver,
                     inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
                     showEditIcon = isEditMode,
-                    editIconDrawable = editIconDrawable
+                    editIconDrawable = editIconDrawable,
+                    visibilityOnDrawable = visibilityOnDrawable,
+                    visibilityOffDrawable = visibilityOffDrawable
                 )
             }
 
@@ -592,7 +616,9 @@ private fun DrawScope.drawNode(
     displayNameResolver: (String) -> String = { it },
     inputWireColors: Map<String, Int> = emptyMap(),
     showEditIcon: Boolean = false,
-    editIconDrawable: Drawable? = null
+    editIconDrawable: Drawable? = null,
+    visibilityOnDrawable: Drawable? = null,
+    visibilityOffDrawable: Drawable? = null
 ) {
     // Determine border color and width based on highlight state
     val (borderColor, borderWidth) = when (highlightState) {
@@ -605,8 +631,20 @@ private fun DrawScope.drawNode(
     val cornerRadius = 16f
 
     // Use color pair for header and body if available, otherwise use defaults
-    val headerColor = colorPair?.header ?: colors.nodeHeaderBackground
-    val bodyColor = colorPair?.body ?: colors.nodeBackground
+    val baseHeaderColor = colorPair?.header ?: colors.nodeHeaderBackground
+    val baseBodyColor = colorPair?.body ?: colors.nodeBackground
+
+    // Apply bypass dimming effect - lerp towards black (dark mode) or white (light mode)
+    val (headerColor, bodyColor, actualBorderColor) = if (node.isBypassed) {
+        val dimTarget = if (colors.isDarkTheme) Color.Black else Color.White
+        Triple(
+            lerp(baseHeaderColor, dimTarget, 0.6f),
+            lerp(baseBodyColor, dimTarget, 0.6f),
+            lerp(borderColor, dimTarget, 0.6f)
+        )
+    } else {
+        Triple(baseHeaderColor, baseBodyColor, borderColor)
+    }
 
     // Create clip path for the entire node shape
     val nodeClipPath = Path().apply {
@@ -640,7 +678,7 @@ private fun DrawScope.drawNode(
 
     // Node border
     drawRoundRect(
-        color = borderColor,
+        color = actualBorderColor,
         topLeft = Offset(node.x, node.y),
         size = Size(node.width, node.height),
         cornerRadius = CornerRadius(cornerRadius),
@@ -656,14 +694,28 @@ private fun DrawScope.drawNode(
     )
 
     // Draw text using native canvas
-    val textPrimaryArgb = colors.textPrimary.toArgb()
-    val textSecondaryArgb = colors.textSecondary.toArgb()
-    val templateHighlightArgb = colors.templateTextHighlight.toArgb()
+    // Dim text colors for bypassed nodes
+    val dimTarget = if (colors.isDarkTheme) Color.Black else Color.White
+    val textPrimaryArgb = if (node.isBypassed) {
+        lerp(colors.textPrimary, dimTarget, 0.5f).toArgb()
+    } else {
+        colors.textPrimary.toArgb()
+    }
+    val textSecondaryArgb = if (node.isBypassed) {
+        lerp(colors.textSecondary, dimTarget, 0.5f).toArgb()
+    } else {
+        colors.textSecondary.toArgb()
+    }
+    val templateHighlightArgb = if (node.isBypassed) {
+        lerp(colors.templateTextHighlight, dimTarget, 0.5f).toArgb()
+    } else {
+        colors.templateTextHighlight.toArgb()
+    }
     val headerColorArgb = headerColor.toArgb()
 
     drawContext.canvas.nativeCanvas.apply {
-        // Title text - leave space for edit icon if shown
-        val titleMaxWidth = if (showEditIcon) node.width - 56f else node.width - 32f
+        // Title text - leave space for icons if shown (edit + bypass = 2 icons)
+        val titleMaxWidth = if (showEditIcon) node.width - 104f else node.width - 32f
         val titlePaint = Paint().apply {
             color = textPrimaryArgb
             textSize = 24f
@@ -673,19 +725,32 @@ private fun DrawScope.drawNode(
         val title = truncateText(node.title, titleMaxWidth, titlePaint)
         drawText(title, node.x + 16f, node.y + 40f, titlePaint)
 
-        // Draw edit icon in top-right corner of header when in edit mode
-        if (showEditIcon && editIconDrawable != null) {
+        // Draw icons in top-right corner of header when in edit mode
+        if (showEditIcon) {
             val iconSize = 40
-            val iconLeft = (node.x + node.width - 48f).toInt()
             val iconTop = (node.y + 12f).toInt()
 
-            // Clone the drawable to avoid mutating the cached version
-            val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
-            if (iconCopy != null) {
-                // Tint with the text secondary color
-                DrawableCompat.setTint(iconCopy, textSecondaryArgb)
-                iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
-                iconCopy.draw(this)
+            // Edit icon (rightmost)
+            if (editIconDrawable != null) {
+                val editIconLeft = (node.x + node.width - 48f).toInt()
+                val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
+                if (iconCopy != null) {
+                    DrawableCompat.setTint(iconCopy, textSecondaryArgb)
+                    iconCopy.setBounds(editIconLeft, iconTop, editIconLeft + iconSize, iconTop + iconSize)
+                    iconCopy.draw(this)
+                }
+            }
+
+            // Bypass/visibility icon (to the left of edit icon)
+            val bypassIconLeft = (node.x + node.width - 48f - 8f - 40f).toInt()
+            val bypassDrawable = if (node.isBypassed) visibilityOffDrawable else visibilityOnDrawable
+            if (bypassDrawable != null) {
+                val iconCopy = bypassDrawable.mutate().constantState?.newDrawable()?.mutate()
+                if (iconCopy != null) {
+                    DrawableCompat.setTint(iconCopy, textSecondaryArgb)
+                    iconCopy.setBounds(bypassIconLeft, iconTop, bypassIconLeft + iconSize, iconTop + iconSize)
+                    iconCopy.draw(this)
+                }
             }
         }
 

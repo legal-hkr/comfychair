@@ -73,6 +73,12 @@ class WorkflowParser {
                 allTemplateVars.add(key)
             }
 
+            // Parse node mode (0=active, 2=muted, 4=bypassed)
+            val mode = nodeJson.optInt("mode", 0)
+            if (mode != 0) {
+                DebugLogger.d(TAG, "Parsed node $nodeId with mode=$mode (${if (mode == 4) "bypassed" else if (mode == 2) "muted" else "unknown"})")
+            }
+
             nodes.add(
                 WorkflowNode(
                     id = nodeId,
@@ -80,7 +86,8 @@ class WorkflowParser {
                     title = title,
                     category = categorizeNode(classType),
                     inputs = inputs,
-                    templateInputKeys = templateKeys
+                    templateInputKeys = templateKeys,
+                    mode = mode
                 )
             )
 

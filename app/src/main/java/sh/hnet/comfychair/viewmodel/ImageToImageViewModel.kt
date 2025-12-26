@@ -188,7 +188,6 @@ class ImageToImageViewModel : ViewModel() {
     // State
     private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
-    private var workflowManager: WorkflowManager? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
 
     private val _uiState = MutableStateFlow(ImageToImageUiState())
@@ -223,7 +222,7 @@ class ImageToImageViewModel : ViewModel() {
         DebugLogger.i(TAG, "Initializing")
         applicationContext = context.applicationContext
         comfyUIClient = client
-        workflowManager = WorkflowManager(context)
+        WorkflowManager.ensureInitialized(context)
         workflowValuesStorage = WorkflowValuesStorage(context)
 
         loadWorkflowOptions()
@@ -232,12 +231,11 @@ class ImageToImageViewModel : ViewModel() {
     }
 
     private fun loadWorkflowOptions() {
-        val wm = workflowManager ?: return
         val ctx = applicationContext ?: return
 
-        val checkpointWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
-        val unetWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_UNET)
-        val editingWorkflows = wm.getWorkflowsByType(WorkflowType.ITE_UNET)
+        val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
+        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET)
+        val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET)
 
         // Create unified workflow list with type prefix for display (for Inpainting mode)
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -352,7 +350,6 @@ class ImageToImageViewModel : ViewModel() {
      * Load workflow values without triggering save (used during initialization)
      */
     private fun loadWorkflowValues(workflowName: String) {
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Find workflow item to determine type
@@ -362,7 +359,7 @@ class ImageToImageViewModel : ViewModel() {
 
         // Load saved values or defaults
         val savedValues = storage.loadValues(workflowName)
-        val defaults = manager.getWorkflowDefaults(workflowName)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
@@ -409,12 +406,11 @@ class ImageToImageViewModel : ViewModel() {
      * Load editing workflow values without triggering save (used during initialization)
      */
     private fun loadEditingWorkflowValues(workflowName: String) {
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Load saved values or defaults
         val savedValues = storage.loadValues(workflowName)
-        val defaults = manager.getWorkflowDefaults(workflowName)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         val state = _uiState.value
         _uiState.value = state.copy(
@@ -855,7 +851,6 @@ class ImageToImageViewModel : ViewModel() {
      */
     fun onWorkflowChange(workflowName: String) {
         val state = _uiState.value
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Save current workflow values before switching
@@ -869,7 +864,7 @@ class ImageToImageViewModel : ViewModel() {
 
         // Load new workflow's saved values or defaults
         val savedValues = storage.loadValues(workflowName)
-        val defaults = manager.getWorkflowDefaults(workflowName)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
@@ -1080,7 +1075,6 @@ class ImageToImageViewModel : ViewModel() {
 
     fun onEditingWorkflowChange(workflowName: String) {
         val state = _uiState.value
-        val manager = workflowManager ?: return
         val storage = workflowValuesStorage ?: return
 
         // Save current editing workflow values before switching
@@ -1090,7 +1084,7 @@ class ImageToImageViewModel : ViewModel() {
 
         // Load new workflow's saved values or defaults
         val savedValues = storage.loadValues(workflowName)
-        val defaults = manager.getWorkflowDefaults(workflowName)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         _uiState.value = state.copy(
             selectedEditingWorkflow = workflowName,
@@ -1254,7 +1248,6 @@ class ImageToImageViewModel : ViewModel() {
      */
     suspend fun prepareWorkflow(): String? {
         val client = comfyUIClient ?: return null
-        val wm = workflowManager ?: return null
         val state = _uiState.value
         val sourceImage = state.sourceImage ?: return null
 
@@ -1262,8 +1255,8 @@ class ImageToImageViewModel : ViewModel() {
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(state.positivePrompt)}")
 
         return when (state.mode) {
-            ImageToImageMode.EDITING -> prepareEditingWorkflow(client, wm, sourceImage, state)
-            ImageToImageMode.INPAINTING -> prepareInpaintingWorkflow(client, wm, sourceImage, state)
+            ImageToImageMode.EDITING -> prepareEditingWorkflow(client, sourceImage, state)
+            ImageToImageMode.INPAINTING -> prepareInpaintingWorkflow(client, sourceImage, state)
         }
     }
 
@@ -1272,7 +1265,6 @@ class ImageToImageViewModel : ViewModel() {
      */
     private suspend fun prepareEditingWorkflow(
         client: ComfyUIClient,
-        wm: WorkflowManager,
         sourceImage: Bitmap,
         state: ImageToImageUiState
     ): String? {
@@ -1334,7 +1326,7 @@ class ImageToImageViewModel : ViewModel() {
         }
 
         // Prepare editing workflow JSON
-        val baseWorkflow = wm.prepareImageEditingWorkflow(
+        val baseWorkflow = WorkflowManager.prepareImageEditingWorkflow(
             workflowName = state.selectedEditingWorkflow,
             positivePrompt = state.positivePrompt,
             negativePrompt = state.editingNegativePrompt,
@@ -1353,7 +1345,7 @@ class ImageToImageViewModel : ViewModel() {
         ) ?: return null
 
         // Inject additional LoRA chain if configured
-        return wm.injectLoraChain(baseWorkflow, state.editingLoraChain, WorkflowType.ITE_UNET)
+        return WorkflowManager.injectLoraChain(baseWorkflow, state.editingLoraChain, WorkflowType.ITE_UNET)
     }
 
     /**
@@ -1361,7 +1353,6 @@ class ImageToImageViewModel : ViewModel() {
      */
     private suspend fun prepareInpaintingWorkflow(
         client: ComfyUIClient,
-        wm: WorkflowManager,
         sourceImage: Bitmap,
         state: ImageToImageUiState
     ): String? {
@@ -1401,7 +1392,7 @@ class ImageToImageViewModel : ViewModel() {
 
         // Prepare workflow JSON
         val baseWorkflow = if (state.isCheckpointMode) {
-            wm.prepareImageToImageWorkflow(
+            WorkflowManager.prepareImageToImageWorkflow(
                 workflowName = state.selectedWorkflow,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.checkpointNegativePrompt,
@@ -1414,7 +1405,7 @@ class ImageToImageViewModel : ViewModel() {
                 imageFilename = uploadedFilename
             )
         } else {
-            wm.prepareImageToImageWorkflow(
+            WorkflowManager.prepareImageToImageWorkflow(
                 workflowName = state.selectedWorkflow,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.unetNegativePrompt,
@@ -1440,7 +1431,7 @@ class ImageToImageViewModel : ViewModel() {
         } else {
             state.unetLoraChain
         }
-        return wm.injectLoraChain(baseWorkflow, loraChain, workflowType)
+        return WorkflowManager.injectLoraChain(baseWorkflow, loraChain, workflowType)
     }
 
     /**
