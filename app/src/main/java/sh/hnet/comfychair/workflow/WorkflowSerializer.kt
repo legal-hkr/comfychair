@@ -2,11 +2,16 @@ package sh.hnet.comfychair.workflow
 
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * Serializes a WorkflowGraph back to ComfyUI API JSON format.
  */
 class WorkflowSerializer {
+
+    companion object {
+        private const val TAG = "WorkflowSerializer"
+    }
 
     /**
      * Serialize a workflow graph to JSON string.
@@ -16,6 +21,7 @@ class WorkflowSerializer {
      * @return JSON string in ComfyUI API format
      */
     fun serialize(graph: WorkflowGraph, includeMetadata: Boolean = true): String {
+        DebugLogger.d(TAG, "Serializing workflow: ${graph.nodes.size} nodes")
         val rootJson = JSONObject()
 
         for (node in graph.nodes) {
@@ -23,7 +29,9 @@ class WorkflowSerializer {
             rootJson.put(node.id, nodeJson)
         }
 
-        return rootJson.toString(2)  // Pretty print with 2-space indent
+        val result = rootJson.toString(2)  // Pretty print with 2-space indent
+        DebugLogger.d(TAG, "Serialized workflow: ${result.length} chars")
+        return result
     }
 
     /**
@@ -34,6 +42,7 @@ class WorkflowSerializer {
      * @return JSON string with name, description, and nodes wrapper
      */
     fun serializeWithWrapper(graph: WorkflowGraph, includeMetadata: Boolean = true): String {
+        DebugLogger.d(TAG, "Serializing workflow with wrapper: name=${graph.name}, ${graph.nodes.size} nodes")
         val rootJson = JSONObject()
         rootJson.put("name", graph.name)
         rootJson.put("description", graph.description)
@@ -45,7 +54,9 @@ class WorkflowSerializer {
         }
         rootJson.put("nodes", nodesJson)
 
-        return rootJson.toString(2)
+        val result = rootJson.toString(2)
+        DebugLogger.d(TAG, "Serialized workflow with wrapper: ${result.length} chars")
+        return result
     }
 
     /**
@@ -114,7 +125,13 @@ class WorkflowSerializer {
         graph: WorkflowGraph,
         nodeAttributeEdits: Map<String, Map<String, Any>>
     ): WorkflowGraph {
-        if (nodeAttributeEdits.isEmpty()) return graph
+        if (nodeAttributeEdits.isEmpty()) {
+            DebugLogger.d(TAG, "applyEdits: no edits to apply")
+            return graph
+        }
+
+        val totalEdits = nodeAttributeEdits.values.sumOf { it.size }
+        DebugLogger.d(TAG, "applyEdits: applying $totalEdits edits to ${nodeAttributeEdits.size} nodes")
 
         val updatedNodes = graph.nodes.map { node ->
             val edits = nodeAttributeEdits[node.id] ?: return@map node

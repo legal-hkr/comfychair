@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import sh.hnet.comfychair.ui.screens.WorkflowEditorScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.WorkflowEditorEvent
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.WorkflowMappingState
@@ -31,6 +32,7 @@ class WorkflowEditorActivity : ComponentActivity() {
     private val viewModel: WorkflowEditorViewModel by viewModels()
 
     companion object {
+        private const val TAG = "WorkflowEditor"
         private const val EXTRA_WORKFLOW_ID = "workflow_id"
         private const val EXTRA_WORKFLOW_JSON = "workflow_json"
         private const val EXTRA_IS_MAPPING_MODE = "is_mapping_mode"
@@ -118,14 +120,15 @@ class WorkflowEditorActivity : ComponentActivity() {
         // Initialize ViewModel based on mode
         when {
             isEditExistingMode && workflowId != null -> {
-                // Edit existing workflow structure
+                DebugLogger.i(TAG, "Initializing for editing existing workflow: $workflowId")
                 viewModel.initializeForEditingExisting(this, workflowId)
             }
             isCreateMode -> {
-                // Create new workflow from scratch
+                DebugLogger.i(TAG, "Initializing for creating new workflow")
                 viewModel.initializeForCreation(this)
             }
             isMappingMode && workflowJson != null && mappingStateJson != null -> {
+                DebugLogger.i(TAG, "Initializing for mapping mode: name=$workflowName")
                 val mappingState = WorkflowMappingState.fromJson(mappingStateJson)
                 if (mappingState != null) {
                     viewModel.initializeForMapping(
@@ -135,11 +138,12 @@ class WorkflowEditorActivity : ComponentActivity() {
                         mappingState = mappingState
                     )
                 } else {
-                    // Fallback to view mode if mapping state is invalid
+                    DebugLogger.w(TAG, "Invalid mapping state, falling back to view mode")
                     viewModel.initialize(this, workflowId, workflowJson)
                 }
             }
             else -> {
+                DebugLogger.i(TAG, "Initializing for view mode: workflowId=$workflowId, hasJson=${workflowJson != null}")
                 viewModel.initialize(this, workflowId, workflowJson)
             }
         }
@@ -151,28 +155,33 @@ class WorkflowEditorActivity : ComponentActivity() {
                     viewModel.events.collect { event ->
                         when (event) {
                             is WorkflowEditorEvent.MappingConfirmed -> {
+                                DebugLogger.i(TAG, "Mapping confirmed")
                                 setResult(Activity.RESULT_OK, Intent().apply {
                                     putExtra(EXTRA_RESULT_MAPPINGS, event.mappingsJson)
                                 })
                                 finish()
                             }
                             is WorkflowEditorEvent.MappingCancelled -> {
+                                DebugLogger.i(TAG, "Mapping cancelled")
                                 setResult(Activity.RESULT_CANCELED)
                                 finish()
                             }
                             is WorkflowEditorEvent.WorkflowCreated -> {
+                                DebugLogger.i(TAG, "Workflow created: ${event.workflowId}")
                                 setResult(Activity.RESULT_OK, Intent().apply {
                                     putExtra(EXTRA_RESULT_WORKFLOW_ID, event.workflowId)
                                 })
                                 finish()
                             }
                             is WorkflowEditorEvent.WorkflowUpdated -> {
+                                DebugLogger.i(TAG, "Workflow updated: ${event.workflowId}")
                                 setResult(Activity.RESULT_OK, Intent().apply {
                                     putExtra(EXTRA_RESULT_WORKFLOW_ID, event.workflowId)
                                 })
                                 finish()
                             }
                             is WorkflowEditorEvent.CreateCancelled -> {
+                                DebugLogger.i(TAG, "Create cancelled")
                                 setResult(Activity.RESULT_CANCELED)
                                 finish()
                             }

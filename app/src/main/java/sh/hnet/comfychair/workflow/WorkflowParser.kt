@@ -2,16 +2,22 @@ package sh.hnet.comfychair.workflow
 
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * Parses ComfyUI workflow JSON into a WorkflowGraph
  */
 class WorkflowParser {
 
+    companion object {
+        private const val TAG = "WorkflowParser"
+    }
+
     /**
      * Parse workflow JSON content into a WorkflowGraph
      */
     fun parse(jsonContent: String, workflowName: String = "", workflowDescription: String = ""): WorkflowGraph {
+        DebugLogger.d(TAG, "Parsing workflow: name=$workflowName")
         val json = JSONObject(jsonContent)
 
         val nodes = mutableListOf<WorkflowNode>()
@@ -93,6 +99,8 @@ class WorkflowParser {
             }
         }
 
+        DebugLogger.d(TAG, "Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${allTemplateVars.size} template vars")
+
         return WorkflowGraph(
             name = workflowName,
             description = workflowDescription,
@@ -120,6 +128,7 @@ class WorkflowParser {
                         )
                     } catch (e: Exception) {
                         // If parsing fails, treat as literal
+                        DebugLogger.w(TAG, "Failed to parse connection for input '$key': ${e.message}")
                         InputValue.Literal(value.toString())
                     }
                 }
