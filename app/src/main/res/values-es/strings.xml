@@ -393,6 +393,7 @@
     <string name="node_browser_search_placeholder">Buscar nodos…</string>
     <string name="node_browser_no_results">No se encontraron nodos coincidentes</string>
     <string name="node_browser_io_info">%1$d entradas, %2$d salidas</string>
+    <string name="clear_search">Borrar búsqueda</string>
     <string name="workflow_editor_enter_edit_mode">Editar gráfico</string>
     <string name="workflow_editor_exit_edit_mode">Salir del modo edición</string>
     <string name="workflow_editor_delete_node">Eliminar seleccionado</string>
