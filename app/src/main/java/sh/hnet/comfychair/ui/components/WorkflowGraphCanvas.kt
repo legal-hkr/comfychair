@@ -8,7 +8,12 @@ import androidx.core.graphics.drawable.DrawableCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -28,6 +33,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -185,6 +191,18 @@ fun WorkflowGraphCanvas(
     val animationSpec = tween<Float>(
         durationMillis = 350,
         easing = FastOutSlowInEasing
+    )
+
+    // Pulsing glow animation for valid input sockets in connection mode
+    val glowTransition = rememberInfiniteTransition(label = "glowPulse")
+    val glowPulse by glowTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowPulseValue"
     )
 
     // Animate node positions when graph changes
@@ -359,6 +377,9 @@ fun WorkflowGraphCanvas(
                 }
             }
     ) {
+        // Compute node IDs that are valid connection targets in connection mode
+        val connectionCandidateNodeIds = connectionModeState?.validInputSlots?.map { it.nodeId }?.toSet() ?: emptySet()
+
         // Apply transformation
         withTransform({
             translate(offset.x, offset.y)
@@ -366,7 +387,12 @@ fun WorkflowGraphCanvas(
         }) {
             // Draw edges first (behind nodes) - use animatedNodes for positions
             graph.edges.forEach { edge ->
-                drawEdge(edge, animatedNodes, colors)
+                drawEdge(
+                    edge = edge,
+                    nodes = animatedNodes,
+                    colors = colors,
+                    selectedNodeIds = selectedNodeIds
+                )
             }
 
             // Build a map of node ID -> (input name -> wire color) for connected inputs
@@ -379,12 +405,17 @@ fun WorkflowGraphCanvas(
                 }
             }
 
+            // Check if we're in connection mode
+            val inConnectionMode = connectionModeState != null
+
             // Draw nodes at animated positions
             animatedNodes.forEach { node ->
                 val highlightState = when {
                     // Mapping mode selection
                     isFieldMappingMode && node.id in mappingSelectedNodeIds -> NodeHighlightState.SELECTED
                     isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
+                    // Connection mode - highlight valid target nodes
+                    inConnectionMode && node.id in connectionCandidateNodeIds -> NodeHighlightState.CANDIDATE
                     // Edit mode selection
                     isEditMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
                     // Attribute editing mode
@@ -498,9 +529,40 @@ fun WorkflowGraphCanvas(
                 // Draw highlighted valid input slots when in connection mode
                 if (inConnectionMode) {
                     connectionModeState?.validInputSlots?.forEach { slot ->
-                        // Draw highlighted input slot
+                        // Draw pulsing glow effect around the input slot
+                        // glowPulse ranges from 0 to 1, animating the glow intensity
+                        val baseAlpha = 0.2f + (glowPulse * 0.4f)  // Alpha pulses between 0.2 and 0.6
+
+                        // Outer glow layer (largest, most transparent)
+                        val outerGlowRadius = 28f + (glowPulse * 8f)  // Radius pulses between 28 and 36
                         drawCircle(
-                            color = colors.candidateBorder,
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.3f),
+                            radius = outerGlowRadius,
+                            center = slot.center
+                        )
+
+                        // Middle glow layer
+                        val midGlowRadius = 20f + (glowPulse * 4f)  // Radius pulses between 20 and 24
+                        drawCircle(
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.5f),
+                            radius = midGlowRadius,
+                            center = slot.center
+                        )
+
+                        // Inner glow layer (smallest, most opaque)
+                        val innerGlowRadius = 14f + (glowPulse * 2f)  // Radius pulses between 14 and 16
+                        drawCircle(
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.7f),
+                            radius = innerGlowRadius,
+                            center = slot.center
+                        )
+
+                        // Draw the actual input slot (solid circle with hole)
+                        // Pulse the socket color for brightness effect (towards white in dark mode, black in light mode)
+                        val pulseTargetColor = if (colors.isDarkTheme) Color.White else Color.Black
+                        val socketColor = lerp(colors.candidateBorder, pulseTargetColor, glowPulse * 0.5f)
+                        drawCircle(
+                            color = socketColor,
                             radius = 12f,
                             center = slot.center
                         )
@@ -861,7 +923,12 @@ private fun DrawScope.drawNode(
  * Draw an edge (connection) between two nodes.
  * Uses bezier curves that depart/arrive horizontally for a natural look.
  */
-private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, colors: CanvasColors) {
+private fun DrawScope.drawEdge(
+    edge: WorkflowEdge,
+    nodes: List<WorkflowNode>,
+    colors: CanvasColors,
+    selectedNodeIds: Set<String> = emptySet()
+) {
     val sourceNode = nodes.find { it.id == edge.sourceNodeId } ?: return
     val targetNode = nodes.find { it.id == edge.targetNodeId } ?: return
 
@@ -871,10 +938,25 @@ private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, co
     val endX = targetNode.x
     val endY = targetNode.y + calculateInputY(targetNode, edge.targetInputName)
 
-    // Resolve color from slot type, fallback to default
-    val edgeColor = edge.slotType?.let { slotType ->
+    // Resolve base color from slot type, fallback to default
+    val baseEdgeColor = edge.slotType?.let { slotType ->
         colors.slotColors[slotType.uppercase()]
     } ?: colors.edgeColor
+
+    // Check if this edge is connected to a selected node
+    val isConnectedToSelected = edge.sourceNodeId in selectedNodeIds || edge.targetNodeId in selectedNodeIds
+
+    // Make wires thicker and blend color when connected to selected node
+    val edgeColor: Color
+    val edgeWidth: Float
+    if (isConnectedToSelected) {
+        val blendColor = if (colors.isDarkTheme) Color.White else Color.Black
+        edgeColor = lerp(baseEdgeColor, blendColor, 0.3f)
+        edgeWidth = 8f
+    } else {
+        edgeColor = baseEdgeColor
+        edgeWidth = 4f
+    }
 
     // Minimum control point offset to ensure wire is visible leaving/entering nodes
     val minOffset = 20f
@@ -927,7 +1009,7 @@ private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, co
     drawPath(
         path = path,
         color = edgeColor,
-        style = Stroke(width = 4f)
+        style = Stroke(width = edgeWidth)
     )
 
     // Draw small circle at connection points
