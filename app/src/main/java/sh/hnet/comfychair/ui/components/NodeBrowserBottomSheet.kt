@@ -3,17 +3,23 @@ package sh.hnet.comfychair.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +41,46 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 
+/** Split category into hierarchy levels (handles both "/" and "\" separators) */
+private fun parseCategoryLevels(category: String): List<String> {
+    return category.split("/", "\\").filter { it.isNotEmpty() }
+}
+
+/** Normalize category to use "/" separator consistently */
+private fun normalizeCategory(category: String): String {
+    return category.replace("\\", "/")
+}
+
+/** Get unique values at a specific level, optionally filtered by parent prefix */
+private fun getOptionsAtLevel(
+    categories: Set<String>,
+    level: Int,
+    parentPrefix: String?
+): List<String> {
+    return categories
+        .map { normalizeCategory(it) }
+        .filter { cat ->
+            if (parentPrefix == null) true
+            else cat.startsWith("$parentPrefix/") || cat == parentPrefix
+        }
+        .mapNotNull { cat ->
+            parseCategoryLevels(cat).getOrNull(level)
+        }
+        .distinct()
+        .sorted()
+}
+
+/** Build category prefix from selections */
+private fun buildCategoryPrefix(
+    level1: String?,
+    level2: String?,
+    level3: String?
+): String? {
+    return listOfNotNull(level1, level2, level3)
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString("/")
+}
+
 /**
  * Bottom sheet for browsing and selecting node types to add to the workflow.
  */
@@ -48,19 +94,57 @@ fun NodeBrowserBottomSheet(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Filter nodes by search query
-    val filteredCategories = remember(nodeTypesByCategory, searchQuery) {
-        if (searchQuery.isBlank()) {
-            nodeTypesByCategory
-        } else {
+    // Category filter state
+    var level1Selection by remember { mutableStateOf<String?>(null) }
+    var level2Selection by remember { mutableStateOf<String?>(null) }
+    var level3Selection by remember { mutableStateOf<String?>(null) }
+
+    // Compute available options for each level
+    val allCategories = remember(nodeTypesByCategory) {
+        nodeTypesByCategory.keys
+    }
+
+    val level1Options = remember(allCategories) {
+        getOptionsAtLevel(allCategories, 0, null)
+    }
+
+    val level2Options = remember(allCategories, level1Selection) {
+        if (level1Selection == null) emptyList()
+        else getOptionsAtLevel(allCategories, 1, level1Selection)
+    }
+
+    val level3Options = remember(allCategories, level1Selection, level2Selection) {
+        val prefix = buildCategoryPrefix(level1Selection, level2Selection, null)
+        if (prefix == null || level2Selection == null) emptyList()
+        else getOptionsAtLevel(allCategories, 2, prefix)
+    }
+
+    val categoryPrefix = buildCategoryPrefix(level1Selection, level2Selection, level3Selection)
+
+    // Filter nodes by search query and category filter
+    val filteredCategories = remember(nodeTypesByCategory, searchQuery, categoryPrefix) {
+        var result = nodeTypesByCategory
+
+        // Apply category filter (normalize both sides for cross-platform matching)
+        if (categoryPrefix != null) {
+            result = result.filterKeys { category ->
+                val normalizedCategory = normalizeCategory(category)
+                normalizedCategory.startsWith(categoryPrefix) || normalizedCategory == categoryPrefix
+            }
+        }
+
+        // Apply search filter
+        if (searchQuery.isNotBlank()) {
             val query = searchQuery.lowercase()
-            nodeTypesByCategory.mapValues { (_, nodes) ->
+            result = result.mapValues { (_, nodes) ->
                 nodes.filter { node ->
                     node.classType.lowercase().contains(query) ||
                     node.category.lowercase().contains(query)
                 }
             }.filterValues { it.isNotEmpty() }
         }
+
+        result
     }
 
     ModalBottomSheet(
@@ -110,6 +194,44 @@ fun NodeBrowserBottomSheet(
                 onExpandedChange = { },
                 modifier = Modifier.fillMaxWidth()
             ) { }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Level 1 filter chips
+            FilterChipRow(
+                options = level1Options,
+                selectedOption = level1Selection,
+                onOptionSelected = { selection ->
+                    level1Selection = selection
+                    level2Selection = null  // Clear deeper levels
+                    level3Selection = null
+                }
+            )
+
+            // Level 2 filter chips (only show if level 1 selected and options exist)
+            if (level2Options.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FilterChipRow(
+                    options = level2Options,
+                    selectedOption = level2Selection,
+                    onOptionSelected = { selection ->
+                        level2Selection = selection
+                        level3Selection = null  // Clear deeper level
+                    }
+                )
+            }
+
+            // Level 3 filter chips (only show if level 2 selected and options exist)
+            if (level3Options.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FilterChipRow(
+                    options = level3Options,
+                    selectedOption = level3Selection,
+                    onOptionSelected = { selection ->
+                        level3Selection = selection
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -186,6 +308,42 @@ private fun NodeTypeRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterChipRow(
+    options: List<String>,
+    selectedOption: String?,
+    onOptionSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (options.isEmpty()) return
+
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selectedOption
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    onOptionSelected(if (isSelected) null else option)
+                },
+                label = { Text(option) },
+                leadingIcon = if (isSelected) {
+                    {
+                        Icon(
+                            imageVector = Icons.Filled.Done,
+                            contentDescription = null,
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    }
+                } else null
+            )
         }
     }
 }
