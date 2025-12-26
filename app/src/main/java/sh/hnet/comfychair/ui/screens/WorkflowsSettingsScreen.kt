@@ -301,7 +301,7 @@ fun WorkflowsSettingsScreen(
             onDescriptionChange = viewModel::onUploadDescriptionChange,
             descriptionError = uiState.uploadDescriptionError,
             isValidating = uiState.isValidatingNodes,
-            onConfirm = { viewModel.proceedWithUpload(ConnectionManager.client) },
+            onConfirm = { viewModel.proceedWithUpload(context, ConnectionManager.client) },
             onDismiss = viewModel::cancelUpload
         )
     }

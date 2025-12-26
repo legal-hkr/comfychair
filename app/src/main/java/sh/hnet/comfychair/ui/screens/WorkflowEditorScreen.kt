@@ -424,7 +424,7 @@ fun WorkflowEditorScreen(
                     val centerY = (uiState.graphBounds.minY + uiState.graphBounds.maxY) / 2
                     viewModel.showNodeBrowser(Offset(centerX, centerY))
                 },
-                onDone = { viewModel.showSaveDialog() }
+                onDone = { viewModel.showSaveDialog(context) }
             )
         }
 

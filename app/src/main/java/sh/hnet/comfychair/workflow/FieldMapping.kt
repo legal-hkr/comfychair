@@ -1,8 +1,10 @@
 package sh.hnet.comfychair.workflow
 
-import sh.hnet.comfychair.WorkflowType
+import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.R
+import sh.hnet.comfychair.WorkflowType
 
 /**
  * Represents a required field that needs to be mapped to a node in the workflow.
@@ -199,44 +201,91 @@ sealed class NodeValidationResult {
 
 /**
  * Registry of display names and descriptions for required fields.
+ * Uses string resource IDs for internationalization support.
  */
 object FieldDisplayRegistry {
 
-    private val FIELD_INFO = mapOf(
-        "positive_text" to Pair("Positive Prompt", "The text prompt for generation"),
-        "negative_text" to Pair("Negative Prompt", "Text describing what to avoid in generation"),
-        "ckpt_name" to Pair("Checkpoint", "The checkpoint model to use"),
-        "unet_name" to Pair("UNET Model", "The diffusion model to use"),
-        "vae_name" to Pair("VAE", "The VAE encoder/decoder"),
-        "clip_name" to Pair("CLIP", "The CLIP text encoder"),
-        "clip_name1" to Pair("CLIP 1 (T5)", "First CLIP text encoder (T5-XXL for Flux)"),
-        "clip_name2" to Pair("CLIP 2 (L)", "Second CLIP text encoder (L for Flux)"),
-        "width" to Pair("Width", "Output image width"),
-        "height" to Pair("Height", "Output image height"),
-        "steps" to Pair("Steps", "Number of sampling steps"),
-        "cfg" to Pair("CFG Scale", "Classifier-free guidance scale"),
-        "sampler_name" to Pair("Sampler", "Sampling algorithm"),
-        "scheduler" to Pair("Scheduler", "Noise scheduling method"),
-        "megapixels" to Pair("Megapixels", "Target size in megapixels"),
-        "lora_name" to Pair("LoRA", "LoRA adapter model"),
-        "length" to Pair("Length", "Video length in frames"),
-        "frame_rate" to Pair("Frame Rate", "Video frames per second"),
-        "image" to Pair("Input Image", "Source image for generation")
+    // Map placeholder/field key to (displayNameResId, descriptionResId)
+    private val FIELD_RES_IDS: Map<String, Pair<Int, Int>> = mapOf(
+        // Prompt fields - map BOTH placeholder names AND internal keys
+        "positive_prompt" to Pair(R.string.field_positive_prompt, R.string.field_desc_positive_prompt),
+        "positive_text" to Pair(R.string.field_positive_prompt, R.string.field_desc_positive_prompt),
+        "negative_prompt" to Pair(R.string.field_negative_prompt, R.string.field_desc_negative_prompt),
+        "negative_text" to Pair(R.string.field_negative_prompt, R.string.field_desc_negative_prompt),
+        // Model fields
+        "ckpt_name" to Pair(R.string.label_checkpoint, R.string.field_desc_checkpoint),
+        "unet_name" to Pair(R.string.field_unet_model, R.string.field_desc_unet),
+        "vae_name" to Pair(R.string.label_vae, R.string.field_desc_vae),
+        "clip_name" to Pair(R.string.label_clip, R.string.field_desc_clip),
+        "clip_name1" to Pair(R.string.field_clip1, R.string.field_desc_clip1),
+        "clip_name2" to Pair(R.string.field_clip2, R.string.field_desc_clip2),
+        // Dimension fields
+        "width" to Pair(R.string.label_width, R.string.field_desc_width),
+        "height" to Pair(R.string.label_height, R.string.field_desc_height),
+        "megapixels" to Pair(R.string.megapixels_label, R.string.field_desc_megapixels),
+        // Sampling fields
+        "steps" to Pair(R.string.label_steps, R.string.field_desc_steps),
+        "cfg" to Pair(R.string.field_cfg_scale, R.string.field_desc_cfg),
+        "sampler_name" to Pair(R.string.label_sampler, R.string.field_desc_sampler),
+        "scheduler" to Pair(R.string.label_scheduler, R.string.field_desc_scheduler),
+        // LoRA fields
+        "lora_name" to Pair(R.string.label_lora, R.string.field_desc_lora),
+        // Video fields
+        "length" to Pair(R.string.length_label, R.string.field_desc_length),
+        "frame_rate" to Pair(R.string.field_frame_rate, R.string.field_desc_frame_rate),
+        "fps" to Pair(R.string.field_frame_rate, R.string.field_desc_frame_rate),
+        // Image fields
+        "image" to Pair(R.string.field_input_image, R.string.field_desc_image),
+        "image_filename" to Pair(R.string.field_input_image, R.string.field_desc_image)
     )
 
-    fun getDisplayName(fieldKey: String): String {
-        return FIELD_INFO[fieldKey]?.first ?: fieldKey.replaceFirstChar { it.uppercase() }
+    /**
+     * Get the string resource ID for a field's display name.
+     * Returns null if no mapping exists.
+     */
+    fun getDisplayNameResId(fieldKey: String): Int? = FIELD_RES_IDS[fieldKey]?.first
+
+    /**
+     * Get the string resource ID for a field's description.
+     * Returns null if no mapping exists.
+     */
+    fun getDescriptionResId(fieldKey: String): Int? = FIELD_RES_IDS[fieldKey]?.second
+
+    /**
+     * Get the display name for a field using Context.
+     * Falls back to formatting the field key if no mapping exists.
+     */
+    fun getDisplayName(context: Context, fieldKey: String): String {
+        val resId = getDisplayNameResId(fieldKey)
+        return if (resId != null) {
+            context.getString(resId)
+        } else {
+            // Fallback: convert "field_name" to "Field name"
+            fieldKey.replace("_", " ").replaceFirstChar { it.uppercase() }
+        }
     }
 
-    fun getDescription(fieldKey: String): String {
-        return FIELD_INFO[fieldKey]?.second ?: "Required field: $fieldKey"
+    /**
+     * Get the description for a field using Context.
+     * Falls back to a generic description if no mapping exists.
+     */
+    fun getDescription(context: Context, fieldKey: String): String {
+        val resId = getDescriptionResId(fieldKey)
+        return if (resId != null) {
+            context.getString(resId)
+        } else {
+            context.getString(R.string.field_desc_fallback, fieldKey)
+        }
     }
 
-    fun createRequiredField(fieldKey: String): RequiredField {
+    /**
+     * Create a RequiredField with localized display name and description.
+     */
+    fun createRequiredField(context: Context, fieldKey: String): RequiredField {
         return RequiredField(
             fieldKey = fieldKey,
-            displayName = getDisplayName(fieldKey),
-            description = getDescription(fieldKey)
+            displayName = getDisplayName(context, fieldKey),
+            description = getDescription(context, fieldKey)
         )
     }
 }

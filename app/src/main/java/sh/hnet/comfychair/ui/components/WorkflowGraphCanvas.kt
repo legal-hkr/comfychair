@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
@@ -138,6 +139,12 @@ fun WorkflowGraphCanvas(
 
     // Get UI field prefix for template display names
     val uiFieldPrefix = stringResource(R.string.node_editor_ui_field_prefix)
+
+    // Create display name resolver using Context for localized field names
+    val context = LocalContext.current
+    val displayNameResolver: (String) -> String = remember(context) {
+        { fieldKey -> FieldDisplayRegistry.getDisplayName(context, fieldKey) }
+    }
 
     // Extract theme colors
     val isDarkTheme = isSystemInDarkTheme()
@@ -374,6 +381,7 @@ fun WorkflowGraphCanvas(
                     nodeEdits = nodeEdits,
                     editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
                     uiFieldPrefix = uiFieldPrefix,
+                    displayNameResolver = displayNameResolver,
                     inputWireColors = nodeInputColors[node.id] ?: emptyMap()
                 )
             }
@@ -484,6 +492,7 @@ private fun DrawScope.drawNode(
     nodeEdits: Map<String, Any> = emptyMap(),
     editableInputNames: Set<String> = emptySet(),
     uiFieldPrefix: String = "UI: %1\$s",
+    displayNameResolver: (String) -> String = { it },
     inputWireColors: Map<String, Int> = emptyMap()
 ) {
     // Determine border color and width based on highlight state
@@ -624,7 +633,7 @@ private fun DrawScope.drawNode(
 
             // Only show value string for literal inputs (not connection-type)
             val valueStr = if (!isConnectionInput) {
-                currentValue?.let { formatInputValue(it, uiFieldPrefix) }
+                currentValue?.let { formatInputValue(it, uiFieldPrefix, displayNameResolver) }
             } else {
                 null
             }
@@ -885,16 +894,20 @@ private fun truncateText(text: String, maxWidth: Float, paint: Paint): String {
  * Format an input value for display.
  * Template placeholders like {{clip_name}} are converted to UI display names.
  */
-private fun formatInputValue(value: Any, uiFieldPrefix: String): String {
+private fun formatInputValue(
+    value: Any,
+    uiFieldPrefix: String,
+    displayNameResolver: (String) -> String
+): String {
     return when (value) {
         is String -> {
             // Check for template pattern {{placeholder_name}}
             val templateRegex = Regex("""\{\{(\w+)\}\}""")
             val match = templateRegex.matchEntire(value)
             if (match != null) {
-                // Extract placeholder name and get display name
+                // Extract placeholder name and get display name using resolver
                 val placeholderName = match.groupValues[1]
-                val displayName = FieldDisplayRegistry.getDisplayName(placeholderName)
+                val displayName = displayNameResolver(placeholderName)
                 uiFieldPrefix.format(displayName)
             } else if (value.length > 20) {
                 "\"${value.take(17)}...\""

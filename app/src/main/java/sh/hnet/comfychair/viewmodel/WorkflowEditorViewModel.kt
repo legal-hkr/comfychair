@@ -596,7 +596,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * For edit-existing mode, skips the dialog and proceeds directly to validation.
      * Auto-detects workflow type from graph nodes.
      */
-    fun showSaveDialog() {
+    fun showSaveDialog(context: Context) {
         val state = _uiState.value
         val hasExistingWorkflow = state.editingWorkflowId != null
         DebugLogger.i(TAG, "showSaveDialog: hasExistingWorkflow=$hasExistingWorkflow")
@@ -615,7 +615,7 @@ class WorkflowEditorViewModel : ViewModel() {
         // For existing workflow, skip the dialog and proceed directly to validation
         if (hasExistingWorkflow) {
             DebugLogger.i(TAG, "showSaveDialog: Existing workflow, skipping dialog")
-            proceedWithEditExistingSave()
+            proceedWithEditExistingSave(context)
             return
         }
 
@@ -846,7 +846,7 @@ class WorkflowEditorViewModel : ViewModel() {
                 DebugLogger.d(TAG, "proceedWithSave: All nodes validated, creating field mappings")
 
                 // Create field mapping state from graph
-                val mappingState = createFieldMappingStateFromGraph(graph, selectedType)
+                val mappingState = createFieldMappingStateFromGraph(context, graph, selectedType)
 
                 // Check if all fields can be mapped
                 if (!mappingState.allFieldsMapped) {
@@ -887,7 +887,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Proceed with saving an edited existing workflow.
      * Skips save dialog since we already have metadata, uses stored workflow type.
      */
-    private fun proceedWithEditExistingSave() {
+    private fun proceedWithEditExistingSave(context: Context) {
         DebugLogger.i(TAG, "proceedWithEditExistingSave: Starting validation for edit-existing mode")
         val state = _uiState.value
         val graph = mutableGraph?.toImmutable()
@@ -948,7 +948,7 @@ class WorkflowEditorViewModel : ViewModel() {
                 DebugLogger.d(TAG, "proceedWithEditExistingSave: All nodes validated, creating field mappings")
 
                 // Create field mapping state from graph
-                val mappingState = createFieldMappingStateFromGraph(graph, workflowType)
+                val mappingState = createFieldMappingStateFromGraph(context, graph, workflowType)
 
                 // Check if all fields can be mapped
                 if (!mappingState.allFieldsMapped) {
@@ -988,6 +988,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Create field mapping state by analyzing graph nodes.
      */
     private fun createFieldMappingStateFromGraph(
+        context: Context,
         graph: WorkflowGraph,
         type: WorkflowType
     ): WorkflowMappingState {
@@ -1035,7 +1036,7 @@ class WorkflowEditorViewModel : ViewModel() {
             }
 
             // Get display info for this field
-            val requiredField = FieldDisplayRegistry.createRequiredField(fieldKey)
+            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey)
 
             fieldMappings.add(
                 FieldMappingState(

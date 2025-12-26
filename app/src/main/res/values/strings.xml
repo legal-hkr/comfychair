@@ -248,6 +248,38 @@
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
 
+    <!-- Field display names for workflow editor -->
+    <string name="field_positive_prompt">Positive prompt</string>
+    <string name="field_negative_prompt">Negative prompt</string>
+    <string name="field_cfg_scale">CFG scale</string>
+    <string name="field_unet_model">UNET model</string>
+    <string name="field_input_image">Input image</string>
+    <string name="field_frame_rate">Frame rate</string>
+    <string name="field_clip1">CLIP 1 (T5)</string>
+    <string name="field_clip2">CLIP 2 (L)</string>
+
+    <!-- Field descriptions for workflow editor -->
+    <string name="field_desc_positive_prompt">The text prompt for generation</string>
+    <string name="field_desc_negative_prompt">Text describing what to avoid</string>
+    <string name="field_desc_checkpoint">The checkpoint model to use</string>
+    <string name="field_desc_unet">The diffusion model to use</string>
+    <string name="field_desc_vae">The VAE encoder/decoder</string>
+    <string name="field_desc_clip">The CLIP text encoder</string>
+    <string name="field_desc_clip1">First CLIP encoder (T5-XXL for Flux)</string>
+    <string name="field_desc_clip2">Second CLIP encoder (L for Flux)</string>
+    <string name="field_desc_width">Output image width</string>
+    <string name="field_desc_height">Output image height</string>
+    <string name="field_desc_steps">Number of sampling steps</string>
+    <string name="field_desc_cfg">Classifier-free guidance scale</string>
+    <string name="field_desc_sampler">Sampling algorithm</string>
+    <string name="field_desc_scheduler">Noise scheduling method</string>
+    <string name="field_desc_megapixels">Target size in megapixels</string>
+    <string name="field_desc_lora">LoRA adapter model</string>
+    <string name="field_desc_length">Video length in frames</string>
+    <string name="field_desc_frame_rate">Video frames per second</string>
+    <string name="field_desc_image">Source image for generation</string>
+    <string name="field_desc_fallback">Required field: %1$s</string>
+
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Application</string>
     <string name="nav_server_settings">Server</string>

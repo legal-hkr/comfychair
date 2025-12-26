@@ -402,4 +402,36 @@
     <string name="workflow_editor_done">Listo</string>
     <string name="workflow_editor_discard_title">¿Descartar flujo de trabajo?</string>
     <string name="workflow_editor_discard_message">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>
+
+    <!-- Field display names for workflow editor -->
+    <string name="field_positive_prompt">Prompt positivo</string>
+    <string name="field_negative_prompt">Prompt negativo</string>
+    <string name="field_cfg_scale">Escala CFG</string>
+    <string name="field_unet_model">Modelo UNET</string>
+    <string name="field_input_image">Imagen de entrada</string>
+    <string name="field_frame_rate">Velocidad de fotogramas</string>
+    <string name="field_clip1">CLIP 1 (T5)</string>
+    <string name="field_clip2">CLIP 2 (L)</string>
+
+    <!-- Field descriptions for workflow editor -->
+    <string name="field_desc_positive_prompt">El prompt de texto para la generación</string>
+    <string name="field_desc_negative_prompt">Texto que describe qué evitar</string>
+    <string name="field_desc_checkpoint">El modelo checkpoint a usar</string>
+    <string name="field_desc_unet">El modelo de difusión</string>
+    <string name="field_desc_vae">El codificador/decodificador VAE</string>
+    <string name="field_desc_clip">El codificador de texto CLIP</string>
+    <string name="field_desc_clip1">Primer codificador CLIP (T5-XXL para Flux)</string>
+    <string name="field_desc_clip2">Segundo codificador CLIP (L para Flux)</string>
+    <string name="field_desc_width">Ancho de imagen de salida</string>
+    <string name="field_desc_height">Alto de imagen de salida</string>
+    <string name="field_desc_steps">Número de pasos de muestreo</string>
+    <string name="field_desc_cfg">Escala de guía sin clasificador</string>
+    <string name="field_desc_sampler">Algoritmo de muestreo</string>
+    <string name="field_desc_scheduler">Método de programación de ruido</string>
+    <string name="field_desc_megapixels">Tamaño objetivo en megapíxeles</string>
+    <string name="field_desc_lora">Modelo adaptador LoRA</string>
+    <string name="field_desc_length">Duración del video en fotogramas</string>
+    <string name="field_desc_frame_rate">Fotogramas por segundo del video</string>
+    <string name="field_desc_image">Imagen fuente para la generación</string>
+    <string name="field_desc_fallback">Campo requerido: %1$s</string>
 </resources>

@@ -402,4 +402,36 @@
     <string name="workflow_editor_done">Terminé</string>
     <string name="workflow_editor_discard_title">Abandonner le workflow ?</string>
     <string name="workflow_editor_discard_message">Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir abandonner ce workflow ?</string>
+
+    <!-- Field display names for workflow editor -->
+    <string name="field_positive_prompt">Prompt positif</string>
+    <string name="field_negative_prompt">Prompt négatif</string>
+    <string name="field_cfg_scale">Échelle CFG</string>
+    <string name="field_unet_model">Modèle UNET</string>
+    <string name="field_input_image">Image d\'entrée</string>
+    <string name="field_frame_rate">Fréquence d\'images</string>
+    <string name="field_clip1">CLIP 1 (T5)</string>
+    <string name="field_clip2">CLIP 2 (L)</string>
+
+    <!-- Field descriptions for workflow editor -->
+    <string name="field_desc_positive_prompt">Le prompt texte pour la génération</string>
+    <string name="field_desc_negative_prompt">Texte décrivant ce qu\'il faut éviter</string>
+    <string name="field_desc_checkpoint">Le modèle checkpoint à utiliser</string>
+    <string name="field_desc_unet">Le modèle de diffusion</string>
+    <string name="field_desc_vae">L\'encodeur/décodeur VAE</string>
+    <string name="field_desc_clip">L\'encodeur de texte CLIP</string>
+    <string name="field_desc_clip1">Premier encodeur CLIP (T5-XXL pour Flux)</string>
+    <string name="field_desc_clip2">Deuxième encodeur CLIP (L pour Flux)</string>
+    <string name="field_desc_width">Largeur de l\'image de sortie</string>
+    <string name="field_desc_height">Hauteur de l\'image de sortie</string>
+    <string name="field_desc_steps">Nombre d\'étapes d\'échantillonnage</string>
+    <string name="field_desc_cfg">Échelle de guidage sans classificateur</string>
+    <string name="field_desc_sampler">Algorithme d\'échantillonnage</string>
+    <string name="field_desc_scheduler">Méthode de planification du bruit</string>
+    <string name="field_desc_megapixels">Taille cible en mégapixels</string>
+    <string name="field_desc_lora">Modèle adaptateur LoRA</string>
+    <string name="field_desc_length">Durée de la vidéo en images</string>
+    <string name="field_desc_frame_rate">Images par seconde de la vidéo</string>
+    <string name="field_desc_image">Image source pour la génération</string>
+    <string name="field_desc_fallback">Champ requis : %1$s</string>
 </resources>

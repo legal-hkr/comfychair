@@ -217,7 +217,7 @@ class WorkflowManagementViewModel : ViewModel() {
     /**
      * Proceed with upload - validate and launch editor
      */
-    fun proceedWithUpload(comfyUIClient: ComfyUIClient) {
+    fun proceedWithUpload(context: Context, comfyUIClient: ComfyUIClient) {
         val state = _uiState.value
         val wm = workflowManager ?: return
 
@@ -294,6 +294,7 @@ class WorkflowManagementViewModel : ViewModel() {
 
                 // Create field mapping state
                 val mappingState = createFieldMappingState(
+                    context,
                     state.pendingUploadJsonContent,
                     selectedType
                 )
@@ -332,7 +333,7 @@ class WorkflowManagementViewModel : ViewModel() {
     /**
      * Create field mapping state by analyzing workflow JSON
      */
-    private fun createFieldMappingState(jsonContent: String, type: WorkflowType): WorkflowMappingState {
+    private fun createFieldMappingState(context: Context, jsonContent: String, type: WorkflowType): WorkflowMappingState {
         val json = try {
             JSONObject(jsonContent)
         } catch (e: Exception) {
@@ -357,7 +358,7 @@ class WorkflowManagementViewModel : ViewModel() {
             if (fieldKey == "positive_text" || fieldKey == "negative_text") {
                 val candidates = promptMappings[fieldKey] ?: emptyList()
                 FieldMappingState(
-                    field = FieldDisplayRegistry.createRequiredField(fieldKey),
+                    field = FieldDisplayRegistry.createRequiredField(context, fieldKey),
                     candidates = candidates,
                     selectedCandidateIndex = 0  // Auto-select first (which is the traced one)
                 )
@@ -388,7 +389,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 FieldMappingState(
-                    field = FieldDisplayRegistry.createRequiredField(fieldKey),
+                    field = FieldDisplayRegistry.createRequiredField(context, fieldKey),
                     candidates = candidates,
                     selectedCandidateIndex = 0  // Auto-select first
                 )

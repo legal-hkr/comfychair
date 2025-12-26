@@ -402,4 +402,36 @@
     <string name="workflow_editor_done">Fertig</string>
     <string name="workflow_editor_discard_title">Workflow verwerfen?</string>
     <string name="workflow_editor_discard_message">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>
+
+    <!-- Field display names for workflow editor -->
+    <string name="field_positive_prompt">Positiver Prompt</string>
+    <string name="field_negative_prompt">Negativer Prompt</string>
+    <string name="field_cfg_scale">CFG-Skala</string>
+    <string name="field_unet_model">UNET-Modell</string>
+    <string name="field_input_image">Eingabebild</string>
+    <string name="field_frame_rate">Bildrate</string>
+    <string name="field_clip1">CLIP 1 (T5)</string>
+    <string name="field_clip2">CLIP 2 (L)</string>
+
+    <!-- Field descriptions for workflow editor -->
+    <string name="field_desc_positive_prompt">Der Text-Prompt für die Generierung</string>
+    <string name="field_desc_negative_prompt">Text, der beschreibt, was vermieden werden soll</string>
+    <string name="field_desc_checkpoint">Das zu verwendende Checkpoint-Modell</string>
+    <string name="field_desc_unet">Das Diffusionsmodell</string>
+    <string name="field_desc_vae">Der VAE-Encoder/Decoder</string>
+    <string name="field_desc_clip">Der CLIP-Textencoder</string>
+    <string name="field_desc_clip1">Erster CLIP-Encoder (T5-XXL für Flux)</string>
+    <string name="field_desc_clip2">Zweiter CLIP-Encoder (L für Flux)</string>
+    <string name="field_desc_width">Ausgabebildbreite</string>
+    <string name="field_desc_height">Ausgabebildhöhe</string>
+    <string name="field_desc_steps">Anzahl der Sampling-Schritte</string>
+    <string name="field_desc_cfg">Classifier-Free Guidance Skala</string>
+    <string name="field_desc_sampler">Sampling-Algorithmus</string>
+    <string name="field_desc_scheduler">Rausch-Scheduling-Methode</string>
+    <string name="field_desc_megapixels">Zielgröße in Megapixeln</string>
+    <string name="field_desc_lora">LoRA-Adaptermodell</string>
+    <string name="field_desc_length">Videolänge in Frames</string>
+    <string name="field_desc_frame_rate">Video-Frames pro Sekunde</string>
+    <string name="field_desc_image">Quellbild für die Generierung</string>
+    <string name="field_desc_fallback">Erforderliches Feld: %1$s</string>
 </resources>

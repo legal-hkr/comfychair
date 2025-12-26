@@ -402,4 +402,36 @@
     <string name="workflow_editor_done">Gotowe</string>
     <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
     <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>
+
+    <!-- Field display names for workflow editor -->
+    <string name="field_positive_prompt">Pozytywny prompt</string>
+    <string name="field_negative_prompt">Negatywny prompt</string>
+    <string name="field_cfg_scale">Skala CFG</string>
+    <string name="field_unet_model">Model UNET</string>
+    <string name="field_input_image">Obraz wejściowy</string>
+    <string name="field_frame_rate">Liczba klatek</string>
+    <string name="field_clip1">CLIP 1 (T5)</string>
+    <string name="field_clip2">CLIP 2 (L)</string>
+
+    <!-- Field descriptions for workflow editor -->
+    <string name="field_desc_positive_prompt">Tekstowy prompt do generowania</string>
+    <string name="field_desc_negative_prompt">Tekst opisujący, czego unikać</string>
+    <string name="field_desc_checkpoint">Model checkpoint do użycia</string>
+    <string name="field_desc_unet">Model dyfuzyjny</string>
+    <string name="field_desc_vae">Koder/dekoder VAE</string>
+    <string name="field_desc_clip">Koder tekstowy CLIP</string>
+    <string name="field_desc_clip1">Pierwszy koder CLIP (T5-XXL dla Flux)</string>
+    <string name="field_desc_clip2">Drugi koder CLIP (L dla Flux)</string>
+    <string name="field_desc_width">Szerokość obrazu wyjściowego</string>
+    <string name="field_desc_height">Wysokość obrazu wyjściowego</string>
+    <string name="field_desc_steps">Liczba kroków próbkowania</string>
+    <string name="field_desc_cfg">Skala prowadzenia bez klasyfikatora</string>
+    <string name="field_desc_sampler">Algorytm próbkowania</string>
+    <string name="field_desc_scheduler">Metoda harmonogramowania szumu</string>
+    <string name="field_desc_megapixels">Docelowy rozmiar w megapikselach</string>
+    <string name="field_desc_lora">Model adaptera LoRA</string>
+    <string name="field_desc_length">Długość wideo w klatkach</string>
+    <string name="field_desc_frame_rate">Klatki na sekundę wideo</string>
+    <string name="field_desc_image">Obraz źródłowy do generowania</string>
+    <string name="field_desc_fallback">Wymagane pole: %1$s</string>
 </resources>

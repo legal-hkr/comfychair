@@ -402,4 +402,36 @@
     <string name="workflow_editor_done">完成</string>
     <string name="workflow_editor_discard_title">放弃工作流？</string>
     <string name="workflow_editor_discard_message">您有未保存的更改。确定要放弃此工作流吗？</string>
+
+    <!-- Field display names for workflow editor -->
+    <string name="field_positive_prompt">正向提示词</string>
+    <string name="field_negative_prompt">负向提示词</string>
+    <string name="field_cfg_scale">CFG 比例</string>
+    <string name="field_unet_model">UNET 模型</string>
+    <string name="field_input_image">输入图像</string>
+    <string name="field_frame_rate">帧率</string>
+    <string name="field_clip1">CLIP 1 (T5)</string>
+    <string name="field_clip2">CLIP 2 (L)</string>
+
+    <!-- Field descriptions for workflow editor -->
+    <string name="field_desc_positive_prompt">用于生成的文本提示词</string>
+    <string name="field_desc_negative_prompt">描述要避免内容的文本</string>
+    <string name="field_desc_checkpoint">要使用的检查点模型</string>
+    <string name="field_desc_unet">扩散模型</string>
+    <string name="field_desc_vae">VAE 编码器/解码器</string>
+    <string name="field_desc_clip">CLIP 文本编码器</string>
+    <string name="field_desc_clip1">第一个 CLIP 编码器（Flux 用 T5-XXL）</string>
+    <string name="field_desc_clip2">第二个 CLIP 编码器（Flux 用 L）</string>
+    <string name="field_desc_width">输出图像宽度</string>
+    <string name="field_desc_height">输出图像高度</string>
+    <string name="field_desc_steps">采样步数</string>
+    <string name="field_desc_cfg">无分类器引导比例</string>
+    <string name="field_desc_sampler">采样算法</string>
+    <string name="field_desc_scheduler">噪声调度方法</string>
+    <string name="field_desc_megapixels">目标大小（百万像素）</string>
+    <string name="field_desc_lora">LoRA 适配器模型</string>
+    <string name="field_desc_length">视频长度（帧数）</string>
+    <string name="field_desc_frame_rate">视频每秒帧数</string>
+    <string name="field_desc_image">用于生成的源图像</string>
+    <string name="field_desc_fallback">必填字段：%1$s</string>
 </resources>
