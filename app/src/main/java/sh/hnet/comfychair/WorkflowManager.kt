@@ -500,7 +500,7 @@ class WorkflowManager(private val context: Context) {
 
         // Check for duplicate name
         if (isWorkflowNameTaken(newName)) {
-            return Result.failure(Exception(context.getString(R.string.duplicate_name_message)))
+            return Result.failure(Exception("A workflow with this name already exists"))
         }
 
         // Generate filename for the new workflow
@@ -531,7 +531,7 @@ class WorkflowManager(private val context: Context) {
         try {
             file.writeText(updatedJsonContent)
         } catch (e: Exception) {
-            return Result.failure(Exception(context.getString(R.string.workflow_error_save_failed, e.message ?: "")))
+            return Result.failure(Exception("Failed to save workflow: ${e.message ?: ""}"))
         }
 
         // Create the new workflow entry
@@ -808,7 +808,7 @@ class WorkflowManager(private val context: Context) {
 
         // Check for duplicate filename
         if (isFilenameExists(filename)) {
-            return Result.failure(Exception(context.getString(R.string.workflow_error_duplicate_filename)))
+            return Result.failure(Exception("Workflow with this name already exists"))
         }
 
         // Save file
@@ -819,7 +819,7 @@ class WorkflowManager(private val context: Context) {
         try {
             file.writeText(finalJson.toString(2))
         } catch (e: Exception) {
-            return Result.failure(Exception(context.getString(R.string.workflow_error_save_failed, e.message ?: "")))
+            return Result.failure(Exception("Failed to save workflow: ${e.message ?: ""}"))
         }
 
         // Save metadata
@@ -860,7 +860,7 @@ class WorkflowManager(private val context: Context) {
             ?: return Result.failure(Exception("Workflow not found"))
 
         if (existingWorkflow.isBuiltIn) {
-            return Result.failure(Exception(context.getString(R.string.error_cannot_edit_builtin)))
+            return Result.failure(Exception("Cannot edit built-in workflows"))
         }
 
         // Parse JSON
@@ -1009,7 +1009,7 @@ class WorkflowManager(private val context: Context) {
         val json = try {
             JSONObject(jsonContent)
         } catch (e: Exception) {
-            return Result.failure(Exception(context.getString(R.string.error_invalid_json, e.message ?: "")))
+            return Result.failure(Exception("Invalid JSON: ${e.message ?: ""}"))
         }
 
         // Check if already wrapped (has "nodes" object at top level)
@@ -1017,7 +1017,7 @@ class WorkflowManager(private val context: Context) {
 
         // Auto-detect type from content
         val type = detectWorkflowType(jsonContent)
-            ?: return Result.failure(Exception(context.getString(R.string.error_cannot_determine_workflow_type)))
+            ?: return Result.failure(Exception("Cannot determine workflow type"))
 
         // Wrap if needed
         val finalJson = if (isWrapped) {
@@ -1051,10 +1051,10 @@ class WorkflowManager(private val context: Context) {
             val errorMessage = when (validationResult) {
                 is WorkflowValidationResult.InvalidJson -> validationResult.message
                 is WorkflowValidationResult.MissingPlaceholders ->
-                    context.getString(R.string.workflow_error_missing_placeholders, validationResult.missing.joinToString(", "))
+                    "Missing placeholders: ${validationResult.missing.joinToString(", ")}"
                 is WorkflowValidationResult.MissingKeys ->
-                    context.getString(R.string.workflow_error_missing_inputs, validationResult.missing.joinToString(", "))
-                else -> context.getString(R.string.error_unknown)
+                    "Missing inputs: ${validationResult.missing.joinToString(", ")}"
+                else -> "Unknown error"
             }
             return Result.failure(Exception(errorMessage))
         }
@@ -1076,7 +1076,7 @@ class WorkflowManager(private val context: Context) {
         try {
             file.writeText(finalJson)
         } catch (e: Exception) {
-            return Result.failure(Exception(context.getString(R.string.workflow_error_save_failed, e.message ?: "")))
+            return Result.failure(Exception("Failed to save workflow: ${e.message ?: ""}"))
         }
 
         // Save metadata

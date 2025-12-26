@@ -2,6 +2,9 @@ package sh.hnet.comfychair.ui.components
 
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -113,7 +116,8 @@ fun WorkflowGraphCanvas(
     onNodeTapped: ((String) -> Unit)? = null,
     onTapOutsideNodes: (() -> Unit)? = null,
     onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
-    onInputSlotTapped: ((SlotPosition) -> Unit)? = null
+    onInputSlotTapped: ((SlotPosition) -> Unit)? = null,
+    onRenameNodeTapped: ((String) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -145,6 +149,11 @@ fun WorkflowGraphCanvas(
     val context = LocalContext.current
     val displayNameResolver: (String) -> String = remember(context) {
         { fieldKey -> FieldDisplayRegistry.getDisplayName(context, fieldKey) }
+    }
+
+    // Load edit icon drawable
+    val editIconDrawable = remember(context) {
+        ContextCompat.getDrawable(context, R.drawable.edit_24px)
     }
 
     // Extract theme colors
@@ -220,10 +229,14 @@ fun WorkflowGraphCanvas(
         }
     }
 
+    // Edit icon hit area constants
+    val editIconSize = 32f
+    val editIconPadding = 12f
+
     Canvas(
         modifier = modifier
-            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped) {
-                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped) {
+                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
@@ -274,6 +287,24 @@ fun WorkflowGraphCanvas(
                                         onOutputSlotTapped(slotPosition)
                                         return@detectTapGestures
                                     }
+                                }
+                            }
+                        }
+
+                        // In edit mode, check for taps on the edit icon in node headers
+                        if (inEditMode && onRenameNodeTapped != null) {
+                            val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+                            for (node in graph.nodes) {
+                                // Edit icon is in the top-right corner of the header
+                                val iconRight = node.x + node.width - 8f
+                                val iconLeft = iconRight - 32f
+                                val iconTop = node.y + 8f
+                                val iconBottom = node.y + headerHeight - 8f
+
+                                if (graphX >= iconLeft && graphX <= iconRight &&
+                                    graphY >= iconTop && graphY <= iconBottom) {
+                                    onRenameNodeTapped(node.id)
+                                    return@detectTapGestures
                                 }
                             }
                         }
@@ -384,7 +415,9 @@ fun WorkflowGraphCanvas(
                     editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
                     uiFieldPrefix = uiFieldPrefix,
                     displayNameResolver = displayNameResolver,
-                    inputWireColors = nodeInputColors[node.id] ?: emptyMap()
+                    inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
+                    showEditIcon = isEditMode,
+                    editIconDrawable = editIconDrawable
                 )
             }
 
@@ -495,7 +528,9 @@ private fun DrawScope.drawNode(
     editableInputNames: Set<String> = emptySet(),
     uiFieldPrefix: String = "UI: %1\$s",
     displayNameResolver: (String) -> String = { it },
-    inputWireColors: Map<String, Int> = emptyMap()
+    inputWireColors: Map<String, Int> = emptyMap(),
+    showEditIcon: Boolean = false,
+    editIconDrawable: Drawable? = null
 ) {
     // Determine border color and width based on highlight state
     val (borderColor, borderWidth) = when (highlightState) {
@@ -565,15 +600,32 @@ private fun DrawScope.drawNode(
     val headerColorArgb = headerColor.toArgb()
 
     drawContext.canvas.nativeCanvas.apply {
-        // Title text
+        // Title text - leave space for edit icon if shown
+        val titleMaxWidth = if (showEditIcon) node.width - 56f else node.width - 32f
         val titlePaint = Paint().apply {
             color = textPrimaryArgb
             textSize = 24f
             typeface = Typeface.DEFAULT_BOLD
             isAntiAlias = true
         }
-        val title = truncateText(node.title, node.width - 32f, titlePaint)
+        val title = truncateText(node.title, titleMaxWidth, titlePaint)
         drawText(title, node.x + 16f, node.y + 40f, titlePaint)
+
+        // Draw edit icon in top-right corner of header when in edit mode
+        if (showEditIcon && editIconDrawable != null) {
+            val iconSize = 40
+            val iconLeft = (node.x + node.width - 48f).toInt()
+            val iconTop = (node.y + 12f).toInt()
+
+            // Clone the drawable to avoid mutating the cached version
+            val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
+            if (iconCopy != null) {
+                // Tint with the text secondary color
+                DrawableCompat.setTint(iconCopy, textSecondaryArgb)
+                iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
+                iconCopy.draw(this)
+            }
+        }
 
         // Input labels
         val inputPaint = Paint().apply {

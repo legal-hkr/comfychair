@@ -208,6 +208,9 @@
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
     <string name="node_editor_image_load_error">Nie udało się załadować obrazu</string>
+    <string name="node_editor_rename">Zmień nazwę węzła</string>
+    <string name="node_editor_rename_title">Zmień nazwę węzła</string>
+    <string name="node_editor_rename_label">Nazwa węzła</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplikacja</string>

@@ -1204,7 +1204,7 @@ class WorkflowEditorViewModel : ViewModel() {
             return
         }
 
-        DebugLogger.d(TAG, "confirmMappingAndSave: Saving '${pending.name}' as ${pending.type}, isEditExistingMode=${state.isEditExistingMode}")
+        DebugLogger.d(TAG, "confirmMappingAndSave: Saving '${pending.name}' as ${pending.type}, editingWorkflowId=${state.editingWorkflowId}")
 
         // Convert mappings to the format expected by WorkflowManager
         val fieldMappings = mutableMapOf<String, Pair<String, String>>()
@@ -1222,8 +1222,8 @@ class WorkflowEditorViewModel : ViewModel() {
         val jsonContent = serializer.serialize(pending.graph)
         DebugLogger.d(TAG, "confirmMappingAndSave: JSON length=${jsonContent.length}")
 
-        // Save using WorkflowManager - different path for edit-existing vs create
-        val result = if (state.isEditExistingMode && state.editingWorkflowId != null) {
+        // Save using WorkflowManager - update if editing existing workflow, create if new
+        val result = if (state.editingWorkflowId != null) {
             DebugLogger.i(TAG, "confirmMappingAndSave: Calling WorkflowManager.updateUserWorkflowWithMapping for id=${state.editingWorkflowId}")
             workflowManager.updateUserWorkflowWithMapping(
                 workflowId = state.editingWorkflowId,
@@ -1245,7 +1245,7 @@ class WorkflowEditorViewModel : ViewModel() {
             if (result.isSuccess) {
                 val savedWorkflow = result.getOrThrow()
                 DebugLogger.i(TAG, "confirmMappingAndSave: Workflow saved successfully with id=${savedWorkflow.id}")
-                if (state.isEditExistingMode) {
+                if (state.editingWorkflowId != null) {
                     _events.emit(WorkflowEditorEvent.WorkflowUpdated(savedWorkflow.id))
                 } else {
                     _events.emit(WorkflowEditorEvent.WorkflowCreated(savedWorkflow.id))
@@ -1626,6 +1626,49 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         _uiState.value = state.copy(nodeAttributeEdits = currentEdits)
+    }
+
+    /**
+     * Rename a node (change its title/display name).
+     */
+    fun renameNode(nodeId: String, newTitle: String) {
+        val state = _uiState.value
+        val graph = state.graph ?: return
+
+        // Find the node and create a renamed copy
+        val updatedNodes = graph.nodes.map { node ->
+            if (node.id == nodeId) {
+                node.copy(title = newTitle)
+            } else {
+                node
+            }
+        }
+
+        val updatedGraph = graph.copy(nodes = updatedNodes)
+
+        // Update selected node if it's the one being renamed
+        val updatedSelectedNode = state.selectedNodeForEditing?.let { selected ->
+            if (selected.id == nodeId) {
+                selected.copy(title = newTitle)
+            } else {
+                selected
+            }
+        }
+
+        // Also update mutableGraph so the change is persisted when saving
+        mutableGraph?.let { mGraph ->
+            val nodeIndex = mGraph.nodes.indexOfFirst { it.id == nodeId }
+            if (nodeIndex >= 0) {
+                val oldNode = mGraph.nodes[nodeIndex]
+                mGraph.nodes[nodeIndex] = oldNode.copy(title = newTitle)
+            }
+        }
+
+        _uiState.value = state.copy(
+            graph = updatedGraph,
+            selectedNodeForEditing = updatedSelectedNode,
+            hasUnsavedChanges = true
+        )
     }
 
     /**

@@ -208,6 +208,9 @@
     <string name="node_editor_range_max">Máx: %1$s</string>
     <string name="node_editor_ui_field_prefix">IU: %1$s</string>
     <string name="node_editor_image_load_error">Error al cargar imagen</string>
+    <string name="node_editor_rename">Renombrar nodo</string>
+    <string name="node_editor_rename_title">Renombrar nodo</string>
+    <string name="node_editor_rename_label">Nombre del nodo</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplicación</string>

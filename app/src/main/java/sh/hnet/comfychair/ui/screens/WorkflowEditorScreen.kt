@@ -62,6 +62,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
 import kotlinx.coroutines.launch
@@ -118,6 +119,11 @@ fun WorkflowEditorScreen(
     val shouldAnimateZoomChange = remember { mutableStateOf(false) }
     // Flag to track if a zoom animation is currently in progress
     val isAnimatingZoom = remember { mutableStateOf(false) }
+
+    // Node rename dialog state
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameDialogText by remember { mutableStateOf("") }
+    var renamingNodeId by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -315,6 +321,15 @@ fun WorkflowEditorScreen(
                                 // Connect to this input and exit connection mode
                                 viewModel.connectToInput(inputSlot)
                             },
+                            onRenameNodeTapped = { nodeId ->
+                                // Find the node and open rename dialog
+                                val node = uiState.graph?.nodes?.find { it.id == nodeId }
+                                if (node != null) {
+                                    renamingNodeId = nodeId
+                                    renameDialogText = node.title
+                                    showRenameDialog = true
+                                }
+                            },
                             onTransform = { scale, offset ->
                                 viewModel.onTransform(scale, offset)
                             },
@@ -497,6 +512,51 @@ fun WorkflowEditorScreen(
             DiscardConfirmationDialog(
                 onConfirm = { viewModel.confirmDiscard() },
                 onDismiss = { viewModel.dismissDiscardConfirmation() }
+            )
+        }
+
+        // Node rename dialog
+        if (showRenameDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showRenameDialog = false
+                    renamingNodeId = null
+                },
+                title = { Text(stringResource(R.string.node_editor_rename_title)) },
+                text = {
+                    OutlinedTextField(
+                        value = renameDialogText,
+                        onValueChange = { renameDialogText = it },
+                        label = { Text(stringResource(R.string.node_editor_rename_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val nodeId = renamingNodeId
+                            if (nodeId != null && renameDialogText.isNotBlank()) {
+                                viewModel.renameNode(nodeId, renameDialogText.trim())
+                                showRenameDialog = false
+                                renamingNodeId = null
+                            }
+                        },
+                        enabled = renameDialogText.isNotBlank()
+                    ) {
+                        Text(stringResource(R.string.button_save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showRenameDialog = false
+                            renamingNodeId = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.button_cancel))
+                    }
+                }
             )
         }
 
