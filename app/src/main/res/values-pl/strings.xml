@@ -237,6 +237,8 @@
     <string name="button_delete">Usuń</string>
     <string name="button_cancel">Anuluj</string>
     <string name="edit">Edytuj</string>
+    <string name="edit_structure">Edytuj strukturę</string>
+    <string name="error_cannot_edit_builtin">Wbudowane workflow nie mogą być edytowane</string>
     <string name="delete">Usuń</string>
     <string name="workflow_error_invalid_json">Nieprawidłowy format JSON</string>
     <string name="workflow_upload_success">Workflow wgrany</string>
@@ -373,4 +375,31 @@
     <string name="debug_log_follow">Śledź</string>
     <string name="debug_log_saved">Log zapisany pomyślnie</string>
     <string name="debug_log_save_failed">Nie udało się zapisać logu</string>
+
+    <!-- Missing translations -->
+    <string name="view_workflow">Zobacz workflow</string>
+    <string name="button_discard">Odrzuć</string>
+    <string name="button_new_workflow">Nowy workflow</string>
+    <string name="save_workflow_title">Zapisz nowy workflow</string>
+    <string name="error_invalid_integer">Musi być liczbą całkowitą</string>
+    <string name="error_invalid_option">Nieprawidłowa opcja</string>
+    <string name="error_string_too_long">Maksymalna długość: %1$d</string>
+    <string name="error_value_min">Minimum: %1$d</string>
+    <string name="error_value_max">Maksimum: %1$d</string>
+    <string name="error_value_min_float">Minimum: %1$.2f</string>
+    <string name="error_value_max_float">Maksimum: %1$.2f</string>
+    <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_title">Dodaj węzeł</string>
+    <string name="node_browser_search_placeholder">Szukaj węzłów…</string>
+    <string name="node_browser_no_results">Nie znaleziono pasujących węzłów</string>
+    <string name="node_browser_io_info">%1$d wejść, %2$d wyjść</string>
+    <string name="workflow_editor_enter_edit_mode">Edytuj graf</string>
+    <string name="workflow_editor_exit_edit_mode">Wyjdź z trybu edycji</string>
+    <string name="workflow_editor_delete_node">Usuń zaznaczone</string>
+    <string name="workflow_editor_duplicate_node">Duplikuj zaznaczone</string>
+    <string name="workflow_editor_add_node">Dodaj węzeł</string>
+    <string name="workflow_editor_relayout">Przeorganizuj węzły</string>
+    <string name="workflow_editor_done">Gotowe</string>
+    <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
+    <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>
 </resources>

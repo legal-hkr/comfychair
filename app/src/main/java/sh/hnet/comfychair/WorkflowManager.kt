@@ -658,6 +658,155 @@ class WorkflowManager(private val context: Context) {
     }
 
     /**
+     * Update an existing user workflow's JSON structure with new field mappings.
+     * Preserves the workflow's name, description, and type.
+     * @return Result with the updated Workflow or error message
+     */
+    fun updateUserWorkflowWithMapping(
+        workflowId: String,
+        jsonContent: String,
+        fieldMappings: Map<String, Pair<String, String>>  // fieldKey -> (nodeId, inputKey)
+    ): Result<Workflow> {
+        // Find existing workflow
+        val existingWorkflow = workflows.find { it.id == workflowId }
+            ?: return Result.failure(Exception("Workflow not found"))
+
+        if (existingWorkflow.isBuiltIn) {
+            return Result.failure(Exception(context.getString(R.string.error_cannot_edit_builtin)))
+        }
+
+        // Parse JSON
+        val json = try {
+            JSONObject(jsonContent)
+        } catch (e: Exception) {
+            return Result.failure(Exception("Invalid JSON: ${e.message}"))
+        }
+
+        // Check if already wrapped
+        val isWrapped = json.has("nodes") && json.optJSONObject("nodes") != null
+        val nodesJson = if (isWrapped) json.getJSONObject("nodes") else json
+
+        // Extract original values before replacing with placeholders to create defaults
+        val extractedDefaults = mutableMapOf<String, Any>()
+        fieldMappings.forEach { (fieldKey, mapping) ->
+            val (nodeId, inputKey) = mapping
+            val nodeJson = nodesJson.optJSONObject(nodeId)
+            if (nodeJson != null) {
+                val inputsJson = nodeJson.optJSONObject("inputs")
+                if (inputsJson != null && inputsJson.has(inputKey)) {
+                    val originalValue = inputsJson.get(inputKey)
+                    if (originalValue is Number || (originalValue is String && fieldKey in listOf(
+                            "width", "height", "steps", "cfg", "sampler_name", "scheduler",
+                            "megapixels", "length", "frame_rate", "negative_text"
+                        ))) {
+                        extractedDefaults[fieldKey] = originalValue
+                    }
+                }
+            }
+        }
+
+        // Apply field mappings - replace values with placeholders
+        fieldMappings.forEach { (fieldKey, mapping) ->
+            val (nodeId, inputKey) = mapping
+            val nodeJson = nodesJson.optJSONObject(nodeId)
+            if (nodeJson != null) {
+                val inputsJson = nodeJson.optJSONObject("inputs")
+                if (inputsJson != null && inputsJson.has(inputKey)) {
+                    val placeholderName = TemplateKeyRegistry.getPlaceholderForKey(fieldKey)
+                    inputsJson.put(inputKey, "{{$placeholderName}}")
+                }
+            }
+        }
+
+        // Auto-detect capability flags from workflow structure
+        val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
+            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
+        }
+        val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
+            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
+        }
+
+        // Create defaults object from extracted values with auto-detected capability flags
+        val defaults = WorkflowDefaults(
+            width = (extractedDefaults["width"] as? Number)?.toInt(),
+            height = (extractedDefaults["height"] as? Number)?.toInt(),
+            steps = (extractedDefaults["steps"] as? Number)?.toInt(),
+            cfg = (extractedDefaults["cfg"] as? Number)?.toFloat(),
+            samplerName = extractedDefaults["sampler_name"] as? String,
+            scheduler = extractedDefaults["scheduler"] as? String,
+            negativePrompt = extractedDefaults["negative_text"] as? String,
+            megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
+            length = (extractedDefaults["length"] as? Number)?.toInt(),
+            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt(),
+            hasNegativePrompt = !hasBasicGuider,
+            hasCfg = !hasBasicGuider,
+            hasDualClip = hasDualClip
+        )
+
+        // Create wrapped JSON with original metadata preserved
+        val finalJson = JSONObject().apply {
+            put("name", existingWorkflow.name)
+            put("description", existingWorkflow.description)
+            val defaultsJson = WorkflowDefaults.toJson(defaults)
+            if (defaultsJson.length() > 0) {
+                put("defaults", defaultsJson)
+            }
+            put("nodes", nodesJson)
+            if (fieldMappings.isNotEmpty()) {
+                put("fieldMappings", JSONObject().apply {
+                    fieldMappings.forEach { (fieldKey, mapping) ->
+                        put(fieldKey, JSONObject().apply {
+                            put("nodeId", mapping.first)
+                            put("inputKey", mapping.second)
+                        })
+                    }
+                })
+            }
+        }
+
+        // Get filename from preferences
+        val prefs = context.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
+        val metadataJson = prefs.getString(USER_WORKFLOWS_KEY, null)
+            ?: return Result.failure(Exception("Workflow metadata not found"))
+
+        var filename: String? = null
+        val metadataArray = JSONArray(metadataJson)
+        for (i in 0 until metadataArray.length()) {
+            val metadata = metadataArray.getJSONObject(i)
+            if (metadata.getString("id") == workflowId) {
+                filename = metadata.getString("filename")
+                break
+            }
+        }
+
+        if (filename == null) {
+            return Result.failure(Exception("Workflow file not found"))
+        }
+
+        // Save file
+        val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
+        val file = File(dir, filename)
+        try {
+            file.writeText(finalJson.toString(2))
+        } catch (e: Exception) {
+            return Result.failure(Exception("Failed to save: ${e.message}"))
+        }
+
+        // Update in-memory list
+        val workflowIndex = workflows.indexOfFirst { it.id == workflowId }
+        if (workflowIndex >= 0) {
+            val updatedWorkflow = existingWorkflow.copy(
+                jsonContent = finalJson.toString(2),
+                defaults = defaults
+            )
+            workflows[workflowIndex] = updatedWorkflow
+            return Result.success(updatedWorkflow)
+        }
+
+        return Result.failure(Exception("Failed to update workflow list"))
+    }
+
+    /**
      * Add a user workflow
      * Auto-detects workflow type from content and wraps raw ComfyUI workflows if needed
      * @return Result with the created Workflow or error message

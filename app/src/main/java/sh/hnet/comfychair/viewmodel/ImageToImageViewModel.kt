@@ -48,7 +48,8 @@ data class MaskPathData(
  * Represents a workflow item in the unified workflow dropdown for Image-to-Image
  */
 data class ItiWorkflowItem(
-    val name: String,           // Internal workflow name
+    val id: String,             // Workflow ID for editor
+    val name: String,           // User-friendly workflow name
     val displayName: String,    // Display name with type prefix
     val type: WorkflowType      // Workflow type for mode detection
 )
@@ -73,7 +74,8 @@ enum class ImageToImageMode {
  * Represents a workflow item for Image Editing (ITE_UNET)
  */
 data class IteWorkflowItem(
-    val name: String,           // Internal workflow name
+    val id: String,             // Workflow ID for editor
+    val name: String,           // User-friendly workflow name
     val displayName: String,    // Display name for dropdown
     val type: WorkflowType      // Always ITE_UNET for this type
 )
@@ -233,9 +235,9 @@ class ImageToImageViewModel : ViewModel() {
         val wm = workflowManager ?: return
         val ctx = applicationContext ?: return
 
-        val checkpointWorkflows = wm.getImageToImageCheckpointWorkflowNames()
-        val unetWorkflows = wm.getImageToImageUNETWorkflowNames()
-        val editingWorkflows = wm.getImageEditingUNETWorkflowNames()
+        val checkpointWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
+        val unetWorkflows = wm.getWorkflowsByType(WorkflowType.ITI_UNET)
+        val editingWorkflows = wm.getWorkflowsByType(WorkflowType.ITE_UNET)
 
         // Create unified workflow list with type prefix for display (for Inpainting mode)
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -244,28 +246,31 @@ class ImageToImageViewModel : ViewModel() {
         val unifiedWorkflows = mutableListOf<ItiWorkflowItem>()
 
         // Add checkpoint workflows
-        checkpointWorkflows.forEach { name ->
+        checkpointWorkflows.forEach { workflow ->
             unifiedWorkflows.add(ItiWorkflowItem(
-                name = name,
-                displayName = "[$checkpointPrefix] $name",
+                id = workflow.id,
+                name = workflow.name,
+                displayName = "[$checkpointPrefix] ${workflow.name}",
                 type = WorkflowType.ITI_CHECKPOINT
             ))
         }
 
         // Add UNET workflows
-        unetWorkflows.forEach { name ->
+        unetWorkflows.forEach { workflow ->
             unifiedWorkflows.add(ItiWorkflowItem(
-                name = name,
-                displayName = "[$unetPrefix] $name",
+                id = workflow.id,
+                name = workflow.name,
+                displayName = "[$unetPrefix] ${workflow.name}",
                 type = WorkflowType.ITI_UNET
             ))
         }
 
         // Create editing workflow list (ITE_UNET only)
-        val editingWorkflowItems = editingWorkflows.map { name ->
+        val editingWorkflowItems = editingWorkflows.map { workflow ->
             IteWorkflowItem(
-                name = name,
-                displayName = name,
+                id = workflow.id,
+                name = workflow.name,
+                displayName = workflow.name,
                 type = WorkflowType.ITE_UNET
             )
         }.sortedBy { it.displayName }

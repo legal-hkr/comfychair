@@ -254,6 +254,8 @@
     <string name="button_delete">Löschen</string>
     <string name="button_cancel">Abbrechen</string>
     <string name="edit">Bearbeiten</string>
+    <string name="edit_structure">Struktur bearbeiten</string>
+    <string name="error_cannot_edit_builtin">Eingebaute Workflows können nicht bearbeitet werden</string>
     <string name="delete">Löschen</string>
     <string name="workflow_error_invalid_json">Ungültiges JSON-Format</string>
     <string name="workflow_upload_success">Workflow hochgeladen</string>
@@ -373,4 +375,31 @@
     <string name="debug_log_follow">Folgen</string>
     <string name="debug_log_saved">Protokoll erfolgreich gespeichert</string>
     <string name="debug_log_save_failed">Protokoll konnte nicht gespeichert werden</string>
+
+    <!-- Missing translations -->
+    <string name="view_workflow">Workflow anzeigen</string>
+    <string name="button_discard">Verwerfen</string>
+    <string name="button_new_workflow">Neuer Workflow</string>
+    <string name="save_workflow_title">Neuen Workflow speichern</string>
+    <string name="error_invalid_integer">Muss eine ganze Zahl sein</string>
+    <string name="error_invalid_option">Ungültige Option</string>
+    <string name="error_string_too_long">Maximale Länge: %1$d</string>
+    <string name="error_value_min">Minimum: %1$d</string>
+    <string name="error_value_max">Maximum: %1$d</string>
+    <string name="error_value_min_float">Minimum: %1$.2f</string>
+    <string name="error_value_max_float">Maximum: %1$.2f</string>
+    <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_title">Knoten hinzufügen</string>
+    <string name="node_browser_search_placeholder">Knoten suchen…</string>
+    <string name="node_browser_no_results">Keine passenden Knoten gefunden</string>
+    <string name="node_browser_io_info">%1$d Eingänge, %2$d Ausgänge</string>
+    <string name="workflow_editor_enter_edit_mode">Graph bearbeiten</string>
+    <string name="workflow_editor_exit_edit_mode">Bearbeitungsmodus beenden</string>
+    <string name="workflow_editor_delete_node">Ausgewähltes löschen</string>
+    <string name="workflow_editor_duplicate_node">Ausgewähltes duplizieren</string>
+    <string name="workflow_editor_add_node">Knoten hinzufügen</string>
+    <string name="workflow_editor_relayout">Knoten neu anordnen</string>
+    <string name="workflow_editor_done">Fertig</string>
+    <string name="workflow_editor_discard_title">Workflow verwerfen?</string>
+    <string name="workflow_editor_discard_message">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>
 </resources>

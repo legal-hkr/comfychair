@@ -237,6 +237,8 @@
     <string name="button_delete">Supprimer</string>
     <string name="button_cancel">Annuler</string>
     <string name="edit">Modifier</string>
+    <string name="edit_structure">Modifier la structure</string>
+    <string name="error_cannot_edit_builtin">Les workflows intégrés ne peuvent pas être modifiés</string>
     <string name="delete">Supprimer</string>
     <string name="workflow_error_invalid_json">Format JSON invalide</string>
     <string name="workflow_upload_success">Workflow téléchargé</string>
@@ -373,4 +375,31 @@
     <string name="debug_log_follow">Suivre</string>
     <string name="debug_log_saved">Journal enregistré avec succès</string>
     <string name="debug_log_save_failed">Échec de l\'enregistrement du journal</string>
+
+    <!-- Missing translations -->
+    <string name="view_workflow">Voir le workflow</string>
+    <string name="button_discard">Abandonner</string>
+    <string name="button_new_workflow">Nouveau workflow</string>
+    <string name="save_workflow_title">Enregistrer le nouveau workflow</string>
+    <string name="error_invalid_integer">Doit être un nombre entier</string>
+    <string name="error_invalid_option">Option non valide</string>
+    <string name="error_string_too_long">Longueur maximale : %1$d</string>
+    <string name="error_value_min">Minimum : %1$d</string>
+    <string name="error_value_max">Maximum : %1$d</string>
+    <string name="error_value_min_float">Minimum : %1$.2f</string>
+    <string name="error_value_max_float">Maximum : %1$.2f</string>
+    <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_title">Ajouter un nœud</string>
+    <string name="node_browser_search_placeholder">Rechercher des nœuds…</string>
+    <string name="node_browser_no_results">Aucun nœud correspondant trouvé</string>
+    <string name="node_browser_io_info">%1$d entrées, %2$d sorties</string>
+    <string name="workflow_editor_enter_edit_mode">Modifier le graphe</string>
+    <string name="workflow_editor_exit_edit_mode">Quitter le mode édition</string>
+    <string name="workflow_editor_delete_node">Supprimer la sélection</string>
+    <string name="workflow_editor_duplicate_node">Dupliquer la sélection</string>
+    <string name="workflow_editor_add_node">Ajouter un nœud</string>
+    <string name="workflow_editor_relayout">Réorganiser les nœuds</string>
+    <string name="workflow_editor_done">Terminé</string>
+    <string name="workflow_editor_discard_title">Abandonner le workflow ?</string>
+    <string name="workflow_editor_discard_message">Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir abandonner ce workflow ?</string>
 </resources>

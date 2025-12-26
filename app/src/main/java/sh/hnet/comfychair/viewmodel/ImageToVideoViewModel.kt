@@ -44,7 +44,8 @@ enum class ImageToVideoViewMode {
  * Represents a workflow item with display name and type prefix
  */
 data class ItvWorkflowItem(
-    val name: String,           // Internal workflow name
+    val id: String,             // Workflow ID for editor
+    val name: String,           // User-friendly workflow name
     val displayName: String,    // "[UNET] LightX2V"
     val type: WorkflowType      // ITV_UNET
 )
@@ -189,13 +190,14 @@ class ImageToVideoViewModel : ViewModel() {
         val wm = workflowManager ?: return
         val ctx = applicationContext ?: return
 
-        val unetWorkflows = wm.getImageToVideoUNETWorkflowNames()
+        val unetWorkflows = wm.getWorkflowsByType(WorkflowType.ITV_UNET)
         val unetPrefix = ctx.getString(R.string.mode_unet)
 
-        val unifiedWorkflows = unetWorkflows.map { name ->
+        val unifiedWorkflows = unetWorkflows.map { workflow ->
             ItvWorkflowItem(
-                name = name,
-                displayName = "[$unetPrefix] $name",
+                id = workflow.id,
+                name = workflow.name,
+                displayName = "[$unetPrefix] ${workflow.name}",
                 type = WorkflowType.ITV_UNET
             )
         }

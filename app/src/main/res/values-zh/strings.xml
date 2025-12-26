@@ -237,6 +237,8 @@
     <string name="button_delete">删除</string>
     <string name="button_cancel">取消</string>
     <string name="edit">编辑</string>
+    <string name="edit_structure">编辑结构</string>
+    <string name="error_cannot_edit_builtin">内置工作流无法编辑</string>
     <string name="delete">删除</string>
     <string name="workflow_error_invalid_json">无效的 JSON 格式</string>
     <string name="workflow_upload_success">工作流已上传</string>
@@ -373,4 +375,31 @@
     <string name="debug_log_follow">跟随</string>
     <string name="debug_log_saved">日志保存成功</string>
     <string name="debug_log_save_failed">保存日志失败</string>
+
+    <!-- Missing translations -->
+    <string name="view_workflow">查看工作流</string>
+    <string name="button_discard">放弃</string>
+    <string name="button_new_workflow">新建工作流</string>
+    <string name="save_workflow_title">保存新工作流</string>
+    <string name="error_invalid_integer">必须是整数</string>
+    <string name="error_invalid_option">无效选项</string>
+    <string name="error_string_too_long">最大长度：%1$d</string>
+    <string name="error_value_min">最小值：%1$d</string>
+    <string name="error_value_max">最大值：%1$d</string>
+    <string name="error_value_min_float">最小值：%1$.2f</string>
+    <string name="error_value_max_float">最大值：%1$.2f</string>
+    <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_title">添加节点</string>
+    <string name="node_browser_search_placeholder">搜索节点…</string>
+    <string name="node_browser_no_results">未找到匹配的节点</string>
+    <string name="node_browser_io_info">%1$d 个输入，%2$d 个输出</string>
+    <string name="workflow_editor_enter_edit_mode">编辑图表</string>
+    <string name="workflow_editor_exit_edit_mode">退出编辑模式</string>
+    <string name="workflow_editor_delete_node">删除所选</string>
+    <string name="workflow_editor_duplicate_node">复制所选</string>
+    <string name="workflow_editor_add_node">添加节点</string>
+    <string name="workflow_editor_relayout">重新排列节点</string>
+    <string name="workflow_editor_done">完成</string>
+    <string name="workflow_editor_discard_title">放弃工作流？</string>
+    <string name="workflow_editor_discard_message">您有未保存的更改。确定要放弃此工作流吗？</string>
 </resources>

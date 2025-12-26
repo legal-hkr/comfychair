@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,13 +25,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -75,6 +80,7 @@ fun ImageToImageConfigBottomSheetContent(
     onClearReferenceImage2: () -> Unit,
     // Inpainting workflow callback
     onWorkflowChange: (String) -> Unit,
+    onViewWorkflow: () -> Unit,
     // Model selection callbacks (Inpainting mode)
     onCheckpointChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
@@ -94,6 +100,7 @@ fun ImageToImageConfigBottomSheetContent(
     onLoraStrengthChange: (Int, Float) -> Unit,
     // Editing mode callbacks
     onEditingWorkflowChange: (String) -> Unit,
+    onViewEditingWorkflow: () -> Unit,
     onEditingUnetChange: (String) -> Unit,
     onEditingLoraChange: (String) -> Unit,
     onEditingVaeChange: (String) -> Unit,
@@ -188,6 +195,7 @@ fun ImageToImageConfigBottomSheetContent(
                 EditingModeContent(
                     uiState = uiState,
                     onEditingWorkflowChange = onEditingWorkflowChange,
+                    onViewEditingWorkflow = onViewEditingWorkflow,
                     onEditingUnetChange = onEditingUnetChange,
                     onEditingLoraChange = onEditingLoraChange,
                     onEditingVaeChange = onEditingVaeChange,
@@ -208,6 +216,7 @@ fun ImageToImageConfigBottomSheetContent(
                 InpaintingModeContent(
                     uiState = uiState,
                     onWorkflowChange = onWorkflowChange,
+                    onViewWorkflow = onViewWorkflow,
                     onCheckpointChange = onCheckpointChange,
                     onUnetChange = onUnetChange,
                     onVaeChange = onVaeChange,
@@ -234,6 +243,7 @@ fun ImageToImageConfigBottomSheetContent(
 private fun InpaintingModeContent(
     uiState: ImageToImageUiState,
     onWorkflowChange: (String) -> Unit,
+    onViewWorkflow: () -> Unit,
     onCheckpointChange: (String) -> Unit,
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
@@ -253,7 +263,8 @@ private fun InpaintingModeContent(
         label = stringResource(R.string.label_workflow),
         selectedWorkflow = uiState.selectedWorkflow,
         workflows = uiState.availableWorkflows,
-        onWorkflowChange = onWorkflowChange
+        onWorkflowChange = onWorkflowChange,
+        onViewWorkflow = onViewWorkflow
     )
 
     Spacer(modifier = Modifier.height(16.dp))
@@ -299,6 +310,7 @@ private fun InpaintingModeContent(
 private fun EditingModeContent(
     uiState: ImageToImageUiState,
     onEditingWorkflowChange: (String) -> Unit,
+    onViewEditingWorkflow: () -> Unit,
     onEditingUnetChange: (String) -> Unit,
     onEditingLoraChange: (String) -> Unit,
     onEditingVaeChange: (String) -> Unit,
@@ -318,7 +330,8 @@ private fun EditingModeContent(
         label = stringResource(R.string.label_workflow),
         selectedWorkflow = uiState.selectedEditingWorkflow,
         workflows = uiState.editingWorkflows,
-        onWorkflowChange = onEditingWorkflowChange
+        onWorkflowChange = onEditingWorkflowChange,
+        onViewWorkflow = onViewEditingWorkflow
     )
 
     Spacer(modifier = Modifier.height(16.dp))
@@ -512,48 +525,68 @@ private fun ReferenceImageThumbnail(
 /**
  * Dropdown for ITE (Editing) workflow selection
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun IteWorkflowDropdown(
     label: String,
     selectedWorkflow: String,
     workflows: List<IteWorkflowItem>,
     onWorkflowChange: (String) -> Unit,
+    onViewWorkflow: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     val selectedDisplayName = workflows.find { it.name == selectedWorkflow }?.displayName ?: selectedWorkflow
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        OutlinedTextField(
-            value = selectedDisplayName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-            singleLine = true
-        )
-
-        ExposedDropdownMenu(
+        ExposedDropdownMenuBox(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.weight(1f)
         ) {
-            workflows.forEach { workflow ->
-                DropdownMenuItem(
-                    text = { Text(workflow.displayName) },
-                    onClick = {
-                        onWorkflowChange(workflow.name)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+            OutlinedTextField(
+                value = selectedDisplayName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(label) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+                singleLine = true
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                workflows.forEach { workflow ->
+                    DropdownMenuItem(
+                        text = { Text(workflow.displayName) },
+                        onClick = {
+                            onWorkflowChange(workflow.name)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                }
+            }
+        }
+
+        if (onViewWorkflow != null) {
+            OutlinedIconButton(
+                onClick = onViewWorkflow,
+                modifier = Modifier.size(56.dp),
+                shape = ButtonDefaults.squareShape
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.EditNote,
+                    contentDescription = stringResource(R.string.view_workflow)
                 )
             }
         }
@@ -781,13 +814,14 @@ private fun UnetModeContent(
 /**
  * Dropdown for unified workflow selection with type prefix display
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ItiWorkflowDropdown(
     label: String,
     selectedWorkflow: String,
     workflows: List<ItiWorkflowItem>,
     onWorkflowChange: (String) -> Unit,
+    onViewWorkflow: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -795,35 +829,54 @@ fun ItiWorkflowDropdown(
     // Find display name for selected workflow
     val selectedDisplayName = workflows.find { it.name == selectedWorkflow }?.displayName ?: selectedWorkflow
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        OutlinedTextField(
-            value = selectedDisplayName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-            singleLine = true
-        )
-
-        ExposedDropdownMenu(
+        ExposedDropdownMenuBox(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.weight(1f)
         ) {
-            workflows.forEach { workflow ->
-                DropdownMenuItem(
-                    text = { Text(workflow.displayName) },
-                    onClick = {
-                        onWorkflowChange(workflow.name)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+            OutlinedTextField(
+                value = selectedDisplayName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(label) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+                singleLine = true
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                workflows.forEach { workflow ->
+                    DropdownMenuItem(
+                        text = { Text(workflow.displayName) },
+                        onClick = {
+                            onWorkflowChange(workflow.name)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                }
+            }
+        }
+
+        if (onViewWorkflow != null) {
+            OutlinedIconButton(
+                onClick = onViewWorkflow,
+                modifier = Modifier.size(56.dp),
+                shape = ButtonDefaults.squareShape
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.EditNote,
+                    contentDescription = stringResource(R.string.view_workflow)
                 )
             }
         }

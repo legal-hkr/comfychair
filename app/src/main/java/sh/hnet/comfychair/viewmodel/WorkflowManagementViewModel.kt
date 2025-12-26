@@ -126,6 +126,19 @@ class WorkflowManagementViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Reload workflows from disk and refresh UI.
+     * Use this when workflows were modified by another component (e.g., WorkflowEditorViewModel).
+     * Also emits WorkflowsChanged to notify parent activities (triggers generation screen refresh).
+     */
+    fun reloadAndRefreshWorkflows() {
+        workflowManager?.reloadWorkflows()
+        loadWorkflows()
+        viewModelScope.launch {
+            _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+        }
+    }
+
     // New upload flow
 
     /**

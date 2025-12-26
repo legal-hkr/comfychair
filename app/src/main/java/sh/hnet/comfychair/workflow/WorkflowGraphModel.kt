@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.workflow
 
 import androidx.compose.ui.geometry.Offset
+import sh.hnet.comfychair.WorkflowType
 
 /**
  * Represents a single node in the workflow graph
@@ -11,6 +12,7 @@ data class WorkflowNode(
     val title: String,
     val category: NodeCategory,
     val inputs: Map<String, InputValue>,
+    val outputs: List<String> = emptyList(),  // Output types: ["MODEL", "CLIP", "VAE"]
     val templateInputKeys: Set<String>,
     var x: Float = 0f,
     var y: Float = 0f,
@@ -27,6 +29,8 @@ data class WorkflowNode(
 sealed class InputValue {
     data class Literal(val value: Any) : InputValue()
     data class Connection(val sourceNodeId: String, val outputIndex: Int) : InputValue()
+    /** Unconnected connection slot - will be converted to Connection when wired up */
+    data class UnconnectedSlot(val slotType: String) : InputValue()
 }
 
 /**
@@ -66,6 +70,63 @@ data class WorkflowGraph(
 )
 
 /**
+ * Mutable version of WorkflowGraph for editing operations.
+ * Changes are tracked and can be converted back to immutable WorkflowGraph.
+ */
+data class MutableWorkflowGraph(
+    var name: String,
+    var description: String,
+    val nodes: MutableList<WorkflowNode>,
+    val edges: MutableList<WorkflowEdge>,
+    val templateVariables: MutableSet<String>
+) {
+    /**
+     * Convert to immutable WorkflowGraph
+     */
+    fun toImmutable(): WorkflowGraph = WorkflowGraph(
+        name = name,
+        description = description,
+        nodes = nodes.toList(),
+        edges = edges.toList(),
+        templateVariables = templateVariables.toSet()
+    )
+
+    companion object {
+        /**
+         * Create a mutable copy from an immutable WorkflowGraph
+         */
+        fun fromImmutable(graph: WorkflowGraph): MutableWorkflowGraph = MutableWorkflowGraph(
+            name = graph.name,
+            description = graph.description,
+            nodes = graph.nodes.toMutableList(),
+            edges = graph.edges.toMutableList(),
+            templateVariables = graph.templateVariables.toMutableSet()
+        )
+    }
+}
+
+/**
+ * Represents a slot (input or output) position on a node for connection editing
+ */
+data class SlotPosition(
+    val nodeId: String,
+    val slotName: String,
+    val isOutput: Boolean,
+    val outputIndex: Int = 0,
+    val center: Offset,
+    val slotType: String?
+)
+
+/**
+ * State for tap-based connection mode.
+ * When active, tapping an output highlights valid inputs, then tapping an input creates the connection.
+ */
+data class ConnectionModeState(
+    val sourceOutputSlot: SlotPosition,
+    val validInputSlots: List<SlotPosition>
+)
+
+/**
  * UI state for the workflow editor
  */
 data class WorkflowEditorUiState(
@@ -91,7 +152,48 @@ data class WorkflowEditorUiState(
     val nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap(),
     val editableInputNames: Set<String> = emptySet(),
     val savedScaleBeforeEditing: Float? = null,
-    val savedOffsetBeforeEditing: Offset? = null
+    val savedOffsetBeforeEditing: Offset? = null,
+
+    // Graph editing mode (add/delete/duplicate nodes, edit connections)
+    val isEditMode: Boolean = false,
+    val selectedNodeIds: Set<String> = emptySet(),
+    val hasUnsavedChanges: Boolean = false,
+    val showNodeBrowser: Boolean = false,
+    val nodeInsertPosition: Offset? = null,
+
+    // Connection mode (tap-based connection editing)
+    val connectionModeState: ConnectionModeState? = null,
+
+    // Create mode (creating new workflow from scratch)
+    val isCreateMode: Boolean = false,
+
+    // Edit-existing mode (structural editing of existing user workflow)
+    val isEditExistingMode: Boolean = false,
+    val editingWorkflowId: String? = null,
+    val editingWorkflowType: WorkflowType? = null,
+    val originalWorkflowName: String = "",
+    val originalWorkflowDescription: String = "",
+    val viewingWorkflowIsBuiltIn: Boolean = false,
+
+    // Save dialog state (shown when Done is pressed in create mode)
+    val showSaveDialog: Boolean = false,
+    val saveDialogSelectedType: WorkflowType? = null,
+    val saveDialogTypeDropdownExpanded: Boolean = false,
+    val saveDialogName: String = "",
+    val saveDialogDescription: String = "",
+    val saveDialogNameError: String? = null,
+    val saveDialogDescriptionError: String? = null,
+    val isSaveValidating: Boolean = false,
+
+    // Error dialogs for save validation
+    val showMissingNodesDialog: Boolean = false,
+    val missingNodes: List<String> = emptyList(),
+    val showMissingFieldsDialog: Boolean = false,
+    val missingFields: List<String> = emptyList(),
+    val showDuplicateNameDialog: Boolean = false,
+
+    // Discard confirmation
+    val showDiscardConfirmation: Boolean = false
 )
 
 /**

@@ -50,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
@@ -347,6 +348,15 @@ fun TextToImageScreen(
                 uiState = uiState,
                 // Unified workflow callback
                 onWorkflowChange = textToImageViewModel::onWorkflowChange,
+                onViewWorkflow = {
+                    val workflowId = uiState.availableWorkflows
+                        .find { it.name == uiState.selectedWorkflow }?.id
+                    if (workflowId != null) {
+                        context.startActivity(
+                            WorkflowEditorActivity.createIntent(context, workflowId)
+                        )
+                    }
+                },
                 // Model selection callbacks
                 onCheckpointChange = textToImageViewModel::onCheckpointChange,
                 onUnetChange = textToImageViewModel::onUnetChange,

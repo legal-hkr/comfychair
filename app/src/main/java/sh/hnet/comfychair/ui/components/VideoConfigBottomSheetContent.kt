@@ -1,20 +1,29 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +48,7 @@ import sh.hnet.comfychair.viewmodel.TtvWorkflowItem
 fun VideoConfigBottomSheetContent(
     uiState: TextToVideoUiState,
     onWorkflowChange: (String) -> Unit,
+    onViewWorkflow: () -> Unit,
     onNegativePromptChange: (String) -> Unit,
     onHighnoiseUnetChange: (String) -> Unit,
     onLownoiseUnetChange: (String) -> Unit,
@@ -84,7 +95,8 @@ fun VideoConfigBottomSheetContent(
             label = stringResource(R.string.label_workflow),
             selectedWorkflow = uiState.selectedWorkflow,
             workflows = uiState.availableWorkflows,
-            onWorkflowChange = onWorkflowChange
+            onWorkflowChange = onWorkflowChange,
+            onViewWorkflow = onViewWorkflow
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -250,13 +262,14 @@ fun VideoConfigBottomSheetContent(
 /**
  * Dropdown for selecting Text-to-Video workflows with displayName shown
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TtvWorkflowDropdown(
     label: String,
     selectedWorkflow: String,
     workflows: List<TtvWorkflowItem>,
     onWorkflowChange: (String) -> Unit,
+    onViewWorkflow: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -264,34 +277,53 @@ fun TtvWorkflowDropdown(
     // Find display name for selected workflow
     val selectedDisplayName = workflows.find { it.name == selectedWorkflow }?.displayName ?: selectedWorkflow
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        OutlinedTextField(
-            value = selectedDisplayName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-            singleLine = true
-        )
-
-        ExposedDropdownMenu(
+        ExposedDropdownMenuBox(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.weight(1f)
         ) {
-            workflows.forEach { workflow ->
-                DropdownMenuItem(
-                    text = { Text(workflow.displayName) },
-                    onClick = {
-                        onWorkflowChange(workflow.name)
-                        expanded = false
-                    }
+            OutlinedTextField(
+                value = selectedDisplayName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(label) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+                singleLine = true
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                workflows.forEach { workflow ->
+                    DropdownMenuItem(
+                        text = { Text(workflow.displayName) },
+                        onClick = {
+                            onWorkflowChange(workflow.name)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        if (onViewWorkflow != null) {
+            OutlinedIconButton(
+                onClick = onViewWorkflow,
+                modifier = Modifier.size(56.dp),
+                shape = ButtonDefaults.squareShape
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.EditNote,
+                    contentDescription = stringResource(R.string.view_workflow)
                 )
             }
         }

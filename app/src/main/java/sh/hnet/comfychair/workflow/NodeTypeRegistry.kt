@@ -240,6 +240,20 @@ class NodeTypeRegistry {
     fun isPopulated(): Boolean = nodeTypes.isNotEmpty()
 
     /**
+     * Get all available node type definitions.
+     */
+    fun getAllNodeTypes(): List<NodeTypeDefinition> {
+        return nodeDefinitions.values.toList()
+    }
+
+    /**
+     * Get node types grouped by category.
+     */
+    fun getNodeTypesByCategory(): Map<String, List<NodeTypeDefinition>> {
+        return nodeDefinitions.values.groupBy { it.category.ifEmpty { "Other" } }
+    }
+
+    /**
      * Clear the registry.
      */
     fun clear() {

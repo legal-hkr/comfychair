@@ -2,6 +2,10 @@ package sh.hnet.comfychair.ui.components
 
 import android.graphics.Paint
 import android.graphics.Typeface
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -11,6 +15,8 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -31,11 +37,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.SlotColors
+import sh.hnet.comfychair.workflow.ConnectionModeState
+import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
@@ -71,6 +80,14 @@ private data class CanvasColors(
 )
 
 /**
+ * Holds animatable position values for a node
+ */
+private data class AnimatedNodePosition(
+    val x: Animatable<Float, AnimationVector1D>,
+    val y: Animatable<Float, AnimationVector1D>
+)
+
+/**
  * Canvas component for rendering workflow graphs
  */
 @Composable
@@ -88,16 +105,23 @@ fun WorkflowGraphCanvas(
     nodeAttributeEdits: Map<String, Map<String, Any>> = emptyMap(),
     editableInputNames: Set<String> = emptySet(),
     enableManualTransform: Boolean = true,
+    isEditMode: Boolean = false,
+    selectedNodeIds: Set<String> = emptySet(),
+    connectionModeState: ConnectionModeState? = null,
     onNodeTapped: ((String) -> Unit)? = null,
-    onTapOutsideNodes: (() -> Unit)? = null
+    onTapOutsideNodes: (() -> Unit)? = null,
+    onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
+    onInputSlotTapped: ((SlotPosition) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
     val currentOffsetState = rememberUpdatedState(offset)
     val currentGraphState = rememberUpdatedState(graph)
+    val currentConnectionModeState = rememberUpdatedState(connectionModeState)
+    val currentIsEditMode = rememberUpdatedState(isEditMode)
 
     // Calculate selected node IDs from mapping state - only for the currently selected field
-    val selectedNodeIds = remember(mappingState, selectedFieldKey) {
+    val mappingSelectedNodeIds = remember(mappingState, selectedFieldKey) {
         if (selectedFieldKey == null) {
             // No field selected: show no SELECTED states, only CANDIDATE
             emptySet()
@@ -133,17 +157,120 @@ fun WorkflowGraphCanvas(
         negativePromptColors = SlotColors.getNegativePromptColors(isDarkTheme)
     )
 
+    // Constants for slot detection
+    val slotHitRadius = 30f  // Larger hit area for easier tapping
+
+    // Animation state for node positions
+    val animatedPositions = remember { mutableStateMapOf<String, AnimatedNodePosition>() }
+
+    // Animation spec for smooth transitions
+    val animationSpec = tween<Float>(
+        durationMillis = 350,
+        easing = FastOutSlowInEasing
+    )
+
+    // Animate node positions when graph changes
+    LaunchedEffect(graph.nodes) {
+        val currentNodeIds = graph.nodes.map { it.id }.toSet()
+
+        // Remove animated positions for deleted nodes
+        val deletedIds = animatedPositions.keys - currentNodeIds
+        deletedIds.forEach { animatedPositions.remove(it) }
+
+        // Update or create animated positions for each node
+        graph.nodes.forEach { node ->
+            val existingPosition = animatedPositions[node.id]
+            if (existingPosition != null) {
+                // Animate to new position if it changed
+                if (existingPosition.x.targetValue != node.x || existingPosition.y.targetValue != node.y) {
+                    launch {
+                        existingPosition.x.animateTo(node.x, animationSpec)
+                    }
+                    launch {
+                        existingPosition.y.animateTo(node.y, animationSpec)
+                    }
+                }
+            } else {
+                // New node - start at target position (no animation for new nodes)
+                animatedPositions[node.id] = AnimatedNodePosition(
+                    x = Animatable(node.x),
+                    y = Animatable(node.y)
+                )
+            }
+        }
+    }
+
+    // Build animated nodes for drawing - reads Animatable.value directly to trigger recomposition
+    // Note: This is computed every recomposition to pick up animation value changes
+    val animatedNodes = graph.nodes.map { node ->
+        val animPos = animatedPositions[node.id]
+        if (animPos != null) {
+            node.copy(x = animPos.x.value, y = animPos.y.value)
+        } else {
+            node
+        }
+    }
+
     Canvas(
         modifier = modifier
-            .pointerInput(onNodeTapped, onTapOutsideNodes) {
-                if (onNodeTapped != null || onTapOutsideNodes != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped) {
+                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
                         val graphY = (tapOffset.y - currentOffsetState.value.y) / currentScaleState.value
+                        val graph = currentGraphState.value
+                        val inConnectionMode = currentConnectionModeState.value != null
+                        val inEditMode = currentIsEditMode.value
+
+                        // In connection mode, check for taps on valid input slots first
+                        if (inConnectionMode && onInputSlotTapped != null) {
+                            val connectionState = currentConnectionModeState.value!!
+                            val tappedInputSlot = connectionState.validInputSlots.find { slot ->
+                                val dx = graphX - slot.center.x
+                                val dy = graphY - slot.center.y
+                                (dx * dx + dy * dy) <= slotHitRadius * slotHitRadius
+                            }
+                            if (tappedInputSlot != null) {
+                                onInputSlotTapped(tappedInputSlot)
+                                return@detectTapGestures
+                            }
+                        }
+
+                        // In edit mode, check for taps on output slots
+                        if (inEditMode && onOutputSlotTapped != null) {
+                            for (node in graph.nodes) {
+                                // Output slots are on the right side of the node
+                                val outputX = node.x + node.width
+
+                                // Check each output at its correct Y position
+                                node.outputs.forEachIndexed { outputIndex, outputType ->
+                                    val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+                                    val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
+                                    val outputY = node.y + headerHeight + 20f +
+                                        (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
+                                        (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+                                    val dx = graphX - outputX
+                                    val dy = graphY - outputY
+                                    if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
+                                        val slotPosition = SlotPosition(
+                                            nodeId = node.id,
+                                            slotName = outputType,
+                                            isOutput = true,
+                                            outputIndex = outputIndex,
+                                            center = Offset(outputX, outputY),
+                                            slotType = outputType
+                                        )
+                                        onOutputSlotTapped(slotPosition)
+                                        return@detectTapGestures
+                                    }
+                                }
+                            }
+                        }
 
                         // Find tapped node
-                        val tappedNode = currentGraphState.value.nodes.find { node ->
+                        val tappedNode = graph.nodes.find { node ->
                             graphX >= node.x && graphX <= node.x + node.width &&
                                     graphY >= node.y && graphY <= node.y + node.height
                         }
@@ -197,9 +324,9 @@ fun WorkflowGraphCanvas(
             translate(offset.x, offset.y)
             scale(scale, scale, Offset.Zero)
         }) {
-            // Draw edges first (behind nodes)
+            // Draw edges first (behind nodes) - use animatedNodes for positions
             graph.edges.forEach { edge ->
-                drawEdge(edge, graph.nodes, colors)
+                drawEdge(edge, animatedNodes, colors)
             }
 
             // Build a map of node ID -> (input name -> wire color) for connected inputs
@@ -212,11 +339,15 @@ fun WorkflowGraphCanvas(
                 }
             }
 
-            // Draw nodes
-            graph.nodes.forEach { node ->
+            // Draw nodes at animated positions
+            animatedNodes.forEach { node ->
                 val highlightState = when {
-                    isFieldMappingMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
+                    // Mapping mode selection
+                    isFieldMappingMode && node.id in mappingSelectedNodeIds -> NodeHighlightState.SELECTED
                     isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
+                    // Edit mode selection
+                    isEditMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
+                    // Attribute editing mode
                     editingNodeId == node.id -> NodeHighlightState.SELECTED
                     else -> NodeHighlightState.NONE
                 }
@@ -245,6 +376,98 @@ fun WorkflowGraphCanvas(
                     uiFieldPrefix = uiFieldPrefix,
                     inputWireColors = nodeInputColors[node.id] ?: emptyMap()
                 )
+            }
+
+            // Draw slot circles for connection editing
+            if (isEditMode) {
+                val inConnectionMode = connectionModeState != null
+
+                // Draw output slots on all nodes (one per output) - use animatedNodes
+                animatedNodes.forEach { node ->
+                    val outputX = node.x + node.width
+
+                    node.outputs.forEachIndexed { outputIndex, outputType ->
+                        val outputY = node.y + calculateOutputY(node, outputIndex)
+
+                        // Check if this is the source slot in connection mode
+                        val isSourceSlot = inConnectionMode &&
+                            connectionModeState?.sourceOutputSlot?.nodeId == node.id &&
+                            connectionModeState?.sourceOutputSlot?.outputIndex == outputIndex
+
+                        // Get slot color based on output type
+                        val typeColor = colors.slotColors[outputType.uppercase()] ?: colors.edgeColor
+                        val slotColor = if (isSourceSlot) {
+                            colors.selectedBorder
+                        } else {
+                            typeColor
+                        }
+
+                        drawCircle(
+                            color = slotColor,
+                            radius = if (isSourceSlot) 14f else 10f,
+                            center = Offset(outputX, outputY)
+                        )
+
+                        // Draw inner circle for contrast
+                        if (!isSourceSlot) {
+                            drawCircle(
+                                color = colors.nodeBackground,
+                                radius = 6f,
+                                center = Offset(outputX, outputY)
+                            )
+                        }
+                    }
+                }
+
+                // Draw input slots for connection-type inputs on all nodes - use animatedNodes
+                animatedNodes.forEach { node ->
+                    var inputIndex = 0
+                    node.inputs.forEach { (inputName, inputValue) ->
+                        val isConnectionInput = inputValue is InputValue.Connection || inputValue is InputValue.UnconnectedSlot
+
+                        if (isConnectionInput) {
+                            val inputX = node.x
+                            val inputY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
+                                (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+                            // Get slot type for color
+                            val slotType = when (inputValue) {
+                                is InputValue.UnconnectedSlot -> inputValue.slotType
+                                else -> null
+                            }
+                            val typeColor = slotType?.let { colors.slotColors[it.uppercase()] } ?: colors.edgeColor
+
+                            drawCircle(
+                                color = typeColor,
+                                radius = 10f,
+                                center = Offset(inputX, inputY)
+                            )
+                            drawCircle(
+                                color = colors.nodeBackground,
+                                radius = 6f,
+                                center = Offset(inputX, inputY)
+                            )
+                        }
+                        inputIndex++
+                    }
+                }
+
+                // Draw highlighted valid input slots when in connection mode
+                if (inConnectionMode) {
+                    connectionModeState?.validInputSlots?.forEach { slot ->
+                        // Draw highlighted input slot
+                        drawCircle(
+                            color = colors.candidateBorder,
+                            radius = 12f,
+                            center = slot.center
+                        )
+                        drawCircle(
+                            color = colors.nodeBackground,
+                            radius = 6f,
+                            center = slot.center
+                        )
+                    }
+                }
             }
         }
     }
@@ -382,10 +605,14 @@ private fun DrawScope.drawNode(
 
         var inputY = node.y + headerHeight + 32f
         node.inputs.forEach { (name, value) ->
-            // Get the original value
+            // Check if this is a connection-type input (Connection or UnconnectedSlot)
+            val isConnectionInput = value is InputValue.Connection || value is InputValue.UnconnectedSlot
+
+            // Get the original value (only for Literal inputs)
             val originalValue = when (value) {
                 is InputValue.Literal -> value.value
                 is InputValue.Connection -> null
+                is InputValue.UnconnectedSlot -> null
             }
 
             // Get the current value - use edit if available, otherwise original
@@ -395,7 +622,12 @@ private fun DrawScope.drawNode(
             // Check if this value has been edited AND is different from original
             val isEdited = editedValue != null && editedValue != originalValue
 
-            val valueStr = currentValue?.let { formatInputValue(it, uiFieldPrefix) }
+            // Only show value string for literal inputs (not connection-type)
+            val valueStr = if (!isConnectionInput) {
+                currentValue?.let { formatInputValue(it, uiFieldPrefix) }
+            } else {
+                null
+            }
 
             // Check if value contains actual {{...}} template pattern
             val hasTemplatePattern = currentValue?.toString()?.let { str ->
@@ -404,6 +636,11 @@ private fun DrawScope.drawNode(
 
             // Determine which paint to use for the key name
             val wireColor = inputWireColors[name]
+            // For UnconnectedSlot, get color from slot type
+            val slotTypeColor = if (value is InputValue.UnconnectedSlot) {
+                colors.slotColors[value.slotType.uppercase()]?.toArgb()
+            } else null
+
             val keyPaint = when {
                 // Editable inputs highlighted when side sheet is open
                 name in editableInputNames -> editablePaint
@@ -418,6 +655,16 @@ private fun DrawScope.drawNode(
                         isAntiAlias = true
                     }
                 }
+                // Unconnected slot: bold with slot type color
+                slotTypeColor != null -> {
+                    val blendedColor = blendColors(slotTypeColor, textSecondaryArgb, 0.5f)
+                    Paint().apply {
+                        color = blendedColor
+                        textSize = 22f
+                        typeface = Typeface.DEFAULT_BOLD
+                        isAntiAlias = true
+                    }
+                }
                 // Normal
                 else -> inputPaint
             }
@@ -425,7 +672,7 @@ private fun DrawScope.drawNode(
             // Draw key name on the left
             drawText(name, node.x + 16f, inputY, keyPaint)
 
-            // Draw value on the right if present
+            // Draw value on the right if present (only for literal inputs)
             if (valueStr != null) {
                 val boxPaddingH = 8f
                 val boxPaddingV = 6f
@@ -469,6 +716,42 @@ private fun DrawScope.drawNode(
 
             inputY += WorkflowLayoutEngine.INPUT_ROW_HEIGHT
         }
+
+        // Calculate where outputs start (after literal inputs, aligned with connection inputs)
+        val literalInputCount = node.inputs.count { (_, value) -> value is InputValue.Literal }
+        var outputY = node.y + headerHeight + 32f + (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+        // Draw outputs on the right side
+        node.outputs.forEachIndexed { _, outputType ->
+            // Get color for output type
+            val outputColorInt = colors.slotColors[outputType.uppercase()]?.toArgb()
+
+            // Create paint for output name (right-aligned, colored)
+            val outputPaint = if (outputColorInt != null) {
+                val blendedColor = blendColors(outputColorInt, textSecondaryArgb, 0.5f)
+                Paint().apply {
+                    color = blendedColor
+                    textSize = 22f
+                    typeface = Typeface.DEFAULT_BOLD
+                    isAntiAlias = true
+                    textAlign = Paint.Align.RIGHT
+                }
+            } else {
+                Paint().apply {
+                    color = textSecondaryArgb
+                    textSize = 22f
+                    typeface = Typeface.DEFAULT_BOLD
+                    isAntiAlias = true
+                    textAlign = Paint.Align.RIGHT
+                }
+            }
+
+            // Draw output name (right-aligned, with padding from right edge)
+            val outputTextX = node.x + node.width - 16f
+            drawText(outputType, outputTextX, outputY, outputPaint)
+
+            outputY += WorkflowLayoutEngine.INPUT_ROW_HEIGHT
+        }
     }
 }
 
@@ -482,7 +765,7 @@ private fun DrawScope.drawEdge(edge: WorkflowEdge, nodes: List<WorkflowNode>, co
 
     // Connection points: always exit right side of source, enter left side of target
     val startX = sourceNode.x + sourceNode.width
-    val startY = sourceNode.y + sourceNode.height / 2
+    val startY = sourceNode.y + calculateOutputY(sourceNode, edge.sourceOutputIndex)
     val endX = targetNode.x
     val endY = targetNode.y + calculateInputY(targetNode, edge.targetInputName)
 
@@ -569,6 +852,19 @@ private fun calculateInputY(node: WorkflowNode, inputName: String): Float {
     } else {
         node.height / 2
     }
+}
+
+/**
+ * Calculate the Y offset for an output slot based on its index.
+ * Outputs are positioned after literal inputs.
+ */
+private fun calculateOutputY(node: WorkflowNode, outputIndex: Int): Float {
+    val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+    // Count literal inputs to know where outputs start
+    val literalInputCount = node.inputs.count { (_, value) -> value is InputValue.Literal }
+    // Outputs start after literal inputs
+    return headerHeight + 20f + (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
+        (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
 }
 
 

@@ -207,6 +207,7 @@
     <string name="mode_inpainting">Inpainting</string>
     <string name="mode_editing">Editing</string>
     <string name="label_workflow">Workflow</string>
+    <string name="view_workflow">View workflow</string>
     <string name="label_checkpoint" translatable="false">Checkpoint</string>
     <string name="label_unet" translatable="false">UNET</string>
     <string name="label_vae" translatable="false">VAE</string>
@@ -268,14 +269,19 @@
     <string name="workflow_name_label">Name</string>
     <string name="workflow_description_label">Description</string>
     <string name="upload_workflow_title">Upload workflow</string>
+    <string name="save_workflow_title">Save new workflow</string>
     <string name="edit_workflow_title">Edit workflow</string>
     <string name="delete_workflow_title">Delete workflow</string>
     <string name="delete_workflow_message">Are you sure you want to delete \"%s\"?</string>
     <string name="button_upload">Upload</string>
+    <string name="button_new_workflow">New workflow</string>
     <string name="button_save">Save</string>
     <string name="button_delete">Delete</string>
+    <string name="button_discard">Discard</string>
     <string name="button_cancel">Cancel</string>
     <string name="edit">Edit</string>
+    <string name="edit_structure">Edit structure</string>
+    <string name="error_cannot_edit_builtin">Built-in workflows cannot be edited</string>
     <string name="delete">Delete</string>
     <string name="workflow_error_invalid_json">Invalid JSON format</string>
     <string name="workflow_upload_success">Workflow uploaded</string>
@@ -318,6 +324,21 @@
     <string name="workflow_editor_error_loading">Failed to load workflow</string>
     <string name="workflow_editor_zoom_percentage" translatable="false">%1$d%%</string>
     <string name="workflow_editor_node_info" translatable="false">%1$s (%2$s)</string>
+    <string name="workflow_editor_enter_edit_mode">Edit graph</string>
+    <string name="workflow_editor_exit_edit_mode">Exit edit mode</string>
+    <string name="workflow_editor_delete_node">Delete selected</string>
+    <string name="workflow_editor_duplicate_node">Duplicate selected</string>
+    <string name="workflow_editor_add_node">Add node</string>
+    <string name="workflow_editor_relayout">Re-arrange nodes</string>
+    <string name="workflow_editor_done">Done</string>
+    <string name="workflow_editor_discard_title">Discard workflow?</string>
+    <string name="workflow_editor_discard_message">You have unsaved changes. Are you sure you want to discard this workflow?</string>
+
+    <!-- Node browser bottom sheet strings -->
+    <string name="node_browser_title">Add node</string>
+    <string name="node_browser_search_placeholder">Search nodes…</string>
+    <string name="node_browser_no_results">No nodes match your search</string>
+    <string name="node_browser_io_info">%1$d inputs, %2$d outputs</string>
 
     <!-- Workflow upload dialog strings -->
     <string name="workflow_type_label">Workflow type</string>

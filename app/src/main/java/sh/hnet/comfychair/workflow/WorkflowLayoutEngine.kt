@@ -29,7 +29,8 @@ class WorkflowLayoutEngine {
         val dependencies = buildDependencyMap(graph)
 
         // Step 2: Assign layers using longest path method
-        val layers = assignLayers(graph.nodes, dependencies)
+        // Orphan nodes (no connections) are placed at the end
+        val layers = assignLayers(graph.nodes, dependencies, graph.edges)
 
         // Step 3: Order nodes within each layer
         val orderedLayers = orderNodesInLayers(layers, graph.edges)
@@ -84,18 +85,36 @@ class WorkflowLayoutEngine {
     }
 
     /**
-     * Assign nodes to layers based on their dependencies
-     * Nodes with no dependencies go to layer 0, etc.
+     * Assign nodes to layers based on their dependencies.
+     * Connected nodes are layered by dependency depth.
+     * Orphan nodes (no incoming AND no outgoing edges) are placed in a final layer at the end.
      */
     private fun assignLayers(
         nodes: List<WorkflowNode>,
-        dependencies: Map<String, Set<String>>
+        dependencies: Map<String, Set<String>>,
+        edges: List<WorkflowEdge>
     ): Map<Int, MutableList<WorkflowNode>> {
         val layerAssignment = mutableMapOf<String, Int>()
         val nodeMap = nodes.associateBy { it.id }
 
-        // Compute layer for each node using longest path
+        // Build set of nodes that have outgoing edges
+        val nodesWithOutgoing = edges.map { it.sourceNodeId }.toSet()
+
+        // Identify orphan nodes (no incoming AND no outgoing connections)
+        val orphanNodes = mutableSetOf<String>()
+        nodes.forEach { node ->
+            val hasIncoming = dependencies[node.id]?.isNotEmpty() == true
+            val hasOutgoing = node.id in nodesWithOutgoing
+            if (!hasIncoming && !hasOutgoing) {
+                orphanNodes.add(node.id)
+            }
+        }
+
+        // Compute layer for each non-orphan node using longest path
         fun computeLayer(nodeId: String, visited: MutableSet<String>): Int {
+            // Skip orphans - they'll be handled separately
+            if (nodeId in orphanNodes) return -1
+
             // Return cached value if already computed
             if (nodeId in layerAssignment) return layerAssignment[nodeId]!!
 
@@ -105,10 +124,12 @@ class WorkflowLayoutEngine {
             visited.add(nodeId)
 
             val deps = dependencies[nodeId] ?: emptySet()
-            val maxDepLayer = if (deps.isEmpty()) {
+            // Filter out orphan dependencies
+            val validDeps = deps.filter { it !in orphanNodes }
+            val maxDepLayer = if (validDeps.isEmpty()) {
                 -1
             } else {
-                deps.maxOfOrNull { depId ->
+                validDeps.maxOfOrNull { depId ->
                     if (nodeMap.containsKey(depId)) {
                         computeLayer(depId, visited)
                     } else {
@@ -122,16 +143,23 @@ class WorkflowLayoutEngine {
             return layer
         }
 
-        // Compute layers for all nodes
-        nodes.forEach { node ->
+        // Compute layers for non-orphan nodes
+        nodes.filter { it.id !in orphanNodes }.forEach { node ->
             computeLayer(node.id, mutableSetOf())
         }
 
-        // Group nodes by layer
+        // Group non-orphan nodes by layer
         val layers = mutableMapOf<Int, MutableList<WorkflowNode>>()
-        nodes.forEach { node ->
+        nodes.filter { it.id !in orphanNodes }.forEach { node ->
             val layer = layerAssignment[node.id] ?: 0
             layers.getOrPut(layer) { mutableListOf() }.add(node)
+        }
+
+        // Add orphan nodes to a final layer (after all connected nodes)
+        if (orphanNodes.isNotEmpty()) {
+            val maxLayer = layers.keys.maxOrNull() ?: -1
+            val orphanLayer = maxLayer + 1
+            layers[orphanLayer] = nodes.filter { it.id in orphanNodes }.toMutableList()
         }
 
         return layers
@@ -247,11 +275,29 @@ class WorkflowLayoutEngine {
     }
 
     /**
-     * Calculate the height of a node based on its inputs
+     * Calculate the height of a node based on its inputs and outputs.
+     * Layout: Header -> Literal inputs -> Connection area (inputs left, outputs right)
      */
     private fun calculateNodeHeight(node: WorkflowNode): Float {
-        val inputCount = node.inputs.size
-        val contentHeight = inputCount * INPUT_ROW_HEIGHT
+        // Count literal inputs (editable key:value pairs)
+        val literalInputCount = node.inputs.count { (_, value) ->
+            value is InputValue.Literal
+        }
+
+        // Count connection inputs (Connection or UnconnectedSlot)
+        val connectionInputCount = node.inputs.count { (_, value) ->
+            value is InputValue.Connection || value is InputValue.UnconnectedSlot
+        }
+
+        // Output count
+        val outputCount = node.outputs.size
+
+        // Connection area height = max of connection inputs and outputs
+        val connectionAreaHeight = maxOf(connectionInputCount, outputCount) * INPUT_ROW_HEIGHT
+
+        // Total content height
+        val contentHeight = (literalInputCount * INPUT_ROW_HEIGHT) + connectionAreaHeight
+
         return maxOf(NODE_MIN_HEIGHT, NODE_HEADER_HEIGHT + contentHeight + 16f)
     }
 }

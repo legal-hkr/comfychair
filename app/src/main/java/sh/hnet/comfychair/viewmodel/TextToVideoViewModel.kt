@@ -34,7 +34,8 @@ import sh.hnet.comfychair.util.VideoUtils
  * Represents a workflow item with display name and type prefix
  */
 data class TtvWorkflowItem(
-    val name: String,           // Internal workflow name
+    val id: String,             // Workflow ID for editor
+    val name: String,           // User-friendly workflow name
     val displayName: String,    // "[UNET] LightX2V"
     val type: WorkflowType      // TTV_UNET
 )
@@ -175,13 +176,14 @@ class TextToVideoViewModel : ViewModel() {
         val wm = workflowManager ?: return
         val ctx = applicationContext ?: return
 
-        val unetWorkflows = wm.getVideoUNETWorkflowNames()
+        val unetWorkflows = wm.getWorkflowsByType(WorkflowType.TTV_UNET)
         val unetPrefix = ctx.getString(R.string.mode_unet)
 
-        val unifiedWorkflows = unetWorkflows.map { name ->
+        val unifiedWorkflows = unetWorkflows.map { workflow ->
             TtvWorkflowItem(
-                name = name,
-                displayName = "[$unetPrefix] $name",
+                id = workflow.id,
+                name = workflow.name,
+                displayName = "[$unetPrefix] ${workflow.name}",
                 type = WorkflowType.TTV_UNET
             )
         }

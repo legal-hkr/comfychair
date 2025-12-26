@@ -37,8 +37,9 @@ import java.io.IOException
  * Represents a workflow item in the unified workflow dropdown
  */
 data class WorkflowItem(
-    val name: String,           // Internal workflow name (e.g., "tti_checkpoint_sd.json")
-    val displayName: String,    // Display name with type prefix (e.g., "[Checkpoint] SD 1.5")
+    val id: String,             // Workflow ID for editor (e.g., "tti_checkpoint_sdxl")
+    val name: String,           // User-friendly workflow name (e.g., "SDXL")
+    val displayName: String,    // Display name with type prefix (e.g., "[Checkpoint] SDXL")
     val type: WorkflowType      // Workflow type for mode detection
 )
 
@@ -195,9 +196,8 @@ class TextToImageViewModel : ViewModel() {
             return
         }
 
-        val checkpointWorkflows = manager.getCheckpointWorkflowNames()
-        val unetWorkflows = manager.getUNETWorkflowNames()
-
+        val checkpointWorkflows = manager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT)
+        val unetWorkflows = manager.getWorkflowsByType(WorkflowType.TTI_UNET)
 
         // Create unified workflow list with type prefix for display
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -206,19 +206,21 @@ class TextToImageViewModel : ViewModel() {
         val unifiedWorkflows = mutableListOf<WorkflowItem>()
 
         // Add checkpoint workflows
-        checkpointWorkflows.forEach { name ->
+        checkpointWorkflows.forEach { workflow ->
             unifiedWorkflows.add(WorkflowItem(
-                name = name,
-                displayName = "[$checkpointPrefix] $name",
+                id = workflow.id,
+                name = workflow.name,
+                displayName = "[$checkpointPrefix] ${workflow.name}",
                 type = WorkflowType.TTI_CHECKPOINT
             ))
         }
 
         // Add UNET workflows
-        unetWorkflows.forEach { name ->
+        unetWorkflows.forEach { workflow ->
             unifiedWorkflows.add(WorkflowItem(
-                name = name,
-                displayName = "[$unetPrefix] $name",
+                id = workflow.id,
+                name = workflow.name,
+                displayName = "[$unetPrefix] ${workflow.name}",
                 type = WorkflowType.TTI_UNET
             ))
         }

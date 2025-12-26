@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -96,6 +98,26 @@ fun WorkflowsSettingsScreen(
         }
     }
 
+    // Editor launcher for create new workflow mode
+    val createEditorLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // Reload from disk and refresh UI - workflow was saved by WorkflowEditorViewModel
+            viewModel.reloadAndRefreshWorkflows()
+        }
+    }
+
+    // Editor launcher for editing existing workflow structure
+    val editExistingLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // Reload from disk and refresh UI - workflow was updated by WorkflowEditorViewModel
+            viewModel.reloadAndRefreshWorkflows()
+        }
+    }
+
     // Initialize ViewModel
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
@@ -138,6 +160,14 @@ fun WorkflowsSettingsScreen(
             title = { Text(stringResource(R.string.workflows_settings_title)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
+                // New workflow button
+                IconButton(onClick = {
+                    createEditorLauncher.launch(
+                        WorkflowEditorActivity.createIntentForNewWorkflow(context)
+                    )
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.button_new_workflow))
+                }
                 // Upload button
                 IconButton(onClick = { jsonPickerLauncher.launch("application/json") }) {
                     Icon(Icons.Default.Upload, contentDescription = stringResource(R.string.button_upload))
@@ -171,7 +201,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_tti_checkpoint),
                         workflows = uiState.ttiCheckpointWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -182,7 +213,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_tti_unet),
                         workflows = uiState.ttiUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -193,7 +225,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_ite_unet),
                         workflows = uiState.iteUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -204,7 +237,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_iti_checkpoint),
                         workflows = uiState.itiCheckpointWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -215,7 +249,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_iti_unet),
                         workflows = uiState.itiUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -226,7 +261,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_ttv_unet),
                         workflows = uiState.ttvUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -237,7 +273,8 @@ fun WorkflowsSettingsScreen(
                         title = stringResource(R.string.workflow_section_itv_unet),
                         workflows = uiState.itvUnetWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEdit = { viewModel.onEditWorkflow(it) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onEditMetadata = { viewModel.onEditWorkflow(it) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -342,7 +379,8 @@ private fun WorkflowSection(
     title: String,
     workflows: List<WorkflowManager.Workflow>,
     onWorkflowClick: (WorkflowManager.Workflow) -> Unit,
-    onEdit: (WorkflowManager.Workflow) -> Unit,
+    onEditStructure: (WorkflowManager.Workflow) -> Unit,
+    onEditMetadata: (WorkflowManager.Workflow) -> Unit,
     onDelete: (WorkflowManager.Workflow) -> Unit
 ) {
     Column {
@@ -372,7 +410,8 @@ private fun WorkflowSection(
                         WorkflowListItemContent(
                             workflow = workflow,
                             onClick = { onWorkflowClick(workflow) },
-                            onEdit = { onEdit(workflow) },
+                            onEditStructure = { onEditStructure(workflow) },
+                            onEditMetadata = { onEditMetadata(workflow) },
                             onDelete = { onDelete(workflow) }
                         )
                         if (index < workflows.size - 1) {
@@ -395,7 +434,8 @@ private fun WorkflowSection(
 private fun WorkflowListItemContent(
     workflow: WorkflowManager.Workflow,
     onClick: () -> Unit,
-    onEdit: () -> Unit,
+    onEditStructure: () -> Unit,
+    onEditMetadata: () -> Unit,
     onDelete: () -> Unit
 ) {
     Row(
@@ -428,13 +468,23 @@ private fun WorkflowListItemContent(
 
         // Edit/Delete buttons (only for user workflows)
         if (!workflow.isBuiltIn) {
-            IconButton(onClick = onEdit) {
+            // Structural edit button (Tune icon)
+            IconButton(onClick = onEditStructure) {
+                Icon(
+                    Icons.Default.Tune,
+                    contentDescription = stringResource(R.string.edit_structure),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            // Metadata edit button (Edit icon)
+            IconButton(onClick = onEditMetadata) {
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = stringResource(R.string.edit),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            // Delete button
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,

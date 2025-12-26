@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.viewmodel
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -14,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
@@ -21,9 +24,21 @@ import sh.hnet.comfychair.workflow.WorkflowParser
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowNode
+import sh.hnet.comfychair.workflow.WorkflowEdge
+import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.ConnectionModeState
+import sh.hnet.comfychair.workflow.NodeCategory
+import sh.hnet.comfychair.workflow.WorkflowSerializer
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import sh.hnet.comfychair.workflow.RequiredField
+import sh.hnet.comfychair.workflow.FieldCandidate
+import sh.hnet.comfychair.workflow.FieldMappingState
+import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
@@ -34,12 +49,19 @@ import sh.hnet.comfychair.storage.WorkflowValuesStorage
 sealed class WorkflowEditorEvent {
     data class MappingConfirmed(val mappingsJson: String) : WorkflowEditorEvent()
     object MappingCancelled : WorkflowEditorEvent()
+    data class WorkflowCreated(val workflowId: String) : WorkflowEditorEvent()
+    data class WorkflowUpdated(val workflowId: String) : WorkflowEditorEvent()
+    object CreateCancelled : WorkflowEditorEvent()
 }
 
 /**
  * ViewModel for the Workflow Editor screen
  */
 class WorkflowEditorViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "WorkflowEditor"
+    }
 
     private val _uiState = MutableStateFlow(WorkflowEditorUiState())
     val uiState: StateFlow<WorkflowEditorUiState> = _uiState.asStateFlow()
@@ -60,6 +82,10 @@ class WorkflowEditorViewModel : ViewModel() {
     private enum class FitMode { FIT_ALL, FIT_WIDTH }
     private var lastFitMode: FitMode = FitMode.FIT_ALL
 
+    // Mutable graph for editing operations
+    private var mutableGraph: MutableWorkflowGraph? = null
+    private var nodeIdCounter: Int = 0
+
     /**
      * Initialize the editor with a workflow ID (view mode)
      */
@@ -77,6 +103,8 @@ class WorkflowEditorViewModel : ViewModel() {
                 val jsonContent: String
                 val name: String
                 val description: String
+                var workflowType: WorkflowType? = null
+                var isBuiltIn = false
 
                 if (workflowJson != null) {
                     // Direct JSON content provided
@@ -99,6 +127,8 @@ class WorkflowEditorViewModel : ViewModel() {
                     jsonContent = workflow.jsonContent
                     name = workflow.name
                     description = workflow.description
+                    workflowType = workflow.type
+                    isBuiltIn = workflow.isBuiltIn
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -109,6 +139,9 @@ class WorkflowEditorViewModel : ViewModel() {
 
                 // Parse the workflow
                 var graph = parser.parse(jsonContent, name, description)
+
+                // Populate node outputs from registry
+                graph = populateNodeOutputs(graph)
 
                 // Layout the graph
                 graph = layoutEngine.layoutGraph(graph)
@@ -133,7 +166,13 @@ class WorkflowEditorViewModel : ViewModel() {
                     graphBounds = bounds,
                     isFieldMappingMode = false,
                     nodeDefinitions = nodeDefinitions,
-                    nodeAttributeEdits = existingEdits
+                    nodeAttributeEdits = existingEdits,
+                    // Store workflow metadata for later use in edit mode
+                    editingWorkflowId = workflowId,
+                    editingWorkflowType = workflowType,
+                    originalWorkflowName = name,
+                    originalWorkflowDescription = description,
+                    viewingWorkflowIsBuiltIn = isBuiltIn
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -162,6 +201,9 @@ class WorkflowEditorViewModel : ViewModel() {
                 // Parse the workflow
                 var graph = parser.parse(jsonContent, name, description)
 
+                // Populate node outputs from registry
+                graph = populateNodeOutputs(graph)
+
                 // Layout the graph
                 graph = layoutEngine.layoutGraph(graph)
 
@@ -186,6 +228,114 @@ class WorkflowEditorViewModel : ViewModel() {
                     canConfirmMapping = mappingState.allFieldsMapped
                 )
             } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Failed to load workflow: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Initialize the editor for creating a new workflow from scratch.
+     * Creates an empty mutable graph and enters edit mode automatically.
+     */
+    fun initializeForCreation(context: Context) {
+        DebugLogger.i(TAG, "initializeForCreation: Starting create mode")
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+        // Fetch object_info first for node definitions
+        fetchObjectInfo { success ->
+            DebugLogger.d(TAG, "initializeForCreation: fetchObjectInfo success=$success")
+            // Create empty graph
+            val emptyGraph = WorkflowGraph(
+                name = "",
+                description = "",
+                nodes = emptyList(),
+                edges = emptyList(),
+                templateVariables = emptySet()
+            )
+
+            mutableGraph = MutableWorkflowGraph.fromImmutable(emptyGraph)
+            nodeIdCounter = 1
+
+            _uiState.value = _uiState.value.copy(
+                graph = emptyGraph,
+                workflowName = "",
+                isLoading = false,
+                errorMessage = null,
+                isCreateMode = true,
+                isEditMode = true,  // Start in edit mode
+                hasUnsavedChanges = false,
+                graphBounds = GraphBounds()
+            )
+        }
+    }
+
+    /**
+     * Initialize the editor for editing an existing user workflow's structure.
+     * Loads the workflow, enters edit mode, but preserves existing metadata.
+     * Save flow skips the save dialog and updates the existing file.
+     */
+    fun initializeForEditingExisting(context: Context, workflowId: String) {
+        DebugLogger.i(TAG, "initializeForEditingExisting: Loading workflow $workflowId")
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+        workflowValuesStorage = WorkflowValuesStorage(context)
+        currentWorkflowId = workflowId
+
+        fetchObjectInfo { _ ->
+            try {
+                val workflowManager = WorkflowManager(context)
+                val workflow = workflowManager.getWorkflowById(workflowId)
+
+                if (workflow == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = context.getString(R.string.error_workflow_not_found)
+                    )
+                    return@fetchObjectInfo
+                }
+
+                // Built-in workflows cannot be edited
+                if (workflow.isBuiltIn) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = context.getString(R.string.error_cannot_edit_builtin)
+                    )
+                    return@fetchObjectInfo
+                }
+
+                // Parse the workflow
+                var graph = parser.parse(workflow.jsonContent, workflow.name, workflow.description)
+                graph = populateNodeOutputs(graph)
+                graph = layoutEngine.layoutGraph(graph)
+                graph = resolveEdgeTypes(graph)
+                val bounds = layoutEngine.calculateBounds(graph)
+
+                // Initialize mutable graph for editing
+                mutableGraph = MutableWorkflowGraph.fromImmutable(graph)
+                nodeIdCounter = graph.nodes.mapNotNull { it.id.toIntOrNull() }.maxOrNull()?.plus(1) ?: 1
+
+                _uiState.value = _uiState.value.copy(
+                    graph = graph,
+                    workflowName = workflow.name,
+                    isLoading = false,
+                    errorMessage = null,
+                    graphBounds = bounds,
+                    // Edit-existing specific flags
+                    isEditExistingMode = true,
+                    isEditMode = true,  // Start in edit mode
+                    editingWorkflowId = workflowId,
+                    editingWorkflowType = workflow.type,
+                    originalWorkflowName = workflow.name,
+                    originalWorkflowDescription = workflow.description,
+                    hasUnsavedChanges = false
+                )
+
+                DebugLogger.i(TAG, "initializeForEditingExisting: Loaded workflow ${workflow.name}, type=${workflow.type}")
+            } catch (e: Exception) {
+                DebugLogger.e(TAG, "initializeForEditingExisting: Failed to load workflow: ${e.message}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Failed to load workflow: ${e.message}"
@@ -318,14 +468,18 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Confirm the mapping and emit event
+     * Confirm the mapping and emit event (for upload flow - returns mappings to calling activity)
      */
     fun confirmMapping() {
+        DebugLogger.i(TAG, "confirmMapping: Confirming mapping for upload flow")
         val mappingsJson = getFinalMappingsJson()
         if (mappingsJson != null) {
+            DebugLogger.d(TAG, "confirmMapping: Emitting MappingConfirmed event")
             viewModelScope.launch {
                 _events.emit(WorkflowEditorEvent.MappingConfirmed(mappingsJson))
             }
+        } else {
+            DebugLogger.w(TAG, "confirmMapping: No mappings JSON available")
         }
     }
 
@@ -335,6 +489,735 @@ class WorkflowEditorViewModel : ViewModel() {
     fun cancelMapping() {
         viewModelScope.launch {
             _events.emit(WorkflowEditorEvent.MappingCancelled)
+        }
+    }
+
+    // ========== Create Mode Methods ==========
+
+    /**
+     * Check if there are unsaved changes that would be lost in create mode
+     */
+    fun hasUnsavedWork(): Boolean {
+        val state = _uiState.value
+        if (!state.isCreateMode) return false
+        val graph = mutableGraph?.toImmutable() ?: return false
+        return graph.nodes.isNotEmpty()
+    }
+
+    /**
+     * Show discard confirmation dialog
+     */
+    fun showDiscardConfirmation() {
+        _uiState.value = _uiState.value.copy(showDiscardConfirmation = true)
+    }
+
+    /**
+     * Dismiss discard confirmation dialog
+     */
+    fun dismissDiscardConfirmation() {
+        _uiState.value = _uiState.value.copy(showDiscardConfirmation = false)
+    }
+
+    /**
+     * Confirm discard and close editor
+     */
+    fun confirmDiscard() {
+        _uiState.value = _uiState.value.copy(showDiscardConfirmation = false)
+        viewModelScope.launch {
+            _events.emit(WorkflowEditorEvent.CreateCancelled)
+        }
+    }
+
+    /**
+     * Handle close button in create mode - show confirmation if work exists
+     */
+    fun handleCreateModeClose() {
+        if (hasUnsavedWork()) {
+            showDiscardConfirmation()
+        } else {
+            viewModelScope.launch {
+                _events.emit(WorkflowEditorEvent.CreateCancelled)
+            }
+        }
+    }
+
+    /**
+     * Handle close button in edit-existing mode.
+     * Shows discard confirmation if there are unsaved changes.
+     */
+    fun handleEditExistingModeClose() {
+        if (hasUnsavedWork()) {
+            showDiscardConfirmation()
+        } else {
+            viewModelScope.launch {
+                _events.emit(WorkflowEditorEvent.CreateCancelled)
+            }
+        }
+    }
+
+    /**
+     * Show save dialog when Done is pressed in create mode.
+     * For edit-existing mode, skips the dialog and proceeds directly to validation.
+     * Auto-detects workflow type from graph nodes.
+     */
+    fun showSaveDialog() {
+        val state = _uiState.value
+        val hasExistingWorkflow = state.editingWorkflowId != null
+        DebugLogger.i(TAG, "showSaveDialog: hasExistingWorkflow=$hasExistingWorkflow")
+        val graph = mutableGraph?.toImmutable()
+        if (graph == null) {
+            DebugLogger.w(TAG, "showSaveDialog: No mutable graph available")
+            return
+        }
+        if (graph.nodes.isEmpty()) {
+            DebugLogger.w(TAG, "showSaveDialog: Cannot save empty workflow")
+            return
+        }
+
+        DebugLogger.d(TAG, "showSaveDialog: Graph has ${graph.nodes.size} nodes, ${graph.edges.size} edges")
+
+        // For existing workflow, skip the dialog and proceed directly to validation
+        if (hasExistingWorkflow) {
+            DebugLogger.i(TAG, "showSaveDialog: Existing workflow, skipping dialog")
+            proceedWithEditExistingSave()
+            return
+        }
+
+        // Auto-detect type from nodes
+        val detectedType = detectWorkflowTypeFromGraph(graph)
+        DebugLogger.d(TAG, "showSaveDialog: Detected type=$detectedType")
+
+        _uiState.value = _uiState.value.copy(
+            showSaveDialog = true,
+            saveDialogSelectedType = detectedType,
+            saveDialogName = "",
+            saveDialogDescription = "",
+            saveDialogNameError = null,
+            saveDialogDescriptionError = null,
+            isSaveValidating = false
+        )
+    }
+
+    /**
+     * Cancel save dialog
+     */
+    fun cancelSaveDialog() {
+        _uiState.value = _uiState.value.copy(
+            showSaveDialog = false,
+            saveDialogSelectedType = null,
+            saveDialogName = "",
+            saveDialogDescription = "",
+            saveDialogNameError = null,
+            saveDialogDescriptionError = null
+        )
+    }
+
+    /**
+     * Update save dialog type selection
+     */
+    fun onSaveDialogTypeSelected(type: WorkflowType) {
+        _uiState.value = _uiState.value.copy(
+            saveDialogSelectedType = type,
+            saveDialogTypeDropdownExpanded = false
+        )
+    }
+
+    /**
+     * Toggle save dialog type dropdown
+     */
+    fun onSaveDialogToggleTypeDropdown() {
+        _uiState.value = _uiState.value.copy(
+            saveDialogTypeDropdownExpanded = !_uiState.value.saveDialogTypeDropdownExpanded
+        )
+    }
+
+    /**
+     * Update save dialog name
+     */
+    fun onSaveDialogNameChange(name: String) {
+        _uiState.value = _uiState.value.copy(
+            saveDialogName = name,
+            saveDialogNameError = null
+        )
+    }
+
+    /**
+     * Update save dialog description
+     */
+    fun onSaveDialogDescriptionChange(description: String) {
+        _uiState.value = _uiState.value.copy(
+            saveDialogDescription = description,
+            saveDialogDescriptionError = null
+        )
+    }
+
+    /**
+     * Dismiss duplicate name dialog
+     */
+    fun dismissDuplicateNameDialog() {
+        _uiState.value = _uiState.value.copy(showDuplicateNameDialog = false)
+    }
+
+    /**
+     * Dismiss missing nodes dialog
+     */
+    fun dismissMissingNodesDialog() {
+        _uiState.value = _uiState.value.copy(showMissingNodesDialog = false)
+    }
+
+    /**
+     * Dismiss missing fields dialog
+     */
+    fun dismissMissingFieldsDialog() {
+        _uiState.value = _uiState.value.copy(showMissingFieldsDialog = false)
+    }
+
+    /**
+     * Detect workflow type by analyzing nodes in the graph.
+     */
+    private fun detectWorkflowTypeFromGraph(graph: WorkflowGraph): WorkflowType? {
+        val classTypes = graph.nodes.map { it.classType }.toSet()
+
+        val hasVideoNodes = classTypes.any { classType ->
+            classType.contains("CreateVideo", ignoreCase = true) ||
+            classType.contains("VHS_VideoCombine", ignoreCase = true) ||
+            classType.contains("VideoLinearCFGGuidance", ignoreCase = true)
+        }
+
+        val hasLoadImage = classTypes.any { it.equals("LoadImage", ignoreCase = true) }
+        val hasInpaintingNodes = classTypes.any {
+            it.contains("SetLatentNoiseMask", ignoreCase = true) ||
+            it.contains("Inpaint", ignoreCase = true)
+        }
+        val hasImageEditingNodes = classTypes.any {
+            it.contains("QwenImageEdit", ignoreCase = true)
+        }
+        val hasCheckpointLoader = classTypes.any { it.equals("CheckpointLoaderSimple", ignoreCase = true) }
+        val hasUNETLoader = classTypes.any { it.equals("UNETLoader", ignoreCase = true) }
+
+        return when {
+            hasLoadImage && hasVideoNodes -> WorkflowType.ITV_UNET
+            hasVideoNodes -> WorkflowType.TTV_UNET
+            hasImageEditingNodes && hasUNETLoader -> WorkflowType.ITE_UNET
+            hasInpaintingNodes && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
+            hasInpaintingNodes && hasUNETLoader -> WorkflowType.ITI_UNET
+            hasLoadImage && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
+            hasLoadImage && hasUNETLoader -> WorkflowType.ITI_UNET
+            hasCheckpointLoader -> WorkflowType.TTI_CHECKPOINT
+            hasUNETLoader -> WorkflowType.TTI_UNET
+            else -> null
+        }
+    }
+
+    // Data to hold pending save information
+    private data class PendingSaveData(
+        val name: String,
+        val description: String,
+        val type: WorkflowType,
+        val graph: WorkflowGraph
+    )
+    private var pendingSaveData: PendingSaveData? = null
+
+    /**
+     * Proceed with save - validates and enters mapping mode.
+     */
+    fun proceedWithSave(context: Context, workflowManager: WorkflowManager) {
+        DebugLogger.i(TAG, "proceedWithSave: Starting validation")
+        val state = _uiState.value
+        val graph = mutableGraph?.toImmutable()
+        if (graph == null) {
+            DebugLogger.e(TAG, "proceedWithSave: No mutable graph available")
+            return
+        }
+        val selectedType = state.saveDialogSelectedType
+        if (selectedType == null) {
+            DebugLogger.e(TAG, "proceedWithSave: No workflow type selected")
+            return
+        }
+        val name = state.saveDialogName.trim()
+        val description = state.saveDialogDescription.trim()
+
+        DebugLogger.d(TAG, "proceedWithSave: name='$name', type=$selectedType, nodes=${graph.nodes.size}")
+
+        // Validate name format
+        val nameError = workflowManager.validateWorkflowName(name)
+        if (nameError != null) {
+            DebugLogger.w(TAG, "proceedWithSave: Name validation failed: $nameError")
+            _uiState.value = _uiState.value.copy(
+                saveDialogNameError = nameError
+            )
+            return
+        }
+
+        // Validate description
+        val descError = workflowManager.validateWorkflowDescription(description)
+        if (descError != null) {
+            DebugLogger.w(TAG, "proceedWithSave: Description validation failed: $descError")
+            _uiState.value = _uiState.value.copy(
+                saveDialogDescriptionError = descError
+            )
+            return
+        }
+
+        // Check for duplicate name
+        if (workflowManager.isWorkflowNameTaken(name)) {
+            DebugLogger.w(TAG, "proceedWithSave: Duplicate name detected")
+            _uiState.value = _uiState.value.copy(showDuplicateNameDialog = true)
+            return
+        }
+
+        // Start validation
+        _uiState.value = _uiState.value.copy(isSaveValidating = true)
+        DebugLogger.d(TAG, "proceedWithSave: Validating nodes on server")
+
+        // Validate nodes exist on server
+        val client = ConnectionManager.clientOrNull
+        if (client == null) {
+            DebugLogger.e(TAG, "proceedWithSave: No connection to server")
+            _uiState.value = _uiState.value.copy(
+                isSaveValidating = false,
+                saveDialogNameError = context.getString(R.string.error_no_connection)
+            )
+            return
+        }
+
+        client.fetchAllNodeTypes { availableNodes ->
+            viewModelScope.launch {
+                if (availableNodes == null) {
+                    DebugLogger.e(TAG, "proceedWithSave: Failed to fetch available nodes")
+                    _uiState.value = _uiState.value.copy(
+                        isSaveValidating = false,
+                        saveDialogNameError = context.getString(R.string.workflow_error_fetch_nodes_failed)
+                    )
+                    return@launch
+                }
+
+                DebugLogger.d(TAG, "proceedWithSave: Server has ${availableNodes.size} node types")
+
+                val workflowClassTypes = graph.nodes.map { it.classType }.toSet()
+                val missingNodes = workflowClassTypes.filter { it !in availableNodes }
+
+                if (missingNodes.isNotEmpty()) {
+                    DebugLogger.w(TAG, "proceedWithSave: Missing nodes: $missingNodes")
+                    _uiState.value = _uiState.value.copy(
+                        isSaveValidating = false,
+                        showMissingNodesDialog = true,
+                        missingNodes = missingNodes
+                    )
+                    return@launch
+                }
+
+                DebugLogger.d(TAG, "proceedWithSave: All nodes validated, creating field mappings")
+
+                // Create field mapping state from graph
+                val mappingState = createFieldMappingStateFromGraph(graph, selectedType)
+
+                // Check if all fields can be mapped
+                if (!mappingState.allFieldsMapped) {
+                    val unmappedFieldNames = mappingState.unmappedFields.map { it.displayName }
+                    DebugLogger.w(TAG, "proceedWithSave: Unmapped fields: $unmappedFieldNames")
+                    _uiState.value = _uiState.value.copy(
+                        isSaveValidating = false,
+                        showMissingFieldsDialog = true,
+                        missingFields = unmappedFieldNames
+                    )
+                    return@launch
+                }
+
+                DebugLogger.i(TAG, "proceedWithSave: Validation passed, entering mapping mode")
+
+                // Store pending save data and enter mapping mode
+                pendingSaveData = PendingSaveData(
+                    name = name,
+                    description = description,
+                    type = selectedType,
+                    graph = graph
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isSaveValidating = false,
+                    showSaveDialog = false,
+                    isFieldMappingMode = true,
+                    mappingState = mappingState,
+                    isEditMode = false,  // Exit edit mode
+                    canConfirmMapping = mappingState.allFieldsMapped,
+                    highlightedNodeIds = calculateHighlightedNodes(mappingState)
+                )
+            }
+        }
+    }
+
+    /**
+     * Proceed with saving an edited existing workflow.
+     * Skips save dialog since we already have metadata, uses stored workflow type.
+     */
+    private fun proceedWithEditExistingSave() {
+        DebugLogger.i(TAG, "proceedWithEditExistingSave: Starting validation for edit-existing mode")
+        val state = _uiState.value
+        val graph = mutableGraph?.toImmutable()
+        if (graph == null) {
+            DebugLogger.e(TAG, "proceedWithEditExistingSave: No mutable graph available")
+            return
+        }
+        val workflowType = state.editingWorkflowType
+        if (workflowType == null) {
+            DebugLogger.e(TAG, "proceedWithEditExistingSave: No workflow type available")
+            return
+        }
+
+        DebugLogger.d(TAG, "proceedWithEditExistingSave: type=$workflowType, nodes=${graph.nodes.size}")
+
+        // Start validation
+        _uiState.value = _uiState.value.copy(isSaveValidating = true)
+
+        // Validate nodes exist on server
+        val client = ConnectionManager.clientOrNull
+        if (client == null) {
+            DebugLogger.e(TAG, "proceedWithEditExistingSave: No connection to server")
+            _uiState.value = _uiState.value.copy(
+                isSaveValidating = false,
+                showMissingNodesDialog = true,
+                missingNodes = listOf("No connection to server")
+            )
+            return
+        }
+
+        client.fetchAllNodeTypes { availableNodes ->
+            viewModelScope.launch {
+                if (availableNodes == null) {
+                    DebugLogger.e(TAG, "proceedWithEditExistingSave: Failed to fetch available nodes")
+                    _uiState.value = _uiState.value.copy(
+                        isSaveValidating = false,
+                        showMissingNodesDialog = true,
+                        missingNodes = listOf("Failed to fetch available nodes")
+                    )
+                    return@launch
+                }
+
+                DebugLogger.d(TAG, "proceedWithEditExistingSave: Server has ${availableNodes.size} node types")
+
+                val workflowClassTypes = graph.nodes.map { it.classType }.toSet()
+                val missingNodes = workflowClassTypes.filter { it !in availableNodes }
+
+                if (missingNodes.isNotEmpty()) {
+                    DebugLogger.w(TAG, "proceedWithEditExistingSave: Missing nodes: $missingNodes")
+                    _uiState.value = _uiState.value.copy(
+                        isSaveValidating = false,
+                        showMissingNodesDialog = true,
+                        missingNodes = missingNodes
+                    )
+                    return@launch
+                }
+
+                DebugLogger.d(TAG, "proceedWithEditExistingSave: All nodes validated, creating field mappings")
+
+                // Create field mapping state from graph
+                val mappingState = createFieldMappingStateFromGraph(graph, workflowType)
+
+                // Check if all fields can be mapped
+                if (!mappingState.allFieldsMapped) {
+                    val unmappedFieldNames = mappingState.unmappedFields.map { it.displayName }
+                    DebugLogger.w(TAG, "proceedWithEditExistingSave: Unmapped fields: $unmappedFieldNames")
+                    _uiState.value = _uiState.value.copy(
+                        isSaveValidating = false,
+                        showMissingFieldsDialog = true,
+                        missingFields = unmappedFieldNames
+                    )
+                    return@launch
+                }
+
+                DebugLogger.i(TAG, "proceedWithEditExistingSave: Validation passed, entering mapping mode")
+
+                // Store pending save data and enter mapping mode
+                pendingSaveData = PendingSaveData(
+                    name = state.originalWorkflowName,
+                    description = state.originalWorkflowDescription,
+                    type = workflowType,
+                    graph = graph
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    isSaveValidating = false,
+                    isFieldMappingMode = true,
+                    mappingState = mappingState,
+                    isEditMode = false,  // Exit edit mode
+                    canConfirmMapping = mappingState.allFieldsMapped,
+                    highlightedNodeIds = calculateHighlightedNodes(mappingState)
+                )
+            }
+        }
+    }
+
+    /**
+     * Create field mapping state by analyzing graph nodes.
+     */
+    private fun createFieldMappingStateFromGraph(
+        graph: WorkflowGraph,
+        type: WorkflowType
+    ): WorkflowMappingState {
+        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Creating mappings for type=$type")
+
+        // Get required keys for this workflow type
+        val requiredKeys = TemplateKeyRegistry.getKeysForType(type)
+        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Required keys: $requiredKeys")
+
+        // Pre-compute prompt field mappings using graph tracing
+        val promptMappings = createPromptFieldMappingsFromGraph(graph)
+        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Prompt mappings - positive=${promptMappings["positive_text"]?.size ?: 0}, negative=${promptMappings["negative_text"]?.size ?: 0}")
+
+        val fieldMappings = mutableListOf<FieldMappingState>()
+
+        for (fieldKey in requiredKeys) {
+            val candidates: List<FieldCandidate>
+
+            // Handle positive_text and negative_text with graph tracing
+            if (fieldKey == "positive_text" || fieldKey == "negative_text") {
+                candidates = promptMappings[fieldKey] ?: emptyList()
+            } else {
+                // Find nodes that have this input key directly
+                val directCandidates = mutableListOf<FieldCandidate>()
+                for (node in graph.nodes) {
+                    node.inputs.forEach { (inputName, inputValue) ->
+                        if (inputName == fieldKey) {
+                            val currentValue = when (inputValue) {
+                                is InputValue.Literal -> inputValue.value
+                                else -> null
+                            }
+                            directCandidates.add(
+                                FieldCandidate(
+                                    nodeId = node.id,
+                                    nodeName = node.title,
+                                    classType = node.classType,
+                                    inputKey = inputName,
+                                    currentValue = currentValue
+                                )
+                            )
+                        }
+                    }
+                }
+                candidates = directCandidates
+            }
+
+            // Get display info for this field
+            val requiredField = FieldDisplayRegistry.createRequiredField(fieldKey)
+
+            fieldMappings.add(
+                FieldMappingState(
+                    field = requiredField,
+                    candidates = candidates,
+                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
+                )
+            )
+        }
+
+        return WorkflowMappingState(
+            workflowType = type,
+            fieldMappings = fieldMappings
+        )
+    }
+
+    /**
+     * Create field mappings for positive_text and negative_text using graph tracing.
+     * Traces CLIPTextEncode outputs to find which connects to "positive" vs "negative" sampler inputs.
+     */
+    private fun createPromptFieldMappingsFromGraph(graph: WorkflowGraph): Map<String, List<FieldCandidate>> {
+        val positiveTextCandidates = mutableListOf<FieldCandidate>()
+        val negativeTextCandidates = mutableListOf<FieldCandidate>()
+
+        // Find all CLIPTextEncode nodes with "text" input
+        val clipTextEncodeNodes = graph.nodes.filter {
+            it.classType == "CLIPTextEncode" && it.inputs.containsKey("text")
+        }
+
+        // For each CLIPTextEncode, trace its output to find if it connects to positive or negative
+        for (clipNode in clipTextEncodeNodes) {
+            val textInput = clipNode.inputs["text"]
+            val currentValue = when (textInput) {
+                is InputValue.Literal -> textInput.value
+                else -> null
+            }
+
+            val candidate = FieldCandidate(
+                nodeId = clipNode.id,
+                nodeName = clipNode.title,
+                classType = clipNode.classType,
+                inputKey = "text",
+                currentValue = currentValue
+            )
+
+            // Determine if this node connects to positive or negative input
+            val connectionType = traceClipTextEncodeConnection(graph, clipNode.id)
+
+            when (connectionType) {
+                "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
+                "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
+                else -> {
+                    // Unknown connection - add to both as fallback candidates
+                    positiveTextCandidates.add(candidate)
+                    negativeTextCandidates.add(candidate)
+                }
+            }
+        }
+
+        // If graph tracing didn't find matches, try title-based fallback
+        if (positiveTextCandidates.isEmpty() || negativeTextCandidates.isEmpty()) {
+            for (clipNode in clipTextEncodeNodes) {
+                val title = clipNode.title.lowercase()
+                val textInput = clipNode.inputs["text"]
+                val currentValue = when (textInput) {
+                    is InputValue.Literal -> textInput.value
+                    else -> null
+                }
+
+                val candidate = FieldCandidate(
+                    nodeId = clipNode.id,
+                    nodeName = clipNode.title,
+                    classType = clipNode.classType,
+                    inputKey = "text",
+                    currentValue = currentValue
+                )
+
+                // Title-based fallback
+                if (positiveTextCandidates.isEmpty() && title.contains("positive")) {
+                    positiveTextCandidates.add(0, candidate)
+                }
+                if (negativeTextCandidates.isEmpty() && title.contains("negative")) {
+                    negativeTextCandidates.add(0, candidate)
+                }
+            }
+        }
+
+        return mapOf(
+            "positive_text" to positiveTextCandidates,
+            "negative_text" to negativeTextCandidates
+        )
+    }
+
+    /**
+     * Trace a CLIPTextEncode node's output to find what type of connection it has.
+     * Uses WorkflowGraph.edges to trace connections.
+     * Returns "positive", "negative", or null if no connection found.
+     */
+    private fun traceClipTextEncodeConnection(graph: WorkflowGraph, clipNodeId: String): String? {
+        // Find edges originating from this CLIPTextEncode node
+        val outgoingEdges = graph.edges.filter { it.sourceNodeId == clipNodeId }
+
+        for (edge in outgoingEdges) {
+            val targetNode = graph.nodes.find { it.id == edge.targetNodeId } ?: continue
+            val targetClassType = targetNode.classType
+
+            // Check KSampler and KSamplerAdvanced nodes
+            if (targetClassType == "KSampler" || targetClassType == "KSamplerAdvanced") {
+                when (edge.targetInputName) {
+                    "positive" -> return "positive"
+                    "negative" -> return "negative"
+                }
+            }
+
+            // For video workflows, check conditioning nodes
+            if (targetClassType.contains("ImageToVideo", ignoreCase = true) ||
+                targetClassType.contains("TextToVideo", ignoreCase = true)) {
+                when (edge.targetInputName) {
+                    "positive" -> return "positive"
+                    "negative" -> return "negative"
+                }
+            }
+
+            // Check BasicGuider nodes (Flux-style single conditioning)
+            if (targetClassType == "BasicGuider") {
+                if (edge.targetInputName == "conditioning") {
+                    return "positive"  // BasicGuider only has positive conditioning
+                }
+            }
+
+            // Check CFGGuider nodes
+            if (targetClassType == "CFGGuider") {
+                when (edge.targetInputName) {
+                    "positive" -> return "positive"
+                    "negative" -> return "negative"
+                }
+            }
+
+            // Check SamplerCustom and SamplerCustomAdvanced
+            if (targetClassType.startsWith("SamplerCustom")) {
+                when (edge.targetInputName) {
+                    "positive" -> return "positive"
+                    "negative" -> return "negative"
+                }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Confirm mapping and save the workflow (for create mode and edit-existing mode)
+     */
+    fun confirmMappingAndSave(context: Context, workflowManager: WorkflowManager) {
+        DebugLogger.i(TAG, "confirmMappingAndSave: Starting save process")
+        val state = _uiState.value
+        val pending = pendingSaveData
+        if (pending == null) {
+            DebugLogger.e(TAG, "confirmMappingAndSave: No pending save data")
+            return
+        }
+        val mappingState = state.mappingState
+        if (mappingState == null) {
+            DebugLogger.e(TAG, "confirmMappingAndSave: No mapping state")
+            return
+        }
+
+        DebugLogger.d(TAG, "confirmMappingAndSave: Saving '${pending.name}' as ${pending.type}, isEditExistingMode=${state.isEditExistingMode}")
+
+        // Convert mappings to the format expected by WorkflowManager
+        val fieldMappings = mutableMapOf<String, Pair<String, String>>()
+        mappingState.fieldMappings.forEach { fieldMapping ->
+            val selectedCandidate = fieldMapping.selectedCandidate ?: return@forEach
+            fieldMappings[fieldMapping.field.fieldKey] = Pair(
+                selectedCandidate.nodeId,
+                selectedCandidate.inputKey
+            )
+            DebugLogger.d(TAG, "confirmMappingAndSave: Field '${fieldMapping.field.fieldKey}' -> node ${selectedCandidate.nodeId}, input '${selectedCandidate.inputKey}'")
+        }
+
+        // Serialize graph to JSON
+        DebugLogger.d(TAG, "confirmMappingAndSave: Serializing graph with ${pending.graph.nodes.size} nodes")
+        val jsonContent = serializer.serialize(pending.graph)
+        DebugLogger.d(TAG, "confirmMappingAndSave: JSON length=${jsonContent.length}")
+
+        // Save using WorkflowManager - different path for edit-existing vs create
+        val result = if (state.isEditExistingMode && state.editingWorkflowId != null) {
+            DebugLogger.i(TAG, "confirmMappingAndSave: Calling WorkflowManager.updateUserWorkflowWithMapping for id=${state.editingWorkflowId}")
+            workflowManager.updateUserWorkflowWithMapping(
+                workflowId = state.editingWorkflowId,
+                jsonContent = jsonContent,
+                fieldMappings = fieldMappings
+            )
+        } else {
+            DebugLogger.i(TAG, "confirmMappingAndSave: Calling WorkflowManager.addUserWorkflowWithMapping")
+            workflowManager.addUserWorkflowWithMapping(
+                name = pending.name,
+                description = pending.description,
+                jsonContent = jsonContent,
+                type = pending.type,
+                fieldMappings = fieldMappings
+            )
+        }
+
+        viewModelScope.launch {
+            if (result.isSuccess) {
+                val savedWorkflow = result.getOrThrow()
+                DebugLogger.i(TAG, "confirmMappingAndSave: Workflow saved successfully with id=${savedWorkflow.id}")
+                if (state.isEditExistingMode) {
+                    _events.emit(WorkflowEditorEvent.WorkflowUpdated(savedWorkflow.id))
+                } else {
+                    _events.emit(WorkflowEditorEvent.WorkflowCreated(savedWorkflow.id))
+                }
+            } else {
+                val error = result.exceptionOrNull()
+                DebugLogger.e(TAG, "confirmMappingAndSave: Save failed: ${error?.message}")
+                _events.emit(WorkflowEditorEvent.CreateCancelled)
+            }
         }
     }
 
@@ -376,6 +1259,23 @@ class WorkflowEditorViewModel : ViewModel() {
             edge.copy(slotType = slotType)
         }
         return graph.copy(edges = resolvedEdges)
+    }
+
+    /**
+     * Populate node outputs using the node type registry.
+     * Adds output types to each node based on its class type.
+     */
+    private fun populateNodeOutputs(graph: WorkflowGraph): WorkflowGraph {
+        if (!nodeTypeRegistry.isPopulated()) {
+            return graph
+        }
+
+        val nodesWithOutputs = graph.nodes.map { node ->
+            val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
+            val outputs = definition?.outputs ?: emptyList()
+            node.copy(outputs = outputs)
+        }
+        return graph.copy(nodes = nodesWithOutputs)
     }
 
     /**
@@ -730,5 +1630,611 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     fun getEditsForNode(nodeId: String): Map<String, Any> {
         return _uiState.value.nodeAttributeEdits[nodeId] ?: emptyMap()
+    }
+
+    // ===========================================
+    // Graph Editing Mode (Add/Delete/Duplicate Nodes)
+    // ===========================================
+
+    /**
+     * Enter edit mode - creates a mutable copy of the graph for editing.
+     */
+    fun enterEditMode() {
+        val graph = _uiState.value.graph ?: return
+
+        // Initialize mutable graph
+        mutableGraph = MutableWorkflowGraph.fromImmutable(graph)
+
+        // Initialize node ID counter based on existing IDs
+        nodeIdCounter = graph.nodes.mapNotNull { it.id.toIntOrNull() }.maxOrNull()?.plus(1) ?: 1
+
+        _uiState.value = _uiState.value.copy(
+            isEditMode = true,
+            selectedNodeIds = emptySet(),
+            hasUnsavedChanges = false
+        )
+    }
+
+    /**
+     * Exit edit mode - discards unsaved changes.
+     */
+    fun exitEditMode() {
+        mutableGraph = null
+        _uiState.value = _uiState.value.copy(
+            isEditMode = false,
+            selectedNodeIds = emptySet(),
+            hasUnsavedChanges = false,
+            showNodeBrowser = false,
+            nodeInsertPosition = null,
+            connectionModeState = null
+        )
+    }
+
+    /**
+     * Toggle node selection.
+     */
+    fun toggleNodeSelection(nodeId: String) {
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        val newSelection = if (nodeId in state.selectedNodeIds) {
+            state.selectedNodeIds - nodeId
+        } else {
+            state.selectedNodeIds + nodeId
+        }
+
+        _uiState.value = state.copy(selectedNodeIds = newSelection)
+    }
+
+    /**
+     * Select a single node (replaces current selection).
+     */
+    fun selectNode(nodeId: String) {
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        _uiState.value = state.copy(selectedNodeIds = setOf(nodeId))
+    }
+
+    /**
+     * Clear node selection.
+     */
+    fun clearSelection() {
+        val state = _uiState.value
+        _uiState.value = state.copy(selectedNodeIds = emptySet())
+    }
+
+    /**
+     * Delete selected nodes and their connected edges.
+     */
+    fun deleteSelectedNodes() {
+        val state = _uiState.value
+        val graph = mutableGraph ?: return
+        if (!state.isEditMode || state.selectedNodeIds.isEmpty()) return
+
+        val selectedIds = state.selectedNodeIds
+
+        // Remove nodes
+        graph.nodes.removeAll { it.id in selectedIds }
+
+        // Remove edges connected to deleted nodes
+        graph.edges.removeAll { edge ->
+            edge.sourceNodeId in selectedIds || edge.targetNodeId in selectedIds
+        }
+
+        // Re-layout graph after deletion to fill gaps
+        relayoutGraph()
+
+        _uiState.value = _uiState.value.copy(
+            selectedNodeIds = emptySet(),
+            hasUnsavedChanges = true
+        )
+    }
+
+    /**
+     * Duplicate selected nodes with offset position.
+     * Internal edges between selected nodes are also duplicated.
+     * Triggers auto-layout to prevent node overlaps.
+     */
+    fun duplicateSelectedNodes() {
+        val state = _uiState.value
+        val graph = mutableGraph ?: return
+        if (!state.isEditMode || state.selectedNodeIds.isEmpty()) return
+
+        val selectedIds = state.selectedNodeIds
+        val nodesToDuplicate = graph.nodes.filter { it.id in selectedIds }
+
+        // Create ID mapping from old to new
+        val idMapping = mutableMapOf<String, String>()
+
+        // Duplicate nodes with offset position (temporary - will be re-laid out)
+        val duplicatedNodes = nodesToDuplicate.map { node ->
+            val newId = generateUniqueNodeId()
+            idMapping[node.id] = newId
+            node.copy(
+                id = newId,
+                x = node.x + 50f,
+                y = node.y + 50f
+            )
+        }
+
+        // Duplicate internal edges (edges between selected nodes)
+        val internalEdges = graph.edges.filter { edge ->
+            edge.sourceNodeId in selectedIds && edge.targetNodeId in selectedIds
+        }
+        val duplicatedEdges = internalEdges.map { edge ->
+            edge.copy(
+                sourceNodeId = idMapping[edge.sourceNodeId] ?: edge.sourceNodeId,
+                targetNodeId = idMapping[edge.targetNodeId] ?: edge.targetNodeId
+            )
+        }
+
+        // Add duplicated nodes and edges
+        graph.nodes.addAll(duplicatedNodes)
+        graph.edges.addAll(duplicatedEdges)
+
+        // Store new node IDs before relayout (IDs are preserved)
+        val newNodeIds = duplicatedNodes.map { it.id }.toSet()
+
+        // Re-layout to prevent overlaps
+        relayoutGraph()
+
+        // Update selection to the new nodes
+        _uiState.value = _uiState.value.copy(
+            selectedNodeIds = newNodeIds,
+            hasUnsavedChanges = true
+        )
+    }
+
+    /**
+     * Generate a unique node ID.
+     */
+    private fun generateUniqueNodeId(): String {
+        return (nodeIdCounter++).toString()
+    }
+
+    /**
+     * Update the immutable graph from the mutable graph and recalculate bounds.
+     */
+    private fun updateGraphState() {
+        val graph = mutableGraph ?: return
+
+        val immutableGraph = graph.toImmutable()
+        val bounds = layoutEngine.calculateBounds(immutableGraph)
+
+        _uiState.value = _uiState.value.copy(
+            graph = immutableGraph,
+            graphBounds = bounds
+        )
+    }
+
+    /**
+     * Re-layout the entire graph. Call this after structural changes (add/delete nodes)
+     * to recalculate optimal positions for all nodes.
+     */
+    fun relayoutGraph() {
+        val graph = mutableGraph ?: return
+
+        // Re-layout the entire graph
+        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+
+        // Update mutable graph from layouted result
+        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+
+        // Recalculate bounds
+        val newBounds = layoutEngine.calculateBounds(layoutedGraph)
+
+        _uiState.value = _uiState.value.copy(
+            graph = layoutedGraph,
+            graphBounds = newBounds
+        )
+    }
+
+    /**
+     * Show the node browser for adding new nodes.
+     */
+    fun showNodeBrowser(insertPosition: Offset) {
+        _uiState.value = _uiState.value.copy(
+            showNodeBrowser = true,
+            nodeInsertPosition = insertPosition
+        )
+    }
+
+    /**
+     * Hide the node browser.
+     */
+    fun hideNodeBrowser() {
+        _uiState.value = _uiState.value.copy(
+            showNodeBrowser = false,
+            nodeInsertPosition = null
+        )
+    }
+
+    /**
+     * Check if the node type registry has node definitions available.
+     */
+    fun hasNodeDefinitions(): Boolean = nodeTypeRegistry.isPopulated()
+
+    /**
+     * Get all available node types from the registry.
+     */
+    fun getAvailableNodeTypes(): List<NodeTypeDefinition> {
+        return nodeTypeRegistry.getAllNodeTypes()
+    }
+
+    /**
+     * Get node types grouped by category.
+     */
+    fun getNodeTypesByCategory(): Map<String, List<NodeTypeDefinition>> {
+        return nodeTypeRegistry.getNodeTypesByCategory()
+    }
+
+    /**
+     * Categorize a node by its class type (same logic as WorkflowParser).
+     */
+    private fun categorizeNodeByClassType(classType: String): NodeCategory {
+        return when {
+            classType.contains("Loader", ignoreCase = true) -> NodeCategory.LOADER
+            classType.contains("CLIPTextEncode", ignoreCase = true) ||
+            classType.contains("TextEncode", ignoreCase = true) -> NodeCategory.ENCODER
+            classType.contains("Sampler", ignoreCase = true) -> NodeCategory.SAMPLER
+            classType.contains("EmptyLatent", ignoreCase = true) ||
+            classType.contains("Empty") && classType.contains("Latent", ignoreCase = true) -> NodeCategory.LATENT
+            classType.contains("LoadImage", ignoreCase = true) -> NodeCategory.INPUT
+            classType.contains("Save", ignoreCase = true) ||
+            classType.contains("Preview", ignoreCase = true) -> NodeCategory.OUTPUT
+            classType.contains("Decode", ignoreCase = true) ||
+            classType.contains("Encode", ignoreCase = true) ||
+            classType.contains("Scale", ignoreCase = true) ||
+            classType.contains("Create", ignoreCase = true) ||
+            classType.contains("Sampling", ignoreCase = true) ||
+            classType.contains("ModelMerge", ignoreCase = true) -> NodeCategory.PROCESS
+            else -> NodeCategory.OTHER
+        }
+    }
+
+    /**
+     * Add a new node from a NodeTypeDefinition at the current insert position.
+     */
+    fun addNode(nodeType: NodeTypeDefinition) {
+        val graph = mutableGraph ?: return
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        // Create inputs map from the node definition
+        // Use LinkedHashMap to preserve insertion order: literals first, then connection slots
+        val inputs = linkedMapOf<String, InputValue>()
+
+        // First pass: add all literal (editable) inputs
+        nodeType.inputs.forEach { inputDef ->
+            val isConnectionType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+
+            if (!isConnectionType && !inputDef.forceInput) {
+                // Literal input: add with default value
+                val defaultValue = inputDef.default ?: when (inputDef.type) {
+                    "INT" -> 0
+                    "FLOAT" -> 0.0
+                    "STRING" -> ""
+                    "BOOLEAN" -> false
+                    "ENUM" -> inputDef.options?.firstOrNull() ?: ""
+                    else -> ""
+                }
+                inputs[inputDef.name] = InputValue.Literal(defaultValue)
+            }
+        }
+
+        // Second pass: add all connection-type inputs (slots)
+        nodeType.inputs.forEach { inputDef ->
+            val isConnectionType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+
+            if (isConnectionType || inputDef.forceInput) {
+                // Connection-type input: add as unconnected slot
+                inputs[inputDef.name] = InputValue.UnconnectedSlot(inputDef.type)
+            }
+        }
+
+        // Categorize the node based on class type
+        val category = categorizeNodeByClassType(nodeType.classType)
+
+        // Calculate proper node dimensions using the same logic as WorkflowLayoutEngine
+        val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH
+        val literalInputCount = inputs.count { (_, value) -> value is InputValue.Literal }
+        val connectionInputCount = inputs.count { (_, value) ->
+            value is InputValue.Connection || value is InputValue.UnconnectedSlot
+        }
+        val outputCount = nodeType.outputs.size
+        val connectionAreaHeight = maxOf(connectionInputCount, outputCount) * WorkflowLayoutEngine.INPUT_ROW_HEIGHT
+        val contentHeight = (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) + connectionAreaHeight
+        val nodeHeight = maxOf(
+            WorkflowLayoutEngine.NODE_MIN_HEIGHT,
+            WorkflowLayoutEngine.NODE_HEADER_HEIGHT + contentHeight + 16f
+        )
+
+        // Create the new node (position will be set by layout engine)
+        val newNode = WorkflowNode(
+            id = generateUniqueNodeId(),
+            classType = nodeType.classType,
+            title = nodeType.classType,  // Use classType as initial title
+            category = category,
+            inputs = inputs,
+            outputs = nodeType.outputs,  // Populate outputs from NodeTypeDefinition
+            templateInputKeys = emptySet(),  // New nodes have no template keys
+            x = 0f,  // Will be set by layout
+            y = 0f,  // Will be set by layout
+            width = nodeWidth,
+            height = nodeHeight
+        )
+
+        // Add to graph
+        graph.nodes.add(newNode)
+
+        // Re-layout the entire graph (orphan nodes will be placed at the end)
+        val layoutEngine = WorkflowLayoutEngine()
+        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+
+        // Update mutable graph from layouted result
+        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+
+        // Update graph bounds
+        val newBounds = layoutEngine.calculateBounds(layoutedGraph)
+
+        // Update UI state
+        _uiState.value = _uiState.value.copy(
+            graph = layoutedGraph,
+            graphBounds = newBounds,
+            selectedNodeIds = setOf(newNode.id),
+            hasUnsavedChanges = true,
+            showNodeBrowser = false,
+            nodeInsertPosition = null
+        )
+    }
+
+    // ===========================================
+    // Connection Mode (Tap-Based Connection Editing)
+    // ===========================================
+
+    /**
+     * Enter connection mode when an output slot is tapped.
+     * Calculates valid input slots and highlights them.
+     */
+    fun enterConnectionMode(outputSlot: SlotPosition) {
+        val graph = mutableGraph ?: return
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        // Get the source node
+        val sourceNode = graph.nodes.find { it.id == outputSlot.nodeId } ?: return
+
+        // Get output type from registry
+        val outputType = nodeTypeRegistry.getOutputType(sourceNode.classType, outputSlot.outputIndex)
+
+        // Calculate all valid input slots
+        val validInputs = calculateValidInputSlots(
+            sourceNodeId = sourceNode.id,
+            outputType = outputType,
+            graph = graph
+        )
+
+        // Update the output slot with resolved type
+        val resolvedOutputSlot = outputSlot.copy(slotType = outputType)
+
+        _uiState.value = state.copy(
+            connectionModeState = ConnectionModeState(
+                sourceOutputSlot = resolvedOutputSlot,
+                validInputSlots = validInputs
+            )
+        )
+    }
+
+    /**
+     * Exit connection mode without making a connection.
+     */
+    fun exitConnectionMode() {
+        _uiState.value = _uiState.value.copy(connectionModeState = null)
+    }
+
+    /**
+     * Connect to an input slot when tapped in connection mode.
+     */
+    fun connectToInput(inputSlot: SlotPosition) {
+        val graph = mutableGraph ?: return
+        val state = _uiState.value
+        val connectionState = state.connectionModeState ?: return
+
+        val sourceSlot = connectionState.sourceOutputSlot
+
+        // Remove any existing edge to this input (inputs can only have one connection)
+        graph.edges.removeAll { edge ->
+            edge.targetNodeId == inputSlot.nodeId && edge.targetInputName == inputSlot.slotName
+        }
+
+        // Create new edge
+        val newEdge = WorkflowEdge(
+            sourceNodeId = sourceSlot.nodeId,
+            targetNodeId = inputSlot.nodeId,
+            sourceOutputIndex = sourceSlot.outputIndex,
+            targetInputName = inputSlot.slotName,
+            slotType = sourceSlot.slotType
+        )
+        graph.edges.add(newEdge)
+
+        // Update the target node's input to be a Connection type
+        val targetNode = graph.nodes.find { it.id == inputSlot.nodeId }
+        if (targetNode != null) {
+            val updatedInputs = targetNode.inputs.toMutableMap()
+            updatedInputs[inputSlot.slotName] = InputValue.Connection(
+                sourceNodeId = sourceSlot.nodeId,
+                outputIndex = sourceSlot.outputIndex
+            )
+            // Update the node in place
+            val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
+            if (nodeIndex >= 0) {
+                graph.nodes[nodeIndex] = targetNode.copy(inputs = updatedInputs)
+            }
+        }
+
+        // Update UI state
+        updateGraphState()
+        _uiState.value = _uiState.value.copy(
+            connectionModeState = null,
+            hasUnsavedChanges = true
+        )
+    }
+
+    /**
+     * Calculate all valid input slots for a given output.
+     * Returns slots on OTHER nodes that are type-compatible.
+     * Only connection-type inputs (Connection or UnconnectedSlot) are valid targets.
+     */
+    private fun calculateValidInputSlots(
+        sourceNodeId: String,
+        outputType: String?,
+        graph: MutableWorkflowGraph
+    ): List<SlotPosition> {
+        val validSlots = mutableListOf<SlotPosition>()
+
+        // Check all other nodes
+        for (node in graph.nodes) {
+            // Skip the source node - can't connect to self
+            if (node.id == sourceNodeId) continue
+
+            // Check each input on this node
+            var inputIndex = 0
+            for ((inputName, inputValue) in node.inputs) {
+                // Only connection-type inputs can be connected
+                val isConnectionInput = inputValue is InputValue.Connection || inputValue is InputValue.UnconnectedSlot
+
+                if (isConnectionInput) {
+                    // Get input type - prefer from UnconnectedSlot, fallback to registry
+                    val inputType = when (inputValue) {
+                        is InputValue.UnconnectedSlot -> inputValue.slotType
+                        else -> nodeTypeRegistry.getInputType(node.classType, inputName)
+                    }
+
+                    // Type compatibility check:
+                    // - "*" matches anything
+                    // - Exact match
+                    // - null types are considered compatible (for flexibility)
+                    val isCompatible = outputType == null ||
+                        inputType == null ||
+                        inputType == "*" ||
+                        outputType == "*" ||
+                        inputType.equals(outputType, ignoreCase = true)
+
+                    if (isCompatible) {
+                        // Calculate input slot position (left side of node)
+                        val slotY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
+                            (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+                        validSlots.add(
+                            SlotPosition(
+                                nodeId = node.id,
+                                slotName = inputName,
+                                isOutput = false,
+                                outputIndex = 0,
+                                center = Offset(node.x, slotY),
+                                slotType = inputType
+                            )
+                        )
+                    }
+                }
+                // Always increment inputIndex to maintain correct Y position
+                inputIndex++
+            }
+        }
+
+        return validSlots
+    }
+
+    /**
+     * Delete a connection by removing the edge to a specific input.
+     */
+    fun deleteConnection(nodeId: String, inputName: String) {
+        val graph = mutableGraph ?: return
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        // Find and remove the edge
+        val removed = graph.edges.removeAll { edge ->
+            edge.targetNodeId == nodeId && edge.targetInputName == inputName
+        }
+
+        if (removed) {
+            // Revert the input back to a Literal value with default
+            val targetNode = graph.nodes.find { it.id == nodeId }
+            if (targetNode != null) {
+                val nodeDefinition = nodeTypeRegistry.getNodeDefinition(targetNode.classType)
+                val inputDef = nodeDefinition?.inputs?.find { it.name == inputName }
+                val defaultValue = inputDef?.default ?: when (inputDef?.type) {
+                    "INT" -> 0
+                    "FLOAT" -> 0.0
+                    "STRING" -> ""
+                    "BOOLEAN" -> false
+                    else -> ""
+                }
+
+                val updatedInputs = targetNode.inputs.toMutableMap()
+                updatedInputs[inputName] = InputValue.Literal(defaultValue)
+
+                val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
+                if (nodeIndex >= 0) {
+                    graph.nodes[nodeIndex] = targetNode.copy(inputs = updatedInputs)
+                }
+            }
+
+            updateGraphState()
+            _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
+        }
+    }
+
+    // ===========================================
+    // Export/Save Workflow
+    // ===========================================
+
+    private val serializer = WorkflowSerializer()
+
+    /**
+     * Export the current workflow to JSON string.
+     * Applies any pending edits before serialization.
+     */
+    fun exportToJson(): String? {
+        val graph = mutableGraph?.toImmutable() ?: _uiState.value.graph ?: return null
+        val edits = _uiState.value.nodeAttributeEdits
+
+        // Apply edits to graph
+        val graphWithEdits = serializer.applyEdits(graph, edits)
+
+        // Serialize to JSON
+        return serializer.serialize(graphWithEdits, includeMetadata = true)
+    }
+
+    /**
+     * Export the workflow with wrapper metadata (name, description).
+     */
+    fun exportToJsonWithWrapper(): String? {
+        val graph = mutableGraph?.toImmutable() ?: _uiState.value.graph ?: return null
+        val edits = _uiState.value.nodeAttributeEdits
+
+        // Apply edits to graph
+        val graphWithEdits = serializer.applyEdits(graph, edits)
+
+        // Serialize with wrapper
+        return serializer.serializeWithWrapper(graphWithEdits, includeMetadata = true)
+    }
+
+    /**
+     * Copy the workflow JSON to clipboard.
+     */
+    fun copyToClipboard(context: Context): Boolean {
+        val json = exportToJson() ?: return false
+
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Workflow JSON", json)
+            clipboard.setPrimaryClip(clip)
+            return true
+        } catch (e: Exception) {
+            return false
+        }
     }
 }

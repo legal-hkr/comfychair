@@ -34,11 +34,14 @@ class WorkflowEditorActivity : ComponentActivity() {
         private const val EXTRA_WORKFLOW_ID = "workflow_id"
         private const val EXTRA_WORKFLOW_JSON = "workflow_json"
         private const val EXTRA_IS_MAPPING_MODE = "is_mapping_mode"
+        private const val EXTRA_IS_CREATE_MODE = "is_create_mode"
+        private const val EXTRA_IS_EDIT_EXISTING_MODE = "is_edit_existing_mode"
         private const val EXTRA_MAPPING_STATE_JSON = "mapping_state_json"
         private const val EXTRA_WORKFLOW_NAME = "workflow_name"
         private const val EXTRA_WORKFLOW_DESCRIPTION = "workflow_description"
 
         const val EXTRA_RESULT_MAPPINGS = "result_mappings"
+        const val EXTRA_RESULT_WORKFLOW_ID = "result_workflow_id"
 
         /**
          * Create intent to preview a workflow by ID
@@ -76,6 +79,26 @@ class WorkflowEditorActivity : ComponentActivity() {
                 putExtra(EXTRA_MAPPING_STATE_JSON, mappingState.toJson())
             }
         }
+
+        /**
+         * Create intent for creating a new workflow from scratch
+         */
+        fun createIntentForNewWorkflow(context: Context): Intent {
+            return Intent(context, WorkflowEditorActivity::class.java).apply {
+                putExtra(EXTRA_IS_CREATE_MODE, true)
+            }
+        }
+
+        /**
+         * Create intent for editing an existing user workflow's structure.
+         * Unlike create mode, this loads the existing workflow and updates it in place.
+         */
+        fun createIntentForEditingExisting(context: Context, workflowId: String): Intent {
+            return Intent(context, WorkflowEditorActivity::class.java).apply {
+                putExtra(EXTRA_WORKFLOW_ID, workflowId)
+                putExtra(EXTRA_IS_EDIT_EXISTING_MODE, true)
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,31 +109,44 @@ class WorkflowEditorActivity : ComponentActivity() {
         val workflowId = intent.getStringExtra(EXTRA_WORKFLOW_ID)
         val workflowJson = intent.getStringExtra(EXTRA_WORKFLOW_JSON)
         val isMappingMode = intent.getBooleanExtra(EXTRA_IS_MAPPING_MODE, false)
+        val isCreateMode = intent.getBooleanExtra(EXTRA_IS_CREATE_MODE, false)
+        val isEditExistingMode = intent.getBooleanExtra(EXTRA_IS_EDIT_EXISTING_MODE, false)
         val mappingStateJson = intent.getStringExtra(EXTRA_MAPPING_STATE_JSON)
         val workflowName = intent.getStringExtra(EXTRA_WORKFLOW_NAME) ?: ""
         val workflowDescription = intent.getStringExtra(EXTRA_WORKFLOW_DESCRIPTION) ?: ""
 
         // Initialize ViewModel based on mode
-        if (isMappingMode && workflowJson != null && mappingStateJson != null) {
-            val mappingState = WorkflowMappingState.fromJson(mappingStateJson)
-            if (mappingState != null) {
-                viewModel.initializeForMapping(
-                    jsonContent = workflowJson,
-                    name = workflowName,
-                    description = workflowDescription,
-                    mappingState = mappingState
-                )
-            } else {
-                // Fallback to view mode if mapping state is invalid
+        when {
+            isEditExistingMode && workflowId != null -> {
+                // Edit existing workflow structure
+                viewModel.initializeForEditingExisting(this, workflowId)
+            }
+            isCreateMode -> {
+                // Create new workflow from scratch
+                viewModel.initializeForCreation(this)
+            }
+            isMappingMode && workflowJson != null && mappingStateJson != null -> {
+                val mappingState = WorkflowMappingState.fromJson(mappingStateJson)
+                if (mappingState != null) {
+                    viewModel.initializeForMapping(
+                        jsonContent = workflowJson,
+                        name = workflowName,
+                        description = workflowDescription,
+                        mappingState = mappingState
+                    )
+                } else {
+                    // Fallback to view mode if mapping state is invalid
+                    viewModel.initialize(this, workflowId, workflowJson)
+                }
+            }
+            else -> {
                 viewModel.initialize(this, workflowId, workflowJson)
             }
-        } else {
-            viewModel.initialize(this, workflowId, workflowJson)
         }
 
         setContent {
             ComfyChairTheme {
-                // Observe events for mapping mode
+                // Observe events
                 LaunchedEffect(Unit) {
                     viewModel.events.collect { event ->
                         when (event) {
@@ -124,6 +160,22 @@ class WorkflowEditorActivity : ComponentActivity() {
                                 setResult(Activity.RESULT_CANCELED)
                                 finish()
                             }
+                            is WorkflowEditorEvent.WorkflowCreated -> {
+                                setResult(Activity.RESULT_OK, Intent().apply {
+                                    putExtra(EXTRA_RESULT_WORKFLOW_ID, event.workflowId)
+                                })
+                                finish()
+                            }
+                            is WorkflowEditorEvent.WorkflowUpdated -> {
+                                setResult(Activity.RESULT_OK, Intent().apply {
+                                    putExtra(EXTRA_RESULT_WORKFLOW_ID, event.workflowId)
+                                })
+                                finish()
+                            }
+                            is WorkflowEditorEvent.CreateCancelled -> {
+                                setResult(Activity.RESULT_CANCELED)
+                                finish()
+                            }
                         }
                     }
                 }
@@ -132,10 +184,11 @@ class WorkflowEditorActivity : ComponentActivity() {
                     WorkflowEditorScreen(
                         viewModel = viewModel,
                         onClose = {
-                            if (isMappingMode) {
-                                viewModel.cancelMapping()
-                            } else {
-                                finish()
+                            when {
+                                isEditExistingMode -> viewModel.handleEditExistingModeClose()
+                                isCreateMode -> viewModel.handleCreateModeClose()
+                                isMappingMode -> viewModel.cancelMapping()
+                                else -> finish()
                             }
                         }
                     )

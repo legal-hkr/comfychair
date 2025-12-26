@@ -237,6 +237,8 @@
     <string name="button_delete">Eliminar</string>
     <string name="button_cancel">Cancelar</string>
     <string name="edit">Editar</string>
+    <string name="edit_structure">Editar estructura</string>
+    <string name="error_cannot_edit_builtin">Los workflows integrados no se pueden editar</string>
     <string name="delete">Eliminar</string>
     <string name="workflow_error_invalid_json">Formato JSON inválido</string>
     <string name="workflow_upload_success">Workflow subido</string>
@@ -373,4 +375,31 @@
     <string name="debug_log_follow">Seguir</string>
     <string name="debug_log_saved">Registro guardado correctamente</string>
     <string name="debug_log_save_failed">Error al guardar el registro</string>
+
+    <!-- Missing translations -->
+    <string name="view_workflow">Ver flujo de trabajo</string>
+    <string name="button_discard">Descartar</string>
+    <string name="button_new_workflow">Nuevo flujo de trabajo</string>
+    <string name="save_workflow_title">Guardar nuevo flujo de trabajo</string>
+    <string name="error_invalid_integer">Debe ser un número entero</string>
+    <string name="error_invalid_option">Opción no válida</string>
+    <string name="error_string_too_long">Longitud máxima: %1$d</string>
+    <string name="error_value_min">Mínimo: %1$d</string>
+    <string name="error_value_max">Máximo: %1$d</string>
+    <string name="error_value_min_float">Mínimo: %1$.2f</string>
+    <string name="error_value_max_float">Máximo: %1$.2f</string>
+    <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_title">Agregar nodo</string>
+    <string name="node_browser_search_placeholder">Buscar nodos…</string>
+    <string name="node_browser_no_results">No se encontraron nodos coincidentes</string>
+    <string name="node_browser_io_info">%1$d entradas, %2$d salidas</string>
+    <string name="workflow_editor_enter_edit_mode">Editar gráfico</string>
+    <string name="workflow_editor_exit_edit_mode">Salir del modo edición</string>
+    <string name="workflow_editor_delete_node">Eliminar seleccionado</string>
+    <string name="workflow_editor_duplicate_node">Duplicar seleccionado</string>
+    <string name="workflow_editor_add_node">Agregar nodo</string>
+    <string name="workflow_editor_relayout">Reorganizar nodos</string>
+    <string name="workflow_editor_done">Listo</string>
+    <string name="workflow_editor_discard_title">¿Descartar flujo de trabajo?</string>
+    <string name="workflow_editor_discard_message">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>
 </resources>
