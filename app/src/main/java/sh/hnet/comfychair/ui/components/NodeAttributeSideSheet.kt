@@ -1,32 +1,38 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -38,11 +44,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import android.graphics.Bitmap
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
@@ -219,11 +232,22 @@ private fun InputEditor(
 
         when {
             type == "ENUM" || definition?.options != null -> {
-                EnumEditor(
-                    value = input.currentValue?.toString() ?: "",
-                    options = definition?.options ?: emptyList(),
-                    onValueChange = { onValueChange(it) }
-                )
+                val options = definition?.options ?: emptyList()
+                val isImageSelector = isImageOptions(options)
+
+                if (isImageSelector) {
+                    ImageEnumEditor(
+                        value = input.currentValue?.toString() ?: "",
+                        options = options,
+                        onValueChange = { onValueChange(it) }
+                    )
+                } else {
+                    EnumEditor(
+                        value = input.currentValue?.toString() ?: "",
+                        options = options,
+                        onValueChange = { onValueChange(it) }
+                    )
+                }
             }
             type == "BOOLEAN" || input.currentValue is Boolean -> {
                 BooleanEditor(
@@ -452,4 +476,167 @@ private fun StringEditor(
         maxLines = if (multiline) 10 else 1,
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+private const val TAG = "ImagePreview"
+
+/**
+ * Check if the options list contains image filenames.
+ */
+private fun isImageOptions(options: List<String>): Boolean {
+    if (options.isEmpty()) return false
+    val imageExtensions = listOf(".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
+    // Check if at least one option has an image extension
+    val result = options.any { option ->
+        imageExtensions.any { ext -> option.lowercase().endsWith(ext) }
+    }
+    DebugLogger.d(TAG, "isImageOptions: options=${options.take(3)}, result=$result")
+    return result
+}
+
+
+/**
+ * Editor for enum values that represent images, with preview.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ImageEnumEditor(
+    value: String,
+    options: List<String>,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it }
+        ) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onValueChange(option)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Image preview
+        if (value.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ImagePreview(
+                filename = value,
+                contentDescription = value
+            )
+        }
+    }
+}
+
+/**
+ * Image loading state for async fetch.
+ */
+private sealed class ImageLoadState {
+    data object Loading : ImageLoadState()
+    data class Success(val bitmap: Bitmap) : ImageLoadState()
+    data object Error : ImageLoadState()
+}
+
+/**
+ * Async image preview using ComfyUIClient for proper SSL handling.
+ */
+@Composable
+private fun ImagePreview(
+    filename: String,
+    contentDescription: String
+) {
+    var loadState by remember { mutableStateOf<ImageLoadState>(ImageLoadState.Loading) }
+
+    // Fetch image using ComfyUIClient
+    LaunchedEffect(filename) {
+        loadState = ImageLoadState.Loading
+        DebugLogger.d(TAG, "ImagePreview: Fetching image filename=$filename")
+
+        val client = ConnectionManager.clientOrNull
+        if (client == null) {
+            DebugLogger.e(TAG, "ImagePreview: No ComfyUIClient available")
+            loadState = ImageLoadState.Error
+            return@LaunchedEffect
+        }
+
+        client.fetchImage(
+            filename = filename,
+            subfolder = "",
+            type = "input"
+        ) { bitmap ->
+            loadState = if (bitmap != null) {
+                DebugLogger.d(TAG, "ImagePreview: Successfully loaded image")
+                ImageLoadState.Success(bitmap)
+            } else {
+                DebugLogger.e(TAG, "ImagePreview: Failed to load image")
+                ImageLoadState.Error
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+        contentAlignment = Alignment.Center
+    ) {
+        when (val state = loadState) {
+            is ImageLoadState.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            is ImageLoadState.Success -> {
+                androidx.compose.foundation.Image(
+                    bitmap = state.bitmap.asImageBitmap(),
+                    contentDescription = contentDescription,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            is ImageLoadState.Error -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BrokenImage,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.node_editor_image_load_error),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
 }

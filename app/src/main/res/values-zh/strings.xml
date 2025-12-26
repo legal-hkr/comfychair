@@ -207,6 +207,7 @@
     <string name="node_editor_range_min">最小：%1$s</string>
     <string name="node_editor_range_max">最大：%1$s</string>
     <string name="node_editor_ui_field_prefix">界面：%1$s</string>
+    <string name="node_editor_image_load_error">加载图片失败</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">应用</string>

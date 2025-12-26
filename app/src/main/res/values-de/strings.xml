@@ -224,6 +224,7 @@
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
+    <string name="node_editor_image_load_error">Bild konnte nicht geladen werden</string>
 
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Anwendung</string>

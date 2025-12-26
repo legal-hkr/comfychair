@@ -247,6 +247,7 @@
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
+    <string name="node_editor_image_load_error">Failed to load image</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Positive prompt</string>
