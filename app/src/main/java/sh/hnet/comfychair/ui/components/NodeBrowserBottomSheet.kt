@@ -271,7 +271,12 @@ fun NodeBrowserBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (filteredCategories.isEmpty()) {
+            // Flatten and sort all nodes alphabetically
+            val sortedNodes = remember(filteredCategories) {
+                filteredCategories.values.flatten().sortedBy { it.classType.lowercase() }
+            }
+
+            if (sortedNodes.isEmpty()) {
                 Text(
                     text = stringResource(R.string.node_browser_no_results),
                     style = MaterialTheme.typography.bodyMedium,
@@ -280,35 +285,16 @@ fun NodeBrowserBottomSheet(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    filteredCategories.forEach { (category, nodes) ->
-                        item(key = "category_$category") {
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
-
-                        items(
-                            items = nodes,
-                            key = { "node_${it.classType}" }
-                        ) { nodeType ->
-                            NodeTypeRow(
-                                nodeType = nodeType,
-                                onClick = { onNodeTypeSelected(nodeType) }
-                            )
-                        }
-
-                        item(key = "divider_$category") {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
-                        }
+                    items(
+                        items = sortedNodes,
+                        key = { "node_${it.classType}" }
+                    ) { nodeType ->
+                        NodeTypeRow(
+                            nodeType = nodeType,
+                            onClick = { onNodeTypeSelected(nodeType) }
+                        )
                     }
                 }
             }
