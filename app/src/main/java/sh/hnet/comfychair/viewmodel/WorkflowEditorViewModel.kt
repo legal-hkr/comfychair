@@ -229,6 +229,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     graphBounds = bounds,
                     isFieldMappingMode = true,
                     mappingState = mappingState,
+                    selectedNodeIds = emptySet(),  // Ensure selection is clear in mapping mode
                     highlightedNodeIds = highlightedNodes,
                     canConfirmMapping = mappingState.allFieldsMapped
                 )
@@ -876,6 +877,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     isFieldMappingMode = true,
                     mappingState = mappingState,
                     isEditMode = false,  // Exit edit mode
+                    selectedNodeIds = emptySet(),  // Clear selection when entering mapping mode
                     canConfirmMapping = mappingState.allFieldsMapped,
                     highlightedNodeIds = calculateHighlightedNodes(mappingState)
                 )
@@ -977,6 +979,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     isFieldMappingMode = true,
                     mappingState = mappingState,
                     isEditMode = false,  // Exit edit mode
+                    selectedNodeIds = emptySet(),  // Clear selection when entering mapping mode
                     canConfirmMapping = mappingState.allFieldsMapped,
                     highlightedNodeIds = calculateHighlightedNodes(mappingState)
                 )
