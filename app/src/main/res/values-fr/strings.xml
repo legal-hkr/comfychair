@@ -393,6 +393,9 @@
     <string name="node_browser_search_placeholder">Rechercher des nœuds…</string>
     <string name="node_browser_no_results">Aucun nœud correspondant trouvé</string>
     <string name="node_browser_io_info">%1$d entrées, %2$d sorties</string>
+    <string name="node_browser_filter_category">Catégorie</string>
+    <string name="node_browser_filter_subcategory">Sous-catégorie</string>
+    <string name="node_browser_filter_group">Groupe</string>
     <string name="clear_search">Effacer la recherche</string>
     <string name="workflow_editor_enter_edit_mode">Modifier le graphe</string>
     <string name="workflow_editor_exit_edit_mode">Quitter le mode édition</string>

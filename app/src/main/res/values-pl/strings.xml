@@ -393,6 +393,9 @@
     <string name="node_browser_search_placeholder">Szukaj węzłów…</string>
     <string name="node_browser_no_results">Nie znaleziono pasujących węzłów</string>
     <string name="node_browser_io_info">%1$d wejść, %2$d wyjść</string>
+    <string name="node_browser_filter_category">Kategoria</string>
+    <string name="node_browser_filter_subcategory">Podkategoria</string>
+    <string name="node_browser_filter_group">Grupa</string>
     <string name="clear_search">Wyczyść wyszukiwanie</string>
     <string name="workflow_editor_enter_edit_mode">Edytuj graf</string>
     <string name="workflow_editor_exit_edit_mode">Wyjdź z trybu edycji</string>

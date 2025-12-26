@@ -198,21 +198,49 @@ fun NodeBrowserBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Level 1 filter chips
-            FilterChipRow(
-                options = level1Options,
-                selectedOption = level1Selection,
-                onOptionSelected = { selection ->
-                    level1Selection = selection
-                    level2Selection = null  // Clear deeper levels
-                    level3Selection = null
-                }
-            )
-
-            // Level 2 filter chips (only show if level 1 selected and options exist)
-            if (level2Options.isNotEmpty()) {
+            // Collapse to only selected chip when level 2 has options (user drilled down)
+            val level1DisplayOptions = if (level2Options.isNotEmpty() && level1Selection != null) {
+                listOfNotNull(level1Selection)
+            } else {
+                level1Options
+            }
+            if (level1DisplayOptions.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.node_browser_filter_category),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 FilterChipRow(
-                    options = level2Options,
+                    options = level1DisplayOptions,
+                    selectedOption = level1Selection,
+                    onOptionSelected = { selection ->
+                        level1Selection = selection
+                        level2Selection = null  // Clear deeper levels
+                        level3Selection = null
+                    }
+                )
+            }
+
+            // Level 2 filter chips (only show if level 1 selected and options exist)
+            // Collapse to only selected chip when level 3 has options (user drilled down)
+            val level2DisplayOptions = if (level3Options.isNotEmpty() && level2Selection != null) {
+                listOfNotNull(level2Selection)
+            } else {
+                level2Options
+            }
+            if (level2DisplayOptions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.node_browser_filter_subcategory),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FilterChipRow(
+                    options = level2DisplayOptions,
                     selectedOption = level2Selection,
                     onOptionSelected = { selection ->
                         level2Selection = selection
@@ -223,6 +251,14 @@ fun NodeBrowserBottomSheet(
 
             // Level 3 filter chips (only show if level 2 selected and options exist)
             if (level3Options.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.node_browser_filter_group),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 FilterChipRow(
                     options = level3Options,

@@ -371,6 +371,9 @@
     <string name="node_browser_search_placeholder">Search nodes…</string>
     <string name="node_browser_no_results">No nodes match your search</string>
     <string name="node_browser_io_info">%1$d inputs, %2$d outputs</string>
+    <string name="node_browser_filter_category">Category</string>
+    <string name="node_browser_filter_subcategory">Subcategory</string>
+    <string name="node_browser_filter_group">Group</string>
     <string name="clear_search">Clear search</string>
 
     <!-- Workflow upload dialog strings -->

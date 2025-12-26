@@ -393,6 +393,9 @@
     <string name="node_browser_search_placeholder">Knoten suchen…</string>
     <string name="node_browser_no_results">Keine passenden Knoten gefunden</string>
     <string name="node_browser_io_info">%1$d Eingänge, %2$d Ausgänge</string>
+    <string name="node_browser_filter_category">Kategorie</string>
+    <string name="node_browser_filter_subcategory">Unterkategorie</string>
+    <string name="node_browser_filter_group">Gruppe</string>
     <string name="clear_search">Suche löschen</string>
     <string name="workflow_editor_enter_edit_mode">Graph bearbeiten</string>
     <string name="workflow_editor_exit_edit_mode">Bearbeitungsmodus beenden</string>
