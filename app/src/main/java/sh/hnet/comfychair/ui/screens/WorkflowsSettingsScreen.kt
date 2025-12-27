@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import sh.hnet.comfychair.ui.components.WorkflowThumbnail
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
@@ -499,9 +500,17 @@ private fun WorkflowListItemContent(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 4.dp),
+            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Workflow graph thumbnail
+        WorkflowThumbnail(
+            jsonContent = workflow.jsonContent,
+            modifier = Modifier.size(48.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = workflow.name,
