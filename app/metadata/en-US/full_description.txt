@@ -1,0 +1,27 @@
+ComfyChair brings the power of ComfyUI to your Android device with a native, Material Design 3 interface. Connect to your ComfyUI server and generate AI images and videos right from your phone.
+
+What you can do:
+- Generate images from text prompts with live progress updates
+- Transform existing images or use inpainting with a built-in mask editor
+- Create AI videos from text or animate still images
+- Manage your generation queue, cancel jobs, or prioritize requests
+- Browse and organize all your creations in a unified gallery
+
+Flexible workflow support:
+- Works with both traditional Checkpoint and modern UNET workflows (Flux, Z-Image, and more)
+- Stack up to 5 LoRAs with individual strength controls
+- Create new workflows from scratch or import existing ones from ComfyUI
+- Full node graph visualization and editing with a searchable node browser
+
+Built for mobile:
+- Smooth, responsive interface built with Jetpack Compose
+- Pinch-to-zoom media viewer with swipe navigation
+- Batch operations for saving, sharing, or deleting multiple items
+- Backup and restore your configuration across devices
+- Available in English, German, French, Polish, Spanish, and Chinese
+
+Requirements:
+- A running ComfyUI server (local or remote)
+- Android 14 or higher
+
+ComfyChair is free, open source (GPL-3.0), and not affiliated with the official ComfyUI project.
