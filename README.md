@@ -1,14 +1,14 @@
 # ComfyChair
 
-A simplified, mobile UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on Android.
+An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**The app is still in heavy development.**
-
-**Current version**: v0.7.5
+**Current version**: v0.8.0
 
 ## Overview
 
 ComfyChair provides a streamlined mobile interface for interacting with ComfyUI servers, allowing you to generate and manage AI images and videos directly from your Android device. The app communicates with your ComfyUI server via its API, bringing the power of node-based AI generation to your mobile workflow.
+
+**Note**: This is an independent, community-developed project and is not officially affiliated with or endorsed by the ComfyUI team.
 
 ## Screenshots
 
@@ -51,15 +51,15 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - High/low noise UNET and LoRA model selection
   - Live preview during generation
 
-### Media management
+### Media
 
 - **Media viewer**:
   - Unified fullscreen viewer for images and videos
-  - Swipe navigation between gallery items
-  - Pinch-to-zoom
-  - Double-tap to toggle between fit and crop zoom
+  - Material Design 3 Expressive UI with floating toolbar and FAB
+  - Swipe navigation between gallery items with tonal navigation buttons
+  - Pinch-to-zoom and double-tap to toggle between fit and crop zoom
   - Single-tap to toggle UI visibility (with system bars)
-  - Quick actions: delete, save to gallery, share
+  - Quick actions: delete, save to gallery, share, view metadata
   - Metadata viewer showing generation parameters (prompt, model, seed, steps, etc.)
   - Optimized media caching for smooth transitions between items
 - **Gallery**:
@@ -69,6 +69,36 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Multi-select mode with long press to select items
   - Batch operations: save, share, or delete multiple items at once
 - **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
+
+### Workflows
+
+- **Full node graph visualization**: Colored nodes and connections matching ComfyUI's visual style
+- **Node management**:
+  - Add nodes via searchable Node Browser with category filter chips
+  - Delete, duplicate, bypass, and rename nodes
+  - Cleanup tool to remove disconnected nodes
+- **Connection management**:
+  - Create connections by tapping an output socket and then an input socket
+  - Target sockets glow when compatible during connection creation
+  - Delete connections via node context menu or by selecting and deleting
+  - Selected nodes highlight all their connections
+- **Node attribute editing**:
+  - Side sheet editor for node parameters (tap nodes to edit)
+  - Boolean values displayed as on/off toggles
+  - Image previews for image selector fields
+  - Template values highlighted with "UI:" prefix
+  - Connected inputs styled with wire colors
+  - Edited values highlighted for easy identification
+- **Navigation and zoom**:
+  - Material Design 3 Expressive floating toolbar
+  - Zoom controls with percentage display
+  - Fit all / Fit width zoom options
+- **Workflow management**:
+  - Create workflows from scratch or import existing ones exported from ComfyUI
+  - Dynamic workflow thumbnails showing mini graph previews
+  - Context menus for edit, rename, duplicate, export, and delete
+  - Field mapping UI for required template fields
+  - Per-workflow generation settings persistence
 
 ### Configuration
 
@@ -82,16 +112,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Backup configuration to JSON file (connection settings, workflow values, custom workflows)
   - Restore configuration from backup
 - **Workflow management**:
-  - View and manage custom workflows
+  - View and manage custom workflows with visual thumbnails
   - Upload custom ComfyUI workflows with automatic validation
-  - Visual workflow editor with node graph display
-  - Colored nodes and connections matching ComfyUI's visual style
-  - Node attribute editing via side sheet (tap nodes to edit parameters)
-  - Template values highlighted with "UI:" prefix for easy identification
-  - Connected inputs styled with wire colors
-  - Edited values highlighted for easy identification
-  - Material Design 3 Expressive floating toolbar with Fit All / Fit Width zoom
-  - Field mapping UI for required template fields
   - Edit workflow name and description
   - Default generation settings extracted during workflow import
   - Per-workflow generation settings (each workflow remembers its own configuration)
@@ -115,7 +137,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/legal-hkr/comfychair.git
+   git clone https://github.com/anthropics/comfychair.git
    cd comfychair
    ```
 
@@ -154,7 +176,7 @@ To connect to your ComfyUI server, you'll need:
 - **Language**: Kotlin 2.0.21
 - **Min SDK**: Android 14 (API 34)
 - **Target SDK**: Android 15 (API 36)
-- **UI Framework**: Jetpack Compose with Material Design 3
+- **UI Framework**: Jetpack Compose with Material Design 3 (including Expressive components)
 - **Video Playback**: Media3 ExoPlayer
 - **Architecture**: MVVM with ViewModels and StateFlow
 - **Navigation**: Jetpack Compose Navigation
@@ -175,3 +197,4 @@ This project follows standard Android development practices:
 ## Acknowledgments
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) - The powerful node-based UI this app interfaces with
+- [Claude](https://claude.ai) by Anthropic - AI assistant that provided valuable support during the development process, helping with code implementation, architecture decisions, and documentation
