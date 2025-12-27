@@ -135,7 +135,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/anthropics/comfychair.git
+   git clone https://github.com/legal-hkr/comfychair.git
    cd comfychair
    ```
 
