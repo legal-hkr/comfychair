@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,7 +66,7 @@ import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 /**
  * Text-to-Image generation screen
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TextToImageScreen(
     generationViewModel: GenerationViewModel,

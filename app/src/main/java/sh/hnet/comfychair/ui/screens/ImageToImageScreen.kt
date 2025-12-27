@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,7 +74,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.ImageToImageViewMode
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ImageToImageScreen(
     generationViewModel: GenerationViewModel,
