@@ -2,23 +2,24 @@ package sh.hnet.comfychair.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -28,10 +29,17 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingToolbarColors
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +55,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -64,6 +71,7 @@ import sh.hnet.comfychair.viewmodel.MediaViewerEvent
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MediaViewerScreen(
     viewModel: MediaViewerViewModel,
@@ -72,9 +80,14 @@ fun MediaViewerScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+
     val currentMetadata by viewModel.currentMetadata.collectAsState()
     val isLoadingMetadata by viewModel.isLoadingMetadata.collectAsState()
     val scope = rememberCoroutineScope()
+
+    // Layout constants - 8dp because navigationBarsPadding() adds ~24dp, totaling ~32dp like Workflow Editor
+    val toolbarBottomPadding = 8.dp
+    val fabBottomPadding = toolbarBottomPadding + 4.dp
 
     // Metadata bottom sheet state
     var showMetadataSheet by remember { mutableStateOf(false) }
@@ -191,26 +204,23 @@ fun MediaViewerScreen(
                         if (uiState.totalCount > 1) {
                             AnimatedVisibility(
                                 visible = uiState.isUiVisible && uiState.currentIndex > 0,
-                                enter = fadeIn(),
-                                exit = fadeOut(),
+                                enter = fadeIn(animationSpec = tween(250)),
+                                exit = fadeOut(animationSpec = tween(250)),
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
-                                    .padding(start = 8.dp)
+                                    .padding(start = 16.dp)
                             ) {
-                                IconButton(
+                                FilledTonalIconButton(
                                     onClick = {
                                         scope.launch {
                                             pagerState.animateScrollToPage(pagerState.currentPage - 1)
                                         }
                                     },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(Color.Black.copy(alpha = 0.4f), shape = androidx.compose.foundation.shape.CircleShape)
+                                    modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                                         contentDescription = stringResource(R.string.media_viewer_previous),
-                                        tint = Color.White,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -219,26 +229,23 @@ fun MediaViewerScreen(
                             // Right navigation arrow
                             AnimatedVisibility(
                                 visible = uiState.isUiVisible && uiState.currentIndex < uiState.totalCount - 1,
-                                enter = fadeIn(),
-                                exit = fadeOut(),
+                                enter = fadeIn(animationSpec = tween(250)),
+                                exit = fadeOut(animationSpec = tween(250)),
                                 modifier = Modifier
                                     .align(Alignment.CenterEnd)
-                                    .padding(end = 8.dp)
+                                    .padding(end = 16.dp)
                             ) {
-                                IconButton(
+                                FilledTonalIconButton(
                                     onClick = {
                                         scope.launch {
                                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                                         }
                                     },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(Color.Black.copy(alpha = 0.4f), shape = androidx.compose.foundation.shape.CircleShape)
+                                    modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                         contentDescription = stringResource(R.string.media_viewer_next),
-                                        tint = Color.White,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -259,82 +266,68 @@ fun MediaViewerScreen(
             }
         }
 
-        // Top bar with back button - with status bar padding
-        AnimatedVisibility(
-            visible = uiState.isUiVisible,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            Row(
+        // Counter chip (gallery mode only, when multiple items)
+        if (uiState.mode == ViewerMode.GALLERY && uiState.totalCount > 1) {
+            AnimatedVisibility(
+                visible = uiState.isUiVisible,
+                enter = fadeIn(animationSpec = tween(250)),
+                exit = fadeOut(animationSpec = tween(250)),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(top = 16.dp)
             ) {
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.content_description_back),
-                        tint = Color.White
-                    )
-                }
-                if (uiState.mode == ViewerMode.GALLERY && uiState.totalCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ) {
                     Text(
                         text = "${uiState.currentIndex + 1} / ${uiState.totalCount}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
         }
 
-        // Bottom action bar - with navigation bar padding
+        // Floating Toolbar
         AnimatedVisibility(
             visible = uiState.isUiVisible,
-            enter = fadeIn() + slideInVertically { it },
-            exit = fadeOut() + slideOutVertically { it },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            enter = fadeIn(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(250)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = toolbarBottomPadding)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            MediaViewerFloatingToolbar(
+                isGalleryMode = uiState.mode == ViewerMode.GALLERY,
+                onDelete = { viewModel.deleteCurrentItem() },
+                onSave = { viewModel.saveCurrentItem() },
+                onShare = { viewModel.shareCurrentItem() },
+                onInfo = { showMetadataSheet = true }
+            )
+        }
+
+        // Back FAB
+        AnimatedVisibility(
+            visible = uiState.isUiVisible,
+            enter = fadeIn(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(250)),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 16.dp, bottom = fabBottomPadding)
+        ) {
+            FloatingActionButton(
+                onClick = onClose,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
-                // Delete button (only in gallery mode)
-                if (uiState.mode == ViewerMode.GALLERY) {
-                    ActionButton(
-                        icon = Icons.Default.Delete,
-                        label = stringResource(R.string.media_viewer_delete),
-                        onClick = { viewModel.deleteCurrentItem() }
-                    )
-                }
-
-                // Save button
-                ActionButton(
-                    icon = Icons.Default.Save,
-                    label = stringResource(R.string.media_viewer_save),
-                    onClick = { viewModel.saveCurrentItem() }
-                )
-
-                // Share button
-                ActionButton(
-                    icon = Icons.Default.Share,
-                    label = stringResource(R.string.media_viewer_share),
-                    onClick = { viewModel.shareCurrentItem() }
-                )
-
-                // Info button
-                ActionButton(
-                    icon = Icons.Outlined.Info,
-                    label = stringResource(R.string.show_metadata),
-                    onClick = { showMetadataSheet = true }
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.content_description_back)
                 )
             }
         }
@@ -350,29 +343,75 @@ fun MediaViewerScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ActionButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
+private fun MediaViewerFloatingToolbar(
+    isGalleryMode: Boolean,
+    onDelete: () -> Unit,
+    onSave: () -> Unit,
+    onShare: () -> Unit,
+    onInfo: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
+    val toolbarColors = FloatingToolbarColors(
+        toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        toolbarContentColor = MaterialTheme.colorScheme.onSurface,
+        fabContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        fabContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    )
+
+    HorizontalFloatingToolbar(
+        expanded = true,
+        modifier = modifier,
+        colors = toolbarColors,
+        content = {
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Delete button (gallery mode only)
+                if (isGalleryMode) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.media_viewer_delete),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                // Save button
+                IconButton(onClick = onSave) {
+                    Icon(
+                        Icons.Default.Save,
+                        contentDescription = stringResource(R.string.media_viewer_save)
+                    )
+                }
+
+                // Share button
+                IconButton(onClick = onShare) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = stringResource(R.string.media_viewer_share)
+                    )
+                }
+
+                // Divider before Info
+                VerticalDivider(
+                    modifier = Modifier.fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                // Info button
+                IconButton(onClick = onInfo) {
+                    Icon(
+                        Icons.Outlined.Info,
+                        contentDescription = stringResource(R.string.show_metadata)
+                    )
+                }
+            }
         }
-        Text(
-            text = label,
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall
-        )
-    }
+    )
 }
 
 @Composable
