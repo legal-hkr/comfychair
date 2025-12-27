@@ -12,9 +12,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-**REQUIRES UPDATING**
-
-<img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/texttoimage-livepreview.png" width="200"/> <img src="screenshots/texttoimage-options.png" width="200"/> <img src="screenshots/inpainting-maskeditor.png" width="200"/> <img src="screenshots/imagetovideo-preview.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/gallery-mediaviewer.png" width="200"/> <img src="screenshots/gallery-metadataviewer.png" width="200"/> <img src="screenshots/settings-workflows.png" width="200"/> <img src="screenshots/settings-workflows-editor.png" width="200"/> <img src="screenshots/settings-server.png" width="200"/>
+<img src="screenshots/texttoimage.png" width="200"/> <img src="screenshots/imagetoimage-livepreview.png" width="200"/> <img src="screenshots/imagetoimage.png" width="200"/> <img src="screenshots/imagetoimage-bottomsheet.png" width="200"/> <img src="screenshots/gallery.png" width="200"/> <img src="screenshots/gallery-mediaviewer.png" width="200"/> <img src="screenshots/gallery-metadataviewer.png" width="200"/> <img src="screenshots/workfloweditor-view.png" width="200"/> <img src="screenshots/workfloweditor-editattributes.png" width="200"/> <img src="screenshots/workfloweditor-edit.png" width="200"/> <img src="screenshots/workfloweditor-addnode.png" width="200"/> <img src="screenshots/settings-app.png" width="200"/>
 
 ## Features
 
