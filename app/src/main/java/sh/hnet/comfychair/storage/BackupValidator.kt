@@ -3,6 +3,7 @@ package sh.hnet.comfychair.storage
 import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.util.ValidationUtils
 
 /**
  * Validation utilities for backup/restore operations.
@@ -26,8 +27,8 @@ class BackupValidator {
 
         // Max lengths for strings
         const val MAX_PROMPT_LENGTH = 10000
-        const val MAX_WORKFLOW_NAME_LENGTH = 40
-        const val MAX_WORKFLOW_DESCRIPTION_LENGTH = 120
+        val MAX_WORKFLOW_NAME_LENGTH = ValidationUtils.MAX_WORKFLOW_NAME_LENGTH
+        val MAX_WORKFLOW_DESCRIPTION_LENGTH = ValidationUtils.MAX_WORKFLOW_DESCRIPTION_LENGTH
 
         // Numeric ranges
         const val MIN_PORT = 1

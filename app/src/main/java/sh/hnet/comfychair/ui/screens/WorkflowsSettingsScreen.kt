@@ -371,8 +371,10 @@ fun WorkflowsSettingsScreen(
         EditWorkflowDialog(
             name = uiState.editName,
             onNameChange = viewModel::onEditNameChange,
+            nameError = uiState.editNameError,
             description = uiState.editDescription,
             onDescriptionChange = viewModel::onEditDescriptionChange,
+            descriptionError = uiState.editDescriptionError,
             onConfirm = viewModel::confirmEdit,
             onDismiss = viewModel::cancelEdit
         )
@@ -395,6 +397,7 @@ fun WorkflowsSettingsScreen(
             nameError = uiState.duplicateNameError,
             description = uiState.duplicateDescription,
             onDescriptionChange = viewModel::onDuplicateDescriptionChange,
+            descriptionError = uiState.duplicateDescriptionError,
             onConfirm = viewModel::confirmDuplicate,
             onDismiss = viewModel::cancelDuplicate
         )
@@ -832,8 +835,10 @@ private fun DuplicateNameDialog(
 private fun EditWorkflowDialog(
     name: String,
     onNameChange: (String) -> Unit,
+    nameError: String?,
     description: String,
     onDescriptionChange: (String) -> Unit,
+    descriptionError: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -847,7 +852,8 @@ private fun EditWorkflowDialog(
                     onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.workflow_name_label)) },
                     singleLine = true,
-                    isError = name.isBlank(),
+                    isError = nameError != null || name.isBlank(),
+                    supportingText = nameError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -856,6 +862,8 @@ private fun EditWorkflowDialog(
                     onValueChange = onDescriptionChange,
                     label = { Text(stringResource(R.string.workflow_description_label)) },
                     maxLines = 3,
+                    isError = descriptionError != null,
+                    supportingText = descriptionError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -863,7 +871,7 @@ private fun EditWorkflowDialog(
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank() && nameError == null && descriptionError == null
             ) {
                 Text(stringResource(R.string.button_save))
             }
@@ -911,6 +919,7 @@ private fun DuplicateWorkflowDialog(
     nameError: String?,
     description: String,
     onDescriptionChange: (String) -> Unit,
+    descriptionError: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -934,6 +943,8 @@ private fun DuplicateWorkflowDialog(
                     onValueChange = onDescriptionChange,
                     label = { Text(stringResource(R.string.workflow_description_label)) },
                     maxLines = 3,
+                    isError = descriptionError != null,
+                    supportingText = descriptionError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -941,7 +952,7 @@ private fun DuplicateWorkflowDialog(
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
-                enabled = name.isNotBlank() && nameError == null
+                enabled = name.isNotBlank() && nameError == null && descriptionError == null
             ) {
                 Text(stringResource(R.string.button_save))
             }

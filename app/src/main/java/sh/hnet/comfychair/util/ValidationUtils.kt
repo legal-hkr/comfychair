@@ -243,4 +243,62 @@ object ValidationUtils {
                 ?: "Maximum length: $maxLength"
         } else null
     }
+
+    // ===========================================
+    // Workflow Name/Description Validation
+    // ===========================================
+
+    /** Maximum length for workflow names */
+    const val MAX_WORKFLOW_NAME_LENGTH = 40
+
+    /** Maximum length for workflow descriptions */
+    const val MAX_WORKFLOW_DESCRIPTION_LENGTH = 80
+
+    /** Valid characters pattern for workflow names (alphanumeric, space, and common punctuation) */
+    private val WORKFLOW_NAME_PATTERN = Regex("^[a-zA-Z0-9 _\\-\\[\\]()]+$")
+
+    /**
+     * Validate workflow name format.
+     * @param name The workflow name to validate
+     * @param context Optional context for localized error messages
+     * @return Error message if invalid, null if valid
+     */
+    fun validateWorkflowName(name: String, context: Context? = null): String? {
+        if (name.isBlank()) {
+            return context?.getString(R.string.error_required) ?: "Required"
+        }
+        if (name.length > MAX_WORKFLOW_NAME_LENGTH) {
+            return context?.getString(R.string.workflow_name_error_too_long)
+                ?: "Name too long (max $MAX_WORKFLOW_NAME_LENGTH characters)"
+        }
+        if (!WORKFLOW_NAME_PATTERN.matches(name)) {
+            return context?.getString(R.string.workflow_name_error_invalid_chars)
+                ?: "Invalid characters in name"
+        }
+        return null
+    }
+
+    /**
+     * Validate workflow description format.
+     * @param description The workflow description to validate
+     * @param context Optional context for localized error messages
+     * @return Error message if invalid, null if valid
+     */
+    fun validateWorkflowDescription(description: String, context: Context? = null): String? {
+        if (description.length > MAX_WORKFLOW_DESCRIPTION_LENGTH) {
+            return context?.getString(R.string.workflow_description_error_too_long)
+                ?: "Description too long (max $MAX_WORKFLOW_DESCRIPTION_LENGTH characters)"
+        }
+        return null
+    }
+
+    /**
+     * Truncate workflow name to maximum allowed length.
+     */
+    fun truncateWorkflowName(name: String): String = name.take(MAX_WORKFLOW_NAME_LENGTH)
+
+    /**
+     * Truncate workflow description to maximum allowed length.
+     */
+    fun truncateWorkflowDescription(description: String): String = description.take(MAX_WORKFLOW_DESCRIPTION_LENGTH)
 }

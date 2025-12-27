@@ -8,6 +8,7 @@ import sh.hnet.comfychair.model.WorkflowDefaults
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import java.io.File
 import java.io.InputStream
@@ -482,9 +483,14 @@ object WorkflowManager {
 
     /**
      * Check if workflow name is already taken
+     * @param name The name to check
+     * @param excludeWorkflowId Optional workflow ID to exclude from the check (used when editing)
      */
-    fun isWorkflowNameTaken(name: String): Boolean {
-        return workflows.any { it.name.equals(name, ignoreCase = true) }
+    fun isWorkflowNameTaken(name: String, excludeWorkflowId: String? = null): Boolean {
+        return workflows.any { workflow ->
+            workflow.name.equals(name, ignoreCase = true) &&
+            (excludeWorkflowId == null || workflow.id != excludeWorkflowId)
+        }
     }
 
     /**
@@ -700,13 +706,7 @@ object WorkflowManager {
      * @return error message if invalid, null if valid
      */
     fun validateWorkflowName(name: String): String? {
-        if (name.isBlank()) return applicationContext.getString(R.string.error_required)
-        if (name.length > 40) return applicationContext.getString(R.string.workflow_name_error_too_long)
-        val validPattern = Regex("^[a-zA-Z0-9 _\\-\\[\\]()]+$")
-        if (!validPattern.matches(name)) {
-            return applicationContext.getString(R.string.workflow_name_error_invalid_chars)
-        }
-        return null
+        return ValidationUtils.validateWorkflowName(name, applicationContext)
     }
 
     /**
@@ -714,8 +714,7 @@ object WorkflowManager {
      * @return error message if invalid, null if valid
      */
     fun validateWorkflowDescription(description: String): String? {
-        if (description.length > 120) return applicationContext.getString(R.string.workflow_description_error_too_long)
-        return null
+        return ValidationUtils.validateWorkflowDescription(description, applicationContext)
     }
 
     /**
