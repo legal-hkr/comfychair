@@ -40,14 +40,20 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitScreen
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingToolbarColors
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -329,13 +335,6 @@ fun WorkflowEditorScreen(
                                     showRenameDialog = true
                                 }
                             },
-                            onBypassToggle = { nodeId ->
-                                // Toggle bypass state for the node
-                                val node = uiState.graph?.nodes?.find { it.id == nodeId }
-                                if (node != null) {
-                                    viewModel.toggleNodeBypass(nodeId, !node.isBypassed)
-                                }
-                            },
                             onTransform = { scale, offset ->
                                 viewModel.onTransform(scale, offset)
                             },
@@ -445,6 +444,16 @@ fun WorkflowEditorScreen(
                     val centerY = (uiState.graphBounds.minY + uiState.graphBounds.maxY) / 2
                     viewModel.showNodeBrowser(Offset(centerX, centerY))
                 },
+                onBypassSelected = {
+                    // Toggle bypass for all selected nodes
+                    uiState.selectedNodeIds.forEach { nodeId ->
+                        val node = uiState.graph?.nodes?.find { it.id == nodeId }
+                        if (node != null) {
+                            viewModel.toggleNodeBypass(nodeId, !node.isBypassed)
+                        }
+                    }
+                },
+                onCleanup = { viewModel.relayoutGraph() },
                 onDone = { viewModel.showSaveDialog(context) }
             )
         }
@@ -636,6 +645,8 @@ private fun WorkflowEditorFloatingToolbar(
     onDeleteSelected: () -> Unit,
     onDuplicateSelected: () -> Unit,
     onAddNode: () -> Unit,
+    onBypassSelected: () -> Unit,
+    onCleanup: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -654,6 +665,9 @@ private fun WorkflowEditorFloatingToolbar(
         content = {
             // Edit mode controls
             if (isEditMode) {
+                // State for "More" dropdown menu
+                var showMoreMenu by remember { mutableStateOf(false) }
+
                 // Wrap in Row with IntrinsicSize.Min so VerticalDivider sizes correctly
                 Row(
                     modifier = Modifier.height(IntrinsicSize.Min),
@@ -674,21 +688,6 @@ private fun WorkflowEditorFloatingToolbar(
                         )
                     }
 
-                    // Duplicate (enabled when nodes selected)
-                    IconButton(
-                        onClick = onDuplicateSelected,
-                        enabled = hasSelection
-                    ) {
-                        Icon(
-                            Icons.Default.ContentCopy,
-                            contentDescription = stringResource(R.string.workflow_editor_duplicate_node),
-                            tint = if (hasSelection)
-                                MaterialTheme.colorScheme.onSurface
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-
                     // Add node
                     IconButton(onClick = onAddNode) {
                         Icon(
@@ -697,7 +696,79 @@ private fun WorkflowEditorFloatingToolbar(
                         )
                     }
 
-                    // Divider between node actions (Delete/Clone/Add) and workflow actions (Cancel/Done)
+                    // More menu button
+                    Box {
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.workflow_editor_more)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false }
+                        ) {
+                            // Clone (enabled when nodes selected)
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workflow_editor_duplicate_node)) },
+                                onClick = {
+                                    onDuplicateSelected()
+                                    showMoreMenu = false
+                                },
+                                enabled = hasSelection,
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        tint = if (hasSelection)
+                                            MaterialTheme.colorScheme.onSurface
+                                        else
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                }
+                            )
+
+                            // Bypass (enabled when nodes selected)
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.node_editor_bypass)) },
+                                onClick = {
+                                    onBypassSelected()
+                                    showMoreMenu = false
+                                },
+                                enabled = hasSelection,
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.VisibilityOff,
+                                        contentDescription = null,
+                                        tint = if (hasSelection)
+                                            MaterialTheme.colorScheme.onSurface
+                                        else
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            // Cleanup (always enabled)
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workflow_editor_cleanup)) },
+                                onClick = {
+                                    onCleanup()
+                                    showMoreMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.AutoFixHigh,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    // Divider between node actions and workflow actions
                     VerticalDivider(
                         modifier = Modifier.fillMaxHeight(),
                         color = MaterialTheme.colorScheme.outlineVariant
@@ -723,64 +794,73 @@ private fun WorkflowEditorFloatingToolbar(
                 }
             } else {
                 // Normal mode controls
-
-                // Zoom out
-                IconButton(onClick = onZoomOut) {
-                    Icon(
-                        Icons.Default.Remove,
-                        contentDescription = stringResource(R.string.workflow_editor_zoom_out)
-                    )
-                }
-
-                // Zoom percentage
-                Text(
-                    text = stringResource(R.string.workflow_editor_zoom_percentage, (scale * 100).toInt()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .padding(horizontal = 4.dp)
-                )
-
-                // Zoom in
-                IconButton(onClick = onZoomIn) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.workflow_editor_zoom_in)
-                    )
-                }
-
-                // Fit to screen
-                IconButton(onClick = onResetZoom) {
-                    Icon(
-                        Icons.Default.FitScreen,
-                        contentDescription = stringResource(R.string.workflow_editor_reset_zoom)
-                    )
-                }
-
-                // Confirm mapping button (only in field mapping mode)
-                if (isFieldMappingMode) {
-                    IconButton(
-                        onClick = onConfirmMapping,
-                        enabled = canConfirmMapping
-                    ) {
+                // Wrap in Row with IntrinsicSize.Min so VerticalDivider sizes correctly
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Zoom out (tonal button)
+                    FilledTonalIconButton(onClick = onZoomOut) {
                         Icon(
-                            Icons.Default.Check,
-                            contentDescription = stringResource(R.string.button_confirm),
-                            tint = if (canConfirmMapping)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            Icons.Default.Remove,
+                            contentDescription = stringResource(R.string.workflow_editor_zoom_out)
                         )
                     }
-                }
 
-                // Enter edit mode button (only when not in field mapping mode and not built-in)
-                if (!isFieldMappingMode && !viewingWorkflowIsBuiltIn) {
-                    IconButton(onClick = onEnterEditMode) {
+                    // Zoom percentage
+                    Text(
+                        text = stringResource(R.string.workflow_editor_zoom_percentage, (scale * 100).toInt()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+
+                    // Zoom in (tonal button)
+                    FilledTonalIconButton(onClick = onZoomIn) {
                         Icon(
-                            Icons.Default.Tune,
-                            contentDescription = stringResource(R.string.workflow_editor_enter_edit_mode)
+                            Icons.Default.Add,
+                            contentDescription = stringResource(R.string.workflow_editor_zoom_in)
                         )
+                    }
+
+                    // Fit to screen
+                    IconButton(onClick = onResetZoom) {
+                        Icon(
+                            Icons.Default.FitScreen,
+                            contentDescription = stringResource(R.string.workflow_editor_reset_zoom)
+                        )
+                    }
+
+                    // Confirm mapping button (only in field mapping mode)
+                    if (isFieldMappingMode) {
+                        IconButton(
+                            onClick = onConfirmMapping,
+                            enabled = canConfirmMapping
+                        ) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = stringResource(R.string.button_confirm),
+                                tint = if (canConfirmMapping)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
+                    }
+
+                    // Enter edit mode button (only when not in field mapping mode and not built-in)
+                    if (!isFieldMappingMode && !viewingWorkflowIsBuiltIn) {
+                        // Divider before Tune button
+                        VerticalDivider(
+                            modifier = Modifier.fillMaxHeight(),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+
+                        IconButton(onClick = onEnterEditMode) {
+                            Icon(
+                                Icons.Default.Tune,
+                                contentDescription = stringResource(R.string.workflow_editor_enter_edit_mode)
+                            )
+                        }
                     }
                 }
             }

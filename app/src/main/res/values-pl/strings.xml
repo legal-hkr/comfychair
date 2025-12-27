@@ -417,6 +417,8 @@
     <string name="workflow_editor_duplicate_node">Duplikuj zaznaczone</string>
     <string name="workflow_editor_add_node">Dodaj węzeł</string>
     <string name="workflow_editor_relayout">Przeorganizuj węzły</string>
+    <string name="workflow_editor_more">Więcej opcji</string>
+    <string name="workflow_editor_cleanup">Uporządkuj</string>
     <string name="workflow_editor_done">Gotowe</string>
     <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
     <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>

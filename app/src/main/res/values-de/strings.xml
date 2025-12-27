@@ -417,6 +417,8 @@
     <string name="workflow_editor_duplicate_node">Ausgewähltes duplizieren</string>
     <string name="workflow_editor_add_node">Knoten hinzufügen</string>
     <string name="workflow_editor_relayout">Knoten neu anordnen</string>
+    <string name="workflow_editor_more">Weitere Aktionen</string>
+    <string name="workflow_editor_cleanup">Aufräumen</string>
     <string name="workflow_editor_done">Fertig</string>
     <string name="workflow_editor_discard_title">Workflow verwerfen?</string>
     <string name="workflow_editor_discard_message">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>

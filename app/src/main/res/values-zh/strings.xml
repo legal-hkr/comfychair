@@ -417,6 +417,8 @@
     <string name="workflow_editor_duplicate_node">复制所选</string>
     <string name="workflow_editor_add_node">添加节点</string>
     <string name="workflow_editor_relayout">重新排列节点</string>
+    <string name="workflow_editor_more">更多操作</string>
+    <string name="workflow_editor_cleanup">整理</string>
     <string name="workflow_editor_done">完成</string>
     <string name="workflow_editor_discard_title">放弃工作流？</string>
     <string name="workflow_editor_discard_message">您有未保存的更改。确定要放弃此工作流吗？</string>

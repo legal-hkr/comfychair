@@ -417,6 +417,8 @@
     <string name="workflow_editor_duplicate_node">Dupliquer la sélection</string>
     <string name="workflow_editor_add_node">Ajouter un nœud</string>
     <string name="workflow_editor_relayout">Réorganiser les nœuds</string>
+    <string name="workflow_editor_more">Plus d\'actions</string>
+    <string name="workflow_editor_cleanup">Nettoyer</string>
     <string name="workflow_editor_done">Terminé</string>
     <string name="workflow_editor_discard_title">Abandonner le workflow ?</string>
     <string name="workflow_editor_discard_message">Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir abandonner ce workflow ?</string>

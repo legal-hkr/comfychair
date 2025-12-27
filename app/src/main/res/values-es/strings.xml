@@ -417,6 +417,8 @@
     <string name="workflow_editor_duplicate_node">Duplicar seleccionado</string>
     <string name="workflow_editor_add_node">Agregar nodo</string>
     <string name="workflow_editor_relayout">Reorganizar nodos</string>
+    <string name="workflow_editor_more">Más acciones</string>
+    <string name="workflow_editor_cleanup">Limpiar</string>
     <string name="workflow_editor_done">Listo</string>
     <string name="workflow_editor_discard_title">¿Descartar flujo de trabajo?</string>
     <string name="workflow_editor_discard_message">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>
