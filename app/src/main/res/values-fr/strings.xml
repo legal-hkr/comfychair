@@ -233,11 +233,11 @@
     <string name="workflow_built_in_label">Intégré</string>
     <string name="workflow_name_label">Nom</string>
     <string name="workflow_description_label">Description</string>
-    <string name="upload_workflow_title">Télécharger un workflow</string>
+    <string name="import_workflow_title">Importer un workflow</string>
     <string name="edit_workflow_title">Modifier le workflow</string>
     <string name="delete_workflow_title">Supprimer le workflow</string>
     <string name="delete_workflow_message">Êtes-vous sûr de vouloir supprimer \"%s\" ?</string>
-    <string name="button_upload">Télécharger</string>
+    <string name="button_import">Importer</string>
     <string name="button_save">Enregistrer</string>
     <string name="button_delete">Supprimer</string>
     <string name="button_cancel">Annuler</string>
@@ -246,8 +246,8 @@
     <string name="error_cannot_edit_builtin">Les workflows intégrés ne peuvent pas être modifiés</string>
     <string name="delete">Supprimer</string>
     <string name="workflow_error_invalid_json">Format JSON invalide</string>
-    <string name="workflow_upload_success">Workflow téléchargé</string>
-    <string name="workflow_upload_failed">Échec du téléchargement du workflow</string>
+    <string name="workflow_import_success">Workflow importé</string>
+    <string name="workflow_import_failed">Échec de l\'importation du workflow</string>
     <string name="workflow_delete_success">Workflow supprimé</string>
     <string name="workflow_delete_failed">Échec de la suppression du workflow</string>
     <string name="workflow_update_success">Workflow mis à jour</string>
@@ -294,7 +294,7 @@
     <string name="workflow_editor_reset_zoom">Réinitialiser la vue</string>
     <string name="workflow_editor_error_loading">Échec du chargement du workflow</string>
 
-    <!-- Workflow upload dialog strings -->
+    <!-- Workflow import dialog strings -->
     <string name="workflow_type_label">Type de workflow</string>
     <string name="button_continue">Continuer</string>
     <string name="button_dismiss">Fermer</string>

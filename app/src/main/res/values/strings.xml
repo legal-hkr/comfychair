@@ -305,12 +305,12 @@
     <string name="workflow_built_in_label">Built-in</string>
     <string name="workflow_name_label">Name</string>
     <string name="workflow_description_label">Description</string>
-    <string name="upload_workflow_title">Upload workflow</string>
+    <string name="import_workflow_title">Import workflow</string>
     <string name="save_workflow_title">Save new workflow</string>
     <string name="edit_workflow_title">Edit workflow</string>
     <string name="delete_workflow_title">Delete workflow</string>
     <string name="delete_workflow_message">Are you sure you want to delete \"%s\"?</string>
-    <string name="button_upload">Upload</string>
+    <string name="button_import">Import</string>
     <string name="button_new_workflow">New workflow</string>
     <string name="button_save">Save</string>
     <string name="button_delete">Delete</string>
@@ -321,8 +321,8 @@
     <string name="error_cannot_edit_builtin">Built-in workflows cannot be edited</string>
     <string name="delete">Delete</string>
     <string name="workflow_error_invalid_json">Invalid JSON format</string>
-    <string name="workflow_upload_success">Workflow uploaded</string>
-    <string name="workflow_upload_failed">Failed to upload workflow</string>
+    <string name="workflow_import_success">Workflow imported</string>
+    <string name="workflow_import_failed">Failed to import workflow</string>
     <string name="workflow_delete_success">Workflow deleted</string>
     <string name="workflow_delete_failed">Failed to delete workflow</string>
     <string name="workflow_update_success">Workflow updated</string>
@@ -392,7 +392,7 @@
     <string name="node_browser_filter_group">Group</string>
     <string name="clear_search">Clear search</string>
 
-    <!-- Workflow upload dialog strings -->
+    <!-- Workflow import dialog strings -->
     <string name="workflow_type_label">Workflow type</string>
     <string name="button_continue">Continue</string>
     <string name="button_dismiss">Dismiss</string>

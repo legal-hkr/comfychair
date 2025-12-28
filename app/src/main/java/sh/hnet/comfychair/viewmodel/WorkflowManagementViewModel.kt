@@ -40,15 +40,15 @@ data class WorkflowManagementUiState(
     val ttvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
 
-    // Upload dialog state
-    val showUploadDialog: Boolean = false,
-    val pendingUploadJsonContent: String = "",
-    val uploadSelectedType: WorkflowType? = null,
-    val uploadTypeDropdownExpanded: Boolean = false,
-    val uploadName: String = "",
-    val uploadDescription: String = "",
-    val uploadNameError: String? = null,
-    val uploadDescriptionError: String? = null,
+    // Import dialog state
+    val showImportDialog: Boolean = false,
+    val pendingImportJsonContent: String = "",
+    val importSelectedType: WorkflowType? = null,
+    val importTypeDropdownExpanded: Boolean = false,
+    val importName: String = "",
+    val importDescription: String = "",
+    val importNameError: String? = null,
+    val importDescriptionError: String? = null,
 
     // Validation state
     val isValidatingNodes: Boolean = false,
@@ -151,7 +151,7 @@ class WorkflowManagementViewModel : ViewModel() {
         }
     }
 
-    // New upload flow
+    // New import flow
 
     /**
      * Handle file selection from file picker - new flow without filename prefix requirement
@@ -180,76 +180,76 @@ class WorkflowManagementViewModel : ViewModel() {
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    showUploadDialog = true,
-                    pendingUploadJsonContent = jsonContent,
-                    uploadSelectedType = detectedType,
-                    uploadTypeDropdownExpanded = false,
-                    uploadName = "",
-                    uploadDescription = "",
-                    uploadNameError = null,
-                    uploadDescriptionError = null
+                    showImportDialog = true,
+                    pendingImportJsonContent = jsonContent,
+                    importSelectedType = detectedType,
+                    importTypeDropdownExpanded = false,
+                    importName = "",
+                    importDescription = "",
+                    importNameError = null,
+                    importDescriptionError = null
                 )
             } catch (e: Exception) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_upload_failed))
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_import_failed))
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
-    fun onUploadTypeSelected(type: WorkflowType) {
+    fun onImportTypeSelected(type: WorkflowType) {
         _uiState.value = _uiState.value.copy(
-            uploadSelectedType = type,
-            uploadTypeDropdownExpanded = false
+            importSelectedType = type,
+            importTypeDropdownExpanded = false
         )
     }
 
     fun onToggleTypeDropdown() {
         _uiState.value = _uiState.value.copy(
-            uploadTypeDropdownExpanded = !_uiState.value.uploadTypeDropdownExpanded
+            importTypeDropdownExpanded = !_uiState.value.importTypeDropdownExpanded
         )
     }
 
-    fun onUploadNameChange(name: String) {
+    fun onImportNameChange(name: String) {
         val error = if (name.length > ValidationUtils.MAX_WORKFLOW_NAME_LENGTH) {
             applicationContext?.getString(R.string.workflow_name_error_too_long)
         } else null
         _uiState.value = _uiState.value.copy(
-            uploadName = ValidationUtils.truncateWorkflowName(name),
-            uploadNameError = error
+            importName = ValidationUtils.truncateWorkflowName(name),
+            importNameError = error
         )
     }
 
-    fun onUploadDescriptionChange(description: String) {
+    fun onImportDescriptionChange(description: String) {
         val error = if (description.length > ValidationUtils.MAX_WORKFLOW_DESCRIPTION_LENGTH) {
             applicationContext?.getString(R.string.workflow_description_error_too_long)
         } else null
         _uiState.value = _uiState.value.copy(
-            uploadDescription = ValidationUtils.truncateWorkflowDescription(description),
-            uploadDescriptionError = error
+            importDescription = ValidationUtils.truncateWorkflowDescription(description),
+            importDescriptionError = error
         )
     }
 
     /**
-     * Proceed with upload - validate and launch editor
+     * Proceed with import - validate and launch editor
      */
-    fun proceedWithUpload(context: Context, comfyUIClient: ComfyUIClient) {
+    fun proceedWithImport(context: Context, comfyUIClient: ComfyUIClient) {
         val state = _uiState.value
 
-        val selectedType = state.uploadSelectedType ?: return
-        val name = state.uploadName.trim()
-        val description = state.uploadDescription.trim()
+        val selectedType = state.importSelectedType ?: return
+        val name = state.importName.trim()
+        val description = state.importDescription.trim()
 
         // Validate name format
         val nameError = WorkflowManager.validateWorkflowName(name)
         if (nameError != null) {
-            _uiState.value = _uiState.value.copy(uploadNameError = nameError)
+            _uiState.value = _uiState.value.copy(importNameError = nameError)
             return
         }
 
         // Validate description format
         val descError = WorkflowManager.validateWorkflowDescription(description)
         if (descError != null) {
-            _uiState.value = _uiState.value.copy(uploadDescriptionError = descError)
+            _uiState.value = _uiState.value.copy(importDescriptionError = descError)
             return
         }
 
@@ -272,7 +272,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 // Extract class types from workflow
-                val classTypesResult = WorkflowManager.extractClassTypes(state.pendingUploadJsonContent)
+                val classTypesResult = WorkflowManager.extractClassTypes(state.pendingImportJsonContent)
                 if (classTypesResult.isFailure) {
                     _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
@@ -292,7 +292,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 // Validate required fields for type
-                val keyValidation = WorkflowManager.validateWorkflowKeys(state.pendingUploadJsonContent, selectedType)
+                val keyValidation = WorkflowManager.validateWorkflowKeys(state.pendingImportJsonContent, selectedType)
                 when (keyValidation) {
                     is WorkflowValidationResult.MissingKeys -> {
                         _uiState.value = _uiState.value.copy(
@@ -309,7 +309,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 // Create field mapping state
                 val mappingState = createFieldMappingState(
                     context,
-                    state.pendingUploadJsonContent,
+                    state.pendingImportJsonContent,
                     selectedType
                 )
 
@@ -324,9 +324,9 @@ class WorkflowManagementViewModel : ViewModel() {
                     return@launch
                 }
 
-                // Prepare pending upload and launch editor
-                val pendingUpload = PendingWorkflowUpload(
-                    jsonContent = state.pendingUploadJsonContent,
+                // Prepare pending import and launch editor
+                val pendingImport = PendingWorkflowUpload(
+                    jsonContent = state.pendingImportJsonContent,
                     name = name,
                     description = description,
                     type = selectedType,
@@ -335,11 +335,11 @@ class WorkflowManagementViewModel : ViewModel() {
 
                 _uiState.value = _uiState.value.copy(
                     isValidatingNodes = false,
-                    showUploadDialog = false,
-                    pendingWorkflowForMapping = pendingUpload
+                    showImportDialog = false,
+                    pendingWorkflowForMapping = pendingImport
                 )
 
-                _events.emit(WorkflowManagementEvent.LaunchEditor(pendingUpload))
+                _events.emit(WorkflowManagementEvent.LaunchEditor(pendingImport))
             }
         }
     }
@@ -627,15 +627,15 @@ class WorkflowManagementViewModel : ViewModel() {
         return null
     }
 
-    fun cancelUpload() {
+    fun cancelImport() {
         _uiState.value = _uiState.value.copy(
-            showUploadDialog = false,
-            pendingUploadJsonContent = "",
-            uploadSelectedType = null,
-            uploadName = "",
-            uploadDescription = "",
-            uploadNameError = null,
-            uploadDescriptionError = null,
+            showImportDialog = false,
+            pendingImportJsonContent = "",
+            importSelectedType = null,
+            importName = "",
+            importDescription = "",
+            importNameError = null,
+            importDescriptionError = null,
             pendingWorkflowForMapping = null
         )
     }
@@ -644,18 +644,18 @@ class WorkflowManagementViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             showMissingNodesDialog = false,
             missingNodes = emptyList(),
-            showUploadDialog = false
+            showImportDialog = false
         )
-        cancelUpload()
+        cancelImport()
     }
 
     fun dismissMissingFieldsDialog() {
         _uiState.value = _uiState.value.copy(
             showMissingFieldsDialog = false,
             missingFields = emptyList(),
-            showUploadDialog = false
+            showImportDialog = false
         )
-        cancelUpload()
+        cancelImport()
     }
 
     fun dismissDuplicateNameDialog() {
@@ -663,9 +663,9 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     /**
-     * Complete the upload after mapping is confirmed in editor
+     * Complete the import after mapping is confirmed in editor
      */
-    fun completeUpload(fieldMappings: Map<String, Pair<String, String>>) {
+    fun completeImport(fieldMappings: Map<String, Pair<String, String>>) {
         val pending = _uiState.value.pendingWorkflowForMapping ?: return
 
         viewModelScope.launch {
@@ -678,12 +678,12 @@ class WorkflowManagementViewModel : ViewModel() {
             )
 
             if (result.isSuccess) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_upload_success))
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_import_success))
                 _events.emit(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
             } else {
                 _events.emit(WorkflowManagementEvent.ShowToastMessage(
-                    result.exceptionOrNull()?.message ?: "Upload failed"
+                    result.exceptionOrNull()?.message ?: "Import failed"
                 ))
             }
 

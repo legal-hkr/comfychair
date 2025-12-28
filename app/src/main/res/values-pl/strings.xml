@@ -233,11 +233,11 @@
     <string name="workflow_built_in_label">Wbudowany</string>
     <string name="workflow_name_label">Nazwa</string>
     <string name="workflow_description_label">Opis</string>
-    <string name="upload_workflow_title">Wgraj workflow</string>
+    <string name="import_workflow_title">Importuj workflow</string>
     <string name="edit_workflow_title">Edytuj workflow</string>
     <string name="delete_workflow_title">Usuń workflow</string>
     <string name="delete_workflow_message">Czy na pewno chcesz usunąć \"%s\"?</string>
-    <string name="button_upload">Wgraj</string>
+    <string name="button_import">Importuj</string>
     <string name="button_save">Zapisz</string>
     <string name="button_delete">Usuń</string>
     <string name="button_cancel">Anuluj</string>
@@ -246,8 +246,8 @@
     <string name="error_cannot_edit_builtin">Wbudowane workflow nie mogą być edytowane</string>
     <string name="delete">Usuń</string>
     <string name="workflow_error_invalid_json">Nieprawidłowy format JSON</string>
-    <string name="workflow_upload_success">Workflow wgrany</string>
-    <string name="workflow_upload_failed">Nie udało się wgrać workflow</string>
+    <string name="workflow_import_success">Workflow zaimportowany</string>
+    <string name="workflow_import_failed">Nie udało się zaimportować workflow</string>
     <string name="workflow_delete_success">Workflow usunięty</string>
     <string name="workflow_delete_failed">Nie udało się usunąć workflow</string>
     <string name="workflow_update_success">Workflow zaktualizowany</string>
@@ -294,7 +294,7 @@
     <string name="workflow_editor_reset_zoom">Resetuj widok</string>
     <string name="workflow_editor_error_loading">Nie udało się załadować workflow</string>
 
-    <!-- Workflow upload dialog strings -->
+    <!-- Workflow import dialog strings -->
     <string name="workflow_type_label">Typ workflow</string>
     <string name="button_continue">Kontynuuj</string>
     <string name="button_dismiss">Zamknij</string>

@@ -25,10 +25,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Card
@@ -96,9 +96,9 @@ fun WorkflowsSettingsScreen(
         if (result.resultCode == Activity.RESULT_OK) {
             val mappingsJson = result.data?.getStringExtra(WorkflowEditorActivity.EXTRA_RESULT_MAPPINGS)
             if (mappingsJson != null) {
-                // Parse mappings and complete upload
+                // Parse mappings and complete import
                 val mappings = parseMappingsFromJson(mappingsJson)
-                viewModel.completeUpload(mappings)
+                viewModel.completeImport(mappings)
             }
         } else {
             viewModel.cancelMapping()
@@ -191,9 +191,9 @@ fun WorkflowsSettingsScreen(
                 }) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.button_new_workflow))
                 }
-                // Upload button
+                // Import button
                 IconButton(onClick = { jsonPickerLauncher.launch("application/json") }) {
-                    Icon(Icons.Default.Upload, contentDescription = stringResource(R.string.button_upload))
+                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.button_import))
                 }
                 // Menu button
                 SettingsMenuDropdown(
@@ -324,22 +324,22 @@ fun WorkflowsSettingsScreen(
         }
     }
 
-    // Upload dialog
-    if (uiState.showUploadDialog) {
-        UploadWorkflowDialog(
-            selectedType = uiState.uploadSelectedType,
-            onTypeSelected = viewModel::onUploadTypeSelected,
-            isTypeDropdownExpanded = uiState.uploadTypeDropdownExpanded,
+    // Import dialog
+    if (uiState.showImportDialog) {
+        ImportWorkflowDialog(
+            selectedType = uiState.importSelectedType,
+            onTypeSelected = viewModel::onImportTypeSelected,
+            isTypeDropdownExpanded = uiState.importTypeDropdownExpanded,
             onToggleTypeDropdown = viewModel::onToggleTypeDropdown,
-            name = uiState.uploadName,
-            onNameChange = viewModel::onUploadNameChange,
-            nameError = uiState.uploadNameError,
-            description = uiState.uploadDescription,
-            onDescriptionChange = viewModel::onUploadDescriptionChange,
-            descriptionError = uiState.uploadDescriptionError,
+            name = uiState.importName,
+            onNameChange = viewModel::onImportNameChange,
+            nameError = uiState.importNameError,
+            description = uiState.importDescription,
+            onDescriptionChange = viewModel::onImportDescriptionChange,
+            descriptionError = uiState.importDescriptionError,
             isValidating = uiState.isValidatingNodes,
-            onConfirm = { viewModel.proceedWithUpload(context, ConnectionManager.client) },
-            onDismiss = viewModel::cancelUpload
+            onConfirm = { viewModel.proceedWithImport(context, ConnectionManager.client) },
+            onDismiss = viewModel::cancelImport
         )
     }
 
@@ -632,7 +632,7 @@ private fun WorkflowListItemContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UploadWorkflowDialog(
+private fun ImportWorkflowDialog(
     selectedType: WorkflowType?,
     onTypeSelected: (WorkflowType) -> Unit,
     isTypeDropdownExpanded: Boolean,
@@ -661,7 +661,7 @@ private fun UploadWorkflowDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isValidating) onDismiss() },
-        title = { Text(stringResource(R.string.upload_workflow_title)) },
+        title = { Text(stringResource(R.string.import_workflow_title)) },
         text = {
             Column {
                 // Type dropdown
