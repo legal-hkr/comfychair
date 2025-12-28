@@ -108,10 +108,10 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">Bild zu Video</string>
     <string name="nav_image_to_video">Bild zu Video</string>
-    <string name="highnoise_unet_label">High-Noise UNET</string>
-    <string name="lownoise_unet_label">Low-Noise UNET</string>
-    <string name="highnoise_lora_label">High-Noise LoRA</string>
-    <string name="lownoise_lora_label">Low-Noise LoRA</string>
+    <string name="highnoise_unet_label">High noise oder Single UNET</string>
+    <string name="lownoise_unet_label">Low noise UNET</string>
+    <string name="highnoise_lora_label">High noise oder Single LoRA</string>
+    <string name="lownoise_lora_label">Low noise LoRA</string>
     <string name="length_label">Länge</string>
     <string name="video_parameters_title">Video-Parameter</string>
     <string name="placeholder_video_description">Generiertes Video erscheint hier</string>
@@ -328,7 +328,10 @@
     <string name="duplicate_name_message">Ein Workflow mit diesem Namen existiert bereits. Bitte wählen Sie einen anderen Namen.</string>
 
     <!-- Field mapping UI strings -->
-    <string name="field_mapping_title">Pflichtfelder zuordnen</string>
+    <string name="field_mapping_title">Felder zuordnen</string>
+    <string name="clear_all_mapping">Alle löschen</string>
+    <string name="section_necessary">Erforderlich</string>
+    <string name="section_optional">Optional</string>
     <string name="tap_node_to_change">Tippen Sie auf einen markierten Node, um die Zuordnung zu ändern</string>
     <string name="no_matching_nodes">Keine passenden Nodes gefunden</string>
     <string name="needs_remapping">Node auswählen</string>

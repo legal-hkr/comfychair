@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -380,6 +381,8 @@ fun WorkflowEditorScreen(
                 mappingState = uiState.mappingState!!,
                 selectedFieldKey = uiState.selectedFieldKey,
                 onFieldSelected = { viewModel.selectFieldForMapping(it) },
+                onClearFieldMapping = { viewModel.clearFieldMapping(it) },
+                onClearAllMappings = { viewModel.clearAllMappings() },
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(start = 16.dp, bottom = 104.dp, end = 16.dp)
@@ -868,8 +871,13 @@ private fun FieldMappingPanel(
     mappingState: WorkflowMappingState,
     selectedFieldKey: String?,
     onFieldSelected: (String?) -> Unit,
+    onClearFieldMapping: (String) -> Unit,
+    onClearAllMappings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val requiredFields = mappingState.fieldMappings.filter { it.isRequiredField }
+    val optionalFields = mappingState.fieldMappings.filter { !it.isRequiredField }
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -877,26 +885,77 @@ private fun FieldMappingPanel(
         tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = stringResource(R.string.field_mapping_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(modifier = Modifier.heightIn(max = 180.dp)) {
-                items(
-                    items = mappingState.fieldMappings,
-                    key = { "${it.field.fieldKey}_${it.selectedCandidateIndex}" }
-                ) { fieldMapping ->
-                    FieldMappingRow(
-                        fieldMapping = fieldMapping,
-                        isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
-                        onSelect = {
-                            val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
-                            onFieldSelected(newKey)
-                        }
+            // Header row with title and clear all button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.field_mapping_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = onClearAllMappings) {
+                    Text(
+                        text = stringResource(R.string.clear_all_mapping),
+                        style = MaterialTheme.typography.labelMedium
                     )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+
+            LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
+                // Necessary section
+                if (requiredFields.isNotEmpty()) {
+                    item(key = "section_necessary") {
+                        Text(
+                            text = stringResource(R.string.section_necessary),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                    items(
+                        items = requiredFields,
+                        key = { "req_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
+                    ) { fieldMapping ->
+                        FieldMappingRow(
+                            fieldMapping = fieldMapping,
+                            isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
+                            onSelect = {
+                                val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
+                                onFieldSelected(newKey)
+                            },
+                            onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
+                        )
+                    }
+                }
+
+                // Optional section
+                if (optionalFields.isNotEmpty()) {
+                    item(key = "section_optional") {
+                        Text(
+                            text = stringResource(R.string.section_optional),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                    }
+                    items(
+                        items = optionalFields,
+                        key = { "opt_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
+                    ) { fieldMapping ->
+                        FieldMappingRow(
+                            fieldMapping = fieldMapping,
+                            isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
+                            onSelect = {
+                                val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
+                                onFieldSelected(newKey)
+                            },
+                            onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
+                        )
+                    }
                 }
             }
 
@@ -916,7 +975,8 @@ private fun FieldMappingPanel(
 private fun FieldMappingRow(
     fieldMapping: FieldMappingState,
     isSelected: Boolean,
-    onSelect: () -> Unit
+    onSelect: () -> Unit,
+    onClearMapping: () -> Unit
 ) {
     val backgroundColor = if (isSelected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
@@ -942,6 +1002,7 @@ private fun FieldMappingRow(
 
             when {
                 fieldMapping.isMapped -> {
+                    // Mapped: show node info
                     val selectedCandidate = fieldMapping.selectedCandidate
                     Text(
                         text = stringResource(
@@ -955,7 +1016,20 @@ private fun FieldMappingRow(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                fieldMapping.needsRemapping -> {
+                fieldMapping.candidates.isEmpty() -> {
+                    // No candidates available
+                    Text(
+                        text = stringResource(R.string.no_matching_nodes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (fieldMapping.isRequiredField) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+                fieldMapping.isRequiredField -> {
+                    // Required field not mapped - "Select a node" with error color
                     Text(
                         text = stringResource(R.string.needs_remapping),
                         style = MaterialTheme.typography.bodySmall,
@@ -963,10 +1037,11 @@ private fun FieldMappingRow(
                     )
                 }
                 else -> {
+                    // Optional field not mapped - "Select a node" with muted color
                     Text(
-                        text = stringResource(R.string.no_matching_nodes),
+                        text = stringResource(R.string.needs_remapping),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -974,20 +1049,40 @@ private fun FieldMappingRow(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        if (fieldMapping.isMapped) {
-            Icon(
-                Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        } else {
-            Icon(
-                Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(20.dp)
-            )
+        // Status icon - clickable to clear mapping
+        IconButton(
+            onClick = onClearMapping,
+            modifier = Modifier.size(28.dp)
+        ) {
+            when {
+                fieldMapping.isMapped -> {
+                    // State 1: Mapped (both required and optional) - green checkmark
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = stringResource(R.string.content_description_clear),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                fieldMapping.isRequiredField -> {
+                    // State 2: Unmapped required - warning triangle with error color
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                else -> {
+                    // State 3: Unmapped optional - outlined circle, no color highlight
+                    Icon(
+                        Icons.Outlined.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }

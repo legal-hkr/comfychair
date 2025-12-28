@@ -169,7 +169,28 @@ data class ImageToImageUiState(
     val referenceImage2: Bitmap? = null,
 
     // Optional LoRA chain for editing (in addition to mandatory LoRA)
-    val editingLoraChain: List<LoraSelection> = emptyList()
+    val editingLoraChain: List<LoraSelection> = emptyList(),
+
+    // Current workflow capabilities (for conditional UI)
+    val currentWorkflowHasNegativePrompt: Boolean = true,
+    val currentWorkflowHasCfg: Boolean = true,
+
+    // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
+    val currentWorkflowHasMegapixels: Boolean = true,
+    val currentWorkflowHasSteps: Boolean = true,
+    val currentWorkflowHasSamplerName: Boolean = true,
+    val currentWorkflowHasScheduler: Boolean = true,
+    val currentWorkflowHasVaeName: Boolean = true,
+    val currentWorkflowHasClipName: Boolean = true,
+    val currentWorkflowHasLoraName: Boolean = true,
+
+    // Model presence flags (for conditional model dropdowns)
+    val currentWorkflowHasCheckpointName: Boolean = false,
+    val currentWorkflowHasUnetName: Boolean = false,
+
+    // ITE reference image flags (for conditional reference image selectors)
+    val currentWorkflowHasReferenceImage1: Boolean = false,
+    val currentWorkflowHasReferenceImage2: Boolean = false
 )
 
 /**
@@ -378,7 +399,20 @@ class ImageToImageViewModel : ViewModel() {
                 checkpointNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
                 selectedCheckpoint = savedValues?.checkpointModel ?: "",
-                checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+                checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+                // Set workflow capability flags from defaults
+                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
+                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
+                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
             )
         } else {
             _uiState.value = state.copy(
@@ -397,7 +431,20 @@ class ImageToImageViewModel : ViewModel() {
                 selectedUnet = savedValues?.unetModel ?: "",
                 selectedVae = savedValues?.vaeModel ?: "",
                 selectedClip = savedValues?.clipModel ?: "",
-                unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+                unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+                // Set workflow capability flags from defaults
+                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
+                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
             )
         }
     }
@@ -431,7 +478,23 @@ class ImageToImageViewModel : ViewModel() {
             selectedEditingLora = savedValues?.loraModel ?: state.selectedEditingLora,
             selectedEditingVae = savedValues?.vaeModel ?: state.selectedEditingVae,
             selectedEditingClip = savedValues?.clipModel ?: state.selectedEditingClip,
-            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Set workflow capability flags from defaults (for editing mode)
+            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+            currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+            currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
+            currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+            currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+            currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+            // Model presence flags (ITE_UNET uses UNET, not checkpoint)
+            currentWorkflowHasCheckpointName = false,
+            currentWorkflowHasUnetName = defaults?.hasUnetName ?: false,
+            // ITE reference image flags
+            currentWorkflowHasReferenceImage1 = defaults?.hasReferenceImage1 ?: false,
+            currentWorkflowHasReferenceImage2 = defaults?.hasReferenceImage2 ?: false
         )
     }
 
@@ -883,7 +946,20 @@ class ImageToImageViewModel : ViewModel() {
                 checkpointNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
                 selectedCheckpoint = savedValues?.checkpointModel ?: "",
-                checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+                checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+                // Set workflow capability flags from defaults
+                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
+                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
+                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
             )
         } else {
             _uiState.value = state.copy(
@@ -902,7 +978,20 @@ class ImageToImageViewModel : ViewModel() {
                 selectedUnet = savedValues?.unetModel ?: "",
                 selectedVae = savedValues?.vaeModel ?: "",
                 selectedClip = savedValues?.clipModel ?: "",
-                unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+                unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+                // Set workflow capability flags from defaults
+                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
+                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
             )
         }
         savePreferences()
@@ -1104,7 +1193,23 @@ class ImageToImageViewModel : ViewModel() {
             selectedEditingLora = savedValues?.loraModel ?: state.selectedEditingLora,
             selectedEditingVae = savedValues?.vaeModel ?: state.selectedEditingVae,
             selectedEditingClip = savedValues?.clipModel ?: state.selectedEditingClip,
-            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Set workflow capability flags from defaults (for editing mode)
+            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+            currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+            currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
+            currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+            currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+            currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+            // Model presence flags (ITE_UNET uses UNET, not checkpoint)
+            currentWorkflowHasCheckpointName = false,
+            currentWorkflowHasUnetName = defaults?.hasUnetName ?: false,
+            // ITE reference image flags
+            currentWorkflowHasReferenceImage1 = defaults?.hasReferenceImage1 ?: false,
+            currentWorkflowHasReferenceImage2 = defaults?.hasReferenceImage2 ?: false
         )
 
         savePreferences()
@@ -1210,15 +1315,22 @@ class ImageToImageViewModel : ViewModel() {
 
         return when (state.mode) {
             ImageToImageMode.EDITING -> {
-                // Editing mode: workflow, UNET, LoRA (mandatory), VAE, CLIP, steps, and valid CFG
+                // Editing mode: workflow required, models conditional on mapping
                 val workflowOk = state.selectedEditingWorkflow.isNotEmpty()
-                val unetOk = state.selectedEditingUnet.isNotEmpty()
-                val loraOk = state.selectedEditingLora.isNotEmpty()
-                val vaeOk = state.selectedEditingVae.isNotEmpty()
-                val clipOk = state.selectedEditingClip.isNotEmpty()
-                val stepsOk = state.editingSteps.toIntOrNull() != null
-                val megapixelsOk = state.editingMegapixels.toFloatOrNull() != null
-                val cfgOk = ValidationUtils.validateCfg(state.editingCfg) == null
+                // UNET required only if workflow has it mapped
+                val unetOk = !state.currentWorkflowHasUnetName || state.selectedEditingUnet.isNotEmpty()
+                // LoRA required only if workflow has it mapped
+                val loraOk = !state.currentWorkflowHasLoraName || state.selectedEditingLora.isNotEmpty()
+                // VAE required only if workflow has it mapped
+                val vaeOk = !state.currentWorkflowHasVaeName || state.selectedEditingVae.isNotEmpty()
+                // CLIP required only if workflow has it mapped
+                val clipOk = !state.currentWorkflowHasClipName || state.selectedEditingClip.isNotEmpty()
+                // Steps required only if workflow has it mapped
+                val stepsOk = !state.currentWorkflowHasSteps || state.editingSteps.toIntOrNull() != null
+                // Megapixels required only if workflow has it mapped
+                val megapixelsOk = !state.currentWorkflowHasMegapixels || state.editingMegapixels.toFloatOrNull() != null
+                // CFG required only if workflow has it mapped
+                val cfgOk = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.editingCfg) == null
 
                 workflowOk && unetOk && loraOk && vaeOk && clipOk && stepsOk && megapixelsOk && cfgOk
             }
@@ -1226,18 +1338,26 @@ class ImageToImageViewModel : ViewModel() {
                 // Inpainting mode: check based on workflow type
                 if (state.isCheckpointMode) {
                     state.selectedWorkflow.isNotEmpty() &&
-                    state.selectedCheckpoint.isNotEmpty() &&
-                    state.megapixels.toFloatOrNull() != null &&
-                    state.megapixelsError == null &&
-                    state.checkpointSteps.toIntOrNull() != null &&
-                    ValidationUtils.validateCfg(state.checkpointCfg) == null
+                    // Checkpoint required only if workflow has it mapped
+                    (!state.currentWorkflowHasCheckpointName || state.selectedCheckpoint.isNotEmpty()) &&
+                    // Megapixels required only if workflow has it mapped
+                    (!state.currentWorkflowHasMegapixels || (state.megapixels.toFloatOrNull() != null && state.megapixelsError == null)) &&
+                    // Steps required only if workflow has it mapped
+                    (!state.currentWorkflowHasSteps || state.checkpointSteps.toIntOrNull() != null) &&
+                    // CFG required only if workflow has it mapped
+                    (!state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.checkpointCfg) == null)
                 } else {
                     state.selectedWorkflow.isNotEmpty() &&
-                    state.selectedUnet.isNotEmpty() &&
-                    state.selectedVae.isNotEmpty() &&
-                    state.selectedClip.isNotEmpty() &&
-                    state.unetSteps.toIntOrNull() != null &&
-                    ValidationUtils.validateCfg(state.unetCfg) == null
+                    // UNET required only if workflow has it mapped
+                    (!state.currentWorkflowHasUnetName || state.selectedUnet.isNotEmpty()) &&
+                    // VAE required only if workflow has it mapped
+                    (!state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()) &&
+                    // CLIP required only if workflow has it mapped
+                    (!state.currentWorkflowHasClipName || state.selectedClip.isNotEmpty()) &&
+                    // Steps required only if workflow has it mapped
+                    (!state.currentWorkflowHasSteps || state.unetSteps.toIntOrNull() != null) &&
+                    // CFG required only if workflow has it mapped
+                    (!state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.unetCfg) == null)
                 }
             }
         }

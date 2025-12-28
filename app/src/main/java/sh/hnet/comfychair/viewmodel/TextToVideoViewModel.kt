@@ -94,7 +94,27 @@ data class TextToVideoUiState(
 
     // Additional LoRA chains (optional, 0-5 LoRAs on top of mandatory LightX2V LoRAs)
     val highnoiseLoraChain: List<LoraSelection> = emptyList(),
-    val lownoiseLoraChain: List<LoraSelection> = emptyList()
+    val lownoiseLoraChain: List<LoraSelection> = emptyList(),
+
+    // Current workflow capabilities (for conditional UI)
+    val currentWorkflowHasNegativePrompt: Boolean = true,
+
+    // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
+    val currentWorkflowHasWidth: Boolean = true,
+    val currentWorkflowHasHeight: Boolean = true,
+    val currentWorkflowHasLength: Boolean = true,
+    val currentWorkflowHasFrameRate: Boolean = true,
+    val currentWorkflowHasVaeName: Boolean = true,
+    val currentWorkflowHasClipName: Boolean = true,
+    val currentWorkflowHasLoraName: Boolean = true,
+
+    // Model presence flags (for conditional model dropdowns)
+    val currentWorkflowHasHighnoiseUnet: Boolean = false,
+
+    // Dual-UNET/LoRA field presence flags (for video workflows)
+    val currentWorkflowHasLownoiseUnet: Boolean = false,
+    val currentWorkflowHasHighnoiseLora: Boolean = false,
+    val currentWorkflowHasLownoiseLora: Boolean = false
 )
 
 /**
@@ -237,7 +257,22 @@ class TextToVideoViewModel : ViewModel() {
             deferredVae = savedValues?.vaeModel,
             deferredClip = savedValues?.clipModel,
             highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Set workflow capability flags from defaults
+            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+            currentWorkflowHasWidth = defaults?.hasWidth ?: true,
+            currentWorkflowHasHeight = defaults?.hasHeight ?: true,
+            currentWorkflowHasLength = defaults?.hasLength ?: true,
+            currentWorkflowHasFrameRate = defaults?.hasFrameRate ?: true,
+            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+            // Model presence flag
+            currentWorkflowHasHighnoiseUnet = defaults?.hasHighnoiseUnet ?: false,
+            // Dual-UNET/LoRA flags
+            currentWorkflowHasLownoiseUnet = defaults?.hasLownoiseUnet ?: false,
+            currentWorkflowHasHighnoiseLora = defaults?.hasHighnoiseLora ?: false,
+            currentWorkflowHasLownoiseLora = defaults?.hasLownoiseLora ?: false
         )
     }
 
@@ -413,7 +448,22 @@ class TextToVideoViewModel : ViewModel() {
             selectedVae = savedValues?.vaeModel ?: "",
             selectedClip = savedValues?.clipModel ?: "",
             highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList()
+            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Set workflow capability flags from defaults
+            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+            currentWorkflowHasWidth = defaults?.hasWidth ?: true,
+            currentWorkflowHasHeight = defaults?.hasHeight ?: true,
+            currentWorkflowHasLength = defaults?.hasLength ?: true,
+            currentWorkflowHasFrameRate = defaults?.hasFrameRate ?: true,
+            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+            // Model presence flag
+            currentWorkflowHasHighnoiseUnet = defaults?.hasHighnoiseUnet ?: false,
+            // Dual-UNET/LoRA flags
+            currentWorkflowHasLownoiseUnet = defaults?.hasLownoiseUnet ?: false,
+            currentWorkflowHasHighnoiseLora = defaults?.hasHighnoiseLora ?: false,
+            currentWorkflowHasLownoiseLora = defaults?.hasLownoiseLora ?: false
         )
         savePreferences()
     }
@@ -651,12 +701,17 @@ class TextToVideoViewModel : ViewModel() {
     fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
         return state.selectedWorkflow.isNotEmpty() &&
-                state.selectedHighnoiseUnet.isNotEmpty() &&
-                state.selectedLownoiseUnet.isNotEmpty() &&
-                state.selectedHighnoiseLora.isNotEmpty() &&
-                state.selectedLownoiseLora.isNotEmpty() &&
-                state.selectedVae.isNotEmpty() &&
-                state.selectedClip.isNotEmpty() &&
+                // High noise UNET required only if workflow has it mapped
+                (!state.currentWorkflowHasHighnoiseUnet || state.selectedHighnoiseUnet.isNotEmpty()) &&
+                // Low noise UNET required only if workflow has it mapped
+                (!state.currentWorkflowHasLownoiseUnet || state.selectedLownoiseUnet.isNotEmpty()) &&
+                // High noise LoRA required only if workflow has it mapped
+                (!state.currentWorkflowHasHighnoiseLora || state.selectedHighnoiseLora.isNotEmpty()) &&
+                // Low noise LoRA required only if workflow has it mapped
+                (!state.currentWorkflowHasLownoiseLora || state.selectedLownoiseLora.isNotEmpty()) &&
+                // VAE/CLIP required only if workflow has them
+                (!state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()) &&
+                (!state.currentWorkflowHasClipName || state.selectedClip.isNotEmpty()) &&
                 state.widthError == null &&
                 state.heightError == null &&
                 state.lengthError == null &&

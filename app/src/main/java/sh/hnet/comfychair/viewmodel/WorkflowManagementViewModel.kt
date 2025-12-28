@@ -313,9 +313,9 @@ class WorkflowManagementViewModel : ViewModel() {
                     selectedType
                 )
 
-                // Check if all fields are mapped
-                if (!mappingState.allFieldsMapped) {
-                    val unmappedFieldNames = mappingState.unmappedFields.map { it.displayName }
+                // Check if all REQUIRED fields are mapped (optional fields can be unmapped)
+                if (!mappingState.allRequiredFieldsMapped) {
+                    val unmappedFieldNames = mappingState.unmappedRequiredFields.map { it.displayName }
                     _uiState.value = _uiState.value.copy(
                         isValidatingNodes = false,
                         showMissingFieldsDialog = true,
@@ -354,58 +354,69 @@ class WorkflowManagementViewModel : ViewModel() {
             return WorkflowMappingState(type, emptyList())
         }
 
-        // Use dynamic key detection based on workflow structure
-        val requiredKeys = TemplateKeyRegistry.getRequiredKeysForWorkflow(type, json)
+        // Get strictly required keys and optional keys based on workflow structure
+        val strictlyRequiredKeys = TemplateKeyRegistry.getStrictlyRequiredKeysForWorkflow(type, json)
+        val optionalKeys = TemplateKeyRegistry.getOptionalKeysForWorkflow(type, json)
+        val allKeys = strictlyRequiredKeys + optionalKeys
 
         val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
 
         // For positive_text and negative_text, we need graph tracing to determine which CLIPTextEncode
         // connects to which sampler input (positive vs negative)
-        val promptMappings = if (requiredKeys.contains("positive_text") || requiredKeys.contains("negative_text")) {
+        val promptMappings = if (allKeys.contains("positive_text") || allKeys.contains("negative_text")) {
             createPromptFieldMappings(nodesJson)
         } else {
             emptyMap()
         }
 
-        val fieldMappings = requiredKeys.map { fieldKey ->
+        val fieldMappings = allKeys.map { fieldKey ->
+            val isRequired = fieldKey in strictlyRequiredKeys
+
             // Handle positive_text and negative_text specially with graph tracing results
             if (fieldKey == "positive_text" || fieldKey == "negative_text") {
                 val candidates = promptMappings[fieldKey] ?: emptyList()
                 FieldMappingState(
-                    field = FieldDisplayRegistry.createRequiredField(context, fieldKey),
+                    field = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired),
                     candidates = candidates,
-                    selectedCandidateIndex = 0  // Auto-select first (which is the traced one)
+                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
                 )
             } else {
                 val candidates = mutableListOf<FieldCandidate>()
+
+                // Get the actual JSON input key for this placeholder
+                // e.g., "highnoise_unet_name" -> "unet_name", "lownoise_lora_name" -> "lora_name"
+                val jsonInputKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(fieldKey)
 
                 // Find all nodes that have this input key
                 for (nodeId in nodesJson.keys()) {
                     val node = nodesJson.optJSONObject(nodeId) ?: continue
                     val inputs = node.optJSONObject("inputs") ?: continue
 
-                    if (inputs.has(fieldKey)) {
-                        val classType = node.optString("class_type", "Unknown")
-                        val meta = node.optJSONObject("_meta")
-                        val title = meta?.optString("title") ?: classType
-                        val currentValue = inputs.opt(fieldKey)
+                    if (inputs.has(jsonInputKey)) {
+                        val currentValue = inputs.opt(jsonInputKey)
 
-                        candidates.add(
-                            FieldCandidate(
-                                nodeId = nodeId,
-                                nodeName = title,
-                                classType = classType,
-                                inputKey = fieldKey,
-                                currentValue = currentValue
+                        if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
+                            val classType = node.optString("class_type", "Unknown")
+                            val meta = node.optJSONObject("_meta")
+                            val title = meta?.optString("title") ?: classType
+
+                            candidates.add(
+                                FieldCandidate(
+                                    nodeId = nodeId,
+                                    nodeName = title,
+                                    classType = classType,
+                                    inputKey = jsonInputKey,
+                                    currentValue = currentValue
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
                 FieldMappingState(
-                    field = FieldDisplayRegistry.createRequiredField(context, fieldKey),
+                    field = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired),
                     candidates = candidates,
-                    selectedCandidateIndex = 0  // Auto-select first
+                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
                 )
             }
         }
@@ -415,40 +426,54 @@ class WorkflowManagementViewModel : ViewModel() {
 
     /**
      * Create field mappings for positive_text and negative_text using graph tracing.
-     * Traces CLIPTextEncode outputs to find which connects to "positive" vs "negative" sampler inputs.
+     * Traces text encoding nodes to find which connects to "positive" vs "negative" sampler inputs.
+     * Supports CLIPTextEncode (with "text" input) and other encoders like TextEncodeQwenImageEditPlus (with "prompt" input).
      */
     private fun createPromptFieldMappings(nodesJson: JSONObject): Map<String, List<FieldCandidate>> {
         val positiveTextCandidates = mutableListOf<FieldCandidate>()
         val negativeTextCandidates = mutableListOf<FieldCandidate>()
 
-        // Find all CLIPTextEncode nodes with "text" input
-        val clipTextEncodeNodes = mutableMapOf<String, JSONObject>()
+        // Text input keys to look for in text encoding nodes
+        val textInputKeys = listOf("text", "prompt")
+
+        // Find all text encoding nodes with text/prompt input
+        data class TextEncoderNode(val nodeId: String, val node: JSONObject, val inputKey: String)
+        val textEncoderNodes = mutableListOf<TextEncoderNode>()
+
         for (nodeId in nodesJson.keys()) {
             val node = nodesJson.optJSONObject(nodeId) ?: continue
             val classType = node.optString("class_type", "")
-            if (classType == "CLIPTextEncode") {
-                val inputs = node.optJSONObject("inputs")
-                if (inputs != null && inputs.has("text")) {
-                    clipTextEncodeNodes[nodeId] = node
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            // Look for nodes that have text-related inputs
+            val matchingInputKey = textInputKeys.firstOrNull { inputs.has(it) }
+            if (matchingInputKey != null) {
+                // Only include known text encoding node types
+                val isTextEncoder = classType == "CLIPTextEncode" ||
+                        classType.contains("TextEncode", ignoreCase = true) ||
+                        classType.contains("Prompt", ignoreCase = true)
+                if (isTextEncoder) {
+                    textEncoderNodes.add(TextEncoderNode(nodeId, node, matchingInputKey))
                 }
             }
         }
 
-        // For each CLIPTextEncode, trace its output to find if it connects to positive or negative
-        for ((clipNodeId, clipNode) in clipTextEncodeNodes) {
-            val inputs = clipNode.optJSONObject("inputs") ?: continue
-            val meta = clipNode.optJSONObject("_meta")
-            val title = meta?.optString("title") ?: "CLIPTextEncode"
-            val currentValue = inputs.opt("text")
+        // For each text encoder, trace its output to find if it connects to positive or negative
+        for ((nodeId, node, inputKey) in textEncoderNodes) {
+            val inputs = node.optJSONObject("inputs") ?: continue
+            val meta = node.optJSONObject("_meta")
+            val classType = node.optString("class_type", "Unknown")
+            val title = meta?.optString("title") ?: classType
+            val currentValue = inputs.opt(inputKey)
 
             // Determine if this node connects to positive or negative input
-            val connectionType = traceClipTextEncodeConnection(nodesJson, clipNodeId)
+            val connectionType = traceClipTextEncodeConnection(nodesJson, nodeId)
 
             val candidate = FieldCandidate(
-                nodeId = clipNodeId,
+                nodeId = nodeId,
                 nodeName = title,
-                classType = "CLIPTextEncode",
-                inputKey = "text",
+                classType = classType,
+                inputKey = inputKey,
                 currentValue = currentValue
             )
 
@@ -456,35 +481,17 @@ class WorkflowManagementViewModel : ViewModel() {
                 "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
                 "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
                 else -> {
-                    // Unknown connection - add to both as fallback candidates (not first)
-                    positiveTextCandidates.add(candidate)
-                    negativeTextCandidates.add(candidate)
-                }
-            }
-        }
-
-        // If graph tracing didn't find matches, try title-based fallback
-        if (positiveTextCandidates.isEmpty() || negativeTextCandidates.isEmpty()) {
-            for ((clipNodeId, clipNode) in clipTextEncodeNodes) {
-                val inputs = clipNode.optJSONObject("inputs") ?: continue
-                val meta = clipNode.optJSONObject("_meta")
-                val title = meta?.optString("title")?.lowercase() ?: ""
-                val currentValue = inputs.opt("text")
-
-                val candidate = FieldCandidate(
-                    nodeId = clipNodeId,
-                    nodeName = meta?.optString("title") ?: "CLIPTextEncode",
-                    classType = "CLIPTextEncode",
-                    inputKey = "text",
-                    currentValue = currentValue
-                )
-
-                // Title-based fallback
-                if (positiveTextCandidates.isEmpty() && title.contains("positive")) {
-                    positiveTextCandidates.add(0, candidate)
-                }
-                if (negativeTextCandidates.isEmpty() && title.contains("negative")) {
-                    negativeTextCandidates.add(0, candidate)
+                    // Unknown connection - use title-based classification
+                    val titleLower = title.lowercase()
+                    when {
+                        titleLower.contains("positive") -> positiveTextCandidates.add(candidate)
+                        titleLower.contains("negative") -> negativeTextCandidates.add(candidate)
+                        else -> {
+                            // Add to both as fallback candidates
+                            positiveTextCandidates.add(candidate)
+                            negativeTextCandidates.add(candidate)
+                        }
+                    }
                 }
             }
         }

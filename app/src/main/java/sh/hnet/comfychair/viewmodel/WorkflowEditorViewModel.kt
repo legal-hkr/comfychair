@@ -231,7 +231,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     mappingState = mappingState,
                     selectedNodeIds = emptySet(),  // Ensure selection is clear in mapping mode
                     highlightedNodeIds = highlightedNodes,
-                    canConfirmMapping = mappingState.allFieldsMapped
+                    canConfirmMapping = mappingState.allRequiredFieldsMapped
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -430,7 +430,49 @@ class WorkflowEditorViewModel : ViewModel() {
 
         _uiState.value = _uiState.value.copy(
             mappingState = newMappingState,
-            canConfirmMapping = newMappingState.allFieldsMapped
+            canConfirmMapping = newMappingState.allRequiredFieldsMapped
+        )
+    }
+
+    /**
+     * Clear the mapping for a single field (sets selectedCandidateIndex to -1).
+     */
+    fun clearFieldMapping(fieldKey: String) {
+        val state = _uiState.value
+        val mappingState = state.mappingState ?: return
+
+        val updatedMappings = mappingState.fieldMappings.map { fieldMapping ->
+            if (fieldMapping.field.fieldKey == fieldKey) {
+                fieldMapping.copy(selectedCandidateIndex = -1)
+            } else {
+                fieldMapping
+            }
+        }
+
+        val newMappingState = mappingState.copy(fieldMappings = updatedMappings)
+
+        _uiState.value = _uiState.value.copy(
+            mappingState = newMappingState,
+            canConfirmMapping = newMappingState.allRequiredFieldsMapped
+        )
+    }
+
+    /**
+     * Clear all field mappings.
+     */
+    fun clearAllMappings() {
+        val state = _uiState.value
+        val mappingState = state.mappingState ?: return
+
+        val updatedMappings = mappingState.fieldMappings.map { fieldMapping ->
+            fieldMapping.copy(selectedCandidateIndex = -1)
+        }
+
+        val newMappingState = mappingState.copy(fieldMappings = updatedMappings)
+
+        _uiState.value = _uiState.value.copy(
+            mappingState = newMappingState,
+            canConfirmMapping = newMappingState.allRequiredFieldsMapped
         )
     }
 
@@ -457,10 +499,11 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Get the final field mappings as JSON for returning via Intent
+     * Only includes fields that are actually mapped (required + optionally mapped fields)
      */
     fun getFinalMappingsJson(): String? {
         val mappingState = _uiState.value.mappingState ?: return null
-        if (!mappingState.allFieldsMapped) return null
+        if (!mappingState.allRequiredFieldsMapped) return null
 
         val json = JSONObject()
         mappingState.fieldMappings.forEach { fieldMapping ->
@@ -849,10 +892,10 @@ class WorkflowEditorViewModel : ViewModel() {
                 // Create field mapping state from graph
                 val mappingState = createFieldMappingStateFromGraph(context, graph, selectedType)
 
-                // Check if all fields can be mapped
-                if (!mappingState.allFieldsMapped) {
-                    val unmappedFieldNames = mappingState.unmappedFields.map { it.displayName }
-                    DebugLogger.w(TAG, "proceedWithSave: Unmapped fields: $unmappedFieldNames")
+                // Check if all REQUIRED fields can be mapped (optional fields can be unmapped)
+                if (!mappingState.allRequiredFieldsMapped) {
+                    val unmappedFieldNames = mappingState.unmappedRequiredFields.map { it.displayName }
+                    DebugLogger.w(TAG, "proceedWithSave: Unmapped required fields: $unmappedFieldNames")
                     _uiState.value = _uiState.value.copy(
                         isSaveValidating = false,
                         showMissingFieldsDialog = true,
@@ -878,7 +921,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     mappingState = mappingState,
                     isEditMode = false,  // Exit edit mode
                     selectedNodeIds = emptySet(),  // Clear selection when entering mapping mode
-                    canConfirmMapping = mappingState.allFieldsMapped,
+                    canConfirmMapping = mappingState.allRequiredFieldsMapped,
                     highlightedNodeIds = calculateHighlightedNodes(mappingState)
                 )
             }
@@ -952,10 +995,10 @@ class WorkflowEditorViewModel : ViewModel() {
                 // Create field mapping state from graph
                 val mappingState = createFieldMappingStateFromGraph(context, graph, workflowType)
 
-                // Check if all fields can be mapped
-                if (!mappingState.allFieldsMapped) {
-                    val unmappedFieldNames = mappingState.unmappedFields.map { it.displayName }
-                    DebugLogger.w(TAG, "proceedWithEditExistingSave: Unmapped fields: $unmappedFieldNames")
+                // Check if all REQUIRED fields can be mapped (optional fields can be unmapped)
+                if (!mappingState.allRequiredFieldsMapped) {
+                    val unmappedFieldNames = mappingState.unmappedRequiredFields.map { it.displayName }
+                    DebugLogger.w(TAG, "proceedWithEditExistingSave: Unmapped required fields: $unmappedFieldNames")
                     _uiState.value = _uiState.value.copy(
                         isSaveValidating = false,
                         showMissingFieldsDialog = true,
@@ -980,7 +1023,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     mappingState = mappingState,
                     isEditMode = false,  // Exit edit mode
                     selectedNodeIds = emptySet(),  // Clear selection when entering mapping mode
-                    canConfirmMapping = mappingState.allFieldsMapped,
+                    canConfirmMapping = mappingState.allRequiredFieldsMapped,
                     highlightedNodeIds = calculateHighlightedNodes(mappingState)
                 )
             }
@@ -997,9 +1040,13 @@ class WorkflowEditorViewModel : ViewModel() {
     ): WorkflowMappingState {
         DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Creating mappings for type=$type")
 
-        // Get required keys for this workflow type
-        val requiredKeys = TemplateKeyRegistry.getKeysForType(type)
-        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Required keys: $requiredKeys")
+        // Get strictly required keys for this workflow type
+        val strictlyRequiredKeys = TemplateKeyRegistry.getRequiredKeysForType(type)
+        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Strictly required keys: $strictlyRequiredKeys")
+
+        // Get optional keys, adjusted for workflow structure (DualCLIPLoader, BasicGuider)
+        val optionalKeys = getOptionalKeysFromGraph(type, graph)
+        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Optional keys: $optionalKeys")
 
         // Pre-compute prompt field mappings using graph tracing
         val promptMappings = createPromptFieldMappingsFromGraph(graph)
@@ -1007,39 +1054,24 @@ class WorkflowEditorViewModel : ViewModel() {
 
         val fieldMappings = mutableListOf<FieldMappingState>()
 
-        for (fieldKey in requiredKeys) {
-            val candidates: List<FieldCandidate>
+        // Process strictly required keys (isRequired = true)
+        for (fieldKey in strictlyRequiredKeys) {
+            val candidates = findCandidatesForFieldInGraph(fieldKey, graph, promptMappings)
+            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired = true)
 
-            // Handle positive_text and negative_text with graph tracing
-            if (fieldKey == "positive_text" || fieldKey == "negative_text") {
-                candidates = promptMappings[fieldKey] ?: emptyList()
-            } else {
-                // Find nodes that have this input key directly
-                val directCandidates = mutableListOf<FieldCandidate>()
-                for (node in graph.nodes) {
-                    node.inputs.forEach { (inputName, inputValue) ->
-                        if (inputName == fieldKey) {
-                            val currentValue = when (inputValue) {
-                                is InputValue.Literal -> inputValue.value
-                                else -> null
-                            }
-                            directCandidates.add(
-                                FieldCandidate(
-                                    nodeId = node.id,
-                                    nodeName = node.title,
-                                    classType = node.classType,
-                                    inputKey = inputName,
-                                    currentValue = currentValue
-                                )
-                            )
-                        }
-                    }
-                }
-                candidates = directCandidates
-            }
+            fieldMappings.add(
+                FieldMappingState(
+                    field = requiredField,
+                    candidates = candidates,
+                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
+                )
+            )
+        }
 
-            // Get display info for this field
-            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey)
+        // Process optional keys (isRequired = false)
+        for (fieldKey in optionalKeys) {
+            val candidates = findCandidatesForFieldInGraph(fieldKey, graph, promptMappings)
+            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired = false)
 
             fieldMappings.add(
                 FieldMappingState(
@@ -1057,72 +1089,132 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
+     * Get optional keys for a workflow type, adjusted for graph structure.
+     * Handles DualCLIPLoader (clip_name1/2 instead of clip_name) and BasicGuider (no CFG/negative).
+     */
+    private fun getOptionalKeysFromGraph(type: WorkflowType, graph: WorkflowGraph): Set<String> {
+        val baseKeys = TemplateKeyRegistry.getOptionalKeysForType(type).toMutableSet()
+
+        if (type == WorkflowType.TTI_UNET) {
+            // Check for DualCLIPLoader (replaces clip_name with clip_name1 + clip_name2)
+            val hasDualClip = graph.nodes.any { it.classType == "DualCLIPLoader" }
+            if (hasDualClip) {
+                baseKeys.remove("clip_name")
+                baseKeys.add("clip_name1")
+                baseKeys.add("clip_name2")
+            }
+
+            // Check for BasicGuider (no CFG, no negative prompt)
+            val hasBasicGuider = graph.nodes.any { it.classType == "BasicGuider" }
+            if (hasBasicGuider) {
+                baseKeys.remove("cfg")
+                baseKeys.remove("negative_text")
+            }
+        }
+
+        return baseKeys
+    }
+
+    /**
+     * Find candidates for a field in the graph.
+     */
+    private fun findCandidatesForFieldInGraph(
+        fieldKey: String,
+        graph: WorkflowGraph,
+        promptMappings: Map<String, List<FieldCandidate>>
+    ): List<FieldCandidate> {
+        // Handle positive_text and negative_text with graph tracing
+        if (fieldKey == "positive_text" || fieldKey == "negative_text") {
+            return promptMappings[fieldKey] ?: emptyList()
+        }
+
+        // Find nodes that have this input key
+        val directCandidates = mutableListOf<FieldCandidate>()
+
+        for (node in graph.nodes) {
+            node.inputs.forEach { (inputName, inputValue) ->
+                if (TemplateKeyRegistry.doesInputKeyMatchField(fieldKey, inputName)) {
+                    val currentValue = when (inputValue) {
+                        is InputValue.Literal -> inputValue.value
+                        else -> null
+                    }
+
+                    if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
+                        directCandidates.add(
+                            FieldCandidate(
+                                nodeId = node.id,
+                                nodeName = node.title,
+                                classType = node.classType,
+                                inputKey = inputName,
+                                currentValue = currentValue
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        return directCandidates
+    }
+
+    /**
      * Create field mappings for positive_text and negative_text using graph tracing.
-     * Traces CLIPTextEncode outputs to find which connects to "positive" vs "negative" sampler inputs.
+     * Traces text encoding nodes to find which connects to "positive" vs "negative" sampler inputs.
+     * Supports CLIPTextEncode (with "text" input) and other encoders like TextEncodeQwenImageEditPlus (with "prompt" input).
      */
     private fun createPromptFieldMappingsFromGraph(graph: WorkflowGraph): Map<String, List<FieldCandidate>> {
         val positiveTextCandidates = mutableListOf<FieldCandidate>()
         val negativeTextCandidates = mutableListOf<FieldCandidate>()
 
-        // Find all CLIPTextEncode nodes with "text" input
-        val clipTextEncodeNodes = graph.nodes.filter {
-            it.classType == "CLIPTextEncode" && it.inputs.containsKey("text")
+        // Text input keys to look for in text encoding nodes
+        val textInputKeys = listOf("text", "prompt")
+
+        // Find all text encoding nodes with text/prompt input
+        data class TextEncoderNode(val node: WorkflowNode, val inputKey: String)
+        val textEncoderNodes = graph.nodes.mapNotNull { node ->
+            val matchingInputKey = textInputKeys.firstOrNull { node.inputs.containsKey(it) }
+            if (matchingInputKey != null) {
+                // Only include known text encoding node types
+                val isTextEncoder = node.classType == "CLIPTextEncode" ||
+                        node.classType.contains("TextEncode", ignoreCase = true) ||
+                        node.classType.contains("Prompt", ignoreCase = true)
+                if (isTextEncoder) TextEncoderNode(node, matchingInputKey) else null
+            } else null
         }
 
-        // For each CLIPTextEncode, trace its output to find if it connects to positive or negative
-        for (clipNode in clipTextEncodeNodes) {
-            val textInput = clipNode.inputs["text"]
+        // For each text encoder, trace its output to find if it connects to positive or negative
+        for ((node, inputKey) in textEncoderNodes) {
+            val textInput = node.inputs[inputKey]
             val currentValue = when (textInput) {
                 is InputValue.Literal -> textInput.value
                 else -> null
             }
 
             val candidate = FieldCandidate(
-                nodeId = clipNode.id,
-                nodeName = clipNode.title,
-                classType = clipNode.classType,
-                inputKey = "text",
+                nodeId = node.id,
+                nodeName = node.title,
+                classType = node.classType,
+                inputKey = inputKey,
                 currentValue = currentValue
             )
 
             // Determine if this node connects to positive or negative input
-            val connectionType = traceClipTextEncodeConnection(graph, clipNode.id)
+            val connectionType = traceClipTextEncodeConnection(graph, node.id)
 
             when (connectionType) {
                 "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
                 "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
                 else -> {
-                    // Unknown connection - add to both as fallback candidates
-                    positiveTextCandidates.add(candidate)
-                    negativeTextCandidates.add(candidate)
-                }
-            }
-        }
-
-        // If graph tracing didn't find matches, try title-based fallback
-        if (positiveTextCandidates.isEmpty() || negativeTextCandidates.isEmpty()) {
-            for (clipNode in clipTextEncodeNodes) {
-                val title = clipNode.title.lowercase()
-                val textInput = clipNode.inputs["text"]
-                val currentValue = when (textInput) {
-                    is InputValue.Literal -> textInput.value
-                    else -> null
-                }
-
-                val candidate = FieldCandidate(
-                    nodeId = clipNode.id,
-                    nodeName = clipNode.title,
-                    classType = clipNode.classType,
-                    inputKey = "text",
-                    currentValue = currentValue
-                )
-
-                // Title-based fallback
-                if (positiveTextCandidates.isEmpty() && title.contains("positive")) {
-                    positiveTextCandidates.add(0, candidate)
-                }
-                if (negativeTextCandidates.isEmpty() && title.contains("negative")) {
-                    negativeTextCandidates.add(0, candidate)
+                    // Unknown connection - use title-based classification
+                    val titleLower = node.title.lowercase()
+                    when {
+                        titleLower.contains("positive") -> positiveTextCandidates.add(candidate)
+                        titleLower.contains("negative") -> negativeTextCandidates.add(candidate)
+                        else -> {
+                            // Add to both as fallback candidates
+                            positiveTextCandidates.add(candidate)
+                            negativeTextCandidates.add(candidate)
+                        }
+                    }
                 }
             }
         }

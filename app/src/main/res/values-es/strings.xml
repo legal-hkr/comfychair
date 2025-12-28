@@ -91,10 +91,10 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">Imagen a vídeo</string>
     <string name="nav_image_to_video">Imagen a vídeo</string>
-    <string name="highnoise_unet_label">UNET de alto ruido</string>
-    <string name="lownoise_unet_label">UNET de bajo ruido</string>
-    <string name="highnoise_lora_label">LoRA de alto ruido</string>
-    <string name="lownoise_lora_label">LoRA de bajo ruido</string>
+    <string name="highnoise_unet_label">UNET de ruido alto o individual</string>
+    <string name="lownoise_unet_label">UNET de ruido bajo</string>
+    <string name="highnoise_lora_label">LoRA de ruido alto o individual</string>
+    <string name="lownoise_lora_label">LoRA de ruido bajo</string>
     <string name="length_label">Duración</string>
     <string name="video_parameters_title">Parámetros de vídeo</string>
     <string name="placeholder_video_description">El vídeo generado aparecerá aquí</string>
@@ -311,7 +311,10 @@
     <string name="duplicate_name_message">Ya existe un workflow con este nombre. Por favor, elija otro nombre.</string>
 
     <!-- Field mapping UI strings -->
-    <string name="field_mapping_title">Mapear campos requeridos</string>
+    <string name="field_mapping_title">Mapear campos</string>
+    <string name="clear_all_mapping">Borrar todo</string>
+    <string name="section_necessary">Necesario</string>
+    <string name="section_optional">Opcional</string>
     <string name="tap_node_to_change">Toque un nodo resaltado para cambiar el mapeo</string>
     <string name="no_matching_nodes">No se encontraron nodos coincidentes</string>
     <string name="needs_remapping">Seleccionar un nodo</string>

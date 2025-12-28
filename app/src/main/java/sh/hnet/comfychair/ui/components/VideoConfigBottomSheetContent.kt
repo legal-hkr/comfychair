@@ -78,17 +78,19 @@ fun VideoConfigBottomSheetContent(
             .padding(bottom = 32.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // Negative prompt (per-workflow)
-        OutlinedTextField(
-            value = uiState.negativePrompt,
-            onValueChange = onNegativePromptChange,
-            label = { Text(stringResource(R.string.negative_prompt_hint)) },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-            maxLines = 4
-        )
+        // Negative prompt (optional)
+        if (uiState.currentWorkflowHasNegativePrompt) {
+            OutlinedTextField(
+                value = uiState.negativePrompt,
+                onValueChange = onNegativePromptChange,
+                label = { Text(stringResource(R.string.negative_prompt_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 4
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Workflow dropdown
         TtvWorkflowDropdown(
@@ -101,161 +103,208 @@ fun VideoConfigBottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Model selection section
-        Text(
-            text = stringResource(R.string.model_selection_title),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        // Check if any model dropdowns are visible
+        val hasAnyModels = uiState.currentWorkflowHasHighnoiseUnet ||
+                uiState.currentWorkflowHasLownoiseUnet ||
+                uiState.currentWorkflowHasHighnoiseLora ||
+                uiState.currentWorkflowHasLownoiseLora ||
+                uiState.currentWorkflowHasVaeName ||
+                uiState.currentWorkflowHasClipName
 
-        // High noise UNET dropdown
-        ModelDropdown(
-            label = stringResource(R.string.highnoise_unet_label),
-            selectedValue = uiState.selectedHighnoiseUnet,
-            options = uiState.availableUnets,
-            onValueChange = onHighnoiseUnetChange
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Low noise UNET dropdown
-        ModelDropdown(
-            label = stringResource(R.string.lownoise_unet_label),
-            selectedValue = uiState.selectedLownoiseUnet,
-            options = uiState.availableUnets,
-            onValueChange = onLownoiseUnetChange
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // High noise LoRA dropdown
-        ModelDropdown(
-            label = stringResource(R.string.highnoise_lora_label),
-            selectedValue = uiState.selectedHighnoiseLora,
-            options = uiState.availableLoras,
-            onValueChange = onHighnoiseLoraChange
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Low noise LoRA dropdown
-        ModelDropdown(
-            label = stringResource(R.string.lownoise_lora_label),
-            selectedValue = uiState.selectedLownoiseLora,
-            options = uiState.availableLoras,
-            onValueChange = onLownoiseLoraChange
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // VAE dropdown
-        ModelDropdown(
-            label = stringResource(R.string.label_vae),
-            selectedValue = uiState.selectedVae,
-            options = uiState.availableVaes,
-            onValueChange = onVaeChange
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // CLIP dropdown
-        ModelDropdown(
-            label = stringResource(R.string.label_clip),
-            selectedValue = uiState.selectedClip,
-            options = uiState.availableClips,
-            onValueChange = onClipChange
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Video parameters section
-        Text(
-            text = stringResource(R.string.video_parameters_title),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // Width and Height
-        Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = uiState.width,
-                onValueChange = onWidthChange,
-                label = { Text(stringResource(R.string.label_width)) },
-                isError = uiState.widthError != null,
-                supportingText = uiState.widthError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            OutlinedTextField(
-                value = uiState.height,
-                onValueChange = onHeightChange,
-                label = { Text(stringResource(R.string.label_height)) },
-                isError = uiState.heightError != null,
-                supportingText = uiState.heightError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-                singleLine = true
+        // Model selection section - only show if any models are visible
+        if (hasAnyModels) {
+            Text(
+                text = stringResource(R.string.model_selection_title),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Length and FPS
-        Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = uiState.length,
-                onValueChange = onLengthChange,
-                label = { Text(stringResource(R.string.length_label)) },
-                isError = uiState.lengthError != null,
-                supportingText = uiState.lengthError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            OutlinedTextField(
-                value = uiState.fps,
-                onValueChange = onFpsChange,
-                label = { Text(stringResource(R.string.fps_label)) },
-                isError = uiState.fpsError != null,
-                supportingText = uiState.fpsError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-                singleLine = true
+        // High noise UNET dropdown (conditional - only show if mapped in workflow)
+        if (uiState.currentWorkflowHasHighnoiseUnet) {
+            ModelDropdown(
+                label = stringResource(R.string.highnoise_unet_label),
+                selectedValue = uiState.selectedHighnoiseUnet,
+                options = uiState.availableUnets,
+                onValueChange = onHighnoiseUnetChange
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Low noise UNET dropdown - only show if workflow has it mapped
+        if (uiState.currentWorkflowHasLownoiseUnet) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.lownoise_unet_label),
+                selectedValue = uiState.selectedLownoiseUnet,
+                options = uiState.availableUnets,
+                onValueChange = onLownoiseUnetChange
+            )
+        }
 
-        // High noise LoRA chain editor
-        LoraChainEditor(
-            title = stringResource(R.string.highnoise_lora_chain_title),
-            loraChain = uiState.highnoiseLoraChain,
-            availableLoras = uiState.availableLoras,
-            onAddLora = onAddHighnoiseLora,
-            onRemoveLora = onRemoveHighnoiseLora,
-            onLoraNameChange = onHighnoiseLoraChainNameChange,
-            onLoraStrengthChange = onHighnoiseLoraChainStrengthChange
-        )
+        // High noise LoRA dropdown - only show if workflow has it mapped
+        if (uiState.currentWorkflowHasHighnoiseLora) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.highnoise_lora_label),
+                selectedValue = uiState.selectedHighnoiseLora,
+                options = uiState.availableLoras,
+                onValueChange = onHighnoiseLoraChange
+            )
+        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Low noise LoRA dropdown - only show if workflow has both low noise UNET and low noise LoRA mapped
+        if (uiState.currentWorkflowHasLownoiseUnet && uiState.currentWorkflowHasLownoiseLora) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.lownoise_lora_label),
+                selectedValue = uiState.selectedLownoiseLora,
+                options = uiState.availableLoras,
+                onValueChange = onLownoiseLoraChange
+            )
+        }
 
-        // Low noise LoRA chain editor
-        LoraChainEditor(
-            title = stringResource(R.string.lownoise_lora_chain_title),
-            loraChain = uiState.lownoiseLoraChain,
-            availableLoras = uiState.availableLoras,
-            onAddLora = onAddLownoiseLora,
-            onRemoveLora = onRemoveLownoiseLora,
-            onLoraNameChange = onLownoiseLoraChainNameChange,
-            onLoraStrengthChange = onLownoiseLoraChainStrengthChange
-        )
+        // VAE dropdown (optional)
+        if (uiState.currentWorkflowHasVaeName) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModelDropdown(
+                label = stringResource(R.string.label_vae),
+                selectedValue = uiState.selectedVae,
+                options = uiState.availableVaes,
+                onValueChange = onVaeChange
+            )
+        }
+
+        // CLIP dropdown (optional)
+        if (uiState.currentWorkflowHasClipName) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModelDropdown(
+                label = stringResource(R.string.label_clip),
+                selectedValue = uiState.selectedClip,
+                options = uiState.availableClips,
+                onValueChange = onClipChange
+            )
+        }
+
+        // Check if any video parameters are visible
+        val hasAnyVideoParams = uiState.currentWorkflowHasWidth ||
+                uiState.currentWorkflowHasHeight ||
+                uiState.currentWorkflowHasLength ||
+                uiState.currentWorkflowHasFrameRate
+
+        if (hasAnyVideoParams) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Video parameters section
+            Text(
+                text = stringResource(R.string.video_parameters_title),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        // Width and Height row (show if either is present)
+        if (uiState.currentWorkflowHasWidth || uiState.currentWorkflowHasHeight) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                if (uiState.currentWorkflowHasWidth) {
+                    OutlinedTextField(
+                        value = uiState.width,
+                        onValueChange = onWidthChange,
+                        label = { Text(stringResource(R.string.label_width)) },
+                        isError = uiState.widthError != null,
+                        supportingText = uiState.widthError?.let { { Text(it) } },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
+                if (uiState.currentWorkflowHasWidth && uiState.currentWorkflowHasHeight) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                if (uiState.currentWorkflowHasHeight) {
+                    OutlinedTextField(
+                        value = uiState.height,
+                        onValueChange = onHeightChange,
+                        label = { Text(stringResource(R.string.label_height)) },
+                        isError = uiState.heightError != null,
+                        supportingText = uiState.heightError?.let { { Text(it) } },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // Length and FPS row (show if either is present)
+        if (uiState.currentWorkflowHasLength || uiState.currentWorkflowHasFrameRate) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                if (uiState.currentWorkflowHasLength) {
+                    OutlinedTextField(
+                        value = uiState.length,
+                        onValueChange = onLengthChange,
+                        label = { Text(stringResource(R.string.length_label)) },
+                        isError = uiState.lengthError != null,
+                        supportingText = uiState.lengthError?.let { { Text(it) } },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
+                if (uiState.currentWorkflowHasLength && uiState.currentWorkflowHasFrameRate) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                if (uiState.currentWorkflowHasFrameRate) {
+                    OutlinedTextField(
+                        value = uiState.fps,
+                        onValueChange = onFpsChange,
+                        label = { Text(stringResource(R.string.fps_label)) },
+                        isError = uiState.fpsError != null,
+                        supportingText = uiState.fpsError?.let { { Text(it) } },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // High noise LoRA chain editor - only show if high noise UNET is mapped
+        if (uiState.currentWorkflowHasHighnoiseUnet) {
+            Spacer(modifier = Modifier.height(16.dp))
+            LoraChainEditor(
+                title = stringResource(R.string.highnoise_lora_chain_title),
+                loraChain = uiState.highnoiseLoraChain,
+                availableLoras = uiState.availableLoras,
+                onAddLora = onAddHighnoiseLora,
+                onRemoveLora = onRemoveHighnoiseLora,
+                onLoraNameChange = onHighnoiseLoraChainNameChange,
+                onLoraStrengthChange = onHighnoiseLoraChainStrengthChange
+            )
+        }
+
+        // Low noise LoRA chain editor - only show if workflow has low noise UNET mapped
+        if (uiState.currentWorkflowHasLownoiseUnet) {
+            Spacer(modifier = Modifier.height(16.dp))
+            LoraChainEditor(
+                title = stringResource(R.string.lownoise_lora_chain_title),
+                loraChain = uiState.lownoiseLoraChain,
+                availableLoras = uiState.availableLoras,
+                onAddLora = onAddLownoiseLora,
+                onRemoveLora = onRemoveLownoiseLora,
+                onLoraNameChange = onLownoiseLoraChainNameChange,
+                onLoraStrengthChange = onLownoiseLoraChainStrengthChange
+            )
+        }
     }
 }
 

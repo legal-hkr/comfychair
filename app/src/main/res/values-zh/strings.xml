@@ -91,9 +91,9 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">图生视频</string>
     <string name="nav_image_to_video">图生视频</string>
-    <string name="highnoise_unet_label">高噪声 UNET</string>
+    <string name="highnoise_unet_label">高噪声或单一 UNET</string>
     <string name="lownoise_unet_label">低噪声 UNET</string>
-    <string name="highnoise_lora_label">高噪声 LoRA</string>
+    <string name="highnoise_lora_label">高噪声或单一 LoRA</string>
     <string name="lownoise_lora_label">低噪声 LoRA</string>
     <string name="length_label">时长</string>
     <string name="video_parameters_title">视频参数</string>
@@ -311,7 +311,10 @@
     <string name="duplicate_name_message">已存在同名工作流，请选择其他名称。</string>
 
     <!-- Field mapping UI strings -->
-    <string name="field_mapping_title">映射必填字段</string>
+    <string name="field_mapping_title">映射字段</string>
+    <string name="clear_all_mapping">清除全部</string>
+    <string name="section_necessary">必需</string>
+    <string name="section_optional">可选</string>
     <string name="tap_node_to_change">点击高亮节点以更改映射</string>
     <string name="no_matching_nodes">未找到匹配的节点</string>
     <string name="needs_remapping">选择节点</string>

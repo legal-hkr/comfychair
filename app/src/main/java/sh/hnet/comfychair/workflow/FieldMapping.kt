@@ -7,12 +7,14 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowType
 
 /**
- * Represents a required field that needs to be mapped to a node in the workflow.
+ * Represents a field that can be mapped to a node in the workflow.
+ * Fields can be either required (must be mapped) or optional (can be left unmapped).
  */
 data class RequiredField(
     val fieldKey: String,       // e.g., "text", "unet_name"
     val displayName: String,    // Human-readable name for UI
-    val description: String     // Help text explaining what this field is for
+    val description: String,    // Help text explaining what this field is for
+    val isRequired: Boolean = true  // If true, this field MUST be mapped for workflow to be valid
 )
 
 /**
@@ -27,7 +29,7 @@ data class FieldCandidate(
 )
 
 /**
- * Mapping state for a single required field.
+ * Mapping state for a single field (required or optional).
  */
 data class FieldMappingState(
     val field: RequiredField,
@@ -44,6 +46,9 @@ data class FieldMappingState(
     val isMapped: Boolean
         get() = selectedCandidate != null
 
+    /** True if this is a required field that must be mapped */
+    val isRequiredField: Boolean = field.isRequired
+
     /** True if candidates exist but selection was cleared (node stolen by another field) */
     val needsRemapping: Boolean
         get() = candidates.isNotEmpty() && selectedCandidateIndex < 0
@@ -56,11 +61,35 @@ data class WorkflowMappingState(
     val workflowType: WorkflowType,
     val fieldMappings: List<FieldMappingState>
 ) {
+    /** True if all REQUIRED fields are mapped (ignores optional fields) */
+    val allRequiredFieldsMapped: Boolean
+        get() = fieldMappings.filter { it.isRequiredField }.all { it.isMapped }
+
+    /** True if ALL fields (required AND optional) are mapped */
     val allFieldsMapped: Boolean
         get() = fieldMappings.all { it.isMapped }
 
+    /** List of unmapped REQUIRED fields (for error display) */
+    val unmappedRequiredFields: List<RequiredField>
+        get() = fieldMappings.filter { it.isRequiredField && !it.isMapped }.map { it.field }
+
+    /** List of unmapped optional fields */
+    val unmappedOptionalFields: List<RequiredField>
+        get() = fieldMappings.filter { !it.isRequiredField && !it.isMapped }.map { it.field }
+
+    /** List of all unmapped fields (backwards compatibility) */
     val unmappedFields: List<RequiredField>
         get() = fieldMappings.filter { !it.isMapped }.map { it.field }
+
+    /** Get the set of field keys that are mapped */
+    fun getMappedFieldKeys(): Set<String> {
+        return fieldMappings.filter { it.isMapped }.map { it.field.fieldKey }.toSet()
+    }
+
+    /** Check if a specific field is mapped */
+    fun isFieldMapped(fieldKey: String): Boolean {
+        return fieldMappings.find { it.field.fieldKey == fieldKey }?.isMapped ?: false
+    }
 
     /**
      * Serialize to JSON for passing via Intent.
@@ -74,6 +103,7 @@ data class WorkflowMappingState(
                         put("fieldKey", mapping.field.fieldKey)
                         put("displayName", mapping.field.displayName)
                         put("description", mapping.field.description)
+                        put("isRequired", mapping.field.isRequired)
                         put("selectedCandidateIndex", mapping.selectedCandidateIndex)
                         put("candidates", JSONArray().apply {
                             mapping.candidates.forEach { candidate ->
@@ -108,7 +138,8 @@ data class WorkflowMappingState(
                     val field = RequiredField(
                         fieldKey = mappingJson.getString("fieldKey"),
                         displayName = mappingJson.getString("displayName"),
-                        description = mappingJson.getString("description")
+                        description = mappingJson.getString("description"),
+                        isRequired = mappingJson.optBoolean("isRequired", true) // Default to true for backwards compatibility
                     )
 
                     val candidatesArray = mappingJson.getJSONArray("candidates")
@@ -285,12 +316,14 @@ object FieldDisplayRegistry {
 
     /**
      * Create a RequiredField with localized display name and description.
+     * @param isRequired Whether this field must be mapped for the workflow to be valid
      */
-    fun createRequiredField(context: Context, fieldKey: String): RequiredField {
+    fun createRequiredField(context: Context, fieldKey: String, isRequired: Boolean = true): RequiredField {
         return RequiredField(
             fieldKey = fieldKey,
             displayName = getDisplayName(context, fieldKey),
-            description = getDescription(context, fieldKey)
+            description = getDescription(context, fieldKey),
+            isRequired = isRequired
         )
     }
 }

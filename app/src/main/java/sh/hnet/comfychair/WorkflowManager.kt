@@ -860,7 +860,10 @@ object WorkflowManager {
             // Model presence flags
             hasCheckpointName = "ckpt_name" in mappedFieldKeys,
             hasUnetName = "unet_name" in mappedFieldKeys,
-            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys
+            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys,
+            // ITE reference image flags - detect from workflow content
+            hasReferenceImage1 = jsonContent.contains("reference_image_1") || jsonContent.contains("reference_1"),
+            hasReferenceImage2 = jsonContent.contains("reference_image_2") || jsonContent.contains("reference_2")
         )
 
         // Create wrapped JSON with metadata and defaults
@@ -1059,7 +1062,10 @@ object WorkflowManager {
             // Model presence flags
             hasCheckpointName = "ckpt_name" in mappedFieldKeys,
             hasUnetName = "unet_name" in mappedFieldKeys,
-            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys
+            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys,
+            // ITE reference image flags - detect from workflow content
+            hasReferenceImage1 = jsonContent.contains("reference_image_1") || jsonContent.contains("reference_1"),
+            hasReferenceImage2 = jsonContent.contains("reference_image_2") || jsonContent.contains("reference_2")
         )
 
         // Create wrapped JSON with original metadata preserved
@@ -2097,7 +2103,10 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{cfg}}", cfg.toString())
         processedJson = processedJson.replace("{{sampler_name}}", samplerName)
         processedJson = processedJson.replace("{{scheduler}}", scheduler)
-        processedJson = processedJson.replace("uploaded_image.png [input]", "${escapeForJson(imageFilename)} [input]")
+        // Replace source image placeholder (both template and literal formats)
+        val escapedImageFilename = escapeForJson(imageFilename)
+        processedJson = processedJson.replace("{{image_filename}}", "$escapedImageFilename [input]")
+        processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedImageFilename [input]")
         processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
 
         // Apply node attribute edits from the Workflow Editor

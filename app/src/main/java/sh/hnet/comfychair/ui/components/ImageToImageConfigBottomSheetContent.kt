@@ -124,44 +124,53 @@ fun ImageToImageConfigBottomSheetContent(
             .verticalScroll(rememberScrollState())
     ) {
         // Negative prompt (shared between modes, displayed above mode selector)
-        OutlinedTextField(
-            value = when {
-                uiState.mode == ImageToImageMode.EDITING -> uiState.editingNegativePrompt
-                uiState.isCheckpointMode -> uiState.checkpointNegativePrompt
-                else -> uiState.unetNegativePrompt
-            },
-            onValueChange = if (uiState.mode == ImageToImageMode.EDITING) onEditingNegativePromptChange else onNegativePromptChange,
-            label = { Text(stringResource(R.string.negative_prompt_hint)) },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-            maxLines = 4
-        )
+        if (uiState.currentWorkflowHasNegativePrompt) {
+            OutlinedTextField(
+                value = when {
+                    uiState.mode == ImageToImageMode.EDITING -> uiState.editingNegativePrompt
+                    uiState.isCheckpointMode -> uiState.checkpointNegativePrompt
+                    else -> uiState.unetNegativePrompt
+                },
+                onValueChange = if (uiState.mode == ImageToImageMode.EDITING) onEditingNegativePromptChange else onNegativePromptChange,
+                label = { Text(stringResource(R.string.negative_prompt_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 4
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-        // Reference images (only in Editing mode, displayed below negative prompt)
-        if (uiState.mode == ImageToImageMode.EDITING) {
+        // Reference images (only in Editing mode, only if workflow supports them)
+        val hasAnyReferenceImages = uiState.currentWorkflowHasReferenceImage1 || uiState.currentWorkflowHasReferenceImage2
+        if (uiState.mode == ImageToImageMode.EDITING && hasAnyReferenceImages) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ReferenceImageThumbnail(
-                    image = uiState.referenceImage1,
-                    contentDescription = stringResource(R.string.content_description_reference_image_1),
-                    onImageSelected = onReferenceImage1Change,
-                    onClear = onClearReferenceImage1,
-                    modifier = Modifier.weight(1f)
-                )
+                if (uiState.currentWorkflowHasReferenceImage1) {
+                    ReferenceImageThumbnail(
+                        image = uiState.referenceImage1,
+                        contentDescription = stringResource(R.string.content_description_reference_image_1),
+                        onImageSelected = onReferenceImage1Change,
+                        onClear = onClearReferenceImage1,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                if (uiState.currentWorkflowHasReferenceImage1 && uiState.currentWorkflowHasReferenceImage2) {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
 
-                ReferenceImageThumbnail(
-                    image = uiState.referenceImage2,
-                    contentDescription = stringResource(R.string.content_description_reference_image_2),
-                    onImageSelected = onReferenceImage2Change,
-                    onClear = onClearReferenceImage2,
-                    modifier = Modifier.weight(1f)
-                )
+                if (uiState.currentWorkflowHasReferenceImage2) {
+                    ReferenceImageThumbnail(
+                        image = uiState.referenceImage2,
+                        contentDescription = stringResource(R.string.content_description_reference_image_2),
+                        onImageSelected = onReferenceImage2Change,
+                        onClear = onClearReferenceImage2,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -336,127 +345,160 @@ private fun EditingModeContent(
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    // UNET dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_unet),
-        options = uiState.unets,
-        selectedValue = uiState.selectedEditingUnet,
-        onValueChange = onEditingUnetChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // LoRA dropdown (mandatory)
-    ModelDropdown(
-        label = stringResource(R.string.label_lora),
-        options = uiState.availableLoras,
-        selectedValue = uiState.selectedEditingLora,
-        onValueChange = onEditingLoraChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // VAE dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_vae),
-        options = uiState.vaes,
-        selectedValue = uiState.selectedEditingVae,
-        onValueChange = onEditingVaeChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // CLIP dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_clip),
-        options = uiState.clips,
-        selectedValue = uiState.selectedEditingClip,
-        onValueChange = onEditingClipChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Image parameters title
-    Text(
-        text = stringResource(R.string.image_parameters_title),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-
-    // Megapixels
-    OutlinedTextField(
-        value = uiState.editingMegapixels,
-        onValueChange = onEditingMegapixelsChange,
-        label = { Text(stringResource(R.string.megapixels_label)) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        isError = uiState.megapixelsError != null && uiState.mode == ImageToImageMode.EDITING,
-        supportingText = if (uiState.megapixelsError != null && uiState.mode == ImageToImageMode.EDITING) {
-            { Text(uiState.megapixelsError!!) }
-        } else null,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Steps and CFG
-    Row(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = uiState.editingSteps,
-            onValueChange = onEditingStepsChange,
-            label = { Text(stringResource(R.string.label_steps)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        OutlinedTextField(
-            value = uiState.editingCfg,
-            onValueChange = onEditingCfgChange,
-            label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && uiState.mode == ImageToImageMode.EDITING,
-            supportingText = if (uiState.cfgError != null && uiState.mode == ImageToImageMode.EDITING) {
-                { Text(uiState.cfgError!!) }
-            } else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f),
-            singleLine = true
+    // UNET dropdown (conditional - only show if mapped in workflow)
+    if (uiState.currentWorkflowHasUnetName) {
+        ModelDropdown(
+            label = stringResource(R.string.label_unet),
+            options = uiState.unets,
+            selectedValue = uiState.selectedEditingUnet,
+            onValueChange = onEditingUnetChange
         )
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    // LoRA dropdown (optional)
+    if (uiState.currentWorkflowHasLoraName) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    // Sampler dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_sampler),
-        selectedValue = uiState.editingSampler,
-        options = SamplerOptions.SAMPLERS,
-        onValueChange = onEditingSamplerChange
-    )
+        ModelDropdown(
+            label = stringResource(R.string.label_lora),
+            options = uiState.availableLoras,
+            selectedValue = uiState.selectedEditingLora,
+            onValueChange = onEditingLoraChange
+        )
+    }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    // VAE dropdown (optional)
+    if (uiState.currentWorkflowHasVaeName) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    // Scheduler dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_scheduler),
-        selectedValue = uiState.editingScheduler,
-        options = SamplerOptions.SCHEDULERS,
-        onValueChange = onEditingSchedulerChange
-    )
+        ModelDropdown(
+            label = stringResource(R.string.label_vae),
+            options = uiState.vaes,
+            selectedValue = uiState.selectedEditingVae,
+            onValueChange = onEditingVaeChange
+        )
+    }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    // CLIP dropdown (optional)
+    if (uiState.currentWorkflowHasClipName) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    // Optional LoRA chain editor (in addition to mandatory LoRA)
-    LoraChainEditor(
-        title = stringResource(R.string.lora_chain_title),
-        loraChain = uiState.editingLoraChain,
-        availableLoras = uiState.availableLoras,
-        onAddLora = onAddEditingLora,
-        onRemoveLora = onRemoveEditingLora,
-        onLoraNameChange = onEditingLoraNameChange,
-        onLoraStrengthChange = onEditingLoraStrengthChange
-    )
+        ModelDropdown(
+            label = stringResource(R.string.label_clip),
+            options = uiState.clips,
+            selectedValue = uiState.selectedEditingClip,
+            onValueChange = onEditingClipChange
+        )
+    }
+
+    // Check if any image parameters are visible
+    val hasAnyImageParams = uiState.currentWorkflowHasMegapixels ||
+            uiState.currentWorkflowHasSteps ||
+            uiState.currentWorkflowHasCfg ||
+            uiState.currentWorkflowHasSamplerName ||
+            uiState.currentWorkflowHasScheduler
+
+    if (hasAnyImageParams) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Image parameters title
+        Text(
+            text = stringResource(R.string.image_parameters_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+    }
+
+    // Megapixels (optional)
+    if (uiState.currentWorkflowHasMegapixels) {
+        OutlinedTextField(
+            value = uiState.editingMegapixels,
+            onValueChange = onEditingMegapixelsChange,
+            label = { Text(stringResource(R.string.megapixels_label)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            isError = uiState.megapixelsError != null && uiState.mode == ImageToImageMode.EDITING,
+            supportingText = if (uiState.megapixelsError != null && uiState.mode == ImageToImageMode.EDITING) {
+                { Text(uiState.megapixelsError!!) }
+            } else null,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Steps and CFG row (show if either is present)
+    if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            if (uiState.currentWorkflowHasSteps) {
+                OutlinedTextField(
+                    value = uiState.editingSteps,
+                    onValueChange = onEditingStepsChange,
+                    label = { Text(stringResource(R.string.label_steps)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+
+            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            if (uiState.currentWorkflowHasCfg) {
+                OutlinedTextField(
+                    value = uiState.editingCfg,
+                    onValueChange = onEditingCfgChange,
+                    label = { Text(stringResource(R.string.label_cfg)) },
+                    isError = uiState.cfgError != null && uiState.mode == ImageToImageMode.EDITING,
+                    supportingText = if (uiState.cfgError != null && uiState.mode == ImageToImageMode.EDITING) {
+                        { Text(uiState.cfgError!!) }
+                    } else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Sampler dropdown (optional)
+    if (uiState.currentWorkflowHasSamplerName) {
+        ModelDropdown(
+            label = stringResource(R.string.label_sampler),
+            selectedValue = uiState.editingSampler,
+            options = SamplerOptions.SAMPLERS,
+            onValueChange = onEditingSamplerChange
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Scheduler dropdown (optional)
+    if (uiState.currentWorkflowHasScheduler) {
+        ModelDropdown(
+            label = stringResource(R.string.label_scheduler),
+            selectedValue = uiState.editingScheduler,
+            options = SamplerOptions.SCHEDULERS,
+            onValueChange = onEditingSchedulerChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Optional LoRA chain editor (in addition to primary LoRA)
+    if (uiState.currentWorkflowHasLoraName) {
+        LoraChainEditor(
+            title = stringResource(R.string.lora_chain_title),
+            loraChain = uiState.editingLoraChain,
+            availableLoras = uiState.availableLoras,
+            onAddLora = onAddEditingLora,
+            onRemoveLora = onRemoveEditingLora,
+            onLoraNameChange = onEditingLoraNameChange,
+            onLoraStrengthChange = onEditingLoraStrengthChange
+        )
+    }
 }
 
 /**
@@ -607,95 +649,122 @@ private fun CheckpointModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
-    // Checkpoint dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_checkpoint),
-        options = uiState.checkpoints,
-        selectedValue = uiState.selectedCheckpoint,
-        onValueChange = onCheckpointChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Image parameters title
-    Text(
-        text = stringResource(R.string.image_parameters_title),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-
-    // Megapixels
-    OutlinedTextField(
-        value = uiState.megapixels,
-        onValueChange = onMegapixelsChange,
-        label = { Text(stringResource(R.string.megapixels_label)) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        isError = uiState.megapixelsError != null,
-        supportingText = uiState.megapixelsError?.let { { Text(it) } },
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Steps and CFG
-    Row(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = uiState.checkpointSteps,
-            onValueChange = onStepsChange,
-            label = { Text(stringResource(R.string.label_steps)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        OutlinedTextField(
-            value = uiState.checkpointCfg,
-            onValueChange = onCfgChange,
-            label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && uiState.isCheckpointMode,
-            supportingText = if (uiState.cfgError != null && uiState.isCheckpointMode) {
-                { Text(uiState.cfgError!!) }
-            } else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f),
-            singleLine = true
+    // Checkpoint dropdown (conditional - only show if mapped in workflow)
+    if (uiState.currentWorkflowHasCheckpointName) {
+        ModelDropdown(
+            label = stringResource(R.string.label_checkpoint),
+            options = uiState.checkpoints,
+            selectedValue = uiState.selectedCheckpoint,
+            onValueChange = onCheckpointChange
         )
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    // Check if any image parameters are visible
+    val hasAnyImageParams = uiState.currentWorkflowHasMegapixels ||
+            uiState.currentWorkflowHasSteps ||
+            uiState.currentWorkflowHasCfg ||
+            uiState.currentWorkflowHasSamplerName ||
+            uiState.currentWorkflowHasScheduler
 
-    // Sampler dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_sampler),
-        selectedValue = uiState.checkpointSampler,
-        options = SamplerOptions.SAMPLERS,
-        onValueChange = onSamplerChange
-    )
+    if (hasAnyImageParams) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    Spacer(modifier = Modifier.height(12.dp))
+        // Image parameters title
+        Text(
+            text = stringResource(R.string.image_parameters_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+    }
 
-    // Scheduler dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_scheduler),
-        selectedValue = uiState.checkpointScheduler,
-        options = SamplerOptions.SCHEDULERS,
-        onValueChange = onSchedulerChange
-    )
+    // Megapixels (optional)
+    if (uiState.currentWorkflowHasMegapixels) {
+        OutlinedTextField(
+            value = uiState.megapixels,
+            onValueChange = onMegapixelsChange,
+            label = { Text(stringResource(R.string.megapixels_label)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            isError = uiState.megapixelsError != null,
+            supportingText = uiState.megapixelsError?.let { { Text(it) } },
+            modifier = Modifier.fillMaxWidth()
+        )
 
-    Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+    }
 
-    // LoRA chain editor (Checkpoint mode)
-    LoraChainEditor(
-        title = stringResource(R.string.lora_chain_title),
-        loraChain = uiState.checkpointLoraChain,
-        availableLoras = uiState.availableLoras,
-        onAddLora = onAddLora,
-        onRemoveLora = onRemoveLora,
-        onLoraNameChange = onLoraNameChange,
-        onLoraStrengthChange = onLoraStrengthChange
-    )
+    // Steps and CFG row (show if either is present)
+    if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            if (uiState.currentWorkflowHasSteps) {
+                OutlinedTextField(
+                    value = uiState.checkpointSteps,
+                    onValueChange = onStepsChange,
+                    label = { Text(stringResource(R.string.label_steps)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+
+            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            if (uiState.currentWorkflowHasCfg) {
+                OutlinedTextField(
+                    value = uiState.checkpointCfg,
+                    onValueChange = onCfgChange,
+                    label = { Text(stringResource(R.string.label_cfg)) },
+                    isError = uiState.cfgError != null && uiState.isCheckpointMode,
+                    supportingText = if (uiState.cfgError != null && uiState.isCheckpointMode) {
+                        { Text(uiState.cfgError!!) }
+                    } else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Sampler dropdown (optional)
+    if (uiState.currentWorkflowHasSamplerName) {
+        ModelDropdown(
+            label = stringResource(R.string.label_sampler),
+            selectedValue = uiState.checkpointSampler,
+            options = SamplerOptions.SAMPLERS,
+            onValueChange = onSamplerChange
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Scheduler dropdown (optional)
+    if (uiState.currentWorkflowHasScheduler) {
+        ModelDropdown(
+            label = stringResource(R.string.label_scheduler),
+            selectedValue = uiState.checkpointScheduler,
+            options = SamplerOptions.SCHEDULERS,
+            onValueChange = onSchedulerChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // LoRA chain editor (optional)
+    if (uiState.currentWorkflowHasLoraName) {
+        LoraChainEditor(
+            title = stringResource(R.string.lora_chain_title),
+            loraChain = uiState.checkpointLoraChain,
+            availableLoras = uiState.availableLoras,
+            onAddLora = onAddLora,
+            onRemoveLora = onRemoveLora,
+            onLoraNameChange = onLoraNameChange,
+            onLoraStrengthChange = onLoraStrengthChange
+        )
+    }
 }
 
 @Composable
@@ -713,102 +782,130 @@ private fun UnetModeContent(
     onLoraNameChange: (Int, String) -> Unit,
     onLoraStrengthChange: (Int, Float) -> Unit
 ) {
-    // UNET dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_unet),
-        options = uiState.unets,
-        selectedValue = uiState.selectedUnet,
-        onValueChange = onUnetChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // VAE dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_vae),
-        options = uiState.vaes,
-        selectedValue = uiState.selectedVae,
-        onValueChange = onVaeChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // CLIP dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_clip),
-        options = uiState.clips,
-        selectedValue = uiState.selectedClip,
-        onValueChange = onClipChange
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Image parameters title
-    Text(
-        text = stringResource(R.string.image_parameters_title),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-
-    // Steps and CFG
-    Row(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = uiState.unetSteps,
-            onValueChange = onStepsChange,
-            label = { Text(stringResource(R.string.label_steps)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        OutlinedTextField(
-            value = uiState.unetCfg,
-            onValueChange = onCfgChange,
-            label = { Text(stringResource(R.string.label_cfg)) },
-            isError = uiState.cfgError != null && !uiState.isCheckpointMode,
-            supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
-                { Text(uiState.cfgError!!) }
-            } else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f),
-            singleLine = true
+    // UNET dropdown (conditional - only show if mapped in workflow)
+    if (uiState.currentWorkflowHasUnetName) {
+        ModelDropdown(
+            label = stringResource(R.string.label_unet),
+            options = uiState.unets,
+            selectedValue = uiState.selectedUnet,
+            onValueChange = onUnetChange
         )
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    // VAE dropdown (optional)
+    if (uiState.currentWorkflowHasVaeName) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    // Sampler dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_sampler),
-        selectedValue = uiState.unetSampler,
-        options = SamplerOptions.SAMPLERS,
-        onValueChange = onSamplerChange
-    )
+        ModelDropdown(
+            label = stringResource(R.string.label_vae),
+            options = uiState.vaes,
+            selectedValue = uiState.selectedVae,
+            onValueChange = onVaeChange
+        )
+    }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    // CLIP dropdown (optional)
+    if (uiState.currentWorkflowHasClipName) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-    // Scheduler dropdown
-    ModelDropdown(
-        label = stringResource(R.string.label_scheduler),
-        selectedValue = uiState.unetScheduler,
-        options = SamplerOptions.SCHEDULERS,
-        onValueChange = onSchedulerChange
-    )
+        ModelDropdown(
+            label = stringResource(R.string.label_clip),
+            options = uiState.clips,
+            selectedValue = uiState.selectedClip,
+            onValueChange = onClipChange
+        )
+    }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    // Check if any image parameters are visible
+    val hasAnyImageParams = uiState.currentWorkflowHasSteps ||
+            uiState.currentWorkflowHasCfg ||
+            uiState.currentWorkflowHasSamplerName ||
+            uiState.currentWorkflowHasScheduler
 
-    // LoRA chain editor (UNET mode)
-    LoraChainEditor(
-        title = stringResource(R.string.lora_chain_title),
-        loraChain = uiState.unetLoraChain,
-        availableLoras = uiState.availableLoras,
-        onAddLora = onAddLora,
-        onRemoveLora = onRemoveLora,
-        onLoraNameChange = onLoraNameChange,
-        onLoraStrengthChange = onLoraStrengthChange
-    )
+    if (hasAnyImageParams) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Image parameters title
+        Text(
+            text = stringResource(R.string.image_parameters_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+    }
+
+    // Steps and CFG row (show if either is present)
+    if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            if (uiState.currentWorkflowHasSteps) {
+                OutlinedTextField(
+                    value = uiState.unetSteps,
+                    onValueChange = onStepsChange,
+                    label = { Text(stringResource(R.string.label_steps)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+
+            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            if (uiState.currentWorkflowHasCfg) {
+                OutlinedTextField(
+                    value = uiState.unetCfg,
+                    onValueChange = onCfgChange,
+                    label = { Text(stringResource(R.string.label_cfg)) },
+                    isError = uiState.cfgError != null && !uiState.isCheckpointMode,
+                    supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
+                        { Text(uiState.cfgError!!) }
+                    } else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Sampler dropdown (optional)
+    if (uiState.currentWorkflowHasSamplerName) {
+        ModelDropdown(
+            label = stringResource(R.string.label_sampler),
+            selectedValue = uiState.unetSampler,
+            options = SamplerOptions.SAMPLERS,
+            onValueChange = onSamplerChange
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Scheduler dropdown (optional)
+    if (uiState.currentWorkflowHasScheduler) {
+        ModelDropdown(
+            label = stringResource(R.string.label_scheduler),
+            selectedValue = uiState.unetScheduler,
+            options = SamplerOptions.SCHEDULERS,
+            onValueChange = onSchedulerChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // LoRA chain editor (optional)
+    if (uiState.currentWorkflowHasLoraName) {
+        LoraChainEditor(
+            title = stringResource(R.string.lora_chain_title),
+            loraChain = uiState.unetLoraChain,
+            availableLoras = uiState.availableLoras,
+            onAddLora = onAddLora,
+            onRemoveLora = onRemoveLora,
+            onLoraNameChange = onLoraNameChange,
+            onLoraStrengthChange = onLoraStrengthChange
+        )
+    }
 }
 
 /**

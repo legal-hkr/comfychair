@@ -88,6 +88,20 @@ data class TextToImageUiState(
     val currentWorkflowHasCfg: Boolean = true,
     val currentWorkflowHasDualClip: Boolean = false,
 
+    // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
+    val currentWorkflowHasWidth: Boolean = true,
+    val currentWorkflowHasHeight: Boolean = true,
+    val currentWorkflowHasSteps: Boolean = true,
+    val currentWorkflowHasSamplerName: Boolean = true,
+    val currentWorkflowHasScheduler: Boolean = true,
+    val currentWorkflowHasVaeName: Boolean = true,
+    val currentWorkflowHasClipName: Boolean = true,
+    val currentWorkflowHasLoraName: Boolean = true,
+
+    // Model presence flags (for conditional model dropdowns)
+    val currentWorkflowHasCheckpointName: Boolean = false,
+    val currentWorkflowHasUnetName: Boolean = false,
+
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
     val unetLoraChain: List<LoraSelection> = emptyList(),
@@ -401,10 +415,21 @@ class TextToImageViewModel : ViewModel() {
                     ?: defaults?.negativePrompt ?: "",
                 selectedCheckpoint = savedValues?.checkpointModel ?: "",
                 checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-                // Checkpoint workflows always have these capabilities
-                currentWorkflowHasNegativePrompt = true,
-                currentWorkflowHasCfg = true,
-                currentWorkflowHasDualClip = false
+                // Set workflow capability flags from defaults
+                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+                currentWorkflowHasDualClip = false,
+                currentWorkflowHasWidth = defaults?.hasWidth ?: true,
+                currentWorkflowHasHeight = defaults?.hasHeight ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
+                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
+                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
             )
         } else {
             _uiState.value = state.copy(
@@ -433,7 +458,18 @@ class TextToImageViewModel : ViewModel() {
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
                 currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasDualClip = defaults?.hasDualClip ?: false
+                currentWorkflowHasDualClip = defaults?.hasDualClip ?: false,
+                currentWorkflowHasWidth = defaults?.hasWidth ?: true,
+                currentWorkflowHasHeight = defaults?.hasHeight ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
+                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
             )
         }
         saveConfiguration()
@@ -713,24 +749,30 @@ class TextToImageViewModel : ViewModel() {
         if (state.positivePrompt.isBlank()) return false
 
         return if (state.isCheckpointMode) {
-            state.selectedCheckpoint.isNotEmpty() &&
+            // Model validation: only require checkpoint if mapped
+            val checkpointOk = !state.currentWorkflowHasCheckpointName || state.selectedCheckpoint.isNotEmpty()
+
+            checkpointOk &&
             ValidationUtils.validateDimension(state.checkpointWidth) == null &&
             ValidationUtils.validateDimension(state.checkpointHeight) == null &&
             ValidationUtils.validateSteps(state.checkpointSteps) == null &&
             ValidationUtils.validateCfg(state.checkpointCfg) == null
         } else {
+            // Model validation: only require models if mapped
+            val unetOk = !state.currentWorkflowHasUnetName || state.selectedUnet.isNotEmpty()
+            val vaeOk = !state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()
             // CLIP validation: dual CLIP or single CLIP based on workflow
-            val clipValid = if (state.currentWorkflowHasDualClip) {
+            val clipOk = if (state.currentWorkflowHasDualClip) {
                 state.selectedClip1.isNotEmpty() && state.selectedClip2.isNotEmpty()
             } else {
-                state.selectedClip.isNotEmpty()
+                !state.currentWorkflowHasClipName || state.selectedClip.isNotEmpty()
             }
             // CFG validation: skip if workflow doesn't have CFG
             val cfgValid = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.unetCfg) == null
 
-            state.selectedUnet.isNotEmpty() &&
-            state.selectedVae.isNotEmpty() &&
-            clipValid &&
+            unetOk &&
+            vaeOk &&
+            clipOk &&
             ValidationUtils.validateDimension(state.unetWidth) == null &&
             ValidationUtils.validateDimension(state.unetHeight) == null &&
             ValidationUtils.validateSteps(state.unetSteps) == null &&
@@ -971,10 +1013,21 @@ class TextToImageViewModel : ViewModel() {
                     ?: defaults?.negativePrompt ?: "",
                 selectedCheckpoint = savedValues?.checkpointModel ?: "",
                 checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-                // Checkpoint workflows always have these capabilities
-                currentWorkflowHasNegativePrompt = true,
-                currentWorkflowHasCfg = true,
-                currentWorkflowHasDualClip = false
+                // Set workflow capability flags from defaults
+                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
+                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
+                currentWorkflowHasDualClip = false,
+                currentWorkflowHasWidth = defaults?.hasWidth ?: true,
+                currentWorkflowHasHeight = defaults?.hasHeight ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
+                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
+                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
             )
         } else {
             _uiState.value = state.copy(
@@ -1003,7 +1056,18 @@ class TextToImageViewModel : ViewModel() {
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
                 currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasDualClip = defaults?.hasDualClip ?: false
+                currentWorkflowHasDualClip = defaults?.hasDualClip ?: false,
+                currentWorkflowHasWidth = defaults?.hasWidth ?: true,
+                currentWorkflowHasHeight = defaults?.hasHeight ?: true,
+                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
+                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
+                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
+                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
+                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Model presence flags
+                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
+                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
             )
         }
     }
