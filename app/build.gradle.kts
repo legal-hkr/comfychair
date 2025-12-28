@@ -12,8 +12,8 @@ android {
         applicationId = "sh.hnet.comfychair"
         minSdk = 34
         targetSdk = 36
-        versionCode = 28
-        versionName = "v0.8.1"
+        versionCode = 29
+        versionName = "v0.8.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -42,6 +42,19 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+// Disable baseline profile generation for F-Droid reproducible builds
+// https://f-droid.org/docs/Reproducible_Builds/
+tasks.whenTaskAdded {
+    if (name.contains("ArtProfile")) {
+        enabled = false
     }
 }
 

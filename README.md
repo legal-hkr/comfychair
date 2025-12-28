@@ -2,7 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.8.1
+**Current version**: v0.8.2
 
 ## Overview
 
