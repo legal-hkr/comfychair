@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Configuration for ComfyChair
+
+    This app requires cleartext (HTTP) traffic to be permitted because:
+    1. ComfyUI servers are typically self-hosted on local networks
+    2. Local servers often don't have SSL/TLS certificates configured
+    3. Users connect to arbitrary IP addresses on their private networks
+
+    The app supports and prefers HTTPS when available (auto-detection in ComfyUIClient).
+    Self-signed certificates are also supported with user notification.
+
+    See: https://developer.android.com/training/articles/security-config
+-->
+<network-security-config>
+    <!--
+        Base configuration: Allow cleartext traffic for local ComfyUI server connections.
+        The app performs automatic HTTP/HTTPS detection and prefers HTTPS when available.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
