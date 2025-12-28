@@ -421,20 +421,36 @@ object WorkflowManager {
 
         val nodesJson = extractNodesObject(json)
 
-        // Collect all input keys from all nodes
+        // Collect all input keys from all nodes, along with their placeholder values
         val presentKeys = mutableSetOf<String>()
+        val presentPlaceholders = mutableSetOf<String>()  // e.g., "highnoise_unet_name" from "{{highnoise_unet_name}}"
         for (nodeId in nodesJson.keys()) {
             val node = nodesJson.optJSONObject(nodeId) ?: continue
             val inputs = node.optJSONObject("inputs") ?: continue
             for (key in inputs.keys()) {
                 presentKeys.add(key)
+                // Also extract placeholder names from values like "{{highnoise_unet_name}}"
+                val value = inputs.optString(key, "")
+                if (value.startsWith("{{") && value.endsWith("}}")) {
+                    val placeholderName = value.substring(2, value.length - 2)
+                    presentPlaceholders.add(placeholderName)
+                }
             }
         }
 
         // Get required keys for this workflow type, adjusted for workflow structure
         // (excludes graph-traced keys like positive_text/negative_text)
         val requiredKeys = TemplateKeyRegistry.getDirectKeysForWorkflow(type, json)
-        val missingKeys = requiredKeys.filter { it !in presentKeys }
+
+        // For each required key, check if either:
+        // 1. The actual JSON key is present (mapped via PLACEHOLDER_TO_KEY), or
+        // 2. The placeholder is present in values (for specific placeholders like highnoise_unet_name)
+        val missingKeys = requiredKeys.filter { requiredKey ->
+            val jsonKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(requiredKey)
+            val hasJsonKey = jsonKey in presentKeys
+            val hasPlaceholder = requiredKey in presentPlaceholders
+            !hasJsonKey && !hasPlaceholder
+        }
 
         // Also check for required patterns (like uploaded_image.png for inpainting)
         val requiredPatterns = REQUIRED_PATTERNS[type] ?: emptyList()
@@ -774,6 +790,32 @@ object WorkflowManager {
             }
         }
 
+        // Remove placeholders for unmapped optional fields
+        // This prevents fields like {{highnoise_lora_name}} from appearing as "UI: ..." when not mapped
+        val mappedFieldKeys = fieldMappings.keys
+        val allOptionalKeys = TemplateKeyRegistry.getOptionalKeysForType(type)
+        val unmappedOptionalKeys = allOptionalKeys - mappedFieldKeys
+        val placeholderRegex = Regex("\\{\\{(\\w+)\\}\\}")
+
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            for (inputKey in inputs.keys().asSequence().toList()) {
+                val value = inputs.optString(inputKey, "")
+                val placeholderMatch = placeholderRegex.find(value)
+                if (placeholderMatch != null) {
+                    val placeholderName = placeholderMatch.groupValues[1]
+                    // Check if this placeholder corresponds to an unmapped optional field
+                    // The placeholder name should directly match one of the optional keys
+                    if (placeholderName in unmappedOptionalKeys) {
+                        // Replace placeholder with empty string so it shows as unmapped in editor
+                        inputs.put(inputKey, "")
+                    }
+                }
+            }
+        }
+
         // Auto-detect capability flags from workflow structure
         val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
             nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
@@ -783,6 +825,7 @@ object WorkflowManager {
         }
 
         // Create defaults object from extracted values with auto-detected capability flags
+        // and field presence flags based on which fields are mapped
         val defaults = WorkflowDefaults(
             width = (extractedDefaults["width"] as? Number)?.toInt(),
             height = (extractedDefaults["height"] as? Number)?.toInt(),
@@ -795,9 +838,29 @@ object WorkflowManager {
             length = (extractedDefaults["length"] as? Number)?.toInt(),
             frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt(),
             // Capability flags for Flux-style workflows
-            hasNegativePrompt = !hasBasicGuider,  // BasicGuider means no negative prompt
-            hasCfg = !hasBasicGuider,              // BasicGuider means no CFG
-            hasDualClip = hasDualClip              // DualCLIPLoader detected
+            hasNegativePrompt = !hasBasicGuider && "negative_text" in mappedFieldKeys,
+            hasCfg = !hasBasicGuider && "cfg" in mappedFieldKeys,
+            hasDualClip = hasDualClip,
+            // Field presence flags - true only if the field is mapped
+            hasWidth = "width" in mappedFieldKeys,
+            hasHeight = "height" in mappedFieldKeys,
+            hasSteps = "steps" in mappedFieldKeys,
+            hasSamplerName = "sampler_name" in mappedFieldKeys,
+            hasScheduler = "scheduler" in mappedFieldKeys,
+            hasMegapixels = "megapixels" in mappedFieldKeys,
+            hasLength = "length" in mappedFieldKeys,
+            hasFrameRate = "fps" in mappedFieldKeys || "frame_rate" in mappedFieldKeys,
+            hasVaeName = "vae_name" in mappedFieldKeys,
+            hasClipName = "clip_name" in mappedFieldKeys || ("clip_name1" in mappedFieldKeys && "clip_name2" in mappedFieldKeys),
+            hasLoraName = "lora_name" in mappedFieldKeys,
+            // Dual-UNET/LoRA flags for video workflows
+            hasLownoiseUnet = "lownoise_unet_name" in mappedFieldKeys,
+            hasHighnoiseLora = "highnoise_lora_name" in mappedFieldKeys,
+            hasLownoiseLora = "lownoise_lora_name" in mappedFieldKeys,
+            // Model presence flags
+            hasCheckpointName = "ckpt_name" in mappedFieldKeys,
+            hasUnetName = "unet_name" in mappedFieldKeys,
+            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys
         )
 
         // Create wrapped JSON with metadata and defaults
@@ -926,6 +989,32 @@ object WorkflowManager {
             }
         }
 
+        // Remove placeholders for unmapped optional fields
+        // This prevents fields like {{highnoise_lora_name}} from appearing as "UI: ..." when not mapped
+        val mappedFieldKeys = fieldMappings.keys
+        val allOptionalKeys = TemplateKeyRegistry.getOptionalKeysForType(existingWorkflow.type)
+        val unmappedOptionalKeys = allOptionalKeys - mappedFieldKeys
+        val placeholderRegex = Regex("\\{\\{(\\w+)\\}\\}")
+
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            for (inputKey in inputs.keys().asSequence().toList()) {
+                val value = inputs.optString(inputKey, "")
+                val placeholderMatch = placeholderRegex.find(value)
+                if (placeholderMatch != null) {
+                    val placeholderName = placeholderMatch.groupValues[1]
+                    // Check if this placeholder corresponds to an unmapped optional field
+                    // The placeholder name should directly match one of the optional keys
+                    if (placeholderName in unmappedOptionalKeys) {
+                        // Replace placeholder with empty string so it shows as unmapped in editor
+                        inputs.put(inputKey, "")
+                    }
+                }
+            }
+        }
+
         // Auto-detect capability flags from workflow structure
         val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
             nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
@@ -935,6 +1024,7 @@ object WorkflowManager {
         }
 
         // Create defaults object from extracted values with auto-detected capability flags
+        // and field presence flags based on which fields are mapped
         val defaults = WorkflowDefaults(
             width = (extractedDefaults["width"] as? Number)?.toInt(),
             height = (extractedDefaults["height"] as? Number)?.toInt(),
@@ -946,9 +1036,30 @@ object WorkflowManager {
             megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
             length = (extractedDefaults["length"] as? Number)?.toInt(),
             frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt(),
-            hasNegativePrompt = !hasBasicGuider,
-            hasCfg = !hasBasicGuider,
-            hasDualClip = hasDualClip
+            // Capability flags for Flux-style workflows
+            hasNegativePrompt = !hasBasicGuider && "negative_text" in mappedFieldKeys,
+            hasCfg = !hasBasicGuider && "cfg" in mappedFieldKeys,
+            hasDualClip = hasDualClip,
+            // Field presence flags - true only if the field is mapped
+            hasWidth = "width" in mappedFieldKeys,
+            hasHeight = "height" in mappedFieldKeys,
+            hasSteps = "steps" in mappedFieldKeys,
+            hasSamplerName = "sampler_name" in mappedFieldKeys,
+            hasScheduler = "scheduler" in mappedFieldKeys,
+            hasMegapixels = "megapixels" in mappedFieldKeys,
+            hasLength = "length" in mappedFieldKeys,
+            hasFrameRate = "fps" in mappedFieldKeys || "frame_rate" in mappedFieldKeys,
+            hasVaeName = "vae_name" in mappedFieldKeys,
+            hasClipName = "clip_name" in mappedFieldKeys || ("clip_name1" in mappedFieldKeys && "clip_name2" in mappedFieldKeys),
+            hasLoraName = "lora_name" in mappedFieldKeys,
+            // Dual-UNET/LoRA flags for video workflows
+            hasLownoiseUnet = "lownoise_unet_name" in mappedFieldKeys,
+            hasHighnoiseLora = "highnoise_lora_name" in mappedFieldKeys,
+            hasLownoiseLora = "lownoise_lora_name" in mappedFieldKeys,
+            // Model presence flags
+            hasCheckpointName = "ckpt_name" in mappedFieldKeys,
+            hasUnetName = "unet_name" in mappedFieldKeys,
+            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys
         )
 
         // Create wrapped JSON with original metadata preserved
@@ -2045,8 +2156,9 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{sampler_name}}", samplerName)
         processedJson = processedJson.replace("{{scheduler}}", scheduler)
 
-        // Replace source image placeholder
+        // Replace source image placeholder (both template and literal formats)
         val escapedSourceFilename = escapeForJson(sourceImageFilename)
+        processedJson = processedJson.replace("{{image_filename}}", "$escapedSourceFilename [input]")
         processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
 
         // Replace reference images if provided
