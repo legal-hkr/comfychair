@@ -6,7 +6,8 @@
     "cfg": 1.0,
     "sampler_name": "euler",
     "scheduler": "simple",
-    "negative_prompt": ""
+    "negative_prompt": "",
+    "has_unet_name": true
   },
   "nodes": {
     "1": {

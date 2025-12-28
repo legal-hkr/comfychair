@@ -148,6 +148,9 @@ fun TextToVideoScreen(
     LaunchedEffect(Unit) {
         textToVideoViewModel.events.collect { event ->
             when (event) {
+                is TextToVideoEvent.ShowToast -> {
+                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                }
                 is TextToVideoEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }

@@ -6,7 +6,10 @@
     "steps": 4,
     "cfg": 1.0,
     "sampler_name": "euler",
-    "scheduler": "simple"
+    "scheduler": "simple",
+    "has_unet_name": true,
+    "has_reference_image_1": true,
+    "has_reference_image_2": true
   },
   "nodes": {
     "1": {

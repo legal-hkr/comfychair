@@ -1,45 +1,24 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedIconButton
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.shared.DimensionInputRow
+import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
+import sh.hnet.comfychair.ui.components.shared.NumericInputRow
 import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
-import sh.hnet.comfychair.viewmodel.ItvWorkflowItem
 
 /**
  * Content for the image-to-video configuration bottom sheet
@@ -93,7 +72,7 @@ fun ImageToVideoConfigBottomSheetContent(
         }
 
         // Workflow dropdown
-        ItvWorkflowDropdown(
+        GenericWorkflowDropdown(
             label = stringResource(R.string.label_workflow),
             selectedWorkflow = uiState.selectedWorkflow,
             workflows = uiState.availableWorkflows,
@@ -206,74 +185,34 @@ fun ImageToVideoConfigBottomSheetContent(
 
         // Width and Height row (show if either is present)
         if (uiState.currentWorkflowHasWidth || uiState.currentWorkflowHasHeight) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                if (uiState.currentWorkflowHasWidth) {
-                    OutlinedTextField(
-                        value = uiState.width,
-                        onValueChange = onWidthChange,
-                        label = { Text(stringResource(R.string.label_width)) },
-                        isError = uiState.widthError != null,
-                        supportingText = uiState.widthError?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                if (uiState.currentWorkflowHasWidth && uiState.currentWorkflowHasHeight) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                if (uiState.currentWorkflowHasHeight) {
-                    OutlinedTextField(
-                        value = uiState.height,
-                        onValueChange = onHeightChange,
-                        label = { Text(stringResource(R.string.label_height)) },
-                        isError = uiState.heightError != null,
-                        supportingText = uiState.heightError?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-            }
+            DimensionInputRow(
+                width = uiState.width,
+                onWidthChange = onWidthChange,
+                widthError = uiState.widthError,
+                height = uiState.height,
+                onHeightChange = onHeightChange,
+                heightError = uiState.heightError,
+                showWidth = uiState.currentWorkflowHasWidth,
+                showHeight = uiState.currentWorkflowHasHeight
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
         }
 
         // Length and FPS row (show if either is present)
         if (uiState.currentWorkflowHasLength || uiState.currentWorkflowHasFrameRate) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                if (uiState.currentWorkflowHasLength) {
-                    OutlinedTextField(
-                        value = uiState.length,
-                        onValueChange = onLengthChange,
-                        label = { Text(stringResource(R.string.length_label)) },
-                        isError = uiState.lengthError != null,
-                        supportingText = uiState.lengthError?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                if (uiState.currentWorkflowHasLength && uiState.currentWorkflowHasFrameRate) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                if (uiState.currentWorkflowHasFrameRate) {
-                    OutlinedTextField(
-                        value = uiState.fps,
-                        onValueChange = onFpsChange,
-                        label = { Text(stringResource(R.string.fps_label)) },
-                        isError = uiState.fpsError != null,
-                        supportingText = uiState.fpsError?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-            }
+            NumericInputRow(
+                value1 = uiState.length,
+                label1 = stringResource(R.string.length_label),
+                onValue1Change = onLengthChange,
+                error1 = uiState.lengthError,
+                showField1 = uiState.currentWorkflowHasLength,
+                value2 = uiState.fps,
+                label2 = stringResource(R.string.fps_label),
+                onValue2Change = onFpsChange,
+                error2 = uiState.fpsError,
+                showField2 = uiState.currentWorkflowHasFrameRate
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -304,77 +243,6 @@ fun ImageToVideoConfigBottomSheetContent(
                 onLoraNameChange = onLownoiseLoraChainNameChange,
                 onLoraStrengthChange = onLownoiseLoraChainStrengthChange
             )
-        }
-    }
-}
-
-/**
- * Dropdown for selecting Image-to-Video workflows with displayName shown
- */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun ItvWorkflowDropdown(
-    label: String,
-    selectedWorkflow: String,
-    workflows: List<ItvWorkflowItem>,
-    onWorkflowChange: (String) -> Unit,
-    onViewWorkflow: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    // Find display name for selected workflow
-    val selectedDisplayName = workflows.find { it.name == selectedWorkflow }?.displayName ?: selectedWorkflow
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier = Modifier.weight(1f)
-        ) {
-            OutlinedTextField(
-                value = selectedDisplayName,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(label) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    .fillMaxWidth(),
-                singleLine = true
-            )
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                workflows.forEach { workflow ->
-                    DropdownMenuItem(
-                        text = { Text(workflow.displayName) },
-                        onClick = {
-                            onWorkflowChange(workflow.name)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        if (onViewWorkflow != null) {
-            OutlinedIconButton(
-                onClick = onViewWorkflow,
-                modifier = Modifier.size(56.dp),
-                shape = ButtonDefaults.squareShape
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.EditNote,
-                    contentDescription = stringResource(R.string.view_workflow)
-                )
-            }
         }
     }
 }

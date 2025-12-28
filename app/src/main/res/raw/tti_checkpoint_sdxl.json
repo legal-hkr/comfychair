@@ -8,7 +8,8 @@
     "cfg": 4.0,
     "sampler_name": "dpmpp_2m_sde",
     "scheduler": "karras",
-    "negative_prompt": "text, watermark"
+    "negative_prompt": "text, watermark",
+    "has_checkpoint_name": true
   },
   "nodes": {
     "1": {

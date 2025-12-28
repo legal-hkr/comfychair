@@ -9,15 +9,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.net.Uri
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,7 +26,8 @@ import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.ValidationUtils
-import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
 /**
  * Data class representing a path drawn on the mask canvas
@@ -49,10 +43,10 @@ data class MaskPathData(
  */
 data class ItiWorkflowItem(
     val id: String,             // Workflow ID for editor
-    val name: String,           // User-friendly workflow name
-    val displayName: String,    // Display name with type prefix
+    override val name: String,           // User-friendly workflow name
+    override val displayName: String,    // Display name with type prefix
     val type: WorkflowType      // Workflow type for mode detection
-)
+) : WorkflowItemBase
 
 /**
  * UI state for the view mode toggle
@@ -75,10 +69,10 @@ enum class ImageToImageMode {
  */
 data class IteWorkflowItem(
     val id: String,             // Workflow ID for editor
-    val name: String,           // User-friendly workflow name
-    val displayName: String,    // Display name for dropdown
+    override val name: String,           // User-friendly workflow name
+    override val displayName: String,    // Display name for dropdown
     val type: WorkflowType      // Always ITE_UNET for this type
-)
+) : WorkflowItemBase
 
 /**
  * UI state for the Image-to-image screen
@@ -204,24 +198,9 @@ sealed class ImageToImageEvent {
 /**
  * ViewModel for the Image-to-image screen
  */
-class ImageToImageViewModel : ViewModel() {
+class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, ImageToImageEvent>() {
 
-    // State
-    private var comfyUIClient: ComfyUIClient? = null
-    private var applicationContext: Context? = null
-    private var workflowValuesStorage: WorkflowValuesStorage? = null
-
-    private val _uiState = MutableStateFlow(ImageToImageUiState())
-    val uiState: StateFlow<ImageToImageUiState> = _uiState.asStateFlow()
-
-    private val _events = MutableSharedFlow<ImageToImageEvent>()
-    val events: SharedFlow<ImageToImageEvent> = _events.asSharedFlow()
-
-    // Reference to GenerationViewModel for event handling
-    private var generationViewModelRef: GenerationViewModel? = null
-
-    // Track which promptId we've already cleared preview for (prevents duplicate clears on navigation)
-    private var lastClearedForPromptId: String? = null
+    override val initialState = ImageToImageUiState()
 
     // Constants
     companion object {
@@ -238,13 +217,8 @@ class ImageToImageViewModel : ViewModel() {
         private const val FEATHER_RADIUS = 8
     }
 
-    // Initialization
-    fun initialize(context: Context, client: ComfyUIClient) {
+    override fun onInitialize() {
         DebugLogger.i(TAG, "Initializing")
-        applicationContext = context.applicationContext
-        comfyUIClient = client
-        WorkflowManager.ensureInitialized(context)
-        workflowValuesStorage = WorkflowValuesStorage(context)
 
         loadWorkflowOptions()
         restorePreferences()
@@ -257,6 +231,7 @@ class ImageToImageViewModel : ViewModel() {
         val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET)
         val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET)
+        DebugLogger.d(TAG, "loadWorkflowOptions: Found ${checkpointWorkflows.size} checkpoint, ${unetWorkflows.size} UNET, ${editingWorkflows.size} editing workflows")
 
         // Create unified workflow list with type prefix for display (for Inpainting mode)
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -315,6 +290,8 @@ class ImageToImageViewModel : ViewModel() {
         val context = applicationContext ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        DebugLogger.d(TAG, "restorePreferences: Loading saved preferences")
+
         val defaultPositivePrompt = SeasonalPrompts.getImageToImagePrompt()
 
         // Load global preferences
@@ -322,6 +299,7 @@ class ImageToImageViewModel : ViewModel() {
         val savedWorkflow = prefs.getString(PREF_SELECTED_WORKFLOW, null)
         val savedMode = prefs.getString(PREF_MODE, ImageToImageMode.EDITING.name)
         val savedEditingWorkflow = prefs.getString(PREF_SELECTED_EDITING_WORKFLOW, null)
+        DebugLogger.d(TAG, "restorePreferences: savedMode=$savedMode, savedWorkflow=$savedWorkflow")
 
         // Restore mode
         val mode = try {
@@ -381,6 +359,7 @@ class ImageToImageViewModel : ViewModel() {
         // Load saved values or defaults
         val savedValues = storage.loadValues(workflowName)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
+        DebugLogger.d(TAG, "loadWorkflowValues: $workflowName (isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
@@ -604,9 +583,11 @@ class ImageToImageViewModel : ViewModel() {
     fun fetchModels() {
         val client = comfyUIClient ?: return
 
+        DebugLogger.i(TAG, "fetchModels: Starting model fetch")
         viewModelScope.launch {
             // Fetch checkpoints
             client.fetchCheckpoints { checkpoints ->
+                DebugLogger.d(TAG, "fetchModels: Loaded ${checkpoints?.size ?: 0} checkpoints")
                 _uiState.update { state ->
                     state.copy(
                         checkpoints = checkpoints ?: emptyList(),
@@ -618,6 +599,7 @@ class ImageToImageViewModel : ViewModel() {
 
             // Fetch UNETs
             client.fetchUNETs { unets ->
+                DebugLogger.d(TAG, "fetchModels: Loaded ${unets?.size ?: 0} UNETs")
                 _uiState.update { state ->
                     state.copy(
                         unets = unets ?: emptyList(),
@@ -631,6 +613,7 @@ class ImageToImageViewModel : ViewModel() {
 
             // Fetch VAEs
             client.fetchVAEs { vaes ->
+                DebugLogger.d(TAG, "fetchModels: Loaded ${vaes?.size ?: 0} VAEs")
                 _uiState.update { state ->
                     state.copy(
                         vaes = vaes ?: emptyList(),
@@ -644,6 +627,7 @@ class ImageToImageViewModel : ViewModel() {
 
             // Fetch CLIPs
             client.fetchCLIPs { clips ->
+                DebugLogger.d(TAG, "fetchModels: Loaded ${clips?.size ?: 0} CLIPs")
                 _uiState.update { state ->
                     state.copy(
                         clips = clips ?: emptyList(),
@@ -657,6 +641,7 @@ class ImageToImageViewModel : ViewModel() {
 
             // Fetch LoRAs
             client.fetchLoRAs { loras ->
+                DebugLogger.d(TAG, "fetchModels: Loaded ${loras.size} LoRAs")
                 _uiState.update { state ->
                     state.copy(
                         availableLoras = loras,
@@ -678,7 +663,23 @@ class ImageToImageViewModel : ViewModel() {
 
     // Image-to-Image mode (Inpainting vs Editing)
     fun onModeChange(mode: ImageToImageMode) {
-        _uiState.value = _uiState.value.copy(mode = mode)
+        val state = _uiState.value
+        _uiState.value = state.copy(mode = mode)
+
+        // Reload workflow values to restore field visibility flags for the new mode's workflow
+        when (mode) {
+            ImageToImageMode.EDITING -> {
+                if (state.selectedEditingWorkflow.isNotEmpty()) {
+                    loadEditingWorkflowValues(state.selectedEditingWorkflow)
+                }
+            }
+            ImageToImageMode.INPAINTING -> {
+                if (state.selectedWorkflow.isNotEmpty()) {
+                    loadWorkflowValues(state.selectedWorkflow)
+                }
+            }
+        }
+
         savePreferences()
     }
 
@@ -1310,7 +1311,7 @@ class ImageToImageViewModel : ViewModel() {
 
     // Validation
 
-    fun hasValidConfiguration(): Boolean {
+    override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
 
         return when (state.mode) {

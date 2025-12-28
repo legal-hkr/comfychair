@@ -11,7 +11,8 @@
     "negative_prompt": "blurry ugly bad",
     "has_negative_prompt": true,
     "has_cfg": true,
-    "has_dual_clip": false
+    "has_dual_clip": false,
+    "has_unet_name": true
   },
   "nodes": {
     "1": {

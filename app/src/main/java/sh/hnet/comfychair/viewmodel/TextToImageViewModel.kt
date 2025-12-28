@@ -7,14 +7,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
@@ -24,12 +17,13 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
-import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 import java.io.File
 import java.io.IOException
 
@@ -38,10 +32,10 @@ import java.io.IOException
  */
 data class WorkflowItem(
     val id: String,             // Workflow ID for editor (e.g., "tti_checkpoint_sdxl")
-    val name: String,           // User-friendly workflow name (e.g., "SDXL")
-    val displayName: String,    // Display name with type prefix (e.g., "[Checkpoint] SDXL")
+    override val name: String,           // User-friendly workflow name (e.g., "SDXL")
+    override val displayName: String,    // Display name with type prefix (e.g., "[Checkpoint] SDXL")
     val type: WorkflowType      // Workflow type for mode detection
-)
+) : WorkflowItemBase
 
 /**
  * UI state for the Text-to-Image screen
@@ -113,8 +107,8 @@ data class TextToImageUiState(
     val availableClips: List<String> = emptyList(),
     val availableLoras: List<String> = emptyList(),
 
-    // Generated image
-    val currentBitmap: Bitmap? = null,
+    // Generated image (preview)
+    val previewBitmap: Bitmap? = null,
 
     // Current image file info (for metadata extraction)
     val currentImageFilename: String? = null,
@@ -136,6 +130,7 @@ data class TextToImageUiState(
  * One-time events for Text-to-Image screen
  */
 sealed class TextToImageEvent {
+    data class ShowToast(val messageResId: Int) : TextToImageEvent()
     data class ShowToastMessage(val message: String) : TextToImageEvent()
 }
 
@@ -143,24 +138,9 @@ sealed class TextToImageEvent {
  * ViewModel for the Text-to-Image screen.
  * Manages configuration state, model selection, and image generation.
  */
-class TextToImageViewModel : ViewModel() {
+class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToImageEvent>() {
 
-    // State
-    private val _uiState = MutableStateFlow(TextToImageUiState())
-    val uiState: StateFlow<TextToImageUiState> = _uiState.asStateFlow()
-
-    private val _events = MutableSharedFlow<TextToImageEvent>()
-    val events: SharedFlow<TextToImageEvent> = _events.asSharedFlow()
-
-    private var comfyUIClient: ComfyUIClient? = null
-    private var context: Context? = null
-    private var workflowValuesStorage: WorkflowValuesStorage? = null
-
-    // Reference to GenerationViewModel for event handling
-    private var generationViewModelRef: GenerationViewModel? = null
-
-    // Track which promptId we've already cleared preview for (prevents duplicate clears on navigation)
-    private var lastClearedForPromptId: String? = null
+    override val initialState = TextToImageUiState()
 
     // Constants
     companion object {
@@ -173,19 +153,11 @@ class TextToImageViewModel : ViewModel() {
         private const val PREF_SELECTED_WORKFLOW = "selectedWorkflow"
     }
 
-    // Initialization
     /**
-     * Initialize the ViewModel with dependencies
+     * Called after base initialization is complete.
      */
-    fun initialize(context: Context, client: ComfyUIClient) {
-        if (this.context != null) return // Already initialized
-
+    override fun onInitialize() {
         DebugLogger.i(TAG, "Initializing")
-
-        this.context = context.applicationContext
-        this.comfyUIClient = client
-        WorkflowManager.ensureInitialized(context)
-        this.workflowValuesStorage = WorkflowValuesStorage(context)
 
         // Load workflows from resources
         loadWorkflows()
@@ -195,19 +167,20 @@ class TextToImageViewModel : ViewModel() {
 
         // Restore last generated image
         restoreLastGeneratedImage()
-
     }
 
     /**
      * Load available workflows from WorkflowManager and create unified list
      */
     private fun loadWorkflows() {
-        val ctx = context ?: run {
+        val ctx = applicationContext ?: run {
+            DebugLogger.w(TAG, "loadWorkflows: Context not available")
             return
         }
 
         val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT)
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_UNET)
+        DebugLogger.d(TAG, "loadWorkflows: Found ${checkpointWorkflows.size} checkpoint, ${unetWorkflows.size} UNET workflows")
 
         // Create unified workflow list with type prefix for display
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -252,13 +225,16 @@ class TextToImageViewModel : ViewModel() {
      */
     fun fetchModels() {
         val client = comfyUIClient ?: run {
+            DebugLogger.w(TAG, "fetchModels: Client not available")
             return
         }
 
         if (_uiState.value.modelsLoaded) {
+            DebugLogger.d(TAG, "fetchModels: Models already loaded, skipping")
             return
         }
 
+        DebugLogger.i(TAG, "fetchModels: Starting model fetch")
         _uiState.value = _uiState.value.copy(isLoadingModels = true)
 
         // Fetch all model types
@@ -271,6 +247,7 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchCheckpoints(client: ComfyUIClient) {
         client.fetchCheckpoints { checkpoints ->
+            DebugLogger.d(TAG, "fetchCheckpoints: Loaded ${checkpoints.size} checkpoints")
             // Use atomic update to avoid race conditions with concurrent callbacks
             _uiState.update { state ->
                 state.copy(
@@ -288,6 +265,7 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchUnets(client: ComfyUIClient) {
         client.fetchUNETs { unets ->
+            DebugLogger.d(TAG, "fetchUnets: Loaded ${unets.size} UNETs")
             _uiState.update { state ->
                 state.copy(
                     availableUnets = unets,
@@ -302,6 +280,7 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchVaes(client: ComfyUIClient) {
         client.fetchVAEs { vaes ->
+            DebugLogger.d(TAG, "fetchVaes: Loaded ${vaes.size} VAEs")
             _uiState.update { state ->
                 state.copy(
                     availableVaes = vaes,
@@ -316,6 +295,7 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchClips(client: ComfyUIClient) {
         client.fetchCLIPs { clips ->
+            DebugLogger.d(TAG, "fetchClips: Loaded ${clips.size} CLIPs")
             _uiState.update { state ->
                 state.copy(
                     availableClips = clips,
@@ -338,6 +318,7 @@ class TextToImageViewModel : ViewModel() {
 
     private fun fetchLoras(client: ComfyUIClient) {
         client.fetchLoRAs { loras ->
+            DebugLogger.d(TAG, "fetchLoras: Loaded ${loras.size} LoRAs")
             _uiState.update { state ->
                 state.copy(
                     availableLoras = loras,
@@ -346,14 +327,6 @@ class TextToImageViewModel : ViewModel() {
                 )
             }
         }
-    }
-
-    /**
-     * Validate model selection against available models
-     * Returns current if valid, otherwise defaults to first available
-     */
-    private fun validateModelSelection(current: String, available: List<String>): String {
-        return ValidationUtils.validateModelSelection(current, available)
     }
 
     // State management
@@ -386,6 +359,8 @@ class TextToImageViewModel : ViewModel() {
         val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
         val isCheckpoint = workflowItem.type == WorkflowType.TTI_CHECKPOINT
 
+        DebugLogger.d(TAG, "onWorkflowChange: $workflowName (isCheckpoint=$isCheckpoint)")
+
         // Save current workflow values before switching
         if (state.selectedWorkflow.isNotEmpty()) {
             saveWorkflowValues(state.selectedWorkflow, state.isCheckpointMode)
@@ -394,6 +369,7 @@ class TextToImageViewModel : ViewModel() {
         // Load new workflow's saved values or defaults
         val savedValues = storage.loadValues(workflowName)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
+        DebugLogger.d(TAG, "onWorkflowChange: hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null}")
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
@@ -510,7 +486,7 @@ class TextToImageViewModel : ViewModel() {
     // Unified parameter callbacks - route to appropriate mode-specific state
 
     fun onWidthChange(width: String) {
-        val error = ValidationUtils.validateDimension(width, context)
+        val error = ValidationUtils.validateDimension(width, applicationContext)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointWidth = width, widthError = error)
         } else {
@@ -520,7 +496,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun onHeightChange(height: String) {
-        val error = ValidationUtils.validateDimension(height, context)
+        val error = ValidationUtils.validateDimension(height, applicationContext)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointHeight = height, heightError = error)
         } else {
@@ -530,7 +506,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun onStepsChange(steps: String) {
-        val error = ValidationUtils.validateSteps(steps, context)
+        val error = ValidationUtils.validateSteps(steps, applicationContext)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointSteps = steps, stepsError = error)
         } else {
@@ -540,7 +516,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun onCfgChange(cfg: String) {
-        val error = ValidationUtils.validateCfg(cfg, context)
+        val error = ValidationUtils.validateCfg(cfg, applicationContext)
         if (_uiState.value.isCheckpointMode) {
             _uiState.value = _uiState.value.copy(checkpointCfg = cfg, cfgError = error)
         } else {
@@ -628,8 +604,8 @@ class TextToImageViewModel : ViewModel() {
     /**
      * Update the current bitmap (e.g., from preview or final image)
      */
-    fun onCurrentBitmapChange(bitmap: Bitmap?) {
-        _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
+    fun onPreviewBitmapChange(bitmap: Bitmap?) {
+        _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
         bitmap?.let { saveLastGeneratedImage(it) }
     }
 
@@ -643,14 +619,16 @@ class TextToImageViewModel : ViewModel() {
      */
     fun clearPreviewForExecution(promptId: String) {
         if (promptId == lastClearedForPromptId) {
+            DebugLogger.d(TAG, "clearPreviewForExecution: Already cleared for promptId=$promptId, skipping")
             return // Already cleared for this promptId
         }
+        DebugLogger.d(TAG, "clearPreviewForExecution: Clearing preview for promptId=$promptId")
         lastClearedForPromptId = promptId
         // Evict from cache so restoreLastGeneratedImage() won't restore the old preview
         // when navigating back to this screen during generation
         MediaStateHolder.evict(MediaStateHolder.MediaKey.TtiPreview)
         _uiState.value = _uiState.value.copy(
-            currentBitmap = null,
+            previewBitmap = null,
             currentImageFilename = null,
             currentImageSubfolder = null,
             currentImageType = null
@@ -660,7 +638,7 @@ class TextToImageViewModel : ViewModel() {
     fun clearPreview() {
         lastClearedForPromptId = null // Reset tracking when manually clearing
         _uiState.value = _uiState.value.copy(
-            currentBitmap = null,
+            previewBitmap = null,
             currentImageFilename = null,
             currentImageSubfolder = null,
             currentImageType = null
@@ -672,7 +650,7 @@ class TextToImageViewModel : ViewModel() {
      */
     private fun setCurrentImage(bitmap: Bitmap, filename: String, subfolder: String, type: String) {
         _uiState.value = _uiState.value.copy(
-            currentBitmap = bitmap,
+            previewBitmap = bitmap,
             currentImageFilename = filename,
             currentImageSubfolder = subfolder,
             currentImageType = type
@@ -687,6 +665,7 @@ class TextToImageViewModel : ViewModel() {
      * This registers this ViewModel as the active event handler.
      */
     fun startListening(generationViewModel: GenerationViewModel) {
+        DebugLogger.d(TAG, "startListening: Registering event handler")
         generationViewModelRef = generationViewModel
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
             handleGenerationEvent(event)
@@ -699,6 +678,7 @@ class TextToImageViewModel : ViewModel() {
      * as the handler may still be called for completion events.
      */
     fun stopListening(generationViewModel: GenerationViewModel) {
+        DebugLogger.d(TAG, "stopListening: Unregistering event handler")
         generationViewModel.unregisterEventHandler(OWNER_ID)
         if (!generationViewModel.generationState.value.isGenerating) {
             if (generationViewModelRef == generationViewModel) {
@@ -709,23 +689,30 @@ class TextToImageViewModel : ViewModel() {
 
     private fun handleGenerationEvent(event: GenerationEvent) {
         when (event) {
-            is GenerationEvent.PreviewImage -> onCurrentBitmapChange(event.bitmap)
+            is GenerationEvent.PreviewImage -> {
+                DebugLogger.d(TAG, "handleGenerationEvent: PreviewImage received")
+                onPreviewBitmapChange(event.bitmap)
+            }
             is GenerationEvent.ImageGenerated -> {
                 val promptId = event.promptId
+                DebugLogger.i(TAG, "handleGenerationEvent: ImageGenerated for prompt=$promptId")
                 fetchGeneratedImage(promptId) { success ->
+                    DebugLogger.d(TAG, "fetchGeneratedImage: success=$success")
                     if (success) {
                         generationViewModelRef?.completeGeneration(promptId)
                     }
                 }
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
+                DebugLogger.w(TAG, "handleGenerationEvent: ConnectionLostDuringGeneration")
                 viewModelScope.launch {
-                    val message = context?.getString(R.string.connection_lost_generation_may_continue)
+                    val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
                     _events.emit(TextToImageEvent.ShowToastMessage(message))
                 }
             }
             is GenerationEvent.Error -> {
+                DebugLogger.e(TAG, "handleGenerationEvent: Error - ${event.message}")
                 viewModelScope.launch {
                     _events.emit(TextToImageEvent.ShowToastMessage(event.message))
                 }
@@ -743,12 +730,15 @@ class TextToImageViewModel : ViewModel() {
     /**
      * Validate current configuration before generation
      */
-    fun validateConfiguration(): Boolean {
+    override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
 
-        if (state.positivePrompt.isBlank()) return false
+        if (state.positivePrompt.isBlank()) {
+            DebugLogger.d(TAG, "hasValidConfiguration: false (empty prompt)")
+            return false
+        }
 
-        return if (state.isCheckpointMode) {
+        val result = if (state.isCheckpointMode) {
             // Model validation: only require checkpoint if mapped
             val checkpointOk = !state.currentWorkflowHasCheckpointName || state.selectedCheckpoint.isNotEmpty()
 
@@ -778,6 +768,9 @@ class TextToImageViewModel : ViewModel() {
             ValidationUtils.validateSteps(state.unetSteps) == null &&
             cfgValid
         }
+
+        DebugLogger.d(TAG, "hasValidConfiguration: $result (mode=${if (state.isCheckpointMode) "checkpoint" else "unet"})")
+        return result
     }
 
     /**
@@ -929,7 +922,7 @@ class TextToImageViewModel : ViewModel() {
     }
 
     private fun saveConfiguration() {
-        val ctx = context ?: return
+        val ctx = applicationContext ?: return
         val state = _uiState.value
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -947,8 +940,10 @@ class TextToImageViewModel : ViewModel() {
     }
 
     private fun loadConfiguration() {
-        val ctx = context ?: return
+        val ctx = applicationContext ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        DebugLogger.d(TAG, "loadConfiguration: Loading saved preferences")
 
         val defaultPositivePrompt = SeasonalPrompts.getTextToImagePrompt()
 
@@ -971,6 +966,8 @@ class TextToImageViewModel : ViewModel() {
             else -> ""
         }
 
+        DebugLogger.d(TAG, "loadConfiguration: savedWorkflow=$savedWorkflow, loading=$workflowToLoad")
+
         // Load workflow and its values (this sets mode, capability flags, and values)
         if (workflowToLoad.isNotEmpty()) {
             // Load workflow values without saving (to avoid circular save)
@@ -992,6 +989,8 @@ class TextToImageViewModel : ViewModel() {
         // Load saved values or defaults
         val savedValues = storage.loadValues(workflowName)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
+
+        DebugLogger.d(TAG, "loadWorkflowValues: $workflowName (isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
@@ -1074,22 +1073,22 @@ class TextToImageViewModel : ViewModel() {
 
     private fun saveLastGeneratedImage(bitmap: Bitmap) {
         // Store in memory (or disk if disk-first mode)
-        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtiPreview, bitmap, context)
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.TtiPreview, bitmap, applicationContext)
     }
 
     private fun restoreLastGeneratedImage() {
         // Restore from cache (memory in memory-first mode, disk in disk-first mode)
-        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtiPreview, context)
+        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtiPreview, applicationContext)
         if (bitmap != null) {
-            _uiState.value = _uiState.value.copy(currentBitmap = bitmap)
+            _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
         }
     }
 
     // Image operations
 
     fun saveToGallery(onResult: (success: Boolean) -> Unit) {
-        val ctx = context ?: run { onResult(false); return }
-        val bitmap = _uiState.value.currentBitmap ?: run { onResult(false); return }
+        val ctx = applicationContext ?: run { onResult(false); return }
+        val bitmap = _uiState.value.previewBitmap ?: run { onResult(false); return }
 
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.png")
@@ -1103,16 +1102,21 @@ class TextToImageViewModel : ViewModel() {
                 ctx.contentResolver.openOutputStream(it)?.use { outputStream ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
                 }
+                DebugLogger.i(TAG, "saveToGallery: Image saved successfully")
                 onResult(true)
             } catch (e: IOException) {
+                DebugLogger.e(TAG, "saveToGallery: Failed to save image - ${e.message}")
                 onResult(false)
             }
-        } ?: onResult(false)
+        } ?: run {
+            DebugLogger.e(TAG, "saveToGallery: Failed to create media URI")
+            onResult(false)
+        }
     }
 
     fun saveToUri(uri: Uri, onResult: (success: Boolean) -> Unit) {
-        val ctx = context ?: run { onResult(false); return }
-        val bitmap = _uiState.value.currentBitmap ?: run { onResult(false); return }
+        val ctx = applicationContext ?: run { onResult(false); return }
+        val bitmap = _uiState.value.previewBitmap ?: run { onResult(false); return }
 
         try {
             ctx.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -1125,8 +1129,8 @@ class TextToImageViewModel : ViewModel() {
     }
 
     fun getShareIntent(): Intent? {
-        val ctx = context ?: return null
-        val bitmap = _uiState.value.currentBitmap ?: return null
+        val ctx = applicationContext ?: return null
+        val bitmap = _uiState.value.previewBitmap ?: return null
 
         val cachePath = ctx.cacheDir
         val filename = "share_image_${System.currentTimeMillis()}.png"

@@ -4,15 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -24,13 +17,14 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
-import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.VideoUtils
+import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
 /**
  * UI state for the view mode toggle
@@ -45,10 +39,10 @@ enum class ImageToVideoViewMode {
  */
 data class ItvWorkflowItem(
     val id: String,             // Workflow ID for editor
-    val name: String,           // User-friendly workflow name
-    val displayName: String,    // "[UNET] LightX2V"
+    override val name: String,           // User-friendly workflow name
+    override val displayName: String,    // "[UNET] LightX2V"
     val type: WorkflowType      // ITV_UNET
-)
+) : WorkflowItemBase
 
 /**
  * UI state for the Image-to-Video screen
@@ -140,24 +134,9 @@ sealed class ImageToVideoEvent {
 /**
  * ViewModel for the Image-to-Video screen
  */
-class ImageToVideoViewModel : ViewModel() {
+class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, ImageToVideoEvent>() {
 
-    // State
-    private val _uiState = MutableStateFlow(ImageToVideoUiState())
-    val uiState: StateFlow<ImageToVideoUiState> = _uiState.asStateFlow()
-
-    private val _events = MutableSharedFlow<ImageToVideoEvent>()
-    val events: SharedFlow<ImageToVideoEvent> = _events.asSharedFlow()
-
-    private var comfyUIClient: ComfyUIClient? = null
-    private var applicationContext: Context? = null
-    private var workflowValuesStorage: WorkflowValuesStorage? = null
-
-    // Reference to GenerationViewModel for event handling
-    private var generationViewModelRef: GenerationViewModel? = null
-
-    // Track which promptId we've already cleared preview for (prevents duplicate clears on navigation)
-    private var lastClearedForPromptId: String? = null
+    override val initialState = ImageToVideoUiState()
 
     // Constants
     companion object {
@@ -170,12 +149,8 @@ class ImageToVideoViewModel : ViewModel() {
         private const val KEY_POSITIVE_PROMPT = "positive_prompt"
     }
 
-    fun initialize(context: Context, client: ComfyUIClient) {
+    override fun onInitialize() {
         DebugLogger.i(TAG, "Initializing")
-        applicationContext = context.applicationContext
-        WorkflowManager.ensureInitialized(context)
-        workflowValuesStorage = WorkflowValuesStorage(context)
-        comfyUIClient = client
 
         loadWorkflows()
         restorePreferences()
@@ -209,6 +184,7 @@ class ImageToVideoViewModel : ViewModel() {
         val ctx = applicationContext ?: return
 
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV_UNET)
+        DebugLogger.d(TAG, "loadWorkflows: Found ${unetWorkflows.size} UNET workflows")
         val unetPrefix = ctx.getString(R.string.mode_unet)
 
         val unifiedWorkflows = unetWorkflows.map { workflow ->
@@ -234,10 +210,13 @@ class ImageToVideoViewModel : ViewModel() {
         val storage = workflowValuesStorage ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        DebugLogger.d(TAG, "restorePreferences: Loading saved preferences")
+
         // Load global preferences
         val savedWorkflow = prefs.getString(KEY_WORKFLOW, "") ?: ""
         val defaultPositivePrompt = SeasonalPrompts.getImageToVideoPrompt()
         val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
+        DebugLogger.d(TAG, "restorePreferences: savedWorkflow=$savedWorkflow")
 
         val workflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.any { it.name == savedWorkflow }) {
             savedWorkflow
@@ -347,6 +326,7 @@ class ImageToVideoViewModel : ViewModel() {
     private fun loadModels() {
         val client = comfyUIClient ?: return
 
+        DebugLogger.i(TAG, "loadModels: Starting model fetch")
         viewModelScope.launch {
             // Load UNETs
             val unets = withContext(Dispatchers.IO) {
@@ -356,6 +336,7 @@ class ImageToVideoViewModel : ViewModel() {
                     }
                 }
             }
+            DebugLogger.d(TAG, "loadModels: Loaded ${unets.size} UNETs")
             // Use atomic update to avoid race conditions
             _uiState.update { state ->
                 val highnoiseUnet = state.deferredHighnoiseUnet?.takeIf { it in unets }
@@ -379,6 +360,7 @@ class ImageToVideoViewModel : ViewModel() {
                     }
                 }
             }
+            DebugLogger.d(TAG, "loadModels: Loaded ${loras.size} LoRAs")
             _uiState.update { state ->
                 val highnoiseLora = state.deferredHighnoiseLora?.takeIf { it in loras }
                     ?: loras.firstOrNull() ?: ""
@@ -405,6 +387,7 @@ class ImageToVideoViewModel : ViewModel() {
                     }
                 }
             }
+            DebugLogger.d(TAG, "loadModels: Loaded ${vaes.size} VAEs")
             _uiState.update { state ->
                 val vae = state.deferredVae?.takeIf { it in vaes }
                     ?: vaes.firstOrNull() ?: ""
@@ -423,6 +406,7 @@ class ImageToVideoViewModel : ViewModel() {
                     }
                 }
             }
+            DebugLogger.d(TAG, "loadModels: Loaded ${clips.size} CLIPs")
             _uiState.update { state ->
                 val clip = state.deferredClip?.takeIf { it in clips }
                     ?: clips.firstOrNull() ?: ""
@@ -755,7 +739,7 @@ class ImageToVideoViewModel : ViewModel() {
         return workflow
     }
 
-    fun hasValidConfiguration(): Boolean {
+    override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
         return state.sourceImage != null &&
                 state.selectedWorkflow.isNotEmpty() &&

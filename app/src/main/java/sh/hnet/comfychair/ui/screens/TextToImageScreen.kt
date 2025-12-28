@@ -124,6 +124,9 @@ fun TextToImageScreen(
     LaunchedEffect(Unit) {
         textToImageViewModel.events.collect { event ->
             when (event) {
+                is TextToImageEvent.ShowToast -> {
+                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                }
                 is TextToImageEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
@@ -143,7 +146,7 @@ fun TextToImageScreen(
             windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
                 // Save to gallery button (only when image exists)
-                if (uiState.currentBitmap != null) {
+                if (uiState.previewBitmap != null) {
                     IconButton(onClick = {
                         textToImageViewModel.saveToGallery { success ->
                             val messageRes = if (success) R.string.image_saved_to_gallery else R.string.failed_save_image
@@ -186,9 +189,9 @@ fun TextToImageScreen(
                 .weight(1f)
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable(enabled = uiState.currentBitmap != null && !isThisScreenExecuting) {
+                .clickable(enabled = uiState.previewBitmap != null && !isThisScreenExecuting) {
                     // Launch MediaViewer for single image
-                    uiState.currentBitmap?.let { bitmap ->
+                    uiState.previewBitmap?.let { bitmap ->
                         val intent = MediaViewerActivity.createSingleImageIntent(
                             context = context,
                             bitmap = bitmap,
@@ -203,9 +206,9 @@ fun TextToImageScreen(
                 },
             contentAlignment = Alignment.Center
         ) {
-            if (uiState.currentBitmap != null) {
+            if (uiState.previewBitmap != null) {
                 Image(
-                    bitmap = uiState.currentBitmap!!.asImageBitmap(),
+                    bitmap = uiState.previewBitmap!!.asImageBitmap(),
                     contentDescription = stringResource(R.string.content_description_generated_image),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -252,7 +255,7 @@ fun TextToImageScreen(
                 isExecuting = queueState.isExecuting,
                 isEnabled = uiState.positivePrompt.isNotBlank(),
                 onGenerate = {
-                    if (textToImageViewModel.validateConfiguration()) {
+                    if (textToImageViewModel.hasValidConfiguration()) {
                         val workflowJson = textToImageViewModel.prepareWorkflowJson()
                         if (workflowJson != null) {
                             generationViewModel.startGeneration(
@@ -278,7 +281,7 @@ fun TextToImageScreen(
                 },
                 onCancelCurrent = { generationViewModel.cancelGeneration { } },
                 onAddToFrontOfQueue = {
-                    if (textToImageViewModel.validateConfiguration()) {
+                    if (textToImageViewModel.hasValidConfiguration()) {
                         val workflowJson = textToImageViewModel.prepareWorkflowJson()
                         if (workflowJson != null) {
                             generationViewModel.startGeneration(
