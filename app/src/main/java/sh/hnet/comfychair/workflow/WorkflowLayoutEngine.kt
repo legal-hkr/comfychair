@@ -15,7 +15,8 @@ class WorkflowLayoutEngine {
         const val INPUT_ROW_HEIGHT = 40f
 
         // Serpentine layout constants
-        const val COLUMNS_PER_ROW = 2
+        const val MAX_NODES_PER_COLUMN = 8
+        const val MIN_COLUMNS = 2
         const val ROW_SPACING = 120f
     }
 
@@ -218,8 +219,17 @@ class WorkflowLayoutEngine {
     }
 
     /**
+     * Calculate the number of columns based on total node count.
+     * Ensures no more than MAX_NODES_PER_COLUMN nodes per column for readability.
+     */
+    private fun calculateColumnsForNodeCount(nodeCount: Int): Int {
+        val calculated = kotlin.math.ceil(nodeCount / MAX_NODES_PER_COLUMN.toFloat()).toInt()
+        return maxOf(MIN_COLUMNS, calculated)
+    }
+
+    /**
      * Calculate final x, y positions for all nodes using serpentine layout.
-     * Layers are arranged in rows of COLUMNS_PER_ROW columns each.
+     * Layers are arranged in rows with dynamic column count based on node count.
      */
     private fun positionNodes(
         graph: WorkflowGraph,
@@ -228,8 +238,11 @@ class WorkflowLayoutEngine {
         val updatedNodes = graph.nodes.toMutableList()
         val nodeIndexMap = graph.nodes.mapIndexed { index, node -> node.id to index }.toMap()
 
+        // Calculate columns based on total nodes for optimal readability
+        val columnsPerRow = calculateColumnsForNodeCount(graph.nodes.size)
+
         // Group layers into rows
-        val rows = layers.chunked(COLUMNS_PER_ROW)
+        val rows = layers.chunked(columnsPerRow)
 
         // First pass: calculate the height of each row (max height of all layers in that row)
         val rowHeights = rows.map { rowLayers ->

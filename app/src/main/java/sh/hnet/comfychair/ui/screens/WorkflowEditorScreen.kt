@@ -11,6 +11,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -428,6 +429,10 @@ fun WorkflowEditorScreen(
                     shouldAnimateZoomChange.value = true
                     viewModel.zoomOut()
                 },
+                onSetZoom100 = {
+                    shouldAnimateZoomChange.value = true
+                    viewModel.setZoom100()
+                },
                 onResetZoom = {
                     shouldAnimateZoomChange.value = true
                     viewModel.resetView()
@@ -637,6 +642,7 @@ private fun WorkflowEditorFloatingToolbar(
     onConfirmMapping: () -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
+    onSetZoom100: () -> Unit,
     onResetZoom: () -> Unit,
     onEnterEditMode: () -> Unit,
     onExitEditMode: () -> Unit,
@@ -805,11 +811,17 @@ private fun WorkflowEditorFloatingToolbar(
                         )
                     }
 
-                    // Zoom percentage
+                    // Zoom percentage (tappable to reset to 100%)
                     Text(
                         text = stringResource(R.string.workflow_editor_zoom_percentage, (scale * 100).toInt()),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                        modifier = Modifier
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = onSetZoom100
+                            )
+                            .padding(horizontal = 4.dp)
                     )
 
                     // Zoom in (tonal button)

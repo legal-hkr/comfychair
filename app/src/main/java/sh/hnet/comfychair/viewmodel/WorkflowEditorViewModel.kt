@@ -83,7 +83,7 @@ class WorkflowEditorViewModel : ViewModel() {
     private var workflowValuesStorage: WorkflowValuesStorage? = null
 
     // Fit mode for reset zoom button toggle
-    private enum class FitMode { FIT_ALL, FIT_WIDTH }
+    private enum class FitMode { FIT_ALL, FIT_WIDTH, FIT_HEIGHT }
     private var lastFitMode: FitMode = FitMode.FIT_ALL
 
     // Mutable graph for editing operations
@@ -1457,6 +1457,16 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
+     * Set zoom to exactly 100%, centered on the canvas center
+     */
+    fun setZoom100() {
+        val currentScale = _uiState.value.scale
+        if (currentScale != 1f) {
+            zoomTowardCenter(1f / currentScale)
+        }
+    }
+
+    /**
      * Zoom by a factor while keeping the canvas center stationary
      */
     private fun zoomTowardCenter(zoomFactor: Float) {
@@ -1542,14 +1552,43 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Reset view - toggles between fit all and fit width modes
-     * 1st tap: fit entire graph (show all)
-     * 2nd tap: fit to width (crop height, show top)
+     * Fit the graph height to the screen, showing the left side of the graph
+     */
+    private fun fitToHeight() {
+        val bounds = _uiState.value.graphBounds
+        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
+            return
+        }
+
+        // Small top padding, reserve space for bottom toolbar
+        val topPadding = 8f
+        val bottomToolbarPadding = 100f
+        val availableHeight = canvasHeight - topPadding - bottomToolbarPadding
+
+        // Calculate scale to fit height only
+        val scale = minOf(availableHeight / bounds.height, 1.5f) // max 1.5x
+
+        // Calculate offset - anchor to left horizontally, anchor to top vertically
+        val leftPadding = 16f
+        val offsetX = leftPadding - bounds.minX * scale
+        val offsetY = topPadding - bounds.minY * scale
+
+        _uiState.value = _uiState.value.copy(
+            scale = scale,
+            offset = Offset(offsetX, offsetY)
+        )
+        lastFitMode = FitMode.FIT_HEIGHT
+    }
+
+    /**
+     * Toggle fit mode - switches between fit to height and fit to width.
+     * Initial view is "fit all", then toggles between height and width.
      */
     fun resetView() {
         when (lastFitMode) {
-            FitMode.FIT_ALL -> fitToWidth()
-            FitMode.FIT_WIDTH -> fitToScreen()
+            FitMode.FIT_ALL -> fitToHeight()
+            FitMode.FIT_HEIGHT -> fitToWidth()
+            FitMode.FIT_WIDTH -> fitToHeight()
         }
     }
 
