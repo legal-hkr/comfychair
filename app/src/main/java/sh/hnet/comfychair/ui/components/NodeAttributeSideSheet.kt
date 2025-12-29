@@ -55,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.InputDefinition
@@ -205,19 +206,12 @@ private fun InputEditor(
     val type = definition?.type ?: guessType(input.currentValue)
 
     Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = input.name,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Reset button (only show if different from original)
-            if (input.currentValue != input.originalValue) {
+        // Reset button row (only show if value differs from original)
+        if (input.currentValue != input.originalValue) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 IconButton(onClick = onReset) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
@@ -228,8 +222,6 @@ private fun InputEditor(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
         when {
             type == "ENUM" || definition?.options != null -> {
                 val options = definition?.options ?: emptyList()
@@ -237,12 +229,14 @@ private fun InputEditor(
 
                 if (isImageSelector) {
                     ImageEnumEditor(
+                        label = input.name,
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         onValueChange = { onValueChange(it) }
                     )
                 } else {
                     EnumEditor(
+                        label = input.name,
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         onValueChange = { onValueChange(it) }
@@ -251,30 +245,36 @@ private fun InputEditor(
             }
             type == "BOOLEAN" || input.currentValue is Boolean -> {
                 BooleanEditor(
+                    label = input.name,
                     value = (input.currentValue as? Boolean) ?: false,
                     onValueChange = { onValueChange(it) }
                 )
             }
             type == "INT" -> {
                 IntEditor(
+                    label = input.name,
                     value = input.currentValue?.toString() ?: "",
                     min = definition?.min?.toInt(),
                     max = definition?.max?.toInt(),
+                    step = definition?.step?.toInt(),
                     onValueChange = { onValueChange(it) },
                     context = context
                 )
             }
             type == "FLOAT" -> {
                 FloatEditor(
+                    label = input.name,
                     value = input.currentValue?.toString() ?: "",
                     min = definition?.min?.toFloat(),
                     max = definition?.max?.toFloat(),
+                    step = definition?.step?.toFloat(),
                     onValueChange = { onValueChange(it) },
                     context = context
                 )
             }
             type == "STRING" -> {
                 StringEditor(
+                    label = input.name,
                     value = input.currentValue?.toString() ?: "",
                     multiline = definition?.multiline ?: false,
                     onValueChange = { onValueChange(it) },
@@ -284,6 +284,7 @@ private fun InputEditor(
             else -> {
                 // Fallback: treat as string
                 StringEditor(
+                    label = input.name,
                     value = input.currentValue?.toString() ?: "",
                     multiline = false,
                     onValueChange = { onValueChange(it) },
@@ -313,6 +314,7 @@ private fun guessType(value: Any?): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EnumEditor(
+    label: String,
     value: String,
     options: List<String>,
     onValueChange: (String) -> Unit
@@ -327,6 +329,7 @@ private fun EnumEditor(
             value = value,
             onValueChange = {},
             readOnly = true,
+            label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -355,14 +358,19 @@ private fun EnumEditor(
  */
 @Composable
 private fun BooleanEditor(
+    label: String,
     value: Boolean,
     onValueChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start,
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium
+        )
         Switch(
             checked = value,
             onCheckedChange = onValueChange
@@ -375,36 +383,38 @@ private fun BooleanEditor(
  */
 @Composable
 private fun IntEditor(
+    label: String,
     value: String,
     min: Int?,
     max: Int?,
+    step: Int?,
     onValueChange: (Int) -> Unit,
     context: android.content.Context
 ) {
     var textValue by remember(value) { mutableStateOf(value) }
     val error = ValidationUtils.validateInt(textValue, context, min, max)
 
-    OutlinedTextField(
+    // Construct range hint
+    val hint = when {
+        min != null && max != null -> context.getString(R.string.node_editor_range_min_max, min.toString(), max.toString())
+        min != null -> context.getString(R.string.node_editor_range_min, min.toString())
+        max != null -> context.getString(R.string.node_editor_range_max, max.toString())
+        else -> null
+    }
+
+    NumericStepperField(
         value = textValue,
         onValueChange = { newValue ->
             textValue = newValue
             newValue.toIntOrNull()?.let { onValueChange(it) }
         },
-        isError = error != null,
-        supportingText = {
-            if (error != null) {
-                Text(error)
-            } else if (min != null || max != null) {
-                val rangeText = when {
-                    min != null && max != null -> stringResource(R.string.node_editor_range_min_max, min.toString(), max.toString())
-                    min != null -> stringResource(R.string.node_editor_range_min, min.toString())
-                    else -> stringResource(R.string.node_editor_range_max, max.toString())
-                }
-                Text(rangeText)
-            }
-        },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
+        label = label,
+        min = (min ?: Int.MIN_VALUE).toFloat(),
+        max = (max ?: Int.MAX_VALUE).toFloat(),
+        step = (step ?: 1).toFloat(),
+        decimalPlaces = 0,
+        error = error,
+        hint = hint,
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -414,36 +424,38 @@ private fun IntEditor(
  */
 @Composable
 private fun FloatEditor(
+    label: String,
     value: String,
     min: Float?,
     max: Float?,
+    step: Float?,
     onValueChange: (Float) -> Unit,
     context: android.content.Context
 ) {
     var textValue by remember(value) { mutableStateOf(value) }
     val error = ValidationUtils.validateFloat(textValue, context, min, max)
 
-    OutlinedTextField(
+    // Construct range hint
+    val hint = when {
+        min != null && max != null -> context.getString(R.string.node_editor_range_min_max, min.toString(), max.toString())
+        min != null -> context.getString(R.string.node_editor_range_min, min.toString())
+        max != null -> context.getString(R.string.node_editor_range_max, max.toString())
+        else -> null
+    }
+
+    NumericStepperField(
         value = textValue,
         onValueChange = { newValue ->
             textValue = newValue
             newValue.toFloatOrNull()?.let { onValueChange(it) }
         },
-        isError = error != null,
-        supportingText = {
-            if (error != null) {
-                Text(error)
-            } else if (min != null || max != null) {
-                val rangeText = when {
-                    min != null && max != null -> stringResource(R.string.node_editor_range_min_max, min.toString(), max.toString())
-                    min != null -> stringResource(R.string.node_editor_range_min, min.toString())
-                    else -> stringResource(R.string.node_editor_range_max, max.toString())
-                }
-                Text(rangeText)
-            }
-        },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        singleLine = true,
+        label = label,
+        min = min ?: Float.MIN_VALUE,
+        max = max ?: Float.MAX_VALUE,
+        step = step ?: 0.1f,
+        decimalPlaces = 2,
+        error = error,
+        hint = hint,
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -453,6 +465,7 @@ private fun FloatEditor(
  */
 @Composable
 private fun StringEditor(
+    label: String,
     value: String,
     multiline: Boolean,
     onValueChange: (String) -> Unit,
@@ -467,6 +480,7 @@ private fun StringEditor(
             textValue = newValue
             onValueChange(newValue)
         },
+        label = { Text(label) },
         isError = error != null,
         supportingText = if (error != null) {
             { Text(error) }
@@ -501,6 +515,7 @@ private fun isImageOptions(options: List<String>): Boolean {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ImageEnumEditor(
+    label: String,
     value: String,
     options: List<String>,
     onValueChange: (String) -> Unit
@@ -516,6 +531,7 @@ private fun ImageEnumEditor(
                 value = value,
                 onValueChange = {},
                 readOnly = true,
+                label = { Text(label) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .fillMaxWidth()

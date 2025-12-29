@@ -31,6 +31,7 @@ import java.util.Locale
  * @param step Step size for increment/decrement
  * @param decimalPlaces Number of decimal places (0 for integers)
  * @param error Error message to display, or null
+ * @param hint Hint text to display below the field (shown when no error)
  * @param enabled Whether the field and buttons are enabled
  * @param modifier Modifier for the text field
  */
@@ -44,6 +45,7 @@ fun NumericStepperField(
     step: Float,
     decimalPlaces: Int = 0,
     error: String? = null,
+    hint: String? = null,
     enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -60,7 +62,11 @@ fun NumericStepperField(
             keyboardType = if (decimalPlaces > 0) KeyboardType.Decimal else KeyboardType.Number
         ),
         isError = error != null,
-        supportingText = error?.let { { Text(it) } },
+        supportingText = when {
+            error != null -> { { Text(error) } }
+            hint != null -> { { Text(hint) } }
+            else -> null
+        },
         modifier = modifier,
         singleLine = true,
         enabled = enabled,
