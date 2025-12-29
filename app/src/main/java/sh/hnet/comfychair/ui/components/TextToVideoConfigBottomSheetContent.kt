@@ -21,10 +21,10 @@ import sh.hnet.comfychair.ui.components.shared.LengthFpsRow
 import sh.hnet.comfychair.viewmodel.TextToVideoUiState
 
 /**
- * Content for the video configuration bottom sheet
+ * Content for the text-to-video configuration bottom sheet
  */
 @Composable
-fun VideoConfigBottomSheetContent(
+fun TextToVideoConfigBottomSheetContent(
     uiState: TextToVideoUiState,
     onWorkflowChange: (String) -> Unit,
     onViewWorkflow: () -> Unit,

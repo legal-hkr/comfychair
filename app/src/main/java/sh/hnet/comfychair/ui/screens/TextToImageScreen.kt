@@ -55,7 +55,7 @@ import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
-import sh.hnet.comfychair.ui.components.ConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.TextToImageConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
@@ -348,7 +348,7 @@ fun TextToImageScreen(
             sheetState = sheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
-            ConfigBottomSheetContent(
+            TextToImageConfigBottomSheetContent(
                 uiState = uiState,
                 // Unified workflow callback
                 onWorkflowChange = textToImageViewModel::onWorkflowChange,

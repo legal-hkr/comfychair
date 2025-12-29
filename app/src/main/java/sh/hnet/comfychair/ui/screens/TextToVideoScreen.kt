@@ -61,7 +61,7 @@ import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
-import sh.hnet.comfychair.ui.components.VideoConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.TextToVideoConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
@@ -369,7 +369,7 @@ fun TextToVideoScreen(
             sheetState = configSheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
-            VideoConfigBottomSheetContent(
+            TextToVideoConfigBottomSheetContent(
                 uiState = uiState,
                 onWorkflowChange = textToVideoViewModel::onWorkflowChange,
                 onViewWorkflow = {
