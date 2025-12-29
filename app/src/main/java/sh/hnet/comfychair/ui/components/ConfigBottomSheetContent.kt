@@ -42,6 +42,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
+import sh.hnet.comfychair.ui.components.shared.StepperInputRow
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 import sh.hnet.comfychair.viewmodel.WorkflowItem
 
@@ -178,82 +180,41 @@ private fun CheckpointModeContent(
     if (uiState.currentWorkflowHasWidth || uiState.currentWorkflowHasHeight) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasWidth) {
-                OutlinedTextField(
-                    value = uiState.checkpointWidth,
-                    onValueChange = onWidthChange,
-                    label = { Text(stringResource(R.string.label_width)) },
-                    isError = uiState.widthError != null && uiState.isCheckpointMode,
-                    supportingText = if (uiState.widthError != null && uiState.isCheckpointMode) {
-                        { Text(uiState.widthError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasWidth && uiState.currentWorkflowHasHeight) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasHeight) {
-                OutlinedTextField(
-                    value = uiState.checkpointHeight,
-                    onValueChange = onHeightChange,
-                    label = { Text(stringResource(R.string.label_height)) },
-                    isError = uiState.heightError != null && uiState.isCheckpointMode,
-                    supportingText = if (uiState.heightError != null && uiState.isCheckpointMode) {
-                        { Text(uiState.heightError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        DimensionStepperRow(
+            width = uiState.checkpointWidth,
+            onWidthChange = onWidthChange,
+            widthError = if (uiState.isCheckpointMode) uiState.widthError else null,
+            height = uiState.checkpointHeight,
+            onHeightChange = onHeightChange,
+            heightError = if (uiState.isCheckpointMode) uiState.heightError else null,
+            showWidth = uiState.currentWorkflowHasWidth,
+            showHeight = uiState.currentWorkflowHasHeight
+        )
     }
 
     // Steps and CFG (conditional)
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasSteps) {
-                OutlinedTextField(
-                    value = uiState.checkpointSteps,
-                    onValueChange = onStepsChange,
-                    label = { Text(stringResource(R.string.label_steps)) },
-                    isError = uiState.stepsError != null && uiState.isCheckpointMode,
-                    supportingText = if (uiState.stepsError != null && uiState.isCheckpointMode) {
-                        { Text(uiState.stepsError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasCfg) {
-                OutlinedTextField(
-                    value = uiState.checkpointCfg,
-                    onValueChange = onCfgChange,
-                    label = { Text(stringResource(R.string.label_cfg)) },
-                    isError = uiState.cfgError != null && uiState.isCheckpointMode,
-                    supportingText = if (uiState.cfgError != null && uiState.isCheckpointMode) {
-                        { Text(uiState.cfgError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        StepperInputRow(
+            value1 = uiState.checkpointSteps,
+            label1 = stringResource(R.string.label_steps),
+            onValue1Change = onStepsChange,
+            error1 = if (uiState.isCheckpointMode) uiState.stepsError else null,
+            showField1 = uiState.currentWorkflowHasSteps,
+            min1 = 1f,
+            max1 = 255f,
+            step1 = 1f,
+            value2 = uiState.checkpointCfg,
+            label2 = stringResource(R.string.label_cfg),
+            onValue2Change = onCfgChange,
+            error2 = if (uiState.isCheckpointMode) uiState.cfgError else null,
+            showField2 = uiState.currentWorkflowHasCfg,
+            min2 = 0f,
+            max2 = 100f,
+            step2 = 0.1f,
+            decimalPlaces2 = 1
+        )
     }
 
     // Sampler dropdown (conditional)
@@ -373,82 +334,41 @@ private fun UnetModeContent(
     if (uiState.currentWorkflowHasWidth || uiState.currentWorkflowHasHeight) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasWidth) {
-                OutlinedTextField(
-                    value = uiState.unetWidth,
-                    onValueChange = onWidthChange,
-                    label = { Text(stringResource(R.string.label_width)) },
-                    isError = uiState.widthError != null && !uiState.isCheckpointMode,
-                    supportingText = if (uiState.widthError != null && !uiState.isCheckpointMode) {
-                        { Text(uiState.widthError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasWidth && uiState.currentWorkflowHasHeight) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasHeight) {
-                OutlinedTextField(
-                    value = uiState.unetHeight,
-                    onValueChange = onHeightChange,
-                    label = { Text(stringResource(R.string.label_height)) },
-                    isError = uiState.heightError != null && !uiState.isCheckpointMode,
-                    supportingText = if (uiState.heightError != null && !uiState.isCheckpointMode) {
-                        { Text(uiState.heightError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        DimensionStepperRow(
+            width = uiState.unetWidth,
+            onWidthChange = onWidthChange,
+            widthError = if (!uiState.isCheckpointMode) uiState.widthError else null,
+            height = uiState.unetHeight,
+            onHeightChange = onHeightChange,
+            heightError = if (!uiState.isCheckpointMode) uiState.heightError else null,
+            showWidth = uiState.currentWorkflowHasWidth,
+            showHeight = uiState.currentWorkflowHasHeight
+        )
     }
 
     // Steps and CFG (conditional)
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasSteps) {
-                OutlinedTextField(
-                    value = uiState.unetSteps,
-                    onValueChange = onStepsChange,
-                    label = { Text(stringResource(R.string.label_steps)) },
-                    isError = uiState.stepsError != null && !uiState.isCheckpointMode,
-                    supportingText = if (uiState.stepsError != null && !uiState.isCheckpointMode) {
-                        { Text(uiState.stepsError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasCfg) {
-                OutlinedTextField(
-                    value = uiState.unetCfg,
-                    onValueChange = onCfgChange,
-                    label = { Text(stringResource(R.string.label_cfg)) },
-                    isError = uiState.cfgError != null && !uiState.isCheckpointMode,
-                    supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
-                        { Text(uiState.cfgError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        StepperInputRow(
+            value1 = uiState.unetSteps,
+            label1 = stringResource(R.string.label_steps),
+            onValue1Change = onStepsChange,
+            error1 = if (!uiState.isCheckpointMode) uiState.stepsError else null,
+            showField1 = uiState.currentWorkflowHasSteps,
+            min1 = 1f,
+            max1 = 255f,
+            step1 = 1f,
+            value2 = uiState.unetCfg,
+            label2 = stringResource(R.string.label_cfg),
+            onValue2Change = onCfgChange,
+            error2 = if (!uiState.isCheckpointMode) uiState.cfgError else null,
+            showField2 = uiState.currentWorkflowHasCfg,
+            min2 = 0f,
+            max2 = 100f,
+            step2 = 0.1f,
+            decimalPlaces2 = 1
+        )
     }
 
     // Sampler dropdown (conditional)

@@ -273,6 +273,8 @@
     <string name="content_description_reference_image_1">参考图像 1</string>
     <string name="content_description_reference_image_2">参考图像 2</string>
     <string name="content_description_source_image">源图像</string>
+    <string name="content_description_decrease">减少值</string>
+    <string name="content_description_increase">增加值</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">暂无图片</string>

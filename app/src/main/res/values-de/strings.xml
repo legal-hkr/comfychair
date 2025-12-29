@@ -290,6 +290,8 @@
     <string name="content_description_reference_image_1">Referenzbild 1</string>
     <string name="content_description_reference_image_2">Referenzbild 2</string>
     <string name="content_description_source_image">Quellbild</string>
+    <string name="content_description_decrease">Wert verringern</string>
+    <string name="content_description_increase">Wert erhöhen</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">Noch keine Bilder</string>

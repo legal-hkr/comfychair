@@ -15,9 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.shared.DimensionInputRow
+import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
 import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
-import sh.hnet.comfychair.ui.components.shared.NumericInputRow
+import sh.hnet.comfychair.ui.components.shared.StepperInputRow
 import sh.hnet.comfychair.viewmodel.TextToVideoUiState
 
 /**
@@ -185,7 +185,7 @@ fun VideoConfigBottomSheetContent(
 
         // Width and Height row (show if either is present)
         if (uiState.currentWorkflowHasWidth || uiState.currentWorkflowHasHeight) {
-            DimensionInputRow(
+            DimensionStepperRow(
                 width = uiState.width,
                 onWidthChange = onWidthChange,
                 widthError = uiState.widthError,
@@ -201,17 +201,23 @@ fun VideoConfigBottomSheetContent(
 
         // Length and FPS row (show if either is present)
         if (uiState.currentWorkflowHasLength || uiState.currentWorkflowHasFrameRate) {
-            NumericInputRow(
+            StepperInputRow(
                 value1 = uiState.length,
                 label1 = stringResource(R.string.length_label),
                 onValue1Change = onLengthChange,
                 error1 = uiState.lengthError,
                 showField1 = uiState.currentWorkflowHasLength,
+                min1 = 1f,
+                max1 = 129f,
+                step1 = 4f,
                 value2 = uiState.fps,
                 label2 = stringResource(R.string.fps_label),
                 onValue2Change = onFpsChange,
                 error2 = uiState.fpsError,
-                showField2 = uiState.currentWorkflowHasFrameRate
+                showField2 = uiState.currentWorkflowHasFrameRate,
+                min2 = 1f,
+                max2 = 120f,
+                step2 = 1f
             )
 
             Spacer(modifier = Modifier.height(16.dp))

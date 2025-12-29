@@ -58,6 +58,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.ui.components.shared.NumericStepperField
+import sh.hnet.comfychair.ui.components.shared.StepperInputRow
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.ImageToImageUiState
 import sh.hnet.comfychair.viewmodel.IteWorkflowItem
@@ -411,15 +413,15 @@ private fun EditingModeContent(
 
     // Megapixels (optional)
     if (uiState.currentWorkflowHasMegapixels) {
-        OutlinedTextField(
+        NumericStepperField(
             value = uiState.editingMegapixels,
             onValueChange = onEditingMegapixelsChange,
-            label = { Text(stringResource(R.string.megapixels_label)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            isError = uiState.megapixelsError != null && uiState.mode == ImageToImageMode.EDITING,
-            supportingText = if (uiState.megapixelsError != null && uiState.mode == ImageToImageMode.EDITING) {
-                { Text(uiState.megapixelsError!!) }
-            } else null,
+            label = stringResource(R.string.megapixels_label),
+            min = 0.1f,
+            max = 8.3f,
+            step = 0.1f,
+            decimalPlaces = 1,
+            error = if (uiState.mode == ImageToImageMode.EDITING) uiState.megapixelsError else null,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -428,37 +430,25 @@ private fun EditingModeContent(
 
     // Steps and CFG row (show if either is present)
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasSteps) {
-                OutlinedTextField(
-                    value = uiState.editingSteps,
-                    onValueChange = onEditingStepsChange,
-                    label = { Text(stringResource(R.string.label_steps)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasCfg) {
-                OutlinedTextField(
-                    value = uiState.editingCfg,
-                    onValueChange = onEditingCfgChange,
-                    label = { Text(stringResource(R.string.label_cfg)) },
-                    isError = uiState.cfgError != null && uiState.mode == ImageToImageMode.EDITING,
-                    supportingText = if (uiState.cfgError != null && uiState.mode == ImageToImageMode.EDITING) {
-                        { Text(uiState.cfgError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        StepperInputRow(
+            value1 = uiState.editingSteps,
+            label1 = stringResource(R.string.label_steps),
+            onValue1Change = onEditingStepsChange,
+            error1 = if (uiState.mode == ImageToImageMode.EDITING) uiState.stepsError else null,
+            showField1 = uiState.currentWorkflowHasSteps,
+            min1 = 1f,
+            max1 = 255f,
+            step1 = 1f,
+            value2 = uiState.editingCfg,
+            label2 = stringResource(R.string.label_cfg),
+            onValue2Change = onEditingCfgChange,
+            error2 = if (uiState.mode == ImageToImageMode.EDITING) uiState.cfgError else null,
+            showField2 = uiState.currentWorkflowHasCfg,
+            min2 = 0f,
+            max2 = 100f,
+            step2 = 0.1f,
+            decimalPlaces2 = 1
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -679,13 +669,15 @@ private fun CheckpointModeContent(
 
     // Megapixels (optional)
     if (uiState.currentWorkflowHasMegapixels) {
-        OutlinedTextField(
+        NumericStepperField(
             value = uiState.megapixels,
             onValueChange = onMegapixelsChange,
-            label = { Text(stringResource(R.string.megapixels_label)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            isError = uiState.megapixelsError != null,
-            supportingText = uiState.megapixelsError?.let { { Text(it) } },
+            label = stringResource(R.string.megapixels_label),
+            min = 0.1f,
+            max = 8.3f,
+            step = 0.1f,
+            decimalPlaces = 1,
+            error = uiState.megapixelsError,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -694,37 +686,25 @@ private fun CheckpointModeContent(
 
     // Steps and CFG row (show if either is present)
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasSteps) {
-                OutlinedTextField(
-                    value = uiState.checkpointSteps,
-                    onValueChange = onStepsChange,
-                    label = { Text(stringResource(R.string.label_steps)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasCfg) {
-                OutlinedTextField(
-                    value = uiState.checkpointCfg,
-                    onValueChange = onCfgChange,
-                    label = { Text(stringResource(R.string.label_cfg)) },
-                    isError = uiState.cfgError != null && uiState.isCheckpointMode,
-                    supportingText = if (uiState.cfgError != null && uiState.isCheckpointMode) {
-                        { Text(uiState.cfgError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        StepperInputRow(
+            value1 = uiState.checkpointSteps,
+            label1 = stringResource(R.string.label_steps),
+            onValue1Change = onStepsChange,
+            error1 = if (uiState.isCheckpointMode) uiState.stepsError else null,
+            showField1 = uiState.currentWorkflowHasSteps,
+            min1 = 1f,
+            max1 = 255f,
+            step1 = 1f,
+            value2 = uiState.checkpointCfg,
+            label2 = stringResource(R.string.label_cfg),
+            onValue2Change = onCfgChange,
+            error2 = if (uiState.isCheckpointMode) uiState.cfgError else null,
+            showField2 = uiState.currentWorkflowHasCfg,
+            min2 = 0f,
+            max2 = 100f,
+            step2 = 0.1f,
+            decimalPlaces2 = 1
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -835,37 +815,25 @@ private fun UnetModeContent(
 
     // Steps and CFG row (show if either is present)
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            if (uiState.currentWorkflowHasSteps) {
-                OutlinedTextField(
-                    value = uiState.unetSteps,
-                    onValueChange = onStepsChange,
-                    label = { Text(stringResource(R.string.label_steps)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-
-            if (uiState.currentWorkflowHasSteps && uiState.currentWorkflowHasCfg) {
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            if (uiState.currentWorkflowHasCfg) {
-                OutlinedTextField(
-                    value = uiState.unetCfg,
-                    onValueChange = onCfgChange,
-                    label = { Text(stringResource(R.string.label_cfg)) },
-                    isError = uiState.cfgError != null && !uiState.isCheckpointMode,
-                    supportingText = if (uiState.cfgError != null && !uiState.isCheckpointMode) {
-                        { Text(uiState.cfgError!!) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-        }
+        StepperInputRow(
+            value1 = uiState.unetSteps,
+            label1 = stringResource(R.string.label_steps),
+            onValue1Change = onStepsChange,
+            error1 = if (!uiState.isCheckpointMode) uiState.stepsError else null,
+            showField1 = uiState.currentWorkflowHasSteps,
+            min1 = 1f,
+            max1 = 255f,
+            step1 = 1f,
+            value2 = uiState.unetCfg,
+            label2 = stringResource(R.string.label_cfg),
+            onValue2Change = onCfgChange,
+            error2 = if (!uiState.isCheckpointMode) uiState.cfgError else null,
+            showField2 = uiState.currentWorkflowHasCfg,
+            min2 = 0f,
+            max2 = 100f,
+            step2 = 0.1f,
+            decimalPlaces2 = 1
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
     }

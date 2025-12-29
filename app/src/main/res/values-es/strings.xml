@@ -273,6 +273,8 @@
     <string name="content_description_reference_image_1">Imagen de referencia 1</string>
     <string name="content_description_reference_image_2">Imagen de referencia 2</string>
     <string name="content_description_source_image">Imagen de origen</string>
+    <string name="content_description_decrease">Disminuir valor</string>
+    <string name="content_description_increase">Aumentar valor</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">Sin imágenes aún</string>

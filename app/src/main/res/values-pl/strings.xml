@@ -273,6 +273,8 @@
     <string name="content_description_reference_image_1">Obraz referencyjny 1</string>
     <string name="content_description_reference_image_2">Obraz referencyjny 2</string>
     <string name="content_description_source_image">Obraz źródłowy</string>
+    <string name="content_description_decrease">Zmniejsz wartość</string>
+    <string name="content_description_increase">Zwiększ wartość</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">Brak obrazów</string>

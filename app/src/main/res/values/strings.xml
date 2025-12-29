@@ -348,6 +348,8 @@
     <string name="content_description_reference_image_1">Reference image 1</string>
     <string name="content_description_reference_image_2">Reference image 2</string>
     <string name="content_description_source_image">Source image</string>
+    <string name="content_description_decrease">Decrease value</string>
+    <string name="content_description_increase">Increase value</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">No images yet</string>
