@@ -39,9 +39,11 @@
     <string name="hostname_label">Nom d\'hôte :</string>
     <string name="port_label">Port :</string>
     <string name="server_management_title">Gestion du serveur</string>
-    <string name="server_management_warning">Attention : Ces actions sont irréversibles</string>
     <string name="clear_queue_button">Vider la file d\'attente</string>
     <string name="clear_history_button">Effacer l\'historique</string>
+    <string name="refresh_models_button">Actualiser les modèles</string>
+    <string name="models_refreshed_success">Modèles actualisés avec succès</string>
+    <string name="models_refreshed_failed">Échec de l\'actualisation des modèles</string>
 
     <!-- Resource usage strings -->
     <string name="ram_usage_title">RAM</string>

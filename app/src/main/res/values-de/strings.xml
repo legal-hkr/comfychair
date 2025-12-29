@@ -39,9 +39,11 @@
     <string name="hostname_label">Hostname:</string>
     <string name="port_label">Port:</string>
     <string name="server_management_title">Server-Verwaltung</string>
-    <string name="server_management_warning">Warnung: Diese Aktionen können nicht rückgängig gemacht werden</string>
     <string name="clear_queue_button">Warteschlange leeren</string>
     <string name="clear_history_button">Verlauf löschen</string>
+    <string name="refresh_models_button">Modelle aktualisieren</string>
+    <string name="models_refreshed_success">Modelle erfolgreich aktualisiert</string>
+    <string name="models_refreshed_failed">Modelle konnten nicht aktualisiert werden</string>
 
     <!-- Resource usage strings -->
     <string name="ram_usage_title">RAM</string>

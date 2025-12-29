@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import sh.hnet.comfychair.R
+import java.util.Locale
 
 /**
  * A row containing two NumericStepperField components side by side.
@@ -56,6 +59,18 @@ fun StepperInputRow(
 ) {
     if (!showField1 && !showField2) return
 
+    // Format range hints based on decimal places
+    val hint1 = stringResource(
+        R.string.node_editor_range_min_max,
+        formatRangeValue(min1, decimalPlaces1),
+        formatRangeValue(max1, decimalPlaces1)
+    )
+    val hint2 = stringResource(
+        R.string.node_editor_range_min_max,
+        formatRangeValue(min2, decimalPlaces2),
+        formatRangeValue(max2, decimalPlaces2)
+    )
+
     Row(modifier = modifier.fillMaxWidth()) {
         if (showField1) {
             NumericStepperField(
@@ -67,6 +82,7 @@ fun StepperInputRow(
                 step = step1,
                 decimalPlaces = decimalPlaces1,
                 error = error1,
+                hint = hint1,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -85,8 +101,21 @@ fun StepperInputRow(
                 step = step2,
                 decimalPlaces = decimalPlaces2,
                 error = error2,
+                hint = hint2,
                 modifier = Modifier.weight(1f)
             )
         }
+    }
+}
+
+/**
+ * Formats a range value for display, showing integers without decimals
+ * and floats with the specified number of decimal places.
+ */
+private fun formatRangeValue(value: Float, decimalPlaces: Int): String {
+    return if (decimalPlaces == 0) {
+        value.toInt().toString()
+    } else {
+        String.format(Locale.US, "%.${decimalPlaces}f", value)
     }
 }

@@ -44,6 +44,9 @@ fun DimensionStepperRow(
 ) {
     if (!showWidth && !showHeight) return
 
+    // Range hint shown below each field
+    val rangeHint = stringResource(R.string.node_editor_range_min_max, min.toString(), max.toString())
+
     Row(modifier = modifier.fillMaxWidth()) {
         if (showWidth) {
             NumericStepperField(
@@ -55,6 +58,7 @@ fun DimensionStepperRow(
                 step = step.toFloat(),
                 decimalPlaces = 0,
                 error = widthError,
+                hint = rangeHint,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -73,6 +77,7 @@ fun DimensionStepperRow(
                 step = step.toFloat(),
                 decimalPlaces = 0,
                 error = heightError,
+                hint = rangeHint,
                 modifier = Modifier.weight(1f)
             )
         }

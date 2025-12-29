@@ -10,9 +10,9 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
@@ -153,6 +153,34 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         private const val PREF_SELECTED_WORKFLOW = "selectedWorkflow"
     }
 
+    init {
+        // Observe model cache from ConnectionManager
+        viewModelScope.launch {
+            ConnectionManager.modelCache.collect { cache ->
+                _uiState.update { state ->
+                    state.copy(
+                        availableCheckpoints = cache.checkpoints,
+                        availableUnets = cache.unets,
+                        availableVaes = cache.vaes,
+                        availableClips = cache.clips,
+                        availableLoras = cache.loras,
+                        isLoadingModels = cache.isLoading,
+                        modelsLoaded = cache.isLoaded,
+                        // Re-validate model selections when lists change
+                        selectedCheckpoint = validateModelSelection(state.selectedCheckpoint, cache.checkpoints),
+                        selectedUnet = validateModelSelection(state.selectedUnet, cache.unets),
+                        selectedVae = validateModelSelection(state.selectedVae, cache.vaes),
+                        selectedClip = validateModelSelection(state.selectedClip, cache.clips),
+                        selectedClip1 = validateModelSelection(state.selectedClip1, cache.clips),
+                        selectedClip2 = validateModelSelection(state.selectedClip2, cache.clips),
+                        checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, cache.loras),
+                        unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, cache.loras)
+                    )
+                }
+            }
+        }
+    }
+
     /**
      * Called after base initialization is complete.
      */
@@ -221,112 +249,15 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     }
 
     /**
-     * Fetch models from the server
+     * Fetch models from the server.
+     * Models are now loaded automatically via ConnectionManager on connection.
+     * This method is kept for API compatibility but is effectively a no-op.
      */
+    @Suppress("unused")
     fun fetchModels() {
-        val client = comfyUIClient ?: run {
-            DebugLogger.w(TAG, "fetchModels: Client not available")
-            return
-        }
-
-        if (_uiState.value.modelsLoaded) {
-            DebugLogger.d(TAG, "fetchModels: Models already loaded, skipping")
-            return
-        }
-
-        DebugLogger.i(TAG, "fetchModels: Starting model fetch")
-        _uiState.value = _uiState.value.copy(isLoadingModels = true)
-
-        // Fetch all model types
-        fetchCheckpoints(client)
-        fetchUnets(client)
-        fetchVaes(client)
-        fetchClips(client)
-        fetchLoras(client)
-    }
-
-    private fun fetchCheckpoints(client: ComfyUIClient) {
-        client.fetchCheckpoints { checkpoints ->
-            DebugLogger.d(TAG, "fetchCheckpoints: Loaded ${checkpoints.size} checkpoints")
-            // Use atomic update to avoid race conditions with concurrent callbacks
-            _uiState.update { state ->
-                state.copy(
-                    availableCheckpoints = checkpoints,
-                    selectedCheckpoint = validateModelSelection(
-                        state.selectedCheckpoint,
-                        checkpoints
-                    ),
-                    isLoadingModels = false,
-                    modelsLoaded = true
-                )
-            }
-        }
-    }
-
-    private fun fetchUnets(client: ComfyUIClient) {
-        client.fetchUNETs { unets ->
-            DebugLogger.d(TAG, "fetchUnets: Loaded ${unets.size} UNETs")
-            _uiState.update { state ->
-                state.copy(
-                    availableUnets = unets,
-                    selectedUnet = validateModelSelection(
-                        state.selectedUnet,
-                        unets
-                    )
-                )
-            }
-        }
-    }
-
-    private fun fetchVaes(client: ComfyUIClient) {
-        client.fetchVAEs { vaes ->
-            DebugLogger.d(TAG, "fetchVaes: Loaded ${vaes.size} VAEs")
-            _uiState.update { state ->
-                state.copy(
-                    availableVaes = vaes,
-                    selectedVae = validateModelSelection(
-                        state.selectedVae,
-                        vaes
-                    )
-                )
-            }
-        }
-    }
-
-    private fun fetchClips(client: ComfyUIClient) {
-        client.fetchCLIPs { clips ->
-            DebugLogger.d(TAG, "fetchClips: Loaded ${clips.size} CLIPs")
-            _uiState.update { state ->
-                state.copy(
-                    availableClips = clips,
-                    selectedClip = validateModelSelection(
-                        state.selectedClip,
-                        clips
-                    ),
-                    selectedClip1 = validateModelSelection(
-                        state.selectedClip1,
-                        clips
-                    ),
-                    selectedClip2 = validateModelSelection(
-                        state.selectedClip2,
-                        clips
-                    )
-                )
-            }
-        }
-    }
-
-    private fun fetchLoras(client: ComfyUIClient) {
-        client.fetchLoRAs { loras ->
-            DebugLogger.d(TAG, "fetchLoras: Loaded ${loras.size} LoRAs")
-            _uiState.update { state ->
-                state.copy(
-                    availableLoras = loras,
-                    checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, loras),
-                    unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, loras)
-                )
-            }
-        }
+        // Models are now loaded automatically via ConnectionManager.modelCache
+        // which is observed in the init block above.
+        DebugLogger.d(TAG, "fetchModels: Models are loaded via ConnectionManager, nothing to do")
     }
 
     // State management

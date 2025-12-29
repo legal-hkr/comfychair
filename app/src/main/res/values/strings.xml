@@ -43,9 +43,11 @@
     <string name="hostname_label">Hostname:</string>
     <string name="port_label">Port:</string>
     <string name="server_management_title">Server management</string>
-    <string name="server_management_warning">Warning: These actions cannot be undone</string>
     <string name="clear_queue_button">Clear queue</string>
     <string name="clear_history_button">Clear history</string>
+    <string name="refresh_models_button">Refresh models</string>
+    <string name="models_refreshed_success">Models refreshed successfully</string>
+    <string name="models_refreshed_failed">Failed to refresh models</string>
 
     <!-- Resource usage strings -->
     <string name="ram_usage_title">RAM</string>

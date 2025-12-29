@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,7 +39,8 @@ data class ServerSettingsUiState(
     val port: Int = 8188,
     val systemStats: SystemStats? = null,
     val isLoadingStats: Boolean = false,
-    val isClearingHistory: Boolean = false
+    val isClearingHistory: Boolean = false,
+    val isRefreshingModels: Boolean = false
 )
 
 /**
@@ -243,6 +246,36 @@ class SettingsViewModel : ViewModel() {
                 sh.hnet.comfychair.R.string.history_cleared_success
             } else {
                 sh.hnet.comfychair.R.string.history_cleared_failed
+            }
+            _events.emit(SettingsEvent.ShowToast(messageResId))
+        }
+    }
+
+    /**
+     * Refresh server data (node types and model lists) from the ComfyUI server.
+     * This fetches the latest /object_info and updates the centralized cache.
+     */
+    fun refreshServerData() {
+        _serverSettingsState.value = _serverSettingsState.value.copy(isRefreshingModels = true)
+
+        viewModelScope.launch {
+            // Trigger refresh in ConnectionManager
+            ConnectionManager.refreshServerData()
+
+            // Wait for cache to finish loading
+            ConnectionManager.modelCache
+                .filter { !it.isLoading }
+                .first()
+
+            val cache = ConnectionManager.modelCache.value
+            val success = cache.lastError == null && cache.isLoaded
+
+            _serverSettingsState.value = _serverSettingsState.value.copy(isRefreshingModels = false)
+
+            val messageResId = if (success) {
+                R.string.models_refreshed_success
+            } else {
+                R.string.models_refreshed_failed
             }
             _events.emit(SettingsEvent.ShowToast(messageResId))
         }

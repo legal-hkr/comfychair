@@ -39,9 +39,11 @@
     <string name="hostname_label">Nombre de host:</string>
     <string name="port_label">Puerto:</string>
     <string name="server_management_title">Gestión del servidor</string>
-    <string name="server_management_warning">Advertencia: Estas acciones no se pueden deshacer</string>
     <string name="clear_queue_button">Vaciar cola</string>
     <string name="clear_history_button">Borrar historial</string>
+    <string name="refresh_models_button">Actualizar modelos</string>
+    <string name="models_refreshed_success">Modelos actualizados correctamente</string>
+    <string name="models_refreshed_failed">Error al actualizar modelos</string>
 
     <!-- Resource usage strings -->
     <string name="ram_usage_title">RAM</string>

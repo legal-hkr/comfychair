@@ -72,7 +72,10 @@ class WorkflowEditorViewModel : ViewModel() {
 
     private val parser = WorkflowParser()
     private val layoutEngine = WorkflowLayoutEngine()
-    private val nodeTypeRegistry = NodeTypeRegistry()
+
+    // Use shared NodeTypeRegistry from ConnectionManager (populated on connection)
+    private val nodeTypeRegistry: NodeTypeRegistry
+        get() = ConnectionManager.nodeTypeRegistry
 
     private var canvasWidth: Float = 0f
     private var canvasHeight: Float = 0f
@@ -1354,24 +1357,13 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Fetch object_info from the ComfyUI server to populate node type registry.
-     * Calls the callback with true if successful, false otherwise.
+     * Check if node type registry is populated (data loaded by ConnectionManager on connection).
+     * Calls the callback with true if registry is available, false otherwise.
      */
     private fun fetchObjectInfo(callback: (success: Boolean) -> Unit) {
-        val client = ConnectionManager.clientOrNull
-        if (client == null) {
-            callback(false)
-            return
-        }
-
-        client.fetchFullObjectInfo { objectInfo ->
-            if (objectInfo != null) {
-                nodeTypeRegistry.parseObjectInfo(objectInfo)
-                callback(true)
-            } else {
-                callback(false)
-            }
-        }
+        // Node type registry is now populated by ConnectionManager on connection
+        // Just check if it's available
+        callback(nodeTypeRegistry.isPopulated())
     }
 
     /**

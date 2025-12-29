@@ -39,9 +39,11 @@
     <string name="hostname_label">主机名：</string>
     <string name="port_label">端口：</string>
     <string name="server_management_title">服务器管理</string>
-    <string name="server_management_warning">警告：这些操作无法撤销</string>
     <string name="clear_queue_button">清空队列</string>
     <string name="clear_history_button">清空历史记录</string>
+    <string name="refresh_models_button">刷新模型</string>
+    <string name="models_refreshed_success">模型刷新成功</string>
+    <string name="models_refreshed_failed">模型刷新失败</string>
 
     <!-- Resource usage strings -->
     <string name="ram_usage_title">内存</string>

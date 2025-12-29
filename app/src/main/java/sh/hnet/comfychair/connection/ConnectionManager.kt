@@ -28,6 +28,7 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import java.util.UUID
 
 /**
@@ -87,6 +88,13 @@ object ConnectionManager {
 
     private var _client: ComfyUIClient? = null
     private var _clientId: String? = null
+
+    // Shared node type registry (populated from /object_info)
+    val nodeTypeRegistry = NodeTypeRegistry()
+
+    // Shared model cache (populated from /object_info)
+    private val _modelCache = MutableStateFlow(ModelCache())
+    val modelCache: StateFlow<ModelCache> = _modelCache.asStateFlow()
 
     // WebSocket management
     private var reconnectAttempts = 0
@@ -205,6 +213,9 @@ object ConnectionManager {
             clientId = _clientId!!
         )
         DebugLogger.i(TAG, "Connected successfully")
+
+        // Fetch server data (node types and model lists) after connection
+        fetchServerData()
     }
 
     /**
@@ -255,6 +266,9 @@ object ConnectionManager {
         MediaStateHolder.clearAll()
         MediaCache.reset()
         JobRegistry.clear()
+        // Clear model cache and node registry
+        _modelCache.value = ModelCache()
+        nodeTypeRegistry.clear()
     }
 
     // WebSocket management
@@ -531,6 +545,89 @@ object ConnectionManager {
                 val pending = queueJson.optJSONArray("queue_pending")
                 JobRegistry.updateFromServerQueue(running, pending)
             }
+        }
+    }
+
+    // Model cache and node registry management
+
+    /**
+     * Fetch server data (node types and model lists) from /object_info.
+     * Called automatically on connection and can be triggered manually via [refreshServerData].
+     */
+    private fun fetchServerData() {
+        val client = _client ?: run {
+            DebugLogger.w(TAG, "fetchServerData: Client not available")
+            return
+        }
+
+        DebugLogger.i(TAG, "Fetching server data from /object_info")
+        _modelCache.value = _modelCache.value.copy(isLoading = true, lastError = null)
+
+        client.fetchFullObjectInfo { objectInfo ->
+            if (objectInfo != null) {
+                DebugLogger.d(TAG, "Parsing object_info response")
+                // Parse node definitions for workflow editor
+                nodeTypeRegistry.parseObjectInfo(objectInfo)
+
+                // Extract model lists for generation screens
+                val models = extractModelLists(objectInfo)
+                _modelCache.value = models.copy(isLoaded = true, isLoading = false)
+                DebugLogger.i(TAG, "Server data loaded: ${models.checkpoints.size} checkpoints, " +
+                        "${models.unets.size} unets, ${models.vaes.size} vaes, " +
+                        "${models.clips.size} clips, ${models.loras.size} loras")
+            } else {
+                DebugLogger.w(TAG, "Failed to fetch server data")
+                _modelCache.value = _modelCache.value.copy(
+                    isLoading = false,
+                    lastError = "Failed to fetch server data"
+                )
+            }
+        }
+    }
+
+    /**
+     * Refresh server data (node types and model lists).
+     * Can be called by the user to update model lists without reconnecting.
+     */
+    fun refreshServerData() {
+        if (_client == null) {
+            DebugLogger.w(TAG, "refreshServerData: Not connected")
+            return
+        }
+        DebugLogger.i(TAG, "Refreshing server data")
+        fetchServerData()
+    }
+
+    /**
+     * Extract model lists from /object_info response.
+     * Each model type is extracted from its corresponding loader node.
+     */
+    private fun extractModelLists(objectInfo: JSONObject): ModelCache {
+        return ModelCache(
+            checkpoints = extractModelList(objectInfo, "CheckpointLoaderSimple", "ckpt_name"),
+            unets = extractModelList(objectInfo, "UNETLoader", "unet_name"),
+            vaes = extractModelList(objectInfo, "VAELoader", "vae_name"),
+            clips = extractModelList(objectInfo, "CLIPLoader", "clip_name"),
+            loras = extractModelList(objectInfo, "LoraLoaderModelOnly", "lora_name")
+        )
+    }
+
+    /**
+     * Extract a single model list from /object_info.
+     * Navigates: nodeType -> input -> required -> inputName -> [0] (options array)
+     */
+    private fun extractModelList(objectInfo: JSONObject, nodeType: String, inputName: String): List<String> {
+        return try {
+            val nodeInfo = objectInfo.optJSONObject(nodeType) ?: return emptyList()
+            val input = nodeInfo.optJSONObject("input") ?: return emptyList()
+            val required = input.optJSONObject("required") ?: return emptyList()
+            val inputSpec = required.optJSONArray(inputName) ?: return emptyList()
+            val options = inputSpec.optJSONArray(0) ?: return emptyList()
+
+            (0 until options.length()).map { options.getString(it) }
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "Failed to extract model list for $nodeType/$inputName: ${e.message}")
+            emptyList()
         }
     }
 }

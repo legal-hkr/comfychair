@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
@@ -215,6 +216,35 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         private const val PREF_SELECTED_EDITING_WORKFLOW = "selectedEditingWorkflow"
 
         private const val FEATHER_RADIUS = 8
+    }
+
+    init {
+        // Observe model cache from ConnectionManager
+        viewModelScope.launch {
+            ConnectionManager.modelCache.collect { cache ->
+                _uiState.update { state ->
+                    state.copy(
+                        checkpoints = cache.checkpoints,
+                        unets = cache.unets,
+                        vaes = cache.vaes,
+                        clips = cache.clips,
+                        availableLoras = cache.loras,
+                        // Re-validate model selections when lists change
+                        selectedCheckpoint = validateModelSelection(state.selectedCheckpoint, cache.checkpoints),
+                        selectedUnet = validateModelSelection(state.selectedUnet, cache.unets),
+                        selectedVae = validateModelSelection(state.selectedVae, cache.vaes),
+                        selectedClip = validateModelSelection(state.selectedClip, cache.clips),
+                        selectedEditingUnet = validateModelSelection(state.selectedEditingUnet, cache.unets),
+                        selectedEditingVae = validateModelSelection(state.selectedEditingVae, cache.vaes),
+                        selectedEditingClip = validateModelSelection(state.selectedEditingClip, cache.clips),
+                        selectedEditingLora = validateModelSelection(state.selectedEditingLora, cache.loras),
+                        checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, cache.loras),
+                        unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, cache.loras),
+                        editingLoraChain = LoraChainManager.filterUnavailable(state.editingLoraChain, cache.loras)
+                    )
+                }
+            }
+        }
     }
 
     override fun onInitialize() {
@@ -580,80 +610,16 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         )
     }
 
+    /**
+     * Fetch models from the server.
+     * Models are now loaded automatically via ConnectionManager on connection.
+     * This method is kept for API compatibility but is effectively a no-op.
+     */
+    @Suppress("unused")
     fun fetchModels() {
-        val client = comfyUIClient ?: return
-
-        DebugLogger.i(TAG, "fetchModels: Starting model fetch")
-        viewModelScope.launch {
-            // Fetch checkpoints
-            client.fetchCheckpoints { checkpoints ->
-                DebugLogger.d(TAG, "fetchModels: Loaded ${checkpoints?.size ?: 0} checkpoints")
-                _uiState.update { state ->
-                    state.copy(
-                        checkpoints = checkpoints ?: emptyList(),
-                        selectedCheckpoint = if (state.selectedCheckpoint.isEmpty() && checkpoints?.isNotEmpty() == true)
-                            checkpoints.first() else state.selectedCheckpoint
-                    )
-                }
-            }
-
-            // Fetch UNETs
-            client.fetchUNETs { unets ->
-                DebugLogger.d(TAG, "fetchModels: Loaded ${unets?.size ?: 0} UNETs")
-                _uiState.update { state ->
-                    state.copy(
-                        unets = unets ?: emptyList(),
-                        selectedUnet = if (state.selectedUnet.isEmpty() && unets?.isNotEmpty() == true)
-                            unets.first() else state.selectedUnet,
-                        selectedEditingUnet = if (state.selectedEditingUnet.isEmpty() && unets?.isNotEmpty() == true)
-                            unets.first() else state.selectedEditingUnet
-                    )
-                }
-            }
-
-            // Fetch VAEs
-            client.fetchVAEs { vaes ->
-                DebugLogger.d(TAG, "fetchModels: Loaded ${vaes?.size ?: 0} VAEs")
-                _uiState.update { state ->
-                    state.copy(
-                        vaes = vaes ?: emptyList(),
-                        selectedVae = if (state.selectedVae.isEmpty() && vaes?.isNotEmpty() == true)
-                            vaes.first() else state.selectedVae,
-                        selectedEditingVae = if (state.selectedEditingVae.isEmpty() && vaes?.isNotEmpty() == true)
-                            vaes.first() else state.selectedEditingVae
-                    )
-                }
-            }
-
-            // Fetch CLIPs
-            client.fetchCLIPs { clips ->
-                DebugLogger.d(TAG, "fetchModels: Loaded ${clips?.size ?: 0} CLIPs")
-                _uiState.update { state ->
-                    state.copy(
-                        clips = clips ?: emptyList(),
-                        selectedClip = if (state.selectedClip.isEmpty() && clips?.isNotEmpty() == true)
-                            clips.first() else state.selectedClip,
-                        selectedEditingClip = if (state.selectedEditingClip.isEmpty() && clips?.isNotEmpty() == true)
-                            clips.first() else state.selectedEditingClip
-                    )
-                }
-            }
-
-            // Fetch LoRAs
-            client.fetchLoRAs { loras ->
-                DebugLogger.d(TAG, "fetchModels: Loaded ${loras.size} LoRAs")
-                _uiState.update { state ->
-                    state.copy(
-                        availableLoras = loras,
-                        checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, loras),
-                        unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, loras),
-                        editingLoraChain = LoraChainManager.filterUnavailable(state.editingLoraChain, loras),
-                        selectedEditingLora = if (state.selectedEditingLora.isEmpty() && loras.isNotEmpty())
-                            loras.first() else state.selectedEditingLora
-                    )
-                }
-            }
-        }
+        // Models are now loaded automatically via ConnectionManager.modelCache
+        // which is observed in the init block above.
+        DebugLogger.d(TAG, "fetchModels: Models are loaded via ConnectionManager, nothing to do")
     }
 
     // View mode

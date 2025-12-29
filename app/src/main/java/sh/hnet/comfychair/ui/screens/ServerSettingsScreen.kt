@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -232,16 +233,28 @@ fun ServerSettingsScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = stringResource(R.string.server_management_warning),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Refresh Models button
+                    Button(
+                        onClick = { viewModel.refreshServerData() },
+                        enabled = !uiState.isRefreshingModels,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (uiState.isRefreshingModels) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(stringResource(R.string.refresh_models_button))
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Clear History button
                     Button(
                         onClick = { viewModel.clearHistory() },
                         enabled = !uiState.isClearingHistory,

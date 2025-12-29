@@ -10,9 +10,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.model.LoraSelection
@@ -149,6 +149,52 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         private const val KEY_POSITIVE_PROMPT = "positive_prompt"
     }
 
+    init {
+        // Observe model cache from ConnectionManager
+        viewModelScope.launch {
+            ConnectionManager.modelCache.collect { cache ->
+                _uiState.update { state ->
+                    // Apply deferred selections first, then validate or fall back to first available
+                    val highnoiseUnet = state.deferredHighnoiseUnet?.takeIf { it in cache.unets }
+                        ?: validateModelSelection(state.selectedHighnoiseUnet, cache.unets)
+                    val lownoiseUnet = state.deferredLownoiseUnet?.takeIf { it in cache.unets }
+                        ?: validateModelSelection(state.selectedLownoiseUnet, cache.unets)
+                    val highnoiseLora = state.deferredHighnoiseLora?.takeIf { it in cache.loras }
+                        ?: validateModelSelection(state.selectedHighnoiseLora, cache.loras)
+                    val lownoiseLora = state.deferredLownoiseLora?.takeIf { it in cache.loras }
+                        ?: validateModelSelection(state.selectedLownoiseLora, cache.loras)
+                    val vae = state.deferredVae?.takeIf { it in cache.vaes }
+                        ?: validateModelSelection(state.selectedVae, cache.vaes)
+                    val clip = state.deferredClip?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip, cache.clips)
+
+                    state.copy(
+                        availableUnets = cache.unets,
+                        availableLoras = cache.loras,
+                        availableVaes = cache.vaes,
+                        availableClips = cache.clips,
+                        selectedHighnoiseUnet = highnoiseUnet,
+                        selectedLownoiseUnet = lownoiseUnet,
+                        selectedHighnoiseLora = highnoiseLora,
+                        selectedLownoiseLora = lownoiseLora,
+                        selectedVae = vae,
+                        selectedClip = clip,
+                        // Clear deferred values once applied
+                        deferredHighnoiseUnet = null,
+                        deferredLownoiseUnet = null,
+                        deferredHighnoiseLora = null,
+                        deferredLownoiseLora = null,
+                        deferredVae = null,
+                        deferredClip = null,
+                        // Filter LoRA chains
+                        highnoiseLoraChain = LoraChainManager.filterUnavailable(state.highnoiseLoraChain, cache.loras),
+                        lownoiseLoraChain = LoraChainManager.filterUnavailable(state.lownoiseLoraChain, cache.loras)
+                    )
+                }
+            }
+        }
+    }
+
     override fun onInitialize() {
         DebugLogger.i(TAG, "Initializing")
 
@@ -157,7 +203,7 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         loadSavedSourceImage()
         restoreLastPreviewImage()
         loadLastGeneratedVideo()
-        loadModels()
+        // Models are now loaded automatically via ConnectionManager
     }
 
     /**
@@ -323,103 +369,6 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         }
     }
 
-    private fun loadModels() {
-        val client = comfyUIClient ?: return
-
-        DebugLogger.i(TAG, "loadModels: Starting model fetch")
-        viewModelScope.launch {
-            // Load UNETs
-            val unets = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
-                    client.fetchUNETs { fetchedUnets ->
-                        continuation.resumeWith(Result.success(fetchedUnets))
-                    }
-                }
-            }
-            DebugLogger.d(TAG, "loadModels: Loaded ${unets.size} UNETs")
-            // Use atomic update to avoid race conditions
-            _uiState.update { state ->
-                val highnoiseUnet = state.deferredHighnoiseUnet?.takeIf { it in unets }
-                    ?: unets.firstOrNull() ?: ""
-                val lownoiseUnet = state.deferredLownoiseUnet?.takeIf { it in unets }
-                    ?: unets.firstOrNull() ?: ""
-                state.copy(
-                    availableUnets = unets,
-                    selectedHighnoiseUnet = highnoiseUnet,
-                    selectedLownoiseUnet = lownoiseUnet,
-                    deferredHighnoiseUnet = null,
-                    deferredLownoiseUnet = null
-                )
-            }
-
-            // Load LoRAs
-            val loras = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
-                    client.fetchLoRAs { fetchedLoras ->
-                        continuation.resumeWith(Result.success(fetchedLoras))
-                    }
-                }
-            }
-            DebugLogger.d(TAG, "loadModels: Loaded ${loras.size} LoRAs")
-            _uiState.update { state ->
-                val highnoiseLora = state.deferredHighnoiseLora?.takeIf { it in loras }
-                    ?: loras.firstOrNull() ?: ""
-                val lownoiseLora = state.deferredLownoiseLora?.takeIf { it in loras }
-                    ?: loras.firstOrNull() ?: ""
-                val filteredHighnoiseChain = LoraChainManager.filterUnavailable(state.highnoiseLoraChain, loras)
-                val filteredLownoiseChain = LoraChainManager.filterUnavailable(state.lownoiseLoraChain, loras)
-                state.copy(
-                    availableLoras = loras,
-                    selectedHighnoiseLora = highnoiseLora,
-                    selectedLownoiseLora = lownoiseLora,
-                    deferredHighnoiseLora = null,
-                    deferredLownoiseLora = null,
-                    highnoiseLoraChain = filteredHighnoiseChain,
-                    lownoiseLoraChain = filteredLownoiseChain
-                )
-            }
-
-            // Load VAEs
-            val vaes = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
-                    client.fetchVAEs { fetchedVaes ->
-                        continuation.resumeWith(Result.success(fetchedVaes))
-                    }
-                }
-            }
-            DebugLogger.d(TAG, "loadModels: Loaded ${vaes.size} VAEs")
-            _uiState.update { state ->
-                val vae = state.deferredVae?.takeIf { it in vaes }
-                    ?: vaes.firstOrNull() ?: ""
-                state.copy(
-                    availableVaes = vaes,
-                    selectedVae = vae,
-                    deferredVae = null
-                )
-            }
-
-            // Load CLIPs
-            val clips = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine<List<String>> { continuation ->
-                    client.fetchCLIPs { fetchedClips ->
-                        continuation.resumeWith(Result.success(fetchedClips))
-                    }
-                }
-            }
-            DebugLogger.d(TAG, "loadModels: Loaded ${clips.size} CLIPs")
-            _uiState.update { state ->
-                val clip = state.deferredClip?.takeIf { it in clips }
-                    ?: clips.firstOrNull() ?: ""
-                state.copy(
-                    availableClips = clips,
-                    selectedClip = clip,
-                    deferredClip = null
-                )
-            }
-
-            savePreferences()
-        }
-    }
 
     // View mode
     fun onViewModeChange(mode: ImageToVideoViewMode) {

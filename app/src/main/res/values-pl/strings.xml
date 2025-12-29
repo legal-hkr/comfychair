@@ -39,9 +39,11 @@
     <string name="hostname_label">Nazwa hosta:</string>
     <string name="port_label">Port:</string>
     <string name="server_management_title">Zarządzanie serwerem</string>
-    <string name="server_management_warning">Ostrzeżenie: Tych akcji nie można cofnąć</string>
     <string name="clear_queue_button">Wyczyść kolejkę</string>
     <string name="clear_history_button">Wyczyść historię</string>
+    <string name="refresh_models_button">Odśwież modele</string>
+    <string name="models_refreshed_success">Modele odświeżone pomyślnie</string>
+    <string name="models_refreshed_failed">Nie udało się odświeżyć modeli</string>
 
     <!-- Resource usage strings -->
     <string name="ram_usage_title">RAM</string>
