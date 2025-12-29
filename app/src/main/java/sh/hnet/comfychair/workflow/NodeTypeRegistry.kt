@@ -2,6 +2,7 @@ package sh.hnet.comfychair.workflow
 
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * Full definition of a node input from /object_info
@@ -45,6 +46,10 @@ data class NodeTypeInfo(
 class NodeTypeRegistry {
     private val nodeTypes = mutableMapOf<String, NodeTypeInfo>()
     private val nodeDefinitions = mutableMapOf<String, NodeTypeDefinition>()
+
+    companion object {
+        private const val TAG = "NodeTypeRegistry"
+    }
 
     /**
      * Parse /object_info response and populate the registry.
@@ -100,6 +105,8 @@ class NodeTypeRegistry {
                 outputs = outputTypes
             )
         }
+
+        DebugLogger.i(TAG, "NodeTypeRegistry populated: ${nodeDefinitions.size} node types parsed")
     }
 
     private fun parseInputTypes(inputsJson: JSONObject?, result: MutableMap<String, String>) {
@@ -232,6 +239,26 @@ class NodeTypeRegistry {
      */
     fun getNodeDefinition(classType: String): NodeTypeDefinition? {
         return nodeDefinitions[classType]
+    }
+
+    /**
+     * Get the input definition for a specific input on a node type.
+     * Convenience method combining getNodeDefinition and finding the input.
+     */
+    fun getInputDefinition(classType: String, inputName: String): InputDefinition? {
+        val definition = nodeDefinitions[classType]
+        if (definition == null) {
+            DebugLogger.d(TAG, "getInputDefinition: Node type '$classType' not found in registry")
+            return null
+        }
+        val inputDef = definition.inputs.find { it.name == inputName }
+        if (inputDef == null) {
+            DebugLogger.d(TAG, "getInputDefinition: Input '$inputName' not found on node '$classType'")
+        } else {
+            DebugLogger.d(TAG, "getInputDefinition: $classType.$inputName -> " +
+                    "min=${inputDef.min}, max=${inputDef.max}, step=${inputDef.step}")
+        }
+        return inputDef
     }
 
     /**

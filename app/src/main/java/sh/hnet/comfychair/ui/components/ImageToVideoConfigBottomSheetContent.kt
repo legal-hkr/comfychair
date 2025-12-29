@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
 import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
-import sh.hnet.comfychair.ui.components.shared.StepperInputRow
+import sh.hnet.comfychair.ui.components.shared.LengthFpsRow
 import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
 
 /**
@@ -186,6 +186,7 @@ fun ImageToVideoConfigBottomSheetContent(
         // Width and Height row (show if either is present)
         if (uiState.currentWorkflowHasWidth || uiState.currentWorkflowHasHeight) {
             DimensionStepperRow(
+                workflowName = uiState.selectedWorkflow,
                 width = uiState.width,
                 onWidthChange = onWidthChange,
                 widthError = uiState.widthError,
@@ -201,23 +202,16 @@ fun ImageToVideoConfigBottomSheetContent(
 
         // Length and FPS row (show if either is present)
         if (uiState.currentWorkflowHasLength || uiState.currentWorkflowHasFrameRate) {
-            StepperInputRow(
-                value1 = uiState.length,
-                label1 = stringResource(R.string.length_label),
-                onValue1Change = onLengthChange,
-                error1 = uiState.lengthError,
-                showField1 = uiState.currentWorkflowHasLength,
-                min1 = 1f,
-                max1 = 129f,
-                step1 = 4f,
-                value2 = uiState.fps,
-                label2 = stringResource(R.string.fps_label),
-                onValue2Change = onFpsChange,
-                error2 = uiState.fpsError,
-                showField2 = uiState.currentWorkflowHasFrameRate,
-                min2 = 1f,
-                max2 = 120f,
-                step2 = 1f
+            LengthFpsRow(
+                workflowName = uiState.selectedWorkflow,
+                length = uiState.length,
+                onLengthChange = onLengthChange,
+                lengthError = uiState.lengthError,
+                showLength = uiState.currentWorkflowHasLength,
+                fps = uiState.fps,
+                onFpsChange = onFpsChange,
+                fpsError = uiState.fpsError,
+                showFps = uiState.currentWorkflowHasFrameRate
             )
 
             Spacer(modifier = Modifier.height(16.dp))

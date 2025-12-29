@@ -9,11 +9,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.workflow.WorkflowConstraintsProvider
+import java.util.Locale
 
 /**
- * A row containing Width and Height stepper fields.
- * Specialized for dimension inputs with step=8 for latent space alignment.
+ * A row containing Width and Height stepper fields with constraints
+ * dynamically loaded from the actual mapped nodes in the workflow.
  *
+ * @param workflowName The name of the currently selected workflow (for constraint lookup)
  * @param width Current width value as string
  * @param onWidthChange Callback when width changes
  * @param widthError Width validation error message
@@ -22,13 +25,11 @@ import sh.hnet.comfychair.R
  * @param heightError Height validation error message
  * @param showWidth Whether to show the width field
  * @param showHeight Whether to show the height field
- * @param step Step size for increment/decrement (default 8)
- * @param min Minimum dimension value (default 64)
- * @param max Maximum dimension value (default 4096)
  * @param modifier Modifier for the row
  */
 @Composable
 fun DimensionStepperRow(
+    workflowName: String,
     width: String,
     onWidthChange: (String) -> Unit,
     widthError: String?,
@@ -37,15 +38,24 @@ fun DimensionStepperRow(
     heightError: String?,
     showWidth: Boolean = true,
     showHeight: Boolean = true,
-    step: Int = 8,
-    min: Int = 64,
-    max: Int = 4096,
     modifier: Modifier = Modifier
 ) {
     if (!showWidth && !showHeight) return
 
-    // Range hint shown below each field
-    val rangeHint = stringResource(R.string.node_editor_range_min_max, min.toString(), max.toString())
+    val widthConstraints = WorkflowConstraintsProvider.rememberConstraints("width", workflowName)
+    val heightConstraints = WorkflowConstraintsProvider.rememberConstraints("height", workflowName)
+
+    // Range hints shown below each field
+    val widthRangeHint = stringResource(
+        R.string.node_editor_range_min_max,
+        formatRangeValue(widthConstraints.min, widthConstraints.decimalPlaces),
+        formatRangeValue(widthConstraints.max, widthConstraints.decimalPlaces)
+    )
+    val heightRangeHint = stringResource(
+        R.string.node_editor_range_min_max,
+        formatRangeValue(heightConstraints.min, heightConstraints.decimalPlaces),
+        formatRangeValue(heightConstraints.max, heightConstraints.decimalPlaces)
+    )
 
     Row(modifier = modifier.fillMaxWidth()) {
         if (showWidth) {
@@ -53,12 +63,12 @@ fun DimensionStepperRow(
                 value = width,
                 onValueChange = onWidthChange,
                 label = stringResource(R.string.label_width),
-                min = min.toFloat(),
-                max = max.toFloat(),
-                step = step.toFloat(),
-                decimalPlaces = 0,
+                min = widthConstraints.min,
+                max = widthConstraints.max,
+                step = widthConstraints.step,
+                decimalPlaces = widthConstraints.decimalPlaces,
                 error = widthError,
-                hint = rangeHint,
+                hint = widthRangeHint,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -72,14 +82,26 @@ fun DimensionStepperRow(
                 value = height,
                 onValueChange = onHeightChange,
                 label = stringResource(R.string.label_height),
-                min = min.toFloat(),
-                max = max.toFloat(),
-                step = step.toFloat(),
-                decimalPlaces = 0,
+                min = heightConstraints.min,
+                max = heightConstraints.max,
+                step = heightConstraints.step,
+                decimalPlaces = heightConstraints.decimalPlaces,
                 error = heightError,
-                hint = rangeHint,
+                hint = heightRangeHint,
                 modifier = Modifier.weight(1f)
             )
         }
+    }
+}
+
+/**
+ * Formats a range value for display, showing integers without decimals
+ * and floats with the specified number of decimal places.
+ */
+private fun formatRangeValue(value: Float, decimalPlaces: Int): String {
+    return if (decimalPlaces == 0) {
+        value.toInt().toString()
+    } else {
+        String.format(Locale.US, "%.${decimalPlaces}f", value)
     }
 }

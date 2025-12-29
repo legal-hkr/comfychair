@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
-import sh.hnet.comfychair.ui.components.shared.StepperInputRow
+import sh.hnet.comfychair.ui.components.shared.StepsCfgRow
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 import sh.hnet.comfychair.viewmodel.WorkflowItem
 
@@ -181,6 +181,7 @@ private fun CheckpointModeContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         DimensionStepperRow(
+            workflowName = uiState.selectedWorkflow,
             width = uiState.checkpointWidth,
             onWidthChange = onWidthChange,
             widthError = if (uiState.isCheckpointMode) uiState.widthError else null,
@@ -196,24 +197,16 @@ private fun CheckpointModeContent(
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        StepperInputRow(
-            value1 = uiState.checkpointSteps,
-            label1 = stringResource(R.string.label_steps),
-            onValue1Change = onStepsChange,
-            error1 = if (uiState.isCheckpointMode) uiState.stepsError else null,
-            showField1 = uiState.currentWorkflowHasSteps,
-            min1 = 1f,
-            max1 = 255f,
-            step1 = 1f,
-            value2 = uiState.checkpointCfg,
-            label2 = stringResource(R.string.label_cfg),
-            onValue2Change = onCfgChange,
-            error2 = if (uiState.isCheckpointMode) uiState.cfgError else null,
-            showField2 = uiState.currentWorkflowHasCfg,
-            min2 = 0f,
-            max2 = 100f,
-            step2 = 0.1f,
-            decimalPlaces2 = 1
+        StepsCfgRow(
+            workflowName = uiState.selectedWorkflow,
+            steps = uiState.checkpointSteps,
+            onStepsChange = onStepsChange,
+            stepsError = if (uiState.isCheckpointMode) uiState.stepsError else null,
+            showSteps = uiState.currentWorkflowHasSteps,
+            cfg = uiState.checkpointCfg,
+            onCfgChange = onCfgChange,
+            cfgError = if (uiState.isCheckpointMode) uiState.cfgError else null,
+            showCfg = uiState.currentWorkflowHasCfg
         )
     }
 
@@ -335,6 +328,7 @@ private fun UnetModeContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         DimensionStepperRow(
+            workflowName = uiState.selectedWorkflow,
             width = uiState.unetWidth,
             onWidthChange = onWidthChange,
             widthError = if (!uiState.isCheckpointMode) uiState.widthError else null,
@@ -350,24 +344,16 @@ private fun UnetModeContent(
     if (uiState.currentWorkflowHasSteps || uiState.currentWorkflowHasCfg) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        StepperInputRow(
-            value1 = uiState.unetSteps,
-            label1 = stringResource(R.string.label_steps),
-            onValue1Change = onStepsChange,
-            error1 = if (!uiState.isCheckpointMode) uiState.stepsError else null,
-            showField1 = uiState.currentWorkflowHasSteps,
-            min1 = 1f,
-            max1 = 255f,
-            step1 = 1f,
-            value2 = uiState.unetCfg,
-            label2 = stringResource(R.string.label_cfg),
-            onValue2Change = onCfgChange,
-            error2 = if (!uiState.isCheckpointMode) uiState.cfgError else null,
-            showField2 = uiState.currentWorkflowHasCfg,
-            min2 = 0f,
-            max2 = 100f,
-            step2 = 0.1f,
-            decimalPlaces2 = 1
+        StepsCfgRow(
+            workflowName = uiState.selectedWorkflow,
+            steps = uiState.unetSteps,
+            onStepsChange = onStepsChange,
+            stepsError = if (!uiState.isCheckpointMode) uiState.stepsError else null,
+            showSteps = uiState.currentWorkflowHasSteps,
+            cfg = uiState.unetCfg,
+            onCfgChange = onCfgChange,
+            cfgError = if (!uiState.isCheckpointMode) uiState.cfgError else null,
+            showCfg = uiState.currentWorkflowHasCfg
         )
     }
 
