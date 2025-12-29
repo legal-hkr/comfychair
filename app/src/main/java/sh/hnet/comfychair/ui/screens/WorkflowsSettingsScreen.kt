@@ -25,8 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -193,7 +193,7 @@ fun WorkflowsSettingsScreen(
                 }
                 // Import button
                 IconButton(onClick = { jsonPickerLauncher.launch("application/json") }) {
-                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.button_import))
+                    Icon(Icons.Default.UploadFile, contentDescription = stringResource(R.string.button_import))
                 }
                 // Menu button
                 SettingsMenuDropdown(
@@ -595,7 +595,7 @@ private fun WorkflowListItemContent(
                         onExport()
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                        Icon(Icons.Default.SaveAlt, contentDescription = null)
                     }
                 )
 

@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -183,7 +183,7 @@ fun ImageToVideoScreen(
             actions = {
                 // Upload image button
                 IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                    Icon(Icons.Default.Upload, contentDescription = stringResource(R.string.upload_source_image))
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.upload_source_image))
                 }
                 // Save to gallery button (only when video exists)
                 if (videoUri != null && uiState.viewMode == ImageToVideoViewMode.PREVIEW) {
