@@ -91,6 +91,7 @@
     <string name="live_preview_description">在生成过程中显示中间图像</string>
     <string name="memory_first_cache_label">内存优先缓存</string>
     <string name="memory_first_cache_description">快速访问，内存占用较高。对于慢速网络或低内存设备请禁用。</string>
+    <string name="memory_first_cache_warning">如果应用意外关闭，预览可能会丢失。</string>
     <string name="disable_media_cache_label">禁用媒体缓存</string>
     <string name="disable_media_cache_description">不将预览图像和视频保存到磁盘</string>
     <string name="auto_connect_label">自动连接</string>

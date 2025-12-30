@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.connection.WebSocketMessage
 import sh.hnet.comfychair.connection.WebSocketState
 import sh.hnet.comfychair.queue.JobRegistry
@@ -450,7 +452,12 @@ class GenerationViewModel : ViewModel() {
                 }
                 when (event) {
                     is GenerationEvent.PreviewImage -> bufferedPreviews[executingOwner] = event.bitmap
-                    is GenerationEvent.ImageGenerated, is GenerationEvent.VideoGenerated -> pendingCompletions[executingOwner] = event
+                    is GenerationEvent.ImageGenerated, is GenerationEvent.VideoGenerated -> {
+                        pendingCompletions[executingOwner] = event
+                        // Immediately fetch and store the result to ensure persistence
+                        // even if the user doesn't return to this screen before app is killed
+                        fetchAndStoreResultImmediately(event, executingOwner)
+                    }
                     is GenerationEvent.ClearPreviewForResume -> pendingClearPreviews.add(executingOwner)
                     else -> {}
                 }
@@ -458,6 +465,103 @@ class GenerationViewModel : ViewModel() {
         }
         // Also emit to SharedFlow for backwards compatibility
         viewModelScope.launch { _events.emit(event) }
+    }
+
+    /**
+     * Immediately fetch and store the generated result to ensure persistence.
+     * Called when a completion event is dispatched but no handler is registered.
+     * This ensures results are stored in MediaStateHolder even if the app is killed
+     * before the user returns to the generating screen.
+     */
+    private fun fetchAndStoreResultImmediately(event: GenerationEvent, ownerId: String) {
+        val client = comfyUIClient ?: run {
+            DebugLogger.w(TAG, "Cannot fetch immediately: no client")
+            return
+        }
+        val context = applicationContext ?: run {
+            DebugLogger.w(TAG, "Cannot fetch immediately: no context")
+            return
+        }
+
+        when (event) {
+            is GenerationEvent.ImageGenerated -> {
+                val mediaKey = when (ownerId) {
+                    "TEXT_TO_IMAGE" -> MediaStateHolder.MediaKey.TtiPreview
+                    "IMAGE_TO_IMAGE" -> MediaStateHolder.MediaKey.ItiPreview
+                    else -> {
+                        DebugLogger.w(TAG, "Unknown image owner: $ownerId")
+                        return
+                    }
+                }
+                DebugLogger.i(TAG, "Fetching image immediately for $ownerId (promptId=${Obfuscator.promptId(event.promptId)})")
+                fetchAndStoreImage(client, context, event.promptId, mediaKey)
+            }
+            is GenerationEvent.VideoGenerated -> {
+                val filePrefix = when (ownerId) {
+                    "TEXT_TO_VIDEO" -> VideoUtils.FilePrefix.TEXT_TO_VIDEO
+                    "IMAGE_TO_VIDEO" -> VideoUtils.FilePrefix.IMAGE_TO_VIDEO
+                    else -> {
+                        DebugLogger.w(TAG, "Unknown video owner: $ownerId")
+                        return
+                    }
+                }
+                DebugLogger.i(TAG, "Fetching video immediately for $ownerId (promptId=${Obfuscator.promptId(event.promptId)})")
+                VideoUtils.fetchVideoFromHistory(context, client, event.promptId, filePrefix) { uri ->
+                    if (uri != null) {
+                        DebugLogger.i(TAG, "Immediate video fetch successful for $ownerId")
+                    } else {
+                        DebugLogger.w(TAG, "Immediate video fetch failed for $ownerId")
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+
+    /**
+     * Fetch image from server and store in MediaStateHolder.
+     */
+    private fun fetchAndStoreImage(
+        client: ComfyUIClient,
+        context: Context,
+        promptId: String,
+        mediaKey: MediaStateHolder.MediaKey
+    ) {
+        client.fetchHistory(promptId) { historyJson ->
+            if (historyJson != null) {
+                try {
+                    val promptData = historyJson.optJSONObject(promptId)
+                    val outputs = promptData?.optJSONObject("outputs")
+
+                    outputs?.keys()?.forEach { nodeId ->
+                        val nodeOutput = outputs.getJSONObject(nodeId)
+                        val images = nodeOutput.optJSONArray("images")
+
+                        if (images != null && images.length() > 0) {
+                            val imageInfo = images.getJSONObject(0)
+                            val filename = imageInfo.optString("filename")
+                            val subfolder = imageInfo.optString("subfolder", "")
+                            val type = imageInfo.optString("type", "output")
+
+                            client.fetchImage(filename, subfolder, type) { bitmap ->
+                                if (bitmap != null) {
+                                    MediaStateHolder.putBitmap(mediaKey, bitmap, context)
+                                    DebugLogger.i(TAG, "Immediate image fetch successful, stored to ${mediaKey::class.simpleName}")
+                                } else {
+                                    DebugLogger.w(TAG, "Immediate image fetch failed: bitmap is null")
+                                }
+                            }
+                            return@fetchHistory
+                        }
+                    }
+                    DebugLogger.w(TAG, "Immediate image fetch: no images in history output")
+                } catch (e: Exception) {
+                    DebugLogger.e(TAG, "Immediate image fetch failed: ${e.message}")
+                }
+            } else {
+                DebugLogger.w(TAG, "Immediate image fetch: history is null")
+            }
+        }
     }
 
     // Content type for current generation (used in submitWorkflow)

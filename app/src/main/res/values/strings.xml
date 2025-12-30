@@ -95,6 +95,7 @@
     <string name="live_preview_description">Display intermediate images during generation</string>
     <string name="memory_first_cache_label">In-memory first cache</string>
     <string name="memory_first_cache_description">Fast access, higher memory usage. Disable for slow networks or low-memory devices.</string>
+    <string name="memory_first_cache_warning">Previews may be lost if the app is closed unexpectedly.</string>
     <string name="disable_media_cache_label">Disable media cache</string>
     <string name="disable_media_cache_description">Do not save preview images and videos to disk</string>
     <string name="auto_connect_label">Auto-connect</string>

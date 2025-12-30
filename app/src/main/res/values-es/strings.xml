@@ -91,6 +91,7 @@
     <string name="live_preview_description">Mostrar imágenes intermedias durante la generación</string>
     <string name="memory_first_cache_label">Caché en memoria primero</string>
     <string name="memory_first_cache_description">Acceso rápido, mayor uso de memoria. Desactivar para redes lentas o dispositivos con poca memoria.</string>
+    <string name="memory_first_cache_warning">Las vistas previas pueden perderse si la app se cierra inesperadamente.</string>
     <string name="disable_media_cache_label">Desactivar caché de medios</string>
     <string name="disable_media_cache_description">No guardar imágenes de vista previa ni videos en disco</string>
     <string name="auto_connect_label">Conexión automática</string>

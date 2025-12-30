@@ -91,6 +91,7 @@
     <string name="live_preview_description">Zwischenbilder während der Generierung anzeigen</string>
     <string name="memory_first_cache_label">Speicher-First-Cache</string>
     <string name="memory_first_cache_description">Schneller Zugriff, höhere Speichernutzung. Deaktivieren für langsame Netzwerke oder Geräte mit wenig Speicher.</string>
+    <string name="memory_first_cache_warning">Vorschauen können verloren gehen, wenn die App unerwartet geschlossen wird.</string>
     <string name="disable_media_cache_label">Medien-Cache deaktivieren</string>
     <string name="disable_media_cache_description">Vorschaubilder und Videos nicht auf Festplatte speichern</string>
     <string name="auto_connect_label">Automatisch verbinden</string>

@@ -6,6 +6,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.util.DebugLogger
@@ -337,7 +340,7 @@ object MediaStateHolder {
     }
 
     /**
-     * Persist all dirty items to disk.
+     * Persist all dirty items to disk using parallel writes for speed.
      * Called from MainContainerActivity.onStop().
      */
     suspend fun persistToDisk(context: Context) {
@@ -357,51 +360,61 @@ object MediaStateHolder {
         }
 
         withContext(Dispatchers.IO) {
-            // Persist dirty bitmaps
+            // Launch all writes in parallel for maximum speed
             val bitmapsToPersist = dirtyBitmaps.toList()
-            var bitmapSuccess = 0
-            var bitmapFailed = 0
-            for (key in bitmapsToPersist) {
-                val bitmap = bitmaps[key]
-                if (bitmap == null) {
-                    DebugLogger.w(TAG, "persistToDisk: bitmap ${key.baseFilename} is dirty but not in memory!")
-                    dirtyBitmaps.remove(key)
-                    continue
-                }
-                try {
-                    context.openFileOutput(key.filename(serverId), Context.MODE_PRIVATE).use { out ->
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            val videosToPersist = dirtyVideos.toList()
+
+            // Create parallel jobs for all items
+            val bitmapJobs = bitmapsToPersist.map { key ->
+                async {
+                    val bitmap = bitmaps[key]
+                    if (bitmap == null) {
+                        DebugLogger.w(TAG, "persistToDisk: bitmap ${key.baseFilename} is dirty but not in memory!")
+                        dirtyBitmaps.remove(key)
+                        return@async false
                     }
-                    dirtyBitmaps.remove(key)
-                    bitmapSuccess++
-                    DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
-                } catch (e: Exception) {
-                    bitmapFailed++
-                    DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
+                    try {
+                        context.openFileOutput(key.filename(serverId), Context.MODE_PRIVATE).use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
+                        dirtyBitmaps.remove(key)
+                        DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
+                        true
+                    } catch (e: Exception) {
+                        DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
+                        false
+                    }
                 }
             }
 
-            // Persist dirty videos
-            val videosToPersist = dirtyVideos.toList()
-            var videoSuccess = 0
-            var videoFailed = 0
-            for (key in videosToPersist) {
-                val bytes = videoBytes[key]
-                if (bytes == null) {
-                    DebugLogger.w(TAG, "persistToDisk: video ${key.baseFilename} is dirty but not in memory!")
-                    dirtyVideos.remove(key)
-                    continue
-                }
-                try {
-                    File(context.filesDir, key.filename(serverId)).writeBytes(bytes)
-                    dirtyVideos.remove(key)
-                    videoSuccess++
-                    DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
-                } catch (e: Exception) {
-                    videoFailed++
-                    DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
+            val videoJobs = videosToPersist.map { key ->
+                async {
+                    val bytes = videoBytes[key]
+                    if (bytes == null) {
+                        DebugLogger.w(TAG, "persistToDisk: video ${key.baseFilename} is dirty but not in memory!")
+                        dirtyVideos.remove(key)
+                        return@async false
+                    }
+                    try {
+                        File(context.filesDir, key.filename(serverId)).writeBytes(bytes)
+                        dirtyVideos.remove(key)
+                        DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
+                        true
+                    } catch (e: Exception) {
+                        DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
+                        false
+                    }
                 }
             }
+
+            // Wait for all writes to complete
+            val bitmapResults = bitmapJobs.awaitAll()
+            val videoResults = videoJobs.awaitAll()
+
+            val bitmapSuccess = bitmapResults.count { it }
+            val bitmapFailed = bitmapResults.count { !it }
+            val videoSuccess = videoResults.count { it }
+            val videoFailed = videoResults.count { !it }
 
             DebugLogger.i(TAG, "persistToDisk DONE (bitmaps: $bitmapSuccess OK, $bitmapFailed failed; videos: $videoSuccess OK, $videoFailed failed)")
         }

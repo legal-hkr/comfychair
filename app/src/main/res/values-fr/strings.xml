@@ -91,6 +91,7 @@
     <string name="live_preview_description">Afficher les images intermédiaires pendant la génération</string>
     <string name="memory_first_cache_label">Cache mémoire prioritaire</string>
     <string name="memory_first_cache_description">Accès rapide, utilisation mémoire plus élevée. Désactiver pour les réseaux lents ou les appareils à faible mémoire.</string>
+    <string name="memory_first_cache_warning">Les aperçus peuvent être perdus si l\'app est fermée de manière inattendue.</string>
     <string name="disable_media_cache_label">Désactiver le cache média</string>
     <string name="disable_media_cache_description">Ne pas enregistrer les images d\'aperçu et les vidéos sur le disque</string>
     <string name="auto_connect_label">Connexion automatique</string>

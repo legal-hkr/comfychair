@@ -249,6 +249,13 @@ fun ApplicationSettingsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (isMemoryFirstCache) {
+                                Text(
+                                    text = stringResource(R.string.memory_first_cache_warning),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                         Switch(
                             checked = isMemoryFirstCache,

@@ -61,7 +61,7 @@ object DebugLogger {
 
     /**
      * Log a message at the specified level.
-     * Logs are stored in memory for in-app viewing and export.
+     * Logs are stored in memory only.
      */
     fun log(level: LogLevel, tag: String, message: String) {
         if (!enabled) return
