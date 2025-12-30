@@ -180,6 +180,13 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 }
             }
         }
+
+        // Observe workflow changes to refresh list when workflows are added/updated/deleted
+        viewModelScope.launch {
+            WorkflowManager.workflowsVersion.collect {
+                loadWorkflows()
+            }
+        }
     }
 
     /**

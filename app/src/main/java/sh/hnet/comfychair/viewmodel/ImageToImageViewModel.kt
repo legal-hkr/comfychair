@@ -247,23 +247,30 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 }
             }
         }
+
+        // Observe workflow changes to refresh list when workflows are added/updated/deleted
+        viewModelScope.launch {
+            WorkflowManager.workflowsVersion.collect {
+                loadWorkflows()
+            }
+        }
     }
 
     override fun onInitialize() {
         DebugLogger.i(TAG, "Initializing")
 
-        loadWorkflowOptions()
+        loadWorkflows()
         restorePreferences()
         loadSavedImages()
     }
 
-    private fun loadWorkflowOptions() {
+    private fun loadWorkflows() {
         val ctx = applicationContext ?: return
 
         val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET)
         val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET)
-        DebugLogger.d(TAG, "loadWorkflowOptions: Found ${checkpointWorkflows.size} checkpoint, ${unetWorkflows.size} UNET, ${editingWorkflows.size} editing workflows")
+        DebugLogger.d(TAG, "loadWorkflows: Found ${checkpointWorkflows.size} checkpoint, ${unetWorkflows.size} UNET, ${editingWorkflows.size} editing workflows")
 
         // Create unified workflow list with type prefix for display (for Inpainting mode)
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -360,7 +367,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             // Use saved workflow if it exists in available workflows (by ID)
             savedWorkflowId != null && state.availableWorkflows.any { it.id == savedWorkflowId } ->
                 state.availableWorkflows.find { it.id == savedWorkflowId }
-            // Otherwise use the current selection (set by loadWorkflowOptions)
+            // Otherwise use the current selection (set by loadWorkflows)
             state.selectedWorkflow.isNotEmpty() ->
                 state.availableWorkflows.find { it.name == state.selectedWorkflow }
             // Fallback to first available

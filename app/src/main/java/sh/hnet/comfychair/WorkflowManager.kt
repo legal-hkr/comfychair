@@ -14,6 +14,9 @@ import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.io.InputStream
 
@@ -104,6 +107,11 @@ object WorkflowManager {
     // Available workflows loaded from res/raw and user storage
     private val workflows = mutableListOf<Workflow>()
     private val workflowValuesStorage by lazy { WorkflowValuesStorage(applicationContext) }
+
+    // Workflow change notification - increments when workflows are added/updated/deleted
+    // ViewModels can observe this to refresh their workflow lists
+    private val _workflowsVersion = MutableStateFlow(0L)
+    val workflowsVersion: StateFlow<Long> = _workflowsVersion.asStateFlow()
 
     /**
      * Load all workflows (built-in and user-uploaded)
@@ -367,6 +375,7 @@ object WorkflowManager {
 
         DebugLogger.i(TAG, "Duplicated workflow: ${sourceWorkflow.name} -> $newName (id: $newId)")
 
+        _workflowsVersion.value++
         return Result.success(newWorkflow)
     }
 
@@ -686,6 +695,7 @@ object WorkflowManager {
         val workflow = Workflow(id, name, description, finalJson.toString(2), type, isBuiltIn = false, defaults)
         workflows.add(workflow)
 
+        _workflowsVersion.value++
         return Result.success(workflow)
     }
 
@@ -885,6 +895,7 @@ object WorkflowManager {
                 defaults = defaults
             )
             workflows[workflowIndex] = updatedWorkflow
+            _workflowsVersion.value++
             return Result.success(updatedWorkflow)
         }
 
@@ -996,6 +1007,7 @@ object WorkflowManager {
         val workflow = Workflow(id, name, description, finalJson, type, isBuiltIn = false)
         workflows.add(workflow)
 
+        _workflowsVersion.value++
         return Result.success(workflow)
     }
 
@@ -1036,6 +1048,7 @@ object WorkflowManager {
             // Update preferences
             prefs.edit().putString(USER_WORKFLOWS_KEY, newArray.toString()).apply()
 
+            _workflowsVersion.value++
             return true
         } catch (e: Exception) {
             return false
@@ -1062,6 +1075,7 @@ object WorkflowManager {
             val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
             prefs.edit().remove(USER_WORKFLOWS_KEY).apply()
 
+            _workflowsVersion.value++
             return true
         } catch (e: Exception) {
             return false
@@ -1098,6 +1112,7 @@ object WorkflowManager {
             }
 
             prefs.edit().putString(USER_WORKFLOWS_KEY, metadataArray.toString()).apply()
+            _workflowsVersion.value++
             return true
         } catch (e: Exception) {
             return false

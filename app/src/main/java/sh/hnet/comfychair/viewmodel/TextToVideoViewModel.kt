@@ -182,6 +182,13 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 }
             }
         }
+
+        // Observe workflow changes to refresh list when workflows are added/updated/deleted
+        viewModelScope.launch {
+            WorkflowManager.workflowsVersion.collect {
+                loadWorkflows()
+            }
+        }
     }
 
     override fun onInitialize() {

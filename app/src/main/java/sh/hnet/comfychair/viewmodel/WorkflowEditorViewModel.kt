@@ -1339,18 +1339,15 @@ class WorkflowEditorViewModel : ViewModel() {
             )
         }
 
-        viewModelScope.launch {
-            if (result.isSuccess) {
-                val savedWorkflow = result.getOrThrow()
-                DebugLogger.i(TAG, "confirmMappingAndSave: Workflow saved successfully with id=${savedWorkflow.id}")
-                if (state.editingWorkflowId != null) {
-                    _events.emit(WorkflowEditorEvent.WorkflowUpdated(savedWorkflow.id))
-                } else {
-                    _events.emit(WorkflowEditorEvent.WorkflowCreated(savedWorkflow.id))
-                }
-            } else {
-                val error = result.exceptionOrNull()
-                DebugLogger.e(TAG, "confirmMappingAndSave: Save failed: ${error?.message}")
+        if (result.isSuccess) {
+            val savedWorkflow = result.getOrThrow()
+            DebugLogger.i(TAG, "confirmMappingAndSave: Workflow saved successfully with id=${savedWorkflow.id}")
+            // Return to view mode instead of exiting
+            returnToViewMode(savedWorkflow.id, context)
+        } else {
+            val error = result.exceptionOrNull()
+            DebugLogger.e(TAG, "confirmMappingAndSave: Save failed: ${error?.message}")
+            viewModelScope.launch {
                 _events.emit(WorkflowEditorEvent.CreateCancelled)
             }
         }
@@ -1966,6 +1963,57 @@ class WorkflowEditorViewModel : ViewModel() {
             nodeInsertPosition = null,
             connectionModeState = null
         )
+    }
+
+    /**
+     * Return to view mode after saving a workflow.
+     * Reloads the workflow from storage to get the fresh saved state.
+     */
+    private fun returnToViewMode(workflowId: String, context: Context) {
+        DebugLogger.i(TAG, "returnToViewMode: Reloading workflow $workflowId")
+
+        // Reload workflow from storage to get fresh saved state
+        val workflow = WorkflowManager.getWorkflowById(workflowId)
+        if (workflow == null) {
+            DebugLogger.e(TAG, "returnToViewMode: Workflow not found")
+            return
+        }
+
+        // Parse and layout the workflow
+        var graph = parser.parse(workflow.jsonContent, workflow.name, workflow.description)
+        graph = populateNodeOutputs(graph)
+        graph = layoutEngine.layoutGraph(graph)
+        graph = resolveEdgeTypes(graph)
+        val bounds = layoutEngine.calculateBounds(graph)
+
+        // Clear mutable state
+        mutableGraph = null
+        originalGraph = null
+        originalBounds = null
+        pendingSaveData = null
+
+        // Update UI state to view mode
+        _uiState.value = _uiState.value.copy(
+            graph = graph,
+            workflowName = workflow.name,
+            graphBounds = bounds,
+            isEditMode = false,
+            isFieldMappingMode = false,
+            mappingState = null,
+            selectedNodeIds = emptySet(),
+            hasUnsavedChanges = false,
+            showNodeBrowser = false,
+            nodeInsertPosition = null,
+            connectionModeState = null,
+            highlightedNodeIds = emptySet(),
+            // Update workflow metadata for subsequent edits
+            editingWorkflowId = workflowId,
+            editingWorkflowType = workflow.type,
+            originalWorkflowName = workflow.name,
+            originalWorkflowDescription = workflow.description
+        )
+
+        DebugLogger.i(TAG, "returnToViewMode: Now in view mode for workflow ${workflow.name}")
     }
 
     /**
