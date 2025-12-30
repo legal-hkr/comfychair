@@ -179,12 +179,19 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun putBitmap(key: MediaKey, bitmap: Bitmap, context: Context? = null) {
-        val serverId = currentServerId ?: return
+        val serverId = currentServerId
+        if (serverId == null) {
+            DebugLogger.w(TAG, "putBitmap SKIPPED - currentServerId is null (key: ${key.baseFilename})")
+            return
+        }
+
+        DebugLogger.d(TAG, "putBitmap: ${key.baseFilename} (server: ${serverId.take(8)}..., mode: ${if (isMemoryFirstMode) "memory" else "disk"})")
 
         if (isMemoryFirstMode) {
             // Memory-first: store in memory, mark as dirty for later persistence
             bitmaps[key] = bitmap
             dirtyBitmaps.add(key)
+            DebugLogger.d(TAG, "putBitmap: stored in memory, marked dirty (dirty count: ${dirtyBitmaps.size})")
         } else {
             // Disk-first: write to disk immediately, don't store in memory
             context?.let { ctx ->
@@ -192,10 +199,11 @@ object MediaStateHolder {
                     ctx.openFileOutput(key.filename(serverId), Context.MODE_PRIVATE).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
-                } catch (_: Exception) {
-                    // Ignore write failures
+                    DebugLogger.d(TAG, "putBitmap: written to disk")
+                } catch (e: Exception) {
+                    DebugLogger.e(TAG, "putBitmap: disk write FAILED - ${e.message}")
                 }
-            }
+            } ?: DebugLogger.w(TAG, "putBitmap: context is null, cannot write to disk")
         }
     }
 
@@ -204,20 +212,32 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun getBitmap(key: MediaKey, context: Context? = null): Bitmap? {
-        val serverId = currentServerId ?: return null
+        val serverId = currentServerId
+        if (serverId == null) {
+            DebugLogger.w(TAG, "getBitmap SKIPPED - currentServerId is null (key: ${key.baseFilename})")
+            return null
+        }
 
         return if (isMemoryFirstMode) {
             // Memory-first: return from RAM
-            bitmaps[key]
+            val bitmap = bitmaps[key]
+            DebugLogger.d(TAG, "getBitmap: ${key.baseFilename} from memory -> ${if (bitmap != null) "FOUND" else "NOT FOUND"}")
+            bitmap
         } else {
             // Disk-first: read from disk each time
             context?.let { ctx ->
                 try {
                     val file = ctx.getFileStreamPath(key.filename(serverId))
                     if (file.exists()) {
-                        BitmapFactory.decodeFile(file.absolutePath)
-                    } else null
-                } catch (_: Exception) {
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        DebugLogger.d(TAG, "getBitmap: ${key.baseFilename} from disk -> ${if (bitmap != null) "FOUND" else "DECODE FAILED"}")
+                        bitmap
+                    } else {
+                        DebugLogger.d(TAG, "getBitmap: ${key.baseFilename} from disk -> FILE NOT FOUND")
+                        null
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.e(TAG, "getBitmap: ${key.baseFilename} disk read FAILED - ${e.message}")
                     null
                 }
             }
@@ -321,39 +341,69 @@ object MediaStateHolder {
      * Called from MainContainerActivity.onStop().
      */
     suspend fun persistToDisk(context: Context) {
-        val serverId = currentServerId ?: return
+        val serverId = currentServerId
+        if (serverId == null) {
+            DebugLogger.w(TAG, "persistToDisk SKIPPED - currentServerId is null! (dirty: ${dirtyBitmaps.size} bitmaps, ${dirtyVideos.size} videos)")
+            return
+        }
 
         val bitmapCount = dirtyBitmaps.size
         val videoCount = dirtyVideos.size
-        if (bitmapCount > 0 || videoCount > 0) {
-            DebugLogger.d(TAG, "Persisting to disk: $bitmapCount bitmaps, $videoCount videos")
+        DebugLogger.i(TAG, "persistToDisk START (server: ${serverId.take(8)}..., dirty: $bitmapCount bitmaps, $videoCount videos)")
+
+        if (bitmapCount == 0 && videoCount == 0) {
+            DebugLogger.d(TAG, "persistToDisk: nothing to persist")
+            return
         }
+
         withContext(Dispatchers.IO) {
             // Persist dirty bitmaps
             val bitmapsToPersist = dirtyBitmaps.toList()
+            var bitmapSuccess = 0
+            var bitmapFailed = 0
             for (key in bitmapsToPersist) {
-                val bitmap = bitmaps[key] ?: continue
+                val bitmap = bitmaps[key]
+                if (bitmap == null) {
+                    DebugLogger.w(TAG, "persistToDisk: bitmap ${key.baseFilename} is dirty but not in memory!")
+                    dirtyBitmaps.remove(key)
+                    continue
+                }
                 try {
                     context.openFileOutput(key.filename(serverId), Context.MODE_PRIVATE).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                     dirtyBitmaps.remove(key)
-                } catch (_: Exception) {
-                    // Ignore persistence failures
+                    bitmapSuccess++
+                    DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
+                } catch (e: Exception) {
+                    bitmapFailed++
+                    DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
                 }
             }
 
             // Persist dirty videos
             val videosToPersist = dirtyVideos.toList()
+            var videoSuccess = 0
+            var videoFailed = 0
             for (key in videosToPersist) {
-                val bytes = videoBytes[key] ?: continue
+                val bytes = videoBytes[key]
+                if (bytes == null) {
+                    DebugLogger.w(TAG, "persistToDisk: video ${key.baseFilename} is dirty but not in memory!")
+                    dirtyVideos.remove(key)
+                    continue
+                }
                 try {
                     File(context.filesDir, key.filename(serverId)).writeBytes(bytes)
                     dirtyVideos.remove(key)
-                } catch (_: Exception) {
-                    // Ignore persistence failures
+                    videoSuccess++
+                    DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
+                } catch (e: Exception) {
+                    videoFailed++
+                    DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
                 }
             }
+
+            DebugLogger.i(TAG, "persistToDisk DONE (bitmaps: $bitmapSuccess OK, $bitmapFailed failed; videos: $videoSuccess OK, $videoFailed failed)")
         }
     }
 
@@ -362,7 +412,13 @@ object MediaStateHolder {
      * Called from MainContainerActivity.onCreate().
      */
     suspend fun loadFromDisk(context: Context) {
-        val serverId = currentServerId ?: return
+        val serverId = currentServerId
+        if (serverId == null) {
+            DebugLogger.w(TAG, "loadFromDisk SKIPPED - currentServerId is null!")
+            return
+        }
+
+        DebugLogger.i(TAG, "loadFromDisk START (server: ${serverId.take(8)}...)")
 
         withContext(Dispatchers.IO) {
             // Load bitmap files
@@ -377,6 +433,8 @@ object MediaStateHolder {
                 MediaKey.IteReferenceImage2
             )
 
+            var bitmapsLoaded = 0
+            var bitmapsNotFound = 0
             for (key in bitmapKeys) {
                 try {
                     val file = context.getFileStreamPath(key.filename(serverId))
@@ -384,11 +442,17 @@ object MediaStateHolder {
                         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
                         if (bitmap != null) {
                             bitmaps[key] = bitmap
+                            bitmapsLoaded++
+                            DebugLogger.d(TAG, "loadFromDisk: ${key.baseFilename} -> LOADED")
                             // NOT dirty - already on disk
+                        } else {
+                            DebugLogger.w(TAG, "loadFromDisk: ${key.baseFilename} -> DECODE FAILED")
                         }
+                    } else {
+                        bitmapsNotFound++
                     }
-                } catch (_: Exception) {
-                    // Ignore load failures
+                } catch (e: Exception) {
+                    DebugLogger.e(TAG, "loadFromDisk: ${key.baseFilename} -> ERROR: ${e.message}")
                 }
             }
 
@@ -398,13 +462,17 @@ object MediaStateHolder {
                 val key = MediaKey.TtvVideo(promptId)
                 videoBytes[key] = bytes
                 currentTtvPromptId = promptId
+                DebugLogger.d(TAG, "loadFromDisk: TTV video -> LOADED (promptId: ${promptId.take(8)}...)")
             }
 
             loadLatestVideoFile(context, serverPrefix, VideoUtils.FilePrefix.IMAGE_TO_VIDEO) { promptId, bytes ->
                 val key = MediaKey.ItvVideo(promptId)
                 videoBytes[key] = bytes
                 currentItvPromptId = promptId
+                DebugLogger.d(TAG, "loadFromDisk: ITV video -> LOADED (promptId: ${promptId.take(8)}...)")
             }
+
+            DebugLogger.i(TAG, "loadFromDisk DONE (loaded: $bitmapsLoaded bitmaps, not found: $bitmapsNotFound)")
         }
     }
 

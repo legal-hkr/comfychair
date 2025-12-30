@@ -61,6 +61,7 @@ object DebugLogger {
 
     /**
      * Log a message at the specified level.
+     * Logs are stored in memory for in-app viewing and export.
      */
     fun log(level: LogLevel, tag: String, message: String) {
         if (!enabled) return
@@ -141,7 +142,9 @@ object Obfuscator {
 
     /**
      * Obfuscate a hostname/server address.
+     * Parameter kept for call-site documentation (shows what's being obfuscated).
      */
+    @Suppress("UNUSED_PARAMETER")
     fun hostname(host: String?): String = "<server>"
 
     /**
@@ -158,11 +161,6 @@ object Obfuscator {
      */
     fun promptId(id: String?): String =
         id?.take(8)?.plus("...") ?: "<unknown>"
-
-    /**
-     * Obfuscate a file path.
-     */
-    fun path(path: String?): String = "<path>"
 
     /**
      * Obfuscate a model name. Shows only the filename portion.

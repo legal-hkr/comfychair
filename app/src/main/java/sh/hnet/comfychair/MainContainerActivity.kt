@@ -77,15 +77,19 @@ class MainContainerActivity : ComponentActivity() {
 
         // Enable debug logging based on saved preference (must be early to capture init logs)
         DebugLogger.setEnabled(AppSettings.isDebugLoggingEnabled(this))
+        DebugLogger.i("MainContainer", "onCreate - debug logging enabled")
 
         // Initialize the ViewModel (uses ConnectionManager internally)
         generationViewModel.initialize(this)
 
         // Set current server ID for per-server media scoping
-        MediaStateHolder.setCurrentServerId(ConnectionManager.currentServerId)
+        val serverId = ConnectionManager.currentServerId
+        DebugLogger.d("MainContainer", "setCurrentServerId: ${serverId?.take(8) ?: "NULL"}...")
+        MediaStateHolder.setCurrentServerId(serverId)
 
         // Set caching mode based on user preference
         val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
+        DebugLogger.d("MainContainer", "caching mode: ${if (isMemoryFirst) "memory-first" else "disk-first"}")
         MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
         MediaCache.setMemoryFirstMode(isMemoryFirst)
 
@@ -95,11 +99,13 @@ class MainContainerActivity : ComponentActivity() {
         // Load saved media state before screens initialize
         if (isMemoryFirst) {
             // Memory-first: load everything from disk into memory
+            DebugLogger.d("MainContainer", "loading media from disk (memory-first mode)")
             runBlocking {
                 MediaStateHolder.loadFromDisk(applicationContext)
             }
         } else {
             // Disk-first: just discover video promptIds (bytes read on-demand)
+            DebugLogger.d("MainContainer", "discovering video promptIds (disk-first mode)")
             MediaStateHolder.discoverVideoPromptIds(applicationContext)
         }
 
@@ -154,6 +160,7 @@ class MainContainerActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        DebugLogger.d("MainContainer", "onStop - saving generation state")
         // Save generation state when going to background
         generationViewModel.saveGenerationState(this)
 
@@ -161,7 +168,10 @@ class MainContainerActivity : ComponentActivity() {
         // Only persist in memory-first mode (disk-first writes immediately, no persistence needed)
         // Also skip if media cache is disabled
         val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
-        if (isMemoryFirst && !AppSettings.isMediaCacheDisabled(this)) {
+        val isCacheDisabled = AppSettings.isMediaCacheDisabled(this)
+        DebugLogger.d("MainContainer", "onStop - memoryFirst=$isMemoryFirst, cacheDisabled=$isCacheDisabled")
+        if (isMemoryFirst && !isCacheDisabled) {
+            DebugLogger.d("MainContainer", "onStop - persisting media to disk")
             runBlocking {
                 MediaStateHolder.persistToDisk(applicationContext)
             }
