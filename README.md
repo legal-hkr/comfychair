@@ -4,6 +4,12 @@ An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous
 
 **Current version**: v0.8.3
 
+<p><span style="color:red;">IMPORTANT NOTICE</span></p>
+
+To support multiple ComfyUI servers, the app's internal settings and backup structure has been redesigned.
+
+If you are updating from v0.8.2 or earlier, please consider performing a **factory reset** after upgrading to avoid unexpected behavior.
+
 ## Overview
 
 ComfyChair provides a streamlined mobile interface for interacting with ComfyUI servers, allowing you to generate and manage AI images and videos directly from your Android device. The app communicates with your ComfyUI server via its API, bringing the power of node-based AI generation to your mobile workflow.

@@ -217,6 +217,8 @@
     <string name="invert_mask">Invert mask</string>
     <string name="paint_mode">Paint</string>
     <string name="eraser_mode">Eraser</string>
+    <string name="brush_size">Brush size</string>
+    <string name="more_options">More options</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generation</string>

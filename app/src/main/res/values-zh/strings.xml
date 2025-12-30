@@ -194,6 +194,8 @@
     <string name="invert_mask">反转蒙版</string>
     <string name="paint_mode">画笔</string>
     <string name="eraser_mode">橡皮擦</string>
+    <string name="brush_size">画笔大小</string>
+    <string name="more_options">更多选项</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">生成</string>

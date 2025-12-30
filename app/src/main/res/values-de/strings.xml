@@ -212,6 +212,8 @@
     <string name="invert_mask">Maske invertieren</string>
     <string name="paint_mode">Malen</string>
     <string name="eraser_mode">Radierer</string>
+    <string name="brush_size">Pinselgröße</string>
+    <string name="more_options">Weitere Optionen</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generierung</string>

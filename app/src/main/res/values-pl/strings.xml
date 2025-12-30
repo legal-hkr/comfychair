@@ -194,6 +194,8 @@
     <string name="invert_mask">Odwróć maskę</string>
     <string name="paint_mode">Malowanie</string>
     <string name="eraser_mode">Gumka</string>
+    <string name="brush_size">Rozmiar pędzla</string>
+    <string name="more_options">Więcej opcji</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generowanie</string>

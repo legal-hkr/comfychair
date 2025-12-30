@@ -194,6 +194,8 @@
     <string name="invert_mask">Invertir máscara</string>
     <string name="paint_mode">Pintar</string>
     <string name="eraser_mode">Borrador</string>
+    <string name="brush_size">Tamaño del pincel</string>
+    <string name="more_options">Más opciones</string>
 
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generación</string>
