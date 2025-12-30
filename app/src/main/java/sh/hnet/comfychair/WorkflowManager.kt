@@ -562,10 +562,11 @@ object WorkflowManager {
                 val placeholderMatch = placeholderRegex.find(value)
                 if (placeholderMatch != null) {
                     val placeholderName = placeholderMatch.groupValues[1]
-                    // Convert placeholder name to field key before checking
                     val fieldKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(placeholderName)
-                    // Check if this field key corresponds to an unmapped optional field
-                    if (fieldKey in unmappedOptionalKeys) {
+                    // Check both placeholder name and JSON key (OPTIONAL_KEYS uses mixed formats:
+                    // JSON keys for prompts like "negative_text", placeholder names for
+                    // highnoise/lownoise variants that share the same JSON key)
+                    if (placeholderName in unmappedOptionalKeys || fieldKey in unmappedOptionalKeys) {
                         // Replace placeholder with empty string so it shows as unmapped in editor
                         inputs.put(inputKey, "")
                     }
@@ -765,10 +766,11 @@ object WorkflowManager {
                 val placeholderMatch = placeholderRegex.find(value)
                 if (placeholderMatch != null) {
                     val placeholderName = placeholderMatch.groupValues[1]
-                    // Convert placeholder name to field key before checking
                     val fieldKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(placeholderName)
-                    // Check if this field key corresponds to an unmapped optional field
-                    if (fieldKey in unmappedOptionalKeys) {
+                    // Check both placeholder name and JSON key (OPTIONAL_KEYS uses mixed formats:
+                    // JSON keys for prompts like "negative_text", placeholder names for
+                    // highnoise/lownoise variants that share the same JSON key)
+                    if (placeholderName in unmappedOptionalKeys || fieldKey in unmappedOptionalKeys) {
                         // Replace placeholder with empty string so it shows as unmapped in editor
                         inputs.put(inputKey, "")
                     }
