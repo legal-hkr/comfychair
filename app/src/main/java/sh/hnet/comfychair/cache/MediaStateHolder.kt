@@ -128,7 +128,7 @@ object MediaStateHolder {
     /**
      * Clear all disk cache files for the current server.
      */
-    private fun clearDiskCache(context: Context) {
+    fun clearDiskCache(context: Context) {
         val serverId = currentServerId ?: return
 
         val allKeys = listOf(

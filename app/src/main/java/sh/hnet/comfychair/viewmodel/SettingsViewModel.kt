@@ -288,45 +288,15 @@ class SettingsViewModel : ViewModel() {
     fun clearCache(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val cachedFiles = listOf(
-                    // Text to Image
-                    "tti_last_preview.png",
-                    // Image to Image
-                    "iti_last_preview.png",
-                    "iti_last_source.png",
-                    // Image to Image Editing (reference images)
-                    "ite_reference_1.png",
-                    "ite_reference_2.png",
-                    // Text to Video
-                    "ttv_last_preview.png",
-                    // Image to Video
-                    "itv_last_preview.png",
-                    "itv_last_source.png"
-                )
+                // Clear preview files (handles serverId-prefixed filenames)
+                MediaStateHolder.clearDiskCache(context)
 
-                cachedFiles.forEach { filename ->
-                    try {
-                        context.deleteFile(filename)
-                    } catch (e: Exception) {
-                        // Failed to delete file
-                    }
-                }
-
-                // Clear video files with prompt ID suffixes in filesDir
-                context.filesDir.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("last_generated_video") && file.name.endsWith(".mp4") ||
-                        file.name.startsWith("image_to_video_last_generated") && file.name.endsWith(".mp4")) {
-                        try {
-                            file.delete()
-                        } catch (e: Exception) {
-                            // Failed to delete video file
-                        }
-                    }
-                }
-
-                // Also clear any temp files in cache directory
+                // Clear any temp files in cache directory
                 context.cacheDir.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("gallery_video_") || file.name.startsWith("playback_") || file.name.endsWith(".png") || file.name.endsWith(".mp4")) {
+                    if (file.name.startsWith("gallery_video_") ||
+                        file.name.startsWith("playback_") ||
+                        file.name.endsWith(".png") ||
+                        file.name.endsWith(".mp4")) {
                         try {
                             file.delete()
                         } catch (e: Exception) {
