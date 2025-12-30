@@ -624,8 +624,8 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         val length = state.length.toIntOrNull() ?: return null
         val fps = state.fps.toIntOrNull() ?: return null
 
-        val baseWorkflow = WorkflowManager.prepareVideoWorkflow(
-            workflowName = state.selectedWorkflow,
+        val baseWorkflow = WorkflowManager.prepareVideoWorkflowById(
+            workflowId = state.selectedWorkflowId,
             positivePrompt = state.positivePrompt,
             negativePrompt = state.negativePrompt,
             highnoiseUnet = state.selectedHighnoiseUnet,

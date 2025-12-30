@@ -581,8 +581,8 @@ object WorkflowManager {
             return Result.failure(Exception("Failed to save workflow: ${e.message ?: ""}"))
         }
 
-        // Create the new workflow entry
-        val newId = "user_${filename.substringBeforeLast(".")}"
+        // Create the new workflow entry with a random UUID
+        val newId = UuidUtils.generateRandomId()
         val newWorkflow = Workflow(
             id = newId,
             name = newName,
@@ -2022,10 +2022,10 @@ object WorkflowManager {
     }
 
     /**
-     * Prepare workflow JSON with actual parameter values
+     * Prepare workflow JSON with actual parameter values (by workflow ID)
      */
-    fun prepareWorkflow(
-        workflowName: String,
+    fun prepareWorkflowById(
+        workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
         checkpoint: String = "",
@@ -2041,7 +2041,8 @@ object WorkflowManager {
         samplerName: String = "euler",
         scheduler: String = "normal"
     ): String? {
-        DebugLogger.i(TAG, "Preparing workflow: $workflowName")
+        val workflow = getWorkflowById(workflowId) ?: return null
+        DebugLogger.i(TAG, "Preparing workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Steps: $steps, CFG: $cfg")
         DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
@@ -2051,7 +2052,6 @@ object WorkflowManager {
         clip?.let { DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(it)}") }
         clip1?.let { DebugLogger.d(TAG, "CLIP1: ${Obfuscator.modelName(it)}") }
         clip2?.let { DebugLogger.d(TAG, "CLIP2: ${Obfuscator.modelName(it)}") }
-        val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -2082,10 +2082,10 @@ object WorkflowManager {
     }
 
     /**
-     * Prepare Image-to-image workflow JSON with actual parameter values
+     * Prepare Image-to-image workflow JSON with actual parameter values (by workflow ID)
      */
-    fun prepareImageToImageWorkflow(
-        workflowName: String,
+    fun prepareImageToImageWorkflowById(
+        workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
         checkpoint: String = "",
@@ -2099,7 +2099,8 @@ object WorkflowManager {
         scheduler: String = "normal",
         imageFilename: String
     ): String? {
-        DebugLogger.i(TAG, "Preparing ITI workflow: $workflowName")
+        val workflow = getWorkflowById(workflowId) ?: return null
+        DebugLogger.i(TAG, "Preparing ITI workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Megapixels: $megapixels, Steps: $steps, CFG: $cfg")
         DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
@@ -2108,7 +2109,6 @@ object WorkflowManager {
         if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
         if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
-        val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -2137,11 +2137,11 @@ object WorkflowManager {
     }
 
     /**
-     * Prepare Image-to-Image Editing workflow JSON with actual parameter values.
+     * Prepare Image-to-Image Editing workflow JSON with actual parameter values (by workflow ID).
      * This is for the QwenImage Edit-style workflows that use reference images instead of masks.
      */
-    fun prepareImageEditingWorkflow(
-        workflowName: String,
+    fun prepareImageEditingWorkflowById(
+        workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
         unet: String,
@@ -2157,7 +2157,8 @@ object WorkflowManager {
         referenceImage1Filename: String? = null,
         referenceImage2Filename: String? = null
     ): String? {
-        DebugLogger.i(TAG, "Preparing ITE workflow: $workflowName")
+        val workflow = getWorkflowById(workflowId) ?: return null
+        DebugLogger.i(TAG, "Preparing ITE workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Megapixels: $megapixels, Steps: $steps, CFG: $cfg")
         DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
@@ -2168,7 +2169,6 @@ object WorkflowManager {
         DebugLogger.d(TAG, "Source: ${Obfuscator.filename(sourceImageFilename)}")
         referenceImage1Filename?.let { DebugLogger.d(TAG, "Reference1: ${Obfuscator.filename(it)}") }
         referenceImage2Filename?.let { DebugLogger.d(TAG, "Reference2: ${Obfuscator.filename(it)}") }
-        val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -2277,10 +2277,10 @@ object WorkflowManager {
     }
 
     /**
-     * Prepare video workflow JSON with actual parameter values
+     * Prepare video workflow JSON with actual parameter values (by workflow ID)
      */
-    fun prepareVideoWorkflow(
-        workflowName: String,
+    fun prepareVideoWorkflowById(
+        workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
         highnoiseUnet: String,
@@ -2294,7 +2294,8 @@ object WorkflowManager {
         length: Int,
         fps: Int = 16
     ): String? {
-        DebugLogger.i(TAG, "Preparing TTV workflow: $workflowName")
+        val workflow = getWorkflowById(workflowId) ?: return null
+        DebugLogger.i(TAG, "Preparing TTV workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
         DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
@@ -2302,7 +2303,6 @@ object WorkflowManager {
         DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
         DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
         DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}, CLIP: ${Obfuscator.modelName(clip)}")
-        val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -2328,10 +2328,10 @@ object WorkflowManager {
     }
 
     /**
-     * Prepare image-to-video workflow JSON with actual parameter values
+     * Prepare image-to-video workflow JSON with actual parameter values (by workflow ID)
      */
-    fun prepareImageToVideoWorkflow(
-        workflowName: String,
+    fun prepareImageToVideoWorkflowById(
+        workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
         highnoiseUnet: String,
@@ -2346,7 +2346,8 @@ object WorkflowManager {
         fps: Int = 16,
         imageFilename: String
     ): String? {
-        DebugLogger.i(TAG, "Preparing ITV workflow: $workflowName")
+        val workflow = getWorkflowById(workflowId) ?: return null
+        DebugLogger.i(TAG, "Preparing ITV workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
         DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
@@ -2355,7 +2356,6 @@ object WorkflowManager {
         DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
         DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}, CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
-        val workflow = getWorkflowByName(workflowName) ?: return null
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -2381,35 +2381,4 @@ object WorkflowManager {
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
     }
 
-    /**
-     * Get workflow JSON nodes (without metadata)
-     */
-    fun getWorkflowNodes(
-        workflowName: String,
-        positivePrompt: String,
-        negativePrompt: String = "",
-        checkpoint: String = "",
-        unet: String = "",
-        vae: String = "",
-        clip: String = "",
-        width: Int,
-        height: Int,
-        steps: Int
-    ): JSONObject? {
-        val processedJson = prepareWorkflow(
-            workflowName = workflowName,
-            positivePrompt = positivePrompt,
-            negativePrompt = negativePrompt,
-            checkpoint = checkpoint,
-            unet = unet,
-            vae = vae,
-            clip = clip,
-            width = width,
-            height = height,
-            steps = steps
-        ) ?: return null
-
-        val jsonObject = JSONObject(processedJson)
-        return jsonObject.optJSONObject("nodes")
-    }
 }

@@ -1448,8 +1448,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         }
 
         // Prepare editing workflow JSON
-        val baseWorkflow = WorkflowManager.prepareImageEditingWorkflow(
-            workflowName = state.selectedEditingWorkflow,
+        val baseWorkflow = WorkflowManager.prepareImageEditingWorkflowById(
+            workflowId = state.selectedEditingWorkflowId,
             positivePrompt = state.positivePrompt,
             negativePrompt = state.editingNegativePrompt,
             unet = state.selectedEditingUnet,
@@ -1514,8 +1514,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
 
         // Prepare workflow JSON
         val baseWorkflow = if (state.isCheckpointMode) {
-            WorkflowManager.prepareImageToImageWorkflow(
-                workflowName = state.selectedWorkflow,
+            WorkflowManager.prepareImageToImageWorkflowById(
+                workflowId = state.selectedWorkflowId,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.checkpointNegativePrompt,
                 checkpoint = state.selectedCheckpoint,
@@ -1527,8 +1527,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 imageFilename = uploadedFilename
             )
         } else {
-            WorkflowManager.prepareImageToImageWorkflow(
-                workflowName = state.selectedWorkflow,
+            WorkflowManager.prepareImageToImageWorkflowById(
+                workflowId = state.selectedWorkflowId,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.unetNegativePrompt,
                 unet = state.selectedUnet,

@@ -726,8 +726,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         }
 
         val baseWorkflow = if (state.isCheckpointMode) {
-            WorkflowManager.prepareWorkflow(
-                workflowName = state.selectedWorkflow,
+            WorkflowManager.prepareWorkflowById(
+                workflowId = state.selectedWorkflowId,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.checkpointNegativePrompt,
                 checkpoint = state.selectedCheckpoint,
@@ -739,8 +739,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 scheduler = state.checkpointScheduler
             )
         } else {
-            WorkflowManager.prepareWorkflow(
-                workflowName = state.selectedWorkflow,
+            WorkflowManager.prepareWorkflowById(
+                workflowId = state.selectedWorkflowId,
                 positivePrompt = state.positivePrompt,
                 negativePrompt = state.unetNegativePrompt,
                 unet = state.selectedUnet,

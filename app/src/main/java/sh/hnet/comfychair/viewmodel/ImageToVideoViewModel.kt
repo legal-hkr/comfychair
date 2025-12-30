@@ -679,8 +679,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             return null
         }
 
-        val baseWorkflow = WorkflowManager.prepareImageToVideoWorkflow(
-            workflowName = state.selectedWorkflow,
+        val baseWorkflow = WorkflowManager.prepareImageToVideoWorkflowById(
+            workflowId = state.selectedWorkflowId,
             positivePrompt = state.positivePrompt,
             negativePrompt = state.negativePrompt,
             highnoiseUnet = state.selectedHighnoiseUnet,
