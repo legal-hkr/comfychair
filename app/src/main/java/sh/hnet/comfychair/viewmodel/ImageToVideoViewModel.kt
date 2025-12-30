@@ -238,7 +238,6 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         val ctx = applicationContext ?: return
 
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV_UNET)
-        DebugLogger.d(TAG, "loadWorkflows: Found ${unetWorkflows.size} UNET workflows")
         val unetPrefix = ctx.getString(R.string.mode_unet)
 
         val unifiedWorkflows = unetWorkflows.map { workflow ->
@@ -262,40 +261,30 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             selectedWorkflow = selectedWorkflowItem?.name ?: "",
             selectedWorkflowId = selectedWorkflowItem?.id ?: ""
         )
+
+        // Reload workflow values to refresh capability flags from WorkflowDefaults
+        // This is important after backup restore when workflowsVersion triggers this function
+        if (selectedWorkflowItem != null) {
+            loadWorkflowValues(selectedWorkflowItem)
+        }
     }
 
-    private fun restorePreferences() {
-        val context = applicationContext ?: return
+    /**
+     * Load workflow values without triggering save (used during initialization and workflow changes)
+     */
+    private fun loadWorkflowValues(workflowItem: ItvWorkflowItem) {
         val storage = workflowValuesStorage ?: return
         val serverId = ConnectionManager.currentServerId ?: return
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        DebugLogger.d(TAG, "restorePreferences: Loading saved preferences")
-
-        // Load global preferences with serverId prefix
-        val savedWorkflowId = prefs.getString("${serverId}_$KEY_SELECTED_WORKFLOW_ID", "") ?: ""
-        val defaultPositivePrompt = SeasonalPrompts.getImageToVideoPrompt()
-        val savedPositivePrompt = prefs.getString("${serverId}_$KEY_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
-        DebugLogger.d(TAG, "restorePreferences: savedWorkflowId=$savedWorkflowId")
-
-        // Find workflow by ID
-        val workflowItem = if (savedWorkflowId.isNotEmpty()) {
-            _uiState.value.availableWorkflows.find { it.id == savedWorkflowId }
-        } else {
-            _uiState.value.availableWorkflows.find { it.name == _uiState.value.selectedWorkflow }
-                ?: _uiState.value.availableWorkflows.firstOrNull()
-        }
-
-        if (workflowItem == null) return
-
-        // Load per-workflow values using workflow ID
+        // Load saved values by workflow ID, defaults by workflow name
         val savedValues = storage.loadValues(serverId, workflowItem.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowItem.name)
+        val cache = ConnectionManager.modelCache.value
 
-        _uiState.value = _uiState.value.copy(
+        val state = _uiState.value
+        _uiState.value = state.copy(
             selectedWorkflow = workflowItem.name,
             selectedWorkflowId = workflowItem.id,
-            positivePrompt = savedPositivePrompt,
             negativePrompt = savedValues?.negativePrompt
                 ?: defaults?.negativePrompt ?: "",
             width = savedValues?.width?.toString()
@@ -306,13 +295,26 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                 ?: defaults?.length?.toString() ?: "33",
             fps = savedValues?.frameRate?.toString()
                 ?: defaults?.frameRate?.toString() ?: "16",
-            // Set model selections directly from saved values
-            selectedHighnoiseUnet = savedValues?.highnoiseUnetModel ?: "",
-            selectedLownoiseUnet = savedValues?.lownoiseUnetModel ?: "",
-            selectedHighnoiseLora = savedValues?.highnoiseLoraModel ?: "",
-            selectedLownoiseLora = savedValues?.lownoiseLoraModel ?: "",
-            selectedVae = savedValues?.vaeModel ?: "",
-            selectedClip = savedValues?.clipModel ?: "",
+            // Apply model selections with deferred mechanism
+            selectedHighnoiseUnet = savedValues?.highnoiseUnetModel?.takeIf { it in cache.unets }
+                ?: state.selectedHighnoiseUnet,
+            selectedLownoiseUnet = savedValues?.lownoiseUnetModel?.takeIf { it in cache.unets }
+                ?: state.selectedLownoiseUnet,
+            selectedHighnoiseLora = savedValues?.highnoiseLoraModel?.takeIf { it in cache.loras }
+                ?: state.selectedHighnoiseLora,
+            selectedLownoiseLora = savedValues?.lownoiseLoraModel?.takeIf { it in cache.loras }
+                ?: state.selectedLownoiseLora,
+            selectedVae = savedValues?.vaeModel?.takeIf { it in cache.vaes }
+                ?: state.selectedVae,
+            selectedClip = savedValues?.clipModel?.takeIf { it in cache.clips }
+                ?: state.selectedClip,
+            // Deferred values for when cache updates
+            deferredHighnoiseUnet = savedValues?.highnoiseUnetModel,
+            deferredLownoiseUnet = savedValues?.lownoiseUnetModel,
+            deferredHighnoiseLora = savedValues?.highnoiseLoraModel,
+            deferredLownoiseLora = savedValues?.lownoiseLoraModel,
+            deferredVae = savedValues?.vaeModel,
+            deferredClip = savedValues?.clipModel,
             highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             // Set workflow capability flags from defaults
@@ -331,6 +333,33 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             currentWorkflowHasHighnoiseLora = defaults?.hasHighnoiseLora ?: false,
             currentWorkflowHasLownoiseLora = defaults?.hasLownoiseLora ?: false
         )
+    }
+
+    private fun restorePreferences() {
+        val context = applicationContext ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        // Load global preferences with serverId prefix
+        val savedWorkflowId = prefs.getString("${serverId}_$KEY_SELECTED_WORKFLOW_ID", "") ?: ""
+        val defaultPositivePrompt = SeasonalPrompts.getImageToVideoPrompt()
+        val savedPositivePrompt = prefs.getString("${serverId}_$KEY_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
+
+        // Update positive prompt first
+        _uiState.value = _uiState.value.copy(positivePrompt = savedPositivePrompt)
+
+        // Find workflow by ID
+        val workflowItem = if (savedWorkflowId.isNotEmpty()) {
+            _uiState.value.availableWorkflows.find { it.id == savedWorkflowId }
+        } else {
+            _uiState.value.availableWorkflows.find { it.name == _uiState.value.selectedWorkflow }
+                ?: _uiState.value.availableWorkflows.firstOrNull()
+        }
+
+        // Load workflow values (single source of truth)
+        if (workflowItem != null) {
+            loadWorkflowValues(workflowItem)
+        }
     }
 
     /**
@@ -419,58 +448,20 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
 
     fun onWorkflowChange(workflow: String) {
         val state = _uiState.value
-        val storage = workflowValuesStorage ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
 
         // Find workflow item to get its ID
         val workflowItem = state.availableWorkflows.find { it.name == workflow } ?: return
+
+        DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflow)}")
 
         // Save current workflow values before switching (using workflow ID)
         if (state.selectedWorkflowId.isNotEmpty()) {
             saveWorkflowValues(state.selectedWorkflowId)
         }
 
-        // Load new workflow's saved values or defaults (using workflow ID for saved values)
-        val savedValues = storage.loadValues(serverId, workflowItem.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflow)
+        // Load new workflow values (single source of truth)
+        loadWorkflowValues(workflowItem)
 
-        _uiState.value = state.copy(
-            selectedWorkflow = workflow,
-            selectedWorkflowId = workflowItem.id,
-            negativePrompt = savedValues?.negativePrompt
-                ?: defaults?.negativePrompt ?: "",
-            width = savedValues?.width?.toString()
-                ?: defaults?.width?.toString() ?: "848",
-            height = savedValues?.height?.toString()
-                ?: defaults?.height?.toString() ?: "480",
-            length = savedValues?.length?.toString()
-                ?: defaults?.length?.toString() ?: "33",
-            fps = savedValues?.frameRate?.toString()
-                ?: defaults?.frameRate?.toString() ?: "16",
-            selectedHighnoiseUnet = savedValues?.highnoiseUnetModel ?: "",
-            selectedLownoiseUnet = savedValues?.lownoiseUnetModel ?: "",
-            selectedHighnoiseLora = savedValues?.highnoiseLoraModel ?: "",
-            selectedLownoiseLora = savedValues?.lownoiseLoraModel ?: "",
-            selectedVae = savedValues?.vaeModel ?: "",
-            selectedClip = savedValues?.clipModel ?: "",
-            highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-            lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-            // Set workflow capability flags from defaults
-            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-            currentWorkflowHasWidth = defaults?.hasWidth ?: true,
-            currentWorkflowHasHeight = defaults?.hasHeight ?: true,
-            currentWorkflowHasLength = defaults?.hasLength ?: true,
-            currentWorkflowHasFrameRate = defaults?.hasFrameRate ?: true,
-            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-            // Model presence flag
-            currentWorkflowHasHighnoiseUnet = defaults?.hasHighnoiseUnet ?: false,
-            // Dual-UNET/LoRA flags
-            currentWorkflowHasLownoiseUnet = defaults?.hasLownoiseUnet ?: false,
-            currentWorkflowHasHighnoiseLora = defaults?.hasHighnoiseLora ?: false,
-            currentWorkflowHasLownoiseLora = defaults?.hasLownoiseLora ?: false
-        )
         savePreferences()
     }
 
@@ -745,11 +736,7 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
      * to prevent duplicate clears when navigating back to the screen.
      */
     fun clearPreviewForExecution(promptId: String) {
-        if (promptId == lastClearedForPromptId) {
-            DebugLogger.d(TAG, "clearPreviewForExecution: already cleared for $promptId, skipping")
-            return
-        }
-        DebugLogger.d(TAG, "clearPreviewForExecution: clearing for new promptId=$promptId")
+        if (promptId == lastClearedForPromptId) return
         lastClearedForPromptId = promptId
         // Evict preview from cache so restoreLastPreviewImage() won't restore the old preview
         // when navigating back to this screen during generation
@@ -760,7 +747,6 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     }
 
     fun clearPreview() {
-        DebugLogger.d(TAG, "clearPreview called")
         lastClearedForPromptId = null // Reset tracking when manually clearing
         _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
@@ -775,7 +761,6 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
      * @param generationViewModel The shared GenerationViewModel
      */
     fun startListening(generationViewModel: GenerationViewModel) {
-        DebugLogger.d(TAG, "startListening called")
         generationViewModelRef = generationViewModel
 
         // If generation is running for this screen, switch to preview mode
@@ -816,13 +801,12 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
      * Handle generation events from the GenerationViewModel.
      */
     private fun handleGenerationEvent(event: GenerationEvent) {
-        DebugLogger.d(TAG, "Generation event: ${event::class.simpleName}")
         when (event) {
             is GenerationEvent.PreviewImage -> {
                 onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.VideoGenerated -> {
-                DebugLogger.i(TAG, "Video generated, fetching result")
+                DebugLogger.i(TAG, "VideoGenerated: ${Obfuscator.promptId(event.promptId)}")
                 fetchGeneratedVideo(event.promptId)
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
@@ -852,15 +836,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
      * Called when VideoGenerated event is received.
      */
     private fun fetchGeneratedVideo(promptId: String) {
-        DebugLogger.d(TAG, "fetchGeneratedVideo: promptId=$promptId")
-        val context = applicationContext ?: run {
-            DebugLogger.w(TAG, "fetchGeneratedVideo: no application context")
-            return
-        }
-        val client = comfyUIClient ?: run {
-            DebugLogger.w(TAG, "fetchGeneratedVideo: no client")
-            return
-        }
+        val context = applicationContext ?: return
+        val client = comfyUIClient ?: return
 
         VideoUtils.fetchVideoFromHistory(
             context = context,
@@ -869,13 +846,10 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             filePrefix = VideoUtils.FilePrefix.IMAGE_TO_VIDEO
         ) { uri ->
             if (uri != null) {
-                DebugLogger.i(TAG, "Video fetch successful: $uri")
                 // Clear preview bitmap so video player takes display precedence
                 _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null)
                 deleteLastPreviewImage()
                 generationViewModelRef?.completeGeneration(promptId)
-            } else {
-                DebugLogger.w(TAG, "Video fetch failed (uri is null)")
             }
             // If uri is null, don't complete generation - will retry on next return
         }

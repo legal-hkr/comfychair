@@ -138,6 +138,16 @@ data class ImageToImageUiState(
     val unetLoraChain: List<LoraSelection> = emptyList(),
     val availableLoras: List<String> = emptyList(),
 
+    // Deferred model selections (for restoring after models load)
+    val deferredCheckpoint: String? = null,
+    val deferredUnet: String? = null,
+    val deferredVae: String? = null,
+    val deferredClip: String? = null,
+    val deferredEditingUnet: String? = null,
+    val deferredEditingVae: String? = null,
+    val deferredEditingClip: String? = null,
+    val deferredEditingLora: String? = null,
+
     // Editing mode state
     // Mode selection (Editing vs Inpainting)
     val mode: ImageToImageMode = ImageToImageMode.EDITING,
@@ -225,21 +235,48 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         viewModelScope.launch {
             ConnectionManager.modelCache.collect { cache ->
                 _uiState.update { state ->
+                    // Apply deferred selections first, then validate or fall back to first available
+                    val checkpoint = state.deferredCheckpoint?.takeIf { it in cache.checkpoints }
+                        ?: validateModelSelection(state.selectedCheckpoint, cache.checkpoints)
+                    val unet = state.deferredUnet?.takeIf { it in cache.unets }
+                        ?: validateModelSelection(state.selectedUnet, cache.unets)
+                    val vae = state.deferredVae?.takeIf { it in cache.vaes }
+                        ?: validateModelSelection(state.selectedVae, cache.vaes)
+                    val clip = state.deferredClip?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip, cache.clips)
+                    val editingUnet = state.deferredEditingUnet?.takeIf { it in cache.unets }
+                        ?: validateModelSelection(state.selectedEditingUnet, cache.unets)
+                    val editingVae = state.deferredEditingVae?.takeIf { it in cache.vaes }
+                        ?: validateModelSelection(state.selectedEditingVae, cache.vaes)
+                    val editingClip = state.deferredEditingClip?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedEditingClip, cache.clips)
+                    val editingLora = state.deferredEditingLora?.takeIf { it in cache.loras }
+                        ?: validateModelSelection(state.selectedEditingLora, cache.loras)
+
                     state.copy(
                         checkpoints = cache.checkpoints,
                         unets = cache.unets,
                         vaes = cache.vaes,
                         clips = cache.clips,
                         availableLoras = cache.loras,
-                        // Re-validate model selections when lists change
-                        selectedCheckpoint = validateModelSelection(state.selectedCheckpoint, cache.checkpoints),
-                        selectedUnet = validateModelSelection(state.selectedUnet, cache.unets),
-                        selectedVae = validateModelSelection(state.selectedVae, cache.vaes),
-                        selectedClip = validateModelSelection(state.selectedClip, cache.clips),
-                        selectedEditingUnet = validateModelSelection(state.selectedEditingUnet, cache.unets),
-                        selectedEditingVae = validateModelSelection(state.selectedEditingVae, cache.vaes),
-                        selectedEditingClip = validateModelSelection(state.selectedEditingClip, cache.clips),
-                        selectedEditingLora = validateModelSelection(state.selectedEditingLora, cache.loras),
+                        // Apply validated model selections
+                        selectedCheckpoint = checkpoint,
+                        selectedUnet = unet,
+                        selectedVae = vae,
+                        selectedClip = clip,
+                        selectedEditingUnet = editingUnet,
+                        selectedEditingVae = editingVae,
+                        selectedEditingClip = editingClip,
+                        selectedEditingLora = editingLora,
+                        // Clear deferred values once applied
+                        deferredCheckpoint = null,
+                        deferredUnet = null,
+                        deferredVae = null,
+                        deferredClip = null,
+                        deferredEditingUnet = null,
+                        deferredEditingVae = null,
+                        deferredEditingClip = null,
+                        deferredEditingLora = null,
                         checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, cache.loras),
                         unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, cache.loras),
                         editingLoraChain = LoraChainManager.filterUnavailable(state.editingLoraChain, cache.loras)
@@ -270,7 +307,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET)
         val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET)
-        DebugLogger.d(TAG, "loadWorkflows: Found ${checkpointWorkflows.size} checkpoint, ${unetWorkflows.size} UNET, ${editingWorkflows.size} editing workflows")
 
         // Create unified workflow list with type prefix for display (for Inpainting mode)
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -330,14 +366,36 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             selectedEditingWorkflow = selectedEditingItem?.name ?: "",
             selectedEditingWorkflowId = selectedEditingItem?.id ?: ""
         )
+
+        // Reload workflow values to refresh capability flags from WorkflowDefaults
+        // This is important after backup restore when workflowsVersion triggers this function
+        // IMPORTANT: Load the NON-active mode's workflow first, then the active mode's workflow.
+        // Both functions set the shared currentWorkflowHas* capability flags, so the active
+        // mode's workflow must be loaded LAST to ensure its flags are not overwritten.
+        val currentMode = _uiState.value.mode
+        if (currentMode == ImageToImageMode.INPAINTING) {
+            // Inpainting is active - load editing first, then inpainting (so inpainting flags win)
+            if (selectedEditingItem != null) {
+                loadEditingWorkflowValues(selectedEditingItem)
+            }
+            if (selectedWorkflowItem != null) {
+                loadWorkflowValues(selectedWorkflowItem)
+            }
+        } else {
+            // Editing is active - load inpainting first, then editing (so editing flags win)
+            if (selectedWorkflowItem != null) {
+                loadWorkflowValues(selectedWorkflowItem)
+            }
+            if (selectedEditingItem != null) {
+                loadEditingWorkflowValues(selectedEditingItem)
+            }
+        }
     }
 
     private fun restorePreferences() {
         val context = applicationContext ?: return
         val serverId = ConnectionManager.currentServerId ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-        DebugLogger.d(TAG, "restorePreferences: Loading saved preferences")
 
         val defaultPositivePrompt = SeasonalPrompts.getImageToImagePrompt()
 
@@ -346,7 +404,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", null)
         val savedMode = prefs.getString("${serverId}_$PREF_MODE", ImageToImageMode.EDITING.name)
         val savedEditingWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_EDITING_WORKFLOW_ID", null)
-        DebugLogger.d(TAG, "restorePreferences: savedMode=$savedMode, savedWorkflowId=$savedWorkflowId")
 
         // Restore mode
         val mode = try {
@@ -375,11 +432,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             else -> null
         }
 
-        // Load inpainting workflow and its values (this sets mode and values)
-        if (workflowToLoad != null) {
-            loadWorkflowValues(workflowToLoad)
-        }
-
         // Determine which editing workflow to select (by ID)
         val editingWorkflowToLoad = when {
             savedEditingWorkflowId != null && state.editingWorkflows.any { it.id == savedEditingWorkflowId } ->
@@ -390,9 +442,25 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             else -> null
         }
 
-        // Load editing workflow values
-        if (editingWorkflowToLoad != null) {
-            loadEditingWorkflowValues(editingWorkflowToLoad)
+        // Load workflow values - load the NON-active mode's workflow first, then the active mode's.
+        // Both functions set the shared currentWorkflowHas* capability flags, so the active
+        // mode's workflow must be loaded LAST to ensure its flags are not overwritten.
+        if (mode == ImageToImageMode.INPAINTING) {
+            // Inpainting is active - load editing first, then inpainting (so inpainting flags win)
+            if (editingWorkflowToLoad != null) {
+                loadEditingWorkflowValues(editingWorkflowToLoad)
+            }
+            if (workflowToLoad != null) {
+                loadWorkflowValues(workflowToLoad)
+            }
+        } else {
+            // Editing is active - load inpainting first, then editing (so editing flags win)
+            if (workflowToLoad != null) {
+                loadWorkflowValues(workflowToLoad)
+            }
+            if (editingWorkflowToLoad != null) {
+                loadEditingWorkflowValues(editingWorkflowToLoad)
+            }
         }
     }
 
@@ -409,9 +477,16 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedValues = storage.loadValues(serverId, workflow.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
         val state = _uiState.value
-        DebugLogger.d(TAG, "loadWorkflowValues: ${workflow.name} (id=${workflow.id}, isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
+
+        // Get current model cache to validate saved selections
+        val cache = ConnectionManager.modelCache.value
 
         if (isCheckpoint) {
+            // Apply saved model selections - use deferred mechanism to handle race condition
+            val savedCheckpoint = savedValues?.checkpointModel
+            val finalCheckpoint = savedCheckpoint?.takeIf { it in cache.checkpoints }
+                ?: validateModelSelection("", cache.checkpoints)
+
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
                 selectedWorkflowId = workflow.id,
@@ -428,7 +503,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     ?: defaults?.scheduler ?: "normal",
                 checkpointNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
-                selectedCheckpoint = savedValues?.checkpointModel ?: "",
+                // Apply model selections immediately if models are loaded, otherwise use validated empty
+                selectedCheckpoint = finalCheckpoint,
+                // Set deferred values - these will be applied when model cache updates
+                deferredCheckpoint = savedCheckpoint,
                 checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
@@ -445,6 +523,11 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
             )
         } else {
+            // Apply saved model selections - use deferred mechanism to handle race condition
+            val savedUnet = savedValues?.unetModel
+            val savedVae = savedValues?.vaeModel
+            val savedClip = savedValues?.clipModel
+
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
                 selectedWorkflowId = workflow.id,
@@ -459,9 +542,17 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     ?: defaults?.scheduler ?: "simple",
                 unetNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
-                selectedUnet = savedValues?.unetModel ?: "",
-                selectedVae = savedValues?.vaeModel ?: "",
-                selectedClip = savedValues?.clipModel ?: "",
+                // Apply model selections immediately if models are loaded, otherwise use validated empty
+                selectedUnet = savedUnet?.takeIf { it in cache.unets }
+                    ?: validateModelSelection("", cache.unets),
+                selectedVae = savedVae?.takeIf { it in cache.vaes }
+                    ?: validateModelSelection("", cache.vaes),
+                selectedClip = savedClip?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                // Set deferred values - these will be applied when model cache updates
+                deferredUnet = savedUnet,
+                deferredVae = savedVae,
+                deferredClip = savedClip,
                 unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
@@ -491,6 +582,15 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedValues = storage.loadValues(serverId, workflow.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
 
+        // Get current model cache to validate saved selections
+        val cache = ConnectionManager.modelCache.value
+
+        // Apply saved model selections - use deferred mechanism to handle race condition
+        val savedEditingUnet = savedValues?.unetModel
+        val savedEditingVae = savedValues?.vaeModel
+        val savedEditingClip = savedValues?.clipModel
+        val savedEditingLora = savedValues?.loraModel
+
         val state = _uiState.value
         _uiState.value = state.copy(
             selectedEditingWorkflow = workflow.name,
@@ -507,10 +607,20 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 ?: defaults?.scheduler ?: "simple",
             editingNegativePrompt = savedValues?.negativePrompt
                 ?: defaults?.negativePrompt ?: "",
-            selectedEditingUnet = savedValues?.unetModel ?: state.selectedEditingUnet,
-            selectedEditingLora = savedValues?.loraModel ?: state.selectedEditingLora,
-            selectedEditingVae = savedValues?.vaeModel ?: state.selectedEditingVae,
-            selectedEditingClip = savedValues?.clipModel ?: state.selectedEditingClip,
+            // Apply model selections immediately if models are loaded, otherwise use validated empty
+            selectedEditingUnet = savedEditingUnet?.takeIf { it in cache.unets }
+                ?: validateModelSelection(state.selectedEditingUnet, cache.unets),
+            selectedEditingLora = savedEditingLora?.takeIf { it in cache.loras }
+                ?: validateModelSelection(state.selectedEditingLora, cache.loras),
+            selectedEditingVae = savedEditingVae?.takeIf { it in cache.vaes }
+                ?: validateModelSelection(state.selectedEditingVae, cache.vaes),
+            selectedEditingClip = savedEditingClip?.takeIf { it in cache.clips }
+                ?: validateModelSelection(state.selectedEditingClip, cache.clips),
+            // Set deferred values - these will be applied when model cache updates
+            deferredEditingUnet = savedEditingUnet,
+            deferredEditingVae = savedEditingVae,
+            deferredEditingClip = savedEditingClip,
+            deferredEditingLora = savedEditingLora,
             editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             // Set workflow capability flags from defaults (for editing mode)
             currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
@@ -651,7 +761,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     fun fetchModels() {
         // Models are now loaded automatically via ConnectionManager.modelCache
         // which is observed in the init block above.
-        DebugLogger.d(TAG, "fetchModels: Models are loaded via ConnectionManager, nothing to do")
     }
 
     // View mode
@@ -915,89 +1024,20 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
      */
     fun onWorkflowChange(workflowName: String) {
         val state = _uiState.value
-        val storage = workflowValuesStorage ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
+
+        // Find the workflow item to determine type
+        val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
+
+        DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
 
         // Save current workflow values before switching (using workflow ID)
         if (state.selectedWorkflowId.isNotEmpty()) {
             saveWorkflowValues(state.selectedWorkflowId, state.isCheckpointMode)
         }
 
-        // Find the workflow item to determine type
-        val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
-        val isCheckpoint = workflowItem.type == WorkflowType.ITI_CHECKPOINT
+        // Load new workflow values (single source of truth)
+        loadWorkflowValues(workflowItem)
 
-        // Load new workflow's saved values or defaults (using workflow ID for saved values)
-        val savedValues = storage.loadValues(serverId, workflowItem.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
-
-        if (isCheckpoint) {
-            _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
-                selectedWorkflowId = workflowItem.id,
-                isCheckpointMode = true,
-                megapixels = savedValues?.megapixels?.toString()
-                    ?: defaults?.megapixels?.toString() ?: "1.0",
-                checkpointSteps = savedValues?.steps?.toString()
-                    ?: defaults?.steps?.toString() ?: "20",
-                checkpointCfg = savedValues?.cfg?.toString()
-                    ?: defaults?.cfg?.toString() ?: "8.0",
-                checkpointSampler = savedValues?.samplerName
-                    ?: defaults?.samplerName ?: "euler",
-                checkpointScheduler = savedValues?.scheduler
-                    ?: defaults?.scheduler ?: "normal",
-                checkpointNegativePrompt = savedValues?.negativePrompt
-                    ?: defaults?.negativePrompt ?: "",
-                selectedCheckpoint = savedValues?.checkpointModel ?: "",
-                checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-                // Set workflow capability flags from defaults
-                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
-                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
-                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
-                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
-                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
-            )
-        } else {
-            _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
-                selectedWorkflowId = workflowItem.id,
-                isCheckpointMode = false,
-                unetSteps = savedValues?.steps?.toString()
-                    ?: defaults?.steps?.toString() ?: "9",
-                unetCfg = savedValues?.cfg?.toString()
-                    ?: defaults?.cfg?.toString() ?: "1.0",
-                unetSampler = savedValues?.samplerName
-                    ?: defaults?.samplerName ?: "euler",
-                unetScheduler = savedValues?.scheduler
-                    ?: defaults?.scheduler ?: "simple",
-                unetNegativePrompt = savedValues?.negativePrompt
-                    ?: defaults?.negativePrompt ?: "",
-                selectedUnet = savedValues?.unetModel ?: "",
-                selectedVae = savedValues?.vaeModel ?: "",
-                selectedClip = savedValues?.clipModel ?: "",
-                unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-                // Set workflow capability flags from defaults
-                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
-                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
-                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
-            )
-        }
         savePreferences()
     }
 
@@ -1168,58 +1208,19 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
 
     fun onEditingWorkflowChange(workflowName: String) {
         val state = _uiState.value
-        val storage = workflowValuesStorage ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
 
         // Find the workflow item to get its ID
         val workflowItem = state.editingWorkflows.find { it.name == workflowName } ?: return
+
+        DebugLogger.d(TAG, "onEditingWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
 
         // Save current editing workflow values before switching (using workflow ID)
         if (state.selectedEditingWorkflowId.isNotEmpty()) {
             saveEditingWorkflowValues(state.selectedEditingWorkflowId)
         }
 
-        // Load new workflow's saved values or defaults (using workflow ID for saved values)
-        val savedValues = storage.loadValues(serverId, workflowItem.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
-
-        _uiState.value = state.copy(
-            selectedEditingWorkflow = workflowName,
-            selectedEditingWorkflowId = workflowItem.id,
-            editingMegapixels = savedValues?.megapixels?.toString()
-                ?: defaults?.megapixels?.toString() ?: "2.0",
-            editingSteps = savedValues?.steps?.toString()
-                ?: defaults?.steps?.toString() ?: "4",
-            editingCfg = savedValues?.cfg?.toString()
-                ?: defaults?.cfg?.toString() ?: "1.0",
-            editingSampler = savedValues?.samplerName
-                ?: defaults?.samplerName ?: "euler",
-            editingScheduler = savedValues?.scheduler
-                ?: defaults?.scheduler ?: "simple",
-            editingNegativePrompt = savedValues?.negativePrompt
-                ?: defaults?.negativePrompt ?: "",
-            selectedEditingUnet = savedValues?.unetModel ?: state.selectedEditingUnet,
-            selectedEditingLora = savedValues?.loraModel ?: state.selectedEditingLora,
-            selectedEditingVae = savedValues?.vaeModel ?: state.selectedEditingVae,
-            selectedEditingClip = savedValues?.clipModel ?: state.selectedEditingClip,
-            editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-            // Set workflow capability flags from defaults (for editing mode)
-            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-            currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-            currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
-            currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-            currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-            currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-            // Model presence flags (ITE_UNET uses UNET, not checkpoint)
-            currentWorkflowHasCheckpointName = false,
-            currentWorkflowHasUnetName = defaults?.hasUnetName ?: false,
-            // ITE reference image flags
-            currentWorkflowHasReferenceImage1 = defaults?.hasReferenceImage1 ?: false,
-            currentWorkflowHasReferenceImage2 = defaults?.hasReferenceImage2 ?: false
-        )
+        // Load new editing workflow values (single source of truth)
+        loadEditingWorkflowValues(workflowItem)
 
         savePreferences()
     }
@@ -1381,7 +1382,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val sourceImage = state.sourceImage ?: return null
 
         DebugLogger.i(TAG, "Preparing workflow (mode: ${state.mode})")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(state.positivePrompt)}")
 
         return when (state.mode) {
             ImageToImageMode.EDITING -> prepareEditingWorkflow(client, sourceImage, state)
@@ -1397,8 +1397,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         sourceImage: Bitmap,
         state: ImageToImageUiState
     ): String? {
-        DebugLogger.d(TAG, "Preparing editing workflow: ${state.selectedEditingWorkflow}")
-        DebugLogger.d(TAG, "Steps: ${state.editingSteps}, Megapixels: ${state.editingMegapixels}")
         // Convert source image to PNG bytes
         val sourceBytes = withContext(Dispatchers.IO) {
             val outputStream = java.io.ByteArrayOutputStream()
@@ -1700,7 +1698,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
      * This registers this ViewModel as the active event handler.
      */
     fun startListening(generationViewModel: GenerationViewModel) {
-        DebugLogger.d(TAG, "Starting event listener")
         generationViewModelRef = generationViewModel
 
         // If generation is running for this screen, switch to preview mode
@@ -1734,26 +1731,22 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
      * Handle generation events from the GenerationViewModel.
      */
     private fun handleGenerationEvent(event: GenerationEvent) {
-        DebugLogger.d(TAG, "Generation event: ${event::class.simpleName}")
         when (event) {
             is GenerationEvent.PreviewImage -> {
                 onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
-                DebugLogger.i(TAG, "Image generated, fetching result")
                 val promptId = event.promptId
+                DebugLogger.i(TAG, "ImageGenerated: ${Obfuscator.promptId(promptId)}")
                 fetchGeneratedImage(promptId) { success ->
                     if (success) {
-                        DebugLogger.i(TAG, "Image fetch successful")
                         generationViewModelRef?.completeGeneration(promptId)
-                    } else {
-                        DebugLogger.w(TAG, "Image fetch failed")
                     }
                     // If not successful, don't complete - will retry on next return
                 }
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
-                DebugLogger.w(TAG, "Connection lost during generation")
+                DebugLogger.w(TAG, "ConnectionLostDuringGeneration")
                 viewModelScope.launch {
                     val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."

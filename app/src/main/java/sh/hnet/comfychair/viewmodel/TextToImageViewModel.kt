@@ -101,6 +101,14 @@ data class TextToImageUiState(
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
     val unetLoraChain: List<LoraSelection> = emptyList(),
 
+    // Deferred model selections (for restoring after models load)
+    val deferredCheckpoint: String? = null,
+    val deferredUnet: String? = null,
+    val deferredVae: String? = null,
+    val deferredClip: String? = null,
+    val deferredClip1: String? = null,
+    val deferredClip2: String? = null,
+
     // Available models (loaded from server)
     val availableCheckpoints: List<String> = emptyList(),
     val availableUnets: List<String> = emptyList(),
@@ -159,6 +167,20 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         viewModelScope.launch {
             ConnectionManager.modelCache.collect { cache ->
                 _uiState.update { state ->
+                    // Apply deferred selections first, then validate or fall back to first available
+                    val checkpoint = state.deferredCheckpoint?.takeIf { it in cache.checkpoints }
+                        ?: validateModelSelection(state.selectedCheckpoint, cache.checkpoints)
+                    val unet = state.deferredUnet?.takeIf { it in cache.unets }
+                        ?: validateModelSelection(state.selectedUnet, cache.unets)
+                    val vae = state.deferredVae?.takeIf { it in cache.vaes }
+                        ?: validateModelSelection(state.selectedVae, cache.vaes)
+                    val clip = state.deferredClip?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip, cache.clips)
+                    val clip1 = state.deferredClip1?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip1, cache.clips)
+                    val clip2 = state.deferredClip2?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip2, cache.clips)
+
                     state.copy(
                         availableCheckpoints = cache.checkpoints,
                         availableUnets = cache.unets,
@@ -167,13 +189,20 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         availableLoras = cache.loras,
                         isLoadingModels = cache.isLoading,
                         modelsLoaded = cache.isLoaded,
-                        // Re-validate model selections when lists change
-                        selectedCheckpoint = validateModelSelection(state.selectedCheckpoint, cache.checkpoints),
-                        selectedUnet = validateModelSelection(state.selectedUnet, cache.unets),
-                        selectedVae = validateModelSelection(state.selectedVae, cache.vaes),
-                        selectedClip = validateModelSelection(state.selectedClip, cache.clips),
-                        selectedClip1 = validateModelSelection(state.selectedClip1, cache.clips),
-                        selectedClip2 = validateModelSelection(state.selectedClip2, cache.clips),
+                        // Apply validated model selections
+                        selectedCheckpoint = checkpoint,
+                        selectedUnet = unet,
+                        selectedVae = vae,
+                        selectedClip = clip,
+                        selectedClip1 = clip1,
+                        selectedClip2 = clip2,
+                        // Clear deferred values once applied
+                        deferredCheckpoint = null,
+                        deferredUnet = null,
+                        deferredVae = null,
+                        deferredClip = null,
+                        deferredClip1 = null,
+                        deferredClip2 = null,
                         checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, cache.loras),
                         unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, cache.loras)
                     )
@@ -199,7 +228,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         loadWorkflows()
 
         // Load saved configuration
-        loadConfiguration()
+        restorePreferences()
 
         // Restore last generated image
         restoreLastGeneratedImage()
@@ -216,7 +245,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
         val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT)
         val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_UNET)
-        DebugLogger.d(TAG, "loadWorkflows: Found ${checkpointWorkflows.size} checkpoint, ${unetWorkflows.size} UNET workflows")
 
         // Create unified workflow list with type prefix for display
         val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
@@ -257,6 +285,12 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             selectedWorkflowId = selectedWorkflowItem?.id ?: "",
             isCheckpointMode = selectedWorkflowItem?.type == WorkflowType.TTI_CHECKPOINT
         )
+
+        // Reload workflow values to refresh capability flags from WorkflowDefaults
+        // This is important after backup restore when workflowsVersion triggers this function
+        if (selectedWorkflowItem != null) {
+            loadWorkflowValues(selectedWorkflowItem)
+        }
     }
 
     /**
@@ -268,7 +302,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     fun fetchModels() {
         // Models are now loaded automatically via ConnectionManager.modelCache
         // which is observed in the init block above.
-        DebugLogger.d(TAG, "fetchModels: Models are loaded via ConnectionManager, nothing to do")
     }
 
     // State management
@@ -295,104 +328,20 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      */
     fun onWorkflowChange(workflowName: String) {
         val state = _uiState.value
-        val storage = workflowValuesStorage ?: return
 
         // Find workflow item to determine type
         val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
-        val isCheckpoint = workflowItem.type == WorkflowType.TTI_CHECKPOINT
 
-        DebugLogger.d(TAG, "onWorkflowChange: $workflowName (id=${workflowItem.id}, isCheckpoint=$isCheckpoint)")
+        DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
 
         // Save current workflow values before switching (using workflow ID)
         if (state.selectedWorkflowId.isNotEmpty()) {
             saveWorkflowValues(state.selectedWorkflowId, state.isCheckpointMode)
         }
 
-        // Load new workflow's saved values or defaults (using workflow ID for saved values)
-        val serverId = ConnectionManager.currentServerId ?: return
-        val savedValues = storage.loadValues(serverId, workflowItem.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
-        DebugLogger.d(TAG, "onWorkflowChange: hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null}")
+        // Load new workflow values (single source of truth)
+        loadWorkflowValues(workflowItem)
 
-        if (isCheckpoint) {
-            _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
-                selectedWorkflowId = workflowItem.id,
-                isCheckpointMode = true,
-                checkpointWidth = savedValues?.width?.toString()
-                    ?: defaults?.width?.toString() ?: "1024",
-                checkpointHeight = savedValues?.height?.toString()
-                    ?: defaults?.height?.toString() ?: "1024",
-                checkpointSteps = savedValues?.steps?.toString()
-                    ?: defaults?.steps?.toString() ?: "20",
-                checkpointCfg = savedValues?.cfg?.toString()
-                    ?: defaults?.cfg?.toString() ?: "8.0",
-                checkpointSampler = savedValues?.samplerName
-                    ?: defaults?.samplerName ?: "euler",
-                checkpointScheduler = savedValues?.scheduler
-                    ?: defaults?.scheduler ?: "normal",
-                checkpointNegativePrompt = savedValues?.negativePrompt
-                    ?: defaults?.negativePrompt ?: "",
-                selectedCheckpoint = savedValues?.checkpointModel ?: "",
-                checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-                // Set workflow capability flags from defaults
-                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasDualClip = false,
-                currentWorkflowHasWidth = defaults?.hasWidth ?: true,
-                currentWorkflowHasHeight = defaults?.hasHeight ?: true,
-                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
-                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
-                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
-                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
-            )
-        } else {
-            _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
-                selectedWorkflowId = workflowItem.id,
-                isCheckpointMode = false,
-                unetWidth = savedValues?.width?.toString()
-                    ?: defaults?.width?.toString() ?: "832",
-                unetHeight = savedValues?.height?.toString()
-                    ?: defaults?.height?.toString() ?: "1216",
-                unetSteps = savedValues?.steps?.toString()
-                    ?: defaults?.steps?.toString() ?: "9",
-                unetCfg = savedValues?.cfg?.toString()
-                    ?: defaults?.cfg?.toString() ?: "1.0",
-                unetSampler = savedValues?.samplerName
-                    ?: defaults?.samplerName ?: "euler",
-                unetScheduler = savedValues?.scheduler
-                    ?: defaults?.scheduler ?: "simple",
-                unetNegativePrompt = savedValues?.negativePrompt
-                    ?: defaults?.negativePrompt ?: "",
-                selectedUnet = savedValues?.unetModel ?: "",
-                selectedVae = savedValues?.vaeModel ?: "",
-                selectedClip = savedValues?.clipModel ?: "",
-                selectedClip1 = savedValues?.clip1Model ?: "",
-                selectedClip2 = savedValues?.clip2Model ?: "",
-                unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-                // Set workflow capability flags from defaults
-                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasDualClip = defaults?.hasDualClip ?: false,
-                currentWorkflowHasWidth = defaults?.hasWidth ?: true,
-                currentWorkflowHasHeight = defaults?.hasHeight ?: true,
-                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
-                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
-            )
-        }
         saveConfiguration()
     }
 
@@ -564,10 +513,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      */
     fun clearPreviewForExecution(promptId: String) {
         if (promptId == lastClearedForPromptId) {
-            DebugLogger.d(TAG, "clearPreviewForExecution: Already cleared for promptId=$promptId, skipping")
             return // Already cleared for this promptId
         }
-        DebugLogger.d(TAG, "clearPreviewForExecution: Clearing preview for promptId=$promptId")
         lastClearedForPromptId = promptId
         // Evict from cache so restoreLastGeneratedImage() won't restore the old preview
         // when navigating back to this screen during generation
@@ -610,7 +557,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * This registers this ViewModel as the active event handler.
      */
     fun startListening(generationViewModel: GenerationViewModel) {
-        DebugLogger.d(TAG, "startListening: Registering event handler")
         generationViewModelRef = generationViewModel
         generationViewModel.registerEventHandler(OWNER_ID) { event ->
             handleGenerationEvent(event)
@@ -623,7 +569,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * as the handler may still be called for completion events.
      */
     fun stopListening(generationViewModel: GenerationViewModel) {
-        DebugLogger.d(TAG, "stopListening: Unregistering event handler")
         generationViewModel.unregisterEventHandler(OWNER_ID)
         if (!generationViewModel.generationState.value.isGenerating) {
             if (generationViewModelRef == generationViewModel) {
@@ -635,21 +580,19 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     private fun handleGenerationEvent(event: GenerationEvent) {
         when (event) {
             is GenerationEvent.PreviewImage -> {
-                DebugLogger.d(TAG, "handleGenerationEvent: PreviewImage received")
                 onPreviewBitmapChange(event.bitmap)
             }
             is GenerationEvent.ImageGenerated -> {
                 val promptId = event.promptId
-                DebugLogger.i(TAG, "handleGenerationEvent: ImageGenerated for prompt=$promptId")
+                DebugLogger.i(TAG, "ImageGenerated: ${Obfuscator.promptId(promptId)}")
                 fetchGeneratedImage(promptId) { success ->
-                    DebugLogger.d(TAG, "fetchGeneratedImage: success=$success")
                     if (success) {
                         generationViewModelRef?.completeGeneration(promptId)
                     }
                 }
             }
             is GenerationEvent.ConnectionLostDuringGeneration -> {
-                DebugLogger.w(TAG, "handleGenerationEvent: ConnectionLostDuringGeneration")
+                DebugLogger.w(TAG, "ConnectionLostDuringGeneration")
                 viewModelScope.launch {
                     val message = applicationContext?.getString(R.string.connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
@@ -657,7 +600,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 }
             }
             is GenerationEvent.Error -> {
-                DebugLogger.e(TAG, "handleGenerationEvent: Error - ${event.message}")
+                DebugLogger.e(TAG, "Generation error")
                 viewModelScope.launch {
                     _events.emit(TextToImageEvent.ShowToastMessage(event.message))
                 }
@@ -679,7 +622,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val state = _uiState.value
 
         if (state.positivePrompt.isBlank()) {
-            DebugLogger.d(TAG, "hasValidConfiguration: false (empty prompt)")
             return false
         }
 
@@ -714,7 +656,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             cfgValid
         }
 
-        DebugLogger.d(TAG, "hasValidConfiguration: $result (mode=${if (state.isCheckpointMode) "checkpoint" else "unet"})")
         return result
     }
 
@@ -724,13 +665,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     fun prepareWorkflowJson(): String? {
         val state = _uiState.value
 
-        DebugLogger.i(TAG, "Preparing workflow: ${state.selectedWorkflow}")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(state.positivePrompt)}")
-        if (state.isCheckpointMode) {
-            DebugLogger.d(TAG, "Dimensions: ${state.checkpointWidth}x${state.checkpointHeight}, Steps: ${state.checkpointSteps}")
-        } else {
-            DebugLogger.d(TAG, "Dimensions: ${state.unetWidth}x${state.unetHeight}, Steps: ${state.unetSteps}")
-        }
+        DebugLogger.i(TAG, "Preparing workflow: ${Obfuscator.workflowName(state.selectedWorkflow)}")
 
         val baseWorkflow = if (state.isCheckpointMode) {
             WorkflowManager.prepareWorkflowById(
@@ -889,12 +824,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         }
     }
 
-    private fun loadConfiguration() {
+    private fun restorePreferences() {
         val ctx = applicationContext ?: return
         val serverId = ConnectionManager.currentServerId ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-        DebugLogger.d(TAG, "loadConfiguration: Loading saved preferences")
 
         val defaultPositivePrompt = SeasonalPrompts.getTextToImagePrompt()
 
@@ -919,8 +852,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             else -> null
         }
 
-        DebugLogger.d(TAG, "loadConfiguration: savedWorkflowId=$savedWorkflowId, loading=${workflowToLoad?.name}")
-
         // Load workflow and its values (this sets mode, capability flags, and values)
         if (workflowToLoad != null) {
             // Load workflow values without saving (to avoid circular save)
@@ -942,9 +873,13 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
         val state = _uiState.value
 
-        DebugLogger.d(TAG, "loadWorkflowValues: ${workflow.name} (id=${workflow.id}, isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
+        // Get current model cache to validate saved selections
+        val cache = ConnectionManager.modelCache.value
 
         if (isCheckpoint) {
+            // Apply saved model selections - use deferred mechanism to handle race condition
+            val savedCheckpoint = savedValues?.checkpointModel
+
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
                 selectedWorkflowId = workflow.id,
@@ -963,7 +898,11 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                     ?: defaults?.scheduler ?: "normal",
                 checkpointNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
-                selectedCheckpoint = savedValues?.checkpointModel ?: "",
+                // Apply model selections immediately if models are loaded, otherwise use validated empty
+                selectedCheckpoint = savedCheckpoint?.takeIf { it in cache.checkpoints }
+                    ?: validateModelSelection("", cache.checkpoints),
+                // Set deferred values - these will be applied when model cache updates
+                deferredCheckpoint = savedCheckpoint,
                 checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
@@ -982,6 +921,13 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
             )
         } else {
+            // Apply saved model selections - use deferred mechanism to handle race condition
+            val savedUnet = savedValues?.unetModel
+            val savedVae = savedValues?.vaeModel
+            val savedClip = savedValues?.clipModel
+            val savedClip1 = savedValues?.clip1Model
+            val savedClip2 = savedValues?.clip2Model
+
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
                 selectedWorkflowId = workflow.id,
@@ -1000,11 +946,23 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                     ?: defaults?.scheduler ?: "simple",
                 unetNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
-                selectedUnet = savedValues?.unetModel ?: "",
-                selectedVae = savedValues?.vaeModel ?: "",
-                selectedClip = savedValues?.clipModel ?: "",
-                selectedClip1 = savedValues?.clip1Model ?: "",
-                selectedClip2 = savedValues?.clip2Model ?: "",
+                // Apply model selections immediately if models are loaded, otherwise use validated empty
+                selectedUnet = savedUnet?.takeIf { it in cache.unets }
+                    ?: validateModelSelection("", cache.unets),
+                selectedVae = savedVae?.takeIf { it in cache.vaes }
+                    ?: validateModelSelection("", cache.vaes),
+                selectedClip = savedClip?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                selectedClip1 = savedClip1?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                selectedClip2 = savedClip2?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                // Set deferred values - these will be applied when model cache updates
+                deferredUnet = savedUnet,
+                deferredVae = savedVae,
+                deferredClip = savedClip,
+                deferredClip1 = savedClip1,
+                deferredClip2 = savedClip2,
                 unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,

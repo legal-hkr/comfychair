@@ -539,11 +539,14 @@ class SettingsViewModel : ViewModel() {
                 is RestoreResult.Success -> {
                     if (result.serversChanged) {
                         // Disconnect and clear all caches via ConnectionManager
+                        // (also reloads workflows)
                         ConnectionManager.invalidateForRestore()
                     } else {
                         // Just clear in-memory caches (disk files already cleared by BackupManager)
                         MediaCache.clearAll()
                         MediaStateHolder.clearAll()
+                        // Reload workflows to pick up restored user workflows
+                        WorkflowManager.reloadWorkflows()
                     }
 
                     // Reload AppSettings into ViewModel state, preserving debug logging if it was enabled

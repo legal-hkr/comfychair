@@ -167,4 +167,18 @@ object Obfuscator {
      */
     fun modelName(name: String?): String =
         name?.substringAfterLast('/')?.substringAfterLast('\\') ?: "<model>"
+
+    /**
+     * Obfuscate a server name (user-defined name, not hostname).
+     * Shows only first 3 characters to help identify which server.
+     */
+    fun serverName(name: String?): String =
+        if (name.isNullOrBlank()) "<server>" else "<server:${name.take(3)}...>"
+
+    /**
+     * Obfuscate a workflow name.
+     * Shows only first 8 characters to help identify which workflow.
+     */
+    fun workflowName(name: String?): String =
+        if (name.isNullOrBlank()) "<workflow>" else "<workflow:${name.take(8)}...>"
 }

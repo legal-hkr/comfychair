@@ -166,11 +166,11 @@ class BackupValidator {
 
     /**
      * Validate workflow name format.
+     * Matches ValidationUtils.validateWorkflowName - no character restrictions,
+     * just checks blank and length.
      */
     fun validateWorkflowName(name: String): Boolean {
-        if (name.isBlank() || name.length > MAX_WORKFLOW_NAME_LENGTH) return false
-        val validPattern = Regex("^[a-zA-Z0-9 _\\-\\[\\]()]+$")
-        return validPattern.matches(name)
+        return name.isNotBlank() && name.length <= MAX_WORKFLOW_NAME_LENGTH
     }
 
     /**

@@ -8,6 +8,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.Server
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.UuidUtils
 import java.io.File
 import java.text.SimpleDateFormat
@@ -102,7 +103,6 @@ class BackupManager(private val context: Context) {
      */
     fun restoreBackup(jsonString: String): RestoreResult {
         DebugLogger.i(TAG, "Starting backup restore...")
-        DebugLogger.d(TAG, "Backup JSON length: ${jsonString.length} chars")
 
         val json = try {
             JSONObject(jsonString)
@@ -119,14 +119,12 @@ class BackupManager(private val context: Context) {
 
         // Check version
         val version = json.optInt("version", -1)
-        DebugLogger.d(TAG, "Backup version: $version (current: $BACKUP_VERSION)")
         if (version > BACKUP_VERSION) {
             DebugLogger.e(TAG, "Unsupported backup version: $version")
             return RestoreResult.Failure(R.string.backup_error_unsupported_version)
         }
 
         // Clear cached media files before restoring
-        DebugLogger.d(TAG, "Clearing cache files...")
         clearCacheFiles()
 
         // Restore based on version
@@ -161,13 +159,11 @@ class BackupManager(private val context: Context) {
             if (existingServer != null) {
                 // Map backup server ID to existing server ID
                 serverIdMapping[backupServer.id] = existingServer.id
-                DebugLogger.d(TAG, "Mapping server ${backupServer.name}: ${backupServer.id} -> ${existingServer.id}")
             } else {
                 // Add new server with its original ID
                 serverStorage.addServer(backupServer)
                 serverIdMapping[backupServer.id] = backupServer.id
                 serversChanged = true
-                DebugLogger.d(TAG, "Added new server: ${backupServer.name}")
             }
         }
 
@@ -260,7 +256,7 @@ class BackupManager(private val context: Context) {
             skippedWorkflows = restoreUserWorkflows(workflows)
         }
 
-        DebugLogger.i(TAG, "Legacy backup restored. Created server: ${server.name}")
+        DebugLogger.i(TAG, "Legacy backup restored. Created server: ${Obfuscator.serverName(server.name)}")
         return RestoreResult.Success(
             serversChanged = serversChanged,
             skippedWorkflows = skippedWorkflows
@@ -698,6 +694,7 @@ class BackupManager(private val context: Context) {
      */
     private fun restoreUserWorkflows(workflows: JSONArray): Int {
         var skipped = 0
+        var restored = 0
         val dir = File(context.filesDir, USER_WORKFLOWS_DIR)
         if (!dir.exists()) dir.mkdirs()
 
@@ -726,15 +723,9 @@ class BackupManager(private val context: Context) {
                 val fileContent = workflow.getString("fileContent")
 
                 // Validate
-                if (!validator.validateWorkflowName(name)) {
-                    skipped++
-                    continue
-                }
-                if (!validator.validateWorkflowDescription(description)) {
-                    skipped++
-                    continue
-                }
-                if (!validator.validateWorkflowType(typeStr)) {
+                if (!validator.validateWorkflowName(name) ||
+                    !validator.validateWorkflowDescription(description) ||
+                    !validator.validateWorkflowType(typeStr)) {
                     skipped++
                     continue
                 }
@@ -767,6 +758,7 @@ class BackupManager(private val context: Context) {
                 }
                 existingArray.put(metadata)
                 existingIds.add(id)
+                restored++
             } catch (e: Exception) {
                 skipped++
             }
@@ -775,6 +767,7 @@ class BackupManager(private val context: Context) {
         // Save updated metadata
         prefs.edit().putString("user_workflows_json", existingArray.toString()).apply()
 
+        DebugLogger.i(TAG, "User workflows restored: $restored, skipped: $skipped")
         return skipped
     }
 

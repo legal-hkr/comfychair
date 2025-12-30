@@ -22,6 +22,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
@@ -248,10 +249,12 @@ object ConnectionManager {
 
     /**
      * Called when backup restore changes connection settings.
-     * Same as disconnect - clears everything and returns to login.
+     * Clears everything, reloads workflows, and returns to login.
      */
     fun invalidateForRestore() {
         DebugLogger.i(TAG, "Invalidating for restore")
+        // Reload workflows to pick up restored user workflows
+        WorkflowManager.reloadWorkflows()
         disconnect()
     }
 
@@ -324,7 +327,7 @@ object ConnectionManager {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                DebugLogger.e(TAG, "WebSocket connection failed: ${t.message}")
+                DebugLogger.e(TAG, "WebSocket connection failed: ${t::class.simpleName}")
                 stopKeepalive()
                 scheduleReconnect()
             }
@@ -381,7 +384,6 @@ object ConnectionManager {
                         JobRegistry.markCompleted(promptId)
                         WebSocketMessage.ExecutionComplete(promptId)
                     } else {
-                        DebugLogger.d(TAG, "WS: executing node $node")
                         WebSocketMessage.Executing(promptId, node)
                     }
                 }
@@ -389,10 +391,7 @@ object ConnectionManager {
                     val data = message.optJSONObject("data")
                     val value = data?.optInt("value", 0) ?: 0
                     val max = data?.optInt("max", 0) ?: 0
-                    if (max > 0) {
-                        DebugLogger.d(TAG, "WS: progress $value/$max")
-                        WebSocketMessage.Progress(value, max)
-                    } else null
+                    if (max > 0) WebSocketMessage.Progress(value, max) else null
                 }
                 "execution_start" -> {
                     val data = message.optJSONObject("data")
@@ -408,7 +407,7 @@ object ConnectionManager {
                     val data = message.optJSONObject("data")
                     val promptId = data?.optString("prompt_id")
                     val errorMsg = data?.optString("exception_message", "Unknown error") ?: "Unknown error"
-                    DebugLogger.e(TAG, "WS: execution_error - $errorMsg")
+                    DebugLogger.e(TAG, "WS: execution_error (promptId: ${Obfuscator.promptId(promptId)})")
                     // Notify JobRegistry of the failure
                     if (!promptId.isNullOrEmpty()) {
                         JobRegistry.markFailed(promptId)
@@ -428,7 +427,6 @@ object ConnectionManager {
                 "execution_cached" -> {
                     val data = message.optJSONObject("data")
                     val nodes = data?.optJSONArray("nodes")?.length() ?: 0
-                    DebugLogger.d(TAG, "WS: execution_cached ($nodes nodes)")
                     WebSocketMessage.ExecutionCached(nodes)
                 }
                 "status" -> {
@@ -436,20 +434,13 @@ object ConnectionManager {
                     val status = data?.optJSONObject("status")
                     val execInfo = status?.optJSONObject("exec_info")
                     val queueRemaining = execInfo?.optInt("queue_remaining") ?: 0
-                    DebugLogger.d(TAG, "WS: status (queue: $queueRemaining)")
                     // Update JobRegistry with queue size
                     JobRegistry.updateFromStatus(queueRemaining)
                     WebSocketMessage.Status(queueRemaining)
                 }
-                "previewing", "executed" -> {
-                    DebugLogger.d(TAG, "WS: $messageType")
-                    null  // Don't emit for these types
-                }
+                "previewing", "executed" -> null  // Don't emit for these types
                 else -> {
-                    if (messageType.isNotEmpty()) {
-                        DebugLogger.d(TAG, "WS: $messageType")
-                        WebSocketMessage.Unknown(messageType)
-                    } else null
+                    if (messageType.isNotEmpty()) WebSocketMessage.Unknown(messageType) else null
                 }
             }
 
@@ -470,7 +461,6 @@ object ConnectionManager {
                 val pngBytes = bytes.substring(8).toByteArray()
                 val bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size)
                 if (bitmap != null) {
-                    DebugLogger.d(TAG, "WS: preview image received (${bitmap.width}x${bitmap.height})")
                     scope.launch { _webSocketMessages.emit(WebSocketMessage.PreviewImage(bitmap)) }
                 }
             } catch (e: Exception) {
@@ -516,8 +506,6 @@ object ConnectionManager {
         _webSocketState.value = WebSocketState.Reconnecting(reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
 
         val delayMs = (Math.pow(2.0, (reconnectAttempts - 1).toDouble()) * 1000).toLong()
-        DebugLogger.d(TAG, "Scheduling reconnect attempt $reconnectAttempts in ${delayMs}ms")
-
         scope.launch {
             delay(delayMs)
             reconnectWebSocket()
@@ -573,7 +561,6 @@ object ConnectionManager {
 
         client.fetchFullObjectInfo { objectInfo ->
             if (objectInfo != null) {
-                DebugLogger.d(TAG, "Parsing object_info response")
                 // Parse node definitions for workflow editor
                 nodeTypeRegistry.parseObjectInfo(objectInfo)
 
