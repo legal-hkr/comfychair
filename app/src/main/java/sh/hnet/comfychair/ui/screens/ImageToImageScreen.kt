@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
@@ -172,7 +173,7 @@ fun ImageToImageScreen(
                 // Edit mask button (only in inpainting mode when source image exists)
                 if (uiState.sourceImage != null && uiState.mode == ImageToImageMode.INPAINTING) {
                     IconButton(onClick = { showMaskEditor = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_mask))
+                        Icon(Icons.Default.Brush, contentDescription = stringResource(R.string.edit_mask))
                     }
                     // Clear mask button
                     IconButton(onClick = { imageToImageViewModel.clearMask() }) {
