@@ -8,7 +8,7 @@ An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous
 
 To support multiple ComfyUI servers, the app's internal settings and backup structure has been redesigned.
 
-If you are updating from v0.8.2 or earlier, please consider performing a **factory reset** after upgrading to avoid unexpected behavior.
+If you are updating from v0.8.2 or earlier, please consider performing a **factory reset** after upgrading to avoid unexpected behavior. Backup files created with earlier versions are not compatible with v0.8.3.
 
 ## Overview
 
