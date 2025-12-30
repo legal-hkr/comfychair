@@ -1,5 +1,5 @@
 {
-  "name": "SDXL inpainting",
+  "name": "SDXL",
   "description": "Workflow for SDXL inpainting",
   "defaults": {
     "megapixels": 2.0,

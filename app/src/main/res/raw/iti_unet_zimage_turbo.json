@@ -1,5 +1,5 @@
 {
-  "name": "Z-Image Turbo inpainting",
+  "name": "Z-Image Turbo",
   "description": "Inpainting workflow using Z-Image Turbo model",
   "defaults": {
     "steps": 9,

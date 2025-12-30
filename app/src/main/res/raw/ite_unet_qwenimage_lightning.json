@@ -26,10 +26,7 @@
       "inputs": {
         "lora_name": "{{lora_name}}",
         "strength_model": 1.0,
-        "model": [
-          "1",
-          0
-        ]
+        "model": ["1", 0]
       },
       "class_type": "LoraLoaderModelOnly",
       "_meta": {
@@ -88,10 +85,7 @@
         "upscale_method": "lanczos",
         "megapixels": "{{megapixels}}",
         "resolution_steps": 1,
-        "image": [
-          "5",
-          0
-        ]
+        "image": ["5", 0]
       },
       "class_type": "ImageScaleToTotalPixels",
       "_meta": {
@@ -101,26 +95,11 @@
     "9": {
       "inputs": {
         "prompt": "{{positive_prompt}}",
-        "clip": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ],
-        "image1": [
-          "8",
-          0
-        ],
-        "image2": [
-          "6",
-          0
-        ],
-        "image3": [
-          "7",
-          0
-        ]
+        "clip": ["3", 0],
+        "vae": ["4", 0],
+        "image1": ["8", 0],
+        "image2": ["6", 0],
+        "image3": ["7", 0]
       },
       "class_type": "TextEncodeQwenImageEditPlus",
       "_meta": {
@@ -130,26 +109,11 @@
     "10": {
       "inputs": {
         "prompt": "{{negative_prompt}}",
-        "clip": [
-          "3",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ],
-        "image1": [
-          "8",
-          0
-        ],
-        "image2": [
-          "6",
-          0
-        ],
-        "image3": [
-          "7",
-          0
-        ]
+        "clip": ["3", 0],
+        "vae": ["4", 0],
+        "image1": ["8", 0],
+        "image2": ["6", 0],
+        "image3": ["7", 0]
       },
       "class_type": "TextEncodeQwenImageEditPlus",
       "_meta": {
@@ -158,14 +122,8 @@
     },
     "11": {
       "inputs": {
-        "pixels": [
-          "8",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ]
+        "pixels": ["8", 0],
+        "vae": ["4", 0]
       },
       "class_type": "VAEEncode",
       "_meta": {
@@ -175,10 +133,7 @@
     "12": {
       "inputs": {
         "shift": 3.0,
-        "model": [
-          "2",
-          0
-        ]
+        "model": ["2", 0]
       },
       "class_type": "ModelSamplingAuraFlow",
       "_meta": {
@@ -188,10 +143,7 @@
     "13": {
       "inputs": {
         "strength": 1.0,
-        "model": [
-          "12",
-          0
-        ]
+        "model": ["12", 0]
       },
       "class_type": "CFGNorm",
       "_meta": {
@@ -206,22 +158,10 @@
         "sampler_name": "{{sampler_name}}",
         "scheduler": "{{scheduler}}",
         "denoise": 1.0,
-        "model": [
-          "13",
-          0
-        ],
-        "positive": [
-          "9",
-          0
-        ],
-        "negative": [
-          "10",
-          0
-        ],
-        "latent_image": [
-          "11",
-          0
-        ]
+        "model": ["13", 0],
+        "positive": ["9", 0],
+        "negative": ["10", 0],
+        "latent_image": ["11", 0]
       },
       "class_type": "KSampler",
       "_meta": {
@@ -230,14 +170,8 @@
     },
     "15": {
       "inputs": {
-        "samples": [
-          "14",
-          0
-        ],
-        "vae": [
-          "4",
-          0
-        ]
+        "samples": ["14", 0],
+        "vae": ["4", 0]
       },
       "class_type": "VAEDecode",
       "_meta": {
@@ -247,10 +181,7 @@
     "16": {
       "inputs": {
         "filename_prefix": "ComfyChair",
-        "images": [
-          "15",
-          0
-        ]
+        "images": ["15", 0]
       },
       "class_type": "SaveImage",
       "_meta": {

@@ -1,5 +1,5 @@
 {
-  "name": "SD inpainting",
+  "name": "SD",
   "description": "Workflow for SD inpainting",
   "defaults": {
     "megapixels": 1.0,

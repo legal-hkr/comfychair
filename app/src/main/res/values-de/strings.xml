@@ -114,6 +114,7 @@
     <string name="backup_error_invalid_json">Ungültiges Sicherungsdateiformat</string>
     <string name="backup_error_unsupported_version">Nicht unterstützte Sicherungsversion</string>
     <string name="backup_error_invalid_connection">Ungültige Verbindungseinstellungen in der Sicherung</string>
+    <string name="backup_error_no_servers">Keine Server in der Sicherung gefunden</string>
     <string name="backup_restore_confirm_title">Einstellungen wiederherstellen?</string>
     <string name="backup_restore_confirm_message">Dies ersetzt Ihre aktuellen Einstellungen. Diese Aktion kann nicht rückgängig gemacht werden.</string>
     <string name="backup_restore_confirm_button">Wiederherstellen</string>
@@ -348,6 +349,7 @@
     <string name="missing_nodes_message">Die folgenden Nodes sind auf Ihrem ComfyUI-Server nicht verfügbar:</string>
     <string name="missing_fields_title">Fehlende Pflichtfelder</string>
     <string name="missing_fields_message">Dem Workflow fehlen diese Pflichtfelder für den ausgewählten Typ:</string>
+    <string name="list_item_bullet">- %s</string>
     <string name="duplicate_name_title">Name existiert bereits</string>
     <string name="duplicate_name_message">Ein Workflow mit diesem Namen existiert bereits. Bitte wählen Sie einen anderen Namen.</string>
 

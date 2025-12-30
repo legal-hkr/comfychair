@@ -331,6 +331,7 @@
     <string name="missing_nodes_message">Los siguientes nodos no están disponibles en su servidor ComfyUI:</string>
     <string name="missing_fields_title">Campos requeridos faltantes</string>
     <string name="missing_fields_message">El workflow no contiene estos campos requeridos para el tipo seleccionado:</string>
+    <string name="list_item_bullet">- %s</string>
     <string name="duplicate_name_title">Nombre ya existente</string>
     <string name="duplicate_name_message">Ya existe un workflow con este nombre. Por favor, elija otro nombre.</string>
 
@@ -391,6 +392,7 @@
     <string name="backup_error_invalid_json">Formato de archivo de copia de seguridad inválido</string>
     <string name="backup_error_unsupported_version">Versión de copia de seguridad no compatible</string>
     <string name="backup_error_invalid_connection">Configuración de conexión inválida en la copia de seguridad</string>
+    <string name="backup_error_no_servers">No se encontraron servidores en la copia de seguridad</string>
     <string name="backup_restore_confirm_title">¿Restaurar configuración?</string>
     <string name="backup_restore_confirm_message">Esto reemplazará su configuración actual. Esta acción no se puede deshacer.</string>
     <string name="backup_restore_confirm_button">Restaurar</string>
