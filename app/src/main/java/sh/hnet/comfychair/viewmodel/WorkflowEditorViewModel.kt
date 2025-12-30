@@ -1615,14 +1615,28 @@ class WorkflowEditorViewModel : ViewModel() {
      * Load node attribute edits from storage.
      */
     private fun loadNodeAttributeEdits(): Map<String, Map<String, Any>> {
-        val workflowId = currentWorkflowId ?: return emptyMap()
-        val storage = workflowValuesStorage ?: return emptyMap()
-        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: return emptyMap()
+        val workflowId = currentWorkflowId ?: run {
+            DebugLogger.w(TAG, "loadNodeAttributeEdits: No workflowId")
+            return emptyMap()
+        }
+        val storage = workflowValuesStorage ?: run {
+            DebugLogger.w(TAG, "loadNodeAttributeEdits: No storage")
+            return emptyMap()
+        }
+        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: run {
+            DebugLogger.w(TAG, "loadNodeAttributeEdits: No serverId (ConnectionManager.currentServerId is null)")
+            return emptyMap()
+        }
 
         val values = storage.loadValues(serverId, workflowId)
-        val editsJson = values?.nodeAttributeEdits ?: return emptyMap()
+        val editsJson = values?.nodeAttributeEdits ?: run {
+            DebugLogger.d(TAG, "loadNodeAttributeEdits: No saved edits for server=$serverId, workflow=$workflowId")
+            return emptyMap()
+        }
 
-        return NodeAttributeEdits.fromJson(editsJson).edits
+        val edits = NodeAttributeEdits.fromJson(editsJson).edits
+        DebugLogger.d(TAG, "loadNodeAttributeEdits: Loaded ${edits.size} node edits for server=$serverId, workflow=$workflowId")
+        return edits
     }
 
     /**
@@ -1851,9 +1865,18 @@ class WorkflowEditorViewModel : ViewModel() {
      * Save node attribute edits to storage.
      */
     private fun saveNodeAttributeEdits() {
-        val workflowId = currentWorkflowId ?: return
-        val storage = workflowValuesStorage ?: return
-        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: return
+        val workflowId = currentWorkflowId ?: run {
+            DebugLogger.w(TAG, "saveNodeAttributeEdits: No workflowId, skipping save")
+            return
+        }
+        val storage = workflowValuesStorage ?: run {
+            DebugLogger.w(TAG, "saveNodeAttributeEdits: No storage, skipping save")
+            return
+        }
+        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: run {
+            DebugLogger.w(TAG, "saveNodeAttributeEdits: No serverId (ConnectionManager.currentServerId is null), skipping save")
+            return
+        }
         val edits = _uiState.value.nodeAttributeEdits
 
         if (edits.isEmpty()) {
@@ -1861,6 +1884,7 @@ class WorkflowEditorViewModel : ViewModel() {
             val currentValues = storage.loadValues(serverId, workflowId)
             if (currentValues != null && currentValues.nodeAttributeEdits != null) {
                 storage.saveValues(serverId, workflowId, currentValues.copy(nodeAttributeEdits = null))
+                DebugLogger.d(TAG, "saveNodeAttributeEdits: Cleared edits for server=$serverId, workflow=$workflowId")
             }
             return
         }
@@ -1880,6 +1904,7 @@ class WorkflowEditorViewModel : ViewModel() {
                 )
             )
         }
+        DebugLogger.d(TAG, "saveNodeAttributeEdits: Saved ${edits.size} node edits for server=$serverId, workflow=$workflowId")
     }
 
     /**

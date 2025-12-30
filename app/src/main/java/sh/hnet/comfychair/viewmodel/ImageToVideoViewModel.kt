@@ -334,6 +334,9 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
+        // Load existing values to preserve nodeAttributeEdits from Workflow Editor
+        val existingValues = storage.loadValues(serverId, workflowId)
+
         // Use workflow ID as storage key (UUID-based)
         val values = WorkflowValues(
             width = state.width.toIntOrNull(),
@@ -348,7 +351,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
             clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
             highnoiseLoraChain = LoraSelection.toJsonString(state.highnoiseLoraChain).takeIf { state.highnoiseLoraChain.isNotEmpty() },
-            lownoiseLoraChain = LoraSelection.toJsonString(state.lownoiseLoraChain).takeIf { state.lownoiseLoraChain.isNotEmpty() }
+            lownoiseLoraChain = LoraSelection.toJsonString(state.lownoiseLoraChain).takeIf { state.lownoiseLoraChain.isNotEmpty() },
+            nodeAttributeEdits = existingValues?.nodeAttributeEdits
         )
 
         storage.saveValues(serverId, workflowId, values)

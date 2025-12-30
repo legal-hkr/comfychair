@@ -532,6 +532,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
+        // Load existing values to preserve nodeAttributeEdits from Workflow Editor
+        val existingValues = storage.loadValues(serverId, workflowId)
+
         // Use workflow ID as storage key (UUID-based)
         val values = if (isCheckpointMode) {
             WorkflowValues(
@@ -542,7 +545,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 scheduler = state.checkpointScheduler,
                 negativePrompt = state.checkpointNegativePrompt.takeIf { it.isNotEmpty() },
                 checkpointModel = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
-                loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() }
+                loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() },
+                nodeAttributeEdits = existingValues?.nodeAttributeEdits
             )
         } else {
             WorkflowValues(
@@ -554,7 +558,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
                 vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
-                loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() }
+                loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() },
+                nodeAttributeEdits = existingValues?.nodeAttributeEdits
             )
         }
 
@@ -569,6 +574,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
+        // Load existing values to preserve nodeAttributeEdits from Workflow Editor
+        val existingValues = storage.loadValues(serverId, workflowId)
+
         val values = WorkflowValues(
             megapixels = state.editingMegapixels.toFloatOrNull(),
             steps = state.editingSteps.toIntOrNull(),
@@ -580,7 +588,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             loraModel = state.selectedEditingLora.takeIf { it.isNotEmpty() },
             vaeModel = state.selectedEditingVae.takeIf { it.isNotEmpty() },
             clipModel = state.selectedEditingClip.takeIf { it.isNotEmpty() },
-            loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() }
+            loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() },
+            nodeAttributeEdits = existingValues?.nodeAttributeEdits
         )
 
         storage.saveValues(serverId, workflowId, values)

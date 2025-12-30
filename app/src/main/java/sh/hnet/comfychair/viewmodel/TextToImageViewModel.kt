@@ -824,6 +824,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
         // Use workflow ID as storage key (UUID-based)
         val serverId = ConnectionManager.currentServerId ?: return
+
+        // Load existing values to preserve nodeAttributeEdits from Workflow Editor
+        val existingValues = storage.loadValues(serverId, workflowId)
+
         val values = if (isCheckpointMode) {
             WorkflowValues(
                 width = state.checkpointWidth.toIntOrNull(),
@@ -834,7 +838,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 scheduler = state.checkpointScheduler,
                 negativePrompt = state.checkpointNegativePrompt.takeIf { it.isNotEmpty() },
                 checkpointModel = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
-                loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() }
+                loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() },
+                nodeAttributeEdits = existingValues?.nodeAttributeEdits
             )
         } else {
             WorkflowValues(
@@ -850,7 +855,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
                 clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
                 clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
-                loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() }
+                loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() },
+                nodeAttributeEdits = existingValues?.nodeAttributeEdits
             )
         }
 

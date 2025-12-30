@@ -810,9 +810,10 @@ object WorkflowManager {
                 val placeholderMatch = placeholderRegex.find(value)
                 if (placeholderMatch != null) {
                     val placeholderName = placeholderMatch.groupValues[1]
-                    // Check if this placeholder corresponds to an unmapped optional field
-                    // The placeholder name should directly match one of the optional keys
-                    if (placeholderName in unmappedOptionalKeys) {
+                    // Convert placeholder name to field key before checking
+                    val fieldKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(placeholderName)
+                    // Check if this field key corresponds to an unmapped optional field
+                    if (fieldKey in unmappedOptionalKeys) {
                         // Replace placeholder with empty string so it shows as unmapped in editor
                         inputs.put(inputKey, "")
                     }
@@ -1012,9 +1013,10 @@ object WorkflowManager {
                 val placeholderMatch = placeholderRegex.find(value)
                 if (placeholderMatch != null) {
                     val placeholderName = placeholderMatch.groupValues[1]
-                    // Check if this placeholder corresponds to an unmapped optional field
-                    // The placeholder name should directly match one of the optional keys
-                    if (placeholderName in unmappedOptionalKeys) {
+                    // Convert placeholder name to field key before checking
+                    val fieldKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(placeholderName)
+                    // Check if this field key corresponds to an unmapped optional field
+                    if (fieldKey in unmappedOptionalKeys) {
                         // Replace placeholder with empty string so it shows as unmapped in editor
                         inputs.put(inputKey, "")
                     }
@@ -1958,9 +1960,18 @@ object WorkflowManager {
      */
     private fun applyNodeAttributeEdits(processedJson: String, workflowId: String): String {
         // Load edits from storage
-        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: return processedJson
-        val values = workflowValuesStorage.loadValues(serverId, workflowId) ?: return processedJson
-        val editsJson = values.nodeAttributeEdits ?: return processedJson
+        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: run {
+            DebugLogger.w(TAG, "applyNodeAttributeEdits: No serverId (ConnectionManager.currentServerId is null)")
+            return processedJson
+        }
+        val values = workflowValuesStorage.loadValues(serverId, workflowId) ?: run {
+            DebugLogger.d(TAG, "applyNodeAttributeEdits: No saved values for server=$serverId, workflow=$workflowId")
+            return processedJson
+        }
+        val editsJson = values.nodeAttributeEdits ?: run {
+            DebugLogger.d(TAG, "applyNodeAttributeEdits: No node edits in saved values for server=$serverId, workflow=$workflowId")
+            return processedJson
+        }
         val edits = NodeAttributeEdits.fromJson(editsJson)
 
         if (edits.isEmpty()) return processedJson
