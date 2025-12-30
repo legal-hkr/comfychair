@@ -2,7 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.8.2
+**Current version**: v0.8.3
 
 ## Overview
 
@@ -18,6 +18,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ### General
 
+- **Multi-server support**: Save and manage multiple ComfyUI server connections with per-server settings and optional auto-login
 - **Server connection**: Connect to remote or local ComfyUI servers with automatic HTTP/HTTPS detection and self-signed certificate support
 - **Queue management**: Submit multiple jobs without waiting, view queue count, cancel current job, add to front of queue, or clear queue entirely
 - **Dual workflow support**:
@@ -82,6 +83,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Selected nodes highlight all their connections
 - **Node attribute editing**:
   - Side sheet editor for node parameters (tap nodes to edit)
+  - Numeric steppers with floating labels, range hints, and increment/decrement buttons
   - Boolean values displayed as on/off toggles
   - Image previews for image selector fields
   - Template values highlighted with "UI:" prefix
@@ -95,8 +97,10 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Create workflows from scratch or import existing ones exported from ComfyUI
   - Dynamic workflow thumbnails showing mini graph previews
   - Context menus for edit, rename, duplicate, export, and delete
-  - Field mapping UI for required template fields
+  - Flexible field mapping: only Positive Prompt required (plus source image for image workflows)
+  - Dynamic parameter constraints based on workflow node definitions
   - Per-workflow generation settings persistence
+  - Workflow Editor returns to view mode after saving for continued editing
 
 ### Configuration
 
