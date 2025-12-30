@@ -254,11 +254,11 @@ object ValidationUtils {
     /** Maximum length for workflow descriptions */
     const val MAX_WORKFLOW_DESCRIPTION_LENGTH = 80
 
-    /** Valid characters pattern for workflow names (alphanumeric, space, and common punctuation) */
-    private val WORKFLOW_NAME_PATTERN = Regex("^[a-zA-Z0-9 _\\-\\[\\]()]+$")
-
     /**
      * Validate workflow name format.
+     * No character restrictions (matches server name validation approach).
+     * Filename generation sanitizes names for filesystem safety.
+     *
      * @param name The workflow name to validate
      * @param context Optional context for localized error messages
      * @return Error message if invalid, null if valid
@@ -270,10 +270,6 @@ object ValidationUtils {
         if (name.length > MAX_WORKFLOW_NAME_LENGTH) {
             return context?.getString(R.string.workflow_name_error_too_long)
                 ?: "Name too long (max $MAX_WORKFLOW_NAME_LENGTH characters)"
-        }
-        if (!WORKFLOW_NAME_PATTERN.matches(name)) {
-            return context?.getString(R.string.workflow_name_error_invalid_chars)
-                ?: "Invalid characters in name"
         }
         return null
     }
