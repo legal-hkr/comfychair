@@ -37,6 +37,7 @@ import java.util.UUID
 sealed class ConnectionState {
     data object Disconnected : ConnectionState()
     data class Connected(
+        val serverId: String,
         val hostname: String,
         val port: Int,
         val protocol: String,
@@ -147,6 +148,12 @@ object ConnectionManager {
         get() = (connectionState.value as? ConnectionState.Connected)?.protocol ?: "http"
 
     /**
+     * Current server ID, or null if not connected.
+     */
+    val currentServerId: String?
+        get() = (connectionState.value as? ConnectionState.Connected)?.serverId
+
+    /**
      * Current client ID for WebSocket communication.
      */
     val clientId: String
@@ -172,19 +179,19 @@ object ConnectionManager {
      * If connected to a different server, caches are invalidated first.
      *
      * @param context Application context
+     * @param serverId Server UUID for per-server storage scoping
      * @param hostname Server hostname
      * @param port Server port
      * @param protocol Detected protocol ("http" or "https")
      */
     @Synchronized
-    fun connect(context: Context, hostname: String, port: Int, protocol: String) {
-        DebugLogger.i(TAG, "Connecting to ${Obfuscator.hostname(hostname)} (protocol: $protocol)")
+    fun connect(context: Context, serverId: String, hostname: String, port: Int, protocol: String) {
+        DebugLogger.i(TAG, "Connecting to ${Obfuscator.hostname(hostname)} (protocol: $protocol, serverId: $serverId)")
         val current = connectionState.value
 
         // Check if already connected to the same server
         if (current is ConnectionState.Connected &&
-            current.hostname == hostname &&
-            current.port == port) {
+            current.serverId == serverId) {
             DebugLogger.d(TAG, "Already connected to same server, skipping")
             return
         }
@@ -207,6 +214,7 @@ object ConnectionManager {
         }
 
         _connectionState.value = ConnectionState.Connected(
+            serverId = serverId,
             hostname = hostname,
             port = port,
             protocol = protocol,

@@ -12,6 +12,7 @@ object AppSettings {
     private const val KEY_MEMORY_FIRST_CACHE = "memory_first_cache"
     private const val KEY_LIVE_PREVIEW_ENABLED = "live_preview_enabled"
     private const val KEY_DEBUG_LOGGING_ENABLED = "debug_logging_enabled"
+    private const val KEY_AUTO_CONNECT = "autoConnect"
 
     /**
      * Check if live preview is enabled.
@@ -90,6 +91,25 @@ object AppSettings {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_DEBUG_LOGGING_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Check if auto-connect is enabled.
+     * When enabled (default), the app auto-connects to the last selected server on startup.
+     */
+    fun isAutoConnectEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_AUTO_CONNECT, true)  // Default: true (auto-connect)
+    }
+
+    /**
+     * Set whether auto-connect should be enabled.
+     */
+    fun setAutoConnectEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_AUTO_CONNECT, enabled)
             .apply()
     }
 }

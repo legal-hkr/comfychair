@@ -7,6 +7,7 @@ import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.model.WorkflowDefaults
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
@@ -178,9 +179,12 @@ object WorkflowManager {
 
                 val name = jsonObject.optString("name", "Unnamed Workflow")
                 val description = jsonObject.optString("description", "")
-                val id = applicationContext.resources.getResourceEntryName(resId)
-                val type = parseWorkflowType(id) ?: continue
+                val resourceName = applicationContext.resources.getResourceEntryName(resId)
+                val type = parseWorkflowType(resourceName) ?: continue
                 val defaults = WorkflowDefaults.fromJson(jsonObject.optJSONObject("defaults"))
+
+                // Generate deterministic UUID from resource name
+                val id = UuidUtils.generateDeterministicId(resourceName)
 
                 workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = true, defaults))
             } catch (e: Exception) {
@@ -908,8 +912,8 @@ object WorkflowManager {
             return Result.failure(Exception("Failed to save workflow: ${e.message ?: ""}"))
         }
 
-        // Save metadata
-        val id = "user_${filename.substringBeforeLast(".")}"
+        // Save metadata with UUID
+        val id = UuidUtils.generateRandomId()
         val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null)
         val metadataArray = if (existingJson != null) JSONArray(existingJson) else JSONArray()
@@ -1217,7 +1221,7 @@ object WorkflowManager {
         }
 
         // Save metadata
-        val id = "user_${prefixedFilename.substringBeforeLast(".")}"
+        val id = UuidUtils.generateRandomId()
         val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val existingJson = prefs.getString(USER_WORKFLOWS_KEY, null)
         val metadataArray = if (existingJson != null) JSONArray(existingJson) else JSONArray()
@@ -1431,6 +1435,13 @@ object WorkflowManager {
      */
     fun getWorkflowDefaults(workflowName: String): WorkflowDefaults? {
         return getWorkflowByName(workflowName)?.defaults
+    }
+
+    /**
+     * Get workflow defaults by workflow ID
+     */
+    fun getWorkflowDefaultsById(workflowId: String): WorkflowDefaults? {
+        return getWorkflowById(workflowId)?.defaults
     }
 
     /**
@@ -1947,7 +1958,8 @@ object WorkflowManager {
      */
     private fun applyNodeAttributeEdits(processedJson: String, workflowId: String): String {
         // Load edits from storage
-        val values = workflowValuesStorage.loadValues(workflowId) ?: return processedJson
+        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: return processedJson
+        val values = workflowValuesStorage.loadValues(serverId, workflowId) ?: return processedJson
         val editsJson = values.nodeAttributeEdits ?: return processedJson
         val edits = NodeAttributeEdits.fromJson(editsJson)
 

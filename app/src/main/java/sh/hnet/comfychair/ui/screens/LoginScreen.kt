@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -17,12 +16,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,8 +34,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -48,6 +43,12 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.MainContainerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.Server
+import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.ServerStorage
+import sh.hnet.comfychair.ui.components.ConnectionSplitButton
+import sh.hnet.comfychair.ui.components.ServerDialog
+import sh.hnet.comfychair.ui.components.ServerDropdown
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -72,76 +73,38 @@ fun LoginScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Server storage
+    val serverStorage = remember { ServerStorage(context.applicationContext) }
+
     // State
-    var hostname by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("8188") }
-    var hostnameError by remember { mutableStateOf<String?>(null) }
-    var portError by remember { mutableStateOf<String?>(null) }
+    var servers by remember { mutableStateOf(serverStorage.getServers()) }
+    var selectedServer by remember {
+        mutableStateOf(
+            serverStorage.getSelectedServerId()?.let { id -> servers.find { it.id == id } }
+                ?: servers.firstOrNull()
+        )
+    }
     var connectionState by remember { mutableStateOf(ConnectionState.IDLE) }
     var warningMessage by remember { mutableStateOf<String?>(null) }
     var comfyUIClient by remember { mutableStateOf<ComfyUIClient?>(null) }
     var hasAutoConnected by remember { mutableStateOf(false) }
 
-    // Regex patterns for validation
-    val ipAddressPattern = remember {
-        Regex("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
-    }
-    val hostnamePattern = remember {
-        Regex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
-    }
-
-    fun isValidHostname(value: String): Boolean {
-        return ipAddressPattern.matches(value) || hostnamePattern.matches(value)
-    }
+    // Dialog state
+    var showServerDialog by remember { mutableStateOf(false) }
+    var serverToEdit by remember { mutableStateOf<Server?>(null) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // String resources
-    val errorRequired = stringResource(R.string.error_required)
-    val errorInvalidHostname = stringResource(R.string.error_invalid_hostname)
-    val errorInvalidPort = stringResource(R.string.error_invalid_port)
     val warningSelfSigned = stringResource(R.string.warning_self_signed_cert)
     val warningUnknownCa = stringResource(R.string.warning_unknown_ca)
 
-    // Connection function - uses scope.launch so it's not tied to LaunchedEffect lifecycle
-    fun attemptConnection() {
-        // Validate inputs
-        var isValid = true
-        hostnameError = null
-        portError = null
+    // Connection function
+    fun attemptConnection(server: Server) {
+        connectionState = ConnectionState.CONNECTING
         warningMessage = null
 
-        val trimmedHostname = hostname.trim()
-        val trimmedPort = port.trim()
-
-        if (trimmedHostname.isEmpty()) {
-            hostnameError = errorRequired
-            isValid = false
-        } else if (!isValidHostname(trimmedHostname)) {
-            hostnameError = errorInvalidHostname
-            isValid = false
-        }
-
-        if (trimmedPort.isEmpty()) {
-            portError = errorRequired
-            isValid = false
-        } else {
-            val portNum = trimmedPort.toIntOrNull()
-            if (portNum == null || portNum !in 1..65535) {
-                portError = errorInvalidPort
-                isValid = false
-            }
-        }
-
-        if (!isValid) {
-            connectionState = ConnectionState.IDLE
-            return
-        }
-
-        connectionState = ConnectionState.CONNECTING
-
-        // Launch connection in scope (survives state changes)
         scope.launch {
-            val portNum = trimmedPort.toInt()
-            val client = ComfyUIClient(context.applicationContext, trimmedHostname, portNum)
+            val client = ComfyUIClient(context.applicationContext, server.hostname, server.port)
             comfyUIClient = client
 
             // Test connection using suspendCoroutine
@@ -154,17 +117,7 @@ fun LoginScreen() {
             val (success, errorMessage, certIssue) = result
 
             if (success) {
-                // Skip WebSocket test - HTTP test is sufficient
-                // WebSocket will be established by GenerationViewModel
                 connectionState = ConnectionState.CONNECTED
-
-                // Save connection info
-                val prefs = context.getSharedPreferences("ComfyChairPrefs", Context.MODE_PRIVATE)
-                prefs.edit().apply {
-                    putString("hostname", trimmedHostname)
-                    putInt("port", portNum)
-                    apply()
-                }
 
                 // Handle certificate warnings
                 val navigateDelay = when (certIssue) {
@@ -183,14 +136,19 @@ fun LoginScreen() {
 
                 // Establish connection via ConnectionManager
                 val detectedProtocol = client.getWorkingProtocol() ?: "http"
+
+                // Save selected server
+                serverStorage.setSelectedServerId(server.id)
+
                 ConnectionManager.connect(
                     context = context.applicationContext,
-                    hostname = trimmedHostname,
-                    port = portNum,
+                    serverId = server.id,
+                    hostname = server.hostname,
+                    port = server.port,
                     protocol = detectedProtocol
                 )
 
-                // Navigate to main activity (no Intent extras needed)
+                // Navigate to main activity
                 val intent = Intent(context, MainContainerActivity::class.java)
                 context.startActivity(intent)
             } else {
@@ -210,6 +168,11 @@ fun LoginScreen() {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                // Reload servers in case they were modified
+                servers = serverStorage.getServers()
+                selectedServer = serverStorage.getSelectedServerId()?.let { id -> servers.find { it.id == id } }
+                    ?: servers.firstOrNull()
+
                 // Reset connection state when screen becomes visible again
                 if (connectionState == ConnectionState.CONNECTED) {
                     connectionState = ConnectionState.IDLE
@@ -223,27 +186,17 @@ fun LoginScreen() {
         }
     }
 
-    // Load saved connection info and auto-connect
+    // Auto-connect on fresh app launch (if enabled in settings, we have a selected server, and user didn't explicitly logout)
     LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("ComfyChairPrefs", Context.MODE_PRIVATE)
-        val savedHostname = prefs.getString("hostname", "") ?: ""
-        val savedPort = prefs.getInt("port", 8188)
-
-        // Check if user explicitly logged out - don't auto-connect in that case
-        val shouldAutoConnect = !ConnectionManager.isUserInitiatedLogout
+        val isAutoConnectEnabled = AppSettings.isAutoConnectEnabled(context)
+        val shouldAutoConnect = isAutoConnectEnabled && !ConnectionManager.isUserInitiatedLogout
         ConnectionManager.clearLogoutFlag()
 
-        if (savedHostname.isNotEmpty()) {
-            hostname = savedHostname
-            port = savedPort.toString()
-
-            // Auto-connect after a small delay (only on fresh app launch, not after logout)
-            if (!hasAutoConnected && shouldAutoConnect) {
-                hasAutoConnected = true
-                delay(500)
-                if (connectionState == ConnectionState.IDLE) {
-                    attemptConnection()
-                }
+        if (!hasAutoConnected && shouldAutoConnect && selectedServer != null) {
+            hasAutoConnected = true
+            delay(500)
+            if (connectionState == ConnectionState.IDLE) {
+                attemptConnection(selectedServer!!)
             }
         }
     }
@@ -253,6 +206,83 @@ fun LoginScreen() {
         onDispose {
             comfyUIClient?.shutdown()
         }
+    }
+
+    // Server dialog
+    if (showServerDialog) {
+        ServerDialog(
+            server = serverToEdit,
+            isNameTaken = { name, excludeServerId ->
+                serverStorage.isServerNameTaken(name, excludeServerId)
+            },
+            onDismiss = {
+                showServerDialog = false
+                serverToEdit = null
+            },
+            onSave = { name, hostname, port ->
+                if (serverToEdit != null) {
+                    // Update existing server
+                    val updatedServer = serverToEdit!!.copy(
+                        name = name,
+                        hostname = hostname,
+                        port = port
+                    )
+                    serverStorage.updateServer(updatedServer)
+                    servers = serverStorage.getServers()
+
+                    // If editing the selected server, update selection
+                    if (selectedServer?.id == updatedServer.id) {
+                        selectedServer = updatedServer
+                    }
+                } else {
+                    // Add new server
+                    val newServer = Server.create(name, hostname, port)
+                    serverStorage.addServer(newServer)
+                    servers = serverStorage.getServers()
+
+                    // Select the new server
+                    selectedServer = newServer
+                    serverStorage.setSelectedServerId(newServer.id)
+                }
+                showServerDialog = false
+                serverToEdit = null
+            }
+        )
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteConfirmation && selectedServer != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.server_delete_title)) },
+            text = { Text(stringResource(R.string.server_delete_message, selectedServer!!.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val serverToDelete = selectedServer!!
+                        serverStorage.deleteServer(serverToDelete.id)
+                        servers = serverStorage.getServers()
+
+                        // Select another server or null
+                        selectedServer = servers.firstOrNull()
+                        selectedServer?.let { serverStorage.setSelectedServerId(it.id) }
+
+                        showDeleteConfirmation = false
+                        Toast.makeText(context, R.string.server_deleted_success, Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text(
+                        stringResource(R.string.server_delete_button),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
     }
 
     // UI
@@ -289,99 +319,41 @@ fun LoginScreen() {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Hostname input
-        OutlinedTextField(
-            value = hostname,
-            onValueChange = { newValue ->
-                hostname = newValue
-                // Live validation
-                val trimmed = newValue.trim()
-                hostnameError = when {
-                    trimmed.isEmpty() -> null
-                    !isValidHostname(trimmed) -> errorInvalidHostname
-                    else -> null
-                }
+        // Server dropdown
+        ServerDropdown(
+            servers = servers,
+            selectedServer = selectedServer,
+            onServerSelected = { server ->
+                selectedServer = server
+                serverStorage.setSelectedServerId(server.id)
             },
-            label = { Text(stringResource(R.string.hostname_hint)) },
-            isError = hostnameError != null,
-            supportingText = hostnameError?.let { { Text(it) } },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Port input
-        OutlinedTextField(
-            value = port,
-            onValueChange = { newValue ->
-                port = newValue
-                // Live validation
-                val trimmed = newValue.trim()
-                portError = when {
-                    trimmed.isEmpty() -> null
-                    else -> {
-                        val portNum = trimmed.toIntOrNull()
-                        if (portNum == null || portNum !in 1..65535) {
-                            errorInvalidPort
-                        } else {
-                            null
-                        }
-                    }
-                }
-            },
-            label = { Text(stringResource(R.string.port_hint)) },
-            isError = portError != null,
-            supportingText = portError?.let { { Text(it) } },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Connect button
-        val buttonColors = when (connectionState) {
-            ConnectionState.IDLE -> ButtonDefaults.elevatedButtonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
-            ConnectionState.CONNECTING -> ButtonDefaults.elevatedButtonColors(
-                containerColor = MaterialTheme.colorScheme.secondary
-            )
-            ConnectionState.FAILED -> ButtonDefaults.elevatedButtonColors(
-                containerColor = MaterialTheme.colorScheme.error
-            )
-            ConnectionState.CONNECTED -> ButtonDefaults.elevatedButtonColors(
-                containerColor = MaterialTheme.colorScheme.tertiary
-            )
-        }
-
-        val buttonText = when (connectionState) {
-            ConnectionState.IDLE -> stringResource(R.string.button_connect)
-            ConnectionState.CONNECTING -> stringResource(R.string.button_connecting)
-            ConnectionState.FAILED -> stringResource(R.string.button_failed)
-            ConnectionState.CONNECTED -> stringResource(R.string.button_connected)
-        }
-
-        ElevatedButton(
-            onClick = {
-                if (connectionState != ConnectionState.CONNECTING && connectionState != ConnectionState.CONNECTED) {
-                    attemptConnection()
+        // Connect split button with server management
+        ConnectionSplitButton(
+            connectionState = connectionState,
+            hasSelectedServer = selectedServer != null,
+            onConnect = {
+                if (selectedServer != null) {
+                    attemptConnection(selectedServer!!)
                 }
             },
-            enabled = connectionState != ConnectionState.CONNECTING && connectionState != ConnectionState.CONNECTED,
-            colors = buttonColors,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Text(
-                text = buttonText,
-                fontSize = 18.sp
-            )
-        }
+            onAddServer = {
+                serverToEdit = null
+                showServerDialog = true
+            },
+            onEditServer = {
+                serverToEdit = selectedServer
+                showServerDialog = true
+            },
+            onRemoveServer = {
+                showDeleteConfirmation = true
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // Warning message
         warningMessage?.let { message ->

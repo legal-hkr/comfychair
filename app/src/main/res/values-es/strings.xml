@@ -3,6 +3,22 @@
     <string name="hostname_hint">Nombre de host</string>
     <string name="port_hint">Puerto</string>
 
+    <!-- Server management strings -->
+    <string name="server_add_title">Añadir servidor</string>
+    <string name="server_edit_title">Editar servidor</string>
+    <string name="server_name_label">Nombre del servidor</string>
+    <string name="server_name_placeholder">Mi servidor</string>
+    <string name="server_hostname_placeholder">192.168.1.100</string>
+    <string name="server_name_taken_error">Este nombre ya está en uso</string>
+    <string name="server_select_placeholder">Seleccionar un servidor</string>
+    <string name="server_dropdown_expand">Expandir lista de servidores</string>
+    <string name="server_edit_button">Editar servidor</string>
+    <string name="server_add_button">Añadir servidor</string>
+    <string name="server_delete_button">Eliminar servidor</string>
+    <string name="server_delete_title">Eliminar servidor</string>
+    <string name="server_delete_message">¿Seguro que desea eliminar \"%s\"? Esto también eliminará todas las preferencias guardadas para este servidor.</string>
+    <string name="server_deleted_success">Servidor eliminado</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Conectar</string>
     <string name="button_connecting">Conectando…</string>
@@ -77,6 +93,8 @@
     <string name="memory_first_cache_description">Acceso rápido, mayor uso de memoria. Desactivar para redes lentas o dispositivos con poca memoria.</string>
     <string name="disable_media_cache_label">Desactivar caché de medios</string>
     <string name="disable_media_cache_description">No guardar imágenes de vista previa ni videos en disco</string>
+    <string name="auto_connect_label">Conexión automática</string>
+    <string name="auto_connect_description">Conectar automáticamente al último servidor al iniciar la app</string>
     <string name="reset_prompts_button">Restablecer prompts</string>
     <string name="reset_prompts_success">Prompts restablecidos a los valores predeterminados</string>
     <string name="clear_cache_button">Vaciar caché</string>
@@ -120,6 +138,7 @@
     <string name="menu_add_to_end_of_queue">Agregar al final de la cola</string>
     <string name="menu_add_to_front_of_queue">Agregar al frente de la cola</string>
     <string name="content_description_queue_menu">Menú de cola</string>
+    <string name="content_description_server_menu">Menú de servidor</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">No es un servidor ComfyUI</string>

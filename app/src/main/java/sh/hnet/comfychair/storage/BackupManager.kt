@@ -6,8 +6,9 @@ import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.model.Server
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.UuidUtils
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -19,7 +20,7 @@ import java.util.TimeZone
  */
 sealed class RestoreResult {
     data class Success(
-        val connectionChanged: Boolean,
+        val serversChanged: Boolean,
         val skippedWorkflows: Int = 0
     ) : RestoreResult()
 
@@ -29,22 +30,22 @@ sealed class RestoreResult {
 /**
  * Manages backup and restore operations for app configuration.
  *
- * Backup includes:
- * - Connection settings (hostname, port)
- * - App settings (live preview, memory cache, debug logging)
- * - Screen preferences (selected workflows, prompts, modes)
- * - Per-workflow saved values
- * - User-uploaded workflows (metadata + file contents)
+ * Backup v4 format (hierarchical, server-first):
+ * - servers: Array of server objects with id, name, hostname, port
+ * - selectedServerId: Currently selected server ID
+ * - appSettings: App-wide settings
+ * - screenPreferences: { serverId: { textToImage: {...}, imageToImage: {...}, ... } }
+ * - workflowValues: { serverId: { workflowId: {...}, ... } }
+ * - userWorkflows: Array of user-uploaded workflows
  */
 class BackupManager(private val context: Context) {
 
     companion object {
         private const val TAG = "BackupManager"
-        const val BACKUP_VERSION = 1
+        const val BACKUP_VERSION = 4
         private const val USER_WORKFLOWS_DIR = "user_workflows"
 
         // SharedPreferences names
-        private const val PREFS_CONNECTION = "ComfyChairPrefs"
         private const val PREFS_APP_SETTINGS = "AppSettings"
         private const val PREFS_TEXT_TO_IMAGE = "TextToImageFragmentPrefs"
         private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
@@ -55,30 +56,38 @@ class BackupManager(private val context: Context) {
     }
 
     private val validator = BackupValidator()
+    private val serverStorage = ServerStorage(context)
 
     /**
      * Create a backup of all app configuration.
      * Returns JSON string on success, or failure with error.
      */
     fun createBackup(): Result<String> {
-        DebugLogger.i(TAG, "Creating backup...")
+        DebugLogger.i(TAG, "Creating backup (v$BACKUP_VERSION)...")
         return try {
-            val appSettings = readAppSettings()
-            DebugLogger.d(TAG, "Backup appSettings: $appSettings")
+            val servers = serverStorage.getServers()
+            val selectedServerId = serverStorage.getSelectedServerId()
 
             val backup = JSONObject().apply {
                 put("version", BACKUP_VERSION)
                 put("exportedAt", getIso8601Timestamp())
                 put("appVersion", getAppVersionName())
 
-                put("connection", readConnectionPrefs())
-                put("appSettings", appSettings)
-                put("screenPreferences", readScreenPreferences())
-                put("workflowValues", readWorkflowValues())
+                // Servers
+                put("servers", JSONArray().apply {
+                    servers.forEach { server ->
+                        put(server.toJson())
+                    }
+                })
+                put("selectedServerId", selectedServerId ?: "")
+
+                put("appSettings", readAppSettings())
+                put("screenPreferences", readScreenPreferences(servers))
+                put("workflowValues", readWorkflowValues(servers))
                 put("userWorkflows", readUserWorkflows())
             }
 
-            DebugLogger.i(TAG, "Backup created successfully")
+            DebugLogger.i(TAG, "Backup created successfully with ${servers.size} servers")
             Result.success(backup.toString(2))
         } catch (e: Exception) {
             DebugLogger.e(TAG, "Backup creation failed: ${e.message}")
@@ -89,8 +98,7 @@ class BackupManager(private val context: Context) {
     /**
      * Restore configuration from a backup JSON string.
      * Uses lenient validation: skips invalid entries but continues with valid data.
-     * Connection settings must be valid or the entire restore fails.
-     * Clears cached media files before restoring.
+     * Server ID mapping: if a server name exists, map backup server ID to existing server ID.
      */
     fun restoreBackup(jsonString: String): RestoreResult {
         DebugLogger.i(TAG, "Starting backup restore...")
@@ -117,123 +125,154 @@ class BackupManager(private val context: Context) {
             return RestoreResult.Failure(R.string.backup_error_unsupported_version)
         }
 
-        // Restore connection (must succeed)
-        val connection = json.optJSONObject("connection")
-        if (connection == null) {
-            DebugLogger.e(TAG, "No connection object in backup")
-            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
-        }
-
-        DebugLogger.d(TAG, "Restoring connection settings...")
-        val connectionChanged = restoreConnectionPrefs(connection)
-            ?: return RestoreResult.Failure(R.string.backup_error_invalid_connection)
-        DebugLogger.d(TAG, "Connection restored, changed: $connectionChanged")
-
-        // Clear cached media files before restoring new configuration
+        // Clear cached media files before restoring
         DebugLogger.d(TAG, "Clearing cache files...")
         clearCacheFiles()
 
-        // Restore app settings (lenient - skip invalid)
-        val appSettingsJson = json.optJSONObject("appSettings")
-        DebugLogger.d(TAG, "appSettings in backup: ${appSettingsJson != null}")
-        if (appSettingsJson != null) {
-            DebugLogger.d(TAG, "appSettings content: $appSettingsJson")
-            restoreAppSettings(appSettingsJson)
+        // Restore based on version
+        return if (version >= 4) {
+            restoreV4Backup(json)
         } else {
-            DebugLogger.w(TAG, "No appSettings found in backup")
+            restoreLegacyBackup(json)
+        }
+    }
+
+    /**
+     * Restore v4 backup format (hierarchical, server-first).
+     */
+    private fun restoreV4Backup(json: JSONObject): RestoreResult {
+        // Restore servers
+        val serversArray = json.optJSONArray("servers")
+        if (serversArray == null || serversArray.length() == 0) {
+            DebugLogger.e(TAG, "No servers array in backup")
+            return RestoreResult.Failure(R.string.backup_error_no_servers)
         }
 
-        // Restore screen preferences (lenient - skip invalid)
+        val existingServers = serverStorage.getServers()
+        val serverIdMapping = mutableMapOf<String, String>() // backupId -> actualId
+        var serversChanged = false
+
+        for (i in 0 until serversArray.length()) {
+            val serverJson = serversArray.optJSONObject(i) ?: continue
+            val backupServer = Server.fromJson(serverJson) ?: continue
+
+            // Check if server with same name exists
+            val existingServer = existingServers.find { it.name == backupServer.name }
+            if (existingServer != null) {
+                // Map backup server ID to existing server ID
+                serverIdMapping[backupServer.id] = existingServer.id
+                DebugLogger.d(TAG, "Mapping server ${backupServer.name}: ${backupServer.id} -> ${existingServer.id}")
+            } else {
+                // Add new server with its original ID
+                serverStorage.addServer(backupServer)
+                serverIdMapping[backupServer.id] = backupServer.id
+                serversChanged = true
+                DebugLogger.d(TAG, "Added new server: ${backupServer.name}")
+            }
+        }
+
+        // Set selected server
+        val selectedServerId = json.optString("selectedServerId", "")
+        if (selectedServerId.isNotEmpty()) {
+            val mappedId = serverIdMapping[selectedServerId] ?: selectedServerId
+            serverStorage.setSelectedServerId(mappedId)
+        }
+
+        // Restore app settings
+        json.optJSONObject("appSettings")?.let { restoreAppSettings(it) }
+
+        // Restore screen preferences with server ID mapping
         json.optJSONObject("screenPreferences")?.let { prefs ->
-            DebugLogger.d(TAG, "Restoring screen preferences...")
-            restoreScreenPreferences(prefs)
+            restoreScreenPreferencesV4(prefs, serverIdMapping)
         }
 
-        // Restore workflow values (lenient - skip invalid)
+        // Restore workflow values with server ID mapping
         json.optJSONObject("workflowValues")?.let { values ->
-            DebugLogger.d(TAG, "Restoring workflow values...")
-            restoreWorkflowValues(values)
+            restoreWorkflowValuesV4(values, serverIdMapping)
         }
 
-        // Restore user workflows (lenient - count skipped)
+        // Restore user workflows
         var skippedWorkflows = 0
         json.optJSONArray("userWorkflows")?.let { workflows ->
-            DebugLogger.d(TAG, "Restoring ${workflows.length()} user workflows...")
             skippedWorkflows = restoreUserWorkflows(workflows)
         }
 
-        DebugLogger.i(TAG, "Backup restore completed. Connection changed: $connectionChanged, skipped workflows: $skippedWorkflows")
+        DebugLogger.i(TAG, "Backup restore completed. Servers changed: $serversChanged, skipped workflows: $skippedWorkflows")
         return RestoreResult.Success(
-            connectionChanged = connectionChanged,
+            serversChanged = serversChanged,
             skippedWorkflows = skippedWorkflows
         )
     }
 
     /**
-     * Clear cached media files (previews, sources, videos).
-     * Does not clear user workflows (they are part of backup/restore).
+     * Restore legacy backup format (v1-v3).
+     * Creates a default server from connection info and migrates data.
      */
-    private fun clearCacheFiles() {
-        // Clear preview and source image files
-        val cachedFiles = listOf(
-            "tti_last_preview.png",
-            "iti_last_preview.png",
-            "iti_last_source.png",
-            "ite_reference_1.png",
-            "ite_reference_2.png",
-            "ttv_last_preview.png",
-            "itv_last_preview.png",
-            "itv_last_source.png"
+    private fun restoreLegacyBackup(json: JSONObject): RestoreResult {
+        // Get connection info to create default server
+        val connection = json.optJSONObject("connection")
+        if (connection == null) {
+            DebugLogger.e(TAG, "No connection object in legacy backup")
+            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
+        }
+
+        val hostname = connection.optString("hostname", "")
+        val port = connection.optInt("port", 8188)
+
+        if (!validator.validateHostname(hostname)) {
+            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
+        }
+        if (!validator.validatePort(port)) {
+            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
+        }
+
+        // Check if server with this connection already exists
+        val existingServers = serverStorage.getServers()
+        var server = existingServers.find { it.hostname == hostname && it.port == port }
+        var serversChanged = false
+
+        if (server == null) {
+            // Create new server
+            val serverName = if (existingServers.isEmpty()) "Default Server" else "Imported Server"
+            server = Server.create(serverName, hostname, port)
+            serverStorage.addServer(server)
+            serversChanged = true
+        }
+
+        serverStorage.setSelectedServerId(server.id)
+
+        // Restore app settings
+        json.optJSONObject("appSettings")?.let { restoreAppSettings(it) }
+
+        // Restore screen preferences (migrate to per-server format)
+        json.optJSONObject("screenPreferences")?.let { prefs ->
+            restoreScreenPreferencesLegacy(prefs, server.id)
+        }
+
+        // Restore workflow values (migrate to per-server format)
+        json.optJSONObject("workflowValues")?.let { values ->
+            restoreWorkflowValuesLegacy(values, server.id)
+        }
+
+        // Restore user workflows
+        var skippedWorkflows = 0
+        json.optJSONArray("userWorkflows")?.let { workflows ->
+            skippedWorkflows = restoreUserWorkflows(workflows)
+        }
+
+        DebugLogger.i(TAG, "Legacy backup restored. Created server: ${server.name}")
+        return RestoreResult.Success(
+            serversChanged = serversChanged,
+            skippedWorkflows = skippedWorkflows
         )
-
-        cachedFiles.forEach { filename ->
-            try {
-                context.deleteFile(filename)
-            } catch (e: Exception) {
-                // Ignore deletion errors
-            }
-        }
-
-        // Clear video files with prompt ID suffixes in filesDir
-        context.filesDir.listFiles()?.forEach { file ->
-            if ((file.name.startsWith("ttv_") && file.name.endsWith(".mp4")) ||
-                (file.name.startsWith("itv_") && file.name.endsWith(".mp4"))) {
-                try {
-                    file.delete()
-                } catch (e: Exception) {
-                    // Ignore deletion errors
-                }
-            }
-        }
-
-        // Clear temp files in cache directory (gallery thumbnails, playback files)
-        context.cacheDir.listFiles()?.forEach { file ->
-            if (file.name.startsWith("gallery_video_") ||
-                file.name.startsWith("playback_") ||
-                file.name.endsWith(".png") ||
-                file.name.endsWith(".mp4")) {
-                try {
-                    file.delete()
-                } catch (e: Exception) {
-                    // Ignore deletion errors
-                }
-            }
-        }
     }
 
     // Read methods
 
-    private fun readConnectionPrefs(): JSONObject {
-        val prefs = context.getSharedPreferences(PREFS_CONNECTION, Context.MODE_PRIVATE)
-        return JSONObject().apply {
-            put("hostname", prefs.getString("hostname", "") ?: "")
-            put("port", prefs.getInt("port", 8188))
-        }
-    }
-
     private fun readAppSettings(): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_APP_SETTINGS, Context.MODE_PRIVATE)
         return JSONObject().apply {
+            put("autoConnectEnabled", prefs.getBoolean("autoConnect", true))
             put("livePreviewEnabled", prefs.getBoolean("live_preview_enabled", true))
             put("memoryFirstCache", prefs.getBoolean("memory_first_cache", true))
             put("mediaCacheDisabled", prefs.getBoolean("media_cache_disabled", false))
@@ -241,63 +280,74 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    private fun readScreenPreferences(): JSONObject {
-        return JSONObject().apply {
-            put("textToImage", readTextToImagePrefs())
-            put("imageToImage", readImageToImagePrefs())
-            put("textToVideo", readTextToVideoPrefs())
-            put("imageToVideo", readImageToVideoPrefs())
+    private fun readScreenPreferences(servers: List<Server>): JSONObject {
+        val result = JSONObject()
+        servers.forEach { server ->
+            result.put(server.id, JSONObject().apply {
+                put("textToImage", readTextToImagePrefs(server.id))
+                put("imageToImage", readImageToImagePrefs(server.id))
+                put("textToVideo", readTextToVideoPrefs(server.id))
+                put("imageToVideo", readImageToVideoPrefs(server.id))
+            })
         }
+        return result
     }
 
-    private fun readTextToImagePrefs(): JSONObject {
+    private fun readTextToImagePrefs(serverId: String): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
         return JSONObject().apply {
-            put("selectedWorkflow", prefs.getString("selectedWorkflow", "") ?: "")
-            put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
+            put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
+            put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
         }
     }
 
-    private fun readImageToImagePrefs(): JSONObject {
+    private fun readImageToImagePrefs(serverId: String): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_IMAGE, Context.MODE_PRIVATE)
         return JSONObject().apply {
-            put("selectedWorkflow", prefs.getString("selectedWorkflow", "") ?: "")
-            put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
-            // Editing mode preferences
-            put("mode", prefs.getString("mode", "INPAINTING") ?: "INPAINTING")
-            put("selectedEditingWorkflow", prefs.getString("selectedEditingWorkflow", "") ?: "")
+            put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
+            put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
+            put("mode", prefs.getString("${serverId}_mode", "INPAINTING") ?: "INPAINTING")
+            put("selectedEditingWorkflowId", prefs.getString("${serverId}_selectedEditingWorkflowId", "") ?: "")
         }
     }
 
-    private fun readTextToVideoPrefs(): JSONObject {
+    private fun readTextToVideoPrefs(serverId: String): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
         return JSONObject().apply {
-            put("workflow", prefs.getString("workflow", "") ?: "")
-            put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
+            put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
+            put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
         }
     }
 
-    private fun readImageToVideoPrefs(): JSONObject {
+    private fun readImageToVideoPrefs(serverId: String): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_VIDEO, Context.MODE_PRIVATE)
         return JSONObject().apply {
-            put("workflow", prefs.getString("workflow", "") ?: "")
-            put("positivePrompt", prefs.getString("positive_prompt", "") ?: "")
+            put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
+            put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
         }
     }
 
-    private fun readWorkflowValues(): JSONObject {
+    private fun readWorkflowValues(servers: List<Server>): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_WORKFLOW_VALUES, Context.MODE_PRIVATE)
         val result = JSONObject()
 
-        // Iterate through all keys that start with "workflow_"
-        prefs.all.forEach { (key, value) ->
-            if (key.startsWith("workflow_") && value is String) {
-                // Store the raw JSON string value
-                try {
-                    result.put(key, JSONObject(value))
-                } catch (e: Exception) {
-                    // Skip invalid JSON values
+        servers.forEach { server ->
+            val serverValues = JSONObject()
+
+            // Find all keys that start with this server's ID
+            prefs.all.forEach { (key, value) ->
+                if (key.startsWith("${server.id}_") && value is String) {
+                    val workflowId = key.removePrefix("${server.id}_")
+                    try {
+                        serverValues.put(workflowId, JSONObject(value))
+                    } catch (e: Exception) {
+                        // Skip invalid JSON
+                    }
                 }
+            }
+
+            if (serverValues.length() > 0) {
+                result.put(server.id, serverValues)
             }
         }
 
@@ -340,217 +390,234 @@ class BackupManager(private val context: Context) {
 
     // Restore methods
 
-    /**
-     * Restore connection preferences.
-     * Returns null if validation fails, otherwise returns whether connection changed.
-     */
-    private fun restoreConnectionPrefs(json: JSONObject): Boolean? {
-        val hostname = json.optString("hostname", "")
-        val port = json.optInt("port", -1)
-
-        // Validate
-        if (!validator.validateHostname(hostname)) return null
-        if (!validator.validatePort(port)) return null
-
-        // Check if connection changed
-        val prefs = context.getSharedPreferences(PREFS_CONNECTION, Context.MODE_PRIVATE)
-        val oldHostname = prefs.getString("hostname", "") ?: ""
-        val oldPort = prefs.getInt("port", 8188)
-        val changed = (hostname != oldHostname || port != oldPort)
-
-        // Save
-        prefs.edit().apply {
-            putString("hostname", hostname)
-            putInt("port", port)
-            apply()
-        }
-
-        return changed
-    }
-
     private fun restoreAppSettings(json: JSONObject) {
-        DebugLogger.d(TAG, "restoreAppSettings called with: $json")
-
         val prefs = context.getSharedPreferences(PREFS_APP_SETTINGS, Context.MODE_PRIVATE)
-
-        // Read current values before restore
-        val currentLivePreview = prefs.getBoolean("live_preview_enabled", true)
-        val currentMemoryFirst = prefs.getBoolean("memory_first_cache", true)
-        val currentMediaCacheDisabled = prefs.getBoolean("media_cache_disabled", false)
-        val currentDebugLogging = prefs.getBoolean("debug_logging_enabled", false)
-        DebugLogger.d(TAG, "Current appSettings - livePreview: $currentLivePreview, memoryFirst: $currentMemoryFirst, mediaCacheDisabled: $currentMediaCacheDisabled, debugLogging: $currentDebugLogging")
-
         val editor = prefs.edit()
 
-        // Only restore if the key exists in the backup
+        if (json.has("autoConnectEnabled")) {
+            editor.putBoolean("autoConnect", json.optBoolean("autoConnectEnabled", true))
+        }
         if (json.has("livePreviewEnabled")) {
-            val value = json.optBoolean("livePreviewEnabled", true)
-            DebugLogger.d(TAG, "Restoring livePreviewEnabled: $value")
-            editor.putBoolean("live_preview_enabled", value)
-        } else {
-            DebugLogger.d(TAG, "livePreviewEnabled not in backup, skipping")
+            editor.putBoolean("live_preview_enabled", json.optBoolean("livePreviewEnabled", true))
         }
-
         if (json.has("memoryFirstCache")) {
-            val value = json.optBoolean("memoryFirstCache", true)
-            DebugLogger.d(TAG, "Restoring memoryFirstCache: $value")
-            editor.putBoolean("memory_first_cache", value)
-        } else {
-            DebugLogger.d(TAG, "memoryFirstCache not in backup, skipping")
+            editor.putBoolean("memory_first_cache", json.optBoolean("memoryFirstCache", true))
         }
-
         if (json.has("mediaCacheDisabled")) {
-            val value = json.optBoolean("mediaCacheDisabled", false)
-            DebugLogger.d(TAG, "Restoring mediaCacheDisabled: $value")
-            editor.putBoolean("media_cache_disabled", value)
-        } else {
-            DebugLogger.d(TAG, "mediaCacheDisabled not in backup, skipping")
+            editor.putBoolean("media_cache_disabled", json.optBoolean("mediaCacheDisabled", false))
         }
-
         if (json.has("debugLoggingEnabled")) {
-            val value = json.optBoolean("debugLoggingEnabled", false)
-            DebugLogger.d(TAG, "Restoring debugLoggingEnabled: $value")
-            editor.putBoolean("debug_logging_enabled", value)
-        } else {
-            DebugLogger.d(TAG, "debugLoggingEnabled not in backup, skipping")
+            editor.putBoolean("debug_logging_enabled", json.optBoolean("debugLoggingEnabled", false))
         }
 
-        val commitResult = editor.commit()
-        DebugLogger.d(TAG, "AppSettings commit result: $commitResult")
-
-        // Verify values after restore
-        val newLivePreview = prefs.getBoolean("live_preview_enabled", true)
-        val newMemoryFirst = prefs.getBoolean("memory_first_cache", true)
-        val newMediaCacheDisabled = prefs.getBoolean("media_cache_disabled", false)
-        val newDebugLogging = prefs.getBoolean("debug_logging_enabled", false)
-        DebugLogger.d(TAG, "After restore appSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $newDebugLogging")
+        editor.apply()
     }
 
-    private fun restoreScreenPreferences(json: JSONObject) {
-        json.optJSONObject("textToImage")?.let { restoreTextToImagePrefs(it) }
-        json.optJSONObject("imageToImage")?.let { restoreImageToImagePrefs(it) }
-        json.optJSONObject("textToVideo")?.let { restoreTextToVideoPrefs(it) }
-        json.optJSONObject("imageToVideo")?.let { restoreImageToVideoPrefs(it) }
+    private fun restoreScreenPreferencesV4(json: JSONObject, serverIdMapping: Map<String, String>) {
+        val keys = json.keys()
+        while (keys.hasNext()) {
+            val backupServerId = keys.next()
+            val actualServerId = serverIdMapping[backupServerId] ?: backupServerId
+            val serverPrefs = json.optJSONObject(backupServerId) ?: continue
+
+            serverPrefs.optJSONObject("textToImage")?.let {
+                restoreTextToImagePrefs(it, actualServerId)
+            }
+            serverPrefs.optJSONObject("imageToImage")?.let {
+                restoreImageToImagePrefs(it, actualServerId)
+            }
+            serverPrefs.optJSONObject("textToVideo")?.let {
+                restoreTextToVideoPrefs(it, actualServerId)
+            }
+            serverPrefs.optJSONObject("imageToVideo")?.let {
+                restoreImageToVideoPrefs(it, actualServerId)
+            }
+        }
     }
 
-    private fun restoreTextToImagePrefs(json: JSONObject) {
+    private fun restoreScreenPreferencesLegacy(json: JSONObject, serverId: String) {
+        json.optJSONObject("textToImage")?.let { restoreTextToImagePrefsLegacy(it, serverId) }
+        json.optJSONObject("imageToImage")?.let { restoreImageToImagePrefsLegacy(it, serverId) }
+        json.optJSONObject("textToVideo")?.let { restoreTextToVideoPrefsLegacy(it, serverId) }
+        json.optJSONObject("imageToVideo")?.let { restoreImageToVideoPrefsLegacy(it, serverId) }
+    }
+
+    private fun restoreTextToImagePrefs(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
         prefs.edit().apply {
-            // Handle new format (selectedWorkflow)
-            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("selectedWorkflow", validator.sanitizeString(it, 100))
+            json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
             }
-
-            // Legacy support: if old format detected, derive selectedWorkflow
-            if (!json.has("selectedWorkflow") && json.has("isCheckpointMode")) {
-                val isCheckpoint = json.optBoolean("isCheckpointMode", true)
-                val workflow = if (isCheckpoint) {
-                    json.optString("checkpointWorkflow", "")
-                } else {
-                    json.optString("unetWorkflow", "")
-                }
-                if (workflow.isNotEmpty()) {
-                    putString("selectedWorkflow", validator.sanitizeString(workflow, 100))
-                }
-            }
-
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("positive_prompt", it)
+                    putString("${serverId}_positivePrompt", it)
                 }
             }
             apply()
         }
     }
 
-    private fun restoreImageToImagePrefs(json: JSONObject) {
+    private fun restoreTextToImagePrefsLegacy(json: JSONObject, serverId: String) {
+        val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            // Legacy format used workflow name, not ID - we can't easily map this
+            // Just store the value as-is and let the app handle the lookup
+            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
+            }
+            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_positivePrompt", it)
+                }
+            }
+            apply()
+        }
+    }
+
+    private fun restoreImageToImagePrefs(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_IMAGE, Context.MODE_PRIVATE)
         prefs.edit().apply {
-            // Handle new format (selectedWorkflow)
-            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("selectedWorkflow", validator.sanitizeString(it, 100))
+            json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
             }
-
-            // Legacy support: if old format detected, derive selectedWorkflow
-            if (!json.has("selectedWorkflow") && json.has("configMode")) {
-                val isCheckpoint = json.optString("configMode", "CHECKPOINT").uppercase() == "CHECKPOINT"
-                val workflow = if (isCheckpoint) {
-                    json.optString("checkpointWorkflow", "")
-                } else {
-                    json.optString("unetWorkflow", "")
-                }
-                if (workflow.isNotEmpty()) {
-                    putString("selectedWorkflow", validator.sanitizeString(workflow, 100))
-                }
-            }
-
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("positive_prompt", it)
+                    putString("${serverId}_positivePrompt", it)
                 }
             }
-
-            // Editing mode preferences
             json.optString("mode").takeIf { it == "INPAINTING" || it == "EDITING" }?.let {
-                putString("mode", it)
+                putString("${serverId}_mode", it)
             }
-            json.optString("selectedEditingWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("selectedEditingWorkflow", validator.sanitizeString(it, 100))
+            json.optString("selectedEditingWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedEditingWorkflowId", it)
             }
-
             apply()
         }
     }
 
-    private fun restoreTextToVideoPrefs(json: JSONObject) {
+    private fun restoreImageToImagePrefsLegacy(json: JSONObject, serverId: String) {
+        val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_IMAGE, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
+            }
+            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_positivePrompt", it)
+                }
+            }
+            json.optString("mode").takeIf { it == "INPAINTING" || it == "EDITING" }?.let {
+                putString("${serverId}_mode", it)
+            }
+            json.optString("selectedEditingWorkflow").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedEditingWorkflowId", it)
+            }
+            apply()
+        }
+    }
+
+    private fun restoreTextToVideoPrefs(json: JSONObject, serverId: String) {
+        val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
+            }
+            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_positivePrompt", it)
+                }
+            }
+            apply()
+        }
+    }
+
+    private fun restoreTextToVideoPrefsLegacy(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
         prefs.edit().apply {
             json.optString("workflow").takeIf { it.isNotEmpty() }?.let {
-                putString("workflow", validator.sanitizeString(it, 100))
+                putString("${serverId}_selectedWorkflowId", it)
             }
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("positive_prompt", it)
+                    putString("${serverId}_positivePrompt", it)
                 }
             }
             apply()
         }
     }
 
-    private fun restoreImageToVideoPrefs(json: JSONObject) {
+    private fun restoreImageToVideoPrefs(json: JSONObject, serverId: String) {
+        val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_VIDEO, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
+            }
+            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_positivePrompt", it)
+                }
+            }
+            apply()
+        }
+    }
+
+    private fun restoreImageToVideoPrefsLegacy(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_VIDEO, Context.MODE_PRIVATE)
         prefs.edit().apply {
             json.optString("workflow").takeIf { it.isNotEmpty() }?.let {
-                putString("workflow", validator.sanitizeString(it, 100))
+                putString("${serverId}_selectedWorkflowId", it)
             }
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("positive_prompt", it)
+                    putString("${serverId}_positivePrompt", it)
                 }
             }
             apply()
         }
     }
 
-    private fun restoreWorkflowValues(json: JSONObject) {
+    private fun restoreWorkflowValuesV4(json: JSONObject, serverIdMapping: Map<String, String>) {
+        val prefs = context.getSharedPreferences(PREFS_WORKFLOW_VALUES, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        val serverKeys = json.keys()
+        while (serverKeys.hasNext()) {
+            val backupServerId = serverKeys.next()
+            val actualServerId = serverIdMapping[backupServerId] ?: backupServerId
+            val serverValues = json.optJSONObject(backupServerId) ?: continue
+
+            val workflowKeys = serverValues.keys()
+            while (workflowKeys.hasNext()) {
+                val workflowId = workflowKeys.next()
+                val valueObj = serverValues.optJSONObject(workflowId) ?: continue
+
+                val sanitizedValue = sanitizeWorkflowValue(valueObj)
+                if (sanitizedValue != null) {
+                    editor.putString("${actualServerId}_$workflowId", sanitizedValue.toString())
+                }
+            }
+        }
+
+        editor.apply()
+    }
+
+    private fun restoreWorkflowValuesLegacy(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_WORKFLOW_VALUES, Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
         val keys = json.keys()
         while (keys.hasNext()) {
             val key = keys.next()
+            // Legacy format: workflow_<workflowName>
             if (!key.startsWith("workflow_")) continue
 
-            try {
-                val valueObj = json.optJSONObject(key) ?: continue
+            val workflowName = key.removePrefix("workflow_")
+            val valueObj = json.optJSONObject(key) ?: continue
 
-                // Validate and sanitize individual fields
-                val sanitizedValue = sanitizeWorkflowValue(valueObj)
-                if (sanitizedValue != null) {
-                    editor.putString(key, sanitizedValue.toString())
-                }
-            } catch (e: Exception) {
-                // Skip invalid entries
+            val sanitizedValue = sanitizeWorkflowValue(valueObj)
+            if (sanitizedValue != null) {
+                // Store with new format: serverId_workflowName (legacy didn't have UUIDs)
+                editor.putString("${serverId}_$workflowName", sanitizedValue.toString())
             }
         }
 
@@ -560,11 +627,7 @@ class BackupManager(private val context: Context) {
     private fun sanitizeWorkflowValue(json: JSONObject): JSONObject? {
         return try {
             JSONObject().apply {
-                // Copy and validate each field
-                json.optString("workflowId").takeIf { it.isNotEmpty() }?.let {
-                    put("workflowId", it)
-                }
-
+                // Dimensions and parameters
                 json.optInt("width").takeIf { it > 0 && validator.validateDimension(it) }?.let {
                     put("width", it)
                 }
@@ -584,12 +647,12 @@ class BackupManager(private val context: Context) {
                     put("scheduler", it)
                 }
 
-                // Prompts and model names - just sanitize strings
+                // Prompts
                 if (json.has("negativePrompt")) {
-                    val negPrompt = json.optString("negativePrompt")
-                    put("negativePrompt", validator.sanitizeString(negPrompt))
+                    put("negativePrompt", validator.sanitizeString(json.optString("negativePrompt")))
                 }
 
+                // Video parameters
                 json.optDouble("megapixels").takeIf { !it.isNaN() && validator.validateMegapixels(it.toFloat()) }?.let {
                     put("megapixels", it)
                 }
@@ -600,10 +663,10 @@ class BackupManager(private val context: Context) {
                     put("frameRate", it)
                 }
 
-                // Model names - just sanitize (don't validate against server models)
+                // Model names
                 listOf(
                     "checkpointModel", "unetModel", "loraModel", "vaeModel", "clipModel",
-                    "clip1Model", "clip2Model",  // Dual CLIP for Flux
+                    "clip1Model", "clip2Model",
                     "highnoiseUnetModel", "lownoiseUnetModel",
                     "highnoiseLoraModel", "lownoiseLoraModel"
                 ).forEach { key ->
@@ -612,11 +675,16 @@ class BackupManager(private val context: Context) {
                     }
                 }
 
-                // LoRA chains - copy as-is (they're JSON strings)
+                // LoRA chains
                 listOf("loraChain", "highnoiseLoraChain", "lownoiseLoraChain").forEach { key ->
                     json.optString(key).takeIf { it.isNotEmpty() }?.let {
                         put(key, it)
                     }
+                }
+
+                // Node attribute edits
+                if (json.has("nodeAttributeEdits")) {
+                    put("nodeAttributeEdits", json.optString("nodeAttributeEdits"))
                 }
             }
         } catch (e: Exception) {
@@ -708,6 +776,49 @@ class BackupManager(private val context: Context) {
         prefs.edit().putString("user_workflows_json", existingArray.toString()).apply()
 
         return skipped
+    }
+
+    /**
+     * Clear cached media files.
+     */
+    private fun clearCacheFiles() {
+        // Clear files with server ID prefix pattern
+        context.filesDir.listFiles()?.forEach { file ->
+            val name = file.name
+            // Clear media files (have UUID prefix followed by underscore)
+            if (name.matches(Regex("[a-f0-9-]{36}_.*\\.(png|mp4)"))) {
+                try {
+                    file.delete()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+            // Also clear legacy format files
+            if ((name.startsWith("tti_") || name.startsWith("iti_") ||
+                 name.startsWith("ite_") || name.startsWith("ttv_") ||
+                 name.startsWith("itv_")) &&
+                (name.endsWith(".png") || name.endsWith(".mp4"))) {
+                try {
+                    file.delete()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+
+        // Clear cache directory
+        context.cacheDir.listFiles()?.forEach { file ->
+            if (file.name.startsWith("gallery_video_") ||
+                file.name.startsWith("playback_") ||
+                file.name.endsWith(".png") ||
+                file.name.endsWith(".mp4")) {
+                try {
+                    file.delete()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
     }
 
     // Utilities

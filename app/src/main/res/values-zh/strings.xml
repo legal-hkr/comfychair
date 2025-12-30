@@ -3,6 +3,22 @@
     <string name="hostname_hint">主机名</string>
     <string name="port_hint">端口</string>
 
+    <!-- Server management strings -->
+    <string name="server_add_title">添加服务器</string>
+    <string name="server_edit_title">编辑服务器</string>
+    <string name="server_name_label">服务器名称</string>
+    <string name="server_name_placeholder">我的服务器</string>
+    <string name="server_hostname_placeholder">192.168.1.100</string>
+    <string name="server_name_taken_error">此名称已被使用</string>
+    <string name="server_select_placeholder">选择服务器</string>
+    <string name="server_dropdown_expand">展开服务器列表</string>
+    <string name="server_edit_button">编辑服务器</string>
+    <string name="server_add_button">添加服务器</string>
+    <string name="server_delete_button">删除服务器</string>
+    <string name="server_delete_title">删除服务器</string>
+    <string name="server_delete_message">确定要删除"%s"吗？这也将删除此服务器的所有保存的偏好设置。</string>
+    <string name="server_deleted_success">服务器已删除</string>
+
     <!-- Connection button states -->
     <string name="button_connect">连接</string>
     <string name="button_connecting">连接中…</string>
@@ -77,6 +93,8 @@
     <string name="memory_first_cache_description">快速访问，内存占用较高。对于慢速网络或低内存设备请禁用。</string>
     <string name="disable_media_cache_label">禁用媒体缓存</string>
     <string name="disable_media_cache_description">不将预览图像和视频保存到磁盘</string>
+    <string name="auto_connect_label">自动连接</string>
+    <string name="auto_connect_description">启动应用时自动连接到上次使用的服务器</string>
     <string name="reset_prompts_button">重置提示词</string>
     <string name="reset_prompts_success">提示词已恢复为默认值</string>
     <string name="clear_cache_button">清空缓存</string>
@@ -120,6 +138,7 @@
     <string name="menu_add_to_end_of_queue">添加到队列末尾</string>
     <string name="menu_add_to_front_of_queue">添加到队列开头</string>
     <string name="content_description_queue_menu">队列菜单</string>
+    <string name="content_description_server_menu">服务器菜单</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">不是 ComfyUI 服务器</string>

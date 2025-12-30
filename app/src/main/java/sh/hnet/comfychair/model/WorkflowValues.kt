@@ -5,10 +5,9 @@ import org.json.JSONObject
 /**
  * Represents user-saved values for a specific workflow.
  * These values are persisted per-workflow and restored when switching workflows.
+ * Note: workflowId is stored externally in the storage key, not in this class.
  */
 data class WorkflowValues(
-    val workflowId: String,
-
     // Generation parameters (nullable = use workflow default)
     val width: Int? = null,
     val height: Int? = null,
@@ -52,7 +51,6 @@ data class WorkflowValues(
         fun fromJson(jsonString: String): WorkflowValues {
             val json = JSONObject(jsonString)
             return WorkflowValues(
-                workflowId = json.optString("workflowId", ""),
                 width = json.optInt("width").takeIf { it > 0 },
                 height = json.optInt("height").takeIf { it > 0 },
                 steps = json.optInt("steps").takeIf { it > 0 },
@@ -83,7 +81,6 @@ data class WorkflowValues(
 
         fun toJson(values: WorkflowValues): String {
             return JSONObject().apply {
-                put("workflowId", values.workflowId)
                 values.width?.let { put("width", it) }
                 values.height?.let { put("height", it) }
                 values.steps?.let { put("steps", it) }

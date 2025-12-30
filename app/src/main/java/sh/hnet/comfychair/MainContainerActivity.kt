@@ -81,6 +81,9 @@ class MainContainerActivity : ComponentActivity() {
         // Initialize the ViewModel (uses ConnectionManager internally)
         generationViewModel.initialize(this)
 
+        // Set current server ID for per-server media scoping
+        MediaStateHolder.setCurrentServerId(ConnectionManager.currentServerId)
+
         // Set caching mode based on user preference
         val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
         MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)

@@ -94,6 +94,7 @@ data class ImageToImageUiState(
 
     // Unified workflow selection (mode is derived from workflow type)
     val selectedWorkflow: String = "",
+    val selectedWorkflowId: String = "",  // Workflow ID for storage
     val availableWorkflows: List<ItiWorkflowItem> = emptyList(),
 
     // Derived mode (computed from selectedWorkflow's type, not user-selected)
@@ -144,6 +145,7 @@ data class ImageToImageUiState(
     // Editing mode workflows (ITE_UNET only)
     val editingWorkflows: List<IteWorkflowItem> = emptyList(),
     val selectedEditingWorkflow: String = "",
+    val selectedEditingWorkflowId: String = "",  // Editing workflow ID for storage
 
     // Editing mode models (separate from UNET/Checkpoint mode)
     val selectedEditingUnet: String = "",
@@ -209,11 +211,11 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         const val OWNER_ID = "IMAGE_TO_IMAGE"
         private const val PREFS_NAME = "ImageToImageFragmentPrefs"
 
-        // Global preferences
-        private const val PREF_POSITIVE_PROMPT = "positive_prompt"
-        private const val PREF_SELECTED_WORKFLOW = "selectedWorkflow"
+        // Global preferences (camelCase keys for BackupManager compatibility)
+        private const val PREF_POSITIVE_PROMPT = "positivePrompt"
+        private const val PREF_SELECTED_WORKFLOW_ID = "selectedWorkflowId"
         private const val PREF_MODE = "mode"
-        private const val PREF_SELECTED_EDITING_WORKFLOW = "selectedEditingWorkflow"
+        private const val PREF_SELECTED_EDITING_WORKFLOW_ID = "selectedEditingWorkflowId"
 
         private const val FEATHER_RADIUS = 8
     }
@@ -300,36 +302,44 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         }.sortedBy { it.displayName }
 
         val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
-        val defaultWorkflow = sortedWorkflows.firstOrNull()?.name ?: ""
-        val selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
-        val isCheckpoint = sortedWorkflows.find { it.name == selectedWorkflow }?.type == WorkflowType.ITI_CHECKPOINT
+        val currentSelection = _uiState.value.selectedWorkflow
+        val selectedWorkflowItem = if (currentSelection.isEmpty())
+            sortedWorkflows.firstOrNull()
+        else
+            sortedWorkflows.find { it.name == currentSelection } ?: sortedWorkflows.firstOrNull()
 
-        val defaultEditingWorkflow = editingWorkflowItems.firstOrNull()?.name ?: ""
-        val selectedEditingWorkflow = if (_uiState.value.selectedEditingWorkflow.isEmpty()) defaultEditingWorkflow else _uiState.value.selectedEditingWorkflow
+        val currentEditingSelection = _uiState.value.selectedEditingWorkflow
+        val selectedEditingItem = if (currentEditingSelection.isEmpty())
+            editingWorkflowItems.firstOrNull()
+        else
+            editingWorkflowItems.find { it.name == currentEditingSelection } ?: editingWorkflowItems.firstOrNull()
 
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
-            selectedWorkflow = selectedWorkflow,
-            isCheckpointMode = isCheckpoint,
+            selectedWorkflow = selectedWorkflowItem?.name ?: "",
+            selectedWorkflowId = selectedWorkflowItem?.id ?: "",
+            isCheckpointMode = selectedWorkflowItem?.type == WorkflowType.ITI_CHECKPOINT,
             editingWorkflows = editingWorkflowItems,
-            selectedEditingWorkflow = selectedEditingWorkflow
+            selectedEditingWorkflow = selectedEditingItem?.name ?: "",
+            selectedEditingWorkflowId = selectedEditingItem?.id ?: ""
         )
     }
 
     private fun restorePreferences() {
         val context = applicationContext ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         DebugLogger.d(TAG, "restorePreferences: Loading saved preferences")
 
         val defaultPositivePrompt = SeasonalPrompts.getImageToImagePrompt()
 
-        // Load global preferences
-        val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
-        val savedWorkflow = prefs.getString(PREF_SELECTED_WORKFLOW, null)
-        val savedMode = prefs.getString(PREF_MODE, ImageToImageMode.EDITING.name)
-        val savedEditingWorkflow = prefs.getString(PREF_SELECTED_EDITING_WORKFLOW, null)
-        DebugLogger.d(TAG, "restorePreferences: savedMode=$savedMode, savedWorkflow=$savedWorkflow")
+        // Load global preferences with serverId prefix
+        val positivePrompt = prefs.getString("${serverId}_$PREF_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
+        val savedWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", null)
+        val savedMode = prefs.getString("${serverId}_$PREF_MODE", ImageToImageMode.EDITING.name)
+        val savedEditingWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_EDITING_WORKFLOW_ID", null)
+        DebugLogger.d(TAG, "restorePreferences: savedMode=$savedMode, savedWorkflowId=$savedWorkflowId")
 
         // Restore mode
         val mode = try {
@@ -344,33 +354,37 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             mode = mode
         )
 
-        // Determine which inpainting workflow to select
+        // Determine which inpainting workflow to select (by ID)
         val state = _uiState.value
         val workflowToLoad = when {
-            // Use saved workflow if it exists in available workflows
-            savedWorkflow != null && state.availableWorkflows.any { it.name == savedWorkflow } -> savedWorkflow
+            // Use saved workflow if it exists in available workflows (by ID)
+            savedWorkflowId != null && state.availableWorkflows.any { it.id == savedWorkflowId } ->
+                state.availableWorkflows.find { it.id == savedWorkflowId }
             // Otherwise use the current selection (set by loadWorkflowOptions)
-            state.selectedWorkflow.isNotEmpty() -> state.selectedWorkflow
+            state.selectedWorkflow.isNotEmpty() ->
+                state.availableWorkflows.find { it.name == state.selectedWorkflow }
             // Fallback to first available
-            state.availableWorkflows.isNotEmpty() -> state.availableWorkflows.first().name
-            else -> ""
+            state.availableWorkflows.isNotEmpty() -> state.availableWorkflows.first()
+            else -> null
         }
 
         // Load inpainting workflow and its values (this sets mode and values)
-        if (workflowToLoad.isNotEmpty()) {
+        if (workflowToLoad != null) {
             loadWorkflowValues(workflowToLoad)
         }
 
-        // Determine which editing workflow to select
+        // Determine which editing workflow to select (by ID)
         val editingWorkflowToLoad = when {
-            savedEditingWorkflow != null && state.editingWorkflows.any { it.name == savedEditingWorkflow } -> savedEditingWorkflow
-            state.selectedEditingWorkflow.isNotEmpty() -> state.selectedEditingWorkflow
-            state.editingWorkflows.isNotEmpty() -> state.editingWorkflows.first().name
-            else -> ""
+            savedEditingWorkflowId != null && state.editingWorkflows.any { it.id == savedEditingWorkflowId } ->
+                state.editingWorkflows.find { it.id == savedEditingWorkflowId }
+            state.selectedEditingWorkflow.isNotEmpty() ->
+                state.editingWorkflows.find { it.name == state.selectedEditingWorkflow }
+            state.editingWorkflows.isNotEmpty() -> state.editingWorkflows.first()
+            else -> null
         }
 
         // Load editing workflow values
-        if (editingWorkflowToLoad.isNotEmpty()) {
+        if (editingWorkflowToLoad != null) {
             loadEditingWorkflowValues(editingWorkflowToLoad)
         }
     }
@@ -378,22 +392,22 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     /**
      * Load workflow values without triggering save (used during initialization)
      */
-    private fun loadWorkflowValues(workflowName: String) {
+    private fun loadWorkflowValues(workflow: ItiWorkflowItem) {
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
 
-        // Find workflow item to determine type
+        val isCheckpoint = workflow.type == WorkflowType.ITI_CHECKPOINT
+
+        // Load saved values by workflow ID, defaults by workflow name
+        val savedValues = storage.loadValues(serverId, workflow.id)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
         val state = _uiState.value
-        val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
-        val isCheckpoint = workflowItem.type == WorkflowType.ITI_CHECKPOINT
-
-        // Load saved values or defaults
-        val savedValues = storage.loadValues(workflowName)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
-        DebugLogger.d(TAG, "loadWorkflowValues: $workflowName (isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
+        DebugLogger.d(TAG, "loadWorkflowValues: ${workflow.name} (id=${workflow.id}, isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
+                selectedWorkflow = workflow.name,
+                selectedWorkflowId = workflow.id,
                 isCheckpointMode = true,
                 megapixels = savedValues?.megapixels?.toString()
                     ?: defaults?.megapixels?.toString() ?: "1.0",
@@ -425,7 +439,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             )
         } else {
             _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
+                selectedWorkflow = workflow.name,
+                selectedWorkflowId = workflow.id,
                 isCheckpointMode = false,
                 unetSteps = savedValues?.steps?.toString()
                     ?: defaults?.steps?.toString() ?: "9",
@@ -461,16 +476,18 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     /**
      * Load editing workflow values without triggering save (used during initialization)
      */
-    private fun loadEditingWorkflowValues(workflowName: String) {
+    private fun loadEditingWorkflowValues(workflow: IteWorkflowItem) {
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
 
-        // Load saved values or defaults
-        val savedValues = storage.loadValues(workflowName)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
+        // Load saved values by workflow ID, defaults by workflow name
+        val savedValues = storage.loadValues(serverId, workflow.id)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
 
         val state = _uiState.value
         _uiState.value = state.copy(
-            selectedEditingWorkflow = workflowName,
+            selectedEditingWorkflow = workflow.name,
+            selectedEditingWorkflowId = workflow.id,
             editingMegapixels = savedValues?.megapixels?.toString()
                 ?: defaults?.megapixels?.toString() ?: "2.0",
             editingSteps = savedValues?.steps?.toString()
@@ -510,15 +527,14 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     /**
      * Save current workflow values to per-workflow storage
      */
-    private fun saveWorkflowValues(workflowName: String, isCheckpointMode: Boolean) {
+    private fun saveWorkflowValues(workflowId: String, isCheckpointMode: Boolean) {
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
-        // Use workflow name directly as storage key for consistency
-        // Workflow names are unique and always available
+        // Use workflow ID as storage key (UUID-based)
         val values = if (isCheckpointMode) {
             WorkflowValues(
-                workflowId = workflowName,
                 megapixels = state.megapixels.toFloatOrNull(),
                 steps = state.checkpointSteps.toIntOrNull(),
                 cfg = state.checkpointCfg.toFloatOrNull(),
@@ -530,7 +546,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             )
         } else {
             WorkflowValues(
-                workflowId = workflowName,
                 steps = state.unetSteps.toIntOrNull(),
                 cfg = state.unetCfg.toFloatOrNull(),
                 samplerName = state.unetSampler,
@@ -543,18 +558,18 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             )
         }
 
-        storage.saveValues(workflowName, values)
+        storage.saveValues(serverId, workflowId, values)
     }
 
     /**
      * Save current editing workflow values to per-workflow storage
      */
-    private fun saveEditingWorkflowValues(workflowName: String) {
+    private fun saveEditingWorkflowValues(workflowId: String) {
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
         val values = WorkflowValues(
-            workflowId = workflowName,
             megapixels = state.editingMegapixels.toFloatOrNull(),
             steps = state.editingSteps.toIntOrNull(),
             cfg = state.editingCfg.toFloatOrNull(),
@@ -568,30 +583,31 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() }
         )
 
-        storage.saveValues(workflowName, values)
+        storage.saveValues(serverId, workflowId, values)
     }
 
     private fun savePreferences() {
         val context = applicationContext ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Save global preferences (prompt, mode, and selected workflows)
+        // Save global preferences with serverId prefix
         prefs.edit()
-            .putString(PREF_POSITIVE_PROMPT, state.positivePrompt)
-            .putString(PREF_MODE, state.mode.name)
-            .putString(PREF_SELECTED_WORKFLOW, state.selectedWorkflow)
-            .putString(PREF_SELECTED_EDITING_WORKFLOW, state.selectedEditingWorkflow)
+            .putString("${serverId}_$PREF_POSITIVE_PROMPT", state.positivePrompt)
+            .putString("${serverId}_$PREF_MODE", state.mode.name)
+            .putString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", state.selectedWorkflowId)
+            .putString("${serverId}_$PREF_SELECTED_EDITING_WORKFLOW_ID", state.selectedEditingWorkflowId)
             .apply()
 
-        // Save per-workflow values for the currently selected inpainting workflow
-        if (state.selectedWorkflow.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflow, state.isCheckpointMode)
+        // Save per-workflow values for the currently selected inpainting workflow (using workflow ID)
+        if (state.selectedWorkflowId.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflowId, state.isCheckpointMode)
         }
 
-        // Save per-workflow values for the currently selected editing workflow
-        if (state.selectedEditingWorkflow.isNotEmpty()) {
-            saveEditingWorkflowValues(state.selectedEditingWorkflow)
+        // Save per-workflow values for the currently selected editing workflow (using workflow ID)
+        if (state.selectedEditingWorkflowId.isNotEmpty()) {
+            saveEditingWorkflowValues(state.selectedEditingWorkflowId)
         }
     }
 
@@ -635,13 +651,15 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         // Reload workflow values to restore field visibility flags for the new mode's workflow
         when (mode) {
             ImageToImageMode.EDITING -> {
-                if (state.selectedEditingWorkflow.isNotEmpty()) {
-                    loadEditingWorkflowValues(state.selectedEditingWorkflow)
+                val editingWorkflow = state.editingWorkflows.find { it.name == state.selectedEditingWorkflow }
+                if (editingWorkflow != null) {
+                    loadEditingWorkflowValues(editingWorkflow)
                 }
             }
             ImageToImageMode.INPAINTING -> {
-                if (state.selectedWorkflow.isNotEmpty()) {
-                    loadWorkflowValues(state.selectedWorkflow)
+                val workflow = state.availableWorkflows.find { it.name == state.selectedWorkflow }
+                if (workflow != null) {
+                    loadWorkflowValues(workflow)
                 }
             }
         }
@@ -882,23 +900,25 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     fun onWorkflowChange(workflowName: String) {
         val state = _uiState.value
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
 
-        // Save current workflow values before switching
-        if (state.selectedWorkflow.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflow, state.isCheckpointMode)
+        // Save current workflow values before switching (using workflow ID)
+        if (state.selectedWorkflowId.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflowId, state.isCheckpointMode)
         }
 
         // Find the workflow item to determine type
         val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
         val isCheckpoint = workflowItem.type == WorkflowType.ITI_CHECKPOINT
 
-        // Load new workflow's saved values or defaults
-        val savedValues = storage.loadValues(workflowName)
+        // Load new workflow's saved values or defaults (using workflow ID for saved values)
+        val savedValues = storage.loadValues(serverId, workflowItem.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
                 selectedWorkflow = workflowName,
+                selectedWorkflowId = workflowItem.id,
                 isCheckpointMode = true,
                 megapixels = savedValues?.megapixels?.toString()
                     ?: defaults?.megapixels?.toString() ?: "1.0",
@@ -931,6 +951,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         } else {
             _uiState.value = state.copy(
                 selectedWorkflow = workflowName,
+                selectedWorkflowId = workflowItem.id,
                 isCheckpointMode = false,
                 unetSteps = savedValues?.steps?.toString()
                     ?: defaults?.steps?.toString() ?: "9",
@@ -1132,18 +1153,23 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     fun onEditingWorkflowChange(workflowName: String) {
         val state = _uiState.value
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
 
-        // Save current editing workflow values before switching
-        if (state.selectedEditingWorkflow.isNotEmpty()) {
-            saveEditingWorkflowValues(state.selectedEditingWorkflow)
+        // Find the workflow item to get its ID
+        val workflowItem = state.editingWorkflows.find { it.name == workflowName } ?: return
+
+        // Save current editing workflow values before switching (using workflow ID)
+        if (state.selectedEditingWorkflowId.isNotEmpty()) {
+            saveEditingWorkflowValues(state.selectedEditingWorkflowId)
         }
 
-        // Load new workflow's saved values or defaults
-        val savedValues = storage.loadValues(workflowName)
+        // Load new workflow's saved values or defaults (using workflow ID for saved values)
+        val savedValues = storage.loadValues(serverId, workflowItem.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
 
         _uiState.value = state.copy(
             selectedEditingWorkflow = workflowName,
+            selectedEditingWorkflowId = workflowItem.id,
             editingMegapixels = savedValues?.megapixels?.toString()
                 ?: defaults?.megapixels?.toString() ?: "2.0",
             editingSteps = savedValues?.steps?.toString()

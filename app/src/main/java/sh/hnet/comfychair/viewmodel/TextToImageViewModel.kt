@@ -43,6 +43,7 @@ data class WorkflowItem(
 data class TextToImageUiState(
     // Unified workflow selection (mode is derived from workflow type)
     val selectedWorkflow: String = "",
+    val selectedWorkflowId: String = "",  // Workflow ID for storage
     val availableWorkflows: List<WorkflowItem> = emptyList(),
 
     // Derived mode (computed from selectedWorkflow's type, not user-selected)
@@ -148,9 +149,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         const val OWNER_ID = "TEXT_TO_IMAGE"
         private const val PREFS_NAME = "TextToImageFragmentPrefs"
 
-        // Global preferences
-        private const val PREF_POSITIVE_PROMPT = "positive_prompt"
-        private const val PREF_SELECTED_WORKFLOW = "selectedWorkflow"
+        // Global preferences (camelCase keys for BackupManager compatibility)
+        private const val PREF_POSITIVE_PROMPT = "positivePrompt"
+        private const val PREF_SELECTED_WORKFLOW_ID = "selectedWorkflowId"
     }
 
     init {
@@ -237,14 +238,17 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         }
 
         val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
-        val defaultWorkflow = sortedWorkflows.firstOrNull()?.name ?: ""
-        val selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
-        val isCheckpoint = sortedWorkflows.find { it.name == selectedWorkflow }?.type == WorkflowType.TTI_CHECKPOINT
+        val currentSelection = _uiState.value.selectedWorkflow
+        val selectedWorkflowItem = if (currentSelection.isEmpty())
+            sortedWorkflows.firstOrNull()
+        else
+            sortedWorkflows.find { it.name == currentSelection } ?: sortedWorkflows.firstOrNull()
 
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
-            selectedWorkflow = selectedWorkflow,
-            isCheckpointMode = isCheckpoint
+            selectedWorkflow = selectedWorkflowItem?.name ?: "",
+            selectedWorkflowId = selectedWorkflowItem?.id ?: "",
+            isCheckpointMode = selectedWorkflowItem?.type == WorkflowType.TTI_CHECKPOINT
         )
     }
 
@@ -290,21 +294,23 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
         val isCheckpoint = workflowItem.type == WorkflowType.TTI_CHECKPOINT
 
-        DebugLogger.d(TAG, "onWorkflowChange: $workflowName (isCheckpoint=$isCheckpoint)")
+        DebugLogger.d(TAG, "onWorkflowChange: $workflowName (id=${workflowItem.id}, isCheckpoint=$isCheckpoint)")
 
-        // Save current workflow values before switching
-        if (state.selectedWorkflow.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflow, state.isCheckpointMode)
+        // Save current workflow values before switching (using workflow ID)
+        if (state.selectedWorkflowId.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflowId, state.isCheckpointMode)
         }
 
-        // Load new workflow's saved values or defaults
-        val savedValues = storage.loadValues(workflowName)
+        // Load new workflow's saved values or defaults (using workflow ID for saved values)
+        val serverId = ConnectionManager.currentServerId ?: return
+        val savedValues = storage.loadValues(serverId, workflowItem.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
         DebugLogger.d(TAG, "onWorkflowChange: hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null}")
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
                 selectedWorkflow = workflowName,
+                selectedWorkflowId = workflowItem.id,
                 isCheckpointMode = true,
                 checkpointWidth = savedValues?.width?.toString()
                     ?: defaults?.width?.toString() ?: "1024",
@@ -341,6 +347,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         } else {
             _uiState.value = state.copy(
                 selectedWorkflow = workflowName,
+                selectedWorkflowId = workflowItem.id,
                 isCheckpointMode = false,
                 unetWidth = savedValues?.width?.toString()
                     ?: defaults?.width?.toString() ?: "832",
@@ -811,15 +818,14 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     /**
      * Save current workflow values to per-workflow storage
      */
-    private fun saveWorkflowValues(workflowName: String, isCheckpointMode: Boolean) {
+    private fun saveWorkflowValues(workflowId: String, isCheckpointMode: Boolean) {
         val storage = workflowValuesStorage ?: return
         val state = _uiState.value
 
-        // Use workflow name directly as storage key for consistency
-        // Workflow names are unique and always available
+        // Use workflow ID as storage key (UUID-based)
+        val serverId = ConnectionManager.currentServerId ?: return
         val values = if (isCheckpointMode) {
             WorkflowValues(
-                workflowId = workflowName,
                 width = state.checkpointWidth.toIntOrNull(),
                 height = state.checkpointHeight.toIntOrNull(),
                 steps = state.checkpointSteps.toIntOrNull(),
@@ -832,7 +838,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             )
         } else {
             WorkflowValues(
-                workflowId = workflowName,
                 width = state.unetWidth.toIntOrNull(),
                 height = state.unetHeight.toIntOrNull(),
                 steps = state.unetSteps.toIntOrNull(),
@@ -849,58 +854,62 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             )
         }
 
-        storage.saveValues(workflowName, values)
+        storage.saveValues(serverId, workflowId, values)
     }
 
     private fun saveConfiguration() {
         val ctx = applicationContext ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Save global preferences (prompt and selected workflow)
+        // Save global preferences with serverId prefix
         prefs.edit().apply {
-            putString(PREF_POSITIVE_PROMPT, state.positivePrompt)
-            putString(PREF_SELECTED_WORKFLOW, state.selectedWorkflow)
+            putString("${serverId}_$PREF_POSITIVE_PROMPT", state.positivePrompt)
+            putString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", state.selectedWorkflowId)
             apply()
         }
 
-        // Save per-workflow values for the currently selected workflow
-        if (state.selectedWorkflow.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflow, state.isCheckpointMode)
+        // Save per-workflow values for the currently selected workflow (using workflow ID)
+        if (state.selectedWorkflowId.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflowId, state.isCheckpointMode)
         }
     }
 
     private fun loadConfiguration() {
         val ctx = applicationContext ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         DebugLogger.d(TAG, "loadConfiguration: Loading saved preferences")
 
         val defaultPositivePrompt = SeasonalPrompts.getTextToImagePrompt()
 
-        // Load global preferences
-        val positivePrompt = prefs.getString(PREF_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
-        val savedWorkflow = prefs.getString(PREF_SELECTED_WORKFLOW, null)
+        // Load global preferences with serverId prefix
+        val positivePrompt = prefs.getString("${serverId}_$PREF_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
+        val savedWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", null)
 
         // Update positive prompt first
         _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
 
-        // Determine which workflow to select
+        // Determine which workflow to select (by ID)
         val state = _uiState.value
         val workflowToLoad = when {
-            // Use saved workflow if it exists in available workflows
-            savedWorkflow != null && state.availableWorkflows.any { it.name == savedWorkflow } -> savedWorkflow
+            // Use saved workflow if it exists in available workflows (by ID)
+            savedWorkflowId != null && state.availableWorkflows.any { it.id == savedWorkflowId } ->
+                state.availableWorkflows.find { it.id == savedWorkflowId }
             // Otherwise use the current selection (set by loadWorkflows)
-            state.selectedWorkflow.isNotEmpty() -> state.selectedWorkflow
+            state.selectedWorkflow.isNotEmpty() ->
+                state.availableWorkflows.find { it.name == state.selectedWorkflow }
             // Fallback to first available
-            state.availableWorkflows.isNotEmpty() -> state.availableWorkflows.first().name
-            else -> ""
+            state.availableWorkflows.isNotEmpty() -> state.availableWorkflows.first()
+            else -> null
         }
 
-        DebugLogger.d(TAG, "loadConfiguration: savedWorkflow=$savedWorkflow, loading=$workflowToLoad")
+        DebugLogger.d(TAG, "loadConfiguration: savedWorkflowId=$savedWorkflowId, loading=${workflowToLoad?.name}")
 
         // Load workflow and its values (this sets mode, capability flags, and values)
-        if (workflowToLoad.isNotEmpty()) {
+        if (workflowToLoad != null) {
             // Load workflow values without saving (to avoid circular save)
             loadWorkflowValues(workflowToLoad)
         }
@@ -909,23 +918,23 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     /**
      * Load workflow values without triggering save (used during initialization)
      */
-    private fun loadWorkflowValues(workflowName: String) {
+    private fun loadWorkflowValues(workflow: WorkflowItem) {
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
 
-        // Find workflow item to determine type
+        val isCheckpoint = workflow.type == WorkflowType.TTI_CHECKPOINT
+
+        // Load saved values by workflow ID, defaults by workflow name
+        val savedValues = storage.loadValues(serverId, workflow.id)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
         val state = _uiState.value
-        val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
-        val isCheckpoint = workflowItem.type == WorkflowType.TTI_CHECKPOINT
 
-        // Load saved values or defaults
-        val savedValues = storage.loadValues(workflowName)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowName)
-
-        DebugLogger.d(TAG, "loadWorkflowValues: $workflowName (isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
+        DebugLogger.d(TAG, "loadWorkflowValues: ${workflow.name} (id=${workflow.id}, isCheckpoint=$isCheckpoint, hasDefaults=${defaults != null}, hasSavedValues=${savedValues != null})")
 
         if (isCheckpoint) {
             _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
+                selectedWorkflow = workflow.name,
+                selectedWorkflowId = workflow.id,
                 isCheckpointMode = true,
                 checkpointWidth = savedValues?.width?.toString()
                     ?: defaults?.width?.toString() ?: "1024",
@@ -961,7 +970,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             )
         } else {
             _uiState.value = state.copy(
-                selectedWorkflow = workflowName,
+                selectedWorkflow = workflow.name,
+                selectedWorkflowId = workflow.id,
                 isCheckpointMode = false,
                 unetWidth = savedValues?.width?.toString()
                     ?: defaults?.width?.toString() ?: "832",

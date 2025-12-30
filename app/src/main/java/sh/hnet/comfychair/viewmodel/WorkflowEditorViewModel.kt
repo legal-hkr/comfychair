@@ -1617,8 +1617,9 @@ class WorkflowEditorViewModel : ViewModel() {
     private fun loadNodeAttributeEdits(): Map<String, Map<String, Any>> {
         val workflowId = currentWorkflowId ?: return emptyMap()
         val storage = workflowValuesStorage ?: return emptyMap()
+        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: return emptyMap()
 
-        val values = storage.loadValues(workflowId)
+        val values = storage.loadValues(serverId, workflowId)
         val editsJson = values?.nodeAttributeEdits ?: return emptyMap()
 
         return NodeAttributeEdits.fromJson(editsJson).edits
@@ -1852,28 +1853,29 @@ class WorkflowEditorViewModel : ViewModel() {
     private fun saveNodeAttributeEdits() {
         val workflowId = currentWorkflowId ?: return
         val storage = workflowValuesStorage ?: return
+        val serverId = sh.hnet.comfychair.connection.ConnectionManager.currentServerId ?: return
         val edits = _uiState.value.nodeAttributeEdits
 
         if (edits.isEmpty()) {
             // Clear the edits from storage
-            val currentValues = storage.loadValues(workflowId)
+            val currentValues = storage.loadValues(serverId, workflowId)
             if (currentValues != null && currentValues.nodeAttributeEdits != null) {
-                storage.saveValues(workflowId, currentValues.copy(nodeAttributeEdits = null))
+                storage.saveValues(serverId, workflowId, currentValues.copy(nodeAttributeEdits = null))
             }
             return
         }
 
         val editsJson = NodeAttributeEdits(edits).toJson()
 
-        val currentValues = storage.loadValues(workflowId)
+        val currentValues = storage.loadValues(serverId, workflowId)
         if (currentValues != null) {
-            storage.saveValues(workflowId, currentValues.copy(nodeAttributeEdits = editsJson))
+            storage.saveValues(serverId, workflowId, currentValues.copy(nodeAttributeEdits = editsJson))
         } else {
             // Create new values with just the edits
             storage.saveValues(
+                serverId,
                 workflowId,
                 sh.hnet.comfychair.model.WorkflowValues(
-                    workflowId = workflowId,
                     nodeAttributeEdits = editsJson
                 )
             )

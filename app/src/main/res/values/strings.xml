@@ -5,6 +5,22 @@
     <string name="hostname_hint">Hostname</string>
     <string name="port_hint">Port</string>
 
+    <!-- Server management strings -->
+    <string name="server_add_title">Add server</string>
+    <string name="server_edit_title">Edit server</string>
+    <string name="server_name_label">Server name</string>
+    <string name="server_name_placeholder">My Server</string>
+    <string name="server_hostname_placeholder">192.168.1.100</string>
+    <string name="server_name_taken_error">This name is already used</string>
+    <string name="server_select_placeholder">Select a server</string>
+    <string name="server_dropdown_expand">Expand server list</string>
+    <string name="server_edit_button">Edit server</string>
+    <string name="server_add_button">Add server</string>
+    <string name="server_delete_button">Delete server</string>
+    <string name="server_delete_title">Delete server</string>
+    <string name="server_delete_message">Are you sure you want to delete \"%s\"? This will also remove all saved preferences for this server.</string>
+    <string name="server_deleted_success">Server deleted</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>
     <string name="button_connecting">Connecting…</string>
@@ -81,6 +97,8 @@
     <string name="memory_first_cache_description">Fast access, higher memory usage. Disable for slow networks or low-memory devices.</string>
     <string name="disable_media_cache_label">Disable media cache</string>
     <string name="disable_media_cache_description">Do not save preview images and videos to disk</string>
+    <string name="auto_connect_label">Auto-connect</string>
+    <string name="auto_connect_description">Automatically connect to the last server on app launch</string>
     <string name="reset_prompts_button">Reset prompts</string>
     <string name="reset_prompts_success">Prompts reset to defaults</string>
     <string name="clear_cache_button">Clear cache</string>
@@ -99,6 +117,7 @@
     <string name="backup_error_invalid_json">Invalid backup file format</string>
     <string name="backup_error_unsupported_version">Unsupported backup version</string>
     <string name="backup_error_invalid_connection">Invalid connection settings in backup</string>
+    <string name="backup_error_no_servers">No servers found in backup</string>
     <string name="backup_restore_confirm_title">Restore settings?</string>
     <string name="backup_restore_confirm_message">This will replace your current settings. This action cannot be undone.</string>
     <string name="backup_restore_confirm_button">Restore</string>
@@ -142,6 +161,7 @@
     <string name="menu_add_to_end_of_queue">Add to end of queue</string>
     <string name="menu_add_to_front_of_queue">Add to front of queue</string>
     <string name="content_description_queue_menu">Queue menu</string>
+    <string name="content_description_server_menu">Server menu</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Not a ComfyUI server</string>

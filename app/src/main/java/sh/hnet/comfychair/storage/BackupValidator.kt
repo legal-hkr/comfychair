@@ -50,19 +50,24 @@ class BackupValidator {
     /**
      * Validate overall backup JSON structure.
      * Returns true if the structure has all required top-level keys.
+     * v4+ requires "servers" array, v1-v3 requires "connection" object.
      */
     fun validateStructure(json: JSONObject): Boolean {
-        // Required top-level keys
-        val requiredKeys = listOf("version", "connection")
-        for (key in requiredKeys) {
-            if (!json.has(key)) return false
-        }
+        // Version is always required
+        if (!json.has("version")) return false
 
         // Version must be a number
         val version = json.optInt("version", -1)
         if (version < 1) return false
 
-        // Connection must be an object with hostname and port
+        // v4+ requires "servers" array
+        if (version >= 4) {
+            val servers = json.optJSONArray("servers")
+            if (servers == null || servers.length() == 0) return false
+            return true
+        }
+
+        // v1-v3 requires "connection" object with hostname and port
         val connection = json.optJSONObject("connection") ?: return false
         if (!connection.has("hostname") || !connection.has("port")) return false
 

@@ -104,6 +104,9 @@ class SettingsViewModel : ViewModel() {
     private val _isDebugLoggingEnabled = MutableStateFlow(false)
     val isDebugLoggingEnabled: StateFlow<Boolean> = _isDebugLoggingEnabled.asStateFlow()
 
+    private val _isAutoConnectEnabled = MutableStateFlow(true)
+    val isAutoConnectEnabled: StateFlow<Boolean> = _isAutoConnectEnabled.asStateFlow()
+
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
@@ -117,6 +120,7 @@ class SettingsViewModel : ViewModel() {
         _isMemoryFirstCache.value = AppSettings.isMemoryFirstCache(context)
         _isMediaCacheDisabled.value = AppSettings.isMediaCacheDisabled(context)
         _isDebugLoggingEnabled.value = AppSettings.isDebugLoggingEnabled(context)
+        _isAutoConnectEnabled.value = AppSettings.isAutoConnectEnabled(context)
 
         // Initialize debug logger with saved state
         DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
@@ -381,9 +385,11 @@ class SettingsViewModel : ViewModel() {
      * and clears negative prompts from per-workflow saved values.
      */
     fun resetPrompts(context: Context) {
+        val serverId = ConnectionManager.currentServerId ?: return
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // Clear positive_prompt from all 4 SharedPreferences
+                // Clear positive prompts from per-server preferences
+                val serverPrefix = "${serverId}_"
                 val prefNames = listOf(
                     "TextToImageFragmentPrefs",
                     "ImageToImageFragmentPrefs",
@@ -393,14 +399,17 @@ class SettingsViewModel : ViewModel() {
 
                 for (prefName in prefNames) {
                     val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
-                    prefs.edit()
-                        .remove("positive_prompt")
-                        .apply()
+                    // Remove keys that start with the server prefix and end with positivePrompt
+                    prefs.all.keys
+                        .filter { it.startsWith(serverPrefix) && it.endsWith("positivePrompt") }
+                        .forEach { key ->
+                            prefs.edit().remove(key).apply()
+                        }
                 }
 
                 // Clear negative prompts from per-workflow saved values
                 val workflowValuesStorage = WorkflowValuesStorage(context)
-                workflowValuesStorage.clearAllNegativePrompts()
+                workflowValuesStorage.clearNegativePromptsForServer(serverId)
             }
 
             _events.emit(SettingsEvent.ShowToast(R.string.reset_prompts_success))
@@ -468,6 +477,15 @@ class SettingsViewModel : ViewModel() {
         AppSettings.setDebugLoggingEnabled(context, enabled)
         _isDebugLoggingEnabled.value = enabled
         DebugLogger.setEnabled(enabled)
+    }
+
+    /**
+     * Set whether auto-connect should be enabled.
+     * When enabled, the app will automatically connect to the last server on launch.
+     */
+    fun setAutoConnectEnabled(context: Context, enabled: Boolean) {
+        AppSettings.setAutoConnectEnabled(context, enabled)
+        _isAutoConnectEnabled.value = enabled
     }
 
     /**
@@ -549,7 +567,7 @@ class SettingsViewModel : ViewModel() {
 
             when (result) {
                 is RestoreResult.Success -> {
-                    if (result.connectionChanged) {
+                    if (result.serversChanged) {
                         // Disconnect and clear all caches via ConnectionManager
                         ConnectionManager.invalidateForRestore()
                     } else {
@@ -568,7 +586,7 @@ class SettingsViewModel : ViewModel() {
                         _events.emit(SettingsEvent.ShowToast(R.string.backup_restore_success))
                     }
                     _events.emit(SettingsEvent.RefreshNeeded)
-                    if (result.connectionChanged) {
+                    if (result.serversChanged) {
                         _events.emit(SettingsEvent.NavigateToLogin)
                     }
                 }
@@ -593,6 +611,7 @@ class SettingsViewModel : ViewModel() {
         val newMemoryFirst = AppSettings.isMemoryFirstCache(context)
         val newMediaCacheDisabled = AppSettings.isMediaCacheDisabled(context)
         val restoredDebugLogging = AppSettings.isDebugLoggingEnabled(context)
+        val newAutoConnect = AppSettings.isAutoConnectEnabled(context)
 
         // If debug logging was enabled before restore, keep it enabled
         val finalDebugLogging = if (preserveDebugLogging && !restoredDebugLogging) {
@@ -604,12 +623,13 @@ class SettingsViewModel : ViewModel() {
             restoredDebugLogging
         }
 
-        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $finalDebugLogging (restored: $restoredDebugLogging)")
+        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect")
 
         _isLivePreviewEnabled.value = newLivePreview
         _isMemoryFirstCache.value = newMemoryFirst
         _isMediaCacheDisabled.value = newMediaCacheDisabled
         _isDebugLoggingEnabled.value = finalDebugLogging
+        _isAutoConnectEnabled.value = newAutoConnect
 
         // Update DebugLogger state to match
         DebugLogger.setEnabled(finalDebugLogging)

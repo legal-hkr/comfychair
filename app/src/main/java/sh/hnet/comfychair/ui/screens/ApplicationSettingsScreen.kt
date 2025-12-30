@@ -58,6 +58,7 @@ fun ApplicationSettingsScreen(
     val isMemoryFirstCache by viewModel.isMemoryFirstCache.collectAsState()
     val isMediaCacheDisabled by viewModel.isMediaCacheDisabled.collectAsState()
     val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
+    val isAutoConnectEnabled by viewModel.isAutoConnectEnabled.collectAsState()
 
     // State and effects
     // Backup/restore state
@@ -181,6 +182,31 @@ fun ApplicationSettingsScreen(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Auto-connect toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.auto_connect_label),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = stringResource(R.string.auto_connect_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isAutoConnectEnabled,
+                            onCheckedChange = { viewModel.setAutoConnectEnabled(context, it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Show live preview toggle
                     Row(

@@ -3,6 +3,22 @@
     <string name="hostname_hint">Nazwa hosta</string>
     <string name="port_hint">Port</string>
 
+    <!-- Server management strings -->
+    <string name="server_add_title">Dodaj serwer</string>
+    <string name="server_edit_title">Edytuj serwer</string>
+    <string name="server_name_label">Nazwa serwera</string>
+    <string name="server_name_placeholder">Mój serwer</string>
+    <string name="server_hostname_placeholder">192.168.1.100</string>
+    <string name="server_name_taken_error">Ta nazwa jest już używana</string>
+    <string name="server_select_placeholder">Wybierz serwer</string>
+    <string name="server_dropdown_expand">Rozwiń listę serwerów</string>
+    <string name="server_edit_button">Edytuj serwer</string>
+    <string name="server_add_button">Dodaj serwer</string>
+    <string name="server_delete_button">Usuń serwer</string>
+    <string name="server_delete_title">Usuń serwer</string>
+    <string name="server_delete_message">Czy na pewno chcesz usunąć \"%s\"? Spowoduje to również usunięcie wszystkich zapisanych preferencji dla tego serwera.</string>
+    <string name="server_deleted_success">Serwer usunięty</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Połącz</string>
     <string name="button_connecting">Łączenie…</string>
@@ -77,6 +93,8 @@
     <string name="memory_first_cache_description">Szybki dostęp, większe zużycie pamięci. Wyłącz dla wolnych sieci lub urządzeń z małą ilością pamięci.</string>
     <string name="disable_media_cache_label">Wyłącz pamięć podręczną mediów</string>
     <string name="disable_media_cache_description">Nie zapisuj podglądów obrazów i filmów na dysku</string>
+    <string name="auto_connect_label">Automatyczne łączenie</string>
+    <string name="auto_connect_description">Automatyczne łączenie z ostatnim serwerem przy uruchomieniu aplikacji</string>
     <string name="reset_prompts_button">Resetuj prompty</string>
     <string name="reset_prompts_success">Prompty przywrócone do domyślnych</string>
     <string name="clear_cache_button">Wyczyść pamięć podręczną</string>
@@ -120,6 +138,7 @@
     <string name="menu_add_to_end_of_queue">Dodaj na koniec kolejki</string>
     <string name="menu_add_to_front_of_queue">Dodaj na początek kolejki</string>
     <string name="content_description_queue_menu">Menu kolejki</string>
+    <string name="content_description_server_menu">Menu serwera</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">To nie jest serwer ComfyUI</string>

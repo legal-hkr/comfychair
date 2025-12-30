@@ -3,6 +3,22 @@
     <string name="hostname_hint">Hostname</string>
     <string name="port_hint">Port</string>
 
+    <!-- Server management strings -->
+    <string name="server_add_title">Server hinzufügen</string>
+    <string name="server_edit_title">Server bearbeiten</string>
+    <string name="server_name_label">Servername</string>
+    <string name="server_name_placeholder">Mein Server</string>
+    <string name="server_hostname_placeholder">192.168.1.100</string>
+    <string name="server_name_taken_error">Dieser Name wird bereits verwendet</string>
+    <string name="server_select_placeholder">Server auswählen</string>
+    <string name="server_dropdown_expand">Serverliste erweitern</string>
+    <string name="server_edit_button">Server bearbeiten</string>
+    <string name="server_add_button">Server hinzufügen</string>
+    <string name="server_delete_button">Server löschen</string>
+    <string name="server_delete_title">Server löschen</string>
+    <string name="server_delete_message">Möchten Sie \"%s\" wirklich löschen? Dies entfernt auch alle gespeicherten Einstellungen für diesen Server.</string>
+    <string name="server_deleted_success">Server gelöscht</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Verbinden</string>
     <string name="button_connecting">Verbinde…</string>
@@ -77,6 +93,8 @@
     <string name="memory_first_cache_description">Schneller Zugriff, höhere Speichernutzung. Deaktivieren für langsame Netzwerke oder Geräte mit wenig Speicher.</string>
     <string name="disable_media_cache_label">Medien-Cache deaktivieren</string>
     <string name="disable_media_cache_description">Vorschaubilder und Videos nicht auf Festplatte speichern</string>
+    <string name="auto_connect_label">Automatisch verbinden</string>
+    <string name="auto_connect_description">Beim App-Start automatisch mit dem letzten Server verbinden</string>
     <string name="reset_prompts_button">Prompts zurücksetzen</string>
     <string name="reset_prompts_success">Prompts auf Standardwerte zurückgesetzt</string>
     <string name="clear_cache_button">Cache leeren</string>
@@ -137,6 +155,7 @@
     <string name="menu_add_to_end_of_queue">An Ende der Warteschlange</string>
     <string name="menu_add_to_front_of_queue">An Anfang der Warteschlange</string>
     <string name="content_description_queue_menu">Warteschlangenmenü</string>
+    <string name="content_description_server_menu">Servermenü</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Kein ComfyUI-Server</string>

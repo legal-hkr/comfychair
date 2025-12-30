@@ -21,15 +21,21 @@ import java.util.concurrent.ConcurrentHashMap
  *   This eliminates frequent disk I/O during active generation.
  * - Disk-first: Media written directly to disk, read from disk when needed.
  *   This minimizes RAM usage for low-end devices with slow networks.
+ *
+ * Media files are scoped per-server using the format: {serverId}_{filename}
  */
 object MediaStateHolder {
 
     private const val TAG = "MediaState"
 
+    // Current server ID for per-server file scoping
+    private var currentServerId: String? = null
+
     /**
      * Keys for different media types stored in the holder.
+     * Base filenames are used - the server ID prefix is added dynamically.
      */
-    sealed class MediaKey(val filename: String) {
+    sealed class MediaKey(val baseFilename: String) {
         // Image previews (final generated images displayed on screens)
         data object TtiPreview : MediaKey("tti_last_preview.png")
         data object ItiPreview : MediaKey("iti_last_preview.png")
@@ -47,7 +53,28 @@ object MediaStateHolder {
         // Generated videos (with prompt ID for uniqueness)
         data class TtvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.TEXT_TO_VIDEO}$promptId.mp4")
         data class ItvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}$promptId.mp4")
+
+        /**
+         * Get the full filename including server ID prefix.
+         */
+        fun filename(serverId: String): String = "${serverId}_$baseFilename"
     }
+
+    /**
+     * Set the current server ID for per-server file scoping.
+     * Should be called when connecting to a server.
+     */
+    fun setCurrentServerId(serverId: String?) {
+        if (currentServerId != serverId) {
+            DebugLogger.i(TAG, "Server ID changed: ${currentServerId?.take(8)} -> ${serverId?.take(8)}")
+            currentServerId = serverId
+        }
+    }
+
+    /**
+     * Get the current server ID.
+     */
+    fun getCurrentServerId(): String? = currentServerId
 
     // Caching mode - true for memory-first (default), false for disk-first
     private var isMemoryFirstMode = true
@@ -99,9 +126,11 @@ object MediaStateHolder {
     }
 
     /**
-     * Clear all disk cache files created during disk-first mode.
+     * Clear all disk cache files for the current server.
      */
     private fun clearDiskCache(context: Context) {
+        val serverId = currentServerId ?: return
+
         val allKeys = listOf(
             MediaKey.TtiPreview,
             MediaKey.ItiPreview,
@@ -115,7 +144,7 @@ object MediaStateHolder {
 
         for (key in allKeys) {
             try {
-                val file = context.getFileStreamPath(key.filename)
+                val file = context.getFileStreamPath(key.filename(serverId))
                 if (file.exists()) {
                     file.delete()
                 }
@@ -124,11 +153,14 @@ object MediaStateHolder {
             }
         }
 
-        // Also delete any video files
+        // Also delete any video files for this server
+        val prefix = "${serverId}_"
         try {
             context.filesDir.listFiles()?.filter { file ->
-                file.name.startsWith(VideoUtils.FilePrefix.TEXT_TO_VIDEO) ||
-                file.name.startsWith(VideoUtils.FilePrefix.IMAGE_TO_VIDEO)
+                file.name.startsWith(prefix) && (
+                    file.name.contains(VideoUtils.FilePrefix.TEXT_TO_VIDEO) ||
+                    file.name.contains(VideoUtils.FilePrefix.IMAGE_TO_VIDEO)
+                )
             }?.forEach { file ->
                 file.delete()
             }
@@ -147,6 +179,8 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun putBitmap(key: MediaKey, bitmap: Bitmap, context: Context? = null) {
+        val serverId = currentServerId ?: return
+
         if (isMemoryFirstMode) {
             // Memory-first: store in memory, mark as dirty for later persistence
             bitmaps[key] = bitmap
@@ -155,7 +189,7 @@ object MediaStateHolder {
             // Disk-first: write to disk immediately, don't store in memory
             context?.let { ctx ->
                 try {
-                    ctx.openFileOutput(key.filename, Context.MODE_PRIVATE).use { out ->
+                    ctx.openFileOutput(key.filename(serverId), Context.MODE_PRIVATE).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                 } catch (_: Exception) {
@@ -170,6 +204,8 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun getBitmap(key: MediaKey, context: Context? = null): Bitmap? {
+        val serverId = currentServerId ?: return null
+
         return if (isMemoryFirstMode) {
             // Memory-first: return from RAM
             bitmaps[key]
@@ -177,7 +213,7 @@ object MediaStateHolder {
             // Disk-first: read from disk each time
             context?.let { ctx ->
                 try {
-                    val file = ctx.getFileStreamPath(key.filename)
+                    val file = ctx.getFileStreamPath(key.filename(serverId))
                     if (file.exists()) {
                         BitmapFactory.decodeFile(file.absolutePath)
                     } else null
@@ -193,6 +229,8 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun putVideoBytes(key: MediaKey, bytes: ByteArray, context: Context? = null) {
+        val serverId = currentServerId ?: return
+
         // Track prompt ID for persistence
         when (key) {
             is MediaKey.TtvVideo -> currentTtvPromptId = key.promptId
@@ -208,7 +246,7 @@ object MediaStateHolder {
             // Disk-first: write to disk immediately, don't store in memory
             context?.let { ctx ->
                 try {
-                    File(ctx.filesDir, key.filename).writeBytes(bytes)
+                    File(ctx.filesDir, key.filename(serverId)).writeBytes(bytes)
                 } catch (_: Exception) {
                     // Ignore write failures
                 }
@@ -221,6 +259,8 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun getVideoBytes(key: MediaKey, context: Context? = null): ByteArray? {
+        val serverId = currentServerId ?: return null
+
         return if (isMemoryFirstMode) {
             // Memory-first: return from RAM
             videoBytes[key]
@@ -228,7 +268,7 @@ object MediaStateHolder {
             // Disk-first: read from disk each time
             context?.let { ctx ->
                 try {
-                    val file = File(ctx.filesDir, key.filename)
+                    val file = File(ctx.filesDir, key.filename(serverId))
                     if (file.exists()) {
                         file.readBytes()
                     } else null
@@ -245,12 +285,14 @@ object MediaStateHolder {
      * In disk-first mode, returns URI directly to the stored file.
      */
     suspend fun getVideoUri(context: Context, key: MediaKey): Uri? {
+        val serverId = currentServerId ?: return null
+
         return withContext(Dispatchers.IO) {
             try {
                 if (isMemoryFirstMode) {
                     // Memory-first: create temp file from in-memory bytes
                     val bytes = videoBytes[key] ?: return@withContext null
-                    val tempFile = File(context.cacheDir, "playback_${key.filename.hashCode()}.mp4")
+                    val tempFile = File(context.cacheDir, "playback_${key.baseFilename.hashCode()}.mp4")
                     tempFile.writeBytes(bytes)
                     FileProvider.getUriForFile(
                         context,
@@ -259,7 +301,7 @@ object MediaStateHolder {
                     )
                 } else {
                     // Disk-first: return URI to the stored file directly
-                    val file = File(context.filesDir, key.filename)
+                    val file = File(context.filesDir, key.filename(serverId))
                     if (file.exists()) {
                         FileProvider.getUriForFile(
                             context,
@@ -279,6 +321,8 @@ object MediaStateHolder {
      * Called from MainContainerActivity.onStop().
      */
     suspend fun persistToDisk(context: Context) {
+        val serverId = currentServerId ?: return
+
         val bitmapCount = dirtyBitmaps.size
         val videoCount = dirtyVideos.size
         if (bitmapCount > 0 || videoCount > 0) {
@@ -290,7 +334,7 @@ object MediaStateHolder {
             for (key in bitmapsToPersist) {
                 val bitmap = bitmaps[key] ?: continue
                 try {
-                    context.openFileOutput(key.filename, Context.MODE_PRIVATE).use { out ->
+                    context.openFileOutput(key.filename(serverId), Context.MODE_PRIVATE).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                     dirtyBitmaps.remove(key)
@@ -304,7 +348,7 @@ object MediaStateHolder {
             for (key in videosToPersist) {
                 val bytes = videoBytes[key] ?: continue
                 try {
-                    File(context.filesDir, key.filename).writeBytes(bytes)
+                    File(context.filesDir, key.filename(serverId)).writeBytes(bytes)
                     dirtyVideos.remove(key)
                 } catch (_: Exception) {
                     // Ignore persistence failures
@@ -314,10 +358,12 @@ object MediaStateHolder {
     }
 
     /**
-     * Load persisted media from disk into memory.
+     * Load persisted media from disk into memory for the current server.
      * Called from MainContainerActivity.onCreate().
      */
     suspend fun loadFromDisk(context: Context) {
+        val serverId = currentServerId ?: return
+
         withContext(Dispatchers.IO) {
             // Load bitmap files
             val bitmapKeys = listOf(
@@ -333,7 +379,7 @@ object MediaStateHolder {
 
             for (key in bitmapKeys) {
                 try {
-                    val file = context.getFileStreamPath(key.filename)
+                    val file = context.getFileStreamPath(key.filename(serverId))
                     if (file.exists()) {
                         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
                         if (bitmap != null) {
@@ -346,14 +392,15 @@ object MediaStateHolder {
                 }
             }
 
-            // Load latest video files
-            loadLatestVideoFile(context, VideoUtils.FilePrefix.TEXT_TO_VIDEO) { promptId, bytes ->
+            // Load latest video files for this server
+            val serverPrefix = "${serverId}_"
+            loadLatestVideoFile(context, serverPrefix, VideoUtils.FilePrefix.TEXT_TO_VIDEO) { promptId, bytes ->
                 val key = MediaKey.TtvVideo(promptId)
                 videoBytes[key] = bytes
                 currentTtvPromptId = promptId
             }
 
-            loadLatestVideoFile(context, VideoUtils.FilePrefix.IMAGE_TO_VIDEO) { promptId, bytes ->
+            loadLatestVideoFile(context, serverPrefix, VideoUtils.FilePrefix.IMAGE_TO_VIDEO) { promptId, bytes ->
                 val key = MediaKey.ItvVideo(promptId)
                 videoBytes[key] = bytes
                 currentItvPromptId = promptId
@@ -363,16 +410,18 @@ object MediaStateHolder {
 
     private fun loadLatestVideoFile(
         context: Context,
-        prefix: String,
+        serverPrefix: String,
+        videoPrefix: String,
         onLoaded: (promptId: String, bytes: ByteArray) -> Unit
     ) {
         try {
+            val fullPrefix = "$serverPrefix$videoPrefix"
             context.filesDir.listFiles()
-                ?.filter { it.name.startsWith(prefix) && it.name.endsWith(".mp4") }
+                ?.filter { it.name.startsWith(fullPrefix) && it.name.endsWith(".mp4") }
                 ?.maxByOrNull { it.lastModified() }
                 ?.let { file ->
                     val promptId = file.name
-                        .removePrefix(prefix)
+                        .removePrefix(fullPrefix)
                         .removeSuffix(".mp4")
                     val bytes = file.readBytes()
                     onLoaded(promptId, bytes)
@@ -404,10 +453,11 @@ object MediaStateHolder {
      * Use this when the item should not be restored on app restart.
      */
     suspend fun evictAndDeleteFromDisk(context: Context, key: MediaKey) {
+        val serverId = currentServerId ?: return
         evict(key)
         withContext(Dispatchers.IO) {
             try {
-                val file = context.getFileStreamPath(key.filename)
+                val file = context.getFileStreamPath(key.filename(serverId))
                 if (file.exists()) {
                     file.delete()
                 }
@@ -464,14 +514,18 @@ object MediaStateHolder {
      * which promptIds have saved videos.
      */
     fun discoverVideoPromptIds(context: Context) {
+        val serverId = currentServerId ?: return
+        val serverPrefix = "${serverId}_"
+
         // Discover TTV video
         try {
+            val fullPrefix = "$serverPrefix${VideoUtils.FilePrefix.TEXT_TO_VIDEO}"
             context.filesDir.listFiles()
-                ?.filter { it.name.startsWith(VideoUtils.FilePrefix.TEXT_TO_VIDEO) && it.name.endsWith(".mp4") }
+                ?.filter { it.name.startsWith(fullPrefix) && it.name.endsWith(".mp4") }
                 ?.maxByOrNull { it.lastModified() }
                 ?.let { file ->
                     currentTtvPromptId = file.name
-                        .removePrefix(VideoUtils.FilePrefix.TEXT_TO_VIDEO)
+                        .removePrefix(fullPrefix)
                         .removeSuffix(".mp4")
                 }
         } catch (_: Exception) {
@@ -480,12 +534,13 @@ object MediaStateHolder {
 
         // Discover ITV video
         try {
+            val fullPrefix = "$serverPrefix${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}"
             context.filesDir.listFiles()
-                ?.filter { it.name.startsWith(VideoUtils.FilePrefix.IMAGE_TO_VIDEO) && it.name.endsWith(".mp4") }
+                ?.filter { it.name.startsWith(fullPrefix) && it.name.endsWith(".mp4") }
                 ?.maxByOrNull { it.lastModified() }
                 ?.let { file ->
                     currentItvPromptId = file.name
-                        .removePrefix(VideoUtils.FilePrefix.IMAGE_TO_VIDEO)
+                        .removePrefix(fullPrefix)
                         .removeSuffix(".mp4")
                 }
         } catch (_: Exception) {
@@ -498,12 +553,14 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun hasBitmap(key: MediaKey, context: Context? = null): Boolean {
+        val serverId = currentServerId ?: return false
+
         return if (isMemoryFirstMode) {
             bitmaps.containsKey(key)
         } else {
             context?.let { ctx ->
                 try {
-                    ctx.getFileStreamPath(key.filename).exists()
+                    ctx.getFileStreamPath(key.filename(serverId)).exists()
                 } catch (e: Exception) {
                     false
                 }
@@ -516,16 +573,48 @@ object MediaStateHolder {
      * @param context Required for disk-first mode, optional for memory-first mode.
      */
     fun hasVideoBytes(key: MediaKey, context: Context? = null): Boolean {
+        val serverId = currentServerId ?: return false
+
         return if (isMemoryFirstMode) {
             videoBytes.containsKey(key)
         } else {
             context?.let { ctx ->
                 try {
-                    File(ctx.filesDir, key.filename).exists()
+                    File(ctx.filesDir, key.filename(serverId)).exists()
                 } catch (e: Exception) {
                     false
                 }
             } ?: false
+        }
+    }
+
+    /**
+     * Cleanup orphaned media files that don't belong to any registered server.
+     * Call this after deleting a server or during app cleanup.
+     *
+     * @param context Application context
+     * @param validServerIds List of server IDs that should be kept
+     */
+    fun cleanupOrphanedMediaFiles(context: Context, validServerIds: Set<String>) {
+        DebugLogger.i(TAG, "Cleaning up orphaned media files")
+        try {
+            context.filesDir.listFiles()?.forEach { file ->
+                // Check if file starts with a UUID pattern (server-scoped file)
+                val name = file.name
+                val underscoreIndex = name.indexOf('_')
+                if (underscoreIndex > 0) {
+                    val potentialServerId = name.substring(0, underscoreIndex)
+                    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars)
+                    if (potentialServerId.length == 36 && potentialServerId.contains('-')) {
+                        if (potentialServerId !in validServerIds) {
+                            DebugLogger.d(TAG, "Deleting orphaned file: $name")
+                            file.delete()
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "Failed to cleanup orphaned files: ${e.message}")
         }
     }
 }

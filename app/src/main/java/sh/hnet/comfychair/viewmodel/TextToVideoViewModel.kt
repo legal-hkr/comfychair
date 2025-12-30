@@ -44,6 +44,7 @@ data class TextToVideoUiState(
 
     // Workflow selection
     val selectedWorkflow: String = "",
+    val selectedWorkflowId: String = "",  // Workflow ID for storage
     val availableWorkflows: List<TtvWorkflowItem> = emptyList(),
 
     // Model selections
@@ -132,9 +133,9 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         const val OWNER_ID = "TEXT_TO_VIDEO"
         private const val PREFS_NAME = "TextToVideoFragmentPrefs"
 
-        // Global preferences
-        private const val KEY_WORKFLOW = "workflow"
-        private const val KEY_POSITIVE_PROMPT = "positive_prompt"
+        // Global preferences (camelCase keys for BackupManager compatibility)
+        private const val KEY_SELECTED_WORKFLOW_ID = "selectedWorkflowId"
+        private const val KEY_POSITIVE_PROMPT = "positivePrompt"
     }
 
     init {
@@ -230,40 +231,50 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         }
 
         val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
-        val defaultWorkflow = sortedWorkflows.firstOrNull()?.name ?: ""
+        val currentSelection = _uiState.value.selectedWorkflow
+        val selectedWorkflowItem = if (currentSelection.isEmpty())
+            sortedWorkflows.firstOrNull()
+        else
+            sortedWorkflows.find { it.name == currentSelection } ?: sortedWorkflows.firstOrNull()
 
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
-            selectedWorkflow = if (_uiState.value.selectedWorkflow.isEmpty()) defaultWorkflow else _uiState.value.selectedWorkflow
+            selectedWorkflow = selectedWorkflowItem?.name ?: "",
+            selectedWorkflowId = selectedWorkflowItem?.id ?: ""
         )
     }
 
     private fun restorePreferences() {
         val context = applicationContext ?: return
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         DebugLogger.d(TAG, "restorePreferences: Loading saved preferences")
 
-        // Load global preferences
-        val savedWorkflow = prefs.getString(KEY_WORKFLOW, "") ?: ""
+        // Load global preferences with serverId prefix
+        val savedWorkflowId = prefs.getString("${serverId}_$KEY_SELECTED_WORKFLOW_ID", "") ?: ""
         val defaultPositivePrompt = SeasonalPrompts.getTextToVideoPrompt()
-        val savedPositivePrompt = prefs.getString(KEY_POSITIVE_PROMPT, null) ?: defaultPositivePrompt
-        DebugLogger.d(TAG, "restorePreferences: savedWorkflow=$savedWorkflow")
+        val savedPositivePrompt = prefs.getString("${serverId}_$KEY_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
+        DebugLogger.d(TAG, "restorePreferences: savedWorkflowId=$savedWorkflowId")
 
-        val workflow = if (savedWorkflow.isNotEmpty() && _uiState.value.availableWorkflows.any { it.name == savedWorkflow }) {
-            savedWorkflow
+        // Find workflow by ID
+        val workflowItem = if (savedWorkflowId.isNotEmpty()) {
+            _uiState.value.availableWorkflows.find { it.id == savedWorkflowId }
         } else {
-            _uiState.value.selectedWorkflow
+            _uiState.value.availableWorkflows.find { it.name == _uiState.value.selectedWorkflow }
+                ?: _uiState.value.availableWorkflows.firstOrNull()
         }
 
-        // Load per-workflow values
-        // Use workflow name directly as storage key for consistency
-        val savedValues = storage.loadValues(workflow)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflow)
+        if (workflowItem == null) return
+
+        // Load per-workflow values using workflow ID
+        val savedValues = storage.loadValues(serverId, workflowItem.id)
+        val defaults = WorkflowManager.getWorkflowDefaults(workflowItem.name)
 
         _uiState.value = _uiState.value.copy(
-            selectedWorkflow = workflow,
+            selectedWorkflow = workflowItem.name,
+            selectedWorkflowId = workflowItem.id,
             positivePrompt = savedPositivePrompt,
             negativePrompt = savedValues?.negativePrompt
                 ?: defaults?.negativePrompt ?: "",
@@ -275,13 +286,13 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 ?: defaults?.length?.toString() ?: "33",
             fps = savedValues?.frameRate?.toString()
                 ?: defaults?.frameRate?.toString() ?: "16",
-            // Deferred model selections from saved values
-            deferredHighnoiseUnet = savedValues?.highnoiseUnetModel,
-            deferredLownoiseUnet = savedValues?.lownoiseUnetModel,
-            deferredHighnoiseLora = savedValues?.highnoiseLoraModel,
-            deferredLownoiseLora = savedValues?.lownoiseLoraModel,
-            deferredVae = savedValues?.vaeModel,
-            deferredClip = savedValues?.clipModel,
+            // Set model selections directly from saved values
+            selectedHighnoiseUnet = savedValues?.highnoiseUnetModel ?: "",
+            selectedLownoiseUnet = savedValues?.lownoiseUnetModel ?: "",
+            selectedHighnoiseLora = savedValues?.highnoiseLoraModel ?: "",
+            selectedLownoiseLora = savedValues?.lownoiseLoraModel ?: "",
+            selectedVae = savedValues?.vaeModel ?: "",
+            selectedClip = savedValues?.clipModel ?: "",
             highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             // Set workflow capability flags from defaults
@@ -305,14 +316,13 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
     /**
      * Save current workflow values to per-workflow storage
      */
-    private fun saveWorkflowValues(workflowName: String) {
+    private fun saveWorkflowValues(workflowId: String) {
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
-        // Use workflow name directly as storage key for consistency
-        // Workflow names are unique and always available
+        // Use workflow ID as storage key (UUID-based)
         val values = WorkflowValues(
-            workflowId = workflowName,
             width = state.width.toIntOrNull(),
             height = state.height.toIntOrNull(),
             length = state.length.toIntOrNull(),
@@ -328,23 +338,24 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             lownoiseLoraChain = LoraSelection.toJsonString(state.lownoiseLoraChain).takeIf { state.lownoiseLoraChain.isNotEmpty() }
         )
 
-        storage.saveValues(workflowName, values)
+        storage.saveValues(serverId, workflowId, values)
     }
 
     private fun savePreferences() {
         val context = applicationContext ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
 
-        // Save global preferences
+        // Save global preferences with serverId prefix
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_WORKFLOW, state.selectedWorkflow)
-            .putString(KEY_POSITIVE_PROMPT, state.positivePrompt)
+            .putString("${serverId}_$KEY_SELECTED_WORKFLOW_ID", state.selectedWorkflowId)
+            .putString("${serverId}_$KEY_POSITIVE_PROMPT", state.positivePrompt)
             .apply()
 
-        // Save per-workflow values
-        if (state.selectedWorkflow.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflow)
+        // Save per-workflow values using workflow ID
+        if (state.selectedWorkflowId.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflowId)
         }
     }
 
@@ -352,19 +363,23 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
     fun onWorkflowChange(workflow: String) {
         val state = _uiState.value
         val storage = workflowValuesStorage ?: return
+        val serverId = ConnectionManager.currentServerId ?: return
 
-        // Save current workflow values before switching
-        if (state.selectedWorkflow.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflow)
+        // Find workflow item to get its ID
+        val workflowItem = state.availableWorkflows.find { it.name == workflow } ?: return
+
+        // Save current workflow values before switching (using workflow ID)
+        if (state.selectedWorkflowId.isNotEmpty()) {
+            saveWorkflowValues(state.selectedWorkflowId)
         }
 
-        // Load new workflow's saved values or defaults
-        // Use workflow name directly as storage key for consistency
-        val savedValues = storage.loadValues(workflow)
+        // Load new workflow's saved values or defaults (using workflow ID for saved values)
+        val savedValues = storage.loadValues(serverId, workflowItem.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow)
 
         _uiState.value = state.copy(
             selectedWorkflow = workflow,
+            selectedWorkflowId = workflowItem.id,
             negativePrompt = savedValues?.negativePrompt
                 ?: defaults?.negativePrompt ?: "",
             width = savedValues?.width?.toString()
