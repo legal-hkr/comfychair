@@ -8,6 +8,7 @@ import androidx.core.graphics.drawable.DrawableCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -205,6 +207,18 @@ fun WorkflowGraphCanvas(
         label = "glowPulseValue"
     )
 
+    // Segment animation for highlighted wires (cycles 0→1 every 1500ms)
+    val segmentTransition = rememberInfiniteTransition(label = "segmentAnimation")
+    val segmentTime by segmentTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "segmentTimeValue"
+    )
+
     // Animate node positions when graph changes
     LaunchedEffect(graph.nodes) {
         val currentNodeIds = graph.nodes.map { it.id }.toSet()
@@ -288,8 +302,8 @@ fun WorkflowGraphCanvas(
                                     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
                                     val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
                                     val outputY = node.y + headerHeight + 20f +
-                                        (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
-                                        (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+                                            (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
+                                            (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
 
                                     val dx = graphX - outputX
                                     val dy = graphY - outputY
@@ -322,7 +336,8 @@ fun WorkflowGraphCanvas(
 
                                 if (onRenameNodeTapped != null &&
                                     graphX >= editIconLeft && graphX <= editIconRight &&
-                                    graphY >= iconTop && graphY <= iconBottom) {
+                                    graphY >= iconTop && graphY <= iconBottom
+                                ) {
                                     onRenameNodeTapped(node.id)
                                     return@detectTapGestures
                                 }
@@ -393,7 +408,8 @@ fun WorkflowGraphCanvas(
                     edge = edge,
                     nodes = animatedNodes,
                     colors = colors,
-                    selectedNodeIds = selectedNodeIds
+                    selectedNodeIds = selectedNodeIds,
+                    segmentTime = segmentTime
                 )
             }
 
@@ -458,6 +474,15 @@ fun WorkflowGraphCanvas(
             if (isEditMode) {
                 val inConnectionMode = connectionModeState != null
 
+                // Build a set of outputs connected to selected nodes
+                val outputsConnectedToSelected: Set<Pair<String, Int>> = buildSet {
+                    graph.edges.forEach { edge ->
+                        if (edge.sourceNodeId in selectedNodeIds || edge.targetNodeId in selectedNodeIds) {
+                            add(Pair(edge.sourceNodeId, edge.sourceOutputIndex))
+                        }
+                    }
+                }
+
                 // Draw output slots on all nodes (one per output) - use animatedNodes
                 animatedNodes.forEach { node ->
                     val outputX = node.x + node.width
@@ -467,30 +492,46 @@ fun WorkflowGraphCanvas(
 
                         // Check if this is the source slot in connection mode
                         val isSourceSlot = inConnectionMode &&
-                            connectionModeState?.sourceOutputSlot?.nodeId == node.id &&
-                            connectionModeState?.sourceOutputSlot?.outputIndex == outputIndex
+                                connectionModeState?.sourceOutputSlot?.nodeId == node.id &&
+                                connectionModeState?.sourceOutputSlot?.outputIndex == outputIndex
 
-                        // Get slot color based on output type
+                        // Check if this output is connected to a selected node
+                        val isConnectedToSelected = Pair(node.id, outputIndex) in outputsConnectedToSelected
+
+                        // Get slot color based on output type (keep original color, only source slot changes)
                         val typeColor = colors.slotColors[outputType.uppercase()] ?: colors.edgeColor
-                        val slotColor = if (isSourceSlot) {
-                            colors.selectedBorder
-                        } else {
-                            typeColor
+                        val slotColor = if (isSourceSlot) colors.selectedBorder else typeColor
+
+                        // Use larger size if connected to selected or is source slot
+                        val outerRadius = when {
+                            isSourceSlot -> 14f
+                            isConnectedToSelected -> 15f
+                            else -> 10f
                         }
+                        val innerRadius = if (isConnectedToSelected && !isSourceSlot) 9f else 6f
 
                         drawCircle(
                             color = slotColor,
-                            radius = if (isSourceSlot) 14f else 10f,
+                            radius = outerRadius,
                             center = Offset(outputX, outputY)
                         )
 
-                        // Draw inner circle for contrast
+                        // Draw inner circle for contrast (not for source slot)
                         if (!isSourceSlot) {
                             drawCircle(
                                 color = colors.nodeBackground,
-                                radius = 6f,
+                                radius = innerRadius,
                                 center = Offset(outputX, outputY)
                             )
+                        }
+                    }
+                }
+
+                // Build a set of inputs connected to selected nodes
+                val inputsConnectedToSelected: Set<Pair<String, String>> = buildSet {
+                    graph.edges.forEach { edge ->
+                        if (edge.sourceNodeId in selectedNodeIds || edge.targetNodeId in selectedNodeIds) {
+                            add(Pair(edge.targetNodeId, edge.targetInputName))
                         }
                     }
                 }
@@ -499,28 +540,39 @@ fun WorkflowGraphCanvas(
                 animatedNodes.forEach { node ->
                     var inputIndex = 0
                     node.inputs.forEach { (inputName, inputValue) ->
-                        val isConnectionInput = inputValue is InputValue.Connection || inputValue is InputValue.UnconnectedSlot
+                        val isConnectionInput =
+                            inputValue is InputValue.Connection || inputValue is InputValue.UnconnectedSlot
 
                         if (isConnectionInput) {
                             val inputX = node.x
                             val inputY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
-                                (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+                                    (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
 
-                            // Get slot type for color
-                            val slotType = when (inputValue) {
-                                is InputValue.UnconnectedSlot -> inputValue.slotType
-                                else -> null
+                            // Check if this input is connected to a selected node
+                            val isConnectedToSelected = Pair(node.id, inputName) in inputsConnectedToSelected
+
+                            // Get slot color - use wire color for connected inputs, slot type for unconnected
+                            val slotColor = when (inputValue) {
+                                is InputValue.Connection -> {
+                                    // Use the wire color from the connected edge
+                                    nodeInputColors[node.id]?.get(inputName)?.let { Color(it) } ?: colors.edgeColor
+                                }
+                                is InputValue.UnconnectedSlot -> {
+                                    inputValue.slotType?.let { colors.slotColors[it.uppercase()] } ?: colors.edgeColor
+                                }
+                                else -> colors.edgeColor
                             }
-                            val typeColor = slotType?.let { colors.slotColors[it.uppercase()] } ?: colors.edgeColor
+                            val outerRadius = if (isConnectedToSelected) 15f else 10f
+                            val innerRadius = if (isConnectedToSelected) 9f else 6f
 
                             drawCircle(
-                                color = typeColor,
-                                radius = 10f,
+                                color = slotColor,
+                                radius = outerRadius,
                                 center = Offset(inputX, inputY)
                             )
                             drawCircle(
                                 color = colors.nodeBackground,
-                                radius = 6f,
+                                radius = innerRadius,
                                 center = Offset(inputX, inputY)
                             )
                         }
@@ -535,8 +587,8 @@ fun WorkflowGraphCanvas(
                         // glowPulse ranges from 0 to 1, animating the glow intensity
                         val baseAlpha = 0.2f + (glowPulse * 0.4f)  // Alpha pulses between 0.2 and 0.6
 
-                        // Outer glow layer (largest, most transparent)
-                        val outerGlowRadius = 28f + (glowPulse * 8f)  // Radius pulses between 28 and 36
+                        // Outer glow layer (largest, most transparent) - scaled to match 14f socket
+                        val outerGlowRadius = 33f + (glowPulse * 9f)  // Radius pulses between 33 and 42
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.3f),
                             radius = outerGlowRadius,
@@ -544,7 +596,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Middle glow layer
-                        val midGlowRadius = 20f + (glowPulse * 4f)  // Radius pulses between 20 and 24
+                        val midGlowRadius = 23f + (glowPulse * 5f)  // Radius pulses between 23 and 28
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.5f),
                             radius = midGlowRadius,
@@ -552,7 +604,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Inner glow layer (smallest, most opaque)
-                        val innerGlowRadius = 14f + (glowPulse * 2f)  // Radius pulses between 14 and 16
+                        val innerGlowRadius = 16f + (glowPulse * 2f)  // Radius pulses between 16 and 18
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.7f),
                             radius = innerGlowRadius,
@@ -561,16 +613,17 @@ fun WorkflowGraphCanvas(
 
                         // Draw the actual input slot (solid circle with hole)
                         // Pulse the socket color for brightness effect (towards white in dark mode, black in light mode)
+                        // Size matches highlighted output circle (14f)
                         val pulseTargetColor = if (colors.isDarkTheme) Color.White else Color.Black
                         val socketColor = lerp(colors.candidateBorder, pulseTargetColor, glowPulse * 0.5f)
                         drawCircle(
                             color = socketColor,
-                            radius = 12f,
+                            radius = 14f,
                             center = slot.center
                         )
                         drawCircle(
                             color = colors.nodeBackground,
-                            radius = 6f,
+                            radius = 7f,
                             center = slot.center
                         )
                     }
@@ -885,6 +938,7 @@ private fun DrawScope.drawNode(
                         typeface = Typeface.DEFAULT_BOLD
                         isAntiAlias = true
                     }
+
                     else -> valueTextPaint
                 }
 
@@ -951,12 +1005,14 @@ private fun DrawScope.drawNode(
 /**
  * Draw an edge (connection) between two nodes.
  * Uses bezier curves that depart/arrive horizontally for a natural look.
+ * When connected to a selected node, animates interweaving colored segments along the wire.
  */
 private fun DrawScope.drawEdge(
     edge: WorkflowEdge,
     nodes: List<WorkflowNode>,
     colors: CanvasColors,
-    selectedNodeIds: Set<String> = emptySet()
+    selectedNodeIds: Set<String> = emptySet(),
+    segmentTime: Float = 0f
 ) {
     val sourceNode = nodes.find { it.id == edge.sourceNodeId } ?: return
     val targetNode = nodes.find { it.id == edge.targetNodeId } ?: return
@@ -975,20 +1031,33 @@ private fun DrawScope.drawEdge(
     // Check if this edge is connected to a selected node
     val isConnectedToSelected = edge.sourceNodeId in selectedNodeIds || edge.targetNodeId in selectedNodeIds
 
-    // Make wires thicker and blend color when connected to selected node
+    // Make wires thicker when connected to selected node (same color as normal)
+    // Highlight segments use the selected node's frame color
     val edgeColor: Color
+    val highlightColor: Color
     val edgeWidth: Float
     if (isConnectedToSelected) {
-        val blendColor = if (colors.isDarkTheme) Color.White else Color.Black
-        edgeColor = lerp(baseEdgeColor, blendColor, 0.3f)
+        edgeColor = baseEdgeColor  // Wire stays same color
+        highlightColor = colors.selectedBorder  // Same as highlighted node's frame
         edgeWidth = 8f
     } else {
         edgeColor = baseEdgeColor
+        highlightColor = baseEdgeColor
         edgeWidth = 4f
     }
 
     // Minimum control point offset to ensure wire is visible leaving/entering nodes
     val minOffset = 20f
+
+    // Store bezier control points for segment position calculation
+    val startPoint = Offset(startX, startY)
+    val endPoint = Offset(endX, endY)
+    var control1: Offset
+    var control2: Offset
+    var isDoubleCurve = false
+    var midPoint = Offset.Zero
+    var control1b = Offset.Zero
+    var control2b = Offset.Zero
 
     val path = Path().apply {
         moveTo(startX, startY)
@@ -998,9 +1067,11 @@ private fun DrawScope.drawEdge(
             // Control point offset based on horizontal distance, with minimum
             val xDist = endX - startX
             val offset = maxOf(xDist * 0.4f, minOffset)
+            control1 = Offset(startX + offset, startY)
+            control2 = Offset(endX - offset, endY)
             cubicTo(
-                startX + offset, startY,  // First control: right of start, same Y (horizontal departure)
-                endX - offset, endY,      // Second control: left of end, same Y (horizontal arrival)
+                control1.x, control1.y,
+                control2.x, control2.y,
                 endX, endY
             )
         } else {
@@ -1013,45 +1084,170 @@ private fun DrawScope.drawEdge(
             if (verticalDist < 50f) {
                 // Nodes are at similar height - need bigger loop
                 val farRight = maxOf(startX, endX) + loopOffset
+                control1 = Offset(farRight, startY)
+                control2 = Offset(farRight, endY)
                 cubicTo(
-                    farRight, startY,
-                    farRight, endY,
+                    control1.x, control1.y,
+                    control2.x, control2.y,
                     endX, endY
                 )
             } else {
-                // Nodes have vertical separation - route through middle
+                // Nodes have vertical separation - route through middle (two bezier segments)
+                isDoubleCurve = true
+                midPoint = Offset((startX + endX) / 2, midY)
+                control1 = Offset(startX + loopOffset, startY)
+                control2 = Offset(startX + loopOffset, midY)
+                control1b = Offset(endX - loopOffset, midY)
+                control2b = Offset(endX - loopOffset, endY)
                 cubicTo(
-                    startX + loopOffset, startY,
-                    startX + loopOffset, midY,
-                    (startX + endX) / 2, midY
+                    control1.x, control1.y,
+                    control2.x, control2.y,
+                    midPoint.x, midPoint.y
                 )
                 cubicTo(
-                    endX - loopOffset, midY,
-                    endX - loopOffset, endY,
+                    control1b.x, control1b.y,
+                    control2b.x, control2b.y,
                     endX, endY
                 )
             }
         }
     }
 
-    // Draw the path
-    drawPath(
-        path = path,
-        color = edgeColor,
-        style = Stroke(width = edgeWidth)
-    )
+    // Draw the path - use animated interweaving segments for highlighted wires
+    if (isConnectedToSelected) {
+        val segmentLength = 20f  // Length of each colored segment
+        // Animate phase: negative to flow from output to input
+        val animatedPhase = -segmentTime * segmentLength * 2
 
-    // Draw small circle at connection points
+        // Draw base color segments (dashed)
+        drawPath(
+            path = path,
+            color = edgeColor,
+            style = Stroke(
+                width = edgeWidth,
+                pathEffect = PathEffect.dashPathEffect(
+                    intervals = floatArrayOf(segmentLength, segmentLength),
+                    phase = animatedPhase
+                )
+            )
+        )
+
+        // Draw highlight color segments (offset by segmentLength to interweave)
+        drawPath(
+            path = path,
+            color = highlightColor,
+            style = Stroke(
+                width = edgeWidth,
+                pathEffect = PathEffect.dashPathEffect(
+                    intervals = floatArrayOf(segmentLength, segmentLength),
+                    phase = animatedPhase + segmentLength
+                )
+            )
+        )
+    } else {
+        // Non-highlighted: solid color
+        drawPath(
+            path = path,
+            color = edgeColor,
+            style = Stroke(width = edgeWidth)
+        )
+    }
+
+    // Draw small circle at connection points (use highlight color when selected)
+    val endpointColor = if (isConnectedToSelected) highlightColor else edgeColor
     drawCircle(
-        color = edgeColor,
+        color = endpointColor,
         radius = 8f,
         center = Offset(startX, startY)
     )
     drawCircle(
-        color = edgeColor,
+        color = endpointColor,
         radius = 8f,
         center = Offset(endX, endY)
     )
+}
+
+/**
+ * Calculate a point along a cubic Bezier curve at parameter t (0-1).
+ */
+private fun cubicBezierPoint(
+    start: Offset,
+    control1: Offset,
+    control2: Offset,
+    end: Offset,
+    t: Float
+): Offset {
+    val u = 1 - t
+    val tt = t * t
+    val uu = u * u
+    val uuu = uu * u
+    val ttt = tt * t
+
+    return Offset(
+        x = uuu * start.x + 3 * uu * t * control1.x + 3 * u * tt * control2.x + ttt * end.x,
+        y = uuu * start.y + 3 * uu * t * control1.y + 3 * u * tt * control2.y + ttt * end.y
+    )
+}
+
+/**
+ * Approximate the arc length of a cubic Bezier curve by sampling.
+ */
+private fun approximateBezierLength(
+    start: Offset,
+    control1: Offset,
+    control2: Offset,
+    end: Offset,
+    samples: Int = 30
+): Float {
+    var length = 0f
+    var prevPoint = start
+    for (i in 1..samples) {
+        val t = i.toFloat() / samples
+        val point = cubicBezierPoint(start, control1, control2, end, t)
+        length += (point - prevPoint).getDistance()
+        prevPoint = point
+    }
+    return length
+}
+
+/**
+ * Find the point on a Bezier curve at a given arc length distance from the start.
+ * Returns null if distance exceeds curve length.
+ */
+private fun pointAtArcLength(
+    start: Offset,
+    control1: Offset,
+    control2: Offset,
+    end: Offset,
+    targetDistance: Float,
+    samples: Int = 30
+): Offset? {
+    if (targetDistance <= 0f) return start
+
+    var accumulatedDistance = 0f
+    var prevPoint = start
+
+    for (i in 1..samples) {
+        val t = i.toFloat() / samples
+        val point = cubicBezierPoint(start, control1, control2, end, t)
+        val segmentLength = (point - prevPoint).getDistance()
+
+        if (accumulatedDistance + segmentLength >= targetDistance) {
+            // Interpolate within this segment for smooth positioning
+            val remaining = targetDistance - accumulatedDistance
+            val fraction = remaining / segmentLength
+            return Offset(
+                prevPoint.x + (point.x - prevPoint.x) * fraction,
+                prevPoint.y + (point.y - prevPoint.y) * fraction
+            )
+        }
+
+        accumulatedDistance += segmentLength
+        prevPoint = point
+    }
+
+    // Distance exceeds curve length
+    return null
 }
 
 /**
@@ -1077,7 +1273,7 @@ private fun calculateOutputY(node: WorkflowNode, outputIndex: Int): Float {
     val literalInputCount = node.inputs.count { (_, value) -> value is InputValue.Literal }
     // Outputs start after literal inputs
     return headerHeight + 20f + (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
-        (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+            (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
 }
 
 
@@ -1119,6 +1315,7 @@ private fun formatInputValue(
                 "\"$value\""
             }
         }
+
         is Number -> value.toString()
         is Boolean -> value.toString()
         else -> value.toString().take(20)
