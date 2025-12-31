@@ -21,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,15 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
 import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
+import sh.hnet.comfychair.ui.components.shared.ModelPathText
 import sh.hnet.comfychair.ui.components.shared.StepsCfgRow
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 
@@ -440,33 +437,5 @@ fun ModelDropdown(
                 )
             }
         }
-    }
-}
-
-/**
- * Displays a model path with the directory portion dimmed.
- * Handles both forward slashes (Unix) and backslashes (Windows).
- */
-@Composable
-fun ModelPathText(path: String) {
-    // Find the last separator (either / or \)
-    val lastSlashIndex = maxOf(path.lastIndexOf('/'), path.lastIndexOf('\\'))
-
-    if (lastSlashIndex > 0) {
-        val directoryPart = path.substring(0, lastSlashIndex + 1)
-        val filenamePart = path.substring(lastSlashIndex + 1)
-
-        val dimmedColor = LocalContentColor.current.copy(alpha = 0.5f)
-
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(color = dimmedColor)) {
-                    append(directoryPart)
-                }
-                append(filenamePart)
-            }
-        )
-    } else {
-        Text(path)
     }
 }

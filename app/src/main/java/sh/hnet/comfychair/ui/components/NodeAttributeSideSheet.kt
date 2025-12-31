@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.ui.components.shared.ModelPathText
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.ValidationUtils
@@ -372,7 +373,7 @@ private fun EnumEditor(
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option) },
+                    text = { ModelPathText(option) },
                     onClick = {
                         onValueChange(option)
                         expanded = false
@@ -574,7 +575,7 @@ private fun ImageEnumEditor(
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { ModelPathText(option) },
                         onClick = {
                             onValueChange(option)
                             expanded = false

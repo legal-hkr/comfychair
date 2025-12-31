@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.ui.components.shared.ModelPathText
 import java.util.Locale
 
 /**
