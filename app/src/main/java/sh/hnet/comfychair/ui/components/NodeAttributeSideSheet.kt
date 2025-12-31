@@ -55,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.ValidationUtils
@@ -222,9 +223,12 @@ private fun InputEditor(
             }
         }
 
+        // Check for options from definition or fall back to field-name-based defaults
+        val effectiveOptions = definition?.options ?: getDefaultOptionsForField(input.name)
+
         when {
-            type == "ENUM" || definition?.options != null -> {
-                val options = definition?.options ?: emptyList()
+            type == "ENUM" || effectiveOptions != null -> {
+                val options = effectiveOptions ?: emptyList()
                 val isImageSelector = isImageOptions(options)
 
                 if (isImageSelector) {
@@ -305,6 +309,17 @@ private fun guessType(value: Any?): String {
         is Float, is Double -> "FLOAT"
         is String -> "STRING"
         else -> "STRING"
+    }
+}
+
+/**
+ * Get default options for known field names when server definition is missing.
+ */
+private fun getDefaultOptionsForField(fieldName: String): List<String>? {
+    return when (fieldName) {
+        "sampler_name" -> SamplerOptions.SAMPLERS
+        "scheduler" -> SamplerOptions.SCHEDULERS
+        else -> null
     }
 }
 
