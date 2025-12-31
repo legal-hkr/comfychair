@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -52,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -205,94 +209,104 @@ private fun InputEditor(
 ) {
     val definition = input.definition
     val type = definition?.type ?: guessType(input.currentValue)
+    val showReset = input.currentValue != input.originalValue
 
-    Column {
-        // Reset button row (only show if value differs from original)
-        if (input.currentValue != input.originalValue) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                IconButton(onClick = onReset) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.node_editor_reset),
-                        tint = MaterialTheme.colorScheme.primary
+    // Check for options from definition or fall back to field-name-based defaults
+    val effectiveOptions = definition?.options ?: getDefaultOptionsForField(input.name)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Editor takes available space
+        Column(modifier = Modifier.weight(1f)) {
+            when {
+                type == "ENUM" || effectiveOptions != null -> {
+                    val options = effectiveOptions ?: emptyList()
+                    val isImageSelector = isImageOptions(options)
+
+                    if (isImageSelector) {
+                        ImageEnumEditor(
+                            label = input.name,
+                            value = input.currentValue?.toString() ?: "",
+                            options = options,
+                            onValueChange = { onValueChange(it) }
+                        )
+                    } else {
+                        EnumEditor(
+                            label = input.name,
+                            value = input.currentValue?.toString() ?: "",
+                            options = options,
+                            onValueChange = { onValueChange(it) }
+                        )
+                    }
+                }
+                type == "BOOLEAN" || input.currentValue is Boolean -> {
+                    BooleanEditor(
+                        label = input.name,
+                        value = (input.currentValue as? Boolean) ?: false,
+                        onValueChange = { onValueChange(it) }
+                    )
+                }
+                type == "INT" -> {
+                    IntEditor(
+                        label = input.name,
+                        value = input.currentValue?.toString() ?: "",
+                        min = definition?.min?.toInt(),
+                        max = definition?.max?.toInt(),
+                        step = definition?.step?.toInt(),
+                        onValueChange = { onValueChange(it) },
+                        context = context
+                    )
+                }
+                type == "FLOAT" -> {
+                    FloatEditor(
+                        label = input.name,
+                        value = input.currentValue?.toString() ?: "",
+                        min = definition?.min?.toFloat(),
+                        max = definition?.max?.toFloat(),
+                        step = definition?.step?.toFloat(),
+                        onValueChange = { onValueChange(it) },
+                        context = context
+                    )
+                }
+                type == "STRING" -> {
+                    StringEditor(
+                        label = input.name,
+                        value = input.currentValue?.toString() ?: "",
+                        multiline = definition?.multiline ?: false,
+                        onValueChange = { onValueChange(it) },
+                        context = context
+                    )
+                }
+                else -> {
+                    // Fallback: treat as string
+                    StringEditor(
+                        label = input.name,
+                        value = input.currentValue?.toString() ?: "",
+                        multiline = false,
+                        onValueChange = { onValueChange(it) },
+                        context = context
                     )
                 }
             }
         }
 
-        // Check for options from definition or fall back to field-name-based defaults
-        val effectiveOptions = definition?.options ?: getDefaultOptionsForField(input.name)
-
-        when {
-            type == "ENUM" || effectiveOptions != null -> {
-                val options = effectiveOptions ?: emptyList()
-                val isImageSelector = isImageOptions(options)
-
-                if (isImageSelector) {
-                    ImageEnumEditor(
-                        label = input.name,
-                        value = input.currentValue?.toString() ?: "",
-                        options = options,
-                        onValueChange = { onValueChange(it) }
-                    )
-                } else {
-                    EnumEditor(
-                        label = input.name,
-                        value = input.currentValue?.toString() ?: "",
-                        options = options,
-                        onValueChange = { onValueChange(it) }
-                    )
-                }
-            }
-            type == "BOOLEAN" || input.currentValue is Boolean -> {
-                BooleanEditor(
-                    label = input.name,
-                    value = (input.currentValue as? Boolean) ?: false,
-                    onValueChange = { onValueChange(it) }
-                )
-            }
-            type == "INT" -> {
-                IntEditor(
-                    label = input.name,
-                    value = input.currentValue?.toString() ?: "",
-                    min = definition?.min?.toInt(),
-                    max = definition?.max?.toInt(),
-                    step = definition?.step?.toInt(),
-                    onValueChange = { onValueChange(it) },
-                    context = context
-                )
-            }
-            type == "FLOAT" -> {
-                FloatEditor(
-                    label = input.name,
-                    value = input.currentValue?.toString() ?: "",
-                    min = definition?.min?.toFloat(),
-                    max = definition?.max?.toFloat(),
-                    step = definition?.step?.toFloat(),
-                    onValueChange = { onValueChange(it) },
-                    context = context
-                )
-            }
-            type == "STRING" -> {
-                StringEditor(
-                    label = input.name,
-                    value = input.currentValue?.toString() ?: "",
-                    multiline = definition?.multiline ?: false,
-                    onValueChange = { onValueChange(it) },
-                    context = context
-                )
-            }
-            else -> {
-                // Fallback: treat as string
-                StringEditor(
-                    label = input.name,
-                    value = input.currentValue?.toString() ?: "",
-                    multiline = false,
-                    onValueChange = { onValueChange(it) },
-                    context = context
+        // Reset button inline (only show if value differs from original)
+        if (showReset) {
+            OutlinedIconButton(
+                onClick = onReset,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .size(56.dp),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.node_editor_reset),
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -344,6 +358,7 @@ private fun EnumEditor(
             value = value,
             onValueChange = {},
             readOnly = true,
+            singleLine = true,
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
