@@ -477,7 +477,7 @@ fun WorkflowEditorScreen(
             // Currently FAB is at (100% - 16dp - fabRadius), so offset = 60% of width
             val sideSheetWidthFraction = 0.6f
             val fabOffset = if (uiState.isEditingNode) {
-                maxWidth * sideSheetWidthFraction
+                maxWidth * sideSheetWidthFraction + 8.dp
             } else {
                 0.dp
             }
