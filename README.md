@@ -2,13 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.8.3
-
-<p><span style="color:red;">IMPORTANT NOTICE</span></p>
-
-To support multiple ComfyUI servers, the app's internal settings and backup structure has been redesigned.
-
-If you are updating from v0.8.2 or earlier, please consider performing a **factory reset** after upgrading to avoid unexpected behavior. Backup files created with earlier versions are not compatible with v0.8.3.
+**Current version**: v0.8.4
 
 ## Overview
 
@@ -86,7 +80,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Create connections by tapping an output socket and then an input socket
   - Target sockets glow when compatible during connection creation
   - Delete connections via node context menu or by selecting and deleting
-  - Selected nodes highlight all their connections
+  - Selected nodes highlight connections with animated flowing segments
+  - Connected slot circles enlarge and color-code when highlighted
 - **Node attribute editing**:
   - Side sheet editor for node parameters (tap nodes to edit)
   - Numeric steppers with floating labels, range hints, and increment/decrement buttons
