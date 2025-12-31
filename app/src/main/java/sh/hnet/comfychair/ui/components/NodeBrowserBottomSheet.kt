@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -33,13 +36,11 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -98,23 +99,16 @@ fun NodeBrowserBottomSheet(
     onDismiss: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var isSearchFocused by remember { mutableStateOf(false) }
-    val nodeListState = rememberLazyListState()
-
-    // Collapse chips when searching or scrolling
-    val isChipsCollapsed by remember {
-        derivedStateOf {
-            isSearchFocused ||
-                searchQuery.isNotEmpty() ||
-                nodeListState.firstVisibleItemIndex > 0 ||
-                nodeListState.firstVisibleItemScrollOffset > 50
-        }
-    }
 
     // Category filter state
     var level1Selection by remember { mutableStateOf<String?>(null) }
     var level2Selection by remember { mutableStateOf<String?>(null) }
     var level3Selection by remember { mutableStateOf<String?>(null) }
+
+    // Expansion state for each level
+    var level1Expanded by remember { mutableStateOf(false) }
+    var level2Expanded by remember { mutableStateOf(false) }
+    var level3Expanded by remember { mutableStateOf(false) }
 
     // Compute available options for each level
     val allCategories = remember(nodeTypesByCategory) {
@@ -204,8 +198,7 @@ fun NodeBrowserBottomSheet(
                                     )
                                 }
                             }
-                        } else null,
-                        modifier = Modifier.onFocusChanged { isSearchFocused = it.isFocused }
+                        } else null
                     )
                 },
                 expanded = false,
@@ -215,7 +208,7 @@ fun NodeBrowserBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Category filters section with animated collapse
+            // Category filters section with animated size changes
             Column(
                 modifier = Modifier.animateContentSize()
             ) {
@@ -227,23 +220,24 @@ fun NodeBrowserBottomSheet(
                     level1Options
                 }
                 if (level1DisplayOptions.isNotEmpty()) {
-                    if (!isChipsCollapsed) {
-                        Text(
-                            text = stringResource(R.string.node_browser_filter_category),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    FilterChipRow(
+                    Text(
+                        text = stringResource(R.string.node_browser_filter_category),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExpandableFilterChipRow(
                         options = level1DisplayOptions,
                         selectedOption = level1Selection,
                         onOptionSelected = { selection ->
                             level1Selection = selection
                             level2Selection = null  // Clear deeper levels
                             level3Selection = null
+                            level2Expanded = false
+                            level3Expanded = false
                         },
-                        collapsed = isChipsCollapsed
+                        expanded = level1Expanded,
+                        onExpandedChange = { level1Expanded = it }
                     )
                 }
 
@@ -255,48 +249,47 @@ fun NodeBrowserBottomSheet(
                     level2Options
                 }
                 if (level2DisplayOptions.isNotEmpty()) {
-                    if (!isChipsCollapsed) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.node_browser_filter_subcategory),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    FilterChipRow(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.node_browser_filter_subcategory),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExpandableFilterChipRow(
                         options = level2DisplayOptions,
                         selectedOption = level2Selection,
                         onOptionSelected = { selection ->
                             level2Selection = selection
                             level3Selection = null  // Clear deeper level
+                            level3Expanded = false
                         },
-                        collapsed = isChipsCollapsed
+                        expanded = level2Expanded,
+                        onExpandedChange = { level2Expanded = it }
                     )
                 }
 
                 // Level 3 filter chips (only show if level 2 selected and options exist)
                 if (level3Options.isNotEmpty()) {
-                    if (!isChipsCollapsed) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.node_browser_filter_group),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    FilterChipRow(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.node_browser_filter_group),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExpandableFilterChipRow(
                         options = level3Options,
                         selectedOption = level3Selection,
                         onOptionSelected = { selection ->
                             level3Selection = selection
                         },
-                        collapsed = isChipsCollapsed
+                        expanded = level3Expanded,
+                        onExpandedChange = { level3Expanded = it }
                     )
                 }
             }
@@ -317,8 +310,7 @@ fun NodeBrowserBottomSheet(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    state = nodeListState
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(
                         items = sortedNodes,
@@ -367,27 +359,40 @@ private fun NodeTypeRow(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FilterChipRow(
+private fun ExpandableFilterChipRow(
     options: List<String>,
     selectedOption: String?,
     onOptionSelected: (String?) -> Unit,
-    modifier: Modifier = Modifier,
-    collapsed: Boolean = false
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     if (options.isEmpty()) return
 
-    if (collapsed) {
-        // Collapsed mode: horizontal scrolling single row
-        LazyRow(
+    // Only show expand/collapse if there are enough options
+    val canExpand = options.size > 3
+
+    if (expanded) {
+        // Expanded mode: wrapping flow layout with collapse button first
+        FlowRow(
             modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(
-                items = options,
-                key = { "chip_$it" }
-            ) { option ->
+            // Collapse button first (FilledTonalIconButton for visual distinction)
+            if (canExpand) {
+                FilledTonalIconButton(
+                    onClick = { onExpandedChange(false) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = null
+                    )
+                }
+            }
+            options.forEach { option ->
                 val isSelected = option == selectedOption
                 FilterChip(
                     selected = isSelected,
@@ -408,12 +413,28 @@ private fun FilterChipRow(
             }
         }
     } else {
-        // Expanded mode: wrapping flow layout
-        FlowRow(
+        // Collapsed mode: horizontal scrolling with expand button first
+        LazyRow(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            options.forEach { option ->
+            // Expand button first (FilledTonalIconButton for visual distinction)
+            if (canExpand) {
+                item(key = "expand_chip") {
+                    FilledTonalIconButton(
+                        onClick = { onExpandedChange(true) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowDown,
+                            contentDescription = null
+                        )
+                    }
+                }
+            }
+            items(
+                items = options,
+                key = { "chip_$it" }
+            ) { option ->
                 val isSelected = option == selectedOption
                 FilterChip(
                     selected = isSelected,
