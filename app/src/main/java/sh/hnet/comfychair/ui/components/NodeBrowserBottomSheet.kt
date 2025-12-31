@@ -339,6 +339,13 @@ private fun NodeTypeRow(
             .padding(vertical = 12.dp, horizontal = 8.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            if (nodeType.category.isNotEmpty()) {
+                Text(
+                    text = nodeType.category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
             Text(
                 text = nodeType.classType,
                 style = MaterialTheme.typography.bodyLarge,
