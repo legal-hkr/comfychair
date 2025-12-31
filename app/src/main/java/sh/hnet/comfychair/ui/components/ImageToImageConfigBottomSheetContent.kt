@@ -27,11 +27,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -64,7 +67,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageUiState
  * Content for the Image-to-image configuration bottom sheet.
  * Supports both Inpainting and Editing modes.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ImageToImageConfigBottomSheetContent(
     uiState: ImageToImageUiState,
@@ -477,6 +480,7 @@ private fun EditingModeContent(
 /**
  * Reference image thumbnail with delete button
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReferenceImageThumbnail(
     image: Bitmap?,
@@ -508,22 +512,21 @@ private fun ReferenceImageThumbnail(
                 modifier = Modifier.matchParentSize()
             )
             // Delete button in top-right corner
-            IconButton(
+            FilledIconButton(
                 onClick = onClear,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(24.dp)
+                    .padding(8.dp)
+                    .size(40.dp),
+                shape = IconButtonDefaults.smallSquareShape,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.content_description_clear),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                            RoundedCornerShape(4.dp)
-                        )
+                    contentDescription = stringResource(R.string.content_description_clear)
                 )
             }
         } else {
