@@ -55,6 +55,13 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ComfyChair.Fullscreen" />
 
+        <!-- MaskEditorActivity - Fullscreen inpainting mask editor -->
+        <activity
+            android:name=".MaskEditorActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.ComfyChair.Fullscreen" />
+
         <!-- WorkflowEditorActivity - Workflow graph editor -->
         <activity
             android:name=".WorkflowEditorActivity"

@@ -57,16 +57,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.MaskEditorActivity
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
+import sh.hnet.comfychair.cache.MaskEditorStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.ImageToImageConfigBottomSheetContent
-import sh.hnet.comfychair.ui.components.MaskEditorDialog
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -97,7 +98,6 @@ fun ImageToImageScreen(
     val isThisScreenExecuting = queueState.executingOwnerId == ImageToImageViewModel.OWNER_ID
 
     var showOptionsSheet by remember { mutableStateOf(false) }
-    var showMaskEditor by remember { mutableStateOf(false) }
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -172,7 +172,31 @@ fun ImageToImageScreen(
                 }
                 // Edit mask button (only in inpainting mode when source image exists)
                 if (uiState.sourceImage != null && uiState.mode == ImageToImageMode.INPAINTING) {
-                    IconButton(onClick = { showMaskEditor = true }) {
+                    IconButton(onClick = {
+                        // Initialize state holder and launch mask editor activity
+                        MaskEditorStateHolder.initialize(
+                            sourceImage = uiState.sourceImage!!,
+                            maskPaths = uiState.maskPaths,
+                            brushSize = uiState.brushSize,
+                            isEraserMode = uiState.isEraserMode,
+                            onPathAdded = { path, isEraser, brushSize ->
+                                imageToImageViewModel.addMaskPath(path, isEraser, brushSize)
+                                // Update state holder with new paths
+                                MaskEditorStateHolder.updateMaskPaths(imageToImageViewModel.uiState.value.maskPaths)
+                            },
+                            onClearMask = {
+                                imageToImageViewModel.clearMask()
+                                MaskEditorStateHolder.updateMaskPaths(emptyList())
+                            },
+                            onInvertMask = {
+                                imageToImageViewModel.invertMask()
+                                MaskEditorStateHolder.updateMaskPaths(imageToImageViewModel.uiState.value.maskPaths)
+                            },
+                            onBrushSizeChange = { imageToImageViewModel.onBrushSizeChange(it) },
+                            onEraserModeChange = { imageToImageViewModel.onEraserModeChange(it) }
+                        )
+                        context.startActivity(MaskEditorActivity.createIntent(context))
+                    }) {
                         Icon(Icons.Default.Brush, contentDescription = stringResource(R.string.edit_mask))
                     }
                     // Clear mask button
@@ -529,23 +553,5 @@ fun ImageToImageScreen(
                 onEditingLoraStrengthChange = imageToImageViewModel::onEditingLoraStrengthChange
             )
         }
-    }
-
-    // Mask editor dialog
-    if (showMaskEditor && uiState.sourceImage != null) {
-        MaskEditorDialog(
-            sourceImage = uiState.sourceImage!!,
-            maskPaths = uiState.maskPaths,
-            initialBrushSize = uiState.brushSize,
-            isEraserMode = uiState.isEraserMode,
-            onPathAdded = { path, isEraser, brushSize ->
-                imageToImageViewModel.addMaskPath(path, isEraser, brushSize)
-            },
-            onClearMask = { imageToImageViewModel.clearMask() },
-            onInvertMask = { imageToImageViewModel.invertMask() },
-            onBrushSizeChange = { imageToImageViewModel.onBrushSizeChange(it) },
-            onEraserModeChange = { imageToImageViewModel.onEraserModeChange(it) },
-            onDismiss = { showMaskEditor = false }
-        )
     }
 }
