@@ -437,7 +437,13 @@ fun WorkflowEditorScreen(
                     viewModel.resetView()
                 },
                 onEnterEditMode = { viewModel.enterEditMode() },
-                onExitEditMode = { viewModel.handleExitEditModeWithConfirmation() },
+                onExitEditMode = {
+                    if (uiState.isCreateMode) {
+                        viewModel.handleCreateModeClose()
+                    } else {
+                        viewModel.handleExitEditModeWithConfirmation()
+                    }
+                },
                 onDeleteSelected = { viewModel.deleteSelectedNodes() },
                 onDuplicateSelected = { viewModel.duplicateSelectedNodes() },
                 onAddNode = {
@@ -486,6 +492,7 @@ fun WorkflowEditorScreen(
                     when {
                         uiState.isEditingNode -> viewModel.dismissNodeEditor()
                         uiState.isFieldMappingMode -> viewModel.cancelMapping()
+                        uiState.isCreateMode -> viewModel.handleCreateModeClose()
                         uiState.isEditMode -> viewModel.handleEditExistingModeClose()
                         else -> onClose()
                     }
