@@ -639,7 +639,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     // Validation
 
     /**
-     * Validate current configuration before generation
+     * Validate current configuration before generation.
+     * Only checks for validation errors - model selections are optional.
      */
     override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
@@ -648,32 +649,11 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             return false
         }
 
-        val result = if (state.isCheckpointMode) {
-            // Model validation: only require checkpoint if mapped
-            val checkpointOk = !state.currentWorkflowHasCheckpointName || state.selectedCheckpoint.isNotEmpty()
-
-            checkpointOk &&
-            ValidationUtils.validateDimension(state.checkpointWidth) == null &&
-            ValidationUtils.validateDimension(state.checkpointHeight) == null &&
-            ValidationUtils.validateSteps(state.checkpointSteps) == null &&
-            ValidationUtils.validateCfg(state.checkpointCfg) == null
-        } else {
-            // Model validation: only require models if mapped
-            val unetOk = !state.currentWorkflowHasUnetName || state.selectedUnet.isNotEmpty()
-            val vaeOk = !state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()
-            // CLIP is optional - workflow can have embedded defaults
-            // CFG validation: skip if workflow doesn't have CFG
-            val cfgValid = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.unetCfg) == null
-
-            unetOk &&
-            vaeOk &&
-            ValidationUtils.validateDimension(state.unetWidth) == null &&
-            ValidationUtils.validateDimension(state.unetHeight) == null &&
-            ValidationUtils.validateSteps(state.unetSteps) == null &&
-            cfgValid
-        }
-
-        return result
+        // Only check for validation errors in numeric fields
+        return state.widthError == null &&
+               state.heightError == null &&
+               state.stepsError == null &&
+               state.cfgError == null
     }
 
     /**

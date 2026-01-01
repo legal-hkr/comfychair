@@ -137,17 +137,13 @@ object ValidationUtils {
 
     /**
      * Validate model selection against available models.
-     * Returns current if valid, otherwise defaults to first available or empty.
+     * Returns current if valid and exists in available list, otherwise empty.
      * @param current The currently selected model
      * @param available List of available models
-     * @return Valid model selection
+     * @return Valid model selection or empty string
      */
     fun validateModelSelection(current: String, available: List<String>): String {
-        return when {
-            current.isNotEmpty() && available.contains(current) -> current
-            available.isNotEmpty() -> available[0]
-            else -> ""
-        }
+        return if (current.isNotEmpty() && available.contains(current)) current else ""
     }
 
     // ===========================================

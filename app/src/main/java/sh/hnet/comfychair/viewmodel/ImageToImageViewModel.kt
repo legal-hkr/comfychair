@@ -1488,50 +1488,23 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
 
+        if (state.positivePrompt.isBlank()) {
+            return false
+        }
+
         return when (state.mode) {
             ImageToImageMode.EDITING -> {
-                // Editing mode: workflow required, models conditional on mapping
-                val workflowOk = state.selectedEditingWorkflow.isNotEmpty()
-                // UNET required only if workflow has it mapped
-                val unetOk = !state.currentWorkflowHasUnetName || state.selectedEditingUnet.isNotEmpty()
-                // LoRA required only if workflow has it mapped
-                val loraOk = !state.currentWorkflowHasLoraName || state.selectedEditingLora.isNotEmpty()
-                // VAE required only if workflow has it mapped
-                val vaeOk = !state.currentWorkflowHasVaeName || state.selectedEditingVae.isNotEmpty()
-                // CLIP is optional - workflow can have embedded defaults
-                // Steps required only if workflow has it mapped
-                val stepsOk = !state.currentWorkflowHasSteps || state.editingSteps.toIntOrNull() != null
-                // Megapixels required only if workflow has it mapped
-                val megapixelsOk = !state.currentWorkflowHasMegapixels || state.editingMegapixels.toFloatOrNull() != null
-                // CFG required only if workflow has it mapped
-                val cfgOk = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.editingCfg) == null
-
-                workflowOk && unetOk && loraOk && vaeOk && stepsOk && megapixelsOk && cfgOk
+                // Editing mode: only check for validation errors
+                state.stepsError == null &&
+                state.megapixelsError == null &&
+                state.cfgError == null
             }
             ImageToImageMode.INPAINTING -> {
-                // Inpainting mode: check based on workflow type
-                if (state.isCheckpointMode) {
-                    state.selectedWorkflow.isNotEmpty() &&
-                    // Checkpoint required only if workflow has it mapped
-                    (!state.currentWorkflowHasCheckpointName || state.selectedCheckpoint.isNotEmpty()) &&
-                    // Megapixels required only if workflow has it mapped
-                    (!state.currentWorkflowHasMegapixels || (state.megapixels.toFloatOrNull() != null && state.megapixelsError == null)) &&
-                    // Steps required only if workflow has it mapped
-                    (!state.currentWorkflowHasSteps || state.checkpointSteps.toIntOrNull() != null) &&
-                    // CFG required only if workflow has it mapped
-                    (!state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.checkpointCfg) == null)
-                } else {
-                    state.selectedWorkflow.isNotEmpty() &&
-                    // UNET required only if workflow has it mapped
-                    (!state.currentWorkflowHasUnetName || state.selectedUnet.isNotEmpty()) &&
-                    // VAE required only if workflow has it mapped
-                    (!state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()) &&
-                    // CLIP is optional - workflow can have embedded defaults
-                    // Steps required only if workflow has it mapped
-                    (!state.currentWorkflowHasSteps || state.unetSteps.toIntOrNull() != null) &&
-                    // CFG required only if workflow has it mapped
-                    (!state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.unetCfg) == null)
-                }
+                // Inpainting mode: source image with mask required, plus validation errors
+                state.sourceImage != null &&
+                state.megapixelsError == null &&
+                state.stepsError == null &&
+                state.cfgError == null
             }
         }
     }

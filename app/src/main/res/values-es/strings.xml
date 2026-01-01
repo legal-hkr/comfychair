@@ -246,13 +246,11 @@
     <string name="workflows_settings_title">Workflows</string>
 
     <!-- Workflow management strings -->
-    <string name="workflow_section_tti_checkpoint">Texto a imagen (Checkpoint)</string>
-    <string name="workflow_section_tti_unet">Texto a imagen (UNET)</string>
-    <string name="workflow_section_iti_checkpoint">Inpainting (Checkpoint)</string>
-    <string name="workflow_section_iti_unet">Inpainting (UNET)</string>
-    <string name="workflow_section_ite_unet">Edición de imagen (UNET)</string>
-    <string name="workflow_section_ttv_unet">Texto a vídeo (UNET)</string>
-    <string name="workflow_section_itv_unet">Imagen a vídeo (UNET)</string>
+    <string name="workflow_section_tti">Texto a imagen</string>
+    <string name="workflow_section_iti_inpainting">Imagen a imagen: Inpainting</string>
+    <string name="workflow_section_iti_editing">Imagen a imagen: Edición</string>
+    <string name="workflow_section_ttv">Texto a vídeo</string>
+    <string name="workflow_section_itv">Imagen a vídeo</string>
     <string name="workflow_section_empty">Sin workflows</string>
     <string name="workflow_built_in_label">Integrado</string>
     <string name="workflow_name_label">Nombre</string>
@@ -461,8 +459,10 @@
     <string name="field_unet_model">Modelo UNET</string>
     <string name="field_input_image">Imagen de entrada</string>
     <string name="field_frame_rate">Velocidad de fotogramas</string>
-    <string name="field_clip1">CLIP 1 (T5)</string>
-    <string name="field_clip2">CLIP 2 (L)</string>
+    <string name="field_clip1">CLIP 1</string>
+    <string name="field_clip2">CLIP 2</string>
+    <string name="field_clip3">CLIP 3</string>
+    <string name="field_clip4">CLIP 4</string>
 
     <!-- Field descriptions for workflow editor -->
     <string name="field_desc_positive_prompt">El prompt de texto para la generación</string>

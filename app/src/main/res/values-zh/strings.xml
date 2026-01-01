@@ -246,13 +246,11 @@
     <string name="workflows_settings_title">工作流</string>
 
     <!-- Workflow management strings -->
-    <string name="workflow_section_tti_checkpoint">文生图 (Checkpoint)</string>
-    <string name="workflow_section_tti_unet">文生图 (UNET)</string>
-    <string name="workflow_section_iti_checkpoint">图像修复 (Checkpoint)</string>
-    <string name="workflow_section_iti_unet">图像修复 (UNET)</string>
-    <string name="workflow_section_ite_unet">图像编辑 (UNET)</string>
-    <string name="workflow_section_ttv_unet">文生视频 (UNET)</string>
-    <string name="workflow_section_itv_unet">图生视频 (UNET)</string>
+    <string name="workflow_section_tti">文生图</string>
+    <string name="workflow_section_iti_inpainting">图生图：修复</string>
+    <string name="workflow_section_iti_editing">图生图：编辑</string>
+    <string name="workflow_section_ttv">文生视频</string>
+    <string name="workflow_section_itv">图生视频</string>
     <string name="workflow_section_empty">暂无工作流</string>
     <string name="workflow_built_in_label">内置</string>
     <string name="workflow_name_label">名称</string>
@@ -461,8 +459,10 @@
     <string name="field_unet_model">UNET 模型</string>
     <string name="field_input_image">输入图像</string>
     <string name="field_frame_rate">帧率</string>
-    <string name="field_clip1">CLIP 1 (T5)</string>
-    <string name="field_clip2">CLIP 2 (L)</string>
+    <string name="field_clip1">CLIP 1</string>
+    <string name="field_clip2">CLIP 2</string>
+    <string name="field_clip3">CLIP 3</string>
+    <string name="field_clip4">CLIP 4</string>
 
     <!-- Field descriptions for workflow editor -->
     <string name="field_desc_positive_prompt">用于生成的文本提示词</string>

@@ -737,19 +737,13 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
 
     override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
-        return state.selectedWorkflow.isNotEmpty() &&
-                // High noise UNET required only if workflow has it mapped
-                (!state.currentWorkflowHasHighnoiseUnet || state.selectedHighnoiseUnet.isNotEmpty()) &&
-                // Low noise UNET required only if workflow has it mapped
-                (!state.currentWorkflowHasLownoiseUnet || state.selectedLownoiseUnet.isNotEmpty()) &&
-                // High noise LoRA required only if workflow has it mapped
-                (!state.currentWorkflowHasHighnoiseLora || state.selectedHighnoiseLora.isNotEmpty()) &&
-                // Low noise LoRA required only if workflow has it mapped
-                (!state.currentWorkflowHasLownoiseLora || state.selectedLownoiseLora.isNotEmpty()) &&
-                // VAE required only if workflow has it mapped
-                (!state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()) &&
-                // CLIP is optional - workflow can have embedded defaults
-                state.widthError == null &&
+
+        if (state.positivePrompt.isBlank()) {
+            return false
+        }
+
+        // Only check for validation errors in numeric fields
+        return state.widthError == null &&
                 state.heightError == null &&
                 state.lengthError == null &&
                 state.fpsError == null
