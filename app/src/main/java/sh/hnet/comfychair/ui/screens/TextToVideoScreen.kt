@@ -61,7 +61,9 @@ import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
-import sh.hnet.comfychair.ui.components.TextToVideoConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.TextToVideoCallbacks
+import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
@@ -369,41 +371,46 @@ fun TextToVideoScreen(
             sheetState = configSheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
-            TextToVideoConfigBottomSheetContent(
-                uiState = uiState,
-                onWorkflowChange = textToVideoViewModel::onWorkflowChange,
-                onViewWorkflow = {
-                    val workflowId = uiState.availableWorkflows
-                        .find { it.name == uiState.selectedWorkflow }?.id
-                    if (workflowId != null) {
-                        context.startActivity(
-                            WorkflowEditorActivity.createIntent(context, workflowId)
-                        )
-                    }
-                },
-                onNegativePromptChange = textToVideoViewModel::onNegativePromptChange,
-                onHighnoiseUnetChange = textToVideoViewModel::onHighnoiseUnetChange,
-                onLownoiseUnetChange = textToVideoViewModel::onLownoiseUnetChange,
-                onHighnoiseLoraChange = textToVideoViewModel::onHighnoiseLoraChange,
-                onLownoiseLoraChange = textToVideoViewModel::onLownoiseLoraChange,
-                onVaeChange = textToVideoViewModel::onVaeChange,
-                onClipChange = textToVideoViewModel::onClipChange,
-                onClip1Change = textToVideoViewModel::onClip1Change,
-                onClip2Change = textToVideoViewModel::onClip2Change,
-                onClip3Change = textToVideoViewModel::onClip3Change,
-                onClip4Change = textToVideoViewModel::onClip4Change,
-                onWidthChange = textToVideoViewModel::onWidthChange,
-                onHeightChange = textToVideoViewModel::onHeightChange,
-                onLengthChange = textToVideoViewModel::onLengthChange,
-                onFpsChange = textToVideoViewModel::onFpsChange,
-                onAddHighnoiseLora = textToVideoViewModel::onAddHighnoiseLora,
-                onRemoveHighnoiseLora = textToVideoViewModel::onRemoveHighnoiseLora,
-                onHighnoiseLoraChainNameChange = textToVideoViewModel::onHighnoiseLoraChainNameChange,
-                onHighnoiseLoraChainStrengthChange = textToVideoViewModel::onHighnoiseLoraChainStrengthChange,
-                onAddLownoiseLora = textToVideoViewModel::onAddLownoiseLora,
-                onRemoveLownoiseLora = textToVideoViewModel::onRemoveLownoiseLora,
-                onLownoiseLoraChainNameChange = textToVideoViewModel::onLownoiseLoraChainNameChange,
-                onLownoiseLoraChainStrengthChange = textToVideoViewModel::onLownoiseLoraChainStrengthChange
+            val callbacks = remember(textToVideoViewModel) {
+                TextToVideoCallbacks(
+                    onWorkflowChange = textToVideoViewModel::onWorkflowChange,
+                    onViewWorkflow = {
+                        val workflowId = uiState.availableWorkflows
+                            .find { it.name == uiState.selectedWorkflow }?.id
+                        if (workflowId != null) {
+                            context.startActivity(
+                                WorkflowEditorActivity.createIntent(context, workflowId)
+                            )
+                        }
+                    },
+                    onNegativePromptChange = textToVideoViewModel::onNegativePromptChange,
+                    onHighnoiseUnetChange = textToVideoViewModel::onHighnoiseUnetChange,
+                    onLownoiseUnetChange = textToVideoViewModel::onLownoiseUnetChange,
+                    onHighnoiseLoraChange = textToVideoViewModel::onHighnoiseLoraChange,
+                    onLownoiseLoraChange = textToVideoViewModel::onLownoiseLoraChange,
+                    onVaeChange = textToVideoViewModel::onVaeChange,
+                    onClipChange = textToVideoViewModel::onClipChange,
+                    onClip1Change = textToVideoViewModel::onClip1Change,
+                    onClip2Change = textToVideoViewModel::onClip2Change,
+                    onClip3Change = textToVideoViewModel::onClip3Change,
+                    onClip4Change = textToVideoViewModel::onClip4Change,
+                    onWidthChange = textToVideoViewModel::onWidthChange,
+                    onHeightChange = textToVideoViewModel::onHeightChange,
+                    onLengthChange = textToVideoViewModel::onLengthChange,
+                    onFpsChange = textToVideoViewModel::onFpsChange,
+                    onAddHighnoiseLora = textToVideoViewModel::onAddHighnoiseLora,
+                    onRemoveHighnoiseLora = textToVideoViewModel::onRemoveHighnoiseLora,
+                    onHighnoiseLoraNameChange = textToVideoViewModel::onHighnoiseLoraChainNameChange,
+                    onHighnoiseLoraStrengthChange = textToVideoViewModel::onHighnoiseLoraChainStrengthChange,
+                    onAddLownoiseLora = textToVideoViewModel::onAddLownoiseLora,
+                    onRemoveLownoiseLora = textToVideoViewModel::onRemoveLownoiseLora,
+                    onLownoiseLoraNameChange = textToVideoViewModel::onLownoiseLoraChainNameChange,
+                    onLownoiseLoraStrengthChange = textToVideoViewModel::onLownoiseLoraChainStrengthChange
+                )
+            }
+            ConfigBottomSheetContent(
+                config = uiState.toBottomSheetConfig(callbacks),
+                workflowName = uiState.selectedWorkflow
             )
         }
     }

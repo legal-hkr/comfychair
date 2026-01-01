@@ -55,7 +55,9 @@ import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
-import sh.hnet.comfychair.ui.components.TextToImageConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.TextToImageCallbacks
+import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
@@ -348,41 +350,42 @@ fun TextToImageScreen(
             sheetState = sheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
-            TextToImageConfigBottomSheetContent(
-                uiState = uiState,
-                // Unified workflow callback
-                onWorkflowChange = textToImageViewModel::onWorkflowChange,
-                onViewWorkflow = {
-                    val workflowId = uiState.availableWorkflows
-                        .find { it.name == uiState.selectedWorkflow }?.id
-                    if (workflowId != null) {
-                        context.startActivity(
-                            WorkflowEditorActivity.createIntent(context, workflowId)
-                        )
-                    }
-                },
-                // Model selection callbacks
-                onCheckpointChange = textToImageViewModel::onCheckpointChange,
-                onUnetChange = textToImageViewModel::onUnetChange,
-                onVaeChange = textToImageViewModel::onVaeChange,
-                onClipChange = textToImageViewModel::onClipChange,
-                onClip1Change = textToImageViewModel::onClip1Change,
-                onClip2Change = textToImageViewModel::onClip2Change,
-                onClip3Change = textToImageViewModel::onClip3Change,
-                onClip4Change = textToImageViewModel::onClip4Change,
-                // Unified parameter callbacks
-                onNegativePromptChange = textToImageViewModel::onNegativePromptChange,
-                onWidthChange = textToImageViewModel::onWidthChange,
-                onHeightChange = textToImageViewModel::onHeightChange,
-                onStepsChange = textToImageViewModel::onStepsChange,
-                onCfgChange = textToImageViewModel::onCfgChange,
-                onSamplerChange = textToImageViewModel::onSamplerChange,
-                onSchedulerChange = textToImageViewModel::onSchedulerChange,
-                // Unified LoRA chain callbacks
-                onAddLora = textToImageViewModel::onAddLora,
-                onRemoveLora = textToImageViewModel::onRemoveLora,
-                onLoraNameChange = textToImageViewModel::onLoraNameChange,
-                onLoraStrengthChange = textToImageViewModel::onLoraStrengthChange
+            val callbacks = remember(textToImageViewModel) {
+                TextToImageCallbacks(
+                    onWorkflowChange = textToImageViewModel::onWorkflowChange,
+                    onViewWorkflow = {
+                        val workflowId = uiState.availableWorkflows
+                            .find { it.name == uiState.selectedWorkflow }?.id
+                        if (workflowId != null) {
+                            context.startActivity(
+                                WorkflowEditorActivity.createIntent(context, workflowId)
+                            )
+                        }
+                    },
+                    onNegativePromptChange = textToImageViewModel::onNegativePromptChange,
+                    onCheckpointChange = textToImageViewModel::onCheckpointChange,
+                    onUnetChange = textToImageViewModel::onUnetChange,
+                    onVaeChange = textToImageViewModel::onVaeChange,
+                    onClipChange = textToImageViewModel::onClipChange,
+                    onClip1Change = textToImageViewModel::onClip1Change,
+                    onClip2Change = textToImageViewModel::onClip2Change,
+                    onClip3Change = textToImageViewModel::onClip3Change,
+                    onClip4Change = textToImageViewModel::onClip4Change,
+                    onWidthChange = textToImageViewModel::onWidthChange,
+                    onHeightChange = textToImageViewModel::onHeightChange,
+                    onStepsChange = textToImageViewModel::onStepsChange,
+                    onCfgChange = textToImageViewModel::onCfgChange,
+                    onSamplerChange = textToImageViewModel::onSamplerChange,
+                    onSchedulerChange = textToImageViewModel::onSchedulerChange,
+                    onAddLora = textToImageViewModel::onAddLora,
+                    onRemoveLora = textToImageViewModel::onRemoveLora,
+                    onLoraNameChange = textToImageViewModel::onLoraNameChange,
+                    onLoraStrengthChange = textToImageViewModel::onLoraStrengthChange
+                )
+            }
+            ConfigBottomSheetContent(
+                config = uiState.toBottomSheetConfig(callbacks),
+                workflowName = uiState.selectedWorkflow
             )
         }
     }

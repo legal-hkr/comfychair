@@ -67,7 +67,9 @@ import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
-import sh.hnet.comfychair.ui.components.ImageToImageConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.ImageToImageCallbacks
+import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -486,79 +488,85 @@ fun ImageToImageScreen(
             sheetState = optionsSheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
-            ImageToImageConfigBottomSheetContent(
-                uiState = uiState,
-                // Mode selection
-                onModeChange = imageToImageViewModel::onModeChange,
-                // Reference image callbacks (editing mode)
-                onReferenceImage1Change = { uri -> imageToImageViewModel.onReferenceImage1Change(context, uri) },
-                onReferenceImage2Change = { uri -> imageToImageViewModel.onReferenceImage2Change(context, uri) },
-                onClearReferenceImage1 = imageToImageViewModel::onClearReferenceImage1,
-                onClearReferenceImage2 = imageToImageViewModel::onClearReferenceImage2,
-                // Inpainting workflow callback
-                onWorkflowChange = imageToImageViewModel::onWorkflowChange,
-                onViewWorkflow = {
-                    val workflowId = uiState.availableWorkflows
-                        .find { it.name == uiState.selectedWorkflow }?.id
-                    if (workflowId != null) {
-                        context.startActivity(
-                            WorkflowEditorActivity.createIntent(context, workflowId)
-                        )
-                    }
-                },
-                // Inpainting model selection callbacks
-                onCheckpointChange = imageToImageViewModel::onCheckpointChange,
-                onUnetChange = imageToImageViewModel::onUnetChange,
-                onVaeChange = imageToImageViewModel::onVaeChange,
-                onClipChange = imageToImageViewModel::onClipChange,
-                onClip1Change = imageToImageViewModel::onClip1Change,
-                onClip2Change = imageToImageViewModel::onClip2Change,
-                onClip3Change = imageToImageViewModel::onClip3Change,
-                onClip4Change = imageToImageViewModel::onClip4Change,
-                // Inpainting parameter callbacks
-                onNegativePromptChange = imageToImageViewModel::onNegativePromptChange,
-                onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
-                onStepsChange = imageToImageViewModel::onStepsChange,
-                onCfgChange = imageToImageViewModel::onCfgChange,
-                onSamplerChange = imageToImageViewModel::onSamplerChange,
-                onSchedulerChange = imageToImageViewModel::onSchedulerChange,
-                // Inpainting LoRA chain callbacks
-                onAddLora = imageToImageViewModel::onAddLora,
-                onRemoveLora = imageToImageViewModel::onRemoveLora,
-                onLoraNameChange = imageToImageViewModel::onLoraNameChange,
-                onLoraStrengthChange = imageToImageViewModel::onLoraStrengthChange,
-                // Editing workflow callback
-                onEditingWorkflowChange = imageToImageViewModel::onEditingWorkflowChange,
-                onViewEditingWorkflow = {
-                    val workflowId = uiState.editingWorkflows
-                        .find { it.name == uiState.selectedEditingWorkflow }?.id
-                    if (workflowId != null) {
-                        context.startActivity(
-                            WorkflowEditorActivity.createIntent(context, workflowId)
-                        )
-                    }
-                },
-                // Editing model selection callbacks
-                onEditingUnetChange = imageToImageViewModel::onEditingUnetChange,
-                onEditingLoraChange = imageToImageViewModel::onEditingLoraChange,
-                onEditingVaeChange = imageToImageViewModel::onEditingVaeChange,
-                onEditingClipChange = imageToImageViewModel::onEditingClipChange,
-                onEditingClip1Change = imageToImageViewModel::onEditingClip1Change,
-                onEditingClip2Change = imageToImageViewModel::onEditingClip2Change,
-                onEditingClip3Change = imageToImageViewModel::onEditingClip3Change,
-                onEditingClip4Change = imageToImageViewModel::onEditingClip4Change,
-                // Editing parameter callbacks
-                onEditingNegativePromptChange = imageToImageViewModel::onEditingNegativePromptChange,
-                onEditingMegapixelsChange = imageToImageViewModel::onEditingMegapixelsChange,
-                onEditingStepsChange = imageToImageViewModel::onEditingStepsChange,
-                onEditingCfgChange = imageToImageViewModel::onEditingCfgChange,
-                onEditingSamplerChange = imageToImageViewModel::onEditingSamplerChange,
-                onEditingSchedulerChange = imageToImageViewModel::onEditingSchedulerChange,
-                // Editing LoRA chain callbacks
-                onAddEditingLora = imageToImageViewModel::onAddEditingLora,
-                onRemoveEditingLora = imageToImageViewModel::onRemoveEditingLora,
-                onEditingLoraNameChange = imageToImageViewModel::onEditingLoraNameChange,
-                onEditingLoraStrengthChange = imageToImageViewModel::onEditingLoraStrengthChange
+            val callbacks = remember(imageToImageViewModel) {
+                ImageToImageCallbacks(
+                    // Mode selection
+                    onModeChange = imageToImageViewModel::onModeChange,
+                    // Reference image callbacks (editing mode)
+                    onReferenceImage1Change = { uri -> imageToImageViewModel.onReferenceImage1Change(context, uri) },
+                    onClearReferenceImage1 = imageToImageViewModel::onClearReferenceImage1,
+                    onReferenceImage2Change = { uri -> imageToImageViewModel.onReferenceImage2Change(context, uri) },
+                    onClearReferenceImage2 = imageToImageViewModel::onClearReferenceImage2,
+                    // Inpainting workflow callback
+                    onWorkflowChange = imageToImageViewModel::onWorkflowChange,
+                    onViewWorkflow = {
+                        val workflowId = uiState.availableWorkflows
+                            .find { it.name == uiState.selectedWorkflow }?.id
+                        if (workflowId != null) {
+                            context.startActivity(
+                                WorkflowEditorActivity.createIntent(context, workflowId)
+                            )
+                        }
+                    },
+                    // Editing workflow callback
+                    onEditingWorkflowChange = imageToImageViewModel::onEditingWorkflowChange,
+                    onViewEditingWorkflow = {
+                        val workflowId = uiState.editingWorkflows
+                            .find { it.name == uiState.selectedEditingWorkflow }?.id
+                        if (workflowId != null) {
+                            context.startActivity(
+                                WorkflowEditorActivity.createIntent(context, workflowId)
+                            )
+                        }
+                    },
+                    // Negative prompt
+                    onNegativePromptChange = imageToImageViewModel::onNegativePromptChange,
+                    // Inpainting model selection callbacks
+                    onCheckpointChange = imageToImageViewModel::onCheckpointChange,
+                    onUnetChange = imageToImageViewModel::onUnetChange,
+                    onVaeChange = imageToImageViewModel::onVaeChange,
+                    onClipChange = imageToImageViewModel::onClipChange,
+                    onClip1Change = imageToImageViewModel::onClip1Change,
+                    onClip2Change = imageToImageViewModel::onClip2Change,
+                    onClip3Change = imageToImageViewModel::onClip3Change,
+                    onClip4Change = imageToImageViewModel::onClip4Change,
+                    // Editing model selection callbacks
+                    onEditingUnetChange = imageToImageViewModel::onEditingUnetChange,
+                    onEditingLoraChange = imageToImageViewModel::onEditingLoraChange,
+                    onEditingVaeChange = imageToImageViewModel::onEditingVaeChange,
+                    onEditingClipChange = imageToImageViewModel::onEditingClipChange,
+                    onEditingClip1Change = imageToImageViewModel::onEditingClip1Change,
+                    onEditingClip2Change = imageToImageViewModel::onEditingClip2Change,
+                    onEditingClip3Change = imageToImageViewModel::onEditingClip3Change,
+                    onEditingClip4Change = imageToImageViewModel::onEditingClip4Change,
+                    // Inpainting parameter callbacks
+                    onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
+                    onStepsChange = imageToImageViewModel::onStepsChange,
+                    onCfgChange = imageToImageViewModel::onCfgChange,
+                    onSamplerChange = imageToImageViewModel::onSamplerChange,
+                    onSchedulerChange = imageToImageViewModel::onSchedulerChange,
+                    // Editing parameter callbacks
+                    onEditingMegapixelsChange = imageToImageViewModel::onEditingMegapixelsChange,
+                    onEditingStepsChange = imageToImageViewModel::onEditingStepsChange,
+                    onEditingCfgChange = imageToImageViewModel::onEditingCfgChange,
+                    onEditingSamplerChange = imageToImageViewModel::onEditingSamplerChange,
+                    onEditingSchedulerChange = imageToImageViewModel::onEditingSchedulerChange,
+                    // Inpainting LoRA chain callbacks
+                    onAddLora = imageToImageViewModel::onAddLora,
+                    onRemoveLora = imageToImageViewModel::onRemoveLora,
+                    onLoraNameChange = imageToImageViewModel::onLoraNameChange,
+                    onLoraStrengthChange = imageToImageViewModel::onLoraStrengthChange,
+                    // Editing LoRA chain callbacks
+                    onAddEditingLora = imageToImageViewModel::onAddEditingLora,
+                    onRemoveEditingLora = imageToImageViewModel::onRemoveEditingLora,
+                    onEditingLoraNameChange = imageToImageViewModel::onEditingLoraNameChange,
+                    onEditingLoraStrengthChange = imageToImageViewModel::onEditingLoraStrengthChange
+                )
+            }
+            ConfigBottomSheetContent(
+                config = uiState.toBottomSheetConfig(callbacks),
+                workflowName = if (uiState.mode == ImageToImageMode.EDITING)
+                    uiState.selectedEditingWorkflow else uiState.selectedWorkflow
             )
         }
     }

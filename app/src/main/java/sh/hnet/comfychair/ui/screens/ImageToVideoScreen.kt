@@ -67,7 +67,9 @@ import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
-import sh.hnet.comfychair.ui.components.ImageToVideoConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.ImageToVideoCallbacks
+import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
@@ -462,41 +464,46 @@ fun ImageToVideoScreen(
             sheetState = configSheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
-            ImageToVideoConfigBottomSheetContent(
-                uiState = uiState,
-                onWorkflowChange = imageToVideoViewModel::onWorkflowChange,
-                onViewWorkflow = {
-                    val workflowId = uiState.availableWorkflows
-                        .find { it.name == uiState.selectedWorkflow }?.id
-                    if (workflowId != null) {
-                        context.startActivity(
-                            WorkflowEditorActivity.createIntent(context, workflowId)
-                        )
-                    }
-                },
-                onNegativePromptChange = imageToVideoViewModel::onNegativePromptChange,
-                onHighnoiseUnetChange = imageToVideoViewModel::onHighnoiseUnetChange,
-                onLownoiseUnetChange = imageToVideoViewModel::onLownoiseUnetChange,
-                onHighnoiseLoraChange = imageToVideoViewModel::onHighnoiseLoraChange,
-                onLownoiseLoraChange = imageToVideoViewModel::onLownoiseLoraChange,
-                onVaeChange = imageToVideoViewModel::onVaeChange,
-                onClipChange = imageToVideoViewModel::onClipChange,
-                onClip1Change = imageToVideoViewModel::onClip1Change,
-                onClip2Change = imageToVideoViewModel::onClip2Change,
-                onClip3Change = imageToVideoViewModel::onClip3Change,
-                onClip4Change = imageToVideoViewModel::onClip4Change,
-                onWidthChange = imageToVideoViewModel::onWidthChange,
-                onHeightChange = imageToVideoViewModel::onHeightChange,
-                onLengthChange = imageToVideoViewModel::onLengthChange,
-                onFpsChange = imageToVideoViewModel::onFpsChange,
-                onAddHighnoiseLora = imageToVideoViewModel::onAddHighnoiseLora,
-                onRemoveHighnoiseLora = imageToVideoViewModel::onRemoveHighnoiseLora,
-                onHighnoiseLoraChainNameChange = imageToVideoViewModel::onHighnoiseLoraChainNameChange,
-                onHighnoiseLoraChainStrengthChange = imageToVideoViewModel::onHighnoiseLoraChainStrengthChange,
-                onAddLownoiseLora = imageToVideoViewModel::onAddLownoiseLora,
-                onRemoveLownoiseLora = imageToVideoViewModel::onRemoveLownoiseLora,
-                onLownoiseLoraChainNameChange = imageToVideoViewModel::onLownoiseLoraChainNameChange,
-                onLownoiseLoraChainStrengthChange = imageToVideoViewModel::onLownoiseLoraChainStrengthChange
+            val callbacks = remember(imageToVideoViewModel) {
+                ImageToVideoCallbacks(
+                    onWorkflowChange = imageToVideoViewModel::onWorkflowChange,
+                    onViewWorkflow = {
+                        val workflowId = uiState.availableWorkflows
+                            .find { it.name == uiState.selectedWorkflow }?.id
+                        if (workflowId != null) {
+                            context.startActivity(
+                                WorkflowEditorActivity.createIntent(context, workflowId)
+                            )
+                        }
+                    },
+                    onNegativePromptChange = imageToVideoViewModel::onNegativePromptChange,
+                    onHighnoiseUnetChange = imageToVideoViewModel::onHighnoiseUnetChange,
+                    onLownoiseUnetChange = imageToVideoViewModel::onLownoiseUnetChange,
+                    onHighnoiseLoraChange = imageToVideoViewModel::onHighnoiseLoraChange,
+                    onLownoiseLoraChange = imageToVideoViewModel::onLownoiseLoraChange,
+                    onVaeChange = imageToVideoViewModel::onVaeChange,
+                    onClipChange = imageToVideoViewModel::onClipChange,
+                    onClip1Change = imageToVideoViewModel::onClip1Change,
+                    onClip2Change = imageToVideoViewModel::onClip2Change,
+                    onClip3Change = imageToVideoViewModel::onClip3Change,
+                    onClip4Change = imageToVideoViewModel::onClip4Change,
+                    onWidthChange = imageToVideoViewModel::onWidthChange,
+                    onHeightChange = imageToVideoViewModel::onHeightChange,
+                    onLengthChange = imageToVideoViewModel::onLengthChange,
+                    onFpsChange = imageToVideoViewModel::onFpsChange,
+                    onAddHighnoiseLora = imageToVideoViewModel::onAddHighnoiseLora,
+                    onRemoveHighnoiseLora = imageToVideoViewModel::onRemoveHighnoiseLora,
+                    onHighnoiseLoraNameChange = imageToVideoViewModel::onHighnoiseLoraChainNameChange,
+                    onHighnoiseLoraStrengthChange = imageToVideoViewModel::onHighnoiseLoraChainStrengthChange,
+                    onAddLownoiseLora = imageToVideoViewModel::onAddLownoiseLora,
+                    onRemoveLownoiseLora = imageToVideoViewModel::onRemoveLownoiseLora,
+                    onLownoiseLoraNameChange = imageToVideoViewModel::onLownoiseLoraChainNameChange,
+                    onLownoiseLoraStrengthChange = imageToVideoViewModel::onLownoiseLoraChainStrengthChange
+                )
+            }
+            ConfigBottomSheetContent(
+                config = uiState.toBottomSheetConfig(callbacks),
+                workflowName = uiState.selectedWorkflow
             )
         }
     }
