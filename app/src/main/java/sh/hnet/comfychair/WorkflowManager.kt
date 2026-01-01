@@ -145,7 +145,12 @@ object WorkflowManager {
                 val name = jsonObject.optString("name", "Unnamed Workflow")
                 val description = jsonObject.optString("description", "")
                 val resourceName = applicationContext.resources.getResourceEntryName(resId)
-                val type = parseWorkflowType(resourceName) ?: continue
+                val type = parseWorkflowType(resourceName)
+                if (type == null) {
+                    // Old-format resource names (tti_checkpoint_*, tti_unet_*, etc.) are no longer supported
+                    DebugLogger.w(TAG, "Skipping built-in workflow '$resourceName': unrecognized prefix")
+                    continue
+                }
                 val defaults = WorkflowDefaults.fromJson(jsonObject.optJSONObject("defaults"))
 
                 // Generate deterministic UUID from resource name
@@ -160,7 +165,7 @@ object WorkflowManager {
 
     /**
      * Discover all workflow resources in R.raw using reflection
-     * Looks for fields matching workflow prefixes (tti_checkpoint_, tti_unet_, etc.)
+     * Looks for fields matching workflow prefixes (tti_, iti_inpainting_, iti_editing_, ttv_, itv_)
      */
     private fun discoverWorkflowResources(): List<Int> {
         val resources = mutableListOf<Int>()
@@ -210,6 +215,9 @@ object WorkflowManager {
                 val type = try {
                     WorkflowType.valueOf(typeStr)
                 } catch (e: Exception) {
+                    // Old-format workflow types (TTI_CHECKPOINT, TTI_UNET, ITI_CHECKPOINT, ITI_UNET, ITE_UNET, TTV_UNET, ITV_UNET)
+                    // are no longer supported. These workflows will be silently skipped.
+                    DebugLogger.w(TAG, "Skipping workflow '$name': unsupported type '$typeStr' (old format)")
                     continue
                 }
 
@@ -516,7 +524,7 @@ object WorkflowManager {
      * Generate filename from workflow type and name
      */
     fun generateFilename(type: WorkflowType, name: String): String {
-        val prefix = PREFIX_TO_TYPE.entries.find { it.value == type }?.key ?: "tti_unet_"
+        val prefix = PREFIX_TO_TYPE.entries.find { it.value == type }?.key ?: "tti_"
         val sanitizedName = name.lowercase()
             .replace(Regex("[^a-z0-9]"), "_")
             .replace(Regex("_+"), "_")
@@ -1028,7 +1036,7 @@ object WorkflowManager {
             filename
         } else {
             // Add prefix based on detected type
-            val prefix = PREFIX_TO_TYPE.entries.find { it.value == type }?.key ?: "tti_unet_"
+            val prefix = PREFIX_TO_TYPE.entries.find { it.value == type }?.key ?: "tti_"
             prefix + filename.substringBeforeLast(".") + ".json"
         }
 
