@@ -274,6 +274,36 @@ class NodeTypeRegistry {
     }
 
     /**
+     * Get all unique options for a given input field name across all node types.
+     * This enables dynamic discovery of model options from any loader node
+     * (standard, GGUF, future plugins).
+     */
+    fun getOptionsForField(fieldName: String): List<String> {
+        val allOptions = mutableSetOf<String>()
+        nodeDefinitions.values.forEach { nodeDef ->
+            nodeDef.inputs
+                .filter { it.name == fieldName && it.options != null }
+                .forEach { input -> allOptions.addAll(input.options!!) }
+        }
+        return allOptions.sorted()
+    }
+
+    /**
+     * Get all unique options for fields matching a prefix (e.g., "clip_name" matches
+     * clip_name, clip_name1, clip_name2, etc.). Useful for nodes with multiple
+     * similar inputs like DualCLIPLoaderGGUF.
+     */
+    fun getOptionsForFieldPrefix(prefix: String): List<String> {
+        val allOptions = mutableSetOf<String>()
+        nodeDefinitions.values.forEach { nodeDef ->
+            nodeDef.inputs
+                .filter { it.name.startsWith(prefix) && it.options != null }
+                .forEach { input -> allOptions.addAll(input.options!!) }
+        }
+        return allOptions.sorted()
+    }
+
+    /**
      * Get node types grouped by category.
      */
     fun getNodeTypesByCategory(): Map<String, List<NodeTypeDefinition>> {

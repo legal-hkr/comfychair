@@ -1344,6 +1344,14 @@ class WorkflowEditorViewModel : ViewModel() {
             DebugLogger.i(TAG, "confirmMappingAndSave: Workflow saved successfully with id=${savedWorkflow.id}")
             // Return to view mode instead of exiting
             returnToViewMode(savedWorkflow.id, context)
+            // Emit event to notify Activity (triggers list refresh in caller)
+            viewModelScope.launch {
+                if (state.editingWorkflowId != null) {
+                    _events.emit(WorkflowEditorEvent.WorkflowUpdated(savedWorkflow.id))
+                } else {
+                    _events.emit(WorkflowEditorEvent.WorkflowCreated(savedWorkflow.id))
+                }
+            }
         } else {
             val error = result.exceptionOrNull()
             DebugLogger.e(TAG, "confirmMappingAndSave: Save failed: ${error?.message}")
@@ -2324,14 +2332,15 @@ class WorkflowEditorViewModel : ViewModel() {
         // Update graph bounds
         val newBounds = layoutEngine.calculateBounds(layoutedGraph)
 
-        // Update UI state
+        // Update UI state (include node definition for immediate dropdown support)
         _uiState.value = _uiState.value.copy(
             graph = layoutedGraph,
             graphBounds = newBounds,
             selectedNodeIds = setOf(newNode.id),
             hasUnsavedChanges = true,
             showNodeBrowser = false,
-            nodeInsertPosition = null
+            nodeInsertPosition = null,
+            nodeDefinitions = _uiState.value.nodeDefinitions + (nodeType.classType to nodeType)
         )
     }
 

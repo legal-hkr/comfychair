@@ -564,8 +564,8 @@ object ConnectionManager {
                 // Parse node definitions for workflow editor
                 nodeTypeRegistry.parseObjectInfo(objectInfo)
 
-                // Extract model lists for generation screens
-                val models = extractModelLists(objectInfo)
+                // Extract model lists for generation screens (field-name-based discovery)
+                val models = extractModelLists()
                 _modelCache.value = models.copy(isLoaded = true, isLoading = false)
                 DebugLogger.i(TAG, "Server data loaded: ${models.checkpoints.size} checkpoints, " +
                         "${models.unets.size} unets, ${models.vaes.size} vaes, " +
@@ -594,35 +594,16 @@ object ConnectionManager {
     }
 
     /**
-     * Extract model lists from /object_info response.
-     * Each model type is extracted from its corresponding loader node.
+     * Extract model lists from NodeTypeRegistry by field name.
+     * Automatically discovers models from any loader node (standard, GGUF, future plugins).
      */
-    private fun extractModelLists(objectInfo: JSONObject): ModelCache {
+    private fun extractModelLists(): ModelCache {
         return ModelCache(
-            checkpoints = extractModelList(objectInfo, "CheckpointLoaderSimple", "ckpt_name"),
-            unets = extractModelList(objectInfo, "UNETLoader", "unet_name"),
-            vaes = extractModelList(objectInfo, "VAELoader", "vae_name"),
-            clips = extractModelList(objectInfo, "CLIPLoader", "clip_name"),
-            loras = extractModelList(objectInfo, "LoraLoaderModelOnly", "lora_name")
+            checkpoints = nodeTypeRegistry.getOptionsForField("ckpt_name"),
+            unets = nodeTypeRegistry.getOptionsForField("unet_name"),
+            vaes = nodeTypeRegistry.getOptionsForField("vae_name"),
+            clips = nodeTypeRegistry.getOptionsForFieldPrefix("clip_name"),
+            loras = nodeTypeRegistry.getOptionsForField("lora_name")
         )
-    }
-
-    /**
-     * Extract a single model list from /object_info.
-     * Navigates: nodeType -> input -> required -> inputName -> [0] (options array)
-     */
-    private fun extractModelList(objectInfo: JSONObject, nodeType: String, inputName: String): List<String> {
-        return try {
-            val nodeInfo = objectInfo.optJSONObject(nodeType) ?: return emptyList()
-            val input = nodeInfo.optJSONObject("input") ?: return emptyList()
-            val required = input.optJSONObject("required") ?: return emptyList()
-            val inputSpec = required.optJSONArray(inputName) ?: return emptyList()
-            val options = inputSpec.optJSONArray(0) ?: return emptyList()
-
-            (0 until options.length()).map { options.getString(it) }
-        } catch (e: Exception) {
-            DebugLogger.w(TAG, "Failed to extract model list for $nodeType/$inputName: ${e.message}")
-            emptyList()
-        }
     }
 }
