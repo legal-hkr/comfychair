@@ -112,9 +112,9 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">Obraz na wideo</string>
     <string name="nav_image_to_video">Obraz na wideo</string>
-    <string name="highnoise_unet_label">UNET wysokiego szumu lub pojedynczy</string>
+    <string name="highnoise_unet_label">UNET wysokiego szumu</string>
     <string name="lownoise_unet_label">UNET niskiego szumu</string>
-    <string name="highnoise_lora_label">LoRA wysokiego szumu lub pojedynczy</string>
+    <string name="highnoise_lora_label">LoRA wysokiego szumu</string>
     <string name="lownoise_lora_label">LoRA niskiego szumu</string>
     <string name="length_label">Długość</string>
     <string name="video_parameters_title">Parametry wideo</string>

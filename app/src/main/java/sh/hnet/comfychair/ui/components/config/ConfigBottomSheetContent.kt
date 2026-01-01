@@ -77,8 +77,8 @@ fun ConfigBottomSheetContent(
         // 6. Generation Parameters Section
         ParametersSection(config.parameters, workflowName)
 
-        // 7. LoRA Section
-        LoraSection(config.lora)
+        // 7. LoRA Section (including single LoRA dropdowns at the bottom)
+        LoraSection(config.lora, config.models)
     }
 }
 
@@ -154,6 +154,7 @@ private fun WorkflowSection(workflow: WorkflowConfig) {
 
 @Composable
 private fun ModelSelectionSection(models: ModelConfig) {
+    // Note: Single LoRA dropdowns (highnoiseLora, lownoiseLora) are rendered in LoraSection
     val visibleModels = listOfNotNull(
         models.checkpoint?.takeIf { it.isVisible },
         models.unet?.takeIf { it.isVisible },
@@ -164,9 +165,7 @@ private fun ModelSelectionSection(models: ModelConfig) {
         models.clip1?.takeIf { it.isVisible },
         models.clip2?.takeIf { it.isVisible },
         models.clip3?.takeIf { it.isVisible },
-        models.clip4?.takeIf { it.isVisible },
-        models.highnoiseLora?.takeIf { it.isVisible },
-        models.lownoiseLora?.takeIf { it.isVisible }
+        models.clip4?.takeIf { it.isVisible }
     )
 
     if (visibleModels.isEmpty()) return
@@ -189,8 +188,6 @@ private fun ModelSelectionSection(models: ModelConfig) {
     models.clip2?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.clip3?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.clip4?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.highnoiseLora?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.lownoiseLora?.takeIf { it.isVisible }?.let { RenderModelField(it) }
 }
 
 @Composable
@@ -240,7 +237,7 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
         Spacer(modifier = Modifier.height(12.dp))
     }
 
-    // Megapixels (ITI specific)
+    // Megapixels
     params.megapixels?.takeIf { it.isVisible }?.let { field ->
         MegapixelsField(
             workflowName = workflowName,
@@ -270,7 +267,7 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
         Spacer(modifier = Modifier.height(12.dp))
     }
 
-    // Length/FPS row (video specific)
+    // Length/FPS row
     val showLength = params.length?.isVisible == true
     val showFps = params.fps?.isVisible == true
     if (showLength || showFps) {
@@ -311,8 +308,8 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
 }
 
 @Composable
-private fun LoraSection(lora: LoraConfig) {
-    // Editing LoRA (single dropdown for ITE)
+private fun LoraSection(lora: LoraConfig, models: ModelConfig) {
+    // Single LoRA dropdowns (in order: LoRA, High noise LoRA, Low noise LoRA)
     lora.editingLora?.takeIf { it.isVisible }?.let { field ->
         Spacer(modifier = Modifier.height(16.dp))
         ModelDropdown(
@@ -323,17 +320,35 @@ private fun LoraSection(lora: LoraConfig) {
         )
     }
 
-    // Primary LoRA chain (for TTI/ITI)
+    models.highnoiseLora?.takeIf { it.isVisible }?.let { field ->
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(field.label),
+            selectedValue = field.selectedValue,
+            options = field.filteredOptions ?: field.options,
+            onValueChange = field.onValueChange
+        )
+    }
+
+    models.lownoiseLora?.takeIf { it.isVisible }?.let { field ->
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(field.label),
+            selectedValue = field.selectedValue,
+            options = field.filteredOptions ?: field.options,
+            onValueChange = field.onValueChange
+        )
+    }
+
+    // LoRA chain editors
     lora.primaryChain?.takeIf { it.isVisible }?.let { chain ->
         RenderLoraChain(chain)
     }
 
-    // High noise LoRA chain (for video)
     lora.highnoiseChain?.takeIf { it.isVisible }?.let { chain ->
         RenderLoraChain(chain)
     }
 
-    // Low noise LoRA chain (for video)
     lora.lownoiseChain?.takeIf { it.isVisible }?.let { chain ->
         RenderLoraChain(chain)
     }

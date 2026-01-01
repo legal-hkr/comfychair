@@ -112,9 +112,9 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">Imagen a vídeo</string>
     <string name="nav_image_to_video">Imagen a vídeo</string>
-    <string name="highnoise_unet_label">UNET de ruido alto o individual</string>
+    <string name="highnoise_unet_label">UNET de ruido alto</string>
     <string name="lownoise_unet_label">UNET de ruido bajo</string>
-    <string name="highnoise_lora_label">LoRA de ruido alto o individual</string>
+    <string name="highnoise_lora_label">LoRA de ruido alto</string>
     <string name="lownoise_lora_label">LoRA de ruido bajo</string>
     <string name="length_label">Duración</string>
     <string name="video_parameters_title">Parámetros de vídeo</string>

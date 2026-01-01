@@ -134,9 +134,9 @@
     <!-- Image to Video fragment strings -->
     <string name="image_to_video_title">Image to video</string>
     <string name="nav_image_to_video">Image to video</string>
-    <string name="highnoise_unet_label">High noise or Single UNET</string>
+    <string name="highnoise_unet_label">High noise UNET</string>
     <string name="lownoise_unet_label">Low noise UNET</string>
-    <string name="highnoise_lora_label">High noise or Single LoRA</string>
+    <string name="highnoise_lora_label">High noise LoRA</string>
     <string name="lownoise_lora_label">Low noise LoRA</string>
     <string name="length_label">Length</string>
     <string name="fps_label" translatable="false">FPS</string>
