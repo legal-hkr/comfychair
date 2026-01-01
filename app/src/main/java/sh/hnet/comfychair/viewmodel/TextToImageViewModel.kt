@@ -263,38 +263,22 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * Load available workflows from WorkflowManager and create unified list
      */
     private fun loadWorkflows() {
+        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: run {
             DebugLogger.w(TAG, "loadWorkflows: Context not available")
             return
         }
 
-        val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT)
-        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_UNET)
+        val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI)
 
-        // Create unified workflow list with type prefix for display
-        val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
-        val unetPrefix = ctx.getString(R.string.mode_unet)
-
-        val unifiedWorkflows = mutableListOf<WorkflowItem>()
-
-        // Add checkpoint workflows
-        checkpointWorkflows.forEach { workflow ->
-            unifiedWorkflows.add(WorkflowItem(
+        // Create workflow list
+        val unifiedWorkflows = workflows.map { workflow ->
+            WorkflowItem(
                 id = workflow.id,
                 name = workflow.name,
-                displayName = "[$checkpointPrefix] ${workflow.name}",
-                type = WorkflowType.TTI_CHECKPOINT
-            ))
-        }
-
-        // Add UNET workflows
-        unetWorkflows.forEach { workflow ->
-            unifiedWorkflows.add(WorkflowItem(
-                id = workflow.id,
-                name = workflow.name,
-                displayName = "[$unetPrefix] ${workflow.name}",
-                type = WorkflowType.TTI_UNET
-            ))
+                displayName = workflow.name,
+                type = WorkflowType.TTI
+            )
         }
 
         val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
@@ -304,11 +288,15 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         else
             sortedWorkflows.find { it.name == currentSelection } ?: sortedWorkflows.firstOrNull()
 
+        // Determine checkpoint mode based on workflow defaults (has checkpoint placeholder)
+        val selectedWorkflow = selectedWorkflowItem?.let { WorkflowManager.getWorkflowById(it.id) }
+        val isCheckpoint = selectedWorkflow?.defaults?.hasCheckpointName ?: true
+
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
             selectedWorkflow = selectedWorkflowItem?.name ?: "",
             selectedWorkflowId = selectedWorkflowItem?.id ?: "",
-            isCheckpointMode = selectedWorkflowItem?.type == WorkflowType.TTI_CHECKPOINT
+            isCheckpointMode = isCheckpoint
         )
 
         // Reload workflow values to refresh capability flags from WorkflowDefaults
@@ -731,9 +719,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         } ?: return null
 
         // Inject LoRA chain if present (using the appropriate chain for the mode)
-        val workflowType = if (state.isCheckpointMode) WorkflowType.TTI_CHECKPOINT else WorkflowType.TTI_UNET
         val loraChain = if (state.isCheckpointMode) state.checkpointLoraChain else state.unetLoraChain
-        return WorkflowManager.injectLoraChain(baseWorkflow, loraChain, workflowType)
+        return WorkflowManager.injectLoraChain(baseWorkflow, loraChain, WorkflowType.TTI)
     }
 
     /**
@@ -897,11 +884,12 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val storage = workflowValuesStorage ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
-        val isCheckpoint = workflow.type == WorkflowType.TTI_CHECKPOINT
-
         // Load saved values by workflow ID, defaults by workflow name
         val savedValues = storage.loadValues(serverId, workflow.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
+
+        // Determine checkpoint vs UNET mode based on workflow defaults
+        val isCheckpoint = defaults?.hasCheckpointName ?: true
         val state = _uiState.value
 
         // Get current model cache to validate saved selections

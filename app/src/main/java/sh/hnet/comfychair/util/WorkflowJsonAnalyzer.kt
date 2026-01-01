@@ -14,54 +14,29 @@ import sh.hnet.comfychair.workflow.TemplateKeyRegistry
  */
 internal object WorkflowJsonAnalyzer {
 
-    // Required placeholders per workflow type
+    // Required placeholders per workflow type - only positive_prompt is required now
+    // All other fields are optional and handled by WorkflowDefaults capability flags
     val REQUIRED_PLACEHOLDERS = mapOf(
-        WorkflowType.TTI_CHECKPOINT to listOf(
-            "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{width}}", "{{height}}", "{{steps}}"
-        ),
-        WorkflowType.TTI_UNET to listOf(
-            "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}",
-            "{{width}}", "{{height}}", "{{steps}}"
-        ),
-        WorkflowType.ITI_CHECKPOINT to listOf(
-            "{{positive_prompt}}", "{{negative_prompt}}", "{{ckpt_name}}", "{{megapixels}}", "{{steps}}"
-        ),
-        WorkflowType.ITI_UNET to listOf(
-            "{{positive_prompt}}", "{{negative_prompt}}", "{{unet_name}}", "{{vae_name}}", "{{clip_name}}", "{{steps}}"
-        ),
-        WorkflowType.ITE_UNET to listOf(
-            "{{positive_prompt}}", "{{unet_name}}",
-            "{{vae_name}}", "{{clip_name}}", "{{megapixels}}", "{{steps}}"
-        ),
-        WorkflowType.TTV_UNET to listOf(
-            "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
-            "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
-            "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}"
-        ),
-        WorkflowType.ITV_UNET to listOf(
-            "{{positive_prompt}}", "{{negative_prompt}}", "{{highnoise_unet_name}}", "{{lownoise_unet_name}}",
-            "{{highnoise_lora_name}}", "{{lownoise_lora_name}}",
-            "{{vae_name}}", "{{clip_name}}", "{{width}}", "{{height}}", "{{length}}", "{{frame_rate}}",
-            "{{image_filename}}"
-        )
+        WorkflowType.TTI to listOf("{{positive_prompt}}"),
+        WorkflowType.ITI_INPAINTING to listOf("{{positive_prompt}}"),
+        WorkflowType.ITI_EDITING to listOf("{{positive_prompt}}"),
+        WorkflowType.TTV to listOf("{{positive_prompt}}"),
+        WorkflowType.ITV to listOf("{{positive_prompt}}")
     )
 
     // Required patterns (not placeholders but literal strings that must exist)
     val REQUIRED_PATTERNS = mapOf(
-        WorkflowType.ITI_CHECKPOINT to listOf("uploaded_image.png [input]"),
-        WorkflowType.ITI_UNET to listOf("uploaded_image.png [input]"),
-        WorkflowType.ITE_UNET to listOf("uploaded_image.png [input]")
+        WorkflowType.ITI_INPAINTING to listOf("uploaded_image.png [input]"),
+        WorkflowType.ITI_EDITING to listOf("uploaded_image.png [input]")
     )
 
     // Filename prefix to type mapping
     val PREFIX_TO_TYPE = mapOf(
-        "tti_checkpoint_" to WorkflowType.TTI_CHECKPOINT,
-        "tti_unet_" to WorkflowType.TTI_UNET,
-        "iti_checkpoint_" to WorkflowType.ITI_CHECKPOINT,
-        "iti_unet_" to WorkflowType.ITI_UNET,
-        "ite_unet_" to WorkflowType.ITE_UNET,
-        "ttv_unet_" to WorkflowType.TTV_UNET,
-        "itv_unet_" to WorkflowType.ITV_UNET
+        "tti_" to WorkflowType.TTI,
+        "iti_inpainting_" to WorkflowType.ITI_INPAINTING,
+        "iti_editing_" to WorkflowType.ITI_EDITING,
+        "ttv_" to WorkflowType.TTV,
+        "itv_" to WorkflowType.ITV
     )
 
     /**
@@ -149,29 +124,20 @@ internal object WorkflowJsonAnalyzer {
         // Detection rules (order matters - most specific first):
         return when {
             // Image-to-video: has both LoadImage and video nodes
-            hasLoadImage && hasVideoNodes -> WorkflowType.ITV_UNET
+            hasLoadImage && hasVideoNodes -> WorkflowType.ITV
 
             // Text-to-video: has video nodes but no LoadImage
-            hasVideoNodes -> WorkflowType.TTV_UNET
+            hasVideoNodes -> WorkflowType.TTV
 
             // Image-to-image editing (no mask, uses QwenImageEdit-style nodes)
-            hasImageEditingNodes && hasUNETLoader -> WorkflowType.ITE_UNET
+            hasImageEditingNodes -> WorkflowType.ITI_EDITING
 
-            // Image-to-image inpainting with checkpoint
-            hasInpaintingNodes && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
+            // Image-to-image inpainting (with mask nodes or LoadImage)
+            hasInpaintingNodes -> WorkflowType.ITI_INPAINTING
+            hasLoadImage -> WorkflowType.ITI_INPAINTING
 
-            // Image-to-image inpainting with UNET
-            hasInpaintingNodes && hasUNETLoader -> WorkflowType.ITI_UNET
-
-            // Image-to-image with LoadImage (fallback to inpainting)
-            hasLoadImage && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
-            hasLoadImage && hasUNETLoader -> WorkflowType.ITI_UNET
-
-            // Text-to-image checkpoint
-            hasCheckpointLoader -> WorkflowType.TTI_CHECKPOINT
-
-            // Text-to-image UNET
-            hasUNETLoader -> WorkflowType.TTI_UNET
+            // Text-to-image (no LoadImage, no video nodes)
+            hasCheckpointLoader || hasUNETLoader -> WorkflowType.TTI
 
             // Default fallback
             else -> null

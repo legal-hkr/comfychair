@@ -1147,13 +1147,11 @@ private fun SaveNewWorkflowDialog(
     onDismiss: () -> Unit
 ) {
     val allTypes = listOf(
-        WorkflowType.TTI_CHECKPOINT to stringResource(R.string.workflow_section_tti_checkpoint),
-        WorkflowType.TTI_UNET to stringResource(R.string.workflow_section_tti_unet),
-        WorkflowType.ITE_UNET to stringResource(R.string.workflow_section_ite_unet),
-        WorkflowType.ITI_CHECKPOINT to stringResource(R.string.workflow_section_iti_checkpoint),
-        WorkflowType.ITI_UNET to stringResource(R.string.workflow_section_iti_unet),
-        WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
-        WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet)
+        WorkflowType.TTI to stringResource(R.string.workflow_section_tti),
+        WorkflowType.ITI_INPAINTING to stringResource(R.string.workflow_section_iti_inpainting),
+        WorkflowType.ITI_EDITING to stringResource(R.string.workflow_section_iti_editing),
+        WorkflowType.TTV to stringResource(R.string.workflow_section_ttv),
+        WorkflowType.ITV to stringResource(R.string.workflow_section_itv)
     )
 
     val selectedTypeName = allTypes.find { it.first == selectedType }?.second ?: ""

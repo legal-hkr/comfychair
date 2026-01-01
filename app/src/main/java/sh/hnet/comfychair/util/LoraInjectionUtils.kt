@@ -134,20 +134,22 @@ internal object LoraInjectionUtils {
 
     /**
      * Find the model source node in a workflow.
+     * Searches for CheckpointLoaderSimple first, then UNETLoader.
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun findModelSourceNode(nodes: JSONObject, workflowType: WorkflowType): String? {
-        val targetClassType = when (workflowType) {
-            WorkflowType.TTI_CHECKPOINT, WorkflowType.ITI_CHECKPOINT -> "CheckpointLoaderSimple"
-            else -> "UNETLoader"
-        }
+        // Search for both loader types - prioritize CheckpointLoaderSimple, then UNETLoader
+        val loaderTypes = listOf("CheckpointLoaderSimple", "UNETLoader")
 
-        val nodeIds = nodes.keys()
-        while (nodeIds.hasNext()) {
-            val nodeId = nodeIds.next()
-            val node = nodes.optJSONObject(nodeId) ?: continue
-            val classType = node.optString("class_type", "")
-            if (classType == targetClassType) {
-                return nodeId
+        for (targetClassType in loaderTypes) {
+            val nodeIds = nodes.keys()
+            while (nodeIds.hasNext()) {
+                val nodeId = nodeIds.next()
+                val node = nodes.optJSONObject(nodeId) ?: continue
+                val classType = node.optString("class_type", "")
+                if (classType == targetClassType) {
+                    return nodeId
+                }
             }
         }
         return null

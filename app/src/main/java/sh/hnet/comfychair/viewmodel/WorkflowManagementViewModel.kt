@@ -32,13 +32,11 @@ import sh.hnet.comfychair.util.ValidationUtils
  */
 data class WorkflowManagementUiState(
     // Workflows organized by type
-    val ttiCheckpointWorkflows: List<WorkflowManager.Workflow> = emptyList(),
-    val ttiUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
-    val itiCheckpointWorkflows: List<WorkflowManager.Workflow> = emptyList(),
-    val itiUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
-    val iteUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
-    val ttvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
-    val itvUnetWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val ttiWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val itiInpaintingWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val itiEditingWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val ttvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val itvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
 
     // Import dialog state
     val showImportDialog: Boolean = false,
@@ -128,13 +126,11 @@ class WorkflowManagementViewModel : ViewModel() {
      */
     fun loadWorkflows() {
         _uiState.value = _uiState.value.copy(
-            ttiCheckpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_CHECKPOINT),
-            ttiUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI_UNET),
-            itiCheckpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT),
-            itiUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET),
-            iteUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET),
-            ttvUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV_UNET),
-            itvUnetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV_UNET)
+            ttiWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI),
+            itiInpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING),
+            itiEditingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING),
+            ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV),
+            itvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
         )
     }
 

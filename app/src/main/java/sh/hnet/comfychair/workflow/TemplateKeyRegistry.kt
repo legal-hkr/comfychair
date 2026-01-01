@@ -86,27 +86,37 @@ object TemplateKeyRegistry {
      * These are the minimum fields needed for a workflow to function.
      */
     private val REQUIRED_KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
-        WorkflowType.TTI_CHECKPOINT to setOf("positive_text"),
-        WorkflowType.TTI_UNET to setOf("positive_text"),
-        WorkflowType.ITI_CHECKPOINT to setOf("positive_text", "image"),
-        WorkflowType.ITI_UNET to setOf("positive_text", "image"),
-        WorkflowType.ITE_UNET to setOf("positive_text", "image"),
-        WorkflowType.TTV_UNET to setOf("positive_text"),
-        WorkflowType.ITV_UNET to setOf("positive_text", "image")
+        WorkflowType.TTI to setOf("positive_text"),
+        WorkflowType.ITI_INPAINTING to setOf("positive_text", "image"),
+        WorkflowType.ITI_EDITING to setOf("positive_text", "image"),
+        WorkflowType.TTV to setOf("positive_text"),
+        WorkflowType.ITV to setOf("positive_text", "image")
     )
 
     /**
-     * Optional keys per workflow type - workflow can have mappings for these, but they're not required.
-     * If not mapped, these fields won't appear in the Generation screen's Bottom Sheet.
+     * Universal optional keys - any field can appear on any workflow type if mapped.
+     * Field visibility is determined by WorkflowDefaults capability flags at runtime.
+     */
+    private val UNIVERSAL_OPTIONAL_KEYS: Set<String> = setOf(
+        "negative_text", "ckpt_name", "unet_name", "vae_name",
+        "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4",
+        "width", "height", "steps", "cfg", "sampler_name", "scheduler",
+        "megapixels", "lora_name",
+        "highnoise_unet_name", "lownoise_unet_name",
+        "highnoise_lora_name", "lownoise_lora_name",
+        "length", "fps"
+    )
+
+    /**
+     * Optional keys per workflow type - now universal for all types.
+     * Field visibility is controlled by WorkflowDefaults at runtime.
      */
     private val OPTIONAL_KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
-        WorkflowType.TTI_CHECKPOINT to setOf("negative_text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.TTI_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "width", "height", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.ITI_CHECKPOINT to setOf("negative_text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.ITI_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.ITE_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.TTV_UNET to setOf("negative_text", "highnoise_unet_name", "lownoise_unet_name", "highnoise_lora_name", "lownoise_lora_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "width", "height", "length", "fps"),
-        WorkflowType.ITV_UNET to setOf("negative_text", "highnoise_unet_name", "lownoise_unet_name", "highnoise_lora_name", "lownoise_lora_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "width", "height", "length", "fps")
+        WorkflowType.TTI to UNIVERSAL_OPTIONAL_KEYS,
+        WorkflowType.ITI_INPAINTING to UNIVERSAL_OPTIONAL_KEYS,
+        WorkflowType.ITI_EDITING to UNIVERSAL_OPTIONAL_KEYS,
+        WorkflowType.TTV to UNIVERSAL_OPTIONAL_KEYS,
+        WorkflowType.ITV to UNIVERSAL_OPTIONAL_KEYS
     )
 
     /**
@@ -203,14 +213,14 @@ object TemplateKeyRegistry {
     /**
      * Analyze workflow JSON and determine actual optional keys based on workflow structure.
      * This handles:
-     * - BasicGuider (no CFG, no negative prompt) in TTI_UNET workflows
+     * - BasicGuider (no CFG, no negative prompt) in TTI workflows
      * Note: clip_name* fields are now always included in the base set and visibility
      * is determined at runtime by checking for placeholders in the workflow JSON.
      */
     fun getOptionalKeysForWorkflow(workflowType: WorkflowType, workflowJson: JSONObject): Set<String> {
         val baseKeys = OPTIONAL_KEYS_BY_TYPE[workflowType]?.toMutableSet() ?: return emptySet()
 
-        if (workflowType == WorkflowType.TTI_UNET) {
+        if (workflowType == WorkflowType.TTI) {
             val nodesJson = workflowJson.optJSONObject("nodes") ?: return baseKeys
 
             // Check for BasicGuider (no CFG, no negative prompt)

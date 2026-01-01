@@ -325,13 +325,11 @@
     <string name="workflows_settings_title">Workflows</string>
 
     <!-- Workflow management strings -->
-    <string name="workflow_section_tti_checkpoint">Text to image (Checkpoint)</string>
-    <string name="workflow_section_tti_unet">Text to image (UNET)</string>
-    <string name="workflow_section_iti_checkpoint">Inpainting (Checkpoint)</string>
-    <string name="workflow_section_iti_unet">Inpainting (UNET)</string>
-    <string name="workflow_section_ite_unet">Image editing (UNET)</string>
-    <string name="workflow_section_ttv_unet">Text to video (UNET)</string>
-    <string name="workflow_section_itv_unet">Image to video (UNET)</string>
+    <string name="workflow_section_tti">Text to image</string>
+    <string name="workflow_section_iti_inpainting">Image to image: Inpainting</string>
+    <string name="workflow_section_iti_editing">Image to image: Editing</string>
+    <string name="workflow_section_ttv">Text to video</string>
+    <string name="workflow_section_itv">Image to video</string>
     <string name="workflow_section_empty">No workflows</string>
     <string name="workflow_built_in_label">Built-in</string>
     <string name="workflow_name_label">Name</string>

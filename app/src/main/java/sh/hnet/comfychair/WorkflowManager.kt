@@ -25,13 +25,11 @@ import java.io.InputStream
  * Workflow types supported by ComfyChair
  */
 enum class WorkflowType {
-    TTI_CHECKPOINT,    // Text-to-Image Checkpoint
-    TTI_UNET,          // Text-to-Image UNET
-    ITI_CHECKPOINT,    // Image-to-Image Inpainting Checkpoint
-    ITI_UNET,          // Image-to-Image Inpainting UNET
-    ITE_UNET,          // Image-to-Image Editing UNET
-    TTV_UNET,          // Text-to-Video UNET
-    ITV_UNET           // Image-to-Video UNET
+    TTI,              // Text-to-Image
+    ITI_INPAINTING,   // Image-to-Image Inpainting
+    ITI_EDITING,      // Image-to-Image Editing
+    TTV,              // Text-to-Video
+    ITV               // Image-to-Video
 }
 
 /**
@@ -1197,52 +1195,38 @@ object WorkflowManager {
     }
 
     /**
-     * Get list of text-to-image checkpoint workflow names for dropdown
+     * Get list of text-to-image workflow names for dropdown
      */
-    fun getCheckpointWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.TTI_CHECKPOINT }.map { it.name }
+    fun getTtiWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.TTI }.map { it.name }
     }
 
     /**
-     * Get list of text-to-image UNET workflow names for dropdown
+     * Get list of Image-to-image inpainting workflow names for dropdown
      */
-    fun getUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.TTI_UNET }.map { it.name }
+    fun getItiInpaintingWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.ITI_INPAINTING }.map { it.name }
     }
 
     /**
-     * Get list of Image-to-image checkpoint workflow names for dropdown
+     * Get list of Image-to-image editing workflow names for dropdown
      */
-    fun getImageToImageCheckpointWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.ITI_CHECKPOINT }.map { it.name }
+    fun getItiEditingWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.ITI_EDITING }.map { it.name }
     }
 
     /**
-     * Get list of Image-to-image UNET workflow names for dropdown
+     * Get list of text-to-video workflow names for dropdown
      */
-    fun getImageToImageUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.ITI_UNET }.map { it.name }
+    fun getTtvWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.TTV }.map { it.name }
     }
 
     /**
-     * Get list of text-to-video UNET workflow names for dropdown
+     * Get list of image-to-video workflow names for dropdown
      */
-    fun getVideoUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.TTV_UNET }.map { it.name }
-    }
-
-    /**
-     * Get list of image-to-video UNET workflow names for dropdown
-     */
-    fun getImageToVideoUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.ITV_UNET }.map { it.name }
-    }
-
-    /**
-     * Get list of Image-to-Image Editing UNET workflow names for dropdown
-     */
-    fun getImageEditingUNETWorkflowNames(): List<String> {
-        return workflows.filter { it.type == WorkflowType.ITE_UNET }.map { it.name }
+    fun getItvWorkflowNames(): List<String> {
+        return workflows.filter { it.type == WorkflowType.ITV }.map { it.name }
     }
 
     /**

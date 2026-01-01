@@ -779,15 +779,23 @@ class WorkflowEditorViewModel : ViewModel() {
         val hasUNETLoader = classTypes.any { it.equals("UNETLoader", ignoreCase = true) }
 
         return when {
-            hasLoadImage && hasVideoNodes -> WorkflowType.ITV_UNET
-            hasVideoNodes -> WorkflowType.TTV_UNET
-            hasImageEditingNodes && hasUNETLoader -> WorkflowType.ITE_UNET
-            hasInpaintingNodes && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
-            hasInpaintingNodes && hasUNETLoader -> WorkflowType.ITI_UNET
-            hasLoadImage && hasCheckpointLoader -> WorkflowType.ITI_CHECKPOINT
-            hasLoadImage && hasUNETLoader -> WorkflowType.ITI_UNET
-            hasCheckpointLoader -> WorkflowType.TTI_CHECKPOINT
-            hasUNETLoader -> WorkflowType.TTI_UNET
+            // Image-to-video: has both LoadImage and video nodes
+            hasLoadImage && hasVideoNodes -> WorkflowType.ITV
+
+            // Text-to-video: has video nodes but no LoadImage
+            hasVideoNodes -> WorkflowType.TTV
+
+            // Image-to-image editing (uses QwenImageEdit-style nodes)
+            hasImageEditingNodes -> WorkflowType.ITI_EDITING
+
+            // Image-to-image inpainting (with mask nodes or LoadImage)
+            hasInpaintingNodes -> WorkflowType.ITI_INPAINTING
+            hasLoadImage -> WorkflowType.ITI_INPAINTING
+
+            // Text-to-image (no LoadImage, no video nodes)
+            hasCheckpointLoader || hasUNETLoader -> WorkflowType.TTI
+
+            // Default fallback
             else -> null
         }
     }
@@ -1104,7 +1112,7 @@ class WorkflowEditorViewModel : ViewModel() {
     private fun getOptionalKeysFromGraph(type: WorkflowType, graph: WorkflowGraph): Set<String> {
         val baseKeys = TemplateKeyRegistry.getOptionalKeysForType(type).toMutableSet()
 
-        if (type == WorkflowType.TTI_UNET) {
+        if (type == WorkflowType.TTI) {
             // Check for BasicGuider (no CFG, no negative prompt)
             val hasBasicGuider = graph.nodes.any { it.classType == "BasicGuider" }
             if (hasBasicGuider) {

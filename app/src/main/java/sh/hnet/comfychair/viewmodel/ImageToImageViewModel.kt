@@ -66,13 +66,13 @@ enum class ImageToImageMode {
 }
 
 /**
- * Represents a workflow item for Image Editing (ITE_UNET)
+ * Represents a workflow item for Image Editing
  */
 data class IteWorkflowItem(
     val id: String,             // Workflow ID for editor
     override val name: String,           // User-friendly workflow name
     override val displayName: String,    // Display name for dropdown
-    val type: WorkflowType      // Always ITE_UNET for this type
+    val type: WorkflowType      // ITI_EDITING
 ) : WorkflowItemBase
 
 /**
@@ -175,7 +175,7 @@ data class ImageToImageUiState(
     // Mode selection (Editing vs Inpainting)
     val mode: ImageToImageMode = ImageToImageMode.EDITING,
 
-    // Editing mode workflows (ITE_UNET only)
+    // Editing mode workflows (ITI_EDITING)
     val editingWorkflows: List<IteWorkflowItem> = emptyList(),
     val selectedEditingWorkflow: String = "",
     val selectedEditingWorkflowId: String = "",  // Editing workflow ID for storage
@@ -365,45 +365,31 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     }
 
     private fun loadWorkflows() {
+        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: return
 
-        val checkpointWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_CHECKPOINT)
-        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_UNET)
-        val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITE_UNET)
+        // Load inpainting workflows (ITI_INPAINTING)
+        val inpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING)
+        // Load editing workflows (ITI_EDITING)
+        val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING)
 
-        // Create unified workflow list with type prefix for display (for Inpainting mode)
-        val checkpointPrefix = ctx.getString(R.string.mode_checkpoint)
-        val unetPrefix = ctx.getString(R.string.mode_unet)
-
-        val unifiedWorkflows = mutableListOf<ItiWorkflowItem>()
-
-        // Add checkpoint workflows
-        checkpointWorkflows.forEach { workflow ->
-            unifiedWorkflows.add(ItiWorkflowItem(
+        // Create inpainting workflow list
+        val unifiedWorkflows = inpaintingWorkflows.map { workflow ->
+            ItiWorkflowItem(
                 id = workflow.id,
                 name = workflow.name,
-                displayName = "[$checkpointPrefix] ${workflow.name}",
-                type = WorkflowType.ITI_CHECKPOINT
-            ))
+                displayName = workflow.name,
+                type = WorkflowType.ITI_INPAINTING
+            )
         }
 
-        // Add UNET workflows
-        unetWorkflows.forEach { workflow ->
-            unifiedWorkflows.add(ItiWorkflowItem(
-                id = workflow.id,
-                name = workflow.name,
-                displayName = "[$unetPrefix] ${workflow.name}",
-                type = WorkflowType.ITI_UNET
-            ))
-        }
-
-        // Create editing workflow list (ITE_UNET only)
+        // Create editing workflow list
         val editingWorkflowItems = editingWorkflows.map { workflow ->
             IteWorkflowItem(
                 id = workflow.id,
                 name = workflow.name,
                 displayName = workflow.name,
-                type = WorkflowType.ITE_UNET
+                type = WorkflowType.ITI_EDITING
             )
         }.sortedBy { it.displayName }
 
@@ -420,11 +406,15 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         else
             editingWorkflowItems.find { it.name == currentEditingSelection } ?: editingWorkflowItems.firstOrNull()
 
+        // Determine checkpoint mode based on workflow defaults (has checkpoint placeholder)
+        val selectedWorkflow = selectedWorkflowItem?.let { WorkflowManager.getWorkflowById(it.id) }
+        val isCheckpoint = selectedWorkflow?.defaults?.hasCheckpointName ?: true
+
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
             selectedWorkflow = selectedWorkflowItem?.name ?: "",
             selectedWorkflowId = selectedWorkflowItem?.id ?: "",
-            isCheckpointMode = selectedWorkflowItem?.type == WorkflowType.ITI_CHECKPOINT,
+            isCheckpointMode = isCheckpoint,
             editingWorkflows = editingWorkflowItems,
             selectedEditingWorkflow = selectedEditingItem?.name ?: "",
             selectedEditingWorkflowId = selectedEditingItem?.id ?: ""
@@ -534,11 +524,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val storage = workflowValuesStorage ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
-        val isCheckpoint = workflow.type == WorkflowType.ITI_CHECKPOINT
-
         // Load saved values by workflow ID, defaults by workflow name
         val savedValues = storage.loadValues(serverId, workflow.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
+
+        // Determine checkpoint mode based on workflow defaults
+        val isCheckpoint = defaults?.hasCheckpointName ?: true
         val state = _uiState.value
 
         // Get current model cache to validate saved selections
@@ -758,7 +749,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
             currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
             currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
-            // Model presence flags (ITE_UNET uses UNET, not checkpoint)
+            // Model presence flags (ITI_EDITING uses UNET, not checkpoint)
             currentWorkflowHasCheckpointName = false,
             currentWorkflowHasUnetName = defaults?.hasUnetName ?: false,
             // ITE reference image flags
@@ -1648,7 +1639,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         ) ?: return null
 
         // Inject additional LoRA chain if configured
-        return WorkflowManager.injectLoraChain(baseWorkflow, state.editingLoraChain, WorkflowType.ITE_UNET)
+        return WorkflowManager.injectLoraChain(baseWorkflow, state.editingLoraChain, WorkflowType.ITI_EDITING)
     }
 
     /**
@@ -1728,17 +1719,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         } ?: return null
 
         // Inject LoRA chain if configured (use appropriate chain based on mode)
-        val workflowType = if (state.isCheckpointMode) {
-            WorkflowType.ITI_CHECKPOINT
-        } else {
-            WorkflowType.ITI_UNET
-        }
         val loraChain = if (state.isCheckpointMode) {
             state.checkpointLoraChain
         } else {
             state.unetLoraChain
         }
-        return WorkflowManager.injectLoraChain(baseWorkflow, loraChain, workflowType)
+        return WorkflowManager.injectLoraChain(baseWorkflow, loraChain, WorkflowType.ITI_INPAINTING)
     }
 
     /**

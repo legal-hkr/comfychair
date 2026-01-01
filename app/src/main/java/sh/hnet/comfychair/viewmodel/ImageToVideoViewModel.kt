@@ -35,13 +35,13 @@ enum class ImageToVideoViewMode {
 }
 
 /**
- * Represents a workflow item with display name and type prefix
+ * Represents a workflow item with display name
  */
 data class ItvWorkflowItem(
     val id: String,             // Workflow ID for editor
     override val name: String,           // User-friendly workflow name
-    override val displayName: String,    // "[UNET] LightX2V"
-    val type: WorkflowType      // ITV_UNET
+    override val displayName: String,    // Display name
+    val type: WorkflowType      // ITV
 ) : WorkflowItemBase
 
 /**
@@ -272,17 +272,17 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     }
 
     private fun loadWorkflows() {
+        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: return
 
-        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV_UNET)
-        val unetPrefix = ctx.getString(R.string.mode_unet)
+        val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
 
-        val unifiedWorkflows = unetWorkflows.map { workflow ->
+        val unifiedWorkflows = workflows.map { workflow ->
             ItvWorkflowItem(
                 id = workflow.id,
                 name = workflow.name,
-                displayName = "[$unetPrefix] ${workflow.name}",
-                type = WorkflowType.ITV_UNET
+                displayName = workflow.name,
+                type = WorkflowType.ITV
             )
         }
 

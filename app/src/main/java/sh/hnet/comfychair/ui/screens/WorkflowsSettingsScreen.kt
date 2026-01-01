@@ -218,11 +218,11 @@ fun WorkflowsSettingsScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
-                // Text-to-Image (Checkpoint)
+                // Text-to-Image
                 item {
                     WorkflowSection(
-                        title = stringResource(R.string.workflow_section_tti_checkpoint),
-                        workflows = uiState.ttiCheckpointWorkflows,
+                        title = stringResource(R.string.workflow_section_tti),
+                        workflows = uiState.ttiWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
@@ -232,11 +232,11 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
-                // Text-to-Image (UNET)
+                // Image to Image: Inpainting
                 item {
                     WorkflowSection(
-                        title = stringResource(R.string.workflow_section_tti_unet),
-                        workflows = uiState.ttiUnetWorkflows,
+                        title = stringResource(R.string.workflow_section_iti_inpainting),
+                        workflows = uiState.itiInpaintingWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
@@ -246,11 +246,11 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
-                // Image editing (UNET)
+                // Image to Image: Editing
                 item {
                     WorkflowSection(
-                        title = stringResource(R.string.workflow_section_ite_unet),
-                        workflows = uiState.iteUnetWorkflows,
+                        title = stringResource(R.string.workflow_section_iti_editing),
+                        workflows = uiState.itiEditingWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
@@ -260,11 +260,11 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
-                // Inpainting (Checkpoint)
+                // Text-to-Video
                 item {
                     WorkflowSection(
-                        title = stringResource(R.string.workflow_section_iti_checkpoint),
-                        workflows = uiState.itiCheckpointWorkflows,
+                        title = stringResource(R.string.workflow_section_ttv),
+                        workflows = uiState.ttvWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
@@ -274,39 +274,11 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
-                // Inpainting (UNET)
+                // Image-to-Video
                 item {
                     WorkflowSection(
-                        title = stringResource(R.string.workflow_section_iti_unet),
-                        workflows = uiState.itiUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
-                    )
-                }
-
-                // Text-to-Video (UNET)
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_ttv_unet),
-                        workflows = uiState.ttvUnetWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
-                    )
-                }
-
-                // Image-to-Video (UNET)
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_itv_unet),
-                        workflows = uiState.itvUnetWorkflows,
+                        title = stringResource(R.string.workflow_section_itv),
+                        workflows = uiState.itvWorkflows,
                         onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
@@ -648,13 +620,11 @@ private fun ImportWorkflowDialog(
     onDismiss: () -> Unit
 ) {
     val allTypes = listOf(
-        WorkflowType.TTI_CHECKPOINT to stringResource(R.string.workflow_section_tti_checkpoint),
-        WorkflowType.TTI_UNET to stringResource(R.string.workflow_section_tti_unet),
-        WorkflowType.ITE_UNET to stringResource(R.string.workflow_section_ite_unet),
-        WorkflowType.ITI_CHECKPOINT to stringResource(R.string.workflow_section_iti_checkpoint),
-        WorkflowType.ITI_UNET to stringResource(R.string.workflow_section_iti_unet),
-        WorkflowType.TTV_UNET to stringResource(R.string.workflow_section_ttv_unet),
-        WorkflowType.ITV_UNET to stringResource(R.string.workflow_section_itv_unet)
+        WorkflowType.TTI to stringResource(R.string.workflow_section_tti),
+        WorkflowType.ITI_INPAINTING to stringResource(R.string.workflow_section_iti_inpainting),
+        WorkflowType.ITI_EDITING to stringResource(R.string.workflow_section_iti_editing),
+        WorkflowType.TTV to stringResource(R.string.workflow_section_ttv),
+        WorkflowType.ITV to stringResource(R.string.workflow_section_itv)
     )
 
     val selectedTypeName = allTypes.find { it.first == selectedType }?.second ?: ""

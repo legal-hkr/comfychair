@@ -25,13 +25,13 @@ import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
 /**
- * Represents a workflow item with display name and type prefix
+ * Represents a workflow item with display name
  */
 data class TtvWorkflowItem(
     val id: String,             // Workflow ID for editor
     override val name: String,           // User-friendly workflow name
-    override val displayName: String,    // "[UNET] LightX2V"
-    val type: WorkflowType      // TTV_UNET
+    override val displayName: String,    // Display name
+    val type: WorkflowType      // TTV
 ) : WorkflowItemBase
 
 /**
@@ -259,17 +259,17 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
     }
 
     private fun loadWorkflows() {
+        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: return
 
-        val unetWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV_UNET)
-        val unetPrefix = ctx.getString(R.string.mode_unet)
+        val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV)
 
-        val unifiedWorkflows = unetWorkflows.map { workflow ->
+        val unifiedWorkflows = workflows.map { workflow ->
             TtvWorkflowItem(
                 id = workflow.id,
                 name = workflow.name,
-                displayName = "[$unetPrefix] ${workflow.name}",
-                type = WorkflowType.TTV_UNET
+                displayName = workflow.name,
+                type = WorkflowType.TTV
             )
         }
 
