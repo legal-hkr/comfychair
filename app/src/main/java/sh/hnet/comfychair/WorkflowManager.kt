@@ -343,6 +343,14 @@ object WorkflowManager {
 
         // Create the new workflow entry with a random UUID
         val newId = UuidUtils.generateRandomId()
+
+        // Clean placeholders from copied defaults - they should be null so ViewModels use proper fallbacks
+        val cleanedDefaults = sourceWorkflow.defaults.copy(
+            samplerName = sourceWorkflow.defaults.samplerName?.takeIf { !isPlaceholder(it) },
+            scheduler = sourceWorkflow.defaults.scheduler?.takeIf { !isPlaceholder(it) },
+            negativePrompt = sourceWorkflow.defaults.negativePrompt?.takeIf { !isPlaceholder(it) }
+        )
+
         val newWorkflow = Workflow(
             id = newId,
             name = newName,
@@ -350,7 +358,7 @@ object WorkflowManager {
             jsonContent = updatedJsonContent,
             type = sourceWorkflow.type,
             isBuiltIn = false,
-            defaults = sourceWorkflow.defaults
+            defaults = cleanedDefaults
         )
 
         // Save metadata
@@ -530,11 +538,14 @@ object WorkflowManager {
                 if (inputsJson != null && inputsJson.has(inputKey)) {
                     val originalValue = inputsJson.get(inputKey)
                     // Only capture numeric and string values as defaults (not model names, but include prompts and params)
+                    // Skip placeholder strings - they should be replaced with actual defaults by ViewModels
                     if (originalValue is Number || (originalValue is String && fieldKey in listOf(
                             "width", "height", "steps", "cfg", "sampler_name", "scheduler",
                             "megapixels", "length", "frame_rate", "negative_text"
                         ))) {
-                        extractedDefaults[fieldKey] = originalValue
+                        if (!isPlaceholder(originalValue)) {
+                            extractedDefaults[fieldKey] = originalValue
+                        }
                     }
                 }
             }
@@ -737,11 +748,14 @@ object WorkflowManager {
                 val inputsJson = nodeJson.optJSONObject("inputs")
                 if (inputsJson != null && inputsJson.has(inputKey)) {
                     val originalValue = inputsJson.get(inputKey)
+                    // Skip placeholder strings - they should be replaced with actual defaults by ViewModels
                     if (originalValue is Number || (originalValue is String && fieldKey in listOf(
                             "width", "height", "steps", "cfg", "sampler_name", "scheduler",
                             "megapixels", "length", "frame_rate", "negative_text"
                         ))) {
-                        extractedDefaults[fieldKey] = originalValue
+                        if (!isPlaceholder(originalValue)) {
+                            extractedDefaults[fieldKey] = originalValue
+                        }
                     }
                 }
             }
@@ -1738,6 +1752,14 @@ object WorkflowManager {
 
         // Apply node attribute edits from the Workflow Editor
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
+    }
+
+    /**
+     * Check if a value is a template placeholder (e.g., "{{sampler_name}}")
+     * These should not be extracted as default values.
+     */
+    private fun isPlaceholder(value: Any?): Boolean {
+        return value is String && value.startsWith("{{") && value.endsWith("}}")
     }
 
 }
