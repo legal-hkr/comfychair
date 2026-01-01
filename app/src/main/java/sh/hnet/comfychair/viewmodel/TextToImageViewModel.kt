@@ -17,6 +17,7 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
@@ -263,13 +264,14 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * Load available workflows from WorkflowManager and create unified list
      */
     private fun loadWorkflows() {
-        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: run {
             DebugLogger.w(TAG, "loadWorkflows: Context not available")
             return
         }
 
+        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
         val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI)
+            .filter { showBuiltIn || !it.isBuiltIn }
 
         // Create workflow list
         val unifiedWorkflows = workflows.map { workflow ->

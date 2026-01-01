@@ -96,6 +96,8 @@
     <string name="disable_media_cache_description">Nie zapisuj podglądów obrazów i filmów na dysku</string>
     <string name="auto_connect_label">Automatyczne łączenie</string>
     <string name="auto_connect_description">Automatyczne łączenie z ostatnim serwerem przy uruchomieniu aplikacji</string>
+    <string name="show_built_in_workflows_label">Pokaż wbudowane workflows</string>
+    <string name="show_built_in_workflows_description">Wyświetlaj domyślne workflows dołączone do aplikacji</string>
     <string name="reset_prompts_button">Resetuj prompty</string>
     <string name="reset_prompts_success">Prompty przywrócone do domyślnych</string>
     <string name="clear_cache_button">Wyczyść pamięć podręczną</string>

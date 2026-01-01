@@ -96,6 +96,8 @@
     <string name="disable_media_cache_description">Ne pas enregistrer les images d\'aperçu et les vidéos sur le disque</string>
     <string name="auto_connect_label">Connexion automatique</string>
     <string name="auto_connect_description">Se connecter automatiquement au dernier serveur au lancement de l\'app</string>
+    <string name="show_built_in_workflows_label">Afficher les workflows intégrés</string>
+    <string name="show_built_in_workflows_description">Afficher les workflows par défaut fournis avec l\'app</string>
     <string name="reset_prompts_button">Réinitialiser les prompts</string>
     <string name="reset_prompts_success">Prompts réinitialisés aux valeurs par défaut</string>
     <string name="clear_cache_button">Vider le cache</string>

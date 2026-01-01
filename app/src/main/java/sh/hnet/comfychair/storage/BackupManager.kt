@@ -273,6 +273,7 @@ class BackupManager(private val context: Context) {
             put("memoryFirstCache", prefs.getBoolean("memory_first_cache", true))
             put("mediaCacheDisabled", prefs.getBoolean("media_cache_disabled", false))
             put("debugLoggingEnabled", prefs.getBoolean("debug_logging_enabled", false))
+            put("showBuiltInWorkflows", prefs.getBoolean("show_built_in_workflows", true))
         }
     }
 
@@ -404,6 +405,9 @@ class BackupManager(private val context: Context) {
         }
         if (json.has("debugLoggingEnabled")) {
             editor.putBoolean("debug_logging_enabled", json.optBoolean("debugLoggingEnabled", false))
+        }
+        if (json.has("showBuiltInWorkflows")) {
+            editor.putBoolean("show_built_in_workflows", json.optBoolean("showBuiltInWorkflows", true))
         }
 
         editor.apply()

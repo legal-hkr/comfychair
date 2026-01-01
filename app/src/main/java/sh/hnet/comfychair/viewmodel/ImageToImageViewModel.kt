@@ -22,6 +22,7 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
@@ -365,13 +366,15 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     }
 
     private fun loadWorkflows() {
-        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: return
 
+        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
         // Load inpainting workflows (ITI_INPAINTING)
         val inpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING)
+            .filter { showBuiltIn || !it.isBuiltIn }
         // Load editing workflows (ITI_EDITING)
         val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING)
+            .filter { showBuiltIn || !it.isBuiltIn }
 
         // Create inpainting workflow list
         val unifiedWorkflows = inpaintingWorkflows.map { workflow ->

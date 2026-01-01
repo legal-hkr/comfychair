@@ -13,6 +13,7 @@ object AppSettings {
     private const val KEY_LIVE_PREVIEW_ENABLED = "live_preview_enabled"
     private const val KEY_DEBUG_LOGGING_ENABLED = "debug_logging_enabled"
     private const val KEY_AUTO_CONNECT = "autoConnect"
+    private const val KEY_SHOW_BUILT_IN_WORKFLOWS = "show_built_in_workflows"
 
     /**
      * Check if live preview is enabled.
@@ -110,6 +111,26 @@ object AppSettings {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_AUTO_CONNECT, enabled)
+            .apply()
+    }
+
+    /**
+     * Check if built-in workflows should be shown.
+     * When enabled (default), built-in workflows are displayed alongside user workflows.
+     * When disabled, only user-created workflows are shown.
+     */
+    fun isShowBuiltInWorkflows(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_SHOW_BUILT_IN_WORKFLOWS, true)  // Default: true (show built-in)
+    }
+
+    /**
+     * Set whether built-in workflows should be shown.
+     */
+    fun setShowBuiltInWorkflows(context: Context, show: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SHOW_BUILT_IN_WORKFLOWS, show)
             .apply()
     }
 }

@@ -96,6 +96,8 @@
     <string name="disable_media_cache_description">Vorschaubilder und Videos nicht auf Festplatte speichern</string>
     <string name="auto_connect_label">Automatisch verbinden</string>
     <string name="auto_connect_description">Beim App-Start automatisch mit dem letzten Server verbinden</string>
+    <string name="show_built_in_workflows_label">Integrierte Workflows anzeigen</string>
+    <string name="show_built_in_workflows_description">Die mit der App gebündelten Standard-Workflows anzeigen</string>
     <string name="reset_prompts_button">Prompts zurücksetzen</string>
     <string name="reset_prompts_success">Prompts auf Standardwerte zurückgesetzt</string>
     <string name="clear_cache_button">Cache leeren</string>

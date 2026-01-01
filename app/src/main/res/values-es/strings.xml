@@ -96,6 +96,8 @@
     <string name="disable_media_cache_description">No guardar imágenes de vista previa ni videos en disco</string>
     <string name="auto_connect_label">Conexión automática</string>
     <string name="auto_connect_description">Conectar automáticamente al último servidor al iniciar la app</string>
+    <string name="show_built_in_workflows_label">Mostrar workflows integrados</string>
+    <string name="show_built_in_workflows_description">Mostrar los workflows predeterminados incluidos con la app</string>
     <string name="reset_prompts_button">Restablecer prompts</string>
     <string name="reset_prompts_success">Prompts restablecidos a los valores predeterminados</string>
     <string name="clear_cache_button">Vaciar caché</string>

@@ -100,6 +100,8 @@
     <string name="disable_media_cache_description">Do not save preview images and videos to disk</string>
     <string name="auto_connect_label">Auto-connect</string>
     <string name="auto_connect_description">Automatically connect to the last server on app launch</string>
+    <string name="show_built_in_workflows_label">Show built-in workflows</string>
+    <string name="show_built_in_workflows_description">Display the default workflows bundled with the app</string>
     <string name="reset_prompts_button">Reset prompts</string>
     <string name="reset_prompts_success">Prompts reset to defaults</string>
     <string name="clear_cache_button">Clear cache</string>

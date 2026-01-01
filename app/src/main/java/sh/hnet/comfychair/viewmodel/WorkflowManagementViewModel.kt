@@ -25,6 +25,7 @@ import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.PendingWorkflowUpload
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.ValidationUtils
 
 /**
@@ -125,12 +126,20 @@ class WorkflowManagementViewModel : ViewModel() {
      * Load all workflows and organize by type
      */
     fun loadWorkflows() {
+        val ctx = applicationContext ?: return
+        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
+
         _uiState.value = _uiState.value.copy(
-            ttiWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI),
-            itiInpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING),
-            itiEditingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING),
-            ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV),
+            ttiWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI)
+                .filter { showBuiltIn || !it.isBuiltIn },
+            itiInpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING)
+                .filter { showBuiltIn || !it.isBuiltIn },
+            itiEditingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING)
+                .filter { showBuiltIn || !it.isBuiltIn },
+            ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV)
+                .filter { showBuiltIn || !it.isBuiltIn },
             itvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
+                .filter { showBuiltIn || !it.isBuiltIn }
         )
     }
 

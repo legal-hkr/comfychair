@@ -96,6 +96,8 @@
     <string name="disable_media_cache_description">不将预览图像和视频保存到磁盘</string>
     <string name="auto_connect_label">自动连接</string>
     <string name="auto_connect_description">启动应用时自动连接到上次使用的服务器</string>
+    <string name="show_built_in_workflows_label">显示内置工作流</string>
+    <string name="show_built_in_workflows_description">显示应用程序自带的默认工作流</string>
     <string name="reset_prompts_button">重置提示词</string>
     <string name="reset_prompts_success">提示词已恢复为默认值</string>
     <string name="clear_cache_button">清空缓存</string>

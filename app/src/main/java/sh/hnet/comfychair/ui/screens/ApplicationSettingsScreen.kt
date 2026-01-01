@@ -59,6 +59,7 @@ fun ApplicationSettingsScreen(
     val isMediaCacheDisabled by viewModel.isMediaCacheDisabled.collectAsState()
     val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
     val isAutoConnectEnabled by viewModel.isAutoConnectEnabled.collectAsState()
+    val isShowBuiltInWorkflows by viewModel.isShowBuiltInWorkflows.collectAsState()
 
     // State and effects
     // Backup/restore state
@@ -293,6 +294,31 @@ fun ApplicationSettingsScreen(
                             checked = isMediaCacheDisabled,
                             onCheckedChange = { viewModel.setMediaCacheDisabled(context, it) },
                             enabled = isMemoryFirstCache
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Show built-in workflows toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.show_built_in_workflows_label),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = stringResource(R.string.show_built_in_workflows_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isShowBuiltInWorkflows,
+                            onCheckedChange = { viewModel.setShowBuiltInWorkflows(context, it) }
                         )
                     }
 

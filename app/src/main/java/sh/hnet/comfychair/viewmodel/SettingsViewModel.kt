@@ -107,6 +107,9 @@ class SettingsViewModel : ViewModel() {
     private val _isAutoConnectEnabled = MutableStateFlow(true)
     val isAutoConnectEnabled: StateFlow<Boolean> = _isAutoConnectEnabled.asStateFlow()
 
+    private val _isShowBuiltInWorkflows = MutableStateFlow(true)
+    val isShowBuiltInWorkflows: StateFlow<Boolean> = _isShowBuiltInWorkflows.asStateFlow()
+
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
@@ -121,6 +124,7 @@ class SettingsViewModel : ViewModel() {
         _isMediaCacheDisabled.value = AppSettings.isMediaCacheDisabled(context)
         _isDebugLoggingEnabled.value = AppSettings.isDebugLoggingEnabled(context)
         _isAutoConnectEnabled.value = AppSettings.isAutoConnectEnabled(context)
+        _isShowBuiltInWorkflows.value = AppSettings.isShowBuiltInWorkflows(context)
 
         // Initialize debug logger with saved state
         DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
@@ -458,6 +462,15 @@ class SettingsViewModel : ViewModel() {
         _isAutoConnectEnabled.value = enabled
     }
 
+    fun setShowBuiltInWorkflows(context: Context, show: Boolean) {
+        AppSettings.setShowBuiltInWorkflows(context, show)
+        _isShowBuiltInWorkflows.value = show
+        // Notify that workflows need to be reloaded
+        viewModelScope.launch {
+            _events.emit(SettingsEvent.RefreshNeeded)
+        }
+    }
+
     /**
      * Create a backup and write it to the given URI.
      */
@@ -585,6 +598,7 @@ class SettingsViewModel : ViewModel() {
         val newMediaCacheDisabled = AppSettings.isMediaCacheDisabled(context)
         val restoredDebugLogging = AppSettings.isDebugLoggingEnabled(context)
         val newAutoConnect = AppSettings.isAutoConnectEnabled(context)
+        val newShowBuiltInWorkflows = AppSettings.isShowBuiltInWorkflows(context)
 
         // If debug logging was enabled before restore, keep it enabled
         val finalDebugLogging = if (preserveDebugLogging && !restoredDebugLogging) {
@@ -596,13 +610,14 @@ class SettingsViewModel : ViewModel() {
             restoredDebugLogging
         }
 
-        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect")
+        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect, showBuiltInWorkflows: $newShowBuiltInWorkflows")
 
         _isLivePreviewEnabled.value = newLivePreview
         _isMemoryFirstCache.value = newMemoryFirst
         _isMediaCacheDisabled.value = newMediaCacheDisabled
         _isDebugLoggingEnabled.value = finalDebugLogging
         _isAutoConnectEnabled.value = newAutoConnect
+        _isShowBuiltInWorkflows.value = newShowBuiltInWorkflows
 
         // Update DebugLogger state to match
         DebugLogger.setEnabled(finalDebugLogging)

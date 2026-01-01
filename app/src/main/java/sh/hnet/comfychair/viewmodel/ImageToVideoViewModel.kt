@@ -17,6 +17,7 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowValues
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
@@ -272,10 +273,11 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     }
 
     private fun loadWorkflows() {
-        @Suppress("UNUSED_VARIABLE")
         val ctx = applicationContext ?: return
 
+        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
         val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
+            .filter { showBuiltIn || !it.isBuiltIn }
 
         val unifiedWorkflows = workflows.map { workflow ->
             ItvWorkflowItem(
