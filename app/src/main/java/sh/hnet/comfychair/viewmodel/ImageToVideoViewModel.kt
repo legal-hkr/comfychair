@@ -66,12 +66,25 @@ data class ImageToVideoUiState(
     val selectedLownoiseLora: String = "",
     val selectedVae: String = "",
     val selectedClip: String = "",
+    val selectedClip1: String = "",
+    val selectedClip2: String = "",
+    val selectedClip3: String = "",
+    val selectedClip4: String = "",
 
     // Available models
     val availableUnets: List<String> = emptyList(),
     val availableLoras: List<String> = emptyList(),
     val availableVaes: List<String> = emptyList(),
     val availableClips: List<String> = emptyList(),
+
+    // Workflow-specific filtered options (from actual node type in workflow)
+    val filteredUnets: List<String>? = null,
+    val filteredVaes: List<String>? = null,
+    val filteredClips: List<String>? = null,
+    val filteredClips1: List<String>? = null,
+    val filteredClips2: List<String>? = null,
+    val filteredClips3: List<String>? = null,
+    val filteredClips4: List<String>? = null,
 
     // Generation parameters
     val width: String = "848",
@@ -98,6 +111,10 @@ data class ImageToVideoUiState(
     val deferredLownoiseLora: String? = null,
     val deferredVae: String? = null,
     val deferredClip: String? = null,
+    val deferredClip1: String? = null,
+    val deferredClip2: String? = null,
+    val deferredClip3: String? = null,
+    val deferredClip4: String? = null,
 
     // Additional LoRA chains (optional, 0-5 LoRAs on top of mandatory LightX2V LoRAs)
     val highnoiseLoraChain: List<LoraSelection> = emptyList(),
@@ -113,6 +130,10 @@ data class ImageToVideoUiState(
     val currentWorkflowHasFrameRate: Boolean = true,
     val currentWorkflowHasVaeName: Boolean = true,
     val currentWorkflowHasClipName: Boolean = true,
+    val currentWorkflowHasClipName1: Boolean = false,
+    val currentWorkflowHasClipName2: Boolean = false,
+    val currentWorkflowHasClipName3: Boolean = false,
+    val currentWorkflowHasClipName4: Boolean = false,
     val currentWorkflowHasLoraName: Boolean = true,
 
     // Model presence flags (for conditional model dropdowns)
@@ -168,6 +189,14 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                         ?: validateModelSelection(state.selectedVae, cache.vaes)
                     val clip = state.deferredClip?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip, cache.clips)
+                    val clip1 = state.deferredClip1?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip1, cache.clips)
+                    val clip2 = state.deferredClip2?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip2, cache.clips)
+                    val clip3 = state.deferredClip3?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip3, cache.clips)
+                    val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip4, cache.clips)
 
                     state.copy(
                         availableUnets = cache.unets,
@@ -180,6 +209,10 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                         selectedLownoiseLora = lownoiseLora,
                         selectedVae = vae,
                         selectedClip = clip,
+                        selectedClip1 = clip1,
+                        selectedClip2 = clip2,
+                        selectedClip3 = clip3,
+                        selectedClip4 = clip4,
                         // Clear deferred values once applied
                         deferredHighnoiseUnet = null,
                         deferredLownoiseUnet = null,
@@ -187,6 +220,10 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                         deferredLownoiseLora = null,
                         deferredVae = null,
                         deferredClip = null,
+                        deferredClip1 = null,
+                        deferredClip2 = null,
+                        deferredClip3 = null,
+                        deferredClip4 = null,
                         // Filter LoRA chains
                         highnoiseLoraChain = LoraChainManager.filterUnavailable(state.highnoiseLoraChain, cache.loras),
                         lownoiseLoraChain = LoraChainManager.filterUnavailable(state.lownoiseLoraChain, cache.loras)
@@ -308,6 +345,14 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                 ?: state.selectedVae,
             selectedClip = savedValues?.clipModel?.takeIf { it in cache.clips }
                 ?: state.selectedClip,
+            selectedClip1 = savedValues?.clip1Model?.takeIf { it in cache.clips }
+                ?: state.selectedClip1,
+            selectedClip2 = savedValues?.clip2Model?.takeIf { it in cache.clips }
+                ?: state.selectedClip2,
+            selectedClip3 = savedValues?.clip3Model?.takeIf { it in cache.clips }
+                ?: state.selectedClip3,
+            selectedClip4 = savedValues?.clip4Model?.takeIf { it in cache.clips }
+                ?: state.selectedClip4,
             // Deferred values for when cache updates
             deferredHighnoiseUnet = savedValues?.highnoiseUnetModel,
             deferredLownoiseUnet = savedValues?.lownoiseUnetModel,
@@ -315,8 +360,20 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             deferredLownoiseLora = savedValues?.lownoiseLoraModel,
             deferredVae = savedValues?.vaeModel,
             deferredClip = savedValues?.clipModel,
+            deferredClip1 = savedValues?.clip1Model,
+            deferredClip2 = savedValues?.clip2Model,
+            deferredClip3 = savedValues?.clip3Model,
+            deferredClip4 = savedValues?.clip4Model,
             highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Workflow-specific filtered options (video workflows use highnoise_unet_name for UNET)
+            filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "highnoise_unet_name"),
+            filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "vae_name"),
+            filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name"),
+            filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name1"),
+            filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name2"),
+            filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name3"),
+            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name4"),
             // Set workflow capability flags from defaults
             currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
             currentWorkflowHasWidth = defaults?.hasWidth ?: true,
@@ -325,6 +382,10 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             currentWorkflowHasFrameRate = defaults?.hasFrameRate ?: true,
             currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
             currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+            currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
+            currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
+            currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
+            currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
             currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
             // Model presence flag
             currentWorkflowHasHighnoiseUnet = defaults?.hasHighnoiseUnet ?: false,
@@ -386,6 +447,10 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             lownoiseLoraModel = state.selectedLownoiseLora.takeIf { it.isNotEmpty() },
             vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
             clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
+            clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
+            clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
+            clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
+            clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
             highnoiseLoraChain = LoraSelection.toJsonString(state.highnoiseLoraChain).takeIf { state.highnoiseLoraChain.isNotEmpty() },
             lownoiseLoraChain = LoraSelection.toJsonString(state.lownoiseLoraChain).takeIf { state.lownoiseLoraChain.isNotEmpty() },
             nodeAttributeEdits = existingValues?.nodeAttributeEdits
@@ -492,6 +557,26 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
 
     fun onClipChange(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip = clip)
+        savePreferences()
+    }
+
+    fun onClip1Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip1 = clip)
+        savePreferences()
+    }
+
+    fun onClip2Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip2 = clip)
+        savePreferences()
+    }
+
+    fun onClip3Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip3 = clip)
+        savePreferences()
+    }
+
+    fun onClip4Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip4 = clip)
         savePreferences()
     }
 
@@ -687,6 +772,10 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             lownoiseLora = state.selectedLownoiseLora,
             vae = state.selectedVae,
             clip = state.selectedClip,
+            clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
+            clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
+            clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
+            clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
             width = width,
             height = height,
             length = length,
@@ -717,9 +806,9 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                 (!state.currentWorkflowHasHighnoiseLora || state.selectedHighnoiseLora.isNotEmpty()) &&
                 // Low noise LoRA required only if workflow has it mapped
                 (!state.currentWorkflowHasLownoiseLora || state.selectedLownoiseLora.isNotEmpty()) &&
-                // VAE/CLIP required only if workflow has them
+                // VAE required only if workflow has it mapped
                 (!state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()) &&
-                (!state.currentWorkflowHasClipName || state.selectedClip.isNotEmpty()) &&
+                // CLIP is optional - workflow can have embedded defaults
                 state.widthError == null &&
                 state.heightError == null &&
                 state.lengthError == null &&

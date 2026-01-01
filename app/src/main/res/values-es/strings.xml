@@ -471,8 +471,10 @@
     <string name="field_desc_unet">El modelo de difusión</string>
     <string name="field_desc_vae">El codificador/decodificador VAE</string>
     <string name="field_desc_clip">El codificador de texto CLIP</string>
-    <string name="field_desc_clip1">Primer codificador CLIP (T5-XXL para Flux)</string>
-    <string name="field_desc_clip2">Segundo codificador CLIP (L para Flux)</string>
+    <string name="field_desc_clip1">Primer codificador de texto CLIP</string>
+    <string name="field_desc_clip2">Segundo codificador de texto CLIP</string>
+    <string name="field_desc_clip3">Tercer codificador de texto CLIP</string>
+    <string name="field_desc_clip4">Cuarto codificador de texto CLIP</string>
     <string name="field_desc_width">Ancho de imagen de salida</string>
     <string name="field_desc_height">Alto de imagen de salida</string>
     <string name="field_desc_steps">Número de pasos de muestreo</string>

@@ -25,10 +25,9 @@ data class WorkflowDefaults(
     val length: Int? = null,
     val frameRate: Int? = null,
 
-    // Workflow capability flags (for Flux support - backwards compatible)
+    // Workflow capability flags (backwards compatible)
     val hasNegativePrompt: Boolean = true,
     val hasCfg: Boolean = true,
-    val hasDualClip: Boolean = false,
 
     // Field presence flags - indicate which optional fields are mapped in the workflow
     // If a field is not mapped (false), it won't appear in the Generation screen's Bottom Sheet
@@ -41,7 +40,11 @@ data class WorkflowDefaults(
     val hasLength: Boolean = true,
     val hasFrameRate: Boolean = true,
     val hasVaeName: Boolean = true,
-    val hasClipName: Boolean = true,
+    val hasClipName: Boolean = true,      // For single CLIP ({{clip_name}})
+    val hasClipName1: Boolean = false,    // For multi-CLIP slot 1 ({{clip_name1}})
+    val hasClipName2: Boolean = false,    // For multi-CLIP slot 2 ({{clip_name2}})
+    val hasClipName3: Boolean = false,    // For multi-CLIP slot 3 ({{clip_name3}})
+    val hasClipName4: Boolean = false,    // For multi-CLIP slot 4 ({{clip_name4}})
     val hasLoraName: Boolean = true,
 
     // Dual-UNET/LoRA field presence flags (for video workflows)
@@ -76,7 +79,6 @@ data class WorkflowDefaults(
                 // Capability flags (default to true/false if not present)
                 hasNegativePrompt = jsonObject.optBoolean("has_negative_prompt", true),
                 hasCfg = jsonObject.optBoolean("has_cfg", true),
-                hasDualClip = jsonObject.optBoolean("has_dual_clip", false),
                 // Field presence flags (default to true for backwards compatibility)
                 hasWidth = jsonObject.optBoolean("has_width", true),
                 hasHeight = jsonObject.optBoolean("has_height", true),
@@ -88,6 +90,10 @@ data class WorkflowDefaults(
                 hasFrameRate = jsonObject.optBoolean("has_frame_rate", true),
                 hasVaeName = jsonObject.optBoolean("has_vae_name", true),
                 hasClipName = jsonObject.optBoolean("has_clip_name", true),
+                hasClipName1 = jsonObject.optBoolean("has_clip_name1", false),
+                hasClipName2 = jsonObject.optBoolean("has_clip_name2", false),
+                hasClipName3 = jsonObject.optBoolean("has_clip_name3", false),
+                hasClipName4 = jsonObject.optBoolean("has_clip_name4", false),
                 hasLoraName = jsonObject.optBoolean("has_lora_name", true),
                 // Dual-UNET/LoRA flags (default to false)
                 hasLownoiseUnet = jsonObject.optBoolean("has_lownoise_unet", false),
@@ -118,7 +124,6 @@ data class WorkflowDefaults(
                 // Only include capability flags if they differ from defaults
                 if (!defaults.hasNegativePrompt) put("has_negative_prompt", false)
                 if (!defaults.hasCfg) put("has_cfg", false)
-                if (defaults.hasDualClip) put("has_dual_clip", true)
                 // Only include field presence flags if they differ from defaults (false)
                 if (!defaults.hasWidth) put("has_width", false)
                 if (!defaults.hasHeight) put("has_height", false)
@@ -130,6 +135,11 @@ data class WorkflowDefaults(
                 if (!defaults.hasFrameRate) put("has_frame_rate", false)
                 if (!defaults.hasVaeName) put("has_vae_name", false)
                 if (!defaults.hasClipName) put("has_clip_name", false)
+                // Multi-CLIP flags (only write if true since default is false)
+                if (defaults.hasClipName1) put("has_clip_name1", true)
+                if (defaults.hasClipName2) put("has_clip_name2", true)
+                if (defaults.hasClipName3) put("has_clip_name3", true)
+                if (defaults.hasClipName4) put("has_clip_name4", true)
                 if (!defaults.hasLoraName) put("has_lora_name", false)
                 // Dual-UNET/LoRA flags (only write if true since default is false)
                 if (defaults.hasLownoiseUnet) put("has_lownoise_unet", true)

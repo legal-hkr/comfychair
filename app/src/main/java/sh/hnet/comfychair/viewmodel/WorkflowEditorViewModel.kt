@@ -1066,7 +1066,9 @@ class WorkflowEditorViewModel : ViewModel() {
                 FieldMappingState(
                     field = requiredField,
                     candidates = candidates,
-                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
+                    // Auto-select when exactly one candidate (unambiguous mapping)
+                    // Otherwise require explicit selection
+                    selectedCandidateIndex = if (candidates.size == 1) 0 else -1
                 )
             )
         }
@@ -1080,7 +1082,9 @@ class WorkflowEditorViewModel : ViewModel() {
                 FieldMappingState(
                     field = requiredField,
                     candidates = candidates,
-                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
+                    // Auto-select when exactly one candidate (unambiguous mapping)
+                    // Otherwise require explicit selection
+                    selectedCandidateIndex = if (candidates.size == 1) 0 else -1
                 )
             )
         }
@@ -1093,20 +1097,14 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Get optional keys for a workflow type, adjusted for graph structure.
-     * Handles DualCLIPLoader (clip_name1/2 instead of clip_name) and BasicGuider (no CFG/negative).
+     * Handles BasicGuider (no CFG/negative).
+     * Note: clip_name* fields are now all included by default and visibility is
+     * determined by placeholder presence in the workflow JSON.
      */
     private fun getOptionalKeysFromGraph(type: WorkflowType, graph: WorkflowGraph): Set<String> {
         val baseKeys = TemplateKeyRegistry.getOptionalKeysForType(type).toMutableSet()
 
         if (type == WorkflowType.TTI_UNET) {
-            // Check for DualCLIPLoader (replaces clip_name with clip_name1 + clip_name2)
-            val hasDualClip = graph.nodes.any { it.classType == "DualCLIPLoader" }
-            if (hasDualClip) {
-                baseKeys.remove("clip_name")
-                baseKeys.add("clip_name1")
-                baseKeys.add("clip_name2")
-            }
-
             // Check for BasicGuider (no CFG, no negative prompt)
             val hasBasicGuider = graph.nodes.any { it.classType == "BasicGuider" }
             if (hasBasicGuider) {

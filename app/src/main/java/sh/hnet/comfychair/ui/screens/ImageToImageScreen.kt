@@ -511,6 +511,10 @@ fun ImageToImageScreen(
                 onUnetChange = imageToImageViewModel::onUnetChange,
                 onVaeChange = imageToImageViewModel::onVaeChange,
                 onClipChange = imageToImageViewModel::onClipChange,
+                onClip1Change = imageToImageViewModel::onClip1Change,
+                onClip2Change = imageToImageViewModel::onClip2Change,
+                onClip3Change = imageToImageViewModel::onClip3Change,
+                onClip4Change = imageToImageViewModel::onClip4Change,
                 // Inpainting parameter callbacks
                 onNegativePromptChange = imageToImageViewModel::onNegativePromptChange,
                 onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
@@ -539,6 +543,10 @@ fun ImageToImageScreen(
                 onEditingLoraChange = imageToImageViewModel::onEditingLoraChange,
                 onEditingVaeChange = imageToImageViewModel::onEditingVaeChange,
                 onEditingClipChange = imageToImageViewModel::onEditingClipChange,
+                onEditingClip1Change = imageToImageViewModel::onEditingClip1Change,
+                onEditingClip2Change = imageToImageViewModel::onEditingClip2Change,
+                onEditingClip3Change = imageToImageViewModel::onEditingClip3Change,
+                onEditingClip4Change = imageToImageViewModel::onEditingClip4Change,
                 // Editing parameter callbacks
                 onEditingNegativePromptChange = imageToImageViewModel::onEditingNegativePromptChange,
                 onEditingMegapixelsChange = imageToImageViewModel::onEditingMegapixelsChange,

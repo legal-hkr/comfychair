@@ -22,6 +22,8 @@ object TemplateKeyRegistry {
         "clip_name" to "clip_name",
         "clip_name1" to "clip_name1",
         "clip_name2" to "clip_name2",
+        "clip_name3" to "clip_name3",
+        "clip_name4" to "clip_name4",
         "width" to "width",
         "height" to "height",
         "steps" to "steps",
@@ -53,6 +55,8 @@ object TemplateKeyRegistry {
         "clip_name" to "clip_name",
         "clip_name1" to "clip_name1",
         "clip_name2" to "clip_name2",
+        "clip_name3" to "clip_name3",
+        "clip_name4" to "clip_name4",
         "width" to "width",
         "height" to "height",
         "steps" to "steps",
@@ -97,12 +101,12 @@ object TemplateKeyRegistry {
      */
     private val OPTIONAL_KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
         WorkflowType.TTI_CHECKPOINT to setOf("negative_text", "ckpt_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.TTI_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "width", "height", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
+        WorkflowType.TTI_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "width", "height", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
         WorkflowType.ITI_CHECKPOINT to setOf("negative_text", "ckpt_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.ITI_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.ITE_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
-        WorkflowType.TTV_UNET to setOf("negative_text", "highnoise_unet_name", "lownoise_unet_name", "highnoise_lora_name", "lownoise_lora_name", "vae_name", "clip_name", "width", "height", "length", "fps"),
-        WorkflowType.ITV_UNET to setOf("negative_text", "highnoise_unet_name", "lownoise_unet_name", "highnoise_lora_name", "lownoise_lora_name", "vae_name", "clip_name", "width", "height", "length", "fps")
+        WorkflowType.ITI_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
+        WorkflowType.ITE_UNET to setOf("negative_text", "unet_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "megapixels", "steps", "cfg", "sampler_name", "scheduler", "lora_name"),
+        WorkflowType.TTV_UNET to setOf("negative_text", "highnoise_unet_name", "lownoise_unet_name", "highnoise_lora_name", "lownoise_lora_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "width", "height", "length", "fps"),
+        WorkflowType.ITV_UNET to setOf("negative_text", "highnoise_unet_name", "lownoise_unet_name", "highnoise_lora_name", "lownoise_lora_name", "vae_name", "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4", "width", "height", "length", "fps")
     )
 
     /**
@@ -198,25 +202,16 @@ object TemplateKeyRegistry {
 
     /**
      * Analyze workflow JSON and determine actual optional keys based on workflow structure.
-     * This handles Flux-style workflows with:
-     * - DualCLIPLoader (replaces clip_name with clip_name1 + clip_name2)
-     * - BasicGuider (no CFG, no negative prompt)
+     * This handles:
+     * - BasicGuider (no CFG, no negative prompt) in TTI_UNET workflows
+     * Note: clip_name* fields are now always included in the base set and visibility
+     * is determined at runtime by checking for placeholders in the workflow JSON.
      */
     fun getOptionalKeysForWorkflow(workflowType: WorkflowType, workflowJson: JSONObject): Set<String> {
         val baseKeys = OPTIONAL_KEYS_BY_TYPE[workflowType]?.toMutableSet() ?: return emptySet()
 
         if (workflowType == WorkflowType.TTI_UNET) {
             val nodesJson = workflowJson.optJSONObject("nodes") ?: return baseKeys
-
-            // Check for DualCLIPLoader (replaces clip_name with clip_name1 + clip_name2)
-            val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
-                nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
-            }
-            if (hasDualClip) {
-                baseKeys.remove("clip_name")
-                baseKeys.add("clip_name1")
-                baseKeys.add("clip_name2")
-            }
 
             // Check for BasicGuider (no CFG, no negative prompt)
             val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->

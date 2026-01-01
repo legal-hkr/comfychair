@@ -68,9 +68,11 @@ data class TextToImageUiState(
     // UNET mode configuration
     val selectedUnet: String = "",
     val selectedVae: String = "",
-    val selectedClip: String = "",
-    val selectedClip1: String = "",  // For Flux dual CLIP
-    val selectedClip2: String = "",  // For Flux dual CLIP
+    val selectedClip: String = "",   // For single CLIP
+    val selectedClip1: String = "",  // For multi-CLIP slot 1
+    val selectedClip2: String = "",  // For multi-CLIP slot 2
+    val selectedClip3: String = "",  // For multi-CLIP slot 3
+    val selectedClip4: String = "",  // For multi-CLIP slot 4
     val unetWidth: String = "832",
     val unetHeight: String = "1216",
     val unetSteps: String = "9",
@@ -81,7 +83,6 @@ data class TextToImageUiState(
     // Current workflow capabilities (for conditional UI)
     val currentWorkflowHasNegativePrompt: Boolean = true,
     val currentWorkflowHasCfg: Boolean = true,
-    val currentWorkflowHasDualClip: Boolean = false,
 
     // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
     val currentWorkflowHasWidth: Boolean = true,
@@ -90,7 +91,11 @@ data class TextToImageUiState(
     val currentWorkflowHasSamplerName: Boolean = true,
     val currentWorkflowHasScheduler: Boolean = true,
     val currentWorkflowHasVaeName: Boolean = true,
-    val currentWorkflowHasClipName: Boolean = true,
+    val currentWorkflowHasClipName: Boolean = true,      // For single CLIP
+    val currentWorkflowHasClipName1: Boolean = false,    // For multi-CLIP slot 1
+    val currentWorkflowHasClipName2: Boolean = false,    // For multi-CLIP slot 2
+    val currentWorkflowHasClipName3: Boolean = false,    // For multi-CLIP slot 3
+    val currentWorkflowHasClipName4: Boolean = false,    // For multi-CLIP slot 4
     val currentWorkflowHasLoraName: Boolean = true,
 
     // Model presence flags (for conditional model dropdowns)
@@ -108,6 +113,8 @@ data class TextToImageUiState(
     val deferredClip: String? = null,
     val deferredClip1: String? = null,
     val deferredClip2: String? = null,
+    val deferredClip3: String? = null,
+    val deferredClip4: String? = null,
 
     // Available models (loaded from server)
     val availableCheckpoints: List<String> = emptyList(),
@@ -115,6 +122,16 @@ data class TextToImageUiState(
     val availableVaes: List<String> = emptyList(),
     val availableClips: List<String> = emptyList(),
     val availableLoras: List<String> = emptyList(),
+
+    // Workflow-specific filtered options (from actual node type)
+    val filteredCheckpoints: List<String>? = null,
+    val filteredUnets: List<String>? = null,
+    val filteredVaes: List<String>? = null,
+    val filteredClips: List<String>? = null,      // For single CLIP
+    val filteredClips1: List<String>? = null,     // For multi-CLIP slot 1
+    val filteredClips2: List<String>? = null,     // For multi-CLIP slot 2
+    val filteredClips3: List<String>? = null,     // For multi-CLIP slot 3
+    val filteredClips4: List<String>? = null,     // For multi-CLIP slot 4
 
     // Generated image (preview)
     val previewBitmap: Bitmap? = null,
@@ -180,6 +197,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         ?: validateModelSelection(state.selectedClip1, cache.clips)
                     val clip2 = state.deferredClip2?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip2, cache.clips)
+                    val clip3 = state.deferredClip3?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip3, cache.clips)
+                    val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip4, cache.clips)
 
                     state.copy(
                         availableCheckpoints = cache.checkpoints,
@@ -196,6 +217,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         selectedClip = clip,
                         selectedClip1 = clip1,
                         selectedClip2 = clip2,
+                        selectedClip3 = clip3,
+                        selectedClip4 = clip4,
                         // Clear deferred values once applied
                         deferredCheckpoint = null,
                         deferredUnet = null,
@@ -203,6 +226,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         deferredClip = null,
                         deferredClip1 = null,
                         deferredClip2 = null,
+                        deferredClip3 = null,
+                        deferredClip4 = null,
                         checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, cache.loras),
                         unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, cache.loras)
                     )
@@ -374,6 +399,16 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
     fun onClip2Change(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip2 = clip)
+        saveConfiguration()
+    }
+
+    fun onClip3Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip3 = clip)
+        saveConfiguration()
+    }
+
+    fun onClip4Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip4 = clip)
         saveConfiguration()
     }
 
@@ -638,18 +673,12 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             // Model validation: only require models if mapped
             val unetOk = !state.currentWorkflowHasUnetName || state.selectedUnet.isNotEmpty()
             val vaeOk = !state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()
-            // CLIP validation: dual CLIP or single CLIP based on workflow
-            val clipOk = if (state.currentWorkflowHasDualClip) {
-                state.selectedClip1.isNotEmpty() && state.selectedClip2.isNotEmpty()
-            } else {
-                !state.currentWorkflowHasClipName || state.selectedClip.isNotEmpty()
-            }
+            // CLIP is optional - workflow can have embedded defaults
             // CFG validation: skip if workflow doesn't have CFG
             val cfgValid = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.unetCfg) == null
 
             unetOk &&
             vaeOk &&
-            clipOk &&
             ValidationUtils.validateDimension(state.unetWidth) == null &&
             ValidationUtils.validateDimension(state.unetHeight) == null &&
             ValidationUtils.validateSteps(state.unetSteps) == null &&
@@ -687,9 +716,11 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 negativePrompt = state.unetNegativePrompt,
                 unet = state.selectedUnet,
                 vae = state.selectedVae,
-                clip = if (state.currentWorkflowHasDualClip) null else state.selectedClip,
-                clip1 = if (state.currentWorkflowHasDualClip) state.selectedClip1 else null,
-                clip2 = if (state.currentWorkflowHasDualClip) state.selectedClip2 else null,
+                clip = state.selectedClip.takeIf { it.isNotEmpty() },
+                clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
+                clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
+                clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
+                clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
                 width = state.unetWidth.toIntOrNull() ?: 832,
                 height = state.unetHeight.toIntOrNull() ?: 1216,
                 steps = state.unetSteps.toIntOrNull() ?: 9,
@@ -907,7 +938,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
                 currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasDualClip = false,
                 currentWorkflowHasWidth = defaults?.hasWidth ?: true,
                 currentWorkflowHasHeight = defaults?.hasHeight ?: true,
                 currentWorkflowHasSteps = defaults?.hasSteps ?: true,
@@ -915,10 +945,23 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
                 currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
                 currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
+                currentWorkflowHasClipName1 = false,
+                currentWorkflowHasClipName2 = false,
+                currentWorkflowHasClipName3 = false,
+                currentWorkflowHasClipName4 = false,
                 currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
                 // Model presence flags
                 currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
-                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
+                currentWorkflowHasUnetName = false,  // Checkpoint mode doesn't use UNET
+                // Workflow-specific filtered options
+                filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
+                filteredUnets = null,
+                filteredVaes = null,
+                filteredClips = null,
+                filteredClips1 = null,
+                filteredClips2 = null,
+                filteredClips3 = null,
+                filteredClips4 = null
             )
         } else {
             // Apply saved model selections - use deferred mechanism to handle race condition
@@ -927,6 +970,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             val savedClip = savedValues?.clipModel
             val savedClip1 = savedValues?.clip1Model
             val savedClip2 = savedValues?.clip2Model
+            val savedClip3 = savedValues?.clip3Model
+            val savedClip4 = savedValues?.clip4Model
 
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
@@ -957,17 +1002,22 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                     ?: validateModelSelection("", cache.clips),
                 selectedClip2 = savedClip2?.takeIf { it in cache.clips }
                     ?: validateModelSelection("", cache.clips),
+                selectedClip3 = savedClip3?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                selectedClip4 = savedClip4?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
                 // Set deferred values - these will be applied when model cache updates
                 deferredUnet = savedUnet,
                 deferredVae = savedVae,
                 deferredClip = savedClip,
                 deferredClip1 = savedClip1,
                 deferredClip2 = savedClip2,
+                deferredClip3 = savedClip3,
+                deferredClip4 = savedClip4,
                 unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
                 currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasDualClip = defaults?.hasDualClip ?: false,
                 currentWorkflowHasWidth = defaults?.hasWidth ?: true,
                 currentWorkflowHasHeight = defaults?.hasHeight ?: true,
                 currentWorkflowHasSteps = defaults?.hasSteps ?: true,
@@ -975,10 +1025,23 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
                 currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
                 currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+                currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
+                currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
+                currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
+                currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
                 currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
                 // Model presence flags
                 currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
-                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
+                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false,
+                // Workflow-specific filtered options (each CLIP field queried independently)
+                filteredCheckpoints = null,
+                filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),
+                filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "vae_name"),
+                filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name"),
+                filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name1"),
+                filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
+                filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
+                filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4")
             )
         }
     }

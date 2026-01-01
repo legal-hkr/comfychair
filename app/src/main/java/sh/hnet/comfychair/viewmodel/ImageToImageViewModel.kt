@@ -116,6 +116,21 @@ data class ImageToImageUiState(
     val selectedVae: String = "",
     val clips: List<String> = emptyList(),
     val selectedClip: String = "",
+    val selectedClip1: String = "",
+    val selectedClip2: String = "",
+    val selectedClip3: String = "",
+    val selectedClip4: String = "",
+
+    // Workflow-specific filtered options (from actual node type in workflow)
+    val filteredCheckpoints: List<String>? = null,
+    val filteredUnets: List<String>? = null,
+    val filteredVaes: List<String>? = null,
+    val filteredClips: List<String>? = null,
+    val filteredClips1: List<String>? = null,
+    val filteredClips2: List<String>? = null,
+    val filteredClips3: List<String>? = null,
+    val filteredClips4: List<String>? = null,
+
     val unetSteps: String = "9",
     val unetCfg: String = "1.0",
     val unetSampler: String = "euler",
@@ -143,9 +158,17 @@ data class ImageToImageUiState(
     val deferredUnet: String? = null,
     val deferredVae: String? = null,
     val deferredClip: String? = null,
+    val deferredClip1: String? = null,
+    val deferredClip2: String? = null,
+    val deferredClip3: String? = null,
+    val deferredClip4: String? = null,
     val deferredEditingUnet: String? = null,
     val deferredEditingVae: String? = null,
     val deferredEditingClip: String? = null,
+    val deferredEditingClip1: String? = null,
+    val deferredEditingClip2: String? = null,
+    val deferredEditingClip3: String? = null,
+    val deferredEditingClip4: String? = null,
     val deferredEditingLora: String? = null,
 
     // Editing mode state
@@ -162,6 +185,10 @@ data class ImageToImageUiState(
     val selectedEditingLora: String = "",  // Mandatory LoRA for editing
     val selectedEditingVae: String = "",
     val selectedEditingClip: String = "",
+    val selectedEditingClip1: String = "",
+    val selectedEditingClip2: String = "",
+    val selectedEditingClip3: String = "",
+    val selectedEditingClip4: String = "",
 
     // Editing parameters
     val editingMegapixels: String = "2.0",
@@ -189,6 +216,10 @@ data class ImageToImageUiState(
     val currentWorkflowHasScheduler: Boolean = true,
     val currentWorkflowHasVaeName: Boolean = true,
     val currentWorkflowHasClipName: Boolean = true,
+    val currentWorkflowHasClipName1: Boolean = false,
+    val currentWorkflowHasClipName2: Boolean = false,
+    val currentWorkflowHasClipName3: Boolean = false,
+    val currentWorkflowHasClipName4: Boolean = false,
     val currentWorkflowHasLoraName: Boolean = true,
 
     // Model presence flags (for conditional model dropdowns)
@@ -244,12 +275,28 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         ?: validateModelSelection(state.selectedVae, cache.vaes)
                     val clip = state.deferredClip?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip, cache.clips)
+                    val clip1 = state.deferredClip1?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip1, cache.clips)
+                    val clip2 = state.deferredClip2?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip2, cache.clips)
+                    val clip3 = state.deferredClip3?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip3, cache.clips)
+                    val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedClip4, cache.clips)
                     val editingUnet = state.deferredEditingUnet?.takeIf { it in cache.unets }
                         ?: validateModelSelection(state.selectedEditingUnet, cache.unets)
                     val editingVae = state.deferredEditingVae?.takeIf { it in cache.vaes }
                         ?: validateModelSelection(state.selectedEditingVae, cache.vaes)
                     val editingClip = state.deferredEditingClip?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedEditingClip, cache.clips)
+                    val editingClip1 = state.deferredEditingClip1?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedEditingClip1, cache.clips)
+                    val editingClip2 = state.deferredEditingClip2?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedEditingClip2, cache.clips)
+                    val editingClip3 = state.deferredEditingClip3?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedEditingClip3, cache.clips)
+                    val editingClip4 = state.deferredEditingClip4?.takeIf { it in cache.clips }
+                        ?: validateModelSelection(state.selectedEditingClip4, cache.clips)
                     val editingLora = state.deferredEditingLora?.takeIf { it in cache.loras }
                         ?: validateModelSelection(state.selectedEditingLora, cache.loras)
 
@@ -264,18 +311,34 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         selectedUnet = unet,
                         selectedVae = vae,
                         selectedClip = clip,
+                        selectedClip1 = clip1,
+                        selectedClip2 = clip2,
+                        selectedClip3 = clip3,
+                        selectedClip4 = clip4,
                         selectedEditingUnet = editingUnet,
                         selectedEditingVae = editingVae,
                         selectedEditingClip = editingClip,
+                        selectedEditingClip1 = editingClip1,
+                        selectedEditingClip2 = editingClip2,
+                        selectedEditingClip3 = editingClip3,
+                        selectedEditingClip4 = editingClip4,
                         selectedEditingLora = editingLora,
                         // Clear deferred values once applied
                         deferredCheckpoint = null,
                         deferredUnet = null,
                         deferredVae = null,
                         deferredClip = null,
+                        deferredClip1 = null,
+                        deferredClip2 = null,
+                        deferredClip3 = null,
+                        deferredClip4 = null,
                         deferredEditingUnet = null,
                         deferredEditingVae = null,
                         deferredEditingClip = null,
+                        deferredEditingClip1 = null,
+                        deferredEditingClip2 = null,
+                        deferredEditingClip3 = null,
+                        deferredEditingClip4 = null,
                         deferredEditingLora = null,
                         checkpointLoraChain = LoraChainManager.filterUnavailable(state.checkpointLoraChain, cache.loras),
                         unetLoraChain = LoraChainManager.filterUnavailable(state.unetLoraChain, cache.loras),
@@ -508,6 +571,11 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 // Set deferred values - these will be applied when model cache updates
                 deferredCheckpoint = savedCheckpoint,
                 checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+                // Workflow-specific filtered options (checkpoint mode)
+                filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
+                filteredUnets = null,
+                filteredVaes = null,
+                filteredClips = null,
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
                 currentWorkflowHasCfg = defaults?.hasCfg ?: true,
@@ -527,6 +595,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             val savedUnet = savedValues?.unetModel
             val savedVae = savedValues?.vaeModel
             val savedClip = savedValues?.clipModel
+            val savedClip1 = savedValues?.clip1Model
+            val savedClip2 = savedValues?.clip2Model
+            val savedClip3 = savedValues?.clip3Model
+            val savedClip4 = savedValues?.clip4Model
 
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
@@ -549,11 +621,32 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     ?: validateModelSelection("", cache.vaes),
                 selectedClip = savedClip?.takeIf { it in cache.clips }
                     ?: validateModelSelection("", cache.clips),
+                selectedClip1 = savedClip1?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                selectedClip2 = savedClip2?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                selectedClip3 = savedClip3?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
+                selectedClip4 = savedClip4?.takeIf { it in cache.clips }
+                    ?: validateModelSelection("", cache.clips),
                 // Set deferred values - these will be applied when model cache updates
                 deferredUnet = savedUnet,
                 deferredVae = savedVae,
                 deferredClip = savedClip,
+                deferredClip1 = savedClip1,
+                deferredClip2 = savedClip2,
+                deferredClip3 = savedClip3,
+                deferredClip4 = savedClip4,
                 unetLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+                // Workflow-specific filtered options (UNET mode)
+                filteredCheckpoints = null,
+                filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),
+                filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "vae_name"),
+                filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name"),
+                filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name1"),
+                filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
+                filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
+                filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
                 // Set workflow capability flags from defaults
                 currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
                 currentWorkflowHasCfg = defaults?.hasCfg ?: true,
@@ -563,6 +656,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
                 currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
                 currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+                currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
+                currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
+                currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
+                currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
                 currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
                 // Model presence flags
                 currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
@@ -589,6 +686,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedEditingUnet = savedValues?.unetModel
         val savedEditingVae = savedValues?.vaeModel
         val savedEditingClip = savedValues?.clipModel
+        val savedEditingClip1 = savedValues?.clip1Model
+        val savedEditingClip2 = savedValues?.clip2Model
+        val savedEditingClip3 = savedValues?.clip3Model
+        val savedEditingClip4 = savedValues?.clip4Model
         val savedEditingLora = savedValues?.loraModel
 
         val state = _uiState.value
@@ -616,12 +717,33 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 ?: validateModelSelection(state.selectedEditingVae, cache.vaes),
             selectedEditingClip = savedEditingClip?.takeIf { it in cache.clips }
                 ?: validateModelSelection(state.selectedEditingClip, cache.clips),
+            selectedEditingClip1 = savedEditingClip1?.takeIf { it in cache.clips }
+                ?: validateModelSelection(state.selectedEditingClip1, cache.clips),
+            selectedEditingClip2 = savedEditingClip2?.takeIf { it in cache.clips }
+                ?: validateModelSelection(state.selectedEditingClip2, cache.clips),
+            selectedEditingClip3 = savedEditingClip3?.takeIf { it in cache.clips }
+                ?: validateModelSelection(state.selectedEditingClip3, cache.clips),
+            selectedEditingClip4 = savedEditingClip4?.takeIf { it in cache.clips }
+                ?: validateModelSelection(state.selectedEditingClip4, cache.clips),
             // Set deferred values - these will be applied when model cache updates
             deferredEditingUnet = savedEditingUnet,
             deferredEditingVae = savedEditingVae,
             deferredEditingClip = savedEditingClip,
+            deferredEditingClip1 = savedEditingClip1,
+            deferredEditingClip2 = savedEditingClip2,
+            deferredEditingClip3 = savedEditingClip3,
+            deferredEditingClip4 = savedEditingClip4,
             deferredEditingLora = savedEditingLora,
             editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Workflow-specific filtered options (editing mode uses UNET)
+            filteredCheckpoints = null,
+            filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),
+            filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "vae_name"),
+            filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name"),
+            filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name1"),
+            filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
+            filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
+            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
             // Set workflow capability flags from defaults (for editing mode)
             currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
             currentWorkflowHasCfg = defaults?.hasCfg ?: true,
@@ -631,6 +753,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
             currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
             currentWorkflowHasClipName = defaults?.hasClipName ?: true,
+            currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
+            currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
+            currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
+            currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
             currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
             // Model presence flags (ITE_UNET uses UNET, not checkpoint)
             currentWorkflowHasCheckpointName = false,
@@ -675,6 +801,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
                 vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
+                clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
+                clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
+                clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
+                clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
                 loraChain = LoraSelection.toJsonString(state.unetLoraChain).takeIf { state.unetLoraChain.isNotEmpty() },
                 nodeAttributeEdits = existingValues?.nodeAttributeEdits
             )
@@ -705,6 +835,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             loraModel = state.selectedEditingLora.takeIf { it.isNotEmpty() },
             vaeModel = state.selectedEditingVae.takeIf { it.isNotEmpty() },
             clipModel = state.selectedEditingClip.takeIf { it.isNotEmpty() },
+            clip1Model = state.selectedEditingClip1.takeIf { it.isNotEmpty() },
+            clip2Model = state.selectedEditingClip2.takeIf { it.isNotEmpty() },
+            clip3Model = state.selectedEditingClip3.takeIf { it.isNotEmpty() },
+            clip4Model = state.selectedEditingClip4.takeIf { it.isNotEmpty() },
             loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() },
             nodeAttributeEdits = existingValues?.nodeAttributeEdits
         )
@@ -1063,6 +1197,26 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         savePreferences()
     }
 
+    fun onClip1Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip1 = clip)
+        savePreferences()
+    }
+
+    fun onClip2Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip2 = clip)
+        savePreferences()
+    }
+
+    fun onClip3Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip3 = clip)
+        savePreferences()
+    }
+
+    fun onClip4Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedClip4 = clip)
+        savePreferences()
+    }
+
     // Unified parameter callbacks
 
     fun onMegapixelsChange(megapixels: String) {
@@ -1245,6 +1399,26 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         savePreferences()
     }
 
+    fun onEditingClip1Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingClip1 = clip)
+        savePreferences()
+    }
+
+    fun onEditingClip2Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingClip2 = clip)
+        savePreferences()
+    }
+
+    fun onEditingClip3Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingClip3 = clip)
+        savePreferences()
+    }
+
+    fun onEditingClip4Change(clip: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingClip4 = clip)
+        savePreferences()
+    }
+
     fun onEditingMegapixelsChange(megapixels: String) {
         val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
         _uiState.value = _uiState.value.copy(
@@ -1333,8 +1507,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 val loraOk = !state.currentWorkflowHasLoraName || state.selectedEditingLora.isNotEmpty()
                 // VAE required only if workflow has it mapped
                 val vaeOk = !state.currentWorkflowHasVaeName || state.selectedEditingVae.isNotEmpty()
-                // CLIP required only if workflow has it mapped
-                val clipOk = !state.currentWorkflowHasClipName || state.selectedEditingClip.isNotEmpty()
+                // CLIP is optional - workflow can have embedded defaults
                 // Steps required only if workflow has it mapped
                 val stepsOk = !state.currentWorkflowHasSteps || state.editingSteps.toIntOrNull() != null
                 // Megapixels required only if workflow has it mapped
@@ -1342,7 +1515,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 // CFG required only if workflow has it mapped
                 val cfgOk = !state.currentWorkflowHasCfg || ValidationUtils.validateCfg(state.editingCfg) == null
 
-                workflowOk && unetOk && loraOk && vaeOk && clipOk && stepsOk && megapixelsOk && cfgOk
+                workflowOk && unetOk && loraOk && vaeOk && stepsOk && megapixelsOk && cfgOk
             }
             ImageToImageMode.INPAINTING -> {
                 // Inpainting mode: check based on workflow type
@@ -1362,8 +1535,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     (!state.currentWorkflowHasUnetName || state.selectedUnet.isNotEmpty()) &&
                     // VAE required only if workflow has it mapped
                     (!state.currentWorkflowHasVaeName || state.selectedVae.isNotEmpty()) &&
-                    // CLIP required only if workflow has it mapped
-                    (!state.currentWorkflowHasClipName || state.selectedClip.isNotEmpty()) &&
+                    // CLIP is optional - workflow can have embedded defaults
                     // Steps required only if workflow has it mapped
                     (!state.currentWorkflowHasSteps || state.unetSteps.toIntOrNull() != null) &&
                     // CFG required only if workflow has it mapped
@@ -1461,6 +1633,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             lora = state.selectedEditingLora,
             vae = state.selectedEditingVae,
             clip = state.selectedEditingClip,
+            clip1 = state.selectedEditingClip1.takeIf { it.isNotEmpty() },
+            clip2 = state.selectedEditingClip2.takeIf { it.isNotEmpty() },
+            clip3 = state.selectedEditingClip3.takeIf { it.isNotEmpty() },
+            clip4 = state.selectedEditingClip4.takeIf { it.isNotEmpty() },
             megapixels = state.editingMegapixels.toFloatOrNull() ?: 2.0f,
             steps = state.editingSteps.toIntOrNull() ?: 4,
             cfg = state.editingCfg.toFloatOrNull() ?: 1.0f,
@@ -1539,6 +1715,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 unet = state.selectedUnet,
                 vae = state.selectedVae,
                 clip = state.selectedClip,
+                clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
+                clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
+                clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
+                clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
                 steps = state.unetSteps.toIntOrNull() ?: 9,
                 cfg = state.unetCfg.toFloatOrNull() ?: 1.0f,
                 samplerName = state.unetSampler,

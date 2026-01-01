@@ -86,6 +86,10 @@ fun ImageToImageConfigBottomSheetContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
+    onClip1Change: (String) -> Unit,
+    onClip2Change: (String) -> Unit,
+    onClip3Change: (String) -> Unit,
+    onClip4Change: (String) -> Unit,
     // Unified parameter callbacks (Inpainting mode)
     onNegativePromptChange: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
@@ -105,6 +109,10 @@ fun ImageToImageConfigBottomSheetContent(
     onEditingLoraChange: (String) -> Unit,
     onEditingVaeChange: (String) -> Unit,
     onEditingClipChange: (String) -> Unit,
+    onEditingClip1Change: (String) -> Unit,
+    onEditingClip2Change: (String) -> Unit,
+    onEditingClip3Change: (String) -> Unit,
+    onEditingClip4Change: (String) -> Unit,
     onEditingNegativePromptChange: (String) -> Unit,
     onEditingMegapixelsChange: (String) -> Unit,
     onEditingStepsChange: (String) -> Unit,
@@ -209,6 +217,10 @@ fun ImageToImageConfigBottomSheetContent(
                     onEditingLoraChange = onEditingLoraChange,
                     onEditingVaeChange = onEditingVaeChange,
                     onEditingClipChange = onEditingClipChange,
+                    onEditingClip1Change = onEditingClip1Change,
+                    onEditingClip2Change = onEditingClip2Change,
+                    onEditingClip3Change = onEditingClip3Change,
+                    onEditingClip4Change = onEditingClip4Change,
                     onEditingMegapixelsChange = onEditingMegapixelsChange,
                     onEditingStepsChange = onEditingStepsChange,
                     onEditingCfgChange = onEditingCfgChange,
@@ -230,6 +242,10 @@ fun ImageToImageConfigBottomSheetContent(
                     onUnetChange = onUnetChange,
                     onVaeChange = onVaeChange,
                     onClipChange = onClipChange,
+                    onClip1Change = onClip1Change,
+                    onClip2Change = onClip2Change,
+                    onClip3Change = onClip3Change,
+                    onClip4Change = onClip4Change,
                     onMegapixelsChange = onMegapixelsChange,
                     onStepsChange = onStepsChange,
                     onCfgChange = onCfgChange,
@@ -257,6 +273,10 @@ private fun InpaintingModeContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
+    onClip1Change: (String) -> Unit,
+    onClip2Change: (String) -> Unit,
+    onClip3Change: (String) -> Unit,
+    onClip4Change: (String) -> Unit,
     onMegapixelsChange: (String) -> Unit,
     onStepsChange: (String) -> Unit,
     onCfgChange: (String) -> Unit,
@@ -300,6 +320,10 @@ private fun InpaintingModeContent(
             onUnetChange = onUnetChange,
             onVaeChange = onVaeChange,
             onClipChange = onClipChange,
+            onClip1Change = onClip1Change,
+            onClip2Change = onClip2Change,
+            onClip3Change = onClip3Change,
+            onClip4Change = onClip4Change,
             onStepsChange = onStepsChange,
             onCfgChange = onCfgChange,
             onSamplerChange = onSamplerChange,
@@ -324,6 +348,10 @@ private fun EditingModeContent(
     onEditingLoraChange: (String) -> Unit,
     onEditingVaeChange: (String) -> Unit,
     onEditingClipChange: (String) -> Unit,
+    onEditingClip1Change: (String) -> Unit,
+    onEditingClip2Change: (String) -> Unit,
+    onEditingClip3Change: (String) -> Unit,
+    onEditingClip4Change: (String) -> Unit,
     onEditingMegapixelsChange: (String) -> Unit,
     onEditingStepsChange: (String) -> Unit,
     onEditingCfgChange: (String) -> Unit,
@@ -349,7 +377,7 @@ private fun EditingModeContent(
     if (uiState.currentWorkflowHasUnetName) {
         ModelDropdown(
             label = stringResource(R.string.label_unet),
-            options = uiState.unets,
+            options = uiState.filteredUnets ?: uiState.unets,
             selectedValue = uiState.selectedEditingUnet,
             onValueChange = onEditingUnetChange
         )
@@ -373,21 +401,60 @@ private fun EditingModeContent(
 
         ModelDropdown(
             label = stringResource(R.string.label_vae),
-            options = uiState.vaes,
+            options = uiState.filteredVaes ?: uiState.vaes,
             selectedValue = uiState.selectedEditingVae,
             onValueChange = onEditingVaeChange
         )
     }
 
-    // CLIP dropdown (optional)
+    // CLIP dropdown(s) - each shown independently based on workflow mapping
     if (uiState.currentWorkflowHasClipName) {
         Spacer(modifier = Modifier.height(16.dp))
-
         ModelDropdown(
             label = stringResource(R.string.label_clip),
-            options = uiState.clips,
+            options = uiState.filteredClips ?: uiState.clips,
             selectedValue = uiState.selectedEditingClip,
             onValueChange = onEditingClipChange
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName1) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip1),
+            options = uiState.filteredClips1 ?: uiState.clips,
+            selectedValue = uiState.selectedEditingClip1,
+            onValueChange = onEditingClip1Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName2) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip2),
+            options = uiState.filteredClips2 ?: uiState.clips,
+            selectedValue = uiState.selectedEditingClip2,
+            onValueChange = onEditingClip2Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName3) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip3),
+            options = uiState.filteredClips3 ?: uiState.clips,
+            selectedValue = uiState.selectedEditingClip3,
+            onValueChange = onEditingClip3Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName4) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip4),
+            options = uiState.filteredClips4 ?: uiState.clips,
+            selectedValue = uiState.selectedEditingClip4,
+            onValueChange = onEditingClip4Change
         )
     }
 
@@ -558,7 +625,7 @@ private fun CheckpointModeContent(
     if (uiState.currentWorkflowHasCheckpointName) {
         ModelDropdown(
             label = stringResource(R.string.label_checkpoint),
-            options = uiState.checkpoints,
+            options = uiState.filteredCheckpoints ?: uiState.checkpoints,
             selectedValue = uiState.selectedCheckpoint,
             onValueChange = onCheckpointChange
         )
@@ -656,6 +723,10 @@ private fun UnetModeContent(
     onUnetChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
+    onClip1Change: (String) -> Unit,
+    onClip2Change: (String) -> Unit,
+    onClip3Change: (String) -> Unit,
+    onClip4Change: (String) -> Unit,
     onStepsChange: (String) -> Unit,
     onCfgChange: (String) -> Unit,
     onSamplerChange: (String) -> Unit,
@@ -669,7 +740,7 @@ private fun UnetModeContent(
     if (uiState.currentWorkflowHasUnetName) {
         ModelDropdown(
             label = stringResource(R.string.label_unet),
-            options = uiState.unets,
+            options = uiState.filteredUnets ?: uiState.unets,
             selectedValue = uiState.selectedUnet,
             onValueChange = onUnetChange
         )
@@ -681,21 +752,60 @@ private fun UnetModeContent(
 
         ModelDropdown(
             label = stringResource(R.string.label_vae),
-            options = uiState.vaes,
+            options = uiState.filteredVaes ?: uiState.vaes,
             selectedValue = uiState.selectedVae,
             onValueChange = onVaeChange
         )
     }
 
-    // CLIP dropdown (optional)
+    // CLIP dropdown(s) - each shown independently based on workflow mapping
     if (uiState.currentWorkflowHasClipName) {
         Spacer(modifier = Modifier.height(16.dp))
-
         ModelDropdown(
             label = stringResource(R.string.label_clip),
-            options = uiState.clips,
+            options = uiState.filteredClips ?: uiState.clips,
             selectedValue = uiState.selectedClip,
             onValueChange = onClipChange
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName1) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip1),
+            options = uiState.filteredClips1 ?: uiState.clips,
+            selectedValue = uiState.selectedClip1,
+            onValueChange = onClip1Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName2) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip2),
+            options = uiState.filteredClips2 ?: uiState.clips,
+            selectedValue = uiState.selectedClip2,
+            onValueChange = onClip2Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName3) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip3),
+            options = uiState.filteredClips3 ?: uiState.clips,
+            selectedValue = uiState.selectedClip3,
+            onValueChange = onClip3Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName4) {
+        Spacer(modifier = Modifier.height(16.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip4),
+            options = uiState.filteredClips4 ?: uiState.clips,
+            selectedValue = uiState.selectedClip4,
+            onValueChange = onClip4Change
         )
     }
 

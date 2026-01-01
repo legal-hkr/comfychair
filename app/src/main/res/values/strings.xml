@@ -237,8 +237,10 @@
     <string name="label_unet" translatable="false">UNET</string>
     <string name="label_vae" translatable="false">VAE</string>
     <string name="label_clip" translatable="false">CLIP</string>
-    <string name="label_clip1" translatable="false">CLIP 1 (T5)</string>
-    <string name="label_clip2" translatable="false">CLIP 2 (L)</string>
+    <string name="label_clip1" translatable="false">CLIP 1</string>
+    <string name="label_clip2" translatable="false">CLIP 2</string>
+    <string name="label_clip3" translatable="false">CLIP 3</string>
+    <string name="label_clip4" translatable="false">CLIP 4</string>
     <string name="label_width">Width</string>
     <string name="label_height">Height</string>
     <string name="label_steps">Steps</string>
@@ -285,8 +287,10 @@
     <string name="field_unet_model">UNET model</string>
     <string name="field_input_image">Input image</string>
     <string name="field_frame_rate">Frame rate</string>
-    <string name="field_clip1">CLIP 1 (T5)</string>
-    <string name="field_clip2">CLIP 2 (L)</string>
+    <string name="field_clip1">CLIP 1</string>
+    <string name="field_clip2">CLIP 2</string>
+    <string name="field_clip3">CLIP 3</string>
+    <string name="field_clip4">CLIP 4</string>
 
     <!-- Field descriptions for workflow editor -->
     <string name="field_desc_positive_prompt">The text prompt for generation</string>
@@ -295,8 +299,10 @@
     <string name="field_desc_unet">The diffusion model to use</string>
     <string name="field_desc_vae">The VAE encoder/decoder</string>
     <string name="field_desc_clip">The CLIP text encoder</string>
-    <string name="field_desc_clip1">First CLIP encoder (T5-XXL for Flux)</string>
-    <string name="field_desc_clip2">Second CLIP encoder (L for Flux)</string>
+    <string name="field_desc_clip1">First CLIP text encoder</string>
+    <string name="field_desc_clip2">Second CLIP text encoder</string>
+    <string name="field_desc_clip3">Third CLIP text encoder</string>
+    <string name="field_desc_clip4">Fourth CLIP text encoder</string>
     <string name="field_desc_width">Output image width</string>
     <string name="field_desc_height">Output image height</string>
     <string name="field_desc_steps">Number of sampling steps</string>

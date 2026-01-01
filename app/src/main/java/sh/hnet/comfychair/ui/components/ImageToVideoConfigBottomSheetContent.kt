@@ -35,6 +35,10 @@ fun ImageToVideoConfigBottomSheetContent(
     onLownoiseLoraChange: (String) -> Unit,
     onVaeChange: (String) -> Unit,
     onClipChange: (String) -> Unit,
+    onClip1Change: (String) -> Unit,
+    onClip2Change: (String) -> Unit,
+    onClip3Change: (String) -> Unit,
+    onClip4Change: (String) -> Unit,
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
     onLengthChange: (String) -> Unit,
@@ -88,7 +92,11 @@ fun ImageToVideoConfigBottomSheetContent(
                 uiState.currentWorkflowHasHighnoiseLora ||
                 uiState.currentWorkflowHasLownoiseLora ||
                 uiState.currentWorkflowHasVaeName ||
-                uiState.currentWorkflowHasClipName
+                uiState.currentWorkflowHasClipName ||
+                uiState.currentWorkflowHasClipName1 ||
+                uiState.currentWorkflowHasClipName2 ||
+                uiState.currentWorkflowHasClipName3 ||
+                uiState.currentWorkflowHasClipName4
 
         // Model selection section - only show if any models are visible
         if (hasAnyModels) {
@@ -104,7 +112,7 @@ fun ImageToVideoConfigBottomSheetContent(
             ModelDropdown(
                 label = stringResource(R.string.highnoise_unet_label),
                 selectedValue = uiState.selectedHighnoiseUnet,
-                options = uiState.availableUnets,
+                options = uiState.filteredUnets ?: uiState.availableUnets,
                 onValueChange = onHighnoiseUnetChange
             )
         }
@@ -115,7 +123,7 @@ fun ImageToVideoConfigBottomSheetContent(
             ModelDropdown(
                 label = stringResource(R.string.lownoise_unet_label),
                 selectedValue = uiState.selectedLownoiseUnet,
-                options = uiState.availableUnets,
+                options = uiState.filteredUnets ?: uiState.availableUnets,
                 onValueChange = onLownoiseUnetChange
             )
         }
@@ -149,20 +157,59 @@ fun ImageToVideoConfigBottomSheetContent(
             ModelDropdown(
                 label = stringResource(R.string.label_vae),
                 selectedValue = uiState.selectedVae,
-                options = uiState.availableVaes,
+                options = uiState.filteredVaes ?: uiState.availableVaes,
                 onValueChange = onVaeChange
             )
         }
 
-        // CLIP dropdown (optional)
+        // CLIP dropdown(s) - each shown independently based on workflow mapping
         if (uiState.currentWorkflowHasClipName) {
             Spacer(modifier = Modifier.height(12.dp))
-
             ModelDropdown(
                 label = stringResource(R.string.label_clip),
                 selectedValue = uiState.selectedClip,
-                options = uiState.availableClips,
+                options = uiState.filteredClips ?: uiState.availableClips,
                 onValueChange = onClipChange
+            )
+        }
+
+        if (uiState.currentWorkflowHasClipName1) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.label_clip1),
+                selectedValue = uiState.selectedClip1,
+                options = uiState.filteredClips1 ?: uiState.availableClips,
+                onValueChange = onClip1Change
+            )
+        }
+
+        if (uiState.currentWorkflowHasClipName2) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.label_clip2),
+                selectedValue = uiState.selectedClip2,
+                options = uiState.filteredClips2 ?: uiState.availableClips,
+                onValueChange = onClip2Change
+            )
+        }
+
+        if (uiState.currentWorkflowHasClipName3) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.label_clip3),
+                selectedValue = uiState.selectedClip3,
+                options = uiState.filteredClips3 ?: uiState.availableClips,
+                onValueChange = onClip3Change
+            )
+        }
+
+        if (uiState.currentWorkflowHasClipName4) {
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelDropdown(
+                label = stringResource(R.string.label_clip4),
+                selectedValue = uiState.selectedClip4,
+                options = uiState.filteredClips4 ?: uiState.availableClips,
+                onValueChange = onClip4Change
             )
         }
 

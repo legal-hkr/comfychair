@@ -368,6 +368,8 @@ fun TextToImageScreen(
                 onClipChange = textToImageViewModel::onClipChange,
                 onClip1Change = textToImageViewModel::onClip1Change,
                 onClip2Change = textToImageViewModel::onClip2Change,
+                onClip3Change = textToImageViewModel::onClip3Change,
+                onClip4Change = textToImageViewModel::onClip4Change,
                 // Unified parameter callbacks
                 onNegativePromptChange = textToImageViewModel::onNegativePromptChange,
                 onWidthChange = textToImageViewModel::onWidthChange,

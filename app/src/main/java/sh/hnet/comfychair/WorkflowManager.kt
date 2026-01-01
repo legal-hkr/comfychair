@@ -3,6 +3,7 @@ package sh.hnet.comfychair
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.model.WorkflowDefaults
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
@@ -460,6 +461,49 @@ object WorkflowManager {
     }
 
     /**
+     * Get model options for a specific field based on the workflow's actual node type.
+     * Returns node-specific options (e.g., only GGUF files for UnetLoaderGGUF)
+     * or null if node type can't be determined (caller should fall back to global options).
+     */
+    fun getNodeSpecificOptionsForField(workflowId: String, fieldKey: String): List<String>? {
+        val workflow = getWorkflowById(workflowId) ?: return null
+        val json = try {
+            JSONObject(workflow.jsonContent)
+        } catch (e: Exception) {
+            return null
+        }
+        val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
+
+        // Find the placeholder pattern for this field
+        val placeholderName = TemplateKeyRegistry.getPlaceholderForKey(fieldKey)
+        val placeholder = "{{$placeholderName}}"
+
+        // Search nodes for the one containing this placeholder
+        val nodeIds = nodesJson.keys()
+        while (nodeIds.hasNext()) {
+            val nodeId = nodeIds.next()
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+            val classType = node.optString("class_type")
+
+            // Check if any input has our placeholder
+            val inputKeys = inputs.keys()
+            while (inputKeys.hasNext()) {
+                val inputKey = inputKeys.next()
+                val value = inputs.optString(inputKey, "")
+                if (value == placeholder) {
+                    // Found the node! Get its options from NodeTypeRegistry
+                    val nodeDefinition = ConnectionManager.nodeTypeRegistry.getNodeDefinition(classType)
+                    return nodeDefinition?.inputs
+                        ?.find { it.name == inputKey }
+                        ?.options
+                }
+            }
+        }
+        return null
+    }
+
+    /**
      * Generate a sanitized filename for export (without type prefix).
      */
     fun generateExportFilename(workflowName: String): String {
@@ -595,9 +639,6 @@ object WorkflowManager {
         }
 
         // Auto-detect capability flags from workflow structure
-        val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
-            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
-        }
         val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
             nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
         }
@@ -618,7 +659,6 @@ object WorkflowManager {
             // Capability flags for Flux-style workflows
             hasNegativePrompt = !hasBasicGuider && "negative_text" in mappedFieldKeys,
             hasCfg = !hasBasicGuider && "cfg" in mappedFieldKeys,
-            hasDualClip = hasDualClip,
             // Field presence flags - true only if the field is mapped
             hasWidth = "width" in mappedFieldKeys,
             hasHeight = "height" in mappedFieldKeys,
@@ -629,7 +669,11 @@ object WorkflowManager {
             hasLength = "length" in mappedFieldKeys,
             hasFrameRate = "fps" in mappedFieldKeys || "frame_rate" in mappedFieldKeys,
             hasVaeName = "vae_name" in mappedFieldKeys,
-            hasClipName = "clip_name" in mappedFieldKeys || ("clip_name1" in mappedFieldKeys && "clip_name2" in mappedFieldKeys),
+            hasClipName = "clip_name" in mappedFieldKeys,
+            hasClipName1 = "clip_name1" in mappedFieldKeys,
+            hasClipName2 = "clip_name2" in mappedFieldKeys,
+            hasClipName3 = "clip_name3" in mappedFieldKeys,
+            hasClipName4 = "clip_name4" in mappedFieldKeys,
             hasLoraName = "lora_name" in mappedFieldKeys,
             // Dual-UNET/LoRA flags for video workflows
             hasLownoiseUnet = "lownoise_unet_name" in mappedFieldKeys,
@@ -803,9 +847,6 @@ object WorkflowManager {
         }
 
         // Auto-detect capability flags from workflow structure
-        val hasDualClip = nodesJson.keys().asSequence().any { nodeId ->
-            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "DualCLIPLoader"
-        }
         val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
             nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
         }
@@ -826,7 +867,6 @@ object WorkflowManager {
             // Capability flags for Flux-style workflows
             hasNegativePrompt = !hasBasicGuider && "negative_text" in mappedFieldKeys,
             hasCfg = !hasBasicGuider && "cfg" in mappedFieldKeys,
-            hasDualClip = hasDualClip,
             // Field presence flags - true only if the field is mapped
             hasWidth = "width" in mappedFieldKeys,
             hasHeight = "height" in mappedFieldKeys,
@@ -837,7 +877,11 @@ object WorkflowManager {
             hasLength = "length" in mappedFieldKeys,
             hasFrameRate = "fps" in mappedFieldKeys || "frame_rate" in mappedFieldKeys,
             hasVaeName = "vae_name" in mappedFieldKeys,
-            hasClipName = "clip_name" in mappedFieldKeys || ("clip_name1" in mappedFieldKeys && "clip_name2" in mappedFieldKeys),
+            hasClipName = "clip_name" in mappedFieldKeys,
+            hasClipName1 = "clip_name1" in mappedFieldKeys,
+            hasClipName2 = "clip_name2" in mappedFieldKeys,
+            hasClipName3 = "clip_name3" in mappedFieldKeys,
+            hasClipName4 = "clip_name4" in mappedFieldKeys,
             hasLoraName = "lora_name" in mappedFieldKeys,
             // Dual-UNET/LoRA flags for video workflows
             hasLownoiseUnet = "lownoise_unet_name" in mappedFieldKeys,
@@ -1407,6 +1451,8 @@ object WorkflowManager {
         clip: String? = null,
         clip1: String? = null,
         clip2: String? = null,
+        clip3: String? = null,
+        clip4: String? = null,
         width: Int,
         height: Int,
         steps: Int,
@@ -1425,6 +1471,8 @@ object WorkflowManager {
         clip?.let { DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(it)}") }
         clip1?.let { DebugLogger.d(TAG, "CLIP1: ${Obfuscator.modelName(it)}") }
         clip2?.let { DebugLogger.d(TAG, "CLIP2: ${Obfuscator.modelName(it)}") }
+        clip3?.let { DebugLogger.d(TAG, "CLIP3: ${Obfuscator.modelName(it)}") }
+        clip4?.let { DebugLogger.d(TAG, "CLIP4: ${Obfuscator.modelName(it)}") }
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -1436,10 +1484,12 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        // Handle single CLIP or dual CLIP
+        // Handle single CLIP or multi-CLIP (up to 4 slots)
         clip?.let { processedJson = processedJson.replace("{{clip_name}}", escapeForJson(it)) }
         clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
+        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
+        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
         processedJson = processedJson.replace("{{width}}", width.toString())
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
@@ -1465,6 +1515,10 @@ object WorkflowManager {
         unet: String = "",
         vae: String = "",
         clip: String = "",
+        clip1: String? = null,
+        clip2: String? = null,
+        clip3: String? = null,
+        clip4: String? = null,
         megapixels: Float = 1.0f,
         steps: Int,
         cfg: Float = 8.0f,
@@ -1494,6 +1548,10 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
+        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
+        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
+        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
         processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
         processedJson = processedJson.replace("{{cfg}}", cfg.toString())
@@ -1521,6 +1579,10 @@ object WorkflowManager {
         lora: String,
         vae: String,
         clip: String,
+        clip1: String? = null,
+        clip2: String? = null,
+        clip3: String? = null,
+        clip4: String? = null,
         megapixels: Float = 2.0f,
         steps: Int,
         cfg: Float = 1.0f,
@@ -1555,6 +1617,10 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{lora_name}}", escapeForJson(lora))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
+        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
+        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
+        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
         processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
         processedJson = processedJson.replace("{{steps}}", steps.toString())
         processedJson = processedJson.replace("{{cfg}}", cfg.toString())
@@ -1662,6 +1728,10 @@ object WorkflowManager {
         lownoiseLora: String,
         vae: String,
         clip: String,
+        clip1: String? = null,
+        clip2: String? = null,
+        clip3: String? = null,
+        clip4: String? = null,
         width: Int,
         height: Int,
         length: Int,
@@ -1690,6 +1760,10 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
+        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
+        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
+        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
         processedJson = processedJson.replace("{{width}}", width.toString())
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{length}}", length.toString())
@@ -1713,6 +1787,10 @@ object WorkflowManager {
         lownoiseLora: String,
         vae: String,
         clip: String,
+        clip1: String? = null,
+        clip2: String? = null,
+        clip3: String? = null,
+        clip4: String? = null,
         width: Int,
         height: Int,
         length: Int,
@@ -1743,6 +1821,10 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
+        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
+        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
+        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
         processedJson = processedJson.replace("{{width}}", width.toString())
         processedJson = processedJson.replace("{{height}}", height.toString())
         processedJson = processedJson.replace("{{length}}", length.toString())

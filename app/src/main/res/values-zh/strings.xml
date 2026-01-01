@@ -471,8 +471,10 @@
     <string name="field_desc_unet">扩散模型</string>
     <string name="field_desc_vae">VAE 编码器/解码器</string>
     <string name="field_desc_clip">CLIP 文本编码器</string>
-    <string name="field_desc_clip1">第一个 CLIP 编码器（Flux 用 T5-XXL）</string>
-    <string name="field_desc_clip2">第二个 CLIP 编码器（Flux 用 L）</string>
+    <string name="field_desc_clip1">第一个 CLIP 文本编码器</string>
+    <string name="field_desc_clip2">第二个 CLIP 文本编码器</string>
+    <string name="field_desc_clip3">第三个 CLIP 文本编码器</string>
+    <string name="field_desc_clip4">第四个 CLIP 文本编码器</string>
     <string name="field_desc_width">输出图像宽度</string>
     <string name="field_desc_height">输出图像高度</string>
     <string name="field_desc_steps">采样步数</string>

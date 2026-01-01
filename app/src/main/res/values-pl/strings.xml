@@ -471,8 +471,10 @@
     <string name="field_desc_unet">Model dyfuzyjny</string>
     <string name="field_desc_vae">Koder/dekoder VAE</string>
     <string name="field_desc_clip">Koder tekstowy CLIP</string>
-    <string name="field_desc_clip1">Pierwszy koder CLIP (T5-XXL dla Flux)</string>
-    <string name="field_desc_clip2">Drugi koder CLIP (L dla Flux)</string>
+    <string name="field_desc_clip1">Pierwszy koder tekstowy CLIP</string>
+    <string name="field_desc_clip2">Drugi koder tekstowy CLIP</string>
+    <string name="field_desc_clip3">Trzeci koder tekstowy CLIP</string>
+    <string name="field_desc_clip4">Czwarty koder tekstowy CLIP</string>
     <string name="field_desc_width">Szerokość obrazu wyjściowego</string>
     <string name="field_desc_height">Wysokość obrazu wyjściowego</string>
     <string name="field_desc_steps">Liczba kroków próbkowania</string>

@@ -471,8 +471,10 @@
     <string name="field_desc_unet">Le modèle de diffusion</string>
     <string name="field_desc_vae">L\'encodeur/décodeur VAE</string>
     <string name="field_desc_clip">L\'encodeur de texte CLIP</string>
-    <string name="field_desc_clip1">Premier encodeur CLIP (T5-XXL pour Flux)</string>
-    <string name="field_desc_clip2">Deuxième encodeur CLIP (L pour Flux)</string>
+    <string name="field_desc_clip1">Premier encodeur de texte CLIP</string>
+    <string name="field_desc_clip2">Deuxième encodeur de texte CLIP</string>
+    <string name="field_desc_clip3">Troisième encodeur de texte CLIP</string>
+    <string name="field_desc_clip4">Quatrième encodeur de texte CLIP</string>
     <string name="field_desc_width">Largeur de l\'image de sortie</string>
     <string name="field_desc_height">Hauteur de l\'image de sortie</string>
     <string name="field_desc_steps">Nombre d\'étapes d\'échantillonnage</string>

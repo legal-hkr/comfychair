@@ -9,7 +9,9 @@
     "scheduler": "simple",
     "has_negative_prompt": false,
     "has_cfg": false,
-    "has_dual_clip": true,
+    "has_clip_name": false,
+    "has_clip_name1": true,
+    "has_clip_name2": true,
     "has_unet_name": true
   },
   "nodes": {

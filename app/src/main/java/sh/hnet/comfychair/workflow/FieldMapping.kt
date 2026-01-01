@@ -34,7 +34,7 @@ data class FieldCandidate(
 data class FieldMappingState(
     val field: RequiredField,
     val candidates: List<FieldCandidate>,
-    val selectedCandidateIndex: Int = 0  // Default to first candidate
+    val selectedCandidateIndex: Int = -1  // Default to no selection - user must explicitly select
 ) {
     val selectedCandidate: FieldCandidate?
         get() = candidates.getOrNull(selectedCandidateIndex)
@@ -42,9 +42,9 @@ data class FieldMappingState(
     val hasMultipleCandidates: Boolean
         get() = candidates.size > 1
 
-    /** True if a valid candidate is selected */
+    /** True if a valid candidate is explicitly selected */
     val isMapped: Boolean
-        get() = selectedCandidate != null
+        get() = selectedCandidateIndex >= 0 && selectedCandidate != null
 
     /** True if this is a required field that must be mapped */
     val isRequiredField: Boolean = field.isRequired
@@ -248,8 +248,10 @@ object FieldDisplayRegistry {
         "unet_name" to Pair(R.string.field_unet_model, R.string.field_desc_unet),
         "vae_name" to Pair(R.string.label_vae, R.string.field_desc_vae),
         "clip_name" to Pair(R.string.label_clip, R.string.field_desc_clip),
-        "clip_name1" to Pair(R.string.field_clip1, R.string.field_desc_clip1),
-        "clip_name2" to Pair(R.string.field_clip2, R.string.field_desc_clip2),
+        "clip_name1" to Pair(R.string.label_clip1, R.string.field_desc_clip1),
+        "clip_name2" to Pair(R.string.label_clip2, R.string.field_desc_clip2),
+        "clip_name3" to Pair(R.string.label_clip3, R.string.field_desc_clip3),
+        "clip_name4" to Pair(R.string.label_clip4, R.string.field_desc_clip4),
         // Dimension fields
         "width" to Pair(R.string.label_width, R.string.field_desc_width),
         "height" to Pair(R.string.label_height, R.string.field_desc_height),

@@ -58,6 +58,8 @@ fun TextToImageConfigBottomSheetContent(
     onClipChange: (String) -> Unit,
     onClip1Change: (String) -> Unit,
     onClip2Change: (String) -> Unit,
+    onClip3Change: (String) -> Unit,
+    onClip4Change: (String) -> Unit,
     // Unified parameter callbacks (route internally based on mode)
     onNegativePromptChange: (String) -> Unit,
     onWidthChange: (String) -> Unit,
@@ -129,6 +131,8 @@ fun TextToImageConfigBottomSheetContent(
                 onClipChange = onClipChange,
                 onClip1Change = onClip1Change,
                 onClip2Change = onClip2Change,
+                onClip3Change = onClip3Change,
+                onClip4Change = onClip4Change,
                 onWidthChange = onWidthChange,
                 onHeightChange = onHeightChange,
                 onStepsChange = onStepsChange,
@@ -164,7 +168,7 @@ private fun CheckpointModeContent(
         ModelDropdown(
             label = stringResource(R.string.label_checkpoint),
             selectedValue = uiState.selectedCheckpoint,
-            options = uiState.availableCheckpoints,
+            options = uiState.filteredCheckpoints ?: uiState.availableCheckpoints,
             onValueChange = onCheckpointChange
         )
     }
@@ -251,6 +255,8 @@ private fun UnetModeContent(
     onClipChange: (String) -> Unit,
     onClip1Change: (String) -> Unit,
     onClip2Change: (String) -> Unit,
+    onClip3Change: (String) -> Unit,
+    onClip4Change: (String) -> Unit,
     onWidthChange: (String) -> Unit,
     onHeightChange: (String) -> Unit,
     onStepsChange: (String) -> Unit,
@@ -267,7 +273,7 @@ private fun UnetModeContent(
         ModelDropdown(
             label = stringResource(R.string.label_unet),
             selectedValue = uiState.selectedUnet,
-            options = uiState.availableUnets,
+            options = uiState.filteredUnets ?: uiState.availableUnets,
             onValueChange = onUnetChange
         )
     }
@@ -279,41 +285,60 @@ private fun UnetModeContent(
         ModelDropdown(
             label = stringResource(R.string.label_vae),
             selectedValue = uiState.selectedVae,
-            options = uiState.availableVaes,
+            options = uiState.filteredVaes ?: uiState.availableVaes,
             onValueChange = onVaeChange
         )
     }
 
-    // CLIP dropdown(s) - single or dual based on workflow (conditional)
+    // CLIP dropdown(s) - each shown independently based on workflow mapping
     if (uiState.currentWorkflowHasClipName) {
         Spacer(modifier = Modifier.height(12.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip),
+            selectedValue = uiState.selectedClip,
+            options = uiState.filteredClips ?: uiState.availableClips,
+            onValueChange = onClipChange
+        )
+    }
 
-        if (uiState.currentWorkflowHasDualClip) {
-            // Dual CLIP for Flux workflows
-            ModelDropdown(
-                label = stringResource(R.string.label_clip1),
-                selectedValue = uiState.selectedClip1,
-                options = uiState.availableClips,
-                onValueChange = onClip1Change
-            )
+    if (uiState.currentWorkflowHasClipName1) {
+        Spacer(modifier = Modifier.height(12.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip1),
+            selectedValue = uiState.selectedClip1,
+            options = uiState.filteredClips1 ?: uiState.availableClips,
+            onValueChange = onClip1Change
+        )
+    }
 
-            Spacer(modifier = Modifier.height(12.dp))
+    if (uiState.currentWorkflowHasClipName2) {
+        Spacer(modifier = Modifier.height(12.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip2),
+            selectedValue = uiState.selectedClip2,
+            options = uiState.filteredClips2 ?: uiState.availableClips,
+            onValueChange = onClip2Change
+        )
+    }
 
-            ModelDropdown(
-                label = stringResource(R.string.label_clip2),
-                selectedValue = uiState.selectedClip2,
-                options = uiState.availableClips,
-                onValueChange = onClip2Change
-            )
-        } else {
-            // Single CLIP for standard UNET workflows
-            ModelDropdown(
-                label = stringResource(R.string.label_clip),
-                selectedValue = uiState.selectedClip,
-                options = uiState.availableClips,
-                onValueChange = onClipChange
-            )
-        }
+    if (uiState.currentWorkflowHasClipName3) {
+        Spacer(modifier = Modifier.height(12.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip3),
+            selectedValue = uiState.selectedClip3,
+            options = uiState.filteredClips3 ?: uiState.availableClips,
+            onValueChange = onClip3Change
+        )
+    }
+
+    if (uiState.currentWorkflowHasClipName4) {
+        Spacer(modifier = Modifier.height(12.dp))
+        ModelDropdown(
+            label = stringResource(R.string.label_clip4),
+            selectedValue = uiState.selectedClip4,
+            options = uiState.filteredClips4 ?: uiState.availableClips,
+            onValueChange = onClip4Change
+        )
     }
 
     // Width and Height (conditional)
