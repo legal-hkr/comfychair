@@ -1,5 +1,5 @@
 {
-  "name": "QwenImage Edit (Lightning)",
+  "name": "QwenImage Edit (Lightning LoRA)",
   "description": "QwenImage Edit workflow with optional reference images (Lightning LoRA)",
   "defaults": {
     "megapixels": 2.0,
@@ -62,7 +62,7 @@
     },
     "6": {
       "inputs": {
-        "image": "reference_image_1.png [input]"
+        "image": "{{reference_image_1}}"
       },
       "class_type": "LoadImage",
       "_meta": {
@@ -71,7 +71,7 @@
     },
     "7": {
       "inputs": {
-        "image": "reference_image_2.png [input]"
+        "image": "{{reference_image_2}}"
       },
       "class_type": "LoadImage",
       "_meta": {

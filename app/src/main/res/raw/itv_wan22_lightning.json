@@ -1,6 +1,6 @@
 {
-  "name": "Wan 2.2 (Lightning)",
-  "description": "Workflow for Wan 2.2 image to video generation (Lightning)",
+  "name": "Wan 2.2 (Lightning LoRA)",
+  "description": "Workflow for Wan 2.2 image to video generation (Lightning LoRA)",
   "defaults": {
     "width": 480,
     "height": 800,

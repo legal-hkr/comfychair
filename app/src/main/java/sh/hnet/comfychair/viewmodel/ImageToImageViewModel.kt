@@ -21,6 +21,7 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.model.WorkflowCapabilities
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
@@ -243,42 +244,8 @@ data class ImageToImageUiState(
     // Optional LoRA chain for editing (in addition to mandatory LoRA)
     val editingLoraChain: List<LoraSelection> = emptyList(),
 
-    // Current workflow capabilities (for conditional UI)
-    val currentWorkflowHasNegativePrompt: Boolean = true,
-    val currentWorkflowHasCfg: Boolean = true,
-
-    // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
-    val currentWorkflowHasMegapixels: Boolean = true,
-    val currentWorkflowHasSteps: Boolean = true,
-    val currentWorkflowHasSamplerName: Boolean = true,
-    val currentWorkflowHasScheduler: Boolean = true,
-    val currentWorkflowHasVaeName: Boolean = true,
-    val currentWorkflowHasClipName: Boolean = true,
-    val currentWorkflowHasClipName1: Boolean = false,
-    val currentWorkflowHasClipName2: Boolean = false,
-    val currentWorkflowHasClipName3: Boolean = false,
-    val currentWorkflowHasClipName4: Boolean = false,
-    val currentWorkflowHasLora: Boolean = true,
-    val currentWorkflowHasSeed: Boolean = false,
-    val currentWorkflowHasDenoise: Boolean = false,
-    val currentWorkflowHasBatchSize: Boolean = false,
-    val currentWorkflowHasUpscaleMethod: Boolean = false,
-    val currentWorkflowHasScaleBy: Boolean = false,
-    val currentWorkflowHasStopAtClipLayer: Boolean = false,
-
-    // Model presence flags (for conditional model dropdowns)
-    val currentWorkflowHasCheckpointName: Boolean = false,
-    val currentWorkflowHasUnetName: Boolean = false,
-    val currentWorkflowHasHighnoiseUnet: Boolean = false,
-    val currentWorkflowHasLownoiseUnet: Boolean = false,
-
-    // High/low noise LoRA flags (for video-style dual-UNET workflows)
-    val currentWorkflowHasHighnoiseLora: Boolean = false,
-    val currentWorkflowHasLownoiseLora: Boolean = false,
-
-    // ITE reference image flags (for conditional reference image selectors)
-    val currentWorkflowHasReferenceImage1: Boolean = false,
-    val currentWorkflowHasReferenceImage2: Boolean = false
+    // Workflow capabilities (unified flags derived from placeholders)
+    val capabilities: WorkflowCapabilities = WorkflowCapabilities()
 )
 
 /**
@@ -630,35 +597,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 filteredUnets = null,
                 filteredVaes = null,
                 filteredClips = null,
-                // Set workflow capability flags from placeholders
-                currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
-                currentWorkflowHasCfg = "cfg" in placeholders,
-                currentWorkflowHasMegapixels = "megapixels" in placeholders,
-                currentWorkflowHasSteps = "steps" in placeholders,
-                currentWorkflowHasSamplerName = "sampler_name" in placeholders,
-                currentWorkflowHasScheduler = "scheduler" in placeholders,
-                currentWorkflowHasVaeName = "vae_name" in placeholders,
-                currentWorkflowHasClipName = "clip_name" in placeholders,
-                currentWorkflowHasClipName1 = "clip_name1" in placeholders,
-                currentWorkflowHasClipName2 = "clip_name2" in placeholders,
-                currentWorkflowHasClipName3 = "clip_name3" in placeholders,
-                currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
-                // Advanced field presence flags
-                currentWorkflowHasSeed = "seed" in placeholders,
-                currentWorkflowHasDenoise = "denoise" in placeholders,
-                currentWorkflowHasBatchSize = "batch_size" in placeholders,
-                currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
-                currentWorkflowHasScaleBy = "scale_by" in placeholders,
-                currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-                currentWorkflowHasUnetName = "unet_name" in placeholders,
-                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-                // High/low noise LoRA flags
-                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders
+                // Workflow capabilities from placeholders
+                capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
             )
         } else {
             _uiState.value = state.copy(
@@ -709,35 +649,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
                 filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
                 filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
-                // Set workflow capability flags from placeholders
-                currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
-                currentWorkflowHasCfg = "cfg" in placeholders,
-                currentWorkflowHasMegapixels = "megapixels" in placeholders,
-                currentWorkflowHasSteps = "steps" in placeholders,
-                currentWorkflowHasSamplerName = "sampler_name" in placeholders,
-                currentWorkflowHasScheduler = "scheduler" in placeholders,
-                currentWorkflowHasVaeName = "vae_name" in placeholders,
-                currentWorkflowHasClipName = "clip_name" in placeholders,
-                currentWorkflowHasClipName1 = "clip_name1" in placeholders,
-                currentWorkflowHasClipName2 = "clip_name2" in placeholders,
-                currentWorkflowHasClipName3 = "clip_name3" in placeholders,
-                currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
-                // Advanced field presence flags
-                currentWorkflowHasSeed = "seed" in placeholders,
-                currentWorkflowHasDenoise = "denoise" in placeholders,
-                currentWorkflowHasBatchSize = "batch_size" in placeholders,
-                currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
-                currentWorkflowHasScaleBy = "scale_by" in placeholders,
-                currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-                currentWorkflowHasUnetName = "unet_name" in placeholders,
-                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-                // High/low noise LoRA flags
-                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders
+                // Workflow capabilities from placeholders
+                capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
             )
         }
     }
@@ -822,38 +735,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
-            // Set workflow capability flags from placeholders (for editing mode)
-            currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
-            currentWorkflowHasCfg = "cfg" in placeholders,
-            currentWorkflowHasMegapixels = "megapixels" in placeholders,
-            currentWorkflowHasSteps = "steps" in placeholders,
-            currentWorkflowHasSamplerName = "sampler_name" in placeholders,
-            currentWorkflowHasScheduler = "scheduler" in placeholders,
-            currentWorkflowHasVaeName = "vae_name" in placeholders,
-            currentWorkflowHasClipName = "clip_name" in placeholders,
-            currentWorkflowHasClipName1 = "clip_name1" in placeholders,
-            currentWorkflowHasClipName2 = "clip_name2" in placeholders,
-            currentWorkflowHasClipName3 = "clip_name3" in placeholders,
-            currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-            currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
-            // Advanced field presence flags
-            currentWorkflowHasSeed = "seed" in placeholders,
-            currentWorkflowHasDenoise = "denoise" in placeholders,
-            currentWorkflowHasBatchSize = "batch_size" in placeholders,
-            currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
-            currentWorkflowHasScaleBy = "scale_by" in placeholders,
-            currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-            // Model presence flags
-            currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-            currentWorkflowHasUnetName = "unet_name" in placeholders,
-            currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-            currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-            // High/low noise LoRA flags
-            currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
-            currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders,
-            // ITE reference image flags
-            currentWorkflowHasReferenceImage1 = "reference_image_1" in placeholders || "reference_1" in placeholders,
-            currentWorkflowHasReferenceImage2 = "reference_image_2" in placeholders || "reference_2" in placeholders
+            // Workflow capabilities from placeholders
+            capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
         )
     }
 
@@ -1861,6 +1744,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             cfg = state.editingCfg.toFloatOrNull() ?: 1.0f,
             samplerName = state.editingSampler,
             scheduler = state.editingScheduler,
+            denoise = state.editingDenoise.toFloatOrNull() ?: 1.0f,
             sourceImageFilename = uploadedSource,
             referenceImage1Filename = uploadedRef1,
             referenceImage2Filename = uploadedRef2
@@ -1924,6 +1808,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 cfg = state.checkpointCfg.toFloatOrNull() ?: 8.0f,
                 samplerName = state.checkpointSampler,
                 scheduler = state.checkpointScheduler,
+                denoise = state.checkpointDenoise.toFloatOrNull() ?: 1.0f,
                 imageFilename = uploadedFilename
             )
         } else {
@@ -1942,6 +1827,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 cfg = state.unetCfg.toFloatOrNull() ?: 1.0f,
                 samplerName = state.unetSampler,
                 scheduler = state.unetScheduler,
+                denoise = state.unetDenoise.toFloatOrNull() ?: 1.0f,
                 imageFilename = uploadedFilename
             )
         } ?: return null

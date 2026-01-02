@@ -205,11 +205,11 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
         prompts = PromptConfig(
             negativePrompt = if (isCheckpoint) checkpointNegativePrompt else unetNegativePrompt,
             onNegativePromptChange = callbacks.onNegativePromptChange,
-            hasNegativePrompt = currentWorkflowHasNegativePrompt
+            hasNegativePrompt = capabilities.hasNegativePrompt
         ),
         itiConfig = null,
         models = ModelConfig(
-            checkpoint = if (currentWorkflowHasCheckpointName) ModelField(
+            checkpoint = if (capabilities.hasCheckpointName) ModelField(
                 label = R.string.label_checkpoint,
                 selectedValue = selectedCheckpoint,
                 options = availableCheckpoints,
@@ -217,7 +217,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onCheckpointChange,
                 isVisible = true
             ) else null,
-            unet = if (currentWorkflowHasUnetName) ModelField(
+            unet = if (capabilities.hasUnetName) ModelField(
                 label = R.string.label_unet,
                 selectedValue = selectedUnet,
                 options = availableUnets,
@@ -225,7 +225,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onUnetChange,
                 isVisible = true
             ) else null,
-            vae = if (currentWorkflowHasVaeName) ModelField(
+            vae = if (capabilities.hasVaeName) ModelField(
                 label = R.string.label_vae,
                 selectedValue = selectedVae,
                 options = availableVaes,
@@ -233,7 +233,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onVaeChange,
                 isVisible = true
             ) else null,
-            clip = if (currentWorkflowHasClipName) ModelField(
+            clip = if (capabilities.hasClipName) ModelField(
                 label = R.string.label_clip,
                 selectedValue = selectedClip,
                 options = availableClips,
@@ -241,7 +241,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onClipChange,
                 isVisible = true
             ) else null,
-            clip1 = if (currentWorkflowHasClipName1) ModelField(
+            clip1 = if (capabilities.hasClipName1) ModelField(
                 label = R.string.label_clip1,
                 selectedValue = selectedClip1,
                 options = availableClips,
@@ -249,7 +249,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onClip1Change,
                 isVisible = true
             ) else null,
-            clip2 = if (currentWorkflowHasClipName2) ModelField(
+            clip2 = if (capabilities.hasClipName2) ModelField(
                 label = R.string.label_clip2,
                 selectedValue = selectedClip2,
                 options = availableClips,
@@ -257,7 +257,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onClip2Change,
                 isVisible = true
             ) else null,
-            clip3 = if (currentWorkflowHasClipName3) ModelField(
+            clip3 = if (capabilities.hasClipName3) ModelField(
                 label = R.string.label_clip3,
                 selectedValue = selectedClip3,
                 options = availableClips,
@@ -265,7 +265,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onValueChange = callbacks.onClip3Change,
                 isVisible = true
             ) else null,
-            clip4 = if (currentWorkflowHasClipName4) ModelField(
+            clip4 = if (capabilities.hasClipName4) ModelField(
                 label = R.string.label_clip4,
                 selectedValue = selectedClip4,
                 options = availableClips,
@@ -279,37 +279,37 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 value = if (isCheckpoint) checkpointWidth else unetWidth,
                 onValueChange = callbacks.onWidthChange,
                 error = widthError,
-                isVisible = currentWorkflowHasWidth
+                isVisible = capabilities.hasWidth
             ),
             height = NumericField(
                 value = if (isCheckpoint) checkpointHeight else unetHeight,
                 onValueChange = callbacks.onHeightChange,
                 error = heightError,
-                isVisible = currentWorkflowHasHeight
+                isVisible = capabilities.hasHeight
             ),
             steps = NumericField(
                 value = if (isCheckpoint) checkpointSteps else unetSteps,
                 onValueChange = callbacks.onStepsChange,
                 error = stepsError,
-                isVisible = currentWorkflowHasSteps
+                isVisible = capabilities.hasSteps
             ),
             cfg = NumericField(
                 value = if (isCheckpoint) checkpointCfg else unetCfg,
                 onValueChange = callbacks.onCfgChange,
                 error = cfgError,
-                isVisible = currentWorkflowHasCfg
+                isVisible = capabilities.hasCfg
             ),
             sampler = DropdownField(
                 selectedValue = if (isCheckpoint) checkpointSampler else unetSampler,
                 options = SamplerOptions.SAMPLERS,
                 onValueChange = callbacks.onSamplerChange,
-                isVisible = currentWorkflowHasSamplerName
+                isVisible = capabilities.hasSamplerName
             ),
             scheduler = DropdownField(
                 selectedValue = if (isCheckpoint) checkpointScheduler else unetScheduler,
                 options = SamplerOptions.SCHEDULERS,
                 onValueChange = callbacks.onSchedulerChange,
-                isVisible = currentWorkflowHasScheduler
+                isVisible = capabilities.hasScheduler
             ),
             seed = SeedConfig(
                 randomSeed = if (isCheckpoint) checkpointRandomSeed else unetRandomSeed,
@@ -318,41 +318,41 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 onSeedChange = callbacks.onSeedChange,
                 onRandomizeSeed = callbacks.onRandomizeSeed,
                 seedError = seedError,
-                isVisible = currentWorkflowHasSeed
+                isVisible = capabilities.hasSeed
             ),
             denoise = NumericField(
                 value = if (isCheckpoint) checkpointDenoise else unetDenoise,
                 onValueChange = callbacks.onDenoiseChange,
                 error = denoiseError,
-                isVisible = currentWorkflowHasDenoise
+                isVisible = capabilities.hasDenoise
             ),
             batchSize = NumericField(
                 value = if (isCheckpoint) checkpointBatchSize else unetBatchSize,
                 onValueChange = callbacks.onBatchSizeChange,
                 error = batchSizeError,
-                isVisible = currentWorkflowHasBatchSize
+                isVisible = capabilities.hasBatchSize
             ),
             upscaleMethod = DropdownField(
                 selectedValue = if (isCheckpoint) checkpointUpscaleMethod else unetUpscaleMethod,
                 options = availableUpscaleMethods,
                 onValueChange = callbacks.onUpscaleMethodChange,
-                isVisible = currentWorkflowHasUpscaleMethod
+                isVisible = capabilities.hasUpscaleMethod
             ),
             scaleBy = NumericField(
                 value = if (isCheckpoint) checkpointScaleBy else unetScaleBy,
                 onValueChange = callbacks.onScaleByChange,
                 error = scaleByError,
-                isVisible = currentWorkflowHasScaleBy
+                isVisible = capabilities.hasScaleBy
             ),
             stopAtClipLayer = NumericField(
                 value = if (isCheckpoint) checkpointStopAtClipLayer else unetStopAtClipLayer,
                 onValueChange = callbacks.onStopAtClipLayerChange,
                 error = stopAtClipLayerError,
-                isVisible = currentWorkflowHasStopAtClipLayer
+                isVisible = capabilities.hasStopAtClipLayer
             )
         ),
         lora = LoraConfig(
-            primaryChain = if (currentWorkflowHasLora) LoraChainField(
+            primaryChain = if (capabilities.hasLora) LoraChainField(
                 title = R.string.lora_chain_title,
                 chain = if (isCheckpoint) checkpointLoraChain else unetLoraChain,
                 availableLoras = availableLoras,
@@ -380,11 +380,11 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
         prompts = PromptConfig(
             negativePrompt = negativePrompt,
             onNegativePromptChange = callbacks.onNegativePromptChange,
-            hasNegativePrompt = currentWorkflowHasNegativePrompt
+            hasNegativePrompt = capabilities.hasNegativePrompt
         ),
         itiConfig = null,
         models = ModelConfig(
-            highnoiseUnet = if (currentWorkflowHasHighnoiseUnet) ModelField(
+            highnoiseUnet = if (capabilities.hasHighnoiseUnetName) ModelField(
                 label = R.string.highnoise_unet_label,
                 selectedValue = selectedHighnoiseUnet,
                 options = availableUnets,
@@ -392,7 +392,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onHighnoiseUnetChange,
                 isVisible = true
             ) else null,
-            lownoiseUnet = if (currentWorkflowHasLownoiseUnet) ModelField(
+            lownoiseUnet = if (capabilities.hasLownoiseUnetName) ModelField(
                 label = R.string.lownoise_unet_label,
                 selectedValue = selectedLownoiseUnet,
                 options = availableUnets,
@@ -400,21 +400,21 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onLownoiseUnetChange,
                 isVisible = true
             ) else null,
-            highnoiseLora = if (currentWorkflowHasHighnoiseLora) ModelField(
+            highnoiseLora = if (capabilities.hasHighnoiseLoraName) ModelField(
                 label = R.string.highnoise_lora_label,
                 selectedValue = selectedHighnoiseLora,
                 options = availableLoras,
                 onValueChange = callbacks.onHighnoiseLoraChange,
                 isVisible = true
             ) else null,
-            lownoiseLora = if (currentWorkflowHasLownoiseLora) ModelField(
+            lownoiseLora = if (capabilities.hasLownoiseLoraName) ModelField(
                 label = R.string.lownoise_lora_label,
                 selectedValue = selectedLownoiseLora,
                 options = availableLoras,
                 onValueChange = callbacks.onLownoiseLoraChange,
                 isVisible = true
             ) else null,
-            vae = if (currentWorkflowHasVaeName) ModelField(
+            vae = if (capabilities.hasVaeName) ModelField(
                 label = R.string.label_vae,
                 selectedValue = selectedVae,
                 options = availableVaes,
@@ -422,7 +422,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onVaeChange,
                 isVisible = true
             ) else null,
-            clip = if (currentWorkflowHasClipName) ModelField(
+            clip = if (capabilities.hasClipName) ModelField(
                 label = R.string.label_clip,
                 selectedValue = selectedClip,
                 options = availableClips,
@@ -430,7 +430,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onClipChange,
                 isVisible = true
             ) else null,
-            clip1 = if (currentWorkflowHasClipName1) ModelField(
+            clip1 = if (capabilities.hasClipName1) ModelField(
                 label = R.string.label_clip1,
                 selectedValue = selectedClip1,
                 options = availableClips,
@@ -438,7 +438,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onClip1Change,
                 isVisible = true
             ) else null,
-            clip2 = if (currentWorkflowHasClipName2) ModelField(
+            clip2 = if (capabilities.hasClipName2) ModelField(
                 label = R.string.label_clip2,
                 selectedValue = selectedClip2,
                 options = availableClips,
@@ -446,7 +446,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onClip2Change,
                 isVisible = true
             ) else null,
-            clip3 = if (currentWorkflowHasClipName3) ModelField(
+            clip3 = if (capabilities.hasClipName3) ModelField(
                 label = R.string.label_clip3,
                 selectedValue = selectedClip3,
                 options = availableClips,
@@ -454,7 +454,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onClip3Change,
                 isVisible = true
             ) else null,
-            clip4 = if (currentWorkflowHasClipName4) ModelField(
+            clip4 = if (capabilities.hasClipName4) ModelField(
                 label = R.string.label_clip4,
                 selectedValue = selectedClip4,
                 options = availableClips,
@@ -468,25 +468,25 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 value = width,
                 onValueChange = callbacks.onWidthChange,
                 error = widthError,
-                isVisible = currentWorkflowHasWidth
+                isVisible = capabilities.hasWidth
             ),
             height = NumericField(
                 value = height,
                 onValueChange = callbacks.onHeightChange,
                 error = heightError,
-                isVisible = currentWorkflowHasHeight
+                isVisible = capabilities.hasHeight
             ),
             length = NumericField(
                 value = length,
                 onValueChange = callbacks.onLengthChange,
                 error = lengthError,
-                isVisible = currentWorkflowHasLength
+                isVisible = capabilities.hasLength
             ),
             fps = NumericField(
                 value = fps,
                 onValueChange = callbacks.onFpsChange,
                 error = fpsError,
-                isVisible = currentWorkflowHasFrameRate
+                isVisible = capabilities.hasFrameRate
             ),
             seed = SeedConfig(
                 randomSeed = randomSeed,
@@ -495,41 +495,41 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onSeedChange = callbacks.onSeedChange,
                 onRandomizeSeed = callbacks.onRandomizeSeed,
                 seedError = seedError,
-                isVisible = currentWorkflowHasSeed
+                isVisible = capabilities.hasSeed
             ),
             denoise = NumericField(
                 value = denoise,
                 onValueChange = callbacks.onDenoiseChange,
                 error = denoiseError,
-                isVisible = currentWorkflowHasDenoise
+                isVisible = capabilities.hasDenoise
             ),
             batchSize = NumericField(
                 value = batchSize,
                 onValueChange = callbacks.onBatchSizeChange,
                 error = batchSizeError,
-                isVisible = currentWorkflowHasBatchSize
+                isVisible = capabilities.hasBatchSize
             ),
             upscaleMethod = DropdownField(
                 selectedValue = upscaleMethod,
                 options = availableUpscaleMethods,
                 onValueChange = callbacks.onUpscaleMethodChange,
-                isVisible = currentWorkflowHasUpscaleMethod
+                isVisible = capabilities.hasUpscaleMethod
             ),
             scaleBy = NumericField(
                 value = scaleBy,
                 onValueChange = callbacks.onScaleByChange,
                 error = scaleByError,
-                isVisible = currentWorkflowHasScaleBy
+                isVisible = capabilities.hasScaleBy
             ),
             stopAtClipLayer = NumericField(
                 value = stopAtClipLayer,
                 onValueChange = callbacks.onStopAtClipLayerChange,
                 error = stopAtClipLayerError,
-                isVisible = currentWorkflowHasStopAtClipLayer
+                isVisible = capabilities.hasStopAtClipLayer
             )
         ),
         lora = LoraConfig(
-            highnoiseChain = if (currentWorkflowHasHighnoiseUnet) LoraChainField(
+            highnoiseChain = if (capabilities.hasHighnoiseLora) LoraChainField(
                 title = R.string.highnoise_lora_chain_title,
                 chain = highnoiseLoraChain,
                 availableLoras = availableLoras,
@@ -539,7 +539,7 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onStrengthChange = callbacks.onHighnoiseLoraStrengthChange,
                 isVisible = true
             ) else null,
-            lownoiseChain = if (currentWorkflowHasLownoiseUnet) LoraChainField(
+            lownoiseChain = if (capabilities.hasLownoiseLora) LoraChainField(
                 title = R.string.lownoise_lora_chain_title,
                 chain = lownoiseLoraChain,
                 availableLoras = availableLoras,
@@ -567,11 +567,11 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
         prompts = PromptConfig(
             negativePrompt = negativePrompt,
             onNegativePromptChange = callbacks.onNegativePromptChange,
-            hasNegativePrompt = currentWorkflowHasNegativePrompt
+            hasNegativePrompt = capabilities.hasNegativePrompt
         ),
         itiConfig = null,
         models = ModelConfig(
-            highnoiseUnet = if (currentWorkflowHasHighnoiseUnet) ModelField(
+            highnoiseUnet = if (capabilities.hasHighnoiseUnetName) ModelField(
                 label = R.string.highnoise_unet_label,
                 selectedValue = selectedHighnoiseUnet,
                 options = availableUnets,
@@ -579,7 +579,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onHighnoiseUnetChange,
                 isVisible = true
             ) else null,
-            lownoiseUnet = if (currentWorkflowHasLownoiseUnet) ModelField(
+            lownoiseUnet = if (capabilities.hasLownoiseUnetName) ModelField(
                 label = R.string.lownoise_unet_label,
                 selectedValue = selectedLownoiseUnet,
                 options = availableUnets,
@@ -587,21 +587,21 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onLownoiseUnetChange,
                 isVisible = true
             ) else null,
-            highnoiseLora = if (currentWorkflowHasHighnoiseLora) ModelField(
+            highnoiseLora = if (capabilities.hasHighnoiseLoraName) ModelField(
                 label = R.string.highnoise_lora_label,
                 selectedValue = selectedHighnoiseLora,
                 options = availableLoras,
                 onValueChange = callbacks.onHighnoiseLoraChange,
                 isVisible = true
             ) else null,
-            lownoiseLora = if (currentWorkflowHasLownoiseLora) ModelField(
+            lownoiseLora = if (capabilities.hasLownoiseLoraName) ModelField(
                 label = R.string.lownoise_lora_label,
                 selectedValue = selectedLownoiseLora,
                 options = availableLoras,
                 onValueChange = callbacks.onLownoiseLoraChange,
                 isVisible = true
             ) else null,
-            vae = if (currentWorkflowHasVaeName) ModelField(
+            vae = if (capabilities.hasVaeName) ModelField(
                 label = R.string.label_vae,
                 selectedValue = selectedVae,
                 options = availableVaes,
@@ -609,7 +609,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onVaeChange,
                 isVisible = true
             ) else null,
-            clip = if (currentWorkflowHasClipName) ModelField(
+            clip = if (capabilities.hasClipName) ModelField(
                 label = R.string.label_clip,
                 selectedValue = selectedClip,
                 options = availableClips,
@@ -617,7 +617,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onClipChange,
                 isVisible = true
             ) else null,
-            clip1 = if (currentWorkflowHasClipName1) ModelField(
+            clip1 = if (capabilities.hasClipName1) ModelField(
                 label = R.string.label_clip1,
                 selectedValue = selectedClip1,
                 options = availableClips,
@@ -625,7 +625,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onClip1Change,
                 isVisible = true
             ) else null,
-            clip2 = if (currentWorkflowHasClipName2) ModelField(
+            clip2 = if (capabilities.hasClipName2) ModelField(
                 label = R.string.label_clip2,
                 selectedValue = selectedClip2,
                 options = availableClips,
@@ -633,7 +633,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onClip2Change,
                 isVisible = true
             ) else null,
-            clip3 = if (currentWorkflowHasClipName3) ModelField(
+            clip3 = if (capabilities.hasClipName3) ModelField(
                 label = R.string.label_clip3,
                 selectedValue = selectedClip3,
                 options = availableClips,
@@ -641,7 +641,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onClip3Change,
                 isVisible = true
             ) else null,
-            clip4 = if (currentWorkflowHasClipName4) ModelField(
+            clip4 = if (capabilities.hasClipName4) ModelField(
                 label = R.string.label_clip4,
                 selectedValue = selectedClip4,
                 options = availableClips,
@@ -655,25 +655,25 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 value = width,
                 onValueChange = callbacks.onWidthChange,
                 error = widthError,
-                isVisible = currentWorkflowHasWidth
+                isVisible = capabilities.hasWidth
             ),
             height = NumericField(
                 value = height,
                 onValueChange = callbacks.onHeightChange,
                 error = heightError,
-                isVisible = currentWorkflowHasHeight
+                isVisible = capabilities.hasHeight
             ),
             length = NumericField(
                 value = length,
                 onValueChange = callbacks.onLengthChange,
                 error = lengthError,
-                isVisible = currentWorkflowHasLength
+                isVisible = capabilities.hasLength
             ),
             fps = NumericField(
                 value = fps,
                 onValueChange = callbacks.onFpsChange,
                 error = fpsError,
-                isVisible = currentWorkflowHasFrameRate
+                isVisible = capabilities.hasFrameRate
             ),
             seed = SeedConfig(
                 randomSeed = randomSeed,
@@ -682,41 +682,41 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onSeedChange = callbacks.onSeedChange,
                 onRandomizeSeed = callbacks.onRandomizeSeed,
                 seedError = seedError,
-                isVisible = currentWorkflowHasSeed
+                isVisible = capabilities.hasSeed
             ),
             denoise = NumericField(
                 value = denoise,
                 onValueChange = callbacks.onDenoiseChange,
                 error = denoiseError,
-                isVisible = currentWorkflowHasDenoise
+                isVisible = capabilities.hasDenoise
             ),
             batchSize = NumericField(
                 value = batchSize,
                 onValueChange = callbacks.onBatchSizeChange,
                 error = batchSizeError,
-                isVisible = currentWorkflowHasBatchSize
+                isVisible = capabilities.hasBatchSize
             ),
             upscaleMethod = DropdownField(
                 selectedValue = upscaleMethod,
                 options = availableUpscaleMethods,
                 onValueChange = callbacks.onUpscaleMethodChange,
-                isVisible = currentWorkflowHasUpscaleMethod
+                isVisible = capabilities.hasUpscaleMethod
             ),
             scaleBy = NumericField(
                 value = scaleBy,
                 onValueChange = callbacks.onScaleByChange,
                 error = scaleByError,
-                isVisible = currentWorkflowHasScaleBy
+                isVisible = capabilities.hasScaleBy
             ),
             stopAtClipLayer = NumericField(
                 value = stopAtClipLayer,
                 onValueChange = callbacks.onStopAtClipLayerChange,
                 error = stopAtClipLayerError,
-                isVisible = currentWorkflowHasStopAtClipLayer
+                isVisible = capabilities.hasStopAtClipLayer
             )
         ),
         lora = LoraConfig(
-            highnoiseChain = if (currentWorkflowHasHighnoiseUnet) LoraChainField(
+            highnoiseChain = if (capabilities.hasHighnoiseLora) LoraChainField(
                 title = R.string.highnoise_lora_chain_title,
                 chain = highnoiseLoraChain,
                 availableLoras = availableLoras,
@@ -726,7 +726,7 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onStrengthChange = callbacks.onHighnoiseLoraStrengthChange,
                 isVisible = true
             ) else null,
-            lownoiseChain = if (currentWorkflowHasLownoiseUnet) LoraChainField(
+            lownoiseChain = if (capabilities.hasLownoiseLora) LoraChainField(
                 title = R.string.lownoise_lora_chain_title,
                 chain = lownoiseLoraChain,
                 availableLoras = availableLoras,
@@ -766,7 +766,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                 if (isCheckpoint) checkpointNegativePrompt else unetNegativePrompt
             },
             onNegativePromptChange = callbacks.onNegativePromptChange,
-            hasNegativePrompt = currentWorkflowHasNegativePrompt
+            hasNegativePrompt = capabilities.hasNegativePrompt
         ),
         itiConfig = ItiConfig(
             mode = mode,
@@ -774,16 +774,16 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
             referenceImage1 = referenceImage1,
             onReferenceImage1Change = callbacks.onReferenceImage1Change,
             onClearReferenceImage1 = callbacks.onClearReferenceImage1,
-            hasReferenceImage1 = currentWorkflowHasReferenceImage1,
+            hasReferenceImage1 = capabilities.hasReferenceImage1,
             referenceImage2 = referenceImage2,
             onReferenceImage2Change = callbacks.onReferenceImage2Change,
             onClearReferenceImage2 = callbacks.onClearReferenceImage2,
-            hasReferenceImage2 = currentWorkflowHasReferenceImage2
+            hasReferenceImage2 = capabilities.hasReferenceImage2
         ),
         models = if (isEditing) {
             // Editing mode models
             ModelConfig(
-                unet = if (currentWorkflowHasUnetName) ModelField(
+                unet = if (capabilities.hasUnetName) ModelField(
                     label = R.string.label_unet,
                     selectedValue = selectedEditingUnet,
                     options = unets,
@@ -791,7 +791,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onEditingUnetChange,
                     isVisible = true
                 ) else null,
-                vae = if (currentWorkflowHasVaeName) ModelField(
+                vae = if (capabilities.hasVaeName) ModelField(
                     label = R.string.label_vae,
                     selectedValue = selectedEditingVae,
                     options = vaes,
@@ -799,7 +799,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onEditingVaeChange,
                     isVisible = true
                 ) else null,
-                clip = if (currentWorkflowHasClipName) ModelField(
+                clip = if (capabilities.hasClipName) ModelField(
                     label = R.string.label_clip,
                     selectedValue = selectedEditingClip,
                     options = clips,
@@ -807,7 +807,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onEditingClipChange,
                     isVisible = true
                 ) else null,
-                clip1 = if (currentWorkflowHasClipName1) ModelField(
+                clip1 = if (capabilities.hasClipName1) ModelField(
                     label = R.string.label_clip1,
                     selectedValue = selectedEditingClip1,
                     options = clips,
@@ -815,7 +815,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onEditingClip1Change,
                     isVisible = true
                 ) else null,
-                clip2 = if (currentWorkflowHasClipName2) ModelField(
+                clip2 = if (capabilities.hasClipName2) ModelField(
                     label = R.string.label_clip2,
                     selectedValue = selectedEditingClip2,
                     options = clips,
@@ -823,7 +823,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onEditingClip2Change,
                     isVisible = true
                 ) else null,
-                clip3 = if (currentWorkflowHasClipName3) ModelField(
+                clip3 = if (capabilities.hasClipName3) ModelField(
                     label = R.string.label_clip3,
                     selectedValue = selectedEditingClip3,
                     options = clips,
@@ -831,7 +831,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onEditingClip3Change,
                     isVisible = true
                 ) else null,
-                clip4 = if (currentWorkflowHasClipName4) ModelField(
+                clip4 = if (capabilities.hasClipName4) ModelField(
                     label = R.string.label_clip4,
                     selectedValue = selectedEditingClip4,
                     options = clips,
@@ -843,7 +843,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
         } else {
             // Inpainting mode models
             ModelConfig(
-                checkpoint = if (currentWorkflowHasCheckpointName) ModelField(
+                checkpoint = if (capabilities.hasCheckpointName) ModelField(
                     label = R.string.label_checkpoint,
                     selectedValue = selectedCheckpoint,
                     options = checkpoints,
@@ -851,7 +851,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onCheckpointChange,
                     isVisible = true
                 ) else null,
-                unet = if (currentWorkflowHasUnetName) ModelField(
+                unet = if (capabilities.hasUnetName) ModelField(
                     label = R.string.label_unet,
                     selectedValue = selectedUnet,
                     options = unets,
@@ -859,7 +859,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onUnetChange,
                     isVisible = true
                 ) else null,
-                vae = if (currentWorkflowHasVaeName) ModelField(
+                vae = if (capabilities.hasVaeName) ModelField(
                     label = R.string.label_vae,
                     selectedValue = selectedVae,
                     options = vaes,
@@ -867,7 +867,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onVaeChange,
                     isVisible = true
                 ) else null,
-                clip = if (currentWorkflowHasClipName) ModelField(
+                clip = if (capabilities.hasClipName) ModelField(
                     label = R.string.label_clip,
                     selectedValue = selectedClip,
                     options = clips,
@@ -875,7 +875,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onClipChange,
                     isVisible = true
                 ) else null,
-                clip1 = if (currentWorkflowHasClipName1) ModelField(
+                clip1 = if (capabilities.hasClipName1) ModelField(
                     label = R.string.label_clip1,
                     selectedValue = selectedClip1,
                     options = clips,
@@ -883,7 +883,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onClip1Change,
                     isVisible = true
                 ) else null,
-                clip2 = if (currentWorkflowHasClipName2) ModelField(
+                clip2 = if (capabilities.hasClipName2) ModelField(
                     label = R.string.label_clip2,
                     selectedValue = selectedClip2,
                     options = clips,
@@ -891,7 +891,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onClip2Change,
                     isVisible = true
                 ) else null,
-                clip3 = if (currentWorkflowHasClipName3) ModelField(
+                clip3 = if (capabilities.hasClipName3) ModelField(
                     label = R.string.label_clip3,
                     selectedValue = selectedClip3,
                     options = clips,
@@ -899,7 +899,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onValueChange = callbacks.onClip3Change,
                     isVisible = true
                 ) else null,
-                clip4 = if (currentWorkflowHasClipName4) ModelField(
+                clip4 = if (capabilities.hasClipName4) ModelField(
                     label = R.string.label_clip4,
                     selectedValue = selectedClip4,
                     options = clips,
@@ -915,31 +915,31 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     value = editingMegapixels,
                     onValueChange = callbacks.onEditingMegapixelsChange,
                     error = megapixelsError,
-                    isVisible = currentWorkflowHasMegapixels
+                    isVisible = capabilities.hasMegapixels
                 ),
                 steps = NumericField(
                     value = editingSteps,
                     onValueChange = callbacks.onEditingStepsChange,
                     error = stepsError,
-                    isVisible = currentWorkflowHasSteps
+                    isVisible = capabilities.hasSteps
                 ),
                 cfg = NumericField(
                     value = editingCfg,
                     onValueChange = callbacks.onEditingCfgChange,
                     error = cfgError,
-                    isVisible = currentWorkflowHasCfg
+                    isVisible = capabilities.hasCfg
                 ),
                 sampler = DropdownField(
                     selectedValue = editingSampler,
                     options = SamplerOptions.SAMPLERS,
                     onValueChange = callbacks.onEditingSamplerChange,
-                    isVisible = currentWorkflowHasSamplerName
+                    isVisible = capabilities.hasSamplerName
                 ),
                 scheduler = DropdownField(
                     selectedValue = editingScheduler,
                     options = SamplerOptions.SCHEDULERS,
                     onValueChange = callbacks.onEditingSchedulerChange,
-                    isVisible = currentWorkflowHasScheduler
+                    isVisible = capabilities.hasScheduler
                 ),
                 seed = SeedConfig(
                     randomSeed = editingRandomSeed,
@@ -948,37 +948,37 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onSeedChange = callbacks.onEditingSeedChange,
                     onRandomizeSeed = callbacks.onEditingRandomizeSeed,
                     seedError = seedError,
-                    isVisible = currentWorkflowHasSeed
+                    isVisible = capabilities.hasSeed
                 ),
                 denoise = NumericField(
                     value = editingDenoise,
                     onValueChange = callbacks.onEditingDenoiseChange,
                     error = denoiseError,
-                    isVisible = currentWorkflowHasDenoise
+                    isVisible = capabilities.hasDenoise
                 ),
                 batchSize = NumericField(
                     value = editingBatchSize,
                     onValueChange = callbacks.onEditingBatchSizeChange,
                     error = batchSizeError,
-                    isVisible = currentWorkflowHasBatchSize
+                    isVisible = capabilities.hasBatchSize
                 ),
                 upscaleMethod = DropdownField(
                     selectedValue = editingUpscaleMethod,
                     options = availableUpscaleMethods,
                     onValueChange = callbacks.onEditingUpscaleMethodChange,
-                    isVisible = currentWorkflowHasUpscaleMethod
+                    isVisible = capabilities.hasUpscaleMethod
                 ),
                 scaleBy = NumericField(
                     value = editingScaleBy,
                     onValueChange = callbacks.onEditingScaleByChange,
                     error = scaleByError,
-                    isVisible = currentWorkflowHasScaleBy
+                    isVisible = capabilities.hasScaleBy
                 ),
                 stopAtClipLayer = NumericField(
                     value = editingStopAtClipLayer,
                     onValueChange = callbacks.onEditingStopAtClipLayerChange,
                     error = stopAtClipLayerError,
-                    isVisible = currentWorkflowHasStopAtClipLayer
+                    isVisible = capabilities.hasStopAtClipLayer
                 )
             )
         } else {
@@ -987,31 +987,31 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     value = megapixels,
                     onValueChange = callbacks.onMegapixelsChange,
                     error = megapixelsError,
-                    isVisible = currentWorkflowHasMegapixels
+                    isVisible = capabilities.hasMegapixels
                 ),
                 steps = NumericField(
                     value = if (isCheckpoint) checkpointSteps else unetSteps,
                     onValueChange = callbacks.onStepsChange,
                     error = stepsError,
-                    isVisible = currentWorkflowHasSteps
+                    isVisible = capabilities.hasSteps
                 ),
                 cfg = NumericField(
                     value = if (isCheckpoint) checkpointCfg else unetCfg,
                     onValueChange = callbacks.onCfgChange,
                     error = cfgError,
-                    isVisible = currentWorkflowHasCfg
+                    isVisible = capabilities.hasCfg
                 ),
                 sampler = DropdownField(
                     selectedValue = if (isCheckpoint) checkpointSampler else unetSampler,
                     options = SamplerOptions.SAMPLERS,
                     onValueChange = callbacks.onSamplerChange,
-                    isVisible = currentWorkflowHasSamplerName
+                    isVisible = capabilities.hasSamplerName
                 ),
                 scheduler = DropdownField(
                     selectedValue = if (isCheckpoint) checkpointScheduler else unetScheduler,
                     options = SamplerOptions.SCHEDULERS,
                     onValueChange = callbacks.onSchedulerChange,
-                    isVisible = currentWorkflowHasScheduler
+                    isVisible = capabilities.hasScheduler
                 ),
                 seed = SeedConfig(
                     randomSeed = if (isCheckpoint) checkpointRandomSeed else unetRandomSeed,
@@ -1020,50 +1020,50 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     onSeedChange = callbacks.onSeedChange,
                     onRandomizeSeed = callbacks.onRandomizeSeed,
                     seedError = seedError,
-                    isVisible = currentWorkflowHasSeed
+                    isVisible = capabilities.hasSeed
                 ),
                 denoise = NumericField(
                     value = if (isCheckpoint) checkpointDenoise else unetDenoise,
                     onValueChange = callbacks.onDenoiseChange,
                     error = denoiseError,
-                    isVisible = currentWorkflowHasDenoise
+                    isVisible = capabilities.hasDenoise
                 ),
                 batchSize = NumericField(
                     value = if (isCheckpoint) checkpointBatchSize else unetBatchSize,
                     onValueChange = callbacks.onBatchSizeChange,
                     error = batchSizeError,
-                    isVisible = currentWorkflowHasBatchSize
+                    isVisible = capabilities.hasBatchSize
                 ),
                 upscaleMethod = DropdownField(
                     selectedValue = if (isCheckpoint) checkpointUpscaleMethod else unetUpscaleMethod,
                     options = availableUpscaleMethods,
                     onValueChange = callbacks.onUpscaleMethodChange,
-                    isVisible = currentWorkflowHasUpscaleMethod
+                    isVisible = capabilities.hasUpscaleMethod
                 ),
                 scaleBy = NumericField(
                     value = if (isCheckpoint) checkpointScaleBy else unetScaleBy,
                     onValueChange = callbacks.onScaleByChange,
                     error = scaleByError,
-                    isVisible = currentWorkflowHasScaleBy
+                    isVisible = capabilities.hasScaleBy
                 ),
                 stopAtClipLayer = NumericField(
                     value = if (isCheckpoint) checkpointStopAtClipLayer else unetStopAtClipLayer,
                     onValueChange = callbacks.onStopAtClipLayerChange,
                     error = stopAtClipLayerError,
-                    isVisible = currentWorkflowHasStopAtClipLayer
+                    isVisible = capabilities.hasStopAtClipLayer
                 )
             )
         },
         lora = if (isEditing) {
             LoraConfig(
-                editingLora = if (currentWorkflowHasLora) ModelField(
+                loraName = if (capabilities.hasLoraName) ModelField(
                     label = R.string.label_lora,
                     selectedValue = selectedEditingLora,
                     options = availableLoras,
                     onValueChange = callbacks.onEditingLoraChange,
                     isVisible = true
                 ) else null,
-                primaryChain = if (currentWorkflowHasLora) LoraChainField(
+                primaryChain = if (capabilities.hasLora) LoraChainField(
                     title = R.string.lora_chain_title,
                     chain = editingLoraChain,
                     availableLoras = availableLoras,
@@ -1076,7 +1076,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
             )
         } else {
             LoraConfig(
-                primaryChain = if (currentWorkflowHasLora) LoraChainField(
+                primaryChain = if (capabilities.hasLora) LoraChainField(
                     title = R.string.lora_chain_title,
                     chain = if (isCheckpoint) checkpointLoraChain else unetLoraChain,
                     availableLoras = availableLoras,

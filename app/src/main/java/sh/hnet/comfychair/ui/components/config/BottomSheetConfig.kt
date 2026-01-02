@@ -143,7 +143,7 @@ data class DropdownField(
  */
 data class LoraConfig(
     val primaryChain: LoraChainField? = null,
-    val editingLora: ModelField? = null,
+    val loraName: ModelField? = null,  // Mandatory LoRA dropdown (from lora_name placeholder)
     val highnoiseChain: LoraChainField? = null,
     val lownoiseChain: LoraChainField? = null
 )

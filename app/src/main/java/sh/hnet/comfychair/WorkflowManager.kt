@@ -1244,6 +1244,77 @@ object WorkflowManager {
     }
 
     /**
+     * Replace all common parameter placeholders in a workflow JSON.
+     *
+     * This is the SINGLE SOURCE OF TRUTH for common placeholder handling.
+     * ALL prepare*WorkflowById functions MUST call this to ensure consistent
+     * placeholder replacement across all workflow types.
+     *
+     * IMPORTANT: Any workflow can use any placeholder. Field visibility is
+     * controlled by WorkflowCapabilities, not by screen type. This function
+     * must handle ALL possible parameter placeholders uniformly.
+     *
+     * @param json The workflow JSON string
+     * @param seed Random seed for generation
+     * @param steps Number of sampling steps
+     * @param cfg CFG scale value
+     * @param samplerName Sampler algorithm name
+     * @param scheduler Scheduler algorithm name
+     * @param denoise Denoising strength (0.0-1.0)
+     * @param batchSize Number of images to generate
+     * @param width Image width in pixels
+     * @param height Image height in pixels
+     * @param megapixels Target megapixels for resolution
+     * @param length Video frame count
+     * @param frameRate Video FPS
+     * @param upscaleMethod Upscaling algorithm name
+     * @param scaleBy Upscale factor
+     * @param stopAtClipLayer CLIP skip value
+     * @return JSON with all matching placeholders replaced
+     */
+    private fun replaceCommonPlaceholders(
+        json: String,
+        seed: Long,
+        steps: Int? = null,
+        cfg: Float? = null,
+        samplerName: String? = null,
+        scheduler: String? = null,
+        denoise: Float? = null,
+        batchSize: Int? = null,
+        width: Int? = null,
+        height: Int? = null,
+        megapixels: Float? = null,
+        length: Int? = null,
+        frameRate: Int? = null,
+        upscaleMethod: String? = null,
+        scaleBy: Float? = null,
+        stopAtClipLayer: Int? = null
+    ): String {
+        var result = json
+        // Seed - always required
+        result = result.replace("{{seed}}", seed.toString())
+        // Also handle legacy "seed": 0 and "noise_seed": 0 patterns
+        result = result.replace("\"seed\": 0", "\"seed\": $seed")
+        result = result.replace("\"noise_seed\": 0", "\"noise_seed\": $seed")
+        // Optional parameters - only replace if provided
+        steps?.let { result = result.replace("{{steps}}", it.toString()) }
+        cfg?.let { result = result.replace("{{cfg}}", it.toString()) }
+        samplerName?.let { result = result.replace("{{sampler_name}}", it) }
+        scheduler?.let { result = result.replace("{{scheduler}}", it) }
+        denoise?.let { result = result.replace("{{denoise}}", it.toString()) }
+        batchSize?.let { result = result.replace("{{batch_size}}", it.toString()) }
+        width?.let { result = result.replace("{{width}}", it.toString()) }
+        height?.let { result = result.replace("{{height}}", it.toString()) }
+        megapixels?.let { result = result.replace("{{megapixels}}", it.toString()) }
+        length?.let { result = result.replace("{{length}}", it.toString()) }
+        frameRate?.let { result = result.replace("{{frame_rate}}", it.toString()) }
+        upscaleMethod?.let { result = result.replace("{{upscale_method}}", it) }
+        scaleBy?.let { result = result.replace("{{scale_by}}", it.toString()) }
+        stopAtClipLayer?.let { result = result.replace("{{stop_at_clip_layer}}", it.toString()) }
+        return result
+    }
+
+    /**
      * Apply node attribute edits to a workflow JSON.
      * This modifies the input values in specific nodes based on user edits.
      *
@@ -1443,33 +1514,35 @@ object WorkflowManager {
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
         var processedJson = workflow.jsonContent
+
+        // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
         processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        // Handle single CLIP or multi-CLIP (up to 4 slots)
         clip?.let { processedJson = processedJson.replace("{{clip_name}}", escapeForJson(it)) }
         clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        processedJson = processedJson.replace("{{width}}", width.toString())
-        processedJson = processedJson.replace("{{height}}", height.toString())
-        processedJson = processedJson.replace("{{steps}}", steps.toString())
-        processedJson = processedJson.replace("{{cfg}}", cfg.toString())
-        processedJson = processedJson.replace("{{sampler_name}}", samplerName)
-        processedJson = processedJson.replace("{{scheduler}}", scheduler)
-        // Seed - use template placeholder or replace literal 0 values
-        processedJson = processedJson.replace("{{seed}}", actualSeed.toString())
-        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $actualSeed")
-        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $actualSeed")
-        // New optional parameters
-        denoise?.let { processedJson = processedJson.replace("{{denoise}}", it.toString()) }
-        batchSize?.let { processedJson = processedJson.replace("{{batch_size}}", it.toString()) }
-        upscaleMethod?.let { processedJson = processedJson.replace("{{upscale_method}}", it) }
-        scaleBy?.let { processedJson = processedJson.replace("{{scale_by}}", it.toString()) }
-        stopAtClipLayer?.let { processedJson = processedJson.replace("{{stop_at_clip_layer}}", it.toString()) }
+
+        // Common parameter placeholders (unified handling)
+        processedJson = replaceCommonPlaceholders(
+            json = processedJson,
+            seed = actualSeed,
+            steps = steps,
+            cfg = cfg,
+            samplerName = samplerName,
+            scheduler = scheduler,
+            denoise = denoise,
+            batchSize = batchSize,
+            width = width,
+            height = height,
+            upscaleMethod = upscaleMethod,
+            scaleBy = scaleBy,
+            stopAtClipLayer = stopAtClipLayer
+        )
 
         // Apply node attribute edits from the Workflow Editor
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
@@ -1495,6 +1568,7 @@ object WorkflowManager {
         cfg: Float = 8.0f,
         samplerName: String = "euler",
         scheduler: String = "normal",
+        denoise: Float = 1.0f,
         imageFilename: String
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
@@ -1513,6 +1587,8 @@ object WorkflowManager {
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
         var processedJson = workflow.jsonContent
+
+        // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
         processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
@@ -1523,16 +1599,23 @@ object WorkflowManager {
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
-        processedJson = processedJson.replace("{{steps}}", steps.toString())
-        processedJson = processedJson.replace("{{cfg}}", cfg.toString())
-        processedJson = processedJson.replace("{{sampler_name}}", samplerName)
-        processedJson = processedJson.replace("{{scheduler}}", scheduler)
-        // Replace source image placeholder (both template and literal formats)
+
+        // Type-specific: source image placeholder (both template and literal formats)
         val escapedImageFilename = escapeForJson(imageFilename)
         processedJson = processedJson.replace("{{image_filename}}", "$escapedImageFilename [input]")
         processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedImageFilename [input]")
-        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
+
+        // Common parameter placeholders (unified handling)
+        processedJson = replaceCommonPlaceholders(
+            json = processedJson,
+            seed = randomSeed,
+            steps = steps,
+            cfg = cfg,
+            samplerName = samplerName,
+            scheduler = scheduler,
+            denoise = denoise,
+            megapixels = megapixels
+        )
 
         // Apply node attribute edits from the Workflow Editor
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
@@ -1559,6 +1642,7 @@ object WorkflowManager {
         cfg: Float = 1.0f,
         samplerName: String = "euler",
         scheduler: String = "simple",
+        denoise: Float = 1.0f,
         sourceImageFilename: String,
         referenceImage1Filename: String? = null,
         referenceImage2Filename: String? = null
@@ -1580,8 +1664,9 @@ object WorkflowManager {
         val escapedPositivePrompt = escapeForJson(positivePrompt)
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
-        // First pass: simple placeholder replacements
         var processedJson = workflow.jsonContent
+
+        // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
@@ -1592,27 +1677,35 @@ object WorkflowManager {
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        processedJson = processedJson.replace("{{megapixels}}", megapixels.toString())
-        processedJson = processedJson.replace("{{steps}}", steps.toString())
-        processedJson = processedJson.replace("{{cfg}}", cfg.toString())
-        processedJson = processedJson.replace("{{sampler_name}}", samplerName)
-        processedJson = processedJson.replace("{{scheduler}}", scheduler)
 
-        // Replace source image placeholder (both template and literal formats)
+        // Type-specific: source image placeholder (both template and literal formats)
         val escapedSourceFilename = escapeForJson(sourceImageFilename)
         processedJson = processedJson.replace("{{image_filename}}", "$escapedSourceFilename [input]")
         processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
 
-        // Replace reference images if provided
+        // Type-specific: reference images (both placeholder and magic filename formats)
         if (referenceImage1Filename != null) {
-            processedJson = processedJson.replace("reference_image_1.png [input]", "${escapeForJson(referenceImage1Filename)} [input]")
+            val escaped1 = "${escapeForJson(referenceImage1Filename)} [input]"
+            processedJson = processedJson.replace("{{reference_image_1}}", escaped1)
+            processedJson = processedJson.replace("reference_image_1.png [input]", escaped1)
         }
         if (referenceImage2Filename != null) {
-            processedJson = processedJson.replace("reference_image_2.png [input]", "${escapeForJson(referenceImage2Filename)} [input]")
+            val escaped2 = "${escapeForJson(referenceImage2Filename)} [input]"
+            processedJson = processedJson.replace("{{reference_image_2}}", escaped2)
+            processedJson = processedJson.replace("reference_image_2.png [input]", escaped2)
         }
 
-        // Handle seed
-        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
+        // Common parameter placeholders (unified handling)
+        processedJson = replaceCommonPlaceholders(
+            json = processedJson,
+            seed = randomSeed,
+            steps = steps,
+            cfg = cfg,
+            samplerName = samplerName,
+            scheduler = scheduler,
+            denoise = denoise,
+            megapixels = megapixels
+        )
 
         // Second pass: remove unused reference image nodes and their connections
         try {
@@ -1634,10 +1727,13 @@ object WorkflowManager {
 
                 if (classType == "LoadImage") {
                     val imageName = inputs.optString("image", "")
-                    if (imageName == "reference_image_1.png [input]" && referenceImage1Filename == null) {
+                    // Check for both placeholder and magic filename patterns
+                    val isRef1 = imageName == "{{reference_image_1}}" || imageName == "reference_image_1.png [input]"
+                    val isRef2 = imageName == "{{reference_image_2}}" || imageName == "reference_image_2.png [input]"
+                    if (isRef1 && referenceImage1Filename == null) {
                         nodesToRemove.add(nodeId)
                         nodeIdToImageInput[nodeId] = "image2"
-                    } else if (imageName == "reference_image_2.png [input]" && referenceImage2Filename == null) {
+                    } else if (isRef2 && referenceImage2Filename == null) {
                         nodesToRemove.add(nodeId)
                         nodeIdToImageInput[nodeId] = "image3"
                     }
@@ -1723,6 +1819,8 @@ object WorkflowManager {
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
         var processedJson = workflow.jsonContent
+
+        // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
         processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
@@ -1735,11 +1833,17 @@ object WorkflowManager {
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        processedJson = processedJson.replace("{{width}}", width.toString())
-        processedJson = processedJson.replace("{{height}}", height.toString())
-        processedJson = processedJson.replace("{{length}}", length.toString())
-        processedJson = processedJson.replace("{{frame_rate}}", fps.toString())
-        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
+
+        // Common parameter placeholders (unified handling)
+        processedJson = replaceCommonPlaceholders(
+            json = processedJson,
+            seed = randomSeed,
+            width = width,
+            height = height,
+            length = length,
+            frameRate = fps,
+            batchSize = 1
+        )
 
         // Apply node attribute edits from the Workflow Editor
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
@@ -1784,6 +1888,8 @@ object WorkflowManager {
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
         var processedJson = workflow.jsonContent
+
+        // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
         processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
@@ -1796,12 +1902,20 @@ object WorkflowManager {
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        processedJson = processedJson.replace("{{width}}", width.toString())
-        processedJson = processedJson.replace("{{height}}", height.toString())
-        processedJson = processedJson.replace("{{length}}", length.toString())
-        processedJson = processedJson.replace("{{frame_rate}}", fps.toString())
+
+        // Type-specific: source image placeholder
         processedJson = processedJson.replace("{{image_filename}}", escapeForJson(imageFilename))
-        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
+
+        // Common parameter placeholders (unified handling)
+        processedJson = replaceCommonPlaceholders(
+            json = processedJson,
+            seed = randomSeed,
+            width = width,
+            height = height,
+            length = length,
+            frameRate = fps,
+            batchSize = 1
+        )
 
         // Apply node attribute edits from the Workflow Editor
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))

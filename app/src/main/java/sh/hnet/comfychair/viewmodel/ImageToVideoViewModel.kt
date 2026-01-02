@@ -16,6 +16,7 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.model.WorkflowCapabilities
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
@@ -137,37 +138,8 @@ data class ImageToVideoUiState(
     val highnoiseLoraChain: List<LoraSelection> = emptyList(),
     val lownoiseLoraChain: List<LoraSelection> = emptyList(),
 
-    // Current workflow capabilities (for conditional UI)
-    val currentWorkflowHasNegativePrompt: Boolean = true,
-
-    // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
-    val currentWorkflowHasWidth: Boolean = true,
-    val currentWorkflowHasHeight: Boolean = true,
-    val currentWorkflowHasLength: Boolean = true,
-    val currentWorkflowHasFrameRate: Boolean = true,
-    val currentWorkflowHasVaeName: Boolean = true,
-    val currentWorkflowHasClipName: Boolean = true,
-    val currentWorkflowHasClipName1: Boolean = false,
-    val currentWorkflowHasClipName2: Boolean = false,
-    val currentWorkflowHasClipName3: Boolean = false,
-    val currentWorkflowHasClipName4: Boolean = false,
-    val currentWorkflowHasLora: Boolean = true,
-    val currentWorkflowHasSeed: Boolean = false,
-    val currentWorkflowHasDenoise: Boolean = false,
-    val currentWorkflowHasBatchSize: Boolean = false,
-    val currentWorkflowHasUpscaleMethod: Boolean = false,
-    val currentWorkflowHasScaleBy: Boolean = false,
-    val currentWorkflowHasStopAtClipLayer: Boolean = false,
-
-    // Model presence flags (for conditional model dropdowns)
-    val currentWorkflowHasCheckpointName: Boolean = false,
-    val currentWorkflowHasUnetName: Boolean = false,
-    val currentWorkflowHasHighnoiseUnet: Boolean = false,
-
-    // Dual-UNET/LoRA field presence flags (for video workflows)
-    val currentWorkflowHasLownoiseUnet: Boolean = false,
-    val currentWorkflowHasHighnoiseLora: Boolean = false,
-    val currentWorkflowHasLownoiseLora: Boolean = false
+    // Workflow capabilities (unified flags derived from placeholders)
+    val capabilities: WorkflowCapabilities = WorkflowCapabilities()
 )
 
 /**
@@ -404,35 +376,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name4"),
-            // Set workflow capability flags from placeholders (auto-detected from workflow JSON)
-            currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
-            currentWorkflowHasWidth = "width" in placeholders,
-            currentWorkflowHasHeight = "height" in placeholders,
-            currentWorkflowHasLength = "length" in placeholders,
-            currentWorkflowHasFrameRate = "frame_rate" in placeholders,
-            currentWorkflowHasVaeName = "vae_name" in placeholders,
-            currentWorkflowHasClipName = "clip_name" in placeholders,
-            currentWorkflowHasClipName1 = "clip_name1" in placeholders,
-            currentWorkflowHasClipName2 = "clip_name2" in placeholders,
-            currentWorkflowHasClipName3 = "clip_name3" in placeholders,
-            currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-            currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
-            // Model presence flags
-            currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-            currentWorkflowHasUnetName = "unet_name" in placeholders,
-            // Advanced field presence flags
-            currentWorkflowHasSeed = "seed" in placeholders,
-            currentWorkflowHasDenoise = "denoise" in placeholders,
-            currentWorkflowHasBatchSize = "batch_size" in placeholders,
-            currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
-            currentWorkflowHasScaleBy = "scale_by" in placeholders,
-            currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-            // Model presence flags
-            currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-            currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-            // High/low noise LoRA flags
-            currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
-            currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders
+            // Workflow capabilities from placeholders
+            capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
         )
     }
 

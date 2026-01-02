@@ -16,6 +16,7 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.model.WorkflowCapabilities
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
@@ -99,39 +100,8 @@ data class TextToImageUiState(
     val unetScaleBy: String = "1.5",
     val unetStopAtClipLayer: String = "-1",
 
-    // Current workflow capabilities (for conditional UI)
-    val currentWorkflowHasNegativePrompt: Boolean = true,
-    val currentWorkflowHasCfg: Boolean = true,
-
-    // Field presence flags (for conditional UI - only show fields that are mapped in the workflow)
-    val currentWorkflowHasWidth: Boolean = true,
-    val currentWorkflowHasHeight: Boolean = true,
-    val currentWorkflowHasSteps: Boolean = true,
-    val currentWorkflowHasSamplerName: Boolean = true,
-    val currentWorkflowHasScheduler: Boolean = true,
-    val currentWorkflowHasVaeName: Boolean = true,
-    val currentWorkflowHasClipName: Boolean = true,      // For single CLIP
-    val currentWorkflowHasClipName1: Boolean = false,    // For multi-CLIP slot 1
-    val currentWorkflowHasClipName2: Boolean = false,    // For multi-CLIP slot 2
-    val currentWorkflowHasClipName3: Boolean = false,    // For multi-CLIP slot 3
-    val currentWorkflowHasClipName4: Boolean = false,    // For multi-CLIP slot 4
-    val currentWorkflowHasLora: Boolean = true,
-    val currentWorkflowHasSeed: Boolean = false,
-    val currentWorkflowHasDenoise: Boolean = false,
-    val currentWorkflowHasBatchSize: Boolean = false,
-    val currentWorkflowHasUpscaleMethod: Boolean = false,
-    val currentWorkflowHasScaleBy: Boolean = false,
-    val currentWorkflowHasStopAtClipLayer: Boolean = false,
-
-    // Model presence flags (for conditional model dropdowns)
-    val currentWorkflowHasCheckpointName: Boolean = false,
-    val currentWorkflowHasUnetName: Boolean = false,
-    val currentWorkflowHasHighnoiseUnet: Boolean = false,
-    val currentWorkflowHasLownoiseUnet: Boolean = false,
-
-    // High/low noise LoRA flags (for video-style dual-UNET workflows)
-    val currentWorkflowHasHighnoiseLora: Boolean = false,
-    val currentWorkflowHasLownoiseLora: Boolean = false,
+    // Workflow capabilities (unified flags derived from placeholders)
+    val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
 
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
@@ -1077,35 +1047,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                     ?: defaults?.scaleBy?.toString() ?: "1.5",
                 checkpointStopAtClipLayer = savedValues?.stopAtClipLayer?.toString()
                     ?: defaults?.stopAtClipLayer?.toString() ?: "-1",
-                // Set workflow capability flags from placeholders
-                currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
-                currentWorkflowHasCfg = "cfg" in placeholders,
-                currentWorkflowHasWidth = "width" in placeholders,
-                currentWorkflowHasHeight = "height" in placeholders,
-                currentWorkflowHasSteps = "steps" in placeholders,
-                currentWorkflowHasSamplerName = "sampler_name" in placeholders,
-                currentWorkflowHasScheduler = "scheduler" in placeholders,
-                currentWorkflowHasVaeName = "vae_name" in placeholders,
-                currentWorkflowHasClipName = "clip_name" in placeholders,
-                currentWorkflowHasClipName1 = "clip_name1" in placeholders,
-                currentWorkflowHasClipName2 = "clip_name2" in placeholders,
-                currentWorkflowHasClipName3 = "clip_name3" in placeholders,
-                currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
-                currentWorkflowHasSeed = "seed" in placeholders,
-                currentWorkflowHasDenoise = "denoise" in placeholders,
-                currentWorkflowHasBatchSize = "batch_size" in placeholders,
-                currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
-                currentWorkflowHasScaleBy = "scale_by" in placeholders,
-                currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-                currentWorkflowHasUnetName = "unet_name" in placeholders,
-                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-                // High/low noise LoRA flags
-                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders,
+                // Workflow capabilities from placeholders
+                capabilities = WorkflowCapabilities.fromPlaceholders(placeholders),
                 // Workflow-specific filtered options
                 filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
                 filteredUnets = null,
@@ -1174,35 +1117,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                     ?: defaults?.scaleBy?.toString() ?: "1.5",
                 unetStopAtClipLayer = savedValues?.stopAtClipLayer?.toString()
                     ?: defaults?.stopAtClipLayer?.toString() ?: "-1",
-                // Set workflow capability flags from placeholders
-                currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
-                currentWorkflowHasCfg = "cfg" in placeholders,
-                currentWorkflowHasWidth = "width" in placeholders,
-                currentWorkflowHasHeight = "height" in placeholders,
-                currentWorkflowHasSteps = "steps" in placeholders,
-                currentWorkflowHasSamplerName = "sampler_name" in placeholders,
-                currentWorkflowHasScheduler = "scheduler" in placeholders,
-                currentWorkflowHasVaeName = "vae_name" in placeholders,
-                currentWorkflowHasClipName = "clip_name" in placeholders,
-                currentWorkflowHasClipName1 = "clip_name1" in placeholders,
-                currentWorkflowHasClipName2 = "clip_name2" in placeholders,
-                currentWorkflowHasClipName3 = "clip_name3" in placeholders,
-                currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
-                currentWorkflowHasSeed = "seed" in placeholders,
-                currentWorkflowHasDenoise = "denoise" in placeholders,
-                currentWorkflowHasBatchSize = "batch_size" in placeholders,
-                currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
-                currentWorkflowHasScaleBy = "scale_by" in placeholders,
-                currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-                // Model presence flags
-                currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-                currentWorkflowHasUnetName = "unet_name" in placeholders,
-                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-                // High/low noise LoRA flags
-                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
-                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders,
+                // Workflow capabilities from placeholders
+                capabilities = WorkflowCapabilities.fromPlaceholders(placeholders),
                 // Workflow-specific filtered options (each CLIP field queried independently)
                 filteredCheckpoints = null,
                 filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),

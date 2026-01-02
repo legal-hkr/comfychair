@@ -400,7 +400,7 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
 @Composable
 private fun LoraSection(lora: LoraConfig, models: ModelConfig) {
     // Single LoRA dropdowns (in order: LoRA, High noise LoRA, Low noise LoRA)
-    lora.editingLora?.takeIf { it.isVisible }?.let { field ->
+    lora.loraName?.takeIf { it.isVisible }?.let { field ->
         Spacer(modifier = Modifier.height(16.dp))
         ModelDropdown(
             label = stringResource(field.label),

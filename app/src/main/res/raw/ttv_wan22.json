@@ -1,6 +1,6 @@
 {
-  "name": "Wan 2.2 (Lightning LoRA)",
-  "description": "Workflow for Wan 2.2 video generation (Lightning LoRA)",
+  "name": "Wan 2.2",
+  "description": "Workflow for Wan 2.2 video generation",
   "defaults": {
     "width": 480,
     "height": 800,
@@ -82,60 +82,38 @@
       }
     },
     "8": {
-      "class_type": "LoraLoaderModelOnly",
-      "inputs": {
-        "lora_name": "{{highnoise_lora_name}}",
-        "strength_model": 1.0,
-        "model": ["3", 0]
-      },
-      "_meta": {
-        "title": "LoraLoaderModelOnly (High Noise)"
-      }
-    },
-    "9": {
-      "class_type": "LoraLoaderModelOnly",
-      "inputs": {
-        "lora_name": "{{lownoise_lora_name}}",
-        "strength_model": 1.0,
-        "model": ["4", 0]
-      },
-      "_meta": {
-        "title": "LoraLoaderModelOnly (Low Noise)"
-      }
-    },
-    "10": {
       "class_type": "ModelSamplingSD3",
       "inputs": {
-        "shift": 5.0,
-        "model": ["8", 0]
+        "shift": 8.0,
+        "model": ["3", 0]
       },
       "_meta": {
         "title": "ModelSamplingSD3 (High Noise)"
       }
     },
-    "11": {
+    "9": {
       "class_type": "ModelSamplingSD3",
       "inputs": {
-        "shift": 5.0,
-        "model": ["9", 0]
+        "shift": 8.0,
+        "model": ["4", 0]
       },
       "_meta": {
         "title": "ModelSamplingSD3 (Low Noise)"
       }
     },
-    "12": {
+    "10": {
       "class_type": "KSamplerAdvanced",
       "inputs": {
         "add_noise": "enable",
         "noise_seed": "{{seed}}",
-        "steps": 4,
-        "cfg": 1.0,
+        "steps": 20,
+        "cfg": 3.5,
         "sampler_name": "euler",
         "scheduler": "simple",
         "start_at_step": 0,
-        "end_at_step": 2,
+        "end_at_step": 10,
         "return_with_leftover_noise": "enable",
-        "model": ["10", 0],
+        "model": ["8", 0],
         "positive": ["6", 0],
         "negative": ["7", 0],
         "latent_image": ["5", 0]
@@ -144,55 +122,55 @@
         "title": "KSampler (Advanced) - High Noise"
       }
     },
-    "13": {
+    "11": {
       "class_type": "KSamplerAdvanced",
       "inputs": {
         "add_noise": "disable",
         "noise_seed": "{{seed}}",
-        "steps": 4,
-        "cfg": 1.0,
+        "steps": 20,
+        "cfg": 3.5,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "start_at_step": 2,
-        "end_at_step": 4,
+        "start_at_step": 10,
+        "end_at_step": 20,
         "return_with_leftover_noise": "disable",
-        "model": ["11", 0],
+        "model": ["9", 0],
         "positive": ["6", 0],
         "negative": ["7", 0],
-        "latent_image": ["12", 0]
+        "latent_image": ["10", 0]
       },
       "_meta": {
         "title": "KSampler (Advanced) - Low Noise"
       }
     },
-    "14": {
+    "12": {
       "class_type": "VAEDecode",
       "inputs": {
-        "samples": ["13", 0],
+        "samples": ["11", 0],
         "vae": ["2", 0]
       },
       "_meta": {
         "title": "VAE Decode"
       }
     },
-    "15": {
+    "13": {
       "class_type": "CreateVideo",
       "inputs": {
         "fps": "{{frame_rate}}",
-        "images": ["14", 0]
+        "images": ["12", 0]
       },
       "_meta": {
         "title": "Create Video"
       }
     },
-    "16": {
+    "14": {
       "class_type": "SaveVideo",
       "inputs": {
         "filename_prefix": "video/ComfyChair",
         "format": "auto",
         "codec": "auto",
         "video-preview": "",
-        "video": ["15", 0]
+        "video": ["13", 0]
       },
       "_meta": {
         "title": "Save Video"
