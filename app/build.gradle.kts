@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "sh.hnet.comfychair"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 36
         versionCode = 31
         versionName = "v0.8.4"

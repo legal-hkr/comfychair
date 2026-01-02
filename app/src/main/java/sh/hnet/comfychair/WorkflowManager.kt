@@ -1291,8 +1291,9 @@ object WorkflowManager {
         stopAtClipLayer: Int? = null
     ): String {
         var result = json
-        // Seed - always required
+        // Seed - always required, support both {{seed}} and {{noise_seed}} placeholders
         result = result.replace("{{seed}}", seed.toString())
+        result = result.replace("{{noise_seed}}", seed.toString())
         // Also handle legacy "seed": 0 and "noise_seed": 0 patterns
         result = result.replace("\"seed\": 0", "\"seed\": $seed")
         result = result.replace("\"noise_seed\": 0", "\"noise_seed\": $seed")

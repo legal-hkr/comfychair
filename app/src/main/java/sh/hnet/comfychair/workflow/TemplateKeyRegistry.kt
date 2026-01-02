@@ -271,8 +271,18 @@ object TemplateKeyRegistry {
     // ===========================================
 
     /**
+     * Alternative input keys that should also match a field.
+     * For example, "seed" field should match both "seed" and "noise_seed" input keys.
+     * This supports nodes like RandomNoise that use "noise_seed" instead of "seed".
+     */
+    private val ALTERNATIVE_INPUT_KEYS: Map<String, Set<String>> = mapOf(
+        "seed" to setOf("seed", "noise_seed")
+    )
+
+    /**
      * Check if an input key matches a field key.
-     * Handles key translation (e.g., "highnoise_unet_name" → "unet_name").
+     * Handles key translation (e.g., "highnoise_unet_name" → "unet_name")
+     * and alternative keys (e.g., "seed" matches both "seed" and "noise_seed").
      *
      * @param fieldKey The template field key (e.g., "highnoise_unet_name")
      * @param inputKey The actual input key from the node (e.g., "unet_name")
@@ -280,7 +290,11 @@ object TemplateKeyRegistry {
      */
     fun doesInputKeyMatchField(fieldKey: String, inputKey: String): Boolean {
         val expectedJsonKey = getJsonKeyForPlaceholder(fieldKey)
-        return inputKey == expectedJsonKey
+        // Check primary key match
+        if (inputKey == expectedJsonKey) return true
+        // Check alternative keys
+        val alternatives = ALTERNATIVE_INPUT_KEYS[fieldKey]
+        return alternatives?.contains(inputKey) == true
     }
 
     /**

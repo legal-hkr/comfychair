@@ -256,10 +256,12 @@ class GenerationViewModel : ViewModel() {
             }
             is WebSocketMessage.ExecutionError -> {
                 if (message.promptId == currentState.promptId || message.promptId == null) {
-                    resetGenerationState()
+                    // Dispatch error event BEFORE resetting state, so ownerId is still available
+                    // for handler matching in dispatchEvent()
                     val errorMessage = applicationContext?.getString(R.string.error_generation_failed)
                         ?: "Generation failed"
                     dispatchEvent(GenerationEvent.Error(errorMessage))
+                    resetGenerationState()
                 }
             }
             // When a job starts executing, update generation state to track it

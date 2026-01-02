@@ -124,7 +124,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Requirements
 
-- Android 14 (API level 34) or higher
+- Android 13 (API level 33) or higher
 - Access to a running ComfyUI server instance
 - Network connectivity to reach your ComfyUI server
 
@@ -177,7 +177,7 @@ To connect to your ComfyUI server, you'll need:
 ## Tech stack
 
 - **Language**: Kotlin 2.0.21
-- **Min SDK**: Android 14 (API 34)
+- **Min SDK**: Android 13 (API 33)
 - **Target SDK**: Android 15 (API 36)
 - **UI Framework**: Jetpack Compose with Material Design 3 (including Expressive components)
 - **Video Playback**: Media3 ExoPlayer
