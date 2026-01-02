@@ -1,0 +1,124 @@
+{
+  "name": "HiDream Dev",
+  "description": "HiDream I1 Dev model with QuadrupleCLIPLoader",
+  "defaults": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 28,
+    "cfg": 1.0,
+    "sampler_name": "lcm",
+    "scheduler": "normal"
+  },
+  "nodes": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "shift": 6,
+        "model": ["1", 0]
+      },
+      "_meta": {
+        "title": "ModelSamplingSD3"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "class_type": "QuadrupleCLIPLoader",
+      "inputs": {
+        "clip_name1": "{{clip_name1}}",
+        "clip_name2": "{{clip_name2}}",
+        "clip_name3": "{{clip_name3}}",
+        "clip_name4": "{{clip_name4}}"
+      },
+      "_meta": {
+        "title": "QuadrupleCLIPLoader"
+      }
+    },
+    "5": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "batch_size": "{{batch_size}}"
+      },
+      "_meta": {
+        "title": "Empty SD3 Latent Image"
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["4", 0]
+      },
+      "_meta": {
+        "title": "Positive Prompt"
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["4", 0]
+      },
+      "_meta": {
+        "title": "Negative Prompt"
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": "{{denoise}}",
+        "model": ["2", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "9": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["8", 0],
+        "vae": ["3", 0]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "10": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["9", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}
