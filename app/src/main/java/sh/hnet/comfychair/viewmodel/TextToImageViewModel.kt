@@ -115,7 +115,7 @@ data class TextToImageUiState(
     val currentWorkflowHasClipName2: Boolean = false,    // For multi-CLIP slot 2
     val currentWorkflowHasClipName3: Boolean = false,    // For multi-CLIP slot 3
     val currentWorkflowHasClipName4: Boolean = false,    // For multi-CLIP slot 4
-    val currentWorkflowHasLoraName: Boolean = true,
+    val currentWorkflowHasLora: Boolean = true,
     val currentWorkflowHasSeed: Boolean = false,
     val currentWorkflowHasDenoise: Boolean = false,
     val currentWorkflowHasBatchSize: Boolean = false,
@@ -126,6 +126,12 @@ data class TextToImageUiState(
     // Model presence flags (for conditional model dropdowns)
     val currentWorkflowHasCheckpointName: Boolean = false,
     val currentWorkflowHasUnetName: Boolean = false,
+    val currentWorkflowHasHighnoiseUnet: Boolean = false,
+    val currentWorkflowHasLownoiseUnet: Boolean = false,
+
+    // High/low noise LoRA flags (for video-style dual-UNET workflows)
+    val currentWorkflowHasHighnoiseLora: Boolean = false,
+    val currentWorkflowHasLownoiseLora: Boolean = false,
 
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
@@ -1085,7 +1091,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 currentWorkflowHasClipName2 = "clip_name2" in placeholders,
                 currentWorkflowHasClipName3 = "clip_name3" in placeholders,
                 currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLoraName = "lora_name" in placeholders,
+                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
                 currentWorkflowHasSeed = "seed" in placeholders,
                 currentWorkflowHasDenoise = "denoise" in placeholders,
                 currentWorkflowHasBatchSize = "batch_size" in placeholders,
@@ -1095,6 +1101,11 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 // Model presence flags
                 currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
                 currentWorkflowHasUnetName = "unet_name" in placeholders,
+                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
+                // High/low noise LoRA flags
+                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders,
                 // Workflow-specific filtered options
                 filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
                 filteredUnets = null,
@@ -1177,7 +1188,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 currentWorkflowHasClipName2 = "clip_name2" in placeholders,
                 currentWorkflowHasClipName3 = "clip_name3" in placeholders,
                 currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLoraName = "lora_name" in placeholders,
+                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
                 currentWorkflowHasSeed = "seed" in placeholders,
                 currentWorkflowHasDenoise = "denoise" in placeholders,
                 currentWorkflowHasBatchSize = "batch_size" in placeholders,
@@ -1187,6 +1198,11 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 // Model presence flags
                 currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
                 currentWorkflowHasUnetName = "unet_name" in placeholders,
+                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
+                // High/low noise LoRA flags
+                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders,
                 // Workflow-specific filtered options (each CLIP field queried independently)
                 filteredCheckpoints = null,
                 filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),

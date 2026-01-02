@@ -258,7 +258,7 @@ data class ImageToImageUiState(
     val currentWorkflowHasClipName2: Boolean = false,
     val currentWorkflowHasClipName3: Boolean = false,
     val currentWorkflowHasClipName4: Boolean = false,
-    val currentWorkflowHasLoraName: Boolean = true,
+    val currentWorkflowHasLora: Boolean = true,
     val currentWorkflowHasSeed: Boolean = false,
     val currentWorkflowHasDenoise: Boolean = false,
     val currentWorkflowHasBatchSize: Boolean = false,
@@ -269,6 +269,12 @@ data class ImageToImageUiState(
     // Model presence flags (for conditional model dropdowns)
     val currentWorkflowHasCheckpointName: Boolean = false,
     val currentWorkflowHasUnetName: Boolean = false,
+    val currentWorkflowHasHighnoiseUnet: Boolean = false,
+    val currentWorkflowHasLownoiseUnet: Boolean = false,
+
+    // High/low noise LoRA flags (for video-style dual-UNET workflows)
+    val currentWorkflowHasHighnoiseLora: Boolean = false,
+    val currentWorkflowHasLownoiseLora: Boolean = false,
 
     // ITE reference image flags (for conditional reference image selectors)
     val currentWorkflowHasReferenceImage1: Boolean = false,
@@ -637,7 +643,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 currentWorkflowHasClipName2 = "clip_name2" in placeholders,
                 currentWorkflowHasClipName3 = "clip_name3" in placeholders,
                 currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLoraName = "lora_name" in placeholders,
+                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
                 // Advanced field presence flags
                 currentWorkflowHasSeed = "seed" in placeholders,
                 currentWorkflowHasDenoise = "denoise" in placeholders,
@@ -647,7 +653,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
                 // Model presence flags
                 currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-                currentWorkflowHasUnetName = "unet_name" in placeholders
+                currentWorkflowHasUnetName = "unet_name" in placeholders,
+                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
+                // High/low noise LoRA flags
+                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders
             )
         } else {
             _uiState.value = state.copy(
@@ -711,7 +722,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 currentWorkflowHasClipName2 = "clip_name2" in placeholders,
                 currentWorkflowHasClipName3 = "clip_name3" in placeholders,
                 currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-                currentWorkflowHasLoraName = "lora_name" in placeholders,
+                currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
                 // Advanced field presence flags
                 currentWorkflowHasSeed = "seed" in placeholders,
                 currentWorkflowHasDenoise = "denoise" in placeholders,
@@ -721,7 +732,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
                 // Model presence flags
                 currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
-                currentWorkflowHasUnetName = "unet_name" in placeholders
+                currentWorkflowHasUnetName = "unet_name" in placeholders,
+                currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
+                // High/low noise LoRA flags
+                currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
+                currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders
             )
         }
     }
@@ -819,7 +835,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             currentWorkflowHasClipName2 = "clip_name2" in placeholders,
             currentWorkflowHasClipName3 = "clip_name3" in placeholders,
             currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-            currentWorkflowHasLoraName = "lora_name" in placeholders,
+            currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
             // Advanced field presence flags
             currentWorkflowHasSeed = "seed" in placeholders,
             currentWorkflowHasDenoise = "denoise" in placeholders,
@@ -827,9 +843,14 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
             currentWorkflowHasScaleBy = "scale_by" in placeholders,
             currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-            // Model presence flags (ITI_EDITING uses UNET, not checkpoint)
+            // Model presence flags
             currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
             currentWorkflowHasUnetName = "unet_name" in placeholders,
+            currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
+            currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
+            // High/low noise LoRA flags
+            currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
+            currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders,
             // ITE reference image flags
             currentWorkflowHasReferenceImage1 = "reference_image_1" in placeholders || "reference_1" in placeholders,
             currentWorkflowHasReferenceImage2 = "reference_image_2" in placeholders || "reference_2" in placeholders

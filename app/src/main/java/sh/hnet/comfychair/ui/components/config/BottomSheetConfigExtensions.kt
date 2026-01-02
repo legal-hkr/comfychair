@@ -352,7 +352,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
             )
         ),
         lora = LoraConfig(
-            primaryChain = if (currentWorkflowHasLoraName) LoraChainField(
+            primaryChain = if (currentWorkflowHasLora) LoraChainField(
                 title = R.string.lora_chain_title,
                 chain = if (isCheckpoint) checkpointLoraChain else unetLoraChain,
                 availableLoras = availableLoras,
@@ -1056,14 +1056,14 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
         },
         lora = if (isEditing) {
             LoraConfig(
-                editingLora = if (currentWorkflowHasLoraName) ModelField(
+                editingLora = if (currentWorkflowHasLora) ModelField(
                     label = R.string.label_lora,
                     selectedValue = selectedEditingLora,
                     options = availableLoras,
                     onValueChange = callbacks.onEditingLoraChange,
                     isVisible = true
                 ) else null,
-                primaryChain = if (currentWorkflowHasLoraName) LoraChainField(
+                primaryChain = if (currentWorkflowHasLora) LoraChainField(
                     title = R.string.lora_chain_title,
                     chain = editingLoraChain,
                     availableLoras = availableLoras,
@@ -1076,7 +1076,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
             )
         } else {
             LoraConfig(
-                primaryChain = if (currentWorkflowHasLoraName) LoraChainField(
+                primaryChain = if (currentWorkflowHasLora) LoraChainField(
                     title = R.string.lora_chain_title,
                     chain = if (isCheckpoint) checkpointLoraChain else unetLoraChain,
                     availableLoras = availableLoras,

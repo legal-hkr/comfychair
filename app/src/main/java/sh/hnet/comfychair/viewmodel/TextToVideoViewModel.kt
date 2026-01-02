@@ -139,7 +139,7 @@ data class TextToVideoUiState(
     val currentWorkflowHasClipName2: Boolean = false,
     val currentWorkflowHasClipName3: Boolean = false,
     val currentWorkflowHasClipName4: Boolean = false,
-    val currentWorkflowHasLoraName: Boolean = true,
+    val currentWorkflowHasLora: Boolean = true,
     val currentWorkflowHasSeed: Boolean = false,
     val currentWorkflowHasDenoise: Boolean = false,
     val currentWorkflowHasBatchSize: Boolean = false,
@@ -148,6 +148,8 @@ data class TextToVideoUiState(
     val currentWorkflowHasStopAtClipLayer: Boolean = false,
 
     // Model presence flags (for conditional model dropdowns)
+    val currentWorkflowHasCheckpointName: Boolean = false,
+    val currentWorkflowHasUnetName: Boolean = false,
     val currentWorkflowHasHighnoiseUnet: Boolean = false,
 
     // Dual-UNET/LoRA field presence flags (for video workflows)
@@ -402,7 +404,10 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             currentWorkflowHasClipName2 = "clip_name2" in placeholders,
             currentWorkflowHasClipName3 = "clip_name3" in placeholders,
             currentWorkflowHasClipName4 = "clip_name4" in placeholders,
-            currentWorkflowHasLoraName = "lora_name" in placeholders,
+            currentWorkflowHasLora = "ckpt_name" in placeholders || "unet_name" in placeholders,
+            // Model presence flags
+            currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
+            currentWorkflowHasUnetName = "unet_name" in placeholders,
             // Advanced field presence flags
             currentWorkflowHasSeed = "seed" in placeholders,
             currentWorkflowHasDenoise = "denoise" in placeholders,
@@ -410,12 +415,12 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
             currentWorkflowHasScaleBy = "scale_by" in placeholders,
             currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
-            // Model presence flag
+            // Model presence flags
             currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
-            // Dual-UNET/LoRA flags
             currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
-            currentWorkflowHasHighnoiseLora = "highnoise_lora_name" in placeholders,
-            currentWorkflowHasLownoiseLora = "lownoise_lora_name" in placeholders
+            // High/low noise LoRA flags
+            currentWorkflowHasHighnoiseLora = "highnoise_unet_name" in placeholders,
+            currentWorkflowHasLownoiseLora = "lownoise_unet_name" in placeholders
         )
     }
 
