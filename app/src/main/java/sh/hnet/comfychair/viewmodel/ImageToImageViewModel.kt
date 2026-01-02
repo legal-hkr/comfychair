@@ -98,7 +98,10 @@ data class ImageToImageUiState(
     val selectedWorkflowId: String = "",  // Workflow ID for storage
     val availableWorkflows: List<ItiWorkflowItem> = emptyList(),
 
-    // Derived mode (computed from selectedWorkflow's type, not user-selected)
+    // Workflow placeholders - detected from {{placeholder}} patterns in workflow JSON
+    val workflowPlaceholders: Set<String> = emptySet(),
+
+    // Derived mode (computed from placeholders: ckpt_name = checkpoint, unet_name = UNET)
     val isCheckpointMode: Boolean = true,
 
     // Checkpoint mode settings
@@ -144,10 +147,44 @@ data class ImageToImageUiState(
     val checkpointNegativePrompt: String = "",
     val unetNegativePrompt: String = "",
 
+    // New generation parameters (per-mode)
+    // Checkpoint mode
+    val checkpointRandomSeed: Boolean = true,
+    val checkpointSeed: String = "0",
+    val checkpointDenoise: String = "1.0",
+    val checkpointBatchSize: String = "1",
+    val checkpointUpscaleMethod: String = "nearest-exact",
+    val checkpointScaleBy: String = "1.5",
+    val checkpointStopAtClipLayer: String = "-1",
+    // UNET mode
+    val unetRandomSeed: Boolean = true,
+    val unetSeed: String = "0",
+    val unetDenoise: String = "1.0",
+    val unetBatchSize: String = "1",
+    val unetUpscaleMethod: String = "nearest-exact",
+    val unetScaleBy: String = "1.5",
+    val unetStopAtClipLayer: String = "-1",
+    // Editing mode
+    val editingRandomSeed: Boolean = true,
+    val editingSeed: String = "0",
+    val editingDenoise: String = "1.0",
+    val editingBatchSize: String = "1",
+    val editingUpscaleMethod: String = "nearest-exact",
+    val editingScaleBy: String = "1.5",
+    val editingStopAtClipLayer: String = "-1",
+
+    // Available upscale methods (from server)
+    val availableUpscaleMethods: List<String> = emptyList(),
+
     // Validation errors
     val megapixelsError: String? = null,
     val cfgError: String? = null,
     val stepsError: String? = null,
+    val seedError: String? = null,
+    val denoiseError: String? = null,
+    val batchSizeError: String? = null,
+    val scaleByError: String? = null,
+    val stopAtClipLayerError: String? = null,
 
     // LoRA chains (optional, separate for each mode)
     val checkpointLoraChain: List<LoraSelection> = emptyList(),
@@ -222,6 +259,12 @@ data class ImageToImageUiState(
     val currentWorkflowHasClipName3: Boolean = false,
     val currentWorkflowHasClipName4: Boolean = false,
     val currentWorkflowHasLoraName: Boolean = true,
+    val currentWorkflowHasSeed: Boolean = false,
+    val currentWorkflowHasDenoise: Boolean = false,
+    val currentWorkflowHasBatchSize: Boolean = false,
+    val currentWorkflowHasUpscaleMethod: Boolean = false,
+    val currentWorkflowHasScaleBy: Boolean = false,
+    val currentWorkflowHasStopAtClipLayer: Boolean = false,
 
     // Model presence flags (for conditional model dropdowns)
     val currentWorkflowHasCheckpointName: Boolean = false,
@@ -409,9 +452,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         else
             editingWorkflowItems.find { it.name == currentEditingSelection } ?: editingWorkflowItems.firstOrNull()
 
-        // Determine checkpoint mode based on workflow defaults (has checkpoint placeholder)
-        val selectedWorkflow = selectedWorkflowItem?.let { WorkflowManager.getWorkflowById(it.id) }
-        val isCheckpoint = selectedWorkflow?.defaults?.hasCheckpointName ?: true
+        // Determine checkpoint mode based on workflow placeholders
+        val placeholders = selectedWorkflowItem?.let { WorkflowManager.getWorkflowPlaceholders(it.id) } ?: emptySet()
+        val isCheckpoint = "ckpt_name" in placeholders
 
         _uiState.value = _uiState.value.copy(
             availableWorkflows = sortedWorkflows,
@@ -531,22 +574,33 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedValues = storage.loadValues(serverId, workflow.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
 
-        // Determine checkpoint mode based on workflow defaults
-        val isCheckpoint = defaults?.hasCheckpointName ?: true
+        // Get workflow placeholders - these determine field visibility
+        val placeholders = WorkflowManager.getWorkflowPlaceholders(workflow.id)
+
+        // Determine checkpoint mode based on placeholders
+        val isCheckpoint = "ckpt_name" in placeholders
         val state = _uiState.value
 
         // Get current model cache to validate saved selections
         val cache = ConnectionManager.modelCache.value
 
+        // Get saved model (unified field)
+        val savedModel = savedValues?.model
+        val savedVae = savedValues?.vaeModel
+        val savedClip = savedValues?.clipModel
+        val savedClip1 = savedValues?.clip1Model
+        val savedClip2 = savedValues?.clip2Model
+        val savedClip3 = savedValues?.clip3Model
+        val savedClip4 = savedValues?.clip4Model
+
         if (isCheckpoint) {
-            // Apply saved model selections - use deferred mechanism to handle race condition
-            val savedCheckpoint = savedValues?.checkpointModel
-            val finalCheckpoint = savedCheckpoint?.takeIf { it in cache.checkpoints }
+            val finalCheckpoint = savedModel?.takeIf { it in cache.checkpoints }
                 ?: validateModelSelection("", cache.checkpoints)
 
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
                 selectedWorkflowId = workflow.id,
+                workflowPlaceholders = placeholders,
                 isCheckpointMode = true,
                 megapixels = savedValues?.megapixels?.toString()
                     ?: defaults?.megapixels?.toString() ?: "1.0",
@@ -563,40 +617,43 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 // Apply model selections immediately if models are loaded, otherwise use validated empty
                 selectedCheckpoint = finalCheckpoint,
                 // Set deferred values - these will be applied when model cache updates
-                deferredCheckpoint = savedCheckpoint,
+                deferredCheckpoint = savedModel,
                 checkpointLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
                 // Workflow-specific filtered options (checkpoint mode)
                 filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
                 filteredUnets = null,
                 filteredVaes = null,
                 filteredClips = null,
-                // Set workflow capability flags from defaults
-                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
-                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-                currentWorkflowHasVaeName = false,  // Checkpoint mode doesn't use VAE selection
-                currentWorkflowHasClipName = false,  // Checkpoint mode doesn't use CLIP selection
-                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Set workflow capability flags from placeholders
+                currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
+                currentWorkflowHasCfg = "cfg" in placeholders,
+                currentWorkflowHasMegapixels = "megapixels" in placeholders,
+                currentWorkflowHasSteps = "steps" in placeholders,
+                currentWorkflowHasSamplerName = "sampler_name" in placeholders,
+                currentWorkflowHasScheduler = "scheduler" in placeholders,
+                currentWorkflowHasVaeName = "vae_name" in placeholders,
+                currentWorkflowHasClipName = "clip_name" in placeholders,
+                currentWorkflowHasClipName1 = "clip_name1" in placeholders,
+                currentWorkflowHasClipName2 = "clip_name2" in placeholders,
+                currentWorkflowHasClipName3 = "clip_name3" in placeholders,
+                currentWorkflowHasClipName4 = "clip_name4" in placeholders,
+                currentWorkflowHasLoraName = "lora_name" in placeholders,
+                // Advanced field presence flags
+                currentWorkflowHasSeed = "seed" in placeholders,
+                currentWorkflowHasDenoise = "denoise" in placeholders,
+                currentWorkflowHasBatchSize = "batch_size" in placeholders,
+                currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
+                currentWorkflowHasScaleBy = "scale_by" in placeholders,
+                currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
                 // Model presence flags
-                currentWorkflowHasCheckpointName = defaults?.hasCheckpointName ?: false,
-                currentWorkflowHasUnetName = false  // Checkpoint mode doesn't use UNET
+                currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
+                currentWorkflowHasUnetName = "unet_name" in placeholders
             )
         } else {
-            // Apply saved model selections - use deferred mechanism to handle race condition
-            val savedUnet = savedValues?.unetModel
-            val savedVae = savedValues?.vaeModel
-            val savedClip = savedValues?.clipModel
-            val savedClip1 = savedValues?.clip1Model
-            val savedClip2 = savedValues?.clip2Model
-            val savedClip3 = savedValues?.clip3Model
-            val savedClip4 = savedValues?.clip4Model
-
             _uiState.value = state.copy(
                 selectedWorkflow = workflow.name,
                 selectedWorkflowId = workflow.id,
+                workflowPlaceholders = placeholders,
                 isCheckpointMode = false,
                 unetSteps = savedValues?.steps?.toString()
                     ?: defaults?.steps?.toString() ?: "9",
@@ -609,7 +666,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 unetNegativePrompt = savedValues?.negativePrompt
                     ?: defaults?.negativePrompt ?: "",
                 // Apply model selections immediately if models are loaded, otherwise use validated empty
-                selectedUnet = savedUnet?.takeIf { it in cache.unets }
+                selectedUnet = savedModel?.takeIf { it in cache.unets }
                     ?: validateModelSelection("", cache.unets),
                 selectedVae = savedVae?.takeIf { it in cache.vaes }
                     ?: validateModelSelection("", cache.vaes),
@@ -624,7 +681,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 selectedClip4 = savedClip4?.takeIf { it in cache.clips }
                     ?: validateModelSelection("", cache.clips),
                 // Set deferred values - these will be applied when model cache updates
-                deferredUnet = savedUnet,
+                deferredUnet = savedModel,
                 deferredVae = savedVae,
                 deferredClip = savedClip,
                 deferredClip1 = savedClip1,
@@ -641,23 +698,30 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
                 filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
                 filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
-                // Set workflow capability flags from defaults
-                currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-                currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-                currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
-                currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-                currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-                currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-                currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-                currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-                currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
-                currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
-                currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
-                currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
-                currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+                // Set workflow capability flags from placeholders
+                currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
+                currentWorkflowHasCfg = "cfg" in placeholders,
+                currentWorkflowHasMegapixels = "megapixels" in placeholders,
+                currentWorkflowHasSteps = "steps" in placeholders,
+                currentWorkflowHasSamplerName = "sampler_name" in placeholders,
+                currentWorkflowHasScheduler = "scheduler" in placeholders,
+                currentWorkflowHasVaeName = "vae_name" in placeholders,
+                currentWorkflowHasClipName = "clip_name" in placeholders,
+                currentWorkflowHasClipName1 = "clip_name1" in placeholders,
+                currentWorkflowHasClipName2 = "clip_name2" in placeholders,
+                currentWorkflowHasClipName3 = "clip_name3" in placeholders,
+                currentWorkflowHasClipName4 = "clip_name4" in placeholders,
+                currentWorkflowHasLoraName = "lora_name" in placeholders,
+                // Advanced field presence flags
+                currentWorkflowHasSeed = "seed" in placeholders,
+                currentWorkflowHasDenoise = "denoise" in placeholders,
+                currentWorkflowHasBatchSize = "batch_size" in placeholders,
+                currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
+                currentWorkflowHasScaleBy = "scale_by" in placeholders,
+                currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
                 // Model presence flags
-                currentWorkflowHasCheckpointName = false,  // UNET mode doesn't use checkpoint
-                currentWorkflowHasUnetName = defaults?.hasUnetName ?: false
+                currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
+                currentWorkflowHasUnetName = "unet_name" in placeholders
             )
         }
     }
@@ -673,11 +737,14 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedValues = storage.loadValues(serverId, workflow.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
 
+        // Get workflow placeholders - these determine field visibility
+        val placeholders = WorkflowManager.getWorkflowPlaceholders(workflow.id)
+
         // Get current model cache to validate saved selections
         val cache = ConnectionManager.modelCache.value
 
         // Apply saved model selections - use deferred mechanism to handle race condition
-        val savedEditingUnet = savedValues?.unetModel
+        val savedEditingUnet = savedValues?.model  // unified field for editing UNET
         val savedEditingVae = savedValues?.vaeModel
         val savedEditingClip = savedValues?.clipModel
         val savedEditingClip1 = savedValues?.clip1Model
@@ -690,6 +757,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         _uiState.value = state.copy(
             selectedEditingWorkflow = workflow.name,
             selectedEditingWorkflowId = workflow.id,
+            workflowPlaceholders = placeholders,
             editingMegapixels = savedValues?.megapixels?.toString()
                 ?: defaults?.megapixels?.toString() ?: "2.0",
             editingSteps = savedValues?.steps?.toString()
@@ -738,26 +806,33 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
-            // Set workflow capability flags from defaults (for editing mode)
-            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-            currentWorkflowHasCfg = defaults?.hasCfg ?: true,
-            currentWorkflowHasMegapixels = defaults?.hasMegapixels ?: true,
-            currentWorkflowHasSteps = defaults?.hasSteps ?: true,
-            currentWorkflowHasSamplerName = defaults?.hasSamplerName ?: true,
-            currentWorkflowHasScheduler = defaults?.hasScheduler ?: true,
-            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-            currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
-            currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
-            currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
-            currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
-            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+            // Set workflow capability flags from placeholders (for editing mode)
+            currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
+            currentWorkflowHasCfg = "cfg" in placeholders,
+            currentWorkflowHasMegapixels = "megapixels" in placeholders,
+            currentWorkflowHasSteps = "steps" in placeholders,
+            currentWorkflowHasSamplerName = "sampler_name" in placeholders,
+            currentWorkflowHasScheduler = "scheduler" in placeholders,
+            currentWorkflowHasVaeName = "vae_name" in placeholders,
+            currentWorkflowHasClipName = "clip_name" in placeholders,
+            currentWorkflowHasClipName1 = "clip_name1" in placeholders,
+            currentWorkflowHasClipName2 = "clip_name2" in placeholders,
+            currentWorkflowHasClipName3 = "clip_name3" in placeholders,
+            currentWorkflowHasClipName4 = "clip_name4" in placeholders,
+            currentWorkflowHasLoraName = "lora_name" in placeholders,
+            // Advanced field presence flags
+            currentWorkflowHasSeed = "seed" in placeholders,
+            currentWorkflowHasDenoise = "denoise" in placeholders,
+            currentWorkflowHasBatchSize = "batch_size" in placeholders,
+            currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
+            currentWorkflowHasScaleBy = "scale_by" in placeholders,
+            currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
             // Model presence flags (ITI_EDITING uses UNET, not checkpoint)
-            currentWorkflowHasCheckpointName = false,
-            currentWorkflowHasUnetName = defaults?.hasUnetName ?: false,
+            currentWorkflowHasCheckpointName = "ckpt_name" in placeholders,
+            currentWorkflowHasUnetName = "unet_name" in placeholders,
             // ITE reference image flags
-            currentWorkflowHasReferenceImage1 = defaults?.hasReferenceImage1 ?: false,
-            currentWorkflowHasReferenceImage2 = defaults?.hasReferenceImage2 ?: false
+            currentWorkflowHasReferenceImage1 = "reference_image_1" in placeholders || "reference_1" in placeholders,
+            currentWorkflowHasReferenceImage2 = "reference_image_2" in placeholders || "reference_2" in placeholders
         )
     }
 
@@ -781,7 +856,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 samplerName = state.checkpointSampler,
                 scheduler = state.checkpointScheduler,
                 negativePrompt = state.checkpointNegativePrompt.takeIf { it.isNotEmpty() },
-                checkpointModel = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
+                model = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
                 loraChain = LoraSelection.toJsonString(state.checkpointLoraChain).takeIf { state.checkpointLoraChain.isNotEmpty() },
                 nodeAttributeEdits = existingValues?.nodeAttributeEdits
             )
@@ -792,7 +867,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 samplerName = state.unetSampler,
                 scheduler = state.unetScheduler,
                 negativePrompt = state.unetNegativePrompt.takeIf { it.isNotEmpty() },
-                unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
+                model = state.selectedUnet.takeIf { it.isNotEmpty() },
                 vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
                 clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
                 clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
@@ -825,7 +900,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             samplerName = state.editingSampler,
             scheduler = state.editingScheduler,
             negativePrompt = state.editingNegativePrompt.takeIf { it.isNotEmpty() },
-            unetModel = state.selectedEditingUnet.takeIf { it.isNotEmpty() },
+            model = state.selectedEditingUnet.takeIf { it.isNotEmpty() },
             loraModel = state.selectedEditingLora.takeIf { it.isNotEmpty() },
             vaeModel = state.selectedEditingVae.takeIf { it.isNotEmpty() },
             clipModel = state.selectedEditingClip.takeIf { it.isNotEmpty() },
@@ -1288,6 +1363,116 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         savePreferences()
     }
 
+    /**
+     * Unified random seed toggle - routes to mode-specific state
+     */
+    fun onRandomSeedToggle() {
+        val state = _uiState.value
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointRandomSeed = !state.checkpointRandomSeed)
+        } else {
+            state.copy(unetRandomSeed = !state.unetRandomSeed)
+        }
+        savePreferences()
+    }
+
+    /**
+     * Unified seed change - routes to mode-specific state
+     */
+    fun onSeedChange(seed: String) {
+        val state = _uiState.value
+        val error = ValidationUtils.validateSeed(seed, applicationContext)
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointSeed = seed, seedError = error)
+        } else {
+            state.copy(unetSeed = seed, seedError = error)
+        }
+        if (error == null) savePreferences()
+    }
+
+    /**
+     * Unified randomize seed - routes to mode-specific state
+     */
+    fun onRandomizeSeed() {
+        val state = _uiState.value
+        val randomSeed = kotlin.random.Random.nextLong(0, Long.MAX_VALUE).toString()
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointSeed = randomSeed, seedError = null)
+        } else {
+            state.copy(unetSeed = randomSeed, seedError = null)
+        }
+        savePreferences()
+    }
+
+    /**
+     * Unified denoise change - routes to mode-specific state
+     */
+    fun onDenoiseChange(denoise: String) {
+        val state = _uiState.value
+        val error = ValidationUtils.validateDenoise(denoise, applicationContext)
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointDenoise = denoise, denoiseError = error)
+        } else {
+            state.copy(unetDenoise = denoise, denoiseError = error)
+        }
+        if (error == null) savePreferences()
+    }
+
+    /**
+     * Unified batch size change - routes to mode-specific state
+     */
+    fun onBatchSizeChange(batchSize: String) {
+        val state = _uiState.value
+        val error = ValidationUtils.validateBatchSize(batchSize, applicationContext)
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointBatchSize = batchSize, batchSizeError = error)
+        } else {
+            state.copy(unetBatchSize = batchSize, batchSizeError = error)
+        }
+        if (error == null) savePreferences()
+    }
+
+    /**
+     * Unified upscale method change - routes to mode-specific state
+     */
+    fun onUpscaleMethodChange(method: String) {
+        val state = _uiState.value
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointUpscaleMethod = method)
+        } else {
+            state.copy(unetUpscaleMethod = method)
+        }
+        savePreferences()
+    }
+
+    /**
+     * Unified scale by change - routes to mode-specific state
+     */
+    fun onScaleByChange(scaleBy: String) {
+        val state = _uiState.value
+        val error = ValidationUtils.validateScaleBy(scaleBy, applicationContext)
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointScaleBy = scaleBy, scaleByError = error)
+        } else {
+            state.copy(unetScaleBy = scaleBy, scaleByError = error)
+        }
+        if (error == null) savePreferences()
+    }
+
+    /**
+     * Unified stop at CLIP layer change - routes to mode-specific state
+     */
+    fun onStopAtClipLayerChange(layer: String) {
+        val state = _uiState.value
+        val error = ValidationUtils.validateStopAtClipLayer(layer, applicationContext)
+        _uiState.value = if (state.isCheckpointMode) {
+            state.copy(checkpointStopAtClipLayer = layer, stopAtClipLayerError = error)
+        } else {
+            state.copy(unetStopAtClipLayer = layer, stopAtClipLayerError = error)
+        }
+        if (error == null) savePreferences()
+    }
+
     // Positive prompt
     fun onPositivePromptChange(positivePrompt: String) {
         _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
@@ -1446,6 +1631,52 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     fun onEditingNegativePromptChange(negativePrompt: String) {
         _uiState.value = _uiState.value.copy(editingNegativePrompt = negativePrompt)
         savePreferences()
+    }
+
+    fun onEditingRandomSeedToggle() {
+        _uiState.value = _uiState.value.copy(editingRandomSeed = !_uiState.value.editingRandomSeed)
+        savePreferences()
+    }
+
+    fun onEditingSeedChange(seed: String) {
+        val error = ValidationUtils.validateSeed(seed, applicationContext)
+        _uiState.value = _uiState.value.copy(editingSeed = seed, seedError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onEditingRandomizeSeed() {
+        val randomSeed = kotlin.random.Random.nextLong(0, Long.MAX_VALUE).toString()
+        _uiState.value = _uiState.value.copy(editingSeed = randomSeed, seedError = null)
+        savePreferences()
+    }
+
+    fun onEditingDenoiseChange(denoise: String) {
+        val error = ValidationUtils.validateDenoise(denoise, applicationContext)
+        _uiState.value = _uiState.value.copy(editingDenoise = denoise, denoiseError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onEditingBatchSizeChange(batchSize: String) {
+        val error = ValidationUtils.validateBatchSize(batchSize, applicationContext)
+        _uiState.value = _uiState.value.copy(editingBatchSize = batchSize, batchSizeError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onEditingUpscaleMethodChange(method: String) {
+        _uiState.value = _uiState.value.copy(editingUpscaleMethod = method)
+        savePreferences()
+    }
+
+    fun onEditingScaleByChange(scaleBy: String) {
+        val error = ValidationUtils.validateScaleBy(scaleBy, applicationContext)
+        _uiState.value = _uiState.value.copy(editingScaleBy = scaleBy, scaleByError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onEditingStopAtClipLayerChange(layer: String) {
+        val error = ValidationUtils.validateStopAtClipLayer(layer, applicationContext)
+        _uiState.value = _uiState.value.copy(editingStopAtClipLayer = layer, stopAtClipLayerError = error)
+        if (error == null) savePreferences()
     }
 
     // Editing mode LoRA chain callbacks

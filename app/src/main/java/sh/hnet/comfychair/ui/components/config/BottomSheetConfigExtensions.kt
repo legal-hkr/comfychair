@@ -29,6 +29,14 @@ data class TextToImageCallbacks(
     val onCfgChange: (String) -> Unit,
     val onSamplerChange: (String) -> Unit,
     val onSchedulerChange: (String) -> Unit,
+    val onRandomSeedToggle: () -> Unit,
+    val onSeedChange: (String) -> Unit,
+    val onRandomizeSeed: () -> Unit,
+    val onDenoiseChange: (String) -> Unit,
+    val onBatchSizeChange: (String) -> Unit,
+    val onUpscaleMethodChange: (String) -> Unit,
+    val onScaleByChange: (String) -> Unit,
+    val onStopAtClipLayerChange: (String) -> Unit,
     val onAddLora: () -> Unit,
     val onRemoveLora: (Int) -> Unit,
     val onLoraNameChange: (Int, String) -> Unit,
@@ -53,6 +61,14 @@ data class TextToVideoCallbacks(
     val onHeightChange: (String) -> Unit,
     val onLengthChange: (String) -> Unit,
     val onFpsChange: (String) -> Unit,
+    val onRandomSeedToggle: () -> Unit,
+    val onSeedChange: (String) -> Unit,
+    val onRandomizeSeed: () -> Unit,
+    val onDenoiseChange: (String) -> Unit,
+    val onBatchSizeChange: (String) -> Unit,
+    val onUpscaleMethodChange: (String) -> Unit,
+    val onScaleByChange: (String) -> Unit,
+    val onStopAtClipLayerChange: (String) -> Unit,
     val onAddHighnoiseLora: () -> Unit,
     val onRemoveHighnoiseLora: (Int) -> Unit,
     val onHighnoiseLoraNameChange: (Int, String) -> Unit,
@@ -81,6 +97,14 @@ data class ImageToVideoCallbacks(
     val onHeightChange: (String) -> Unit,
     val onLengthChange: (String) -> Unit,
     val onFpsChange: (String) -> Unit,
+    val onRandomSeedToggle: () -> Unit,
+    val onSeedChange: (String) -> Unit,
+    val onRandomizeSeed: () -> Unit,
+    val onDenoiseChange: (String) -> Unit,
+    val onBatchSizeChange: (String) -> Unit,
+    val onUpscaleMethodChange: (String) -> Unit,
+    val onScaleByChange: (String) -> Unit,
+    val onStopAtClipLayerChange: (String) -> Unit,
     val onAddHighnoiseLora: () -> Unit,
     val onRemoveHighnoiseLora: (Int) -> Unit,
     val onHighnoiseLoraNameChange: (Int, String) -> Unit,
@@ -131,12 +155,28 @@ data class ImageToImageCallbacks(
     val onCfgChange: (String) -> Unit,
     val onSamplerChange: (String) -> Unit,
     val onSchedulerChange: (String) -> Unit,
+    val onRandomSeedToggle: () -> Unit,
+    val onSeedChange: (String) -> Unit,
+    val onRandomizeSeed: () -> Unit,
+    val onDenoiseChange: (String) -> Unit,
+    val onBatchSizeChange: (String) -> Unit,
+    val onUpscaleMethodChange: (String) -> Unit,
+    val onScaleByChange: (String) -> Unit,
+    val onStopAtClipLayerChange: (String) -> Unit,
     // Editing parameters
     val onEditingMegapixelsChange: (String) -> Unit,
     val onEditingStepsChange: (String) -> Unit,
     val onEditingCfgChange: (String) -> Unit,
     val onEditingSamplerChange: (String) -> Unit,
     val onEditingSchedulerChange: (String) -> Unit,
+    val onEditingRandomSeedToggle: () -> Unit,
+    val onEditingSeedChange: (String) -> Unit,
+    val onEditingRandomizeSeed: () -> Unit,
+    val onEditingDenoiseChange: (String) -> Unit,
+    val onEditingBatchSizeChange: (String) -> Unit,
+    val onEditingUpscaleMethodChange: (String) -> Unit,
+    val onEditingScaleByChange: (String) -> Unit,
+    val onEditingStopAtClipLayerChange: (String) -> Unit,
     // Inpainting LoRA chain
     val onAddLora: () -> Unit,
     val onRemoveLora: (Int) -> Unit,
@@ -270,6 +310,45 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 options = SamplerOptions.SCHEDULERS,
                 onValueChange = callbacks.onSchedulerChange,
                 isVisible = currentWorkflowHasScheduler
+            ),
+            seed = SeedConfig(
+                randomSeed = if (isCheckpoint) checkpointRandomSeed else unetRandomSeed,
+                onRandomSeedToggle = callbacks.onRandomSeedToggle,
+                seed = if (isCheckpoint) checkpointSeed else unetSeed,
+                onSeedChange = callbacks.onSeedChange,
+                onRandomizeSeed = callbacks.onRandomizeSeed,
+                seedError = seedError,
+                isVisible = currentWorkflowHasSeed
+            ),
+            denoise = NumericField(
+                value = if (isCheckpoint) checkpointDenoise else unetDenoise,
+                onValueChange = callbacks.onDenoiseChange,
+                error = denoiseError,
+                isVisible = currentWorkflowHasDenoise
+            ),
+            batchSize = NumericField(
+                value = if (isCheckpoint) checkpointBatchSize else unetBatchSize,
+                onValueChange = callbacks.onBatchSizeChange,
+                error = batchSizeError,
+                isVisible = currentWorkflowHasBatchSize
+            ),
+            upscaleMethod = DropdownField(
+                selectedValue = if (isCheckpoint) checkpointUpscaleMethod else unetUpscaleMethod,
+                options = availableUpscaleMethods,
+                onValueChange = callbacks.onUpscaleMethodChange,
+                isVisible = currentWorkflowHasUpscaleMethod
+            ),
+            scaleBy = NumericField(
+                value = if (isCheckpoint) checkpointScaleBy else unetScaleBy,
+                onValueChange = callbacks.onScaleByChange,
+                error = scaleByError,
+                isVisible = currentWorkflowHasScaleBy
+            ),
+            stopAtClipLayer = NumericField(
+                value = if (isCheckpoint) checkpointStopAtClipLayer else unetStopAtClipLayer,
+                onValueChange = callbacks.onStopAtClipLayerChange,
+                error = stopAtClipLayerError,
+                isVisible = currentWorkflowHasStopAtClipLayer
             )
         ),
         lora = LoraConfig(
@@ -408,6 +487,45 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onFpsChange,
                 error = fpsError,
                 isVisible = currentWorkflowHasFrameRate
+            ),
+            seed = SeedConfig(
+                randomSeed = randomSeed,
+                onRandomSeedToggle = callbacks.onRandomSeedToggle,
+                seed = seed,
+                onSeedChange = callbacks.onSeedChange,
+                onRandomizeSeed = callbacks.onRandomizeSeed,
+                seedError = seedError,
+                isVisible = currentWorkflowHasSeed
+            ),
+            denoise = NumericField(
+                value = denoise,
+                onValueChange = callbacks.onDenoiseChange,
+                error = denoiseError,
+                isVisible = currentWorkflowHasDenoise
+            ),
+            batchSize = NumericField(
+                value = batchSize,
+                onValueChange = callbacks.onBatchSizeChange,
+                error = batchSizeError,
+                isVisible = currentWorkflowHasBatchSize
+            ),
+            upscaleMethod = DropdownField(
+                selectedValue = upscaleMethod,
+                options = availableUpscaleMethods,
+                onValueChange = callbacks.onUpscaleMethodChange,
+                isVisible = currentWorkflowHasUpscaleMethod
+            ),
+            scaleBy = NumericField(
+                value = scaleBy,
+                onValueChange = callbacks.onScaleByChange,
+                error = scaleByError,
+                isVisible = currentWorkflowHasScaleBy
+            ),
+            stopAtClipLayer = NumericField(
+                value = stopAtClipLayer,
+                onValueChange = callbacks.onStopAtClipLayerChange,
+                error = stopAtClipLayerError,
+                isVisible = currentWorkflowHasStopAtClipLayer
             )
         ),
         lora = LoraConfig(
@@ -556,6 +674,45 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onFpsChange,
                 error = fpsError,
                 isVisible = currentWorkflowHasFrameRate
+            ),
+            seed = SeedConfig(
+                randomSeed = randomSeed,
+                onRandomSeedToggle = callbacks.onRandomSeedToggle,
+                seed = seed,
+                onSeedChange = callbacks.onSeedChange,
+                onRandomizeSeed = callbacks.onRandomizeSeed,
+                seedError = seedError,
+                isVisible = currentWorkflowHasSeed
+            ),
+            denoise = NumericField(
+                value = denoise,
+                onValueChange = callbacks.onDenoiseChange,
+                error = denoiseError,
+                isVisible = currentWorkflowHasDenoise
+            ),
+            batchSize = NumericField(
+                value = batchSize,
+                onValueChange = callbacks.onBatchSizeChange,
+                error = batchSizeError,
+                isVisible = currentWorkflowHasBatchSize
+            ),
+            upscaleMethod = DropdownField(
+                selectedValue = upscaleMethod,
+                options = availableUpscaleMethods,
+                onValueChange = callbacks.onUpscaleMethodChange,
+                isVisible = currentWorkflowHasUpscaleMethod
+            ),
+            scaleBy = NumericField(
+                value = scaleBy,
+                onValueChange = callbacks.onScaleByChange,
+                error = scaleByError,
+                isVisible = currentWorkflowHasScaleBy
+            ),
+            stopAtClipLayer = NumericField(
+                value = stopAtClipLayer,
+                onValueChange = callbacks.onStopAtClipLayerChange,
+                error = stopAtClipLayerError,
+                isVisible = currentWorkflowHasStopAtClipLayer
             )
         ),
         lora = LoraConfig(
@@ -783,6 +940,45 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     options = SamplerOptions.SCHEDULERS,
                     onValueChange = callbacks.onEditingSchedulerChange,
                     isVisible = currentWorkflowHasScheduler
+                ),
+                seed = SeedConfig(
+                    randomSeed = editingRandomSeed,
+                    onRandomSeedToggle = callbacks.onEditingRandomSeedToggle,
+                    seed = editingSeed,
+                    onSeedChange = callbacks.onEditingSeedChange,
+                    onRandomizeSeed = callbacks.onEditingRandomizeSeed,
+                    seedError = seedError,
+                    isVisible = currentWorkflowHasSeed
+                ),
+                denoise = NumericField(
+                    value = editingDenoise,
+                    onValueChange = callbacks.onEditingDenoiseChange,
+                    error = denoiseError,
+                    isVisible = currentWorkflowHasDenoise
+                ),
+                batchSize = NumericField(
+                    value = editingBatchSize,
+                    onValueChange = callbacks.onEditingBatchSizeChange,
+                    error = batchSizeError,
+                    isVisible = currentWorkflowHasBatchSize
+                ),
+                upscaleMethod = DropdownField(
+                    selectedValue = editingUpscaleMethod,
+                    options = availableUpscaleMethods,
+                    onValueChange = callbacks.onEditingUpscaleMethodChange,
+                    isVisible = currentWorkflowHasUpscaleMethod
+                ),
+                scaleBy = NumericField(
+                    value = editingScaleBy,
+                    onValueChange = callbacks.onEditingScaleByChange,
+                    error = scaleByError,
+                    isVisible = currentWorkflowHasScaleBy
+                ),
+                stopAtClipLayer = NumericField(
+                    value = editingStopAtClipLayer,
+                    onValueChange = callbacks.onEditingStopAtClipLayerChange,
+                    error = stopAtClipLayerError,
+                    isVisible = currentWorkflowHasStopAtClipLayer
                 )
             )
         } else {
@@ -816,6 +1012,45 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     options = SamplerOptions.SCHEDULERS,
                     onValueChange = callbacks.onSchedulerChange,
                     isVisible = currentWorkflowHasScheduler
+                ),
+                seed = SeedConfig(
+                    randomSeed = if (isCheckpoint) checkpointRandomSeed else unetRandomSeed,
+                    onRandomSeedToggle = callbacks.onRandomSeedToggle,
+                    seed = if (isCheckpoint) checkpointSeed else unetSeed,
+                    onSeedChange = callbacks.onSeedChange,
+                    onRandomizeSeed = callbacks.onRandomizeSeed,
+                    seedError = seedError,
+                    isVisible = currentWorkflowHasSeed
+                ),
+                denoise = NumericField(
+                    value = if (isCheckpoint) checkpointDenoise else unetDenoise,
+                    onValueChange = callbacks.onDenoiseChange,
+                    error = denoiseError,
+                    isVisible = currentWorkflowHasDenoise
+                ),
+                batchSize = NumericField(
+                    value = if (isCheckpoint) checkpointBatchSize else unetBatchSize,
+                    onValueChange = callbacks.onBatchSizeChange,
+                    error = batchSizeError,
+                    isVisible = currentWorkflowHasBatchSize
+                ),
+                upscaleMethod = DropdownField(
+                    selectedValue = if (isCheckpoint) checkpointUpscaleMethod else unetUpscaleMethod,
+                    options = availableUpscaleMethods,
+                    onValueChange = callbacks.onUpscaleMethodChange,
+                    isVisible = currentWorkflowHasUpscaleMethod
+                ),
+                scaleBy = NumericField(
+                    value = if (isCheckpoint) checkpointScaleBy else unetScaleBy,
+                    onValueChange = callbacks.onScaleByChange,
+                    error = scaleByError,
+                    isVisible = currentWorkflowHasScaleBy
+                ),
+                stopAtClipLayer = NumericField(
+                    value = if (isCheckpoint) checkpointStopAtClipLayer else unetStopAtClipLayer,
+                    onValueChange = callbacks.onStopAtClipLayerChange,
+                    error = stopAtClipLayerError,
+                    isVisible = currentWorkflowHasStopAtClipLayer
                 )
             )
         },

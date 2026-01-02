@@ -8,8 +8,7 @@
     "cfg": 8.0,
     "sampler_name": "euler",
     "scheduler": "normal",
-    "negative_prompt": "text, watermark",
-    "has_checkpoint_name": true
+    "negative_prompt": "text, watermark"
   },
   "nodes": {
     "1": {
@@ -26,7 +25,7 @@
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
-        "batch_size": 1
+        "batch_size": "{{batch_size}}"
       },
       "_meta": {
         "title": "Empty Latent Image"
@@ -55,7 +54,7 @@
     "5": {
       "class_type": "KSampler",
       "inputs": {
-        "seed": 0,
+        "seed": "{{seed}}",
         "steps": "{{steps}}",
         "cfg": "{{cfg}}",
         "sampler_name": "{{sampler_name}}",

@@ -7,20 +7,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Casino
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
-import androidx.compose.material3.OutlinedIconToggleButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -30,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
@@ -39,8 +29,12 @@ import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
 import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
 import sh.hnet.comfychair.ui.components.shared.LengthFpsRow
 import sh.hnet.comfychair.ui.components.shared.MegapixelsField
+import sh.hnet.comfychair.ui.components.shared.ClipLayerField
+import sh.hnet.comfychair.ui.components.shared.DenoiseBatchRow
 import sh.hnet.comfychair.ui.components.shared.ModelDropdown
 import sh.hnet.comfychair.ui.components.shared.ReferenceImageThumbnail
+import sh.hnet.comfychair.ui.components.shared.ScaleByField
+import sh.hnet.comfychair.ui.components.shared.SeedRow
 import sh.hnet.comfychair.ui.components.shared.StepsCfgRow
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 
@@ -213,7 +207,6 @@ private fun RenderModelField(field: ModelField) {
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ParametersSection(params: ParameterConfig, workflowName: String) {
     val hasAnyParams = listOfNotNull(
@@ -328,46 +321,15 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
 
     // Seed row (toggle + field + randomize button)
     params.seed?.takeIf { it.isVisible }?.let { seedConfig ->
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Random seed toggle
-            OutlinedIconToggleButton(
-                checked = seedConfig.randomSeed,
-                onCheckedChange = { seedConfig.onRandomSeedToggle() },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Shuffle,
-                    contentDescription = stringResource(R.string.label_random_seed)
-                )
-            }
-            // Seed text field
-            OutlinedTextField(
-                value = seedConfig.seed,
-                onValueChange = seedConfig.onSeedChange,
-                label = { Text(stringResource(R.string.label_seed)) },
-                modifier = Modifier.weight(1f),
-                enabled = !seedConfig.randomSeed,
-                isError = seedConfig.seedError != null,
-                supportingText = seedConfig.seedError?.let { { Text(it) } },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-            // Randomize button
-            OutlinedIconButton(
-                onClick = seedConfig.onRandomizeSeed,
-                enabled = !seedConfig.randomSeed,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Casino,
-                    contentDescription = stringResource(R.string.label_randomize_seed)
-                )
-            }
-        }
+        SeedRow(
+            workflowName = workflowName,
+            randomSeed = seedConfig.randomSeed,
+            onRandomSeedToggle = seedConfig.onRandomSeedToggle,
+            seed = seedConfig.seed,
+            onSeedChange = seedConfig.onSeedChange,
+            onRandomizeSeed = seedConfig.onRandomizeSeed,
+            seedError = seedConfig.seedError
+        )
         Spacer(modifier = Modifier.height(12.dp))
     }
 
@@ -375,39 +337,17 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
     val showDenoise = params.denoise?.isVisible == true
     val showBatchSize = params.batchSize?.isVisible == true
     if (showDenoise || showBatchSize) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (showDenoise) {
-                params.denoise?.let { field ->
-                    OutlinedTextField(
-                        value = field.value,
-                        onValueChange = field.onValueChange,
-                        label = { Text(stringResource(R.string.label_denoise)) },
-                        modifier = Modifier.weight(1f),
-                        isError = field.error != null,
-                        supportingText = field.error?.let { { Text(it) } },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                    )
-                }
-            }
-            if (showBatchSize) {
-                params.batchSize?.let { field ->
-                    OutlinedTextField(
-                        value = field.value,
-                        onValueChange = field.onValueChange,
-                        label = { Text(stringResource(R.string.label_batch_size)) },
-                        modifier = Modifier.weight(1f),
-                        isError = field.error != null,
-                        supportingText = field.error?.let { { Text(it) } },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                }
-            }
-        }
+        DenoiseBatchRow(
+            workflowName = workflowName,
+            denoise = params.denoise?.value ?: "",
+            onDenoiseChange = params.denoise?.onValueChange ?: {},
+            denoiseError = params.denoise?.error,
+            showDenoise = showDenoise,
+            batchSize = params.batchSize?.value ?: "",
+            onBatchSizeChange = params.batchSize?.onValueChange ?: {},
+            batchSizeError = params.batchSize?.error,
+            showBatchSize = showBatchSize
+        )
         Spacer(modifier = Modifier.height(12.dp))
     }
 
@@ -417,7 +357,7 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
     if (showUpscaleMethod || showScaleBy) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (showUpscaleMethod) {
                 params.upscaleMethod?.let { field ->
@@ -432,15 +372,12 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
             }
             if (showScaleBy) {
                 params.scaleBy?.let { field ->
-                    OutlinedTextField(
+                    ScaleByField(
+                        workflowName = workflowName,
                         value = field.value,
                         onValueChange = field.onValueChange,
-                        label = { Text(stringResource(R.string.label_scale_by)) },
-                        modifier = Modifier.weight(1f),
-                        isError = field.error != null,
-                        supportingText = field.error?.let { { Text(it) } },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                        error = field.error,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -450,15 +387,12 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
 
     // CLIP layer
     params.stopAtClipLayer?.takeIf { it.isVisible }?.let { field ->
-        OutlinedTextField(
+        ClipLayerField(
+            workflowName = workflowName,
             value = field.value,
             onValueChange = field.onValueChange,
-            label = { Text(stringResource(R.string.label_stop_at_clip_layer)) },
-            modifier = Modifier.fillMaxWidth(),
-            isError = field.error != null,
-            supportingText = field.error?.let { { Text(it) } },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            error = field.error,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

@@ -9,7 +9,10 @@
     "sampler_name": "euler_ancestral",
     "scheduler": "beta",
     "negative_prompt": "",
-    "has_checkpoint_name": true
+    "denoise": 0.5,
+    "upscale_method": "nearest-exact",
+    "scale_by": 1.5,
+    "stop_at_clip_layer": -2
   },
   "nodes": {
     "1": {
@@ -35,7 +38,7 @@
     "3": {
       "class_type": "CLIPSetLastLayer",
       "inputs": {
-        "stop_at_clip_layer": -2,
+        "stop_at_clip_layer": "{{stop_at_clip_layer}}",
         "clip": ["1", 1]
       },
       "_meta": {
@@ -67,7 +70,7 @@
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
-        "batch_size": 1
+        "batch_size": "{{batch_size}}"
       },
       "_meta": {
         "title": "Empty Latent Image"
@@ -76,7 +79,7 @@
     "7": {
       "class_type": "KSampler",
       "inputs": {
-        "seed": 0,
+        "seed": "{{seed}}",
         "steps": "{{steps}}",
         "cfg": "{{cfg}}",
         "sampler_name": "{{sampler_name}}",
@@ -94,8 +97,8 @@
     "8": {
       "class_type": "LatentUpscaleBy",
       "inputs": {
-        "upscale_method": "nearest-exact",
-        "scale_by": 1.5,
+        "upscale_method": "{{upscale_method}}",
+        "scale_by": "{{scale_by}}",
         "samples": ["7", 0]
       },
       "_meta": {
@@ -105,12 +108,12 @@
     "9": {
       "class_type": "KSampler",
       "inputs": {
-        "seed": 0,
+        "seed": "{{seed}}",
         "steps": 5,
         "cfg": 2.0,
         "sampler_name": "euler_ancestral",
         "scheduler": "exponential",
-        "denoise": 0.5,
+        "denoise": "{{denoise}}",
         "model": ["2", 0],
         "positive": ["4", 0],
         "negative": ["5", 0],

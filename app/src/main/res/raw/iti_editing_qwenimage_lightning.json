@@ -7,9 +7,7 @@
     "cfg": 1.0,
     "sampler_name": "euler",
     "scheduler": "simple",
-    "has_unet_name": true,
-    "has_reference_image_1": true,
-    "has_reference_image_2": true
+    "denoise": 1.0
   },
   "nodes": {
     "1": {
@@ -152,12 +150,12 @@
     },
     "14": {
       "inputs": {
-        "seed": 0,
+        "seed": "{{seed}}",
         "steps": "{{steps}}",
         "cfg": "{{cfg}}",
         "sampler_name": "{{sampler_name}}",
         "scheduler": "{{scheduler}}",
-        "denoise": 1.0,
+        "denoise": "{{denoise}}",
         "model": ["13", 0],
         "positive": ["9", 0],
         "negative": ["10", 0],

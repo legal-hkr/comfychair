@@ -8,7 +8,7 @@
     "sampler_name": "euler",
     "scheduler": "normal",
     "negative_prompt": "",
-    "has_checkpoint_name": true
+    "denoise": 0.8
   },
   "nodes": {
     "1": {
@@ -76,12 +76,12 @@
     "7": {
       "class_type": "KSampler",
       "inputs": {
-        "seed": 0,
+        "seed": "{{seed}}",
         "steps": "{{steps}}",
         "cfg": "{{cfg}}",
         "sampler_name": "{{sampler_name}}",
         "scheduler": "{{scheduler}}",
-        "denoise": 0.8,
+        "denoise": "{{denoise}}",
         "model": ["1", 0],
         "positive": ["4", 0],
         "negative": ["5", 0],

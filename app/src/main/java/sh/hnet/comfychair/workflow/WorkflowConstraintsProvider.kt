@@ -35,7 +35,12 @@ object WorkflowConstraintsProvider {
         "length" to NumericConstraints(1f, 1024f, 4f, 0),
         "frame_rate" to NumericConstraints(1f, 60f, 1f, 0),
         "fps" to NumericConstraints(1f, 60f, 1f, 0),
-        "megapixels" to NumericConstraints(0.01f, 16f, 0.01f, 2)
+        "megapixels" to NumericConstraints(0.01f, 16f, 0.01f, 2),
+        "seed" to NumericConstraints(0f, Float.MAX_VALUE, 1f, 0),
+        "denoise" to NumericConstraints(0f, 1f, 0.05f, 2),
+        "batch_size" to NumericConstraints(1f, 64f, 1f, 0),
+        "scale_by" to NumericConstraints(0.01f, 8f, 0.1f, 2),
+        "stop_at_clip_layer" to NumericConstraints(-24f, -1f, 1f, 0)
     )
 
     // Decimal places by field type (presentation concern, not from server)
@@ -47,7 +52,12 @@ object WorkflowConstraintsProvider {
         "length" to 0,
         "frame_rate" to 0,
         "fps" to 0,
-        "megapixels" to 2
+        "megapixels" to 2,
+        "seed" to 0,
+        "denoise" to 2,
+        "batch_size" to 0,
+        "scale_by" to 2,
+        "stop_at_clip_layer" to 0
     )
 
     /**

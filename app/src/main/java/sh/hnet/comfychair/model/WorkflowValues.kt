@@ -27,8 +27,7 @@ data class WorkflowValues(
     val frameRate: Int? = null,
 
     // Model selections (always saved, never in defaults)
-    val checkpointModel: String? = null,
-    val unetModel: String? = null,
+    val model: String? = null,      // Unified model (checkpoint or UNET)
     val loraModel: String? = null,  // Mandatory LoRA for editing mode
     val vaeModel: String? = null,
     val clipModel: String? = null,
@@ -72,8 +71,7 @@ data class WorkflowValues(
                 megapixels = json.optDouble("megapixels").takeIf { !it.isNaN() }?.toFloat(),
                 length = json.optInt("length").takeIf { it > 0 },
                 frameRate = json.optInt("frameRate").takeIf { it > 0 },
-                checkpointModel = json.optString("checkpointModel").takeIf { it.isNotEmpty() },
-                unetModel = json.optString("unetModel").takeIf { it.isNotEmpty() },
+                model = json.optString("model").takeIf { it.isNotEmpty() },
                 loraModel = json.optString("loraModel").takeIf { it.isNotEmpty() },
                 vaeModel = json.optString("vaeModel").takeIf { it.isNotEmpty() },
                 clipModel = json.optString("clipModel").takeIf { it.isNotEmpty() },
@@ -111,8 +109,7 @@ data class WorkflowValues(
                 values.megapixels?.let { put("megapixels", it.toDouble()) }
                 values.length?.let { put("length", it) }
                 values.frameRate?.let { put("frameRate", it) }
-                values.checkpointModel?.let { put("checkpointModel", it) }
-                values.unetModel?.let { put("unetModel", it) }
+                values.model?.let { put("model", it) }
                 values.loraModel?.let { put("loraModel", it) }
                 values.vaeModel?.let { put("vaeModel", it) }
                 values.clipModel?.let { put("clipModel", it) }

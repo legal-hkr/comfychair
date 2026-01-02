@@ -146,6 +146,109 @@ object ValidationUtils {
         return if (current.isNotEmpty() && available.contains(current)) current else ""
     }
 
+    /**
+     * Validate seed value for generation.
+     * @param value The seed value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (default 0)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateSeed(
+        value: String,
+        context: Context? = null,
+        min: Long = 0
+    ): String? {
+        if (value.isEmpty()) return null
+        val longValue = value.toLongOrNull()
+        return if (longValue == null || longValue < min) {
+            context?.getString(R.string.error_seed_range) ?: "Must be $min or greater"
+        } else null
+    }
+
+    /**
+     * Validate denoise value for generation.
+     * @param value The denoise value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (default 0.0)
+     * @param max Maximum allowed value (default 1.0)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateDenoise(
+        value: String,
+        context: Context? = null,
+        min: Float = 0.0f,
+        max: Float = 1.0f
+    ): String? {
+        if (value.isEmpty()) return null
+        val floatValue = value.toFloatOrNull()
+        return if (floatValue == null || floatValue !in min..max) {
+            context?.getString(R.string.error_denoise_range) ?: "Must be $min-$max"
+        } else null
+    }
+
+    /**
+     * Validate batch size value for generation.
+     * @param value The batch size value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (default 1)
+     * @param max Maximum allowed value (default 64)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateBatchSize(
+        value: String,
+        context: Context? = null,
+        min: Int = 1,
+        max: Int = 64
+    ): String? {
+        if (value.isEmpty()) return null
+        val intValue = value.toIntOrNull()
+        return if (intValue == null || intValue !in min..max) {
+            context?.getString(R.string.error_batch_size_range) ?: "Must be $min-$max"
+        } else null
+    }
+
+    /**
+     * Validate scale by value for upscaling.
+     * @param value The scale by value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (default 0.01)
+     * @param max Maximum allowed value (default 8.0)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateScaleBy(
+        value: String,
+        context: Context? = null,
+        min: Float = 0.01f,
+        max: Float = 8.0f
+    ): String? {
+        if (value.isEmpty()) return null
+        val floatValue = value.toFloatOrNull()
+        return if (floatValue == null || floatValue !in min..max) {
+            context?.getString(R.string.error_scale_by_range) ?: "Must be $min-$max"
+        } else null
+    }
+
+    /**
+     * Validate stop at CLIP layer value.
+     * @param value The layer value as string
+     * @param context Optional context for localized error message
+     * @param min Minimum allowed value (default -24)
+     * @param max Maximum allowed value (default -1)
+     * @return Error message if invalid, null if valid
+     */
+    fun validateStopAtClipLayer(
+        value: String,
+        context: Context? = null,
+        min: Int = -24,
+        max: Int = -1
+    ): String? {
+        if (value.isEmpty()) return null
+        val intValue = value.toIntOrNull()
+        return if (intValue == null || intValue !in min..max) {
+            context?.getString(R.string.error_clip_layer_range) ?: "Must be $min to $max"
+        } else null
+    }
+
     // ===========================================
     // Node Attribute Editor Validation Functions
     // ===========================================

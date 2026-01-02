@@ -48,6 +48,9 @@ data class TextToVideoUiState(
     val selectedWorkflowId: String = "",  // Workflow ID for storage
     val availableWorkflows: List<TtvWorkflowItem> = emptyList(),
 
+    // Workflow placeholders - detected from {{placeholder}} patterns in workflow JSON
+    val workflowPlaceholders: Set<String> = emptySet(),
+
     // Model selections
     val selectedHighnoiseUnet: String = "",
     val selectedLownoiseUnet: String = "",
@@ -65,6 +68,7 @@ data class TextToVideoUiState(
     val availableLoras: List<String> = emptyList(),
     val availableVaes: List<String> = emptyList(),
     val availableClips: List<String> = emptyList(),
+    val availableUpscaleMethods: List<String> = emptyList(),
 
     // Workflow-specific filtered options (from actual node type in workflow)
     val filteredUnets: List<String>? = null,
@@ -80,12 +84,24 @@ data class TextToVideoUiState(
     val height: String = "480",
     val length: String = "33",
     val fps: String = "16",
+    val randomSeed: Boolean = true,
+    val seed: String = "0",
+    val denoise: String = "1.0",
+    val batchSize: String = "1",
+    val upscaleMethod: String = "nearest-exact",
+    val scaleBy: String = "1.5",
+    val stopAtClipLayer: String = "-1",
 
     // Validation errors
     val widthError: String? = null,
     val heightError: String? = null,
     val lengthError: String? = null,
     val fpsError: String? = null,
+    val seedError: String? = null,
+    val denoiseError: String? = null,
+    val batchSizeError: String? = null,
+    val scaleByError: String? = null,
+    val stopAtClipLayerError: String? = null,
 
     // Positive prompt (global)
     val positivePrompt: String = "",
@@ -124,6 +140,12 @@ data class TextToVideoUiState(
     val currentWorkflowHasClipName3: Boolean = false,
     val currentWorkflowHasClipName4: Boolean = false,
     val currentWorkflowHasLoraName: Boolean = true,
+    val currentWorkflowHasSeed: Boolean = false,
+    val currentWorkflowHasDenoise: Boolean = false,
+    val currentWorkflowHasBatchSize: Boolean = false,
+    val currentWorkflowHasUpscaleMethod: Boolean = false,
+    val currentWorkflowHasScaleBy: Boolean = false,
+    val currentWorkflowHasStopAtClipLayer: Boolean = false,
 
     // Model presence flags (for conditional model dropdowns)
     val currentWorkflowHasHighnoiseUnet: Boolean = false,
@@ -305,12 +327,17 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         // Load saved values by workflow ID, defaults by workflow name
         val savedValues = storage.loadValues(serverId, workflowItem.id)
         val defaults = WorkflowManager.getWorkflowDefaults(workflowItem.name)
+
+        // Get workflow placeholders - these determine field visibility
+        val placeholders = WorkflowManager.getWorkflowPlaceholders(workflowItem.id)
+
         val cache = ConnectionManager.modelCache.value
 
         val state = _uiState.value
         _uiState.value = state.copy(
             selectedWorkflow = workflowItem.name,
             selectedWorkflowId = workflowItem.id,
+            workflowPlaceholders = placeholders,
             negativePrompt = savedValues?.negativePrompt
                 ?: defaults?.negativePrompt ?: "",
             width = savedValues?.width?.toString()
@@ -363,25 +390,32 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name4"),
-            // Set workflow capability flags from defaults
-            currentWorkflowHasNegativePrompt = defaults?.hasNegativePrompt ?: true,
-            currentWorkflowHasWidth = defaults?.hasWidth ?: true,
-            currentWorkflowHasHeight = defaults?.hasHeight ?: true,
-            currentWorkflowHasLength = defaults?.hasLength ?: true,
-            currentWorkflowHasFrameRate = defaults?.hasFrameRate ?: true,
-            currentWorkflowHasVaeName = defaults?.hasVaeName ?: true,
-            currentWorkflowHasClipName = defaults?.hasClipName ?: true,
-            currentWorkflowHasClipName1 = defaults?.hasClipName1 ?: false,
-            currentWorkflowHasClipName2 = defaults?.hasClipName2 ?: false,
-            currentWorkflowHasClipName3 = defaults?.hasClipName3 ?: false,
-            currentWorkflowHasClipName4 = defaults?.hasClipName4 ?: false,
-            currentWorkflowHasLoraName = defaults?.hasLoraName ?: true,
+            // Set workflow capability flags from placeholders
+            currentWorkflowHasNegativePrompt = "negative_prompt" in placeholders,
+            currentWorkflowHasWidth = "width" in placeholders,
+            currentWorkflowHasHeight = "height" in placeholders,
+            currentWorkflowHasLength = "length" in placeholders,
+            currentWorkflowHasFrameRate = "frame_rate" in placeholders,
+            currentWorkflowHasVaeName = "vae_name" in placeholders,
+            currentWorkflowHasClipName = "clip_name" in placeholders,
+            currentWorkflowHasClipName1 = "clip_name1" in placeholders,
+            currentWorkflowHasClipName2 = "clip_name2" in placeholders,
+            currentWorkflowHasClipName3 = "clip_name3" in placeholders,
+            currentWorkflowHasClipName4 = "clip_name4" in placeholders,
+            currentWorkflowHasLoraName = "lora_name" in placeholders,
+            // Advanced field presence flags
+            currentWorkflowHasSeed = "seed" in placeholders,
+            currentWorkflowHasDenoise = "denoise" in placeholders,
+            currentWorkflowHasBatchSize = "batch_size" in placeholders,
+            currentWorkflowHasUpscaleMethod = "upscale_method" in placeholders,
+            currentWorkflowHasScaleBy = "scale_by" in placeholders,
+            currentWorkflowHasStopAtClipLayer = "stop_at_clip_layer" in placeholders,
             // Model presence flag
-            currentWorkflowHasHighnoiseUnet = defaults?.hasHighnoiseUnet ?: false,
+            currentWorkflowHasHighnoiseUnet = "highnoise_unet_name" in placeholders,
             // Dual-UNET/LoRA flags
-            currentWorkflowHasLownoiseUnet = defaults?.hasLownoiseUnet ?: false,
-            currentWorkflowHasHighnoiseLora = defaults?.hasHighnoiseLora ?: false,
-            currentWorkflowHasLownoiseLora = defaults?.hasLownoiseLora ?: false
+            currentWorkflowHasLownoiseUnet = "lownoise_unet_name" in placeholders,
+            currentWorkflowHasHighnoiseLora = "highnoise_lora_name" in placeholders,
+            currentWorkflowHasLownoiseLora = "lownoise_lora_name" in placeholders
         )
     }
 
@@ -557,6 +591,52 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
     fun onFpsChange(fps: String) {
         val error = ValidationUtils.validateFrameRate(fps, applicationContext)
         _uiState.value = _uiState.value.copy(fps = fps, fpsError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onRandomSeedToggle() {
+        _uiState.value = _uiState.value.copy(randomSeed = !_uiState.value.randomSeed)
+        savePreferences()
+    }
+
+    fun onSeedChange(seed: String) {
+        val error = ValidationUtils.validateSeed(seed, applicationContext)
+        _uiState.value = _uiState.value.copy(seed = seed, seedError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onRandomizeSeed() {
+        val randomSeed = kotlin.random.Random.nextLong(0, Long.MAX_VALUE).toString()
+        _uiState.value = _uiState.value.copy(seed = randomSeed, seedError = null)
+        savePreferences()
+    }
+
+    fun onDenoiseChange(denoise: String) {
+        val error = ValidationUtils.validateDenoise(denoise, applicationContext)
+        _uiState.value = _uiState.value.copy(denoise = denoise, denoiseError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onBatchSizeChange(batchSize: String) {
+        val error = ValidationUtils.validateBatchSize(batchSize, applicationContext)
+        _uiState.value = _uiState.value.copy(batchSize = batchSize, batchSizeError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onUpscaleMethodChange(method: String) {
+        _uiState.value = _uiState.value.copy(upscaleMethod = method)
+        savePreferences()
+    }
+
+    fun onScaleByChange(scaleBy: String) {
+        val error = ValidationUtils.validateScaleBy(scaleBy, applicationContext)
+        _uiState.value = _uiState.value.copy(scaleBy = scaleBy, scaleByError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onStopAtClipLayerChange(layer: String) {
+        val error = ValidationUtils.validateStopAtClipLayer(layer, applicationContext)
+        _uiState.value = _uiState.value.copy(stopAtClipLayer = layer, stopAtClipLayerError = error)
         if (error == null) savePreferences()
     }
 

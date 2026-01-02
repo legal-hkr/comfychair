@@ -6,13 +6,7 @@
     "height": 1024,
     "steps": 30,
     "sampler_name": "euler",
-    "scheduler": "simple",
-    "has_negative_prompt": false,
-    "has_cfg": false,
-    "has_clip_name": false,
-    "has_clip_name1": true,
-    "has_clip_name2": true,
-    "has_unet_name": true
+    "scheduler": "simple"
   },
   "nodes": {
     "1": {
@@ -51,7 +45,7 @@
       "inputs": {
         "width": "{{width}}",
         "height": "{{height}}",
-        "batch_size": 1
+        "batch_size": "{{batch_size}}"
       },
       "_meta": {
         "title": "Empty Latent Image"
@@ -70,7 +64,7 @@
     "6": {
       "class_type": "RandomNoise",
       "inputs": {
-        "noise_seed": 0
+        "noise_seed": "{{seed}}"
       },
       "_meta": {
         "title": "RandomNoise"

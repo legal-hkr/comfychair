@@ -644,13 +644,8 @@ object WorkflowManager {
             }
         }
 
-        // Auto-detect capability flags from workflow structure
-        val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
-            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
-        }
-
-        // Create defaults object from extracted values with auto-detected capability flags
-        // and field presence flags based on which fields are mapped
+        // Create defaults object from extracted values
+        // Field visibility is determined by placeholder detection, not by has* flags
         val defaults = WorkflowDefaults(
             width = (extractedDefaults["width"] as? Number)?.toInt(),
             height = (extractedDefaults["height"] as? Number)?.toInt(),
@@ -661,37 +656,7 @@ object WorkflowManager {
             negativePrompt = extractedDefaults["negative_text"] as? String,
             megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
             length = (extractedDefaults["length"] as? Number)?.toInt(),
-            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt(),
-            // Capability flags for Flux-style workflows
-            hasNegativePrompt = !hasBasicGuider && "negative_text" in mappedFieldKeys,
-            hasCfg = !hasBasicGuider && "cfg" in mappedFieldKeys,
-            // Field presence flags - true only if the field is mapped
-            hasWidth = "width" in mappedFieldKeys,
-            hasHeight = "height" in mappedFieldKeys,
-            hasSteps = "steps" in mappedFieldKeys,
-            hasSamplerName = "sampler_name" in mappedFieldKeys,
-            hasScheduler = "scheduler" in mappedFieldKeys,
-            hasMegapixels = "megapixels" in mappedFieldKeys,
-            hasLength = "length" in mappedFieldKeys,
-            hasFrameRate = "fps" in mappedFieldKeys || "frame_rate" in mappedFieldKeys,
-            hasVaeName = "vae_name" in mappedFieldKeys,
-            hasClipName = "clip_name" in mappedFieldKeys,
-            hasClipName1 = "clip_name1" in mappedFieldKeys,
-            hasClipName2 = "clip_name2" in mappedFieldKeys,
-            hasClipName3 = "clip_name3" in mappedFieldKeys,
-            hasClipName4 = "clip_name4" in mappedFieldKeys,
-            hasLoraName = "lora_name" in mappedFieldKeys,
-            // Dual-UNET/LoRA flags for video workflows
-            hasLownoiseUnet = "lownoise_unet_name" in mappedFieldKeys,
-            hasHighnoiseLora = "highnoise_lora_name" in mappedFieldKeys,
-            hasLownoiseLora = "lownoise_lora_name" in mappedFieldKeys,
-            // Model presence flags
-            hasCheckpointName = "ckpt_name" in mappedFieldKeys,
-            hasUnetName = "unet_name" in mappedFieldKeys,
-            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys,
-            // ITE reference image flags - detect from workflow content
-            hasReferenceImage1 = jsonContent.contains("reference_image_1") || jsonContent.contains("reference_1"),
-            hasReferenceImage2 = jsonContent.contains("reference_image_2") || jsonContent.contains("reference_2")
+            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt()
         )
 
         // Create wrapped JSON with metadata and defaults
@@ -852,13 +817,8 @@ object WorkflowManager {
             }
         }
 
-        // Auto-detect capability flags from workflow structure
-        val hasBasicGuider = nodesJson.keys().asSequence().any { nodeId ->
-            nodesJson.optJSONObject(nodeId)?.optString("class_type") == "BasicGuider"
-        }
-
-        // Create defaults object from extracted values with auto-detected capability flags
-        // and field presence flags based on which fields are mapped
+        // Create defaults object from extracted values
+        // Field visibility is determined by placeholder detection, not by has* flags
         val defaults = WorkflowDefaults(
             width = (extractedDefaults["width"] as? Number)?.toInt(),
             height = (extractedDefaults["height"] as? Number)?.toInt(),
@@ -869,37 +829,7 @@ object WorkflowManager {
             negativePrompt = extractedDefaults["negative_text"] as? String,
             megapixels = (extractedDefaults["megapixels"] as? Number)?.toFloat(),
             length = (extractedDefaults["length"] as? Number)?.toInt(),
-            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt(),
-            // Capability flags for Flux-style workflows
-            hasNegativePrompt = !hasBasicGuider && "negative_text" in mappedFieldKeys,
-            hasCfg = !hasBasicGuider && "cfg" in mappedFieldKeys,
-            // Field presence flags - true only if the field is mapped
-            hasWidth = "width" in mappedFieldKeys,
-            hasHeight = "height" in mappedFieldKeys,
-            hasSteps = "steps" in mappedFieldKeys,
-            hasSamplerName = "sampler_name" in mappedFieldKeys,
-            hasScheduler = "scheduler" in mappedFieldKeys,
-            hasMegapixels = "megapixels" in mappedFieldKeys,
-            hasLength = "length" in mappedFieldKeys,
-            hasFrameRate = "fps" in mappedFieldKeys || "frame_rate" in mappedFieldKeys,
-            hasVaeName = "vae_name" in mappedFieldKeys,
-            hasClipName = "clip_name" in mappedFieldKeys,
-            hasClipName1 = "clip_name1" in mappedFieldKeys,
-            hasClipName2 = "clip_name2" in mappedFieldKeys,
-            hasClipName3 = "clip_name3" in mappedFieldKeys,
-            hasClipName4 = "clip_name4" in mappedFieldKeys,
-            hasLoraName = "lora_name" in mappedFieldKeys,
-            // Dual-UNET/LoRA flags for video workflows
-            hasLownoiseUnet = "lownoise_unet_name" in mappedFieldKeys,
-            hasHighnoiseLora = "highnoise_lora_name" in mappedFieldKeys,
-            hasLownoiseLora = "lownoise_lora_name" in mappedFieldKeys,
-            // Model presence flags
-            hasCheckpointName = "ckpt_name" in mappedFieldKeys,
-            hasUnetName = "unet_name" in mappedFieldKeys,
-            hasHighnoiseUnet = "highnoise_unet_name" in mappedFieldKeys,
-            // ITE reference image flags - detect from workflow content
-            hasReferenceImage1 = jsonContent.contains("reference_image_1") || jsonContent.contains("reference_1"),
-            hasReferenceImage2 = jsonContent.contains("reference_image_2") || jsonContent.contains("reference_2")
+            frameRate = (extractedDefaults["frame_rate"] as? Number)?.toInt()
         )
 
         // Create wrapped JSON with original metadata preserved
@@ -1266,6 +1196,40 @@ object WorkflowManager {
     }
 
     /**
+     * Get all placeholders (template variables) used in a workflow.
+     * This scans the workflow JSON for {{placeholder}} patterns and returns
+     * the set of placeholder names (without the braces).
+     *
+     * @param workflowId The workflow ID to analyze
+     * @return Set of placeholder names found in the workflow, or empty set if workflow not found
+     */
+    fun getWorkflowPlaceholders(workflowId: String): Set<String> {
+        val workflow = getWorkflowById(workflowId) ?: return emptySet()
+        return extractPlaceholdersFromJson(workflow.jsonContent)
+    }
+
+    /**
+     * Get all placeholders (template variables) used in a workflow by name.
+     *
+     * @param workflowName The workflow name to analyze
+     * @return Set of placeholder names found in the workflow, or empty set if workflow not found
+     */
+    fun getWorkflowPlaceholdersByName(workflowName: String): Set<String> {
+        val workflow = getWorkflowByName(workflowName) ?: return emptySet()
+        return extractPlaceholdersFromJson(workflow.jsonContent)
+    }
+
+    /**
+     * Extract all placeholders from a workflow JSON string.
+     */
+    private fun extractPlaceholdersFromJson(jsonContent: String): Set<String> {
+        val placeholderRegex = """\{\{(\w+)\}\}""".toRegex()
+        return placeholderRegex.findAll(jsonContent)
+            .map { it.groupValues[1] }
+            .toSet()
+    }
+
+    /**
      * Escape special characters in a string for safe JSON insertion
      */
     private fun escapeForJson(input: String): String {
@@ -1450,7 +1414,14 @@ object WorkflowManager {
         steps: Int,
         cfg: Float = 8.0f,
         samplerName: String = "euler",
-        scheduler: String = "normal"
+        scheduler: String = "normal",
+        seed: Long? = null,
+        randomSeed: Boolean = true,
+        denoise: Float? = null,
+        batchSize: Int? = null,
+        upscaleMethod: String? = null,
+        scaleBy: Float? = null,
+        stopAtClipLayer: Int? = null
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
         DebugLogger.i(TAG, "Preparing workflow: ${workflow.name} (id: $workflowId)")
@@ -1466,7 +1437,8 @@ object WorkflowManager {
         clip3?.let { DebugLogger.d(TAG, "CLIP3: ${Obfuscator.modelName(it)}") }
         clip4?.let { DebugLogger.d(TAG, "CLIP4: ${Obfuscator.modelName(it)}") }
 
-        val randomSeed = (0..999999999999).random()
+        // Determine actual seed value - use provided seed if randomSeed is false, otherwise generate random
+        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
         val escapedPositivePrompt = escapeForJson(positivePrompt)
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
@@ -1488,9 +1460,16 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{cfg}}", cfg.toString())
         processedJson = processedJson.replace("{{sampler_name}}", samplerName)
         processedJson = processedJson.replace("{{scheduler}}", scheduler)
-        // Handle both seed formats: regular KSampler and RandomNoise node
-        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $randomSeed")
-        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $randomSeed")
+        // Seed - use template placeholder or replace literal 0 values
+        processedJson = processedJson.replace("{{seed}}", actualSeed.toString())
+        processedJson = processedJson.replace("\"seed\": 0", "\"seed\": $actualSeed")
+        processedJson = processedJson.replace("\"noise_seed\": 0", "\"noise_seed\": $actualSeed")
+        // New optional parameters
+        denoise?.let { processedJson = processedJson.replace("{{denoise}}", it.toString()) }
+        batchSize?.let { processedJson = processedJson.replace("{{batch_size}}", it.toString()) }
+        upscaleMethod?.let { processedJson = processedJson.replace("{{upscale_method}}", it) }
+        scaleBy?.let { processedJson = processedJson.replace("{{scale_by}}", it.toString()) }
+        stopAtClipLayer?.let { processedJson = processedJson.replace("{{stop_at_clip_layer}}", it.toString()) }
 
         // Apply node attribute edits from the Workflow Editor
         return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
