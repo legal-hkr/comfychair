@@ -190,11 +190,11 @@ data class ImageToImageCallbacks(
 )
 
 /**
- * Convert TextToImageUiState to BottomSheetConfig
+ * Convert TextToImageUiState to BottomSheetConfig.
+ *
+ * Uses unified fields - field visibility is controlled by capabilities (derived from placeholders).
  */
 fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): BottomSheetConfig {
-    val isCheckpoint = this.isCheckpointMode
-
     return BottomSheetConfig(
         workflow = WorkflowConfig(
             selectedWorkflow = selectedWorkflow,
@@ -203,7 +203,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
             onViewWorkflow = callbacks.onViewWorkflow
         ),
         prompts = PromptConfig(
-            negativePrompt = if (isCheckpoint) checkpointNegativePrompt else unetNegativePrompt,
+            negativePrompt = negativePrompt,
             onNegativePromptChange = callbacks.onNegativePromptChange,
             hasNegativePrompt = capabilities.hasNegativePrompt
         ),
@@ -276,76 +276,76 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
         ),
         parameters = ParameterConfig(
             width = NumericField(
-                value = if (isCheckpoint) checkpointWidth else unetWidth,
+                value = width,
                 onValueChange = callbacks.onWidthChange,
                 error = widthError,
                 isVisible = capabilities.hasWidth
             ),
             height = NumericField(
-                value = if (isCheckpoint) checkpointHeight else unetHeight,
+                value = height,
                 onValueChange = callbacks.onHeightChange,
                 error = heightError,
                 isVisible = capabilities.hasHeight
             ),
             steps = NumericField(
-                value = if (isCheckpoint) checkpointSteps else unetSteps,
+                value = steps,
                 onValueChange = callbacks.onStepsChange,
                 error = stepsError,
                 isVisible = capabilities.hasSteps
             ),
             cfg = NumericField(
-                value = if (isCheckpoint) checkpointCfg else unetCfg,
+                value = cfg,
                 onValueChange = callbacks.onCfgChange,
                 error = cfgError,
                 isVisible = capabilities.hasCfg
             ),
             sampler = DropdownField(
-                selectedValue = if (isCheckpoint) checkpointSampler else unetSampler,
+                selectedValue = sampler,
                 options = SamplerOptions.SAMPLERS,
                 onValueChange = callbacks.onSamplerChange,
                 isVisible = capabilities.hasSamplerName
             ),
             scheduler = DropdownField(
-                selectedValue = if (isCheckpoint) checkpointScheduler else unetScheduler,
+                selectedValue = scheduler,
                 options = SamplerOptions.SCHEDULERS,
                 onValueChange = callbacks.onSchedulerChange,
                 isVisible = capabilities.hasScheduler
             ),
             seed = SeedConfig(
-                randomSeed = if (isCheckpoint) checkpointRandomSeed else unetRandomSeed,
+                randomSeed = randomSeed,
                 onRandomSeedToggle = callbacks.onRandomSeedToggle,
-                seed = if (isCheckpoint) checkpointSeed else unetSeed,
+                seed = seed,
                 onSeedChange = callbacks.onSeedChange,
                 onRandomizeSeed = callbacks.onRandomizeSeed,
                 seedError = seedError,
                 isVisible = capabilities.hasSeed
             ),
             denoise = NumericField(
-                value = if (isCheckpoint) checkpointDenoise else unetDenoise,
+                value = denoise,
                 onValueChange = callbacks.onDenoiseChange,
                 error = denoiseError,
                 isVisible = capabilities.hasDenoise
             ),
             batchSize = NumericField(
-                value = if (isCheckpoint) checkpointBatchSize else unetBatchSize,
+                value = batchSize,
                 onValueChange = callbacks.onBatchSizeChange,
                 error = batchSizeError,
                 isVisible = capabilities.hasBatchSize
             ),
             upscaleMethod = DropdownField(
-                selectedValue = if (isCheckpoint) checkpointUpscaleMethod else unetUpscaleMethod,
+                selectedValue = upscaleMethod,
                 options = availableUpscaleMethods,
                 onValueChange = callbacks.onUpscaleMethodChange,
                 isVisible = capabilities.hasUpscaleMethod
             ),
             scaleBy = NumericField(
-                value = if (isCheckpoint) checkpointScaleBy else unetScaleBy,
+                value = scaleBy,
                 onValueChange = callbacks.onScaleByChange,
                 error = scaleByError,
                 isVisible = capabilities.hasScaleBy
             ),
             stopAtClipLayer = NumericField(
-                value = if (isCheckpoint) checkpointStopAtClipLayer else unetStopAtClipLayer,
+                value = stopAtClipLayer,
                 onValueChange = callbacks.onStopAtClipLayerChange,
                 error = stopAtClipLayerError,
                 isVisible = capabilities.hasStopAtClipLayer
@@ -354,7 +354,7 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
         lora = LoraConfig(
             primaryChain = if (capabilities.hasLora) LoraChainField(
                 title = R.string.lora_chain_title,
-                chain = if (isCheckpoint) checkpointLoraChain else unetLoraChain,
+                chain = loraChain,
                 availableLoras = availableLoras,
                 onAdd = callbacks.onAddLora,
                 onRemove = callbacks.onRemoveLora,
@@ -741,12 +741,11 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
 }
 
 /**
- * Convert ImageToImageUiState to BottomSheetConfig
- * This is the most complex because it handles both EDITING and INPAINTING modes.
+ * Convert ImageToImageUiState to BottomSheetConfig.
+ * Handles both EDITING and INPAINTING modes with unified field architecture.
  */
 fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): BottomSheetConfig {
     val isEditing = mode == sh.hnet.comfychair.viewmodel.ImageToImageMode.EDITING
-    val isCheckpoint = isCheckpointMode
 
     // Select appropriate workflow and callbacks based on mode
     val workflowName = if (isEditing) selectedEditingWorkflow else selectedWorkflow
@@ -762,9 +761,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
             onViewWorkflow = onViewWorkflow
         ),
         prompts = PromptConfig(
-            negativePrompt = if (isEditing) editingNegativePrompt else {
-                if (isCheckpoint) checkpointNegativePrompt else unetNegativePrompt
-            },
+            negativePrompt = if (isEditing) editingNegativePrompt else negativePrompt,
             onNegativePromptChange = callbacks.onNegativePromptChange,
             hasNegativePrompt = capabilities.hasNegativePrompt
         ),
@@ -982,6 +979,7 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                 )
             )
         } else {
+            // Inpainting mode parameters - use unified fields
             ParameterConfig(
                 megapixels = NumericField(
                     value = megapixels,
@@ -990,64 +988,64 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     isVisible = capabilities.hasMegapixels
                 ),
                 steps = NumericField(
-                    value = if (isCheckpoint) checkpointSteps else unetSteps,
+                    value = steps,
                     onValueChange = callbacks.onStepsChange,
                     error = stepsError,
                     isVisible = capabilities.hasSteps
                 ),
                 cfg = NumericField(
-                    value = if (isCheckpoint) checkpointCfg else unetCfg,
+                    value = cfg,
                     onValueChange = callbacks.onCfgChange,
                     error = cfgError,
                     isVisible = capabilities.hasCfg
                 ),
                 sampler = DropdownField(
-                    selectedValue = if (isCheckpoint) checkpointSampler else unetSampler,
+                    selectedValue = sampler,
                     options = SamplerOptions.SAMPLERS,
                     onValueChange = callbacks.onSamplerChange,
                     isVisible = capabilities.hasSamplerName
                 ),
                 scheduler = DropdownField(
-                    selectedValue = if (isCheckpoint) checkpointScheduler else unetScheduler,
+                    selectedValue = scheduler,
                     options = SamplerOptions.SCHEDULERS,
                     onValueChange = callbacks.onSchedulerChange,
                     isVisible = capabilities.hasScheduler
                 ),
                 seed = SeedConfig(
-                    randomSeed = if (isCheckpoint) checkpointRandomSeed else unetRandomSeed,
+                    randomSeed = randomSeed,
                     onRandomSeedToggle = callbacks.onRandomSeedToggle,
-                    seed = if (isCheckpoint) checkpointSeed else unetSeed,
+                    seed = seed,
                     onSeedChange = callbacks.onSeedChange,
                     onRandomizeSeed = callbacks.onRandomizeSeed,
                     seedError = seedError,
                     isVisible = capabilities.hasSeed
                 ),
                 denoise = NumericField(
-                    value = if (isCheckpoint) checkpointDenoise else unetDenoise,
+                    value = denoise,
                     onValueChange = callbacks.onDenoiseChange,
                     error = denoiseError,
                     isVisible = capabilities.hasDenoise
                 ),
                 batchSize = NumericField(
-                    value = if (isCheckpoint) checkpointBatchSize else unetBatchSize,
+                    value = batchSize,
                     onValueChange = callbacks.onBatchSizeChange,
                     error = batchSizeError,
                     isVisible = capabilities.hasBatchSize
                 ),
                 upscaleMethod = DropdownField(
-                    selectedValue = if (isCheckpoint) checkpointUpscaleMethod else unetUpscaleMethod,
+                    selectedValue = upscaleMethod,
                     options = availableUpscaleMethods,
                     onValueChange = callbacks.onUpscaleMethodChange,
                     isVisible = capabilities.hasUpscaleMethod
                 ),
                 scaleBy = NumericField(
-                    value = if (isCheckpoint) checkpointScaleBy else unetScaleBy,
+                    value = scaleBy,
                     onValueChange = callbacks.onScaleByChange,
                     error = scaleByError,
                     isVisible = capabilities.hasScaleBy
                 ),
                 stopAtClipLayer = NumericField(
-                    value = if (isCheckpoint) checkpointStopAtClipLayer else unetStopAtClipLayer,
+                    value = stopAtClipLayer,
                     onValueChange = callbacks.onStopAtClipLayerChange,
                     error = stopAtClipLayerError,
                     isVisible = capabilities.hasStopAtClipLayer
@@ -1075,10 +1073,11 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                 ) else null
             )
         } else {
+            // Inpainting LoRA - use unified chain
             LoraConfig(
                 primaryChain = if (capabilities.hasLora) LoraChainField(
                     title = R.string.lora_chain_title,
-                    chain = if (isCheckpoint) checkpointLoraChain else unetLoraChain,
+                    chain = loraChain,
                     availableLoras = availableLoras,
                     onAdd = callbacks.onAddLora,
                     onRemove = callbacks.onRemoveLora,

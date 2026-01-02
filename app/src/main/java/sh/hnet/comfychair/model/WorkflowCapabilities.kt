@@ -54,10 +54,7 @@ data class WorkflowCapabilities(
 
     // Reference images (ITI/ITV specific)
     val hasReferenceImage1: Boolean = false,
-    val hasReferenceImage2: Boolean = false,
-
-    // Derived flags
-    val isCheckpointMode: Boolean = false
+    val hasReferenceImage2: Boolean = false
 ) {
     companion object {
         /**
@@ -110,10 +107,7 @@ data class WorkflowCapabilities(
 
                 // Reference images (check both naming conventions)
                 hasReferenceImage1 = "reference_image_1" in placeholders || "reference_1" in placeholders,
-                hasReferenceImage2 = "reference_image_2" in placeholders || "reference_2" in placeholders,
-
-                // Derived
-                isCheckpointMode = "ckpt_name" in placeholders
+                hasReferenceImage2 = "reference_image_2" in placeholders || "reference_2" in placeholders
             )
         }
     }

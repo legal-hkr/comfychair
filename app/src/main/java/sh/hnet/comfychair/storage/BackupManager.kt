@@ -663,10 +663,11 @@ class BackupManager(private val context: Context) {
                     put("frameRate", it)
                 }
 
-                // Model names
+                // Model names - must match WorkflowValues field names exactly
                 listOf(
-                    "checkpointModel", "unetModel", "loraModel", "vaeModel", "clipModel",
-                    "clip1Model", "clip2Model",
+                    "model",  // Unified model (checkpoint or UNET)
+                    "loraModel", "vaeModel", "clipModel",
+                    "clip1Model", "clip2Model", "clip3Model", "clip4Model",  // All 4 CLIP slots
                     "highnoiseUnetModel", "lownoiseUnetModel",
                     "highnoiseLoraModel", "lownoiseLoraModel"
                 ).forEach { key ->
@@ -680,6 +681,29 @@ class BackupManager(private val context: Context) {
                     json.optString(key).takeIf { it.isNotEmpty() }?.let {
                         put(key, it)
                     }
+                }
+
+                // Advanced generation parameters
+                json.optLong("seed", -1).takeIf { it >= 0 && validator.validateSeed(it) }?.let {
+                    put("seed", it)
+                }
+                if (json.has("randomSeed")) {
+                    put("randomSeed", json.optBoolean("randomSeed"))
+                }
+                json.optDouble("denoise").takeIf { !it.isNaN() && validator.validateDenoise(it.toFloat()) }?.let {
+                    put("denoise", it)
+                }
+                json.optInt("batchSize").takeIf { it > 0 && validator.validateBatchSize(it) }?.let {
+                    put("batchSize", it)
+                }
+                json.optString("upscaleMethod").takeIf { it.isNotEmpty() }?.let {
+                    put("upscaleMethod", validator.sanitizeString(it, 100))
+                }
+                json.optDouble("scaleBy").takeIf { !it.isNaN() && validator.validateScaleBy(it.toFloat()) }?.let {
+                    put("scaleBy", it)
+                }
+                json.optInt("stopAtClipLayer", 1).takeIf { it != 1 && validator.validateStopAtClipLayer(it) }?.let {
+                    put("stopAtClipLayer", it)
                 }
 
                 // Node attribute edits

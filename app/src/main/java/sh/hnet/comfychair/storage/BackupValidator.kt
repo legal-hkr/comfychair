@@ -45,6 +45,18 @@ class BackupValidator {
         const val MAX_LENGTH = 129
         const val MIN_FRAME_RATE = 1
         const val MAX_FRAME_RATE = 120
+
+        // Advanced generation parameters
+        const val MIN_SEED = 0L
+        const val MAX_SEED = Long.MAX_VALUE
+        const val MIN_DENOISE = 0.0f
+        const val MAX_DENOISE = 1.0f
+        const val MIN_BATCH_SIZE = 1
+        const val MAX_BATCH_SIZE = 16
+        const val MIN_SCALE_BY = 0.1f
+        const val MAX_SCALE_BY = 8.0f
+        const val MIN_STOP_AT_CLIP_LAYER = -24
+        const val MAX_STOP_AT_CLIP_LAYER = 0
     }
 
     /**
@@ -162,6 +174,41 @@ class BackupValidator {
      */
     fun validateFrameRate(value: Int): Boolean {
         return value in MIN_FRAME_RATE..MAX_FRAME_RATE
+    }
+
+    /**
+     * Validate seed value.
+     */
+    fun validateSeed(value: Long): Boolean {
+        return value in MIN_SEED..MAX_SEED
+    }
+
+    /**
+     * Validate denoise value.
+     */
+    fun validateDenoise(value: Float): Boolean {
+        return value in MIN_DENOISE..MAX_DENOISE
+    }
+
+    /**
+     * Validate batch size value.
+     */
+    fun validateBatchSize(value: Int): Boolean {
+        return value in MIN_BATCH_SIZE..MAX_BATCH_SIZE
+    }
+
+    /**
+     * Validate scale by value.
+     */
+    fun validateScaleBy(value: Float): Boolean {
+        return value in MIN_SCALE_BY..MAX_SCALE_BY
+    }
+
+    /**
+     * Validate stop at clip layer value.
+     */
+    fun validateStopAtClipLayer(value: Int): Boolean {
+        return value in MIN_STOP_AT_CLIP_LAYER..MAX_STOP_AT_CLIP_LAYER
     }
 
     /**
