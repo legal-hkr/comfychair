@@ -124,15 +124,6 @@ object SharedVideoPlayer {
     }
 
     /**
-     * Legacy method - prepares and immediately plays.
-     * @deprecated Use prepareVideo + startPlayback for proper frame synchronization.
-     */
-    fun playVideo(context: Context, uri: Uri) {
-        prepareVideo(context, uri)
-        startPlayback()
-    }
-
-    /**
      * Pause playback without releasing resources.
      * Called when a consumer is done but video might be reused.
      */

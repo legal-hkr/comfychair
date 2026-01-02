@@ -117,28 +117,23 @@ class BackupManager(private val context: Context) {
             return RestoreResult.Failure(R.string.backup_error_invalid_json)
         }
 
-        // Check version
+        // Check version - only v4 is supported
         val version = json.optInt("version", -1)
-        if (version > BACKUP_VERSION) {
-            DebugLogger.e(TAG, "Unsupported backup version: $version")
+        if (version != BACKUP_VERSION) {
+            DebugLogger.e(TAG, "Unsupported backup version: $version (required: $BACKUP_VERSION)")
             return RestoreResult.Failure(R.string.backup_error_unsupported_version)
         }
 
         // Clear cached media files before restoring
         clearCacheFiles()
 
-        // Restore based on version
-        return if (version >= 4) {
-            restoreV4Backup(json)
-        } else {
-            restoreLegacyBackup(json)
-        }
+        return restoreBackupV4(json)
     }
 
     /**
-     * Restore v4 backup format (hierarchical, server-first).
+     * Restore backup (v4 format - hierarchical, server-first).
      */
-    private fun restoreV4Backup(json: JSONObject): RestoreResult {
+    private fun restoreBackupV4(json: JSONObject): RestoreResult {
         // Restore servers
         val serversArray = json.optJSONArray("servers")
         if (serversArray == null || serversArray.length() == 0) {
@@ -184,7 +179,7 @@ class BackupManager(private val context: Context) {
 
         // Restore workflow values with server ID mapping
         json.optJSONObject("workflowValues")?.let { values ->
-            restoreWorkflowValuesV4(values, serverIdMapping)
+            restoreWorkflowValues(values, serverIdMapping)
         }
 
         // Restore user workflows
@@ -194,69 +189,6 @@ class BackupManager(private val context: Context) {
         }
 
         DebugLogger.i(TAG, "Backup restore completed. Servers changed: $serversChanged, skipped workflows: $skippedWorkflows")
-        return RestoreResult.Success(
-            serversChanged = serversChanged,
-            skippedWorkflows = skippedWorkflows
-        )
-    }
-
-    /**
-     * Restore legacy backup format (v1-v3).
-     * Creates a default server from connection info and migrates data.
-     */
-    private fun restoreLegacyBackup(json: JSONObject): RestoreResult {
-        // Get connection info to create default server
-        val connection = json.optJSONObject("connection")
-        if (connection == null) {
-            DebugLogger.e(TAG, "No connection object in legacy backup")
-            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
-        }
-
-        val hostname = connection.optString("hostname", "")
-        val port = connection.optInt("port", 8188)
-
-        if (!validator.validateHostname(hostname)) {
-            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
-        }
-        if (!validator.validatePort(port)) {
-            return RestoreResult.Failure(R.string.backup_error_invalid_connection)
-        }
-
-        // Check if server with this connection already exists
-        val existingServers = serverStorage.getServers()
-        var server = existingServers.find { it.hostname == hostname && it.port == port }
-        var serversChanged = false
-
-        if (server == null) {
-            // Create new server
-            val serverName = if (existingServers.isEmpty()) "Default Server" else "Imported Server"
-            server = Server.create(serverName, hostname, port)
-            serverStorage.addServer(server)
-            serversChanged = true
-        }
-
-        serverStorage.setSelectedServerId(server.id)
-
-        // Restore app settings
-        json.optJSONObject("appSettings")?.let { restoreAppSettings(it) }
-
-        // Restore screen preferences (migrate to per-server format)
-        json.optJSONObject("screenPreferences")?.let { prefs ->
-            restoreScreenPreferencesLegacy(prefs, server.id)
-        }
-
-        // Restore workflow values (migrate to per-server format)
-        json.optJSONObject("workflowValues")?.let { values ->
-            restoreWorkflowValuesLegacy(values, server.id)
-        }
-
-        // Restore user workflows
-        var skippedWorkflows = 0
-        json.optJSONArray("userWorkflows")?.let { workflows ->
-            skippedWorkflows = restoreUserWorkflows(workflows)
-        }
-
-        DebugLogger.i(TAG, "Legacy backup restored. Created server: ${Obfuscator.serverName(server.name)}")
         return RestoreResult.Success(
             serversChanged = serversChanged,
             skippedWorkflows = skippedWorkflows
@@ -435,34 +367,10 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    private fun restoreScreenPreferencesLegacy(json: JSONObject, serverId: String) {
-        json.optJSONObject("textToImage")?.let { restoreTextToImagePrefsLegacy(it, serverId) }
-        json.optJSONObject("imageToImage")?.let { restoreImageToImagePrefsLegacy(it, serverId) }
-        json.optJSONObject("textToVideo")?.let { restoreTextToVideoPrefsLegacy(it, serverId) }
-        json.optJSONObject("imageToVideo")?.let { restoreImageToVideoPrefsLegacy(it, serverId) }
-    }
-
     private fun restoreTextToImagePrefs(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
         prefs.edit().apply {
             json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
-                putString("${serverId}_selectedWorkflowId", it)
-            }
-            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
-                validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("${serverId}_positivePrompt", it)
-                }
-            }
-            apply()
-        }
-    }
-
-    private fun restoreTextToImagePrefsLegacy(json: JSONObject, serverId: String) {
-        val prefs = context.getSharedPreferences(PREFS_TEXT_TO_IMAGE, Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            // Legacy format used workflow name, not ID - we can't easily map this
-            // Just store the value as-is and let the app handle the lookup
-            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
                 putString("${serverId}_selectedWorkflowId", it)
             }
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
@@ -495,46 +403,10 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    private fun restoreImageToImagePrefsLegacy(json: JSONObject, serverId: String) {
-        val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_IMAGE, Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            json.optString("selectedWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("${serverId}_selectedWorkflowId", it)
-            }
-            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
-                validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("${serverId}_positivePrompt", it)
-                }
-            }
-            json.optString("mode").takeIf { it == "INPAINTING" || it == "EDITING" }?.let {
-                putString("${serverId}_mode", it)
-            }
-            json.optString("selectedEditingWorkflow").takeIf { it.isNotEmpty() }?.let {
-                putString("${serverId}_selectedEditingWorkflowId", it)
-            }
-            apply()
-        }
-    }
-
     private fun restoreTextToVideoPrefs(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
         prefs.edit().apply {
             json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
-                putString("${serverId}_selectedWorkflowId", it)
-            }
-            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
-                validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("${serverId}_positivePrompt", it)
-                }
-            }
-            apply()
-        }
-    }
-
-    private fun restoreTextToVideoPrefsLegacy(json: JSONObject, serverId: String) {
-        val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            json.optString("workflow").takeIf { it.isNotEmpty() }?.let {
                 putString("${serverId}_selectedWorkflowId", it)
             }
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
@@ -561,22 +433,7 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    private fun restoreImageToVideoPrefsLegacy(json: JSONObject, serverId: String) {
-        val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_VIDEO, Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            json.optString("workflow").takeIf { it.isNotEmpty() }?.let {
-                putString("${serverId}_selectedWorkflowId", it)
-            }
-            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
-                validator.validateAndSanitizePrompt(prompt)?.let {
-                    putString("${serverId}_positivePrompt", it)
-                }
-            }
-            apply()
-        }
-    }
-
-    private fun restoreWorkflowValuesV4(json: JSONObject, serverIdMapping: Map<String, String>) {
+    private fun restoreWorkflowValues(json: JSONObject, serverIdMapping: Map<String, String>) {
         val prefs = context.getSharedPreferences(PREFS_WORKFLOW_VALUES, Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
@@ -595,29 +452,6 @@ class BackupManager(private val context: Context) {
                 if (sanitizedValue != null) {
                     editor.putString("${actualServerId}_$workflowId", sanitizedValue.toString())
                 }
-            }
-        }
-
-        editor.apply()
-    }
-
-    private fun restoreWorkflowValuesLegacy(json: JSONObject, serverId: String) {
-        val prefs = context.getSharedPreferences(PREFS_WORKFLOW_VALUES, Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-
-        val keys = json.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            // Legacy format: workflow_<workflowName>
-            if (!key.startsWith("workflow_")) continue
-
-            val workflowName = key.removePrefix("workflow_")
-            val valueObj = json.optJSONObject(key) ?: continue
-
-            val sanitizedValue = sanitizeWorkflowValue(valueObj)
-            if (sanitizedValue != null) {
-                // Store with new format: serverId_workflowName (legacy didn't have UUIDs)
-                editor.putString("${serverId}_$workflowName", sanitizedValue.toString())
             }
         }
 
@@ -808,17 +642,6 @@ class BackupManager(private val context: Context) {
             val name = file.name
             // Clear media files (have UUID prefix followed by underscore)
             if (name.matches(Regex("[a-f0-9-]{36}_.*\\.(png|mp4)"))) {
-                try {
-                    file.delete()
-                } catch (e: Exception) {
-                    // Ignore
-                }
-            }
-            // Also clear legacy format files
-            if ((name.startsWith("tti_") || name.startsWith("iti_") ||
-                 name.startsWith("ite_") || name.startsWith("ttv_") ||
-                 name.startsWith("itv_")) &&
-                (name.endsWith(".png") || name.endsWith(".mp4"))) {
                 try {
                     file.delete()
                 } catch (e: Exception) {
