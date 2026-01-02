@@ -7,18 +7,30 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedIconToggleButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
@@ -201,6 +213,7 @@ private fun RenderModelField(field: ModelField) {
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ParametersSection(params: ParameterConfig, workflowName: String) {
     val hasAnyParams = listOfNotNull(
@@ -212,7 +225,13 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
         params.length?.takeIf { it.isVisible },
         params.fps?.takeIf { it.isVisible },
         params.sampler?.takeIf { it.isVisible },
-        params.scheduler?.takeIf { it.isVisible }
+        params.scheduler?.takeIf { it.isVisible },
+        params.seed?.takeIf { it.isVisible },
+        params.denoise?.takeIf { it.isVisible },
+        params.batchSize?.takeIf { it.isVisible },
+        params.upscaleMethod?.takeIf { it.isVisible },
+        params.scaleBy?.takeIf { it.isVisible },
+        params.stopAtClipLayer?.takeIf { it.isVisible }
     ).isNotEmpty()
 
     if (!hasAnyParams) return
@@ -303,6 +322,143 @@ private fun ParametersSection(params: ParameterConfig, workflowName: String) {
             selectedValue = field.selectedValue,
             options = field.options,
             onValueChange = field.onValueChange
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Seed row (toggle + field + randomize button)
+    params.seed?.takeIf { it.isVisible }?.let { seedConfig ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Random seed toggle
+            OutlinedIconToggleButton(
+                checked = seedConfig.randomSeed,
+                onCheckedChange = { seedConfig.onRandomSeedToggle() },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Shuffle,
+                    contentDescription = stringResource(R.string.label_random_seed)
+                )
+            }
+            // Seed text field
+            OutlinedTextField(
+                value = seedConfig.seed,
+                onValueChange = seedConfig.onSeedChange,
+                label = { Text(stringResource(R.string.label_seed)) },
+                modifier = Modifier.weight(1f),
+                enabled = !seedConfig.randomSeed,
+                isError = seedConfig.seedError != null,
+                supportingText = seedConfig.seedError?.let { { Text(it) } },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            // Randomize button
+            OutlinedIconButton(
+                onClick = seedConfig.onRandomizeSeed,
+                enabled = !seedConfig.randomSeed,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Casino,
+                    contentDescription = stringResource(R.string.label_randomize_seed)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Denoise / Batch size row
+    val showDenoise = params.denoise?.isVisible == true
+    val showBatchSize = params.batchSize?.isVisible == true
+    if (showDenoise || showBatchSize) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (showDenoise) {
+                params.denoise?.let { field ->
+                    OutlinedTextField(
+                        value = field.value,
+                        onValueChange = field.onValueChange,
+                        label = { Text(stringResource(R.string.label_denoise)) },
+                        modifier = Modifier.weight(1f),
+                        isError = field.error != null,
+                        supportingText = field.error?.let { { Text(it) } },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                }
+            }
+            if (showBatchSize) {
+                params.batchSize?.let { field ->
+                    OutlinedTextField(
+                        value = field.value,
+                        onValueChange = field.onValueChange,
+                        label = { Text(stringResource(R.string.label_batch_size)) },
+                        modifier = Modifier.weight(1f),
+                        isError = field.error != null,
+                        supportingText = field.error?.let { { Text(it) } },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // Upscale method / Scale by row
+    val showUpscaleMethod = params.upscaleMethod?.isVisible == true
+    val showScaleBy = params.scaleBy?.isVisible == true
+    if (showUpscaleMethod || showScaleBy) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (showUpscaleMethod) {
+                params.upscaleMethod?.let { field ->
+                    ModelDropdown(
+                        label = stringResource(R.string.label_upscale_method),
+                        selectedValue = field.selectedValue,
+                        options = field.options,
+                        onValueChange = field.onValueChange,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            if (showScaleBy) {
+                params.scaleBy?.let { field ->
+                    OutlinedTextField(
+                        value = field.value,
+                        onValueChange = field.onValueChange,
+                        label = { Text(stringResource(R.string.label_scale_by)) },
+                        modifier = Modifier.weight(1f),
+                        isError = field.error != null,
+                        supportingText = field.error?.let { { Text(it) } },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    // CLIP layer
+    params.stopAtClipLayer?.takeIf { it.isVisible }?.let { field ->
+        OutlinedTextField(
+            value = field.value,
+            onValueChange = field.onValueChange,
+            label = { Text(stringResource(R.string.label_stop_at_clip_layer)) },
+            modifier = Modifier.fillMaxWidth(),
+            isError = field.error != null,
+            supportingText = field.error?.let { { Text(it) } },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
     }
 }

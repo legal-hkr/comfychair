@@ -214,6 +214,14 @@
     <string name="label_steps">Pasos</string>
     <string name="label_sampler">Sampler</string>
     <string name="label_scheduler">Scheduler</string>
+    <string name="label_seed">Seed</string>
+    <string name="label_random_seed">Seed aleatorio</string>
+    <string name="label_randomize_seed">Aleatorizar</string>
+    <string name="label_denoise">Reducción de ruido</string>
+    <string name="label_batch_size">Tamaño del lote</string>
+    <string name="label_upscale_method">Método de escalado</string>
+    <string name="label_scale_by">Escalar por</string>
+    <string name="label_stop_at_clip_layer">Capa CLIP</string>
 
     <!-- Validation error messages -->
     <string name="error_dimension_range">Debe ser 1–4096</string>
@@ -429,6 +437,11 @@
     <string name="error_invalid_integer">Debe ser un número entero</string>
     <string name="error_invalid_option">Opción no válida</string>
     <string name="error_string_too_long">Longitud máxima: %1$d</string>
+    <string name="error_seed_range">Debe ser 0 o mayor</string>
+    <string name="error_denoise_range">Debe ser 0,0–1,0</string>
+    <string name="error_batch_size_range">Debe ser 1–64</string>
+    <string name="error_scale_by_range">Debe ser 0,01–8,0</string>
+    <string name="error_clip_layer_range">Debe ser -24 a -1</string>
     <string name="error_value_min">Mínimo: %1$d</string>
     <string name="error_value_max">Máximo: %1$d</string>
     <string name="error_value_min_float">Mínimo: %1$.2f</string>
@@ -488,5 +501,11 @@
     <string name="field_desc_length">Duración del video en fotogramas</string>
     <string name="field_desc_frame_rate">Fotogramas por segundo del video</string>
     <string name="field_desc_image">Imagen fuente para la generación</string>
+    <string name="field_desc_seed">Seed aleatorio para la generación</string>
+    <string name="field_desc_denoise">Fuerza de reducción de ruido (0,0-1,0)</string>
+    <string name="field_desc_batch_size">Número de imágenes por lote</string>
+    <string name="field_desc_upscale_method">Método de interpolación para escalar</string>
+    <string name="field_desc_scale_by">Factor de escala para escalado</string>
+    <string name="field_desc_stop_at_clip_layer">Capa CLIP donde detenerse (negativa)</string>
     <string name="field_desc_fallback">Campo requerido: %1$s</string>
 </resources>

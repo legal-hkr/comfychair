@@ -96,7 +96,26 @@ data class ParameterConfig(
     val length: NumericField? = null,
     val fps: NumericField? = null,
     val sampler: DropdownField? = null,
-    val scheduler: DropdownField? = null
+    val scheduler: DropdownField? = null,
+    val seed: SeedConfig? = null,
+    val denoise: NumericField? = null,
+    val batchSize: NumericField? = null,
+    val upscaleMethod: DropdownField? = null,
+    val scaleBy: NumericField? = null,
+    val stopAtClipLayer: NumericField? = null
+)
+
+/**
+ * Seed field configuration with toggle and randomize controls
+ */
+data class SeedConfig(
+    val randomSeed: Boolean,
+    val onRandomSeedToggle: () -> Unit,
+    val seed: String,
+    val onSeedChange: (String) -> Unit,
+    val onRandomizeSeed: () -> Unit,
+    val seedError: String? = null,
+    val isVisible: Boolean = true
 )
 
 /**

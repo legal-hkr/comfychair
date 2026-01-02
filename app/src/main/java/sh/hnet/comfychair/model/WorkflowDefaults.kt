@@ -59,7 +59,23 @@ data class WorkflowDefaults(
 
     // ITE reference image flags - indicate which reference images are supported by the workflow
     val hasReferenceImage1: Boolean = false,  // Reference image 1 slot available
-    val hasReferenceImage2: Boolean = false   // Reference image 2 slot available
+    val hasReferenceImage2: Boolean = false,  // Reference image 2 slot available
+
+    // Advanced generation parameter defaults
+    val seed: Long? = null,
+    val denoise: Float? = null,
+    val batchSize: Int? = null,
+    val upscaleMethod: String? = null,
+    val scaleBy: Float? = null,
+    val stopAtClipLayer: Int? = null,
+
+    // Advanced generation field presence flags
+    val hasSeed: Boolean = true,           // Most workflows have seed
+    val hasDenoise: Boolean = true,        // Most workflows have denoise
+    val hasBatchSize: Boolean = true,      // Most workflows have batch_size
+    val hasUpscaleMethod: Boolean = false, // Only upscaler workflows
+    val hasScaleBy: Boolean = false,       // Only upscaler workflows
+    val hasStopAtClipLayer: Boolean = false // Only workflows with CLIPSetLastLayer
 ) {
     companion object {
         fun fromJson(jsonObject: JSONObject?): WorkflowDefaults {
@@ -105,7 +121,21 @@ data class WorkflowDefaults(
                 hasHighnoiseUnet = jsonObject.optBoolean("has_highnoise_unet", false),
                 // ITE reference image flags (default to false)
                 hasReferenceImage1 = jsonObject.optBoolean("has_reference_image_1", false),
-                hasReferenceImage2 = jsonObject.optBoolean("has_reference_image_2", false)
+                hasReferenceImage2 = jsonObject.optBoolean("has_reference_image_2", false),
+                // Advanced generation parameter defaults
+                seed = jsonObject.optLong("seed", -1).takeIf { it >= 0 },
+                denoise = jsonObject.optDouble("denoise").takeIf { !it.isNaN() }?.toFloat(),
+                batchSize = jsonObject.optInt("batch_size").takeIf { it > 0 },
+                upscaleMethod = jsonObject.optString("upscale_method").takeIf { it.isNotEmpty() },
+                scaleBy = jsonObject.optDouble("scale_by").takeIf { !it.isNaN() }?.toFloat(),
+                stopAtClipLayer = jsonObject.optInt("stop_at_clip_layer", 0).takeIf { it != 0 },
+                // Advanced generation field presence flags
+                hasSeed = jsonObject.optBoolean("has_seed", true),
+                hasDenoise = jsonObject.optBoolean("has_denoise", true),
+                hasBatchSize = jsonObject.optBoolean("has_batch_size", true),
+                hasUpscaleMethod = jsonObject.optBoolean("has_upscale_method", false),
+                hasScaleBy = jsonObject.optBoolean("has_scale_by", false),
+                hasStopAtClipLayer = jsonObject.optBoolean("has_stop_at_clip_layer", false)
             )
         }
 
@@ -152,6 +182,20 @@ data class WorkflowDefaults(
                 // ITE reference image flags (only write if true since default is false)
                 if (defaults.hasReferenceImage1) put("has_reference_image_1", true)
                 if (defaults.hasReferenceImage2) put("has_reference_image_2", true)
+                // Advanced generation parameter defaults
+                defaults.seed?.let { put("seed", it) }
+                defaults.denoise?.let { put("denoise", it.toDouble()) }
+                defaults.batchSize?.let { put("batch_size", it) }
+                defaults.upscaleMethod?.let { put("upscale_method", it) }
+                defaults.scaleBy?.let { put("scale_by", it.toDouble()) }
+                defaults.stopAtClipLayer?.let { put("stop_at_clip_layer", it) }
+                // Advanced generation field presence flags (only write if differ from defaults)
+                if (!defaults.hasSeed) put("has_seed", false)
+                if (!defaults.hasDenoise) put("has_denoise", false)
+                if (!defaults.hasBatchSize) put("has_batch_size", false)
+                if (defaults.hasUpscaleMethod) put("has_upscale_method", true)
+                if (defaults.hasScaleBy) put("has_scale_by", true)
+                if (defaults.hasStopAtClipLayer) put("has_stop_at_clip_layer", true)
             }
         }
     }

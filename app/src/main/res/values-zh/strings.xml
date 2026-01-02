@@ -214,6 +214,14 @@
     <string name="label_steps">步数</string>
     <string name="label_sampler">采样器</string>
     <string name="label_scheduler">调度器</string>
+    <string name="label_seed">种子</string>
+    <string name="label_random_seed">随机种子</string>
+    <string name="label_randomize_seed">随机</string>
+    <string name="label_denoise">降噪</string>
+    <string name="label_batch_size">批量大小</string>
+    <string name="label_upscale_method">放大方法</string>
+    <string name="label_scale_by">缩放倍数</string>
+    <string name="label_stop_at_clip_layer">CLIP 层</string>
 
     <!-- Validation error messages -->
     <string name="error_dimension_range">必须在 1–4096 之间</string>
@@ -429,6 +437,11 @@
     <string name="error_invalid_integer">必须是整数</string>
     <string name="error_invalid_option">无效选项</string>
     <string name="error_string_too_long">最大长度：%1$d</string>
+    <string name="error_seed_range">必须为 0 或更大</string>
+    <string name="error_denoise_range">必须为 0.0–1.0</string>
+    <string name="error_batch_size_range">必须为 1–64</string>
+    <string name="error_scale_by_range">必须为 0.01–8.0</string>
+    <string name="error_clip_layer_range">必须为 -24 至 -1</string>
     <string name="error_value_min">最小值：%1$d</string>
     <string name="error_value_max">最大值：%1$d</string>
     <string name="error_value_min_float">最小值：%1$.2f</string>
@@ -488,5 +501,11 @@
     <string name="field_desc_length">视频长度（帧数）</string>
     <string name="field_desc_frame_rate">视频每秒帧数</string>
     <string name="field_desc_image">用于生成的源图像</string>
+    <string name="field_desc_seed">用于生成的随机种子</string>
+    <string name="field_desc_denoise">降噪强度（0.0-1.0）</string>
+    <string name="field_desc_batch_size">每批图像数量</string>
+    <string name="field_desc_upscale_method">放大的插值方法</string>
+    <string name="field_desc_scale_by">放大的缩放因子</string>
+    <string name="field_desc_stop_at_clip_layer">停止的 CLIP 层（负数）</string>
     <string name="field_desc_fallback">必填字段：%1$s</string>
 </resources>

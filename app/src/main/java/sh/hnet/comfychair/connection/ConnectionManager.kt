@@ -603,7 +603,8 @@ object ConnectionManager {
             unets = nodeTypeRegistry.getOptionsForField("unet_name"),
             vaes = nodeTypeRegistry.getOptionsForField("vae_name"),
             clips = nodeTypeRegistry.getOptionsForFieldPrefix("clip_name"),
-            loras = nodeTypeRegistry.getOptionsForField("lora_name")
+            loras = nodeTypeRegistry.getOptionsForField("lora_name"),
+            upscaleMethods = nodeTypeRegistry.getOptionsForField("upscale_method")
         )
     }
 }

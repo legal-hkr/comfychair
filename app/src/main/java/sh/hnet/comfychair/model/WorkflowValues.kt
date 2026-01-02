@@ -47,7 +47,16 @@ data class WorkflowValues(
     val lownoiseLoraChain: String? = null,
 
     // Node attribute edits (JSON serialized using NodeAttributeEdits.toJson/fromJson)
-    val nodeAttributeEdits: String? = null
+    val nodeAttributeEdits: String? = null,
+
+    // Advanced generation parameters
+    val seed: Long? = null,
+    val randomSeed: Boolean? = null,  // null = use default (true)
+    val denoise: Float? = null,
+    val batchSize: Int? = null,
+    val upscaleMethod: String? = null,
+    val scaleBy: Float? = null,
+    val stopAtClipLayer: Int? = null
 ) {
     companion object {
         fun fromJson(jsonString: String): WorkflowValues {
@@ -79,7 +88,14 @@ data class WorkflowValues(
                 loraChain = json.optString("loraChain").takeIf { it.isNotEmpty() },
                 highnoiseLoraChain = json.optString("highnoiseLoraChain").takeIf { it.isNotEmpty() },
                 lownoiseLoraChain = json.optString("lownoiseLoraChain").takeIf { it.isNotEmpty() },
-                nodeAttributeEdits = json.optString("nodeAttributeEdits").takeIf { it.isNotEmpty() }
+                nodeAttributeEdits = json.optString("nodeAttributeEdits").takeIf { it.isNotEmpty() },
+                seed = json.optLong("seed", -1).takeIf { it >= 0 },
+                randomSeed = if (json.has("randomSeed")) json.optBoolean("randomSeed") else null,
+                denoise = json.optDouble("denoise").takeIf { !it.isNaN() }?.toFloat(),
+                batchSize = json.optInt("batchSize").takeIf { it > 0 },
+                upscaleMethod = json.optString("upscaleMethod").takeIf { it.isNotEmpty() },
+                scaleBy = json.optDouble("scaleBy").takeIf { !it.isNaN() }?.toFloat(),
+                stopAtClipLayer = json.optInt("stopAtClipLayer", 0).takeIf { it != 0 }
             )
         }
 
@@ -112,6 +128,13 @@ data class WorkflowValues(
                 values.highnoiseLoraChain?.let { put("highnoiseLoraChain", it) }
                 values.lownoiseLoraChain?.let { put("lownoiseLoraChain", it) }
                 values.nodeAttributeEdits?.let { put("nodeAttributeEdits", it) }
+                values.seed?.let { put("seed", it) }
+                values.randomSeed?.let { put("randomSeed", it) }
+                values.denoise?.let { put("denoise", it.toDouble()) }
+                values.batchSize?.let { put("batchSize", it) }
+                values.upscaleMethod?.let { put("upscaleMethod", it) }
+                values.scaleBy?.let { put("scaleBy", it.toDouble()) }
+                values.stopAtClipLayer?.let { put("stopAtClipLayer", it) }
             }.toString()
         }
     }

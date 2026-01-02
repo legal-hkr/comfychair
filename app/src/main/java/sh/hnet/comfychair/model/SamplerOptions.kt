@@ -19,4 +19,8 @@ object SamplerOptions {
         "simple", "sgm_uniform", "karras", "exponential", "ddim_uniform",
         "beta", "normal", "linear_quadratic", "kl_optimal"
     )
+
+    val UPSCALE_METHODS = listOf(
+        "nearest-exact", "bilinear", "area", "bicubic", "lanczos"
+    )
 }

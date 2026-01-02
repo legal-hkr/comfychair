@@ -13,6 +13,7 @@ data class ModelCache(
     val vaes: List<String> = emptyList(),
     val clips: List<String> = emptyList(),
     val loras: List<String> = emptyList(),
+    val upscaleMethods: List<String> = emptyList(),
     val isLoaded: Boolean = false,
     val isLoading: Boolean = false,
     val lastError: String? = null

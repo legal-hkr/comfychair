@@ -37,7 +37,13 @@ object TemplateKeyRegistry {
         "lownoise_lora_name" to "lora_name",
         "length" to "length",
         "frame_rate" to "fps",
-        "image_filename" to "image"
+        "image_filename" to "image",
+        "seed" to "seed",
+        "denoise" to "denoise",
+        "batch_size" to "batch_size",
+        "upscale_method" to "upscale_method",
+        "scale_by" to "scale_by",
+        "stop_at_clip_layer" to "stop_at_clip_layer"
     )
 
     /**
@@ -67,7 +73,13 @@ object TemplateKeyRegistry {
         "lora_name" to "lora_name",
         "length" to "length",
         "fps" to "frame_rate",
-        "image" to "image_filename"
+        "image" to "image_filename",
+        "seed" to "seed",
+        "denoise" to "denoise",
+        "batch_size" to "batch_size",
+        "upscale_method" to "upscale_method",
+        "scale_by" to "scale_by",
+        "stop_at_clip_layer" to "stop_at_clip_layer"
     )
 
     /**
@@ -104,7 +116,8 @@ object TemplateKeyRegistry {
         "megapixels", "lora_name",
         "highnoise_unet_name", "lownoise_unet_name",
         "highnoise_lora_name", "lownoise_lora_name",
-        "length", "fps"
+        "length", "fps",
+        "seed", "denoise", "batch_size", "upscale_method", "scale_by", "stop_at_clip_layer"
     )
 
     /**

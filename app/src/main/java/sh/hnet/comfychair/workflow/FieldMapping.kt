@@ -274,7 +274,14 @@ object FieldDisplayRegistry {
         "fps" to Pair(R.string.field_frame_rate, R.string.field_desc_frame_rate),
         // Image fields
         "image" to Pair(R.string.field_input_image, R.string.field_desc_image),
-        "image_filename" to Pair(R.string.field_input_image, R.string.field_desc_image)
+        "image_filename" to Pair(R.string.field_input_image, R.string.field_desc_image),
+        // Advanced generation fields
+        "seed" to Pair(R.string.label_seed, R.string.field_desc_seed),
+        "denoise" to Pair(R.string.label_denoise, R.string.field_desc_denoise),
+        "batch_size" to Pair(R.string.label_batch_size, R.string.field_desc_batch_size),
+        "upscale_method" to Pair(R.string.label_upscale_method, R.string.field_desc_upscale_method),
+        "scale_by" to Pair(R.string.label_scale_by, R.string.field_desc_scale_by),
+        "stop_at_clip_layer" to Pair(R.string.label_stop_at_clip_layer, R.string.field_desc_stop_at_clip_layer)
     )
 
     /**

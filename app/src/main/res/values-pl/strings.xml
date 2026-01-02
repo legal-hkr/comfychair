@@ -214,6 +214,14 @@
     <string name="label_steps">Kroki</string>
     <string name="label_sampler">Sampler</string>
     <string name="label_scheduler">Scheduler</string>
+    <string name="label_seed">Seed</string>
+    <string name="label_random_seed">Losowy seed</string>
+    <string name="label_randomize_seed">Losuj</string>
+    <string name="label_denoise">Odszumianie</string>
+    <string name="label_batch_size">Rozmiar partii</string>
+    <string name="label_upscale_method">Metoda powiększania</string>
+    <string name="label_scale_by">Skala</string>
+    <string name="label_stop_at_clip_layer">Warstwa CLIP</string>
 
     <!-- Validation error messages -->
     <string name="error_dimension_range">Musi być 1–4096</string>
@@ -429,6 +437,11 @@
     <string name="error_invalid_integer">Musi być liczbą całkowitą</string>
     <string name="error_invalid_option">Nieprawidłowa opcja</string>
     <string name="error_string_too_long">Maksymalna długość: %1$d</string>
+    <string name="error_seed_range">Musi być 0 lub większe</string>
+    <string name="error_denoise_range">Musi być 0,0–1,0</string>
+    <string name="error_batch_size_range">Musi być 1–64</string>
+    <string name="error_scale_by_range">Musi być 0,01–8,0</string>
+    <string name="error_clip_layer_range">Musi być od -24 do -1</string>
     <string name="error_value_min">Minimum: %1$d</string>
     <string name="error_value_max">Maksimum: %1$d</string>
     <string name="error_value_min_float">Minimum: %1$.2f</string>
@@ -488,5 +501,11 @@
     <string name="field_desc_length">Długość wideo w klatkach</string>
     <string name="field_desc_frame_rate">Klatki na sekundę wideo</string>
     <string name="field_desc_image">Obraz źródłowy do generowania</string>
+    <string name="field_desc_seed">Losowy seed do generowania</string>
+    <string name="field_desc_denoise">Siła odszumiania (0,0-1,0)</string>
+    <string name="field_desc_batch_size">Liczba obrazów w partii</string>
+    <string name="field_desc_upscale_method">Metoda interpolacji do powiększania</string>
+    <string name="field_desc_scale_by">Współczynnik skalowania do powiększania</string>
+    <string name="field_desc_stop_at_clip_layer">Warstwa CLIP, na której zatrzymać (ujemna)</string>
     <string name="field_desc_fallback">Wymagane pole: %1$s</string>
 </resources>
