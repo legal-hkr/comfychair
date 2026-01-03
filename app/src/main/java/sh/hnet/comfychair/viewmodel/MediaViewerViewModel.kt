@@ -199,6 +199,7 @@ class MediaViewerViewModel : ViewModel() {
                     val currentIdx = _uiState.value.currentIndex
                     updateCachePrioritiesForIndex(currentIdx)
                     triggerPrefetchForIndex(currentIdx)
+                    preloadMetadataForIndices()
                     loadCurrentItem()
                 }
             }
@@ -224,6 +225,9 @@ class MediaViewerViewModel : ViewModel() {
 
         // Trigger prefetch IMMEDIATELY for adjacent items (before loading current)
         triggerPrefetchForIndex(index)
+
+        // Pre-load metadata for current + adjacent items
+        preloadMetadataForIndices()
 
         // Try to get from cache immediately (same approach for images and videos)
         val cachedBitmap = if (!item.isVideo) MediaCache.getBitmap(key) else null
@@ -378,63 +382,22 @@ class MediaViewerViewModel : ViewModel() {
 
     /**
      * Load metadata for the current item.
-     * Extracts generation parameters from PNG/MP4 metadata.
-     *
-     * For SINGLE mode videos, reads metadata from local file.
-     * For items with server file info, fetches from server.
+     * Uses cached metadata if available from pre-loading, otherwise fetches on demand.
      */
     fun loadMetadata() {
-        val state = _uiState.value
-        val item = state.currentItem ?: return
-        val index = state.currentIndex
-        val context = applicationContext ?: return
+        val index = _uiState.value.currentIndex
 
-        // Check cache first
+        // Check cache first - metadata may have been pre-loaded
         if (cachedMetadata.containsKey(index)) {
             _currentMetadata.value = cachedMetadata[index]
             return
         }
 
+        // Not cached - load now (fallback for edge cases like rapid swiping)
         _isLoadingMetadata.value = true
 
         viewModelScope.launch {
-            val metadata = withContext(Dispatchers.IO) {
-                val bytes: ByteArray? = when {
-                    // For SINGLE mode videos, try to read from local file first
-                    state.mode == ViewerMode.SINGLE && item.isVideo && state.currentVideoUri != null -> {
-                        try {
-                            context.contentResolver.openInputStream(state.currentVideoUri)?.use {
-                                it.readBytes()
-                            }
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    // For items with server file info and a client, fetch from server
-                    item.filename.isNotEmpty() && comfyUIClient != null -> {
-                        kotlin.coroutines.suspendCoroutine { continuation ->
-                            comfyUIClient!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes ->
-                                continuation.resumeWith(Result.success(rawBytes))
-                            }
-                        }
-                    }
-                    // No source available
-                    else -> null
-                }
-
-                if (bytes == null) return@withContext null
-
-                // Extract metadata based on file type
-                val jsonString = if (item.isVideo) {
-                    Mp4MetadataExtractor.extractPromptMetadata(bytes)
-                } else {
-                    PngMetadataExtractor.extractPromptMetadata(bytes)
-                }
-
-                // Parse the workflow JSON
-                jsonString?.let { MetadataParser.parseWorkflowJson(it) }
-            }
-
+            val metadata = fetchMetadataForIndex(index)
             cachedMetadata[index] = metadata
             _currentMetadata.value = metadata
             _isLoadingMetadata.value = false
@@ -446,6 +409,88 @@ class MediaViewerViewModel : ViewModel() {
      */
     private fun clearCurrentMetadata() {
         _currentMetadata.value = null
+    }
+
+    /**
+     * Fetches metadata for a specific item by index.
+     * Handles both images (PNG) and videos (MP4).
+     * Returns null if metadata cannot be extracted.
+     */
+    private suspend fun fetchMetadataForIndex(index: Int): GenerationMetadata? {
+        val state = _uiState.value
+        val item = state.items.getOrNull(index) ?: return null
+        val context = applicationContext ?: return null
+
+        return withContext(Dispatchers.IO) {
+            val bytes: ByteArray? = when {
+                // For SINGLE mode videos, try to read from local file first
+                state.mode == ViewerMode.SINGLE && item.isVideo && state.currentVideoUri != null -> {
+                    try {
+                        context.contentResolver.openInputStream(state.currentVideoUri)?.use {
+                            it.readBytes()
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                // For items with server file info and a client, fetch from server
+                item.filename.isNotEmpty() && comfyUIClient != null -> {
+                    kotlin.coroutines.suspendCoroutine { continuation ->
+                        comfyUIClient!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes ->
+                            continuation.resumeWith(Result.success(rawBytes))
+                        }
+                    }
+                }
+                // No source available
+                else -> null
+            }
+
+            if (bytes == null) return@withContext null
+
+            // Extract metadata based on file type
+            val jsonString = if (item.isVideo) {
+                Mp4MetadataExtractor.extractPromptMetadata(bytes)
+            } else {
+                PngMetadataExtractor.extractPromptMetadata(bytes)
+            }
+
+            // Parse the workflow JSON
+            jsonString?.let { MetadataParser.parseWorkflowJson(it) }
+        }
+    }
+
+    /**
+     * Pre-loads metadata for current and adjacent items in the background.
+     * Called when navigating to have metadata ready before user opens sheet.
+     * Mirrors the same indices as MediaCache.prefetchAround() for consistency.
+     */
+    private fun preloadMetadataForIndices() {
+        val state = _uiState.value
+        if (state.mode != ViewerMode.GALLERY || state.items.isEmpty()) return
+
+        val currentIndex = state.currentIndex
+        val itemCount = state.items.size
+
+        // Same pattern as MediaCache.prefetchAround(): current ±1, ±2
+        val indicesToPreload = listOf(
+            currentIndex,      // Current item (highest priority)
+            currentIndex - 1,  // Adjacent
+            currentIndex + 1,
+            currentIndex - 2,  // Nearby
+            currentIndex + 2
+        ).filter { it in 0 until itemCount }
+         .filter { !cachedMetadata.containsKey(it) }
+
+        indicesToPreload.forEach { idx ->
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val metadata = fetchMetadataForIndex(idx)
+                    cachedMetadata[idx] = metadata
+                } catch (e: Exception) {
+                    // Silently fail - metadata will load on-demand if needed
+                }
+            }
+        }
     }
 
     fun deleteCurrentItem() {
