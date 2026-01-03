@@ -158,6 +158,9 @@ fun NodeAttributeSideSheet(
 
 /**
  * Build list of editable inputs from node data and definition.
+ *
+ * This now iterates over all inputs from the node definition (not just those in the workflow JSON),
+ * ensuring inputs with default values are also shown.
  */
 private fun buildEditableInputs(
     node: WorkflowNode,
@@ -166,42 +169,84 @@ private fun buildEditableInputs(
 ): List<EditableInput> {
     val result = mutableListOf<EditableInput>()
 
-    node.inputs.forEach { (name, value) ->
-        // Skip connections
-        if (value is InputValue.Connection) return@forEach
+    // Get all editable inputs from definition (not just those in node.inputs)
+    val definitionInputs = nodeDefinition?.inputs?.filter { def ->
+        !def.forceInput && isEditableType(def.type)
+    } ?: emptyList()
 
-        // Skip template variables
-        if (value is InputValue.Literal) {
-            val strValue = value.value.toString()
-            if (strValue.contains("{{") && strValue.contains("}}")) return@forEach
-        }
+    // If we have definition inputs, use them as the source of truth
+    if (definitionInputs.isNotEmpty()) {
+        definitionInputs.forEach { definition ->
+            val name = definition.name
+            val nodeValue = node.inputs[name]
 
-        // Get input definition from node type registry
-        val definition = nodeDefinition?.inputs?.find { it.name == name }
+            // Skip if it's a connection in the workflow
+            if (nodeValue is InputValue.Connection) return@forEach
 
-        // Skip force-input fields (must be connected)
-        if (definition?.forceInput == true) return@forEach
+            // Skip template variables
+            if (nodeValue is InputValue.Literal) {
+                val strValue = nodeValue.value.toString()
+                if (strValue.contains("{{") && strValue.contains("}}")) return@forEach
+            }
 
-        // Get original value from workflow
-        val originalValue = when (value) {
-            is InputValue.Literal -> value.value
-            else -> null
-        }
+            // Get value: edit > node value > default
+            val originalValue = when (nodeValue) {
+                is InputValue.Literal -> nodeValue.value
+                else -> definition.default
+            }
+            val currentValue = currentEdits[name] ?: originalValue
 
-        // Get current value (edit if exists, otherwise original)
-        val currentValue = currentEdits[name] ?: originalValue
-
-        result.add(
-            EditableInput(
-                name = name,
-                definition = definition,
-                currentValue = currentValue,
-                originalValue = originalValue
+            result.add(
+                EditableInput(
+                    name = name,
+                    definition = definition,
+                    currentValue = currentValue,
+                    originalValue = originalValue
+                )
             )
-        )
+        }
+    } else {
+        // Fallback: iterate over node.inputs if no definition available
+        node.inputs.forEach { (name, value) ->
+            // Skip connections
+            if (value is InputValue.Connection) return@forEach
+
+            // Skip template variables
+            if (value is InputValue.Literal) {
+                val strValue = value.value.toString()
+                if (strValue.contains("{{") && strValue.contains("}}")) return@forEach
+            }
+
+            // Get original value from workflow
+            val originalValue = when (value) {
+                is InputValue.Literal -> value.value
+                else -> null
+            }
+
+            // Get current value (edit if exists, otherwise original)
+            val currentValue = currentEdits[name] ?: originalValue
+
+            result.add(
+                EditableInput(
+                    name = name,
+                    definition = null,
+                    currentValue = currentValue,
+                    originalValue = originalValue
+                )
+            )
+        }
     }
 
     return result
+}
+
+/**
+ * Check if a type is editable (not a connection type).
+ * Editable types: INT, FLOAT, STRING, BOOLEAN, ENUM
+ * Connection types: MODEL, CLIP, VAE, CONDITIONING, LATENT, IMAGE, MASK, etc.
+ */
+private fun isEditableType(type: String): Boolean {
+    return type in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
 }
 
 /**

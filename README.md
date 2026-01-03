@@ -81,6 +81,9 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Full node graph visualization**: Colored nodes and connections matching ComfyUI's visual style
 - **Node management**:
   - Add nodes via searchable Node Browser with category filter chips
+  - Human-readable display names shown where available (with class type as subtitle)
+  - Deprecated and experimental nodes clearly marked with warning/science icons
+  - Search by display name, class type, category, or description
   - Delete, duplicate, bypass, and rename nodes
   - Cleanup tool to remove disconnected nodes
 - **Connection management**:
@@ -91,6 +94,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Connected slot circles enlarge and color-code when highlighted
 - **Node attribute editing**:
   - Side sheet editor for node parameters (tap nodes to edit)
+  - All editable inputs shown, including those using default values
+  - Full support for both legacy and new ComfyUI COMBO input formats
   - Numeric steppers with floating labels, range hints, and increment/decrement buttons
   - Boolean values displayed as on/off toggles
   - Image previews for image selector fields

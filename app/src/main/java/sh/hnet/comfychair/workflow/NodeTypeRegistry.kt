@@ -19,7 +19,10 @@ data class InputDefinition(
     val step: Number? = null,       // For FLOAT sliders
     val options: List<String>? = null,  // For enum dropdowns
     val multiline: Boolean = false,     // For STRING
-    val forceInput: Boolean = false     // If true, must be connected (not editable)
+    val forceInput: Boolean = false,    // If true, must be connected (not editable)
+    val tooltip: String? = null,        // Help text for the input
+    val round: Number? = null,          // Rounding precision for FLOAT
+    val multiselect: Boolean = false    // For COMBO: allow multiple selections
 )
 
 /**
@@ -30,7 +33,11 @@ data class NodeTypeDefinition(
     val classType: String,
     val category: String,
     val inputs: List<InputDefinition>,
-    val outputs: List<String>
+    val outputs: List<String>,
+    val displayName: String? = null,    // Human-readable name
+    val description: String? = null,    // Node documentation
+    val deprecated: Boolean = false,    // Whether node is deprecated
+    val experimental: Boolean = false   // Whether node is experimental
 )
 
 /**
@@ -98,14 +105,22 @@ class NodeTypeRegistry {
             parseFullInputDefinitions(requiredJson, isRequired = true, inputDefinitions)
             parseFullInputDefinitions(optionalJson, isRequired = false, inputDefinitions)
 
-            // Parse category
+            // Parse node-level metadata
             val category = nodeInfo.optString("category", "")
+            val displayName = (nodeInfo.opt("display_name") as? String)?.takeIf { it.isNotEmpty() }
+            val description = (nodeInfo.opt("description") as? String)?.takeIf { it.isNotEmpty() }
+            val deprecated = nodeInfo.optBoolean("deprecated", false)
+            val experimental = nodeInfo.optBoolean("experimental", false)
 
             nodeDefinitions[classType] = NodeTypeDefinition(
                 classType = classType,
                 category = category,
                 inputs = inputDefinitions,
-                outputs = outputTypes
+                outputs = outputTypes,
+                displayName = displayName,
+                description = description,
+                deprecated = deprecated,
+                experimental = experimental
             )
         }
 
@@ -161,12 +176,44 @@ class NodeTypeRegistry {
 
             when (firstElement) {
                 is String -> {
+                    // Check for new COMBO format: ["COMBO", {"options": [...], "multiselect": bool}]
+                    if (firstElement == "COMBO" && optionsObj != null) {
+                        val optionsArray = optionsObj.optJSONArray("options")
+                        if (optionsArray != null) {
+                            val options = mutableListOf<String>()
+                            for (i in 0 until optionsArray.length()) {
+                                val opt = optionsArray.opt(i)
+                                if (opt is String) {
+                                    options.add(opt)
+                                }
+                            }
+                            val default = optionsObj.opt("default")
+                            val forceInput = optionsObj.optBoolean("forceInput", false)
+                            val tooltip = (optionsObj.opt("tooltip") as? String)?.takeIf { it.isNotEmpty() }
+                            val multiselect = optionsObj.optBoolean("multiselect", false)
+
+                            result.add(
+                                InputDefinition(
+                                    name = inputName,
+                                    type = "ENUM",
+                                    isRequired = isRequired,
+                                    default = default,
+                                    options = options,
+                                    forceInput = forceInput,
+                                    tooltip = tooltip,
+                                    multiselect = multiselect
+                                )
+                            )
+                            continue
+                        }
+                    }
+
                     // Type-based input: ["INT", {...}] or ["FLOAT", {...}] etc.
                     val inputDef = parseTypedInput(inputName, firstElement, optionsObj, isRequired)
                     result.add(inputDef)
                 }
                 is JSONArray -> {
-                    // Enum/dropdown: [["option1", "option2"], {...}]
+                    // Enum/dropdown (old format): [["option1", "option2"], {...}]
                     val options = mutableListOf<String>()
                     for (i in 0 until firstElement.length()) {
                         val opt = firstElement.opt(i)
@@ -176,6 +223,7 @@ class NodeTypeRegistry {
                     }
                     val default = optionsObj?.opt("default")
                     val forceInput = optionsObj?.optBoolean("forceInput", false) ?: false
+                    val tooltip = (optionsObj?.opt("tooltip") as? String)?.takeIf { it.isNotEmpty() }
 
                     result.add(
                         InputDefinition(
@@ -184,7 +232,8 @@ class NodeTypeRegistry {
                             isRequired = isRequired,
                             default = default,
                             options = options,
-                            forceInput = forceInput
+                            forceInput = forceInput,
+                            tooltip = tooltip
                         )
                     )
                 }
@@ -207,6 +256,8 @@ class NodeTypeRegistry {
         val step = options?.opt("step") as? Number
         val multiline = options?.optBoolean("multiline", false) ?: false
         val forceInput = options?.optBoolean("forceInput", false) ?: false
+        val tooltip = (options?.opt("tooltip") as? String)?.takeIf { it.isNotEmpty() }
+        val round = options?.opt("round") as? Number
 
         return InputDefinition(
             name = name,
@@ -217,7 +268,9 @@ class NodeTypeRegistry {
             max = max,
             step = step,
             multiline = multiline,
-            forceInput = forceInput
+            forceInput = forceInput,
+            tooltip = tooltip,
+            round = round
         )
     }
 

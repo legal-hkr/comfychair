@@ -20,7 +20,9 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -152,7 +154,9 @@ fun NodeBrowserBottomSheet(
             result = result.mapValues { (_, nodes) ->
                 nodes.filter { node ->
                     node.classType.lowercase().contains(query) ||
-                    node.category.lowercase().contains(query)
+                    node.category.lowercase().contains(query) ||
+                    node.displayName?.lowercase()?.contains(query) == true ||
+                    node.description?.lowercase()?.contains(query) == true
                 }
             }.filterValues { it.isNotEmpty() }
         }
@@ -302,9 +306,11 @@ fun NodeBrowserBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Flatten and sort all nodes alphabetically
+            // Flatten and sort all nodes alphabetically by display name (or classType)
             val sortedNodes = remember(filteredCategories) {
-                filteredCategories.values.flatten().sortedBy { it.classType.lowercase() }
+                filteredCategories.values.flatten().sortedBy {
+                    (it.displayName ?: it.classType).lowercase()
+                }
             }
 
             if (sortedNodes.isEmpty()) {
@@ -353,11 +359,43 @@ private fun NodeTypeRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
-            Text(
-                text = nodeType.classType,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(
+                    text = nodeType.displayName ?: nodeType.classType,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                // Show deprecated badge (error color - adapts to light/dark)
+                if (nodeType.deprecated) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Deprecated",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+                // Show experimental badge (tertiary color - adapts to light/dark)
+                if (nodeType.experimental) {
+                    Icon(
+                        imageVector = Icons.Default.Science,
+                        contentDescription = "Experimental",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+            // Show classType if different from displayName
+            if (nodeType.displayName != null && nodeType.displayName != nodeType.classType) {
+                Text(
+                    text = nodeType.classType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
             if (nodeType.inputs.isNotEmpty() || nodeType.outputs.isNotEmpty()) {
                 Text(
                     text = stringResource(
