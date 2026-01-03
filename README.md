@@ -1,8 +1,15 @@
-# ComfyChair
+# <img src="metadata/en-US/icon.png" width="42"/> ComfyChair
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
 **Current version**: v0.8.5
+
+[<img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png"
+    alt="Get it on GitHub"
+    height="80">](https://github.com/legal-hkr/comfychair/releases/latest)
+[<img src="https://f-droid.org/badge/get-it-on.png"
+    alt="Get it on F-Droid"
+    height="80">](https://f-droid.org/pl/packages/sh.hnet.comfychair)
 
 ## Overview
 
