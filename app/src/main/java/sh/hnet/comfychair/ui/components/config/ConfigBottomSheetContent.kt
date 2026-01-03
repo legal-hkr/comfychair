@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.LoraChainEditor
 import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
 import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
@@ -50,42 +51,44 @@ fun ConfigBottomSheetContent(
     workflowName: String,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 32.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // 1. Negative Prompt (at top)
-        if (config.prompts.hasNegativePrompt) {
-            NegativePromptSection(config.prompts)
+    NoOverscrollContainer {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // 1. Negative Prompt (at top)
+            if (config.prompts.hasNegativePrompt) {
+                NegativePromptSection(config.prompts)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 2. ITI Reference Images (if applicable)
+            config.itiConfig?.let { itiConfig ->
+                ReferenceImagesSection(itiConfig)
+            }
+
+            // 3. ITI Mode Selector (if applicable)
+            config.itiConfig?.let { itiConfig ->
+                ModeSelector(itiConfig)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 4. Workflow Dropdown
+            WorkflowSection(config.workflow)
             Spacer(modifier = Modifier.height(16.dp))
+
+            // 5. Model Selection Section
+            ModelSelectionSection(config.models)
+
+            // 6. Generation Parameters Section
+            ParametersSection(config.parameters, workflowName)
+
+            // 7. LoRA Section (including single LoRA dropdowns at the bottom)
+            LoraSection(config.lora, config.models)
         }
-
-        // 2. ITI Reference Images (if applicable)
-        config.itiConfig?.let { itiConfig ->
-            ReferenceImagesSection(itiConfig)
-        }
-
-        // 3. ITI Mode Selector (if applicable)
-        config.itiConfig?.let { itiConfig ->
-            ModeSelector(itiConfig)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // 4. Workflow Dropdown
-        WorkflowSection(config.workflow)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 5. Model Selection Section
-        ModelSelectionSection(config.models)
-
-        // 6. Generation Parameters Section
-        ParametersSection(config.parameters, workflowName)
-
-        // 7. LoRA Section (including single LoRA dropdowns at the bottom)
-        LoraSection(config.lora, config.models)
     }
 }
 

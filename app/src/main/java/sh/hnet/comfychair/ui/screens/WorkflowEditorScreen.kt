@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -926,56 +927,58 @@ private fun FieldMappingPanel(
             }
             Spacer(modifier = Modifier.height(4.dp))
 
-            LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
-                // Necessary section
-                if (requiredFields.isNotEmpty()) {
-                    item(key = "section_necessary") {
-                        Text(
-                            text = stringResource(R.string.section_necessary),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+            NoOverscrollContainer {
+                LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
+                    // Necessary section
+                    if (requiredFields.isNotEmpty()) {
+                        item(key = "section_necessary") {
+                            Text(
+                                text = stringResource(R.string.section_necessary),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                        items(
+                            items = requiredFields,
+                            key = { "req_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
+                        ) { fieldMapping ->
+                            FieldMappingRow(
+                                fieldMapping = fieldMapping,
+                                isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
+                                onSelect = {
+                                    val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
+                                    onFieldSelected(newKey)
+                                },
+                                onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
+                            )
+                        }
                     }
-                    items(
-                        items = requiredFields,
-                        key = { "req_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
-                    ) { fieldMapping ->
-                        FieldMappingRow(
-                            fieldMapping = fieldMapping,
-                            isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
-                            onSelect = {
-                                val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
-                                onFieldSelected(newKey)
-                            },
-                            onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
-                        )
-                    }
-                }
 
-                // Optional section
-                if (optionalFields.isNotEmpty()) {
-                    item(key = "section_optional") {
-                        Text(
-                            text = stringResource(R.string.section_optional),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                        )
-                    }
-                    items(
-                        items = optionalFields,
-                        key = { "opt_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
-                    ) { fieldMapping ->
-                        FieldMappingRow(
-                            fieldMapping = fieldMapping,
-                            isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
-                            onSelect = {
-                                val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
-                                onFieldSelected(newKey)
-                            },
-                            onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
-                        )
+                    // Optional section
+                    if (optionalFields.isNotEmpty()) {
+                        item(key = "section_optional") {
+                            Text(
+                                text = stringResource(R.string.section_optional),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(
+                            items = optionalFields,
+                            key = { "opt_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
+                        ) { fieldMapping ->
+                            FieldMappingRow(
+                                fieldMapping = fieldMapping,
+                                isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
+                                onSelect = {
+                                    val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
+                                    onFieldSelected(newKey)
+                                },
+                                onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
+                            )
+                        }
                     }
                 }
             }
@@ -1262,13 +1265,15 @@ private fun MissingNodesDialog(
             Column {
                 Text(stringResource(R.string.missing_nodes_message))
                 Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                    items(missingNodes, key = { it }) { node ->
-                        Text(
-                            text = stringResource(R.string.list_item_bullet, node),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                NoOverscrollContainer {
+                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                        items(missingNodes, key = { it }) { node ->
+                            Text(
+                                text = stringResource(R.string.list_item_bullet, node),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }

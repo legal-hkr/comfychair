@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
@@ -176,17 +177,19 @@ fun LogViewerDialog(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        itemsIndexed(
-                            items = entries,
-                            key = { index, entry -> "${index}_${entry.timestamp}" }
-                        ) { _, entry ->
-                            LogEntryItem(entry)
+                    NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            itemsIndexed(
+                                items = entries,
+                                key = { index, entry -> "${index}_${entry.timestamp}" }
+                            ) { _, entry ->
+                                LogEntryItem(entry)
+                            }
                         }
                     }
                 }

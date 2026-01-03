@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 
 /**
  * Reusable scaffold for settings screens.
@@ -48,12 +49,14 @@ fun SettingsScreenScaffold(
             }
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                .padding(horizontal = horizontalPadding),
-            content = content
-        )
+        NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .padding(horizontal = horizontalPadding),
+                content = content
+            )
+        }
     }
 }

@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -258,14 +259,15 @@ fun GalleryScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             // Always use LazyVerticalGrid for consistent nested scroll behavior with pull-to-refresh
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                state = gridState,
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
+            NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    state = gridState,
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                 if (uiState.isLoading && uiState.items.isEmpty()) {
                     // Loading state - show as full-span item
                     item(span = { GridItemSpan(2) }) {
@@ -323,6 +325,7 @@ fun GalleryScreen(
                             }
                         )
                     }
+                }
                 }
             }
         }

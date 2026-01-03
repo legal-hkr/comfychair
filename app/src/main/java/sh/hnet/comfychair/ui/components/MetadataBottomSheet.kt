@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.CircularProgressIndicator
@@ -106,17 +107,19 @@ fun MetadataBottomSheet(
                 else -> {
                     // Display metadata
                     val items = remember(metadata) { buildMetadataItems(metadata, context) }
-                    LazyColumn {
-                        items(items, key = { "${it.label}_${it.value.hashCode()}" }) { item ->
-                            MetadataRow(
-                                label = item.label,
-                                value = item.value,
-                                onCopy = { copyToClipboard(context, item.value) }
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
+                    NoOverscrollContainer {
+                        LazyColumn {
+                            items(items, key = { "${it.label}_${it.value.hashCode()}" }) { item ->
+                                MetadataRow(
+                                    label = item.label,
+                                    value = item.value,
+                                    onCopy = { copyToClipboard(context, item.value) }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                            }
                         }
                     }
                 }

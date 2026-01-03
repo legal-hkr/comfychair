@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
@@ -215,11 +216,12 @@ fun WorkflowsSettingsScreen(
             }
         } else {
             // Workflow list organized by type
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
+            NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                ) {
                 // Text-to-Image
                 item {
                     WorkflowSection(
@@ -293,6 +295,7 @@ fun WorkflowsSettingsScreen(
                 // Bottom padding
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
+                }
                 }
             }
         }
@@ -735,13 +738,15 @@ private fun MissingNodesDialog(
             Column {
                 Text(stringResource(R.string.missing_nodes_message))
                 Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                    items(missingNodes, key = { it }) { node ->
-                        Text(
-                            text = "- $node",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                NoOverscrollContainer(modifier = Modifier.heightIn(max = 200.dp)) {
+                    LazyColumn {
+                        items(missingNodes, key = { it }) { node ->
+                            Text(
+                                text = "- $node",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }

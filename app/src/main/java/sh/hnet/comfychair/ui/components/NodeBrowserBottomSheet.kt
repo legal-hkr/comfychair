@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 
 /** Split category into hierarchy levels (handles both "/" and "\" separators) */
@@ -313,18 +314,19 @@ fun NodeBrowserBottomSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(
-                        items = sortedNodes,
-                        key = { "node_${it.classType}" }
-                    ) { nodeType ->
-                        NodeTypeRow(
-                            nodeType = nodeType,
-                            onClick = { onNodeTypeSelected(nodeType) }
-                        )
+                NoOverscrollContainer(modifier = Modifier.weight(1f, fill = false)) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(
+                            items = sortedNodes,
+                            key = { "node_${it.classType}" }
+                        ) { nodeType ->
+                            NodeTypeRow(
+                                nodeType = nodeType,
+                                onClick = { onNodeTypeSelected(nodeType) }
+                            )
+                        }
                     }
                 }
             }
@@ -428,44 +430,45 @@ private fun ExpandableFilterChipRow(
         }
     } else {
         // Collapsed mode: horizontal scrolling with expand button first
-        LazyRow(
-            modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Expand button first (FilledTonalIconButton for visual distinction)
-            if (canExpand) {
-                item(key = "expand_chip") {
-                    FilledTonalIconButton(
-                        onClick = { onExpandedChange(true) }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowDown,
-                            contentDescription = null
-                        )
-                    }
-                }
-            }
-            items(
-                items = options,
-                key = { "chip_$it" }
-            ) { option ->
-                val isSelected = option == selectedOption
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        onOptionSelected(if (isSelected) null else option)
-                    },
-                    label = { Text(option) },
-                    leadingIcon = if (isSelected) {
-                        {
+        NoOverscrollContainer(modifier = modifier.fillMaxWidth()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Expand button first (FilledTonalIconButton for visual distinction)
+                if (canExpand) {
+                    item(key = "expand_chip") {
+                        FilledTonalIconButton(
+                            onClick = { onExpandedChange(true) }
+                        ) {
                             Icon(
-                                imageVector = Icons.Filled.Done,
-                                contentDescription = null,
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                imageVector = Icons.Filled.KeyboardArrowDown,
+                                contentDescription = null
                             )
                         }
-                    } else null
-                )
+                    }
+                }
+                items(
+                    items = options,
+                    key = { "chip_$it" }
+                ) { option ->
+                    val isSelected = option == selectedOption
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            onOptionSelected(if (isSelected) null else option)
+                        },
+                        label = { Text(option) },
+                        leadingIcon = if (isSelected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Filled.Done,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                )
+                            }
+                        } else null
+                    )
+                }
             }
         }
     }

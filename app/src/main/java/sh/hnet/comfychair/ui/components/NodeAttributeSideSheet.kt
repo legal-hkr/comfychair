@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -136,16 +137,18 @@ fun NodeAttributeSideSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(editableInputs, key = { it.name }) { input ->
-                        InputEditor(
-                            input = input,
-                            onValueChange = { value -> onEditChange(input.name, value) },
-                            onReset = { onResetToDefault(input.name) },
-                            context = context
-                        )
+                NoOverscrollContainer {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(editableInputs, key = { it.name }) { input ->
+                            InputEditor(
+                                input = input,
+                                onValueChange = { value -> onEditChange(input.name, value) },
+                                onReset = { onResetToDefault(input.name) },
+                                context = context
+                            )
+                        }
                     }
                 }
             }
