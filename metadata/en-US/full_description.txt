@@ -22,6 +22,6 @@ Built for mobile:
 
 Requirements:
 - A running ComfyUI server (local or remote)
-- Android 14 or higher
+- Android 13 or higher
 
 ComfyChair is free, open source (GPL-3.0), and not affiliated with the official ComfyUI project.
