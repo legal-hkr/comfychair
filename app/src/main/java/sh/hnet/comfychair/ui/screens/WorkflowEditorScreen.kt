@@ -852,6 +852,12 @@ private fun WorkflowEditorFloatingToolbar(
 
                     // Confirm mapping button (only in field mapping mode)
                     if (isFieldMappingMode) {
+                        // Divider before confirm button
+                        VerticalDivider(
+                            modifier = Modifier.fillMaxHeight(),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+
                         IconButton(
                             onClick = onConfirmMapping,
                             enabled = canConfirmMapping
