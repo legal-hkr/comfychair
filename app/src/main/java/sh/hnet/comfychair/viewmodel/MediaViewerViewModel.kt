@@ -30,6 +30,8 @@ import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.MetadataParser
 import sh.hnet.comfychair.util.Mp4MetadataExtractor
 import sh.hnet.comfychair.util.PngMetadataExtractor
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import java.io.File
 
 /**
@@ -43,6 +45,7 @@ enum class ViewerMode {
 /**
  * Represents an item in the media viewer
  */
+@Immutable
 data class MediaViewerItem(
     val promptId: String,
     val filename: String,
@@ -97,6 +100,7 @@ data class MediaViewerItem(
  * UI state for the media viewer.
  * Caching is handled by MediaCache singleton - no local cache maps needed.
  */
+@Stable
 data class MediaViewerUiState(
     val mode: ViewerMode = ViewerMode.GALLERY,
     val items: List<MediaViewerItem> = emptyList(),

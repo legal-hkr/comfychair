@@ -37,6 +37,7 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -214,10 +215,12 @@ fun NodeBrowserBottomSheet(
             ) {
                 // Level 1 filter chips
                 // Collapse to only selected chip when level 2 has options (user drilled down)
-                val level1DisplayOptions = if (level2Options.isNotEmpty() && level1Selection != null) {
-                    listOfNotNull(level1Selection)
-                } else {
-                    level1Options
+                val level1DisplayOptions = remember(level1Selection, level2Options, level1Options) {
+                    if (level2Options.isNotEmpty() && level1Selection != null) {
+                        listOfNotNull(level1Selection)
+                    } else {
+                        level1Options
+                    }
                 }
                 if (level1DisplayOptions.isNotEmpty()) {
                     Text(
@@ -243,10 +246,12 @@ fun NodeBrowserBottomSheet(
 
                 // Level 2 filter chips (only show if level 1 selected and options exist)
                 // Collapse to only selected chip when level 3 has options (user drilled down)
-                val level2DisplayOptions = if (level3Options.isNotEmpty() && level2Selection != null) {
-                    listOfNotNull(level2Selection)
-                } else {
-                    level2Options
+                val level2DisplayOptions = remember(level2Selection, level3Options, level2Options) {
+                    if (level3Options.isNotEmpty() && level2Selection != null) {
+                        listOfNotNull(level2Selection)
+                    } else {
+                        level2Options
+                    }
                 }
                 if (level2DisplayOptions.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -400,23 +405,25 @@ private fun ExpandableFilterChipRow(
                 }
             }
             options.forEach { option ->
-                val isSelected = option == selectedOption
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        onOptionSelected(if (isSelected) null else option)
-                    },
-                    label = { Text(option) },
-                    leadingIcon = if (isSelected) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Done,
-                                contentDescription = null,
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
-                            )
-                        }
-                    } else null
-                )
+                key(option) {
+                    val isSelected = option == selectedOption
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            onOptionSelected(if (isSelected) null else option)
+                        },
+                        label = { Text(option) },
+                        leadingIcon = if (isSelected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Filled.Done,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                )
+                            }
+                        } else null
+                    )
+                }
             }
         }
     } else {

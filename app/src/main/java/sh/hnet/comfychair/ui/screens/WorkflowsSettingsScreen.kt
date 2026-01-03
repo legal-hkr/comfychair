@@ -50,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,6 +67,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.WorkflowTypeDisplay
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
@@ -434,20 +436,22 @@ private fun WorkflowSection(
             ) {
                 Column {
                     workflows.forEachIndexed { index, workflow ->
-                        WorkflowListItemContent(
-                            workflow = workflow,
-                            onClick = { onWorkflowClick(workflow) },
-                            onEditStructure = { onEditStructure(workflow) },
-                            onRename = { onRename(workflow) },
-                            onDuplicate = { onDuplicate(workflow) },
-                            onExport = { onExport(workflow) },
-                            onDelete = { onDelete(workflow) }
-                        )
-                        if (index < workflows.size - 1) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant
+                        key(workflow.id) {
+                            WorkflowListItemContent(
+                                workflow = workflow,
+                                onClick = { onWorkflowClick(workflow) },
+                                onEditStructure = { onEditStructure(workflow) },
+                                onRename = { onRename(workflow) },
+                                onDuplicate = { onDuplicate(workflow) },
+                                onExport = { onExport(workflow) },
+                                onDelete = { onDelete(workflow) }
                             )
+                            if (index < workflows.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -619,15 +623,7 @@ private fun ImportWorkflowDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val allTypes = listOf(
-        WorkflowType.TTI to stringResource(R.string.workflow_section_tti),
-        WorkflowType.ITI_INPAINTING to stringResource(R.string.workflow_section_iti_inpainting),
-        WorkflowType.ITI_EDITING to stringResource(R.string.workflow_section_iti_editing),
-        WorkflowType.TTV to stringResource(R.string.workflow_section_ttv),
-        WorkflowType.ITV to stringResource(R.string.workflow_section_itv)
-    )
-
-    val selectedTypeName = allTypes.find { it.first == selectedType }?.second ?: ""
+    val selectedTypeName = selectedType?.let { stringResource(WorkflowTypeDisplay.getDisplayNameResId(it)) } ?: ""
 
     AlertDialog(
         onDismissRequest = { if (!isValidating) onDismiss() },
@@ -658,11 +654,13 @@ private fun ImportWorkflowDialog(
                         expanded = isTypeDropdownExpanded,
                         onDismissRequest = onToggleTypeDropdown
                     ) {
-                        allTypes.forEach { (type, displayName) ->
-                            DropdownMenuItem(
-                                text = { Text(displayName) },
-                                onClick = { onTypeSelected(type) }
-                            )
+                        WorkflowTypeDisplay.allTypes.forEach { (type, displayNameResId) ->
+                            key(type) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(displayNameResId)) },
+                                    onClick = { onTypeSelected(type) }
+                                )
+                            }
                         }
                     }
                 }
@@ -738,7 +736,7 @@ private fun MissingNodesDialog(
                 Text(stringResource(R.string.missing_nodes_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                    items(missingNodes) { node ->
+                    items(missingNodes, key = { it }) { node ->
                         Text(
                             text = "- $node",
                             style = MaterialTheme.typography.bodyMedium,
@@ -769,11 +767,13 @@ private fun MissingFieldsDialog(
                 Text(stringResource(R.string.missing_fields_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 missingFields.forEach { field ->
-                    Text(
-                        text = "- $field",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    key(field) {
+                        Text(
+                            text = "- $field",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         },

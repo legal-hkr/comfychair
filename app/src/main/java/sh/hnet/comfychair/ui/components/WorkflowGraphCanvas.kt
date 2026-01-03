@@ -9,10 +9,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Canvas
@@ -195,29 +191,39 @@ fun WorkflowGraphCanvas(
         easing = FastOutSlowInEasing
     )
 
-    // Pulsing glow animation for valid input sockets in connection mode
-    val glowTransition = rememberInfiniteTransition(label = "glowPulse")
-    val glowPulse by glowTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowPulseValue"
-    )
+    // Pulsing glow animation for valid input sockets - only runs when in connection mode
+    val glowPulse = remember { Animatable(0f) }
+    val inConnectionMode = connectionModeState != null
 
-    // Segment animation for highlighted wires (cycles 0→1 every 1500ms)
-    val segmentTransition = rememberInfiniteTransition(label = "segmentAnimation")
-    val segmentTime by segmentTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "segmentTimeValue"
-    )
+    LaunchedEffect(inConnectionMode) {
+        if (inConnectionMode) {
+            // Run pulsing animation while in connection mode
+            while (true) {
+                glowPulse.animateTo(1f, tween(800, easing = FastOutSlowInEasing))
+                glowPulse.animateTo(0f, tween(800, easing = FastOutSlowInEasing))
+            }
+        } else {
+            // Reset when exiting connection mode
+            glowPulse.snapTo(0f)
+        }
+    }
+
+    // Segment animation for highlighted wires - only runs when nodes are selected
+    val segmentTime = remember { Animatable(0f) }
+    val hasSelectedNodes = selectedNodeIds.isNotEmpty()
+
+    LaunchedEffect(hasSelectedNodes) {
+        if (hasSelectedNodes) {
+            // Run segment animation while nodes are selected
+            while (true) {
+                segmentTime.animateTo(1f, tween(1500, easing = LinearEasing))
+                segmentTime.snapTo(0f)
+            }
+        } else {
+            // Reset when no nodes selected
+            segmentTime.snapTo(0f)
+        }
+    }
 
     // Animate node positions when graph changes
     LaunchedEffect(graph.nodes) {
@@ -409,7 +415,7 @@ fun WorkflowGraphCanvas(
                     nodes = animatedNodes,
                     colors = colors,
                     selectedNodeIds = selectedNodeIds,
-                    segmentTime = segmentTime
+                    segmentTime = segmentTime.value
                 )
             }
 
@@ -422,9 +428,6 @@ fun WorkflowGraphCanvas(
                     (nodeColors as MutableMap)[edge.targetInputName] = wireColor.toArgb()
                 }
             }
-
-            // Check if we're in connection mode
-            val inConnectionMode = connectionModeState != null
 
             // Draw nodes at animated positions
             animatedNodes.forEach { node ->
@@ -472,8 +475,6 @@ fun WorkflowGraphCanvas(
 
             // Draw slot circles for connection editing
             if (isEditMode) {
-                val inConnectionMode = connectionModeState != null
-
                 // Build a set of outputs connected to selected nodes
                 val outputsConnectedToSelected: Set<Pair<String, Int>> = buildSet {
                     graph.edges.forEach { edge ->
@@ -582,13 +583,14 @@ fun WorkflowGraphCanvas(
 
                 // Draw highlighted valid input slots when in connection mode
                 if (inConnectionMode) {
+                    val glowValue = glowPulse.value
                     connectionModeState?.validInputSlots?.forEach { slot ->
                         // Draw pulsing glow effect around the input slot
-                        // glowPulse ranges from 0 to 1, animating the glow intensity
-                        val baseAlpha = 0.2f + (glowPulse * 0.4f)  // Alpha pulses between 0.2 and 0.6
+                        // glowValue ranges from 0 to 1, animating the glow intensity
+                        val baseAlpha = 0.2f + (glowValue * 0.4f)  // Alpha pulses between 0.2 and 0.6
 
                         // Outer glow layer (largest, most transparent) - scaled to match 14f socket
-                        val outerGlowRadius = 33f + (glowPulse * 9f)  // Radius pulses between 33 and 42
+                        val outerGlowRadius = 33f + (glowValue * 9f)  // Radius pulses between 33 and 42
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.3f),
                             radius = outerGlowRadius,
@@ -596,7 +598,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Middle glow layer
-                        val midGlowRadius = 23f + (glowPulse * 5f)  // Radius pulses between 23 and 28
+                        val midGlowRadius = 23f + (glowValue * 5f)  // Radius pulses between 23 and 28
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.5f),
                             radius = midGlowRadius,
@@ -604,7 +606,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Inner glow layer (smallest, most opaque)
-                        val innerGlowRadius = 16f + (glowPulse * 2f)  // Radius pulses between 16 and 18
+                        val innerGlowRadius = 16f + (glowValue * 2f)  // Radius pulses between 16 and 18
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.7f),
                             radius = innerGlowRadius,
@@ -615,7 +617,7 @@ fun WorkflowGraphCanvas(
                         // Pulse the socket color for brightness effect (towards white in dark mode, black in light mode)
                         // Size matches highlighted output circle (14f)
                         val pulseTargetColor = if (colors.isDarkTheme) Color.White else Color.Black
-                        val socketColor = lerp(colors.candidateBorder, pulseTargetColor, glowPulse * 0.5f)
+                        val socketColor = lerp(colors.candidateBorder, pulseTargetColor, glowValue * 0.5f)
                         drawCircle(
                             color = socketColor,
                             radius = 14f,

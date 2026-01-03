@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -89,15 +90,17 @@ fun LoraChainEditor(
         } else {
             // LoRA entries
             loraChain.forEachIndexed { index, lora ->
-                Spacer(modifier = Modifier.height(8.dp))
-                LoraEntryItem(
-                    index = index,
-                    lora = lora,
-                    availableLoras = availableLoras,
-                    onNameChange = { name -> onLoraNameChange(index, name) },
-                    onStrengthChange = { strength -> onLoraStrengthChange(index, strength) },
-                    onRemove = { onRemoveLora(index) }
-                )
+                key(lora.name, index) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LoraEntryItem(
+                        index = index,
+                        lora = lora,
+                        availableLoras = availableLoras,
+                        onNameChange = { name -> onLoraNameChange(index, name) },
+                        onStrengthChange = { strength -> onLoraStrengthChange(index, strength) },
+                        onRemove = { onRemoveLora(index) }
+                    )
+                }
             }
         }
     }

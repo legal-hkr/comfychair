@@ -18,6 +18,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -161,18 +162,20 @@ private fun WorkflowSection(workflow: WorkflowConfig) {
 @Composable
 private fun ModelSelectionSection(models: ModelConfig) {
     // Note: Single LoRA dropdowns (highnoiseLora, lownoiseLora) are rendered in LoraSection
-    val visibleModels = listOfNotNull(
-        models.checkpoint?.takeIf { it.isVisible },
-        models.unet?.takeIf { it.isVisible },
-        models.highnoiseUnet?.takeIf { it.isVisible },
-        models.lownoiseUnet?.takeIf { it.isVisible },
-        models.vae?.takeIf { it.isVisible },
-        models.clip?.takeIf { it.isVisible },
-        models.clip1?.takeIf { it.isVisible },
-        models.clip2?.takeIf { it.isVisible },
-        models.clip3?.takeIf { it.isVisible },
-        models.clip4?.takeIf { it.isVisible }
-    )
+    val visibleModels = remember(models) {
+        listOfNotNull(
+            models.checkpoint?.takeIf { it.isVisible },
+            models.unet?.takeIf { it.isVisible },
+            models.highnoiseUnet?.takeIf { it.isVisible },
+            models.lownoiseUnet?.takeIf { it.isVisible },
+            models.vae?.takeIf { it.isVisible },
+            models.clip?.takeIf { it.isVisible },
+            models.clip1?.takeIf { it.isVisible },
+            models.clip2?.takeIf { it.isVisible },
+            models.clip3?.takeIf { it.isVisible },
+            models.clip4?.takeIf { it.isVisible }
+        )
+    }
 
     if (visibleModels.isEmpty()) return
 
@@ -209,23 +212,25 @@ private fun RenderModelField(field: ModelField) {
 
 @Composable
 private fun ParametersSection(params: ParameterConfig, workflowName: String) {
-    val hasAnyParams = listOfNotNull(
-        params.width?.takeIf { it.isVisible },
-        params.height?.takeIf { it.isVisible },
-        params.megapixels?.takeIf { it.isVisible },
-        params.steps?.takeIf { it.isVisible },
-        params.cfg?.takeIf { it.isVisible },
-        params.length?.takeIf { it.isVisible },
-        params.fps?.takeIf { it.isVisible },
-        params.sampler?.takeIf { it.isVisible },
-        params.scheduler?.takeIf { it.isVisible },
-        params.seed?.takeIf { it.isVisible },
-        params.denoise?.takeIf { it.isVisible },
-        params.batchSize?.takeIf { it.isVisible },
-        params.upscaleMethod?.takeIf { it.isVisible },
-        params.scaleBy?.takeIf { it.isVisible },
-        params.stopAtClipLayer?.takeIf { it.isVisible }
-    ).isNotEmpty()
+    val hasAnyParams = remember(params) {
+        listOfNotNull(
+            params.width?.takeIf { it.isVisible },
+            params.height?.takeIf { it.isVisible },
+            params.megapixels?.takeIf { it.isVisible },
+            params.steps?.takeIf { it.isVisible },
+            params.cfg?.takeIf { it.isVisible },
+            params.length?.takeIf { it.isVisible },
+            params.fps?.takeIf { it.isVisible },
+            params.sampler?.takeIf { it.isVisible },
+            params.scheduler?.takeIf { it.isVisible },
+            params.seed?.takeIf { it.isVisible },
+            params.denoise?.takeIf { it.isVisible },
+            params.batchSize?.takeIf { it.isVisible },
+            params.upscaleMethod?.takeIf { it.isVisible },
+            params.scaleBy?.takeIf { it.isVisible },
+            params.stopAtClipLayer?.takeIf { it.isVisible }
+        ).isNotEmpty()
+    }
 
     if (!hasAnyParams) return
 

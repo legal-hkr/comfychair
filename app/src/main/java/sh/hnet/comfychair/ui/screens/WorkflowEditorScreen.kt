@@ -79,6 +79,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -97,6 +98,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowType
+import sh.hnet.comfychair.WorkflowTypeDisplay
 import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
@@ -126,6 +128,9 @@ fun WorkflowEditorScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var renameDialogText by remember { mutableStateOf("") }
     var renamingNodeId by remember { mutableStateOf<String?>(null) }
+
+    // Node browser bottom sheet state (hoisted outside conditional for animation stability)
+    val nodeBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Box(
         modifier = Modifier
@@ -510,15 +515,14 @@ fun WorkflowEditorScreen(
 
         // Node browser bottom sheet
         if (uiState.showNodeBrowser) {
-            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
 
             NodeBrowserBottomSheet(
                 nodeTypesByCategory = viewModel.getNodeTypesByCategory(),
-                sheetState = sheetState,
+                sheetState = nodeBrowserSheetState,
                 onNodeTypeSelected = { nodeType ->
                     scope.launch {
-                        sheetState.hide()
+                        nodeBrowserSheetState.hide()
                     }.invokeOnCompletion {
                         viewModel.addNode(nodeType)
                     }
@@ -1146,15 +1150,7 @@ private fun SaveNewWorkflowDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val allTypes = listOf(
-        WorkflowType.TTI to stringResource(R.string.workflow_section_tti),
-        WorkflowType.ITI_INPAINTING to stringResource(R.string.workflow_section_iti_inpainting),
-        WorkflowType.ITI_EDITING to stringResource(R.string.workflow_section_iti_editing),
-        WorkflowType.TTV to stringResource(R.string.workflow_section_ttv),
-        WorkflowType.ITV to stringResource(R.string.workflow_section_itv)
-    )
-
-    val selectedTypeName = allTypes.find { it.first == selectedType }?.second ?: ""
+    val selectedTypeName = selectedType?.let { stringResource(WorkflowTypeDisplay.getDisplayNameResId(it)) } ?: ""
 
     AlertDialog(
         onDismissRequest = { if (!isValidating) onDismiss() },
@@ -1185,11 +1181,13 @@ private fun SaveNewWorkflowDialog(
                         expanded = isTypeDropdownExpanded,
                         onDismissRequest = onToggleTypeDropdown
                     ) {
-                        allTypes.forEach { (type, displayName) ->
-                            DropdownMenuItem(
-                                text = { Text(displayName) },
-                                onClick = { onTypeSelected(type) }
-                            )
+                        WorkflowTypeDisplay.allTypes.forEach { (type, displayNameResId) ->
+                            key(type) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(displayNameResId)) },
+                                    onClick = { onTypeSelected(type) }
+                                )
+                            }
                         }
                     }
                 }
@@ -1265,7 +1263,7 @@ private fun MissingNodesDialog(
                 Text(stringResource(R.string.missing_nodes_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                    items(missingNodes) { node ->
+                    items(missingNodes, key = { it }) { node ->
                         Text(
                             text = stringResource(R.string.list_item_bullet, node),
                             style = MaterialTheme.typography.bodyMedium,
@@ -1296,11 +1294,13 @@ private fun MissingFieldsDialog(
                 Text(stringResource(R.string.missing_fields_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 missingFields.forEach { field ->
-                    Text(
-                        text = stringResource(R.string.list_item_bullet, field),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    key(field) {
+                        Text(
+                            text = stringResource(R.string.list_item_bullet, field),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         },

@@ -28,6 +28,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -104,9 +105,9 @@ fun MetadataBottomSheet(
                 }
                 else -> {
                     // Display metadata
-                    val items = buildMetadataItems(metadata, context)
+                    val items = remember(metadata) { buildMetadataItems(metadata, context) }
                     LazyColumn {
-                        items(items) { item ->
+                        items(items, key = { "${it.label}_${it.value.hashCode()}" }) { item ->
                             MetadataRow(
                                 label = item.label,
                                 value = item.value,

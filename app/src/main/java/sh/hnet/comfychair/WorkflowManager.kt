@@ -33,6 +33,31 @@ enum class WorkflowType {
 }
 
 /**
+ * Display utilities for WorkflowType in Compose UI.
+ * Provides stable list of types with their string resource IDs.
+ */
+object WorkflowTypeDisplay {
+    /**
+     * All workflow types with their display name string resource IDs.
+     * Use this instead of creating lists inline to avoid recomposition.
+     */
+    val allTypes: List<Pair<WorkflowType, Int>> = listOf(
+        WorkflowType.TTI to R.string.workflow_section_tti,
+        WorkflowType.ITI_INPAINTING to R.string.workflow_section_iti_inpainting,
+        WorkflowType.ITI_EDITING to R.string.workflow_section_iti_editing,
+        WorkflowType.TTV to R.string.workflow_section_ttv,
+        WorkflowType.ITV to R.string.workflow_section_itv
+    )
+
+    /**
+     * Get the display name string resource ID for a workflow type.
+     */
+    fun getDisplayNameResId(type: WorkflowType): Int {
+        return allTypes.first { it.first == type }.second
+    }
+}
+
+/**
  * Result of workflow validation
  */
 sealed class WorkflowValidationResult {

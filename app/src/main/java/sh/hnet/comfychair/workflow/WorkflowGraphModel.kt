@@ -1,11 +1,14 @@
 package sh.hnet.comfychair.workflow
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.geometry.Offset
 import sh.hnet.comfychair.WorkflowType
 
 /**
  * Represents a single node in the workflow graph
  */
+@Stable
 data class WorkflowNode(
     val id: String,
     val classType: String,
@@ -32,15 +35,19 @@ data class WorkflowNode(
  * Input value can be a literal value or a connection to another node
  */
 sealed class InputValue {
+    @Immutable
     data class Literal(val value: Any) : InputValue()
+    @Immutable
     data class Connection(val sourceNodeId: String, val outputIndex: Int) : InputValue()
     /** Unconnected connection slot - will be converted to Connection when wired up */
+    @Immutable
     data class UnconnectedSlot(val slotType: String) : InputValue()
 }
 
 /**
  * Represents a connection/edge between nodes
  */
+@Immutable
 data class WorkflowEdge(
     val sourceNodeId: String,
     val sourceOutputIndex: Int,
@@ -66,6 +73,7 @@ enum class NodeCategory {
 /**
  * Complete parsed workflow graph
  */
+@Stable
 data class WorkflowGraph(
     val name: String,
     val description: String,
@@ -113,6 +121,7 @@ data class MutableWorkflowGraph(
 /**
  * Represents a slot (input or output) position on a node for connection editing
  */
+@Immutable
 data class SlotPosition(
     val nodeId: String,
     val slotName: String,
@@ -126,6 +135,7 @@ data class SlotPosition(
  * State for tap-based connection mode.
  * When active, tapping an output highlights valid inputs, then tapping an input creates the connection.
  */
+@Stable
 data class ConnectionModeState(
     val sourceOutputSlot: SlotPosition,
     val validInputSlots: List<SlotPosition>
@@ -134,6 +144,7 @@ data class ConnectionModeState(
 /**
  * UI state for the workflow editor
  */
+@Stable
 data class WorkflowEditorUiState(
     val graph: WorkflowGraph? = null,
     val workflowName: String = "",
@@ -215,6 +226,7 @@ enum class DiscardAction {
 /**
  * Bounds of the graph for proper centering and zoom calculations
  */
+@Immutable
 data class GraphBounds(
     val minX: Float = 0f,
     val minY: Float = 0f,

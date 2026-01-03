@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import androidx.compose.runtime.Stable
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
@@ -7,6 +8,7 @@ import sh.hnet.comfychair.util.DebugLogger
 /**
  * Full definition of a node input from /object_info
  */
+@Stable
 data class InputDefinition(
     val name: String,
     val type: String,               // "INT", "FLOAT", "STRING", "BOOLEAN", or connection type
@@ -23,6 +25,7 @@ data class InputDefinition(
 /**
  * Full definition of a node type from /object_info
  */
+@Stable
 data class NodeTypeDefinition(
     val classType: String,
     val category: String,

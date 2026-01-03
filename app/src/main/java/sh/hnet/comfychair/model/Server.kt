@@ -1,11 +1,13 @@
 package sh.hnet.comfychair.model
 
+import androidx.compose.runtime.Immutable
 import org.json.JSONObject
 import sh.hnet.comfychair.util.UuidUtils
 
 /**
  * Represents a ComfyUI server configuration.
  */
+@Immutable
 data class Server(
     val id: String,
     val name: String,

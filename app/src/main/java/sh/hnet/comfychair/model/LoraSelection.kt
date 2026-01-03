@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.model
 
+import androidx.compose.runtime.Immutable
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -7,6 +8,7 @@ import org.json.JSONObject
  * Represents a single LoRA selection with name and strength.
  * Used in LoRA chain configurations across all workflow types.
  */
+@Immutable
 data class LoraSelection(
     val name: String,
     val strength: Float = DEFAULT_STRENGTH

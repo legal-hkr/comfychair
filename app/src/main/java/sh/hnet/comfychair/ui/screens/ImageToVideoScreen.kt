@@ -509,8 +509,11 @@ fun ImageToVideoScreen(
                     onLownoiseLoraStrengthChange = imageToVideoViewModel::onLownoiseLoraChainStrengthChange
                 )
             }
+            val bottomSheetConfig = remember(uiState, callbacks) {
+                uiState.toBottomSheetConfig(callbacks)
+            }
             ConfigBottomSheetContent(
-                config = uiState.toBottomSheetConfig(callbacks),
+                config = bottomSheetConfig,
                 workflowName = uiState.selectedWorkflow
             )
         }

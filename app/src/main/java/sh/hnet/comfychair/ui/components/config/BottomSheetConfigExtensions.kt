@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components.config
 
+import androidx.compose.runtime.Stable
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.viewmodel.ImageToImageUiState
@@ -11,6 +12,7 @@ import sh.hnet.comfychair.viewmodel.TextToVideoUiState
  * Callback interfaces for each screen type.
  * These group all the callbacks needed by the ConfigBottomSheet.
  */
+@Stable
 data class TextToImageCallbacks(
     val onWorkflowChange: (String) -> Unit,
     val onViewWorkflow: () -> Unit,
@@ -43,6 +45,7 @@ data class TextToImageCallbacks(
     val onLoraStrengthChange: (Int, Float) -> Unit
 )
 
+@Stable
 data class TextToVideoCallbacks(
     val onWorkflowChange: (String) -> Unit,
     val onViewWorkflow: () -> Unit,
@@ -79,6 +82,7 @@ data class TextToVideoCallbacks(
     val onLownoiseLoraStrengthChange: (Int, Float) -> Unit
 )
 
+@Stable
 data class ImageToVideoCallbacks(
     val onWorkflowChange: (String) -> Unit,
     val onViewWorkflow: () -> Unit,
@@ -115,6 +119,7 @@ data class ImageToVideoCallbacks(
     val onLownoiseLoraStrengthChange: (Int, Float) -> Unit
 )
 
+@Stable
 data class ImageToImageCallbacks(
     // Mode switching
     val onModeChange: (sh.hnet.comfychair.viewmodel.ImageToImageMode) -> Unit,

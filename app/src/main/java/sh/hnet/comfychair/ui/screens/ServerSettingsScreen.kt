@@ -22,6 +22,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -207,12 +208,14 @@ fun ServerSettingsScreen(
                 // GPU Cards
                 if (stats.gpus.isNotEmpty()) {
                     stats.gpus.forEachIndexed { index, gpu ->
-                        Spacer(modifier = Modifier.height(16.dp))
-                        GpuUsageCard(
-                            gpu = gpu,
-                            index = index,
-                            showIndex = stats.gpus.size > 1
-                        )
+                        key(gpu.name, index) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            GpuUsageCard(
+                                gpu = gpu,
+                                index = index,
+                                showIndex = stats.gpus.size > 1
+                            )
+                        }
                     }
                 }
             }

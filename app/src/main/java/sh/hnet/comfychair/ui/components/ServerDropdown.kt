@@ -10,6 +10,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,14 +64,16 @@ fun ServerDropdown(
             onDismissRequest = { expanded = false }
         ) {
             servers.forEach { server ->
-                DropdownMenuItem(
-                    text = { Text(server.name) },
-                    onClick = {
-                        onServerSelected(server)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                )
+                key(server.id) {
+                    DropdownMenuItem(
+                        text = { Text(server.name) },
+                        onClick = {
+                            onServerSelected(server)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                }
             }
         }
     }

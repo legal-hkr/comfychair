@@ -138,6 +138,7 @@ fun TextToImageScreen(
 
     // UI composition
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
+    val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -343,11 +344,9 @@ fun TextToImageScreen(
 
     // Options Bottom Sheet
     if (showOptionsBottomSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
         ModalBottomSheet(
             onDismissRequest = { showOptionsBottomSheet = false },
-            sheetState = sheetState,
+            sheetState = optionsSheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             val callbacks = remember(textToImageViewModel) {
@@ -391,8 +390,11 @@ fun TextToImageScreen(
                     onLoraStrengthChange = textToImageViewModel::onLoraStrengthChange
                 )
             }
+            val bottomSheetConfig = remember(uiState, callbacks) {
+                uiState.toBottomSheetConfig(callbacks)
+            }
             ConfigBottomSheetContent(
-                config = uiState.toBottomSheetConfig(callbacks),
+                config = bottomSheetConfig,
                 workflowName = uiState.selectedWorkflow
             )
         }

@@ -41,7 +41,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,6 +74,7 @@ import sh.hnet.comfychair.workflow.WorkflowNode
 /**
  * Represents an editable input for the side sheet.
  */
+@Stable
 data class EditableInput(
     val name: String,
     val definition: InputDefinition?,
@@ -213,7 +216,9 @@ private fun InputEditor(
     val showReset = input.currentValue != input.originalValue
 
     // Check for options from definition or fall back to field-name-based defaults
-    val effectiveOptions = definition?.options ?: getDefaultOptionsForField(input.name)
+    val effectiveOptions = remember(definition, input.name) {
+        definition?.options ?: getDefaultOptionsForField(input.name)
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -296,18 +301,22 @@ private fun InputEditor(
 
         // Reset button inline (only show if value differs from original)
         if (showReset) {
+            val errorColor = MaterialTheme.colorScheme.error
+            val resetBorderStroke = remember(errorColor) {
+                BorderStroke(1.dp, errorColor)
+            }
             OutlinedIconButton(
                 onClick = onReset,
                 modifier = Modifier
                     .padding(top = 8.dp)
                     .size(56.dp),
                 shape = CircleShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                border = resetBorderStroke
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = stringResource(R.string.node_editor_reset),
-                    tint = MaterialTheme.colorScheme.error
+                    tint = errorColor
                 )
             }
         }
@@ -372,13 +381,15 @@ private fun EnumEditor(
             onDismissRequest = { expanded = false }
         ) {
             options.forEach { option ->
-                DropdownMenuItem(
-                    text = { ModelPathText(option) },
-                    onClick = {
-                        onValueChange(option)
-                        expanded = false
-                    }
-                )
+                key(option) {
+                    DropdownMenuItem(
+                        text = { ModelPathText(option) },
+                        onClick = {
+                            onValueChange(option)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -574,13 +585,15 @@ private fun ImageEnumEditor(
                 onDismissRequest = { expanded = false }
             ) {
                 options.forEach { option ->
-                    DropdownMenuItem(
-                        text = { ModelPathText(option) },
-                        onClick = {
-                            onValueChange(option)
-                            expanded = false
-                        }
-                    )
+                    key(option) {
+                        DropdownMenuItem(
+                            text = { ModelPathText(option) },
+                            onClick = {
+                                onValueChange(option)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }

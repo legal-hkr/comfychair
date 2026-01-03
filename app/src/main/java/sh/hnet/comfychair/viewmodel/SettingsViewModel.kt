@@ -30,10 +30,13 @@ import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 
 /**
  * UI state for server settings screen
  */
+@Stable
 data class ServerSettingsUiState(
     val hostname: String = "",
     val port: Int = 8188,
@@ -46,6 +49,7 @@ data class ServerSettingsUiState(
 /**
  * Parsed system stats from ComfyUI server
  */
+@Stable
 data class SystemStats(
     val os: String,
     val comfyuiVersion: String,
@@ -56,6 +60,7 @@ data class SystemStats(
     val gpus: List<GpuInfo>
 )
 
+@Immutable
 data class GpuInfo(
     val name: String,
     val vramTotalGB: Double,

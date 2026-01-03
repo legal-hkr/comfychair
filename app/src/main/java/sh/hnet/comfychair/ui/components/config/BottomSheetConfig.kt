@@ -2,6 +2,7 @@ package sh.hnet.comfychair.ui.components.config
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.runtime.Stable
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
@@ -10,6 +11,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageMode
  * Unified configuration for the ConfigBottomSheetContent composable.
  * All fields are optional with visibility controlled by has* flags.
  */
+@Stable
 data class BottomSheetConfig(
     val workflow: WorkflowConfig,
     val prompts: PromptConfig,
@@ -22,6 +24,7 @@ data class BottomSheetConfig(
 /**
  * Workflow dropdown configuration
  */
+@Stable
 data class WorkflowConfig(
     val selectedWorkflow: String,
     val availableWorkflows: List<WorkflowItemBase>,
@@ -32,6 +35,7 @@ data class WorkflowConfig(
 /**
  * Prompt fields configuration
  */
+@Stable
 data class PromptConfig(
     val negativePrompt: String,
     val onNegativePromptChange: (String) -> Unit,
@@ -41,6 +45,7 @@ data class PromptConfig(
 /**
  * ITI-specific configuration (mode selector and reference images)
  */
+@Stable
 data class ItiConfig(
     val mode: ImageToImageMode,
     val onModeChange: (ImageToImageMode) -> Unit,
@@ -57,6 +62,7 @@ data class ItiConfig(
 /**
  * Model selection configuration - all optional with visibility flags
  */
+@Stable
 data class ModelConfig(
     val checkpoint: ModelField? = null,
     val unet: ModelField? = null,
@@ -75,6 +81,7 @@ data class ModelConfig(
 /**
  * Single model field configuration
  */
+@Stable
 data class ModelField(
     val label: Int,
     val selectedValue: String,
@@ -87,6 +94,7 @@ data class ModelField(
 /**
  * Generation parameter configuration
  */
+@Stable
 data class ParameterConfig(
     val width: NumericField? = null,
     val height: NumericField? = null,
@@ -108,6 +116,7 @@ data class ParameterConfig(
 /**
  * Seed field configuration with toggle and randomize controls
  */
+@Stable
 data class SeedConfig(
     val randomSeed: Boolean,
     val onRandomSeedToggle: () -> Unit,
@@ -121,6 +130,7 @@ data class SeedConfig(
 /**
  * Numeric input field configuration
  */
+@Stable
 data class NumericField(
     val value: String,
     val onValueChange: (String) -> Unit,
@@ -131,6 +141,7 @@ data class NumericField(
 /**
  * Dropdown field configuration (for sampler/scheduler)
  */
+@Stable
 data class DropdownField(
     val selectedValue: String,
     val options: List<String>,
@@ -141,6 +152,7 @@ data class DropdownField(
 /**
  * LoRA chain configuration
  */
+@Stable
 data class LoraConfig(
     val primaryChain: LoraChainField? = null,
     val loraName: ModelField? = null,  // Mandatory LoRA dropdown (from lora_name placeholder)
@@ -151,6 +163,7 @@ data class LoraConfig(
 /**
  * LoRA chain editor configuration
  */
+@Stable
 data class LoraChainField(
     val title: Int,
     val chain: List<LoraSelection>,
