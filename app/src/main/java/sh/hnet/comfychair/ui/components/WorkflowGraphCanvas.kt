@@ -892,9 +892,13 @@ private fun DrawScope.drawNode(
                 val toggleBottom = toggleTop + toggleHeight
                 val toggleRadius = toggleHeight / 2
 
-                // Draw track (on: selectedBorder/primary, off: nodeBorder/outline)
+                // Draw track (edited: blended red, on: selectedBorder/primary, off: nodeBorder/outline)
                 val trackPaint = Paint().apply {
-                    color = if (currentValue) colors.selectedBorder.toArgb() else colors.nodeBorder.toArgb()
+                    color = when {
+                        isEdited -> blendColors(textPrimaryArgb, editedColorArgb, 0.5f)
+                        currentValue -> colors.selectedBorder.toArgb()
+                        else -> colors.nodeBorder.toArgb()
+                    }
                     isAntiAlias = true
                 }
                 val trackRect = android.graphics.RectF(toggleLeft, toggleTop, toggleRight, toggleBottom)

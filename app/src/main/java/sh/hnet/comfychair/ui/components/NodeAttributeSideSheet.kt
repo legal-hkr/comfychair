@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -300,6 +301,7 @@ private fun InputEditor(
                     BooleanEditor(
                         label = input.name,
                         value = (input.currentValue as? Boolean) ?: false,
+                        isModified = showReset,
                         onValueChange = { onValueChange(it) }
                     )
                 }
@@ -348,29 +350,33 @@ private fun InputEditor(
         }
 
         // Reset button inline (always visible, enabled only if value differs from original)
-        val isModified = showReset
-        val buttonColor = if (isModified) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.outlineVariant
-        }
-        val resetBorderStroke = remember(buttonColor) {
-            BorderStroke(1.dp, buttonColor)
-        }
-        OutlinedIconButton(
-            onClick = onReset,
-            enabled = isModified,
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .size(56.dp),
-            shape = CircleShape,
-            border = resetBorderStroke
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = stringResource(R.string.node_editor_reset),
-                tint = buttonColor
-            )
+        // Skip for boolean types - they use switch color to indicate modification
+        val isBoolean = type == "BOOLEAN" || input.currentValue is Boolean
+        if (!isBoolean) {
+            val isModified = showReset
+            val buttonColor = if (isModified) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            }
+            val resetBorderStroke = remember(buttonColor) {
+                BorderStroke(1.dp, buttonColor)
+            }
+            OutlinedIconButton(
+                onClick = onReset,
+                enabled = isModified,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .size(56.dp),
+                shape = CircleShape,
+                border = resetBorderStroke
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.node_editor_reset),
+                    tint = buttonColor
+                )
+            }
         }
     }
 }
@@ -449,13 +455,26 @@ private fun EnumEditor(
 
 /**
  * Editor for boolean values.
+ * When modified from default, the switch uses error colors to indicate the change.
  */
 @Composable
 private fun BooleanEditor(
     label: String,
     value: Boolean,
+    isModified: Boolean,
     onValueChange: (Boolean) -> Unit
 ) {
+    val switchColors = if (isModified) {
+        SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.onError,
+            checkedTrackColor = MaterialTheme.colorScheme.error,
+            uncheckedThumbColor = MaterialTheme.colorScheme.error,
+            uncheckedTrackColor = MaterialTheme.colorScheme.errorContainer
+        )
+    } else {
+        SwitchDefaults.colors()
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -469,7 +488,8 @@ private fun BooleanEditor(
         )
         Switch(
             checked = value,
-            onCheckedChange = onValueChange
+            onCheckedChange = onValueChange,
+            colors = switchColors
         )
     }
 }
