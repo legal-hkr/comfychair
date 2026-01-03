@@ -347,26 +347,30 @@ private fun InputEditor(
             }
         }
 
-        // Reset button inline (only show if value differs from original)
-        if (showReset) {
-            val errorColor = MaterialTheme.colorScheme.error
-            val resetBorderStroke = remember(errorColor) {
-                BorderStroke(1.dp, errorColor)
-            }
-            OutlinedIconButton(
-                onClick = onReset,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .size(56.dp),
-                shape = CircleShape,
-                border = resetBorderStroke
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.node_editor_reset),
-                    tint = errorColor
-                )
-            }
+        // Reset button inline (always visible, enabled only if value differs from original)
+        val isModified = showReset
+        val buttonColor = if (isModified) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        }
+        val resetBorderStroke = remember(buttonColor) {
+            BorderStroke(1.dp, buttonColor)
+        }
+        OutlinedIconButton(
+            onClick = onReset,
+            enabled = isModified,
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .size(56.dp),
+            shape = CircleShape,
+            border = resetBorderStroke
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = stringResource(R.string.node_editor_reset),
+                tint = buttonColor
+            )
         }
     }
 }
@@ -417,7 +421,7 @@ private fun EnumEditor(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
-            label = { Text(label) },
+            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -459,7 +463,9 @@ private fun BooleanEditor(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
         Switch(
             checked = value,
@@ -570,7 +576,7 @@ private fun StringEditor(
             textValue = newValue
             onValueChange(newValue)
         },
-        label = { Text(label) },
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         isError = error != null,
         supportingText = if (error != null) {
             { Text(error) }
@@ -621,7 +627,7 @@ private fun ImageEnumEditor(
                 value = value,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text(label) },
+                label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .fillMaxWidth()

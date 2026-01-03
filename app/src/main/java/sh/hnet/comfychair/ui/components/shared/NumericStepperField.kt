@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import java.util.Locale
@@ -56,7 +57,7 @@ fun NumericStepperField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
         keyboardOptions = KeyboardOptions(
             keyboardType = if (decimalPlaces > 0) KeyboardType.Decimal else KeyboardType.Number
