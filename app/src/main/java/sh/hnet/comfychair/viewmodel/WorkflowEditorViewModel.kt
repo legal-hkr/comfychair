@@ -1178,17 +1178,11 @@ class WorkflowEditorViewModel : ViewModel() {
         // Text input keys to look for in text encoding nodes
         val textInputKeys = listOf("text", "prompt")
 
-        // Find all text encoding nodes with text/prompt input
+        // Find all nodes with text/prompt input (classType-agnostic for custom node support)
         data class TextEncoderNode(val node: WorkflowNode, val inputKey: String)
         val textEncoderNodes = graph.nodes.mapNotNull { node ->
             val matchingInputKey = textInputKeys.firstOrNull { node.inputs.containsKey(it) }
-            if (matchingInputKey != null) {
-                // Only include known text encoding node types
-                val isTextEncoder = node.classType == "CLIPTextEncode" ||
-                        node.classType.contains("TextEncode", ignoreCase = true) ||
-                        node.classType.contains("Prompt", ignoreCase = true)
-                if (isTextEncoder) TextEncoderNode(node, matchingInputKey) else null
-            } else null
+            if (matchingInputKey != null) TextEncoderNode(node, matchingInputKey) else null
         }
 
         // For each text encoder, trace its output to find if it connects to positive or negative
