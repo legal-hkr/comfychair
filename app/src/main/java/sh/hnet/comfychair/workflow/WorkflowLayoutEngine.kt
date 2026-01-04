@@ -120,6 +120,7 @@ class WorkflowLayoutEngine {
     /**
      * Compute internal layout for nodes within a group.
      * Positions are relative to group origin (0,0).
+     * Uses grid layout with preference for horizontal arrangement.
      * Optimizes for external connections: inputs on left, outputs on right.
      */
     private fun computeGroupInternalLayout(
@@ -148,7 +149,7 @@ class WorkflowLayoutEngine {
             }
         }
 
-        // Sort members: external inputs first, then middle, then external outputs
+        // Sort members: external inputs first (leftmost), then middle, then external outputs (rightmost)
         val sortedMembers = memberNodes.sortedWith { a, b ->
             val aHasInput = a.id in nodesWithExternalInputs
             val aHasOutput = a.id in nodesWithExternalOutputs
@@ -156,40 +157,55 @@ class WorkflowLayoutEngine {
             val bHasOutput = b.id in nodesWithExternalOutputs
 
             when {
-                aHasInput && !bHasInput -> -1
-                !aHasInput && bHasInput -> 1
-                aHasOutput && !bHasOutput -> 1
-                !aHasOutput && bHasOutput -> -1
+                // Nodes with only inputs go first (leftmost columns)
+                aHasInput && !aHasOutput && !(bHasInput && !bHasOutput) -> -1
+                bHasInput && !bHasOutput && !(aHasInput && !aHasOutput) -> 1
+                // Nodes with only outputs go last (rightmost columns)
+                aHasOutput && !aHasInput && !(bHasOutput && !bHasInput) -> 1
+                bHasOutput && !bHasInput && !(aHasOutput && !aHasInput) -> -1
                 else -> 0
             }
         }
 
-        // Position nodes vertically within the group
+        // Calculate grid dimensions: prefer vertical (more rows than columns) for portrait screens
+        val nodeCount = sortedMembers.size
+        val rows = kotlin.math.ceil(kotlin.math.sqrt(nodeCount.toDouble())).toInt().coerceAtLeast(1)
+        val columns = kotlin.math.ceil(nodeCount.toDouble() / rows).toInt().coerceAtLeast(1)
+
+        // Calculate height for each node
+        val nodeHeights = sortedMembers.map { calculateNodeHeight(it) }
+
+        // Calculate row heights (max height of nodes in each row)
+        val rowHeights = (0 until rows).map { row ->
+            val startIdx = row * columns
+            val endIdx = minOf(startIdx + columns, nodeCount)
+            (startIdx until endIdx).maxOfOrNull { nodeHeights[it] } ?: NODE_MIN_HEIGHT
+        }
+
+        // Position nodes in grid pattern
         // Nodes start at (0,0) relative to virtual node position - this keeps them
         // aligned with ungrouped nodes. The group background will extend outward.
         val memberPositions = mutableMapOf<String, RelativePosition>()
-        var currentY = 0f
 
-        for (node in sortedMembers) {
-            val height = calculateNodeHeight(node)
+        sortedMembers.forEachIndexed { index, node ->
+            val col = index % columns
+            val row = index / columns
+
+            val x = col * (NODE_WIDTH + HORIZONTAL_SPACING)
+            val y = (0 until row).sumOf { rowHeights[it].toDouble() + VERTICAL_SPACING }.toFloat()
+            val height = nodeHeights[index]
+
             memberPositions[node.id] = RelativePosition(
-                x = 0f,
-                y = currentY,
+                x = x,
+                y = y,
                 width = NODE_WIDTH,
                 height = height
             )
-            currentY += height + VERTICAL_SPACING
         }
 
-        // Remove trailing spacing
-        if (sortedMembers.isNotEmpty()) {
-            currentY -= VERTICAL_SPACING
-        }
-
-        // Virtual node size = just the nodes, no padding
-        // The group background (rendered separately) will extend outward with padding
-        val totalWidth = NODE_WIDTH
-        val totalHeight = currentY
+        // Calculate total dimensions
+        val totalWidth = columns * NODE_WIDTH + (columns - 1) * HORIZONTAL_SPACING
+        val totalHeight = rowHeights.sum() + (rows - 1) * VERTICAL_SPACING
 
         return GroupInternalLayout(
             groupId = groupId,
@@ -512,7 +528,9 @@ class WorkflowLayoutEngine {
         // Group layers into rows
         val rows = layers.chunked(columnsPerRow)
 
-        // First pass: calculate the height of each row (max height of all layers in that row)
+        // First pass: calculate dimensions for each row
+        // - Row height = max of layer heights in that row
+        // - Column widths = max node width in each layer/column
         val rowHeights = rows.map { rowLayers ->
             rowLayers.maxOfOrNull { layer ->
                 var layerHeight = 0f
@@ -527,12 +545,23 @@ class WorkflowLayoutEngine {
             } ?: 0f
         }
 
+        // Calculate column widths for each row (max width of nodes in each layer)
+        val rowColumnWidths = rows.map { rowLayers ->
+            rowLayers.map { layer ->
+                layer.maxOfOrNull { node ->
+                    if (node.width > 0) node.width else NODE_WIDTH
+                } ?: NODE_WIDTH
+            }
+        }
+
         // Second pass: position nodes in serpentine pattern
         var currentRowY = NODE_PADDING
 
         rows.forEachIndexed { rowIndex, rowLayers ->
+            val columnWidths = rowColumnWidths[rowIndex]
+            var currentX = NODE_PADDING
+
             rowLayers.forEachIndexed { columnIndex, layer ->
-                val columnX = NODE_PADDING + columnIndex * (NODE_WIDTH + HORIZONTAL_SPACING)
                 var currentY = currentRowY
 
                 for (node in layer) {
@@ -542,7 +571,7 @@ class WorkflowLayoutEngine {
                     val width = if (node.width > 0) node.width else NODE_WIDTH
 
                     updatedNodes[nodeIndex] = node.copy(
-                        x = columnX,
+                        x = currentX,
                         y = currentY,
                         width = width,
                         height = height
@@ -550,6 +579,9 @@ class WorkflowLayoutEngine {
 
                     currentY += height + VERTICAL_SPACING
                 }
+
+                // Move to next column using actual column width
+                currentX += columnWidths[columnIndex] + HORIZONTAL_SPACING
             }
 
             // Move to next row

@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.util
 
 import androidx.compose.ui.geometry.Offset
+import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowNode
@@ -27,6 +28,9 @@ object GraphMutationUtils {
     /**
      * Duplicate a set of nodes within the graph.
      * Internal edges between the selected nodes are also duplicated.
+     *
+     * Note: Duplicated nodes are NOT added to any group, even if the original
+     * nodes were grouped. This is intentional - duplicates are independent copies.
      *
      * @param graph The mutable graph to modify
      * @param nodeIds IDs of nodes to duplicate
@@ -109,6 +113,7 @@ object GraphMutationUtils {
 
     /**
      * Delete nodes and their connected edges from the graph.
+     * Also removes nodes from any groups they belong to.
      *
      * @param graph The mutable graph to modify
      * @param nodeIds IDs of nodes to delete
@@ -119,6 +124,11 @@ object GraphMutationUtils {
         nodeIds: Set<String>
     ): Boolean {
         if (nodeIds.isEmpty()) return false
+
+        // IMPORTANT: Remove nodes from groups BEFORE deleting them
+        // This ensures groups don't reference non-existent nodes
+        // Groups with < 2 members after removal will be dissolved
+        GroupManager.removeNodesFromGroups(graph, nodeIds)
 
         val nodesRemoved = graph.nodes.removeAll { it.id in nodeIds }
 
