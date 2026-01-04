@@ -277,6 +277,7 @@ fun WorkflowEditorScreen(
                             isEditMode = uiState.isEditMode,
                             selectedNodeIds = uiState.selectedNodeIds,
                             connectionModeState = uiState.connectionModeState,
+                            nodeDefinitions = uiState.nodeDefinitions,
                             onNodeTapped = { nodeId ->
                                 when {
                                     uiState.isFieldMappingMode -> {

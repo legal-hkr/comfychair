@@ -70,6 +70,7 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.WorkflowNode
 
@@ -190,10 +191,15 @@ private fun buildEditableInputs(
                 if (strValue.contains("{{") && strValue.contains("}}")) return@forEach
             }
 
-            // Get value: edit > node value > default
-            val originalValue = when (nodeValue) {
+            // Get value: edit > node value > default (normalize empty to default)
+            val rawValue = when (nodeValue) {
                 is InputValue.Literal -> nodeValue.value
-                else -> definition.default
+                else -> null
+            }
+            val originalValue = if (rawValue == null || rawValue == "") {
+                definition.getEffectiveDefault()
+            } else {
+                rawValue
             }
             val currentValue = currentEdits[name] ?: originalValue
 

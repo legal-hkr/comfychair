@@ -28,6 +28,7 @@ import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
@@ -1712,6 +1713,36 @@ class WorkflowEditorViewModel : ViewModel() {
             true
         }.keys
 
+        // Pre-populate edits for empty values with their effective defaults
+        val currentEdits = state.nodeAttributeEdits.toMutableMap()
+        val nodeEdits = currentEdits[node.id]?.toMutableMap() ?: mutableMapOf()
+        var editsAdded = false
+
+        editableInputNames.forEach { inputName ->
+            // Skip if already has an edit
+            if (nodeEdits.containsKey(inputName)) return@forEach
+
+            val inputValue = node.inputs[inputName]
+            val rawValue = (inputValue as? InputValue.Literal)?.value
+
+            // If value is null or empty string, set to effective default
+            if (rawValue == null || rawValue == "") {
+                val inputDefinition = nodeDefinition?.inputs?.find { it.name == inputName }
+                val defaultValue = inputDefinition?.getEffectiveDefault()
+                if (defaultValue != null) {
+                    nodeEdits[inputName] = defaultValue
+                    editsAdded = true
+                }
+            }
+        }
+
+        val updatedEdits = if (editsAdded) {
+            currentEdits[node.id] = nodeEdits
+            currentEdits
+        } else {
+            state.nodeAttributeEdits
+        }
+
         _uiState.value = state.copy(
             isEditingNode = true,
             selectedNodeForEditing = node,
@@ -1719,7 +1750,8 @@ class WorkflowEditorViewModel : ViewModel() {
             savedScaleBeforeEditing = savedScale,
             savedOffsetBeforeEditing = savedOffset,
             scale = newScale,
-            offset = Offset(newOffsetX, newOffsetY)
+            offset = Offset(newOffsetX, newOffsetY),
+            nodeAttributeEdits = updatedEdits
         )
     }
 
@@ -1766,15 +1798,33 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     fun resetNodeAttribute(nodeId: String, inputName: String) {
         val state = _uiState.value
+        val graph = state.graph ?: return
         val currentEdits = state.nodeAttributeEdits.toMutableMap()
 
-        val nodeEdits = currentEdits[nodeId]?.toMutableMap() ?: return
-        nodeEdits.remove(inputName)
+        // Find the node to get its class type
+        val node = graph.nodes.find { it.id == nodeId } ?: return
 
-        if (nodeEdits.isEmpty()) {
-            currentEdits.remove(nodeId)
-        } else {
+        // Get the node definition to find the effective default
+        val nodeDefinition = state.nodeDefinitions[node.classType]
+        val inputDefinition = nodeDefinition?.inputs?.find { it.name == inputName }
+
+        // Get the effective default value
+        val defaultValue = inputDefinition?.getEffectiveDefault()
+
+        val nodeEdits = currentEdits[nodeId]?.toMutableMap() ?: mutableMapOf()
+
+        if (defaultValue != null) {
+            // Set the edit to the default value (so canvas shows default, not empty)
+            nodeEdits[inputName] = defaultValue
             currentEdits[nodeId] = nodeEdits
+        } else {
+            // Fallback: remove the edit if no default available
+            nodeEdits.remove(inputName)
+            if (nodeEdits.isEmpty()) {
+                currentEdits.remove(nodeId)
+            } else {
+                currentEdits[nodeId] = nodeEdits
+            }
         }
 
         _uiState.value = state.copy(nodeAttributeEdits = currentEdits)
@@ -2271,15 +2321,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
             if (!isConnectionType && !inputDef.forceInput) {
                 // Literal input: add with default value
-                val defaultValue = inputDef.default ?: when (inputDef.type) {
-                    "INT" -> 0
-                    "FLOAT" -> 0.0
-                    "STRING" -> ""
-                    "BOOLEAN" -> false
-                    "ENUM" -> inputDef.options?.firstOrNull() ?: ""
-                    else -> ""
-                }
-                inputs[inputDef.name] = InputValue.Literal(defaultValue)
+                inputs[inputDef.name] = InputValue.Literal(inputDef.getEffectiveDefault())
             }
         }
 

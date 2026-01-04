@@ -50,6 +50,8 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeCategory
+import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.SlotColors
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.SlotPosition
@@ -117,6 +119,7 @@ fun WorkflowGraphCanvas(
     isEditMode: Boolean = false,
     selectedNodeIds: Set<String> = emptySet(),
     connectionModeState: ConnectionModeState? = null,
+    nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap(),
     onNodeTapped: ((String) -> Unit)? = null,
     onTapOutsideNodes: (() -> Unit)? = null,
     onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
@@ -464,6 +467,7 @@ fun WorkflowGraphCanvas(
                     highlightState = highlightState,
                     colorPair = colorPair,
                     nodeEdits = nodeEdits,
+                    nodeDefinition = nodeDefinitions[node.classType],
                     editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
                     uiFieldPrefix = uiFieldPrefix,
                     displayNameResolver = displayNameResolver,
@@ -644,6 +648,7 @@ private fun DrawScope.drawNode(
     highlightState: NodeHighlightState = NodeHighlightState.NONE,
     colorPair: SlotColors.NodeColorPair? = null,
     nodeEdits: Map<String, Any> = emptyMap(),
+    nodeDefinition: NodeTypeDefinition? = null,
     editableInputNames: Set<String> = emptySet(),
     uiFieldPrefix: String = "UI: %1\$s",
     displayNameResolver: (String) -> String = { it },
@@ -818,17 +823,25 @@ private fun DrawScope.drawNode(
             val isConnectionInput = value is InputValue.Connection || value is InputValue.UnconnectedSlot
 
             // Get the original value (only for Literal inputs)
-            val originalValue = when (value) {
+            val rawOriginalValue = when (value) {
                 is InputValue.Literal -> value.value
                 is InputValue.Connection -> null
                 is InputValue.UnconnectedSlot -> null
+            }
+
+            // Normalize original value: if empty, use effective default from definition
+            val inputDefinition = nodeDefinition?.inputs?.find { it.name == name }
+            val originalValue = if (rawOriginalValue == null || rawOriginalValue == "") {
+                inputDefinition?.getEffectiveDefault()
+            } else {
+                rawOriginalValue
             }
 
             // Get the current value - use edit if available, otherwise original
             val editedValue = nodeEdits[name]
             val currentValue = editedValue ?: originalValue
 
-            // Check if this value has been edited AND is different from original
+            // Check if this value has been edited AND is different from (normalized) original
             val isEdited = editedValue != null && editedValue != originalValue
 
             // Only show value string for literal inputs (not connection-type)

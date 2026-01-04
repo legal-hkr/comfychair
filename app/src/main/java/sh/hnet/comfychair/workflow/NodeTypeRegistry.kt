@@ -26,6 +26,22 @@ data class InputDefinition(
 )
 
 /**
+ * Get the effective default value for this input definition.
+ * Returns the server-provided default if available, otherwise returns
+ * a type-appropriate fallback value.
+ */
+fun InputDefinition.getEffectiveDefault(): Any {
+    return default ?: when (type) {
+        "INT" -> 0
+        "FLOAT" -> 0.0
+        "STRING" -> ""
+        "BOOLEAN" -> false
+        "ENUM" -> options?.firstOrNull() ?: ""
+        else -> ""
+    }
+}
+
+/**
  * Full definition of a node type from /object_info
  */
 @Stable
