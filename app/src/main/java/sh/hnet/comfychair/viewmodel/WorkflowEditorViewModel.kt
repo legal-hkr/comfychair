@@ -1127,6 +1127,9 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Find candidates for a field in the graph.
+     * Uses two detection strategies:
+     * 1. Input-key-based: Look for nodes with matching input key names (fast path)
+     * 2. Output-type-based: For "image" field, look for nodes with IMAGE output + ENUM inputs (fallback)
      */
     private fun findCandidatesForFieldInGraph(
         fieldKey: String,
@@ -1138,7 +1141,7 @@ class WorkflowEditorViewModel : ViewModel() {
             return promptMappings[fieldKey] ?: emptyList()
         }
 
-        // Find nodes that have this input key
+        // Strategy 1: Find nodes that have matching input key names
         val directCandidates = mutableListOf<FieldCandidate>()
 
         for (node in graph.nodes) {
@@ -1163,30 +1166,81 @@ class WorkflowEditorViewModel : ViewModel() {
                 }
             }
         }
+
+        // Strategy 2 (fallback): For "image" field, find nodes with IMAGE output + ENUM inputs
+        // This works regardless of input key language (Chinese, etc.)
+        if (directCandidates.isEmpty() && fieldKey == "image") {
+            for (node in graph.nodes) {
+                if ("IMAGE" in node.outputs) {
+                    val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
+                    definition?.inputs
+                        ?.filter { it.type == "ENUM" && node.inputs.containsKey(it.name) }
+                        ?.forEach { inputDef ->
+                            val inputValue = node.inputs[inputDef.name]
+                            val currentValue = when (inputValue) {
+                                is InputValue.Literal -> inputValue.value
+                                else -> null
+                            }
+                            directCandidates.add(
+                                FieldCandidate(
+                                    nodeId = node.id,
+                                    nodeName = node.title,
+                                    classType = node.classType,
+                                    inputKey = inputDef.name,
+                                    currentValue = currentValue
+                                )
+                            )
+                        }
+                }
+            }
+        }
+
         return directCandidates
     }
 
     /**
      * Create field mappings for positive_text and negative_text using graph tracing.
-     * Traces text encoding nodes to find which connects to "positive" vs "negative" sampler inputs.
-     * Supports CLIPTextEncode (with "text" input) and other encoders like TextEncodeQwenImageEditPlus (with "prompt" input).
+     * Uses two detection strategies:
+     * 1. Input-key-based: Look for nodes with "text" or "prompt" inputs (fast path)
+     * 2. Output-type-based: Look for nodes with CONDITIONING output + STRING inputs (fallback for custom nodes)
      */
     private fun createPromptFieldMappingsFromGraph(graph: WorkflowGraph): Map<String, List<FieldCandidate>> {
         val positiveTextCandidates = mutableListOf<FieldCandidate>()
         val negativeTextCandidates = mutableListOf<FieldCandidate>()
 
-        // Text input keys to look for in text encoding nodes
+        // Text input keys to look for (common English names)
         val textInputKeys = listOf("text", "prompt")
 
-        // Find all nodes with text/prompt input (classType-agnostic for custom node support)
+        // Strategy 1: Find nodes with known text/prompt input keys
         data class TextEncoderNode(val node: WorkflowNode, val inputKey: String)
         val textEncoderNodes = graph.nodes.mapNotNull { node ->
             val matchingInputKey = textInputKeys.firstOrNull { node.inputs.containsKey(it) }
             if (matchingInputKey != null) TextEncoderNode(node, matchingInputKey) else null
         }
 
+        // Strategy 2 (fallback): Find nodes with CONDITIONING output + STRING inputs
+        // This works regardless of input key language (Chinese, etc.)
+        val outputBasedNodes = if (textEncoderNodes.isEmpty()) {
+            graph.nodes.flatMap { node ->
+                if ("CONDITIONING" in node.outputs) {
+                    val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
+                    definition?.inputs
+                        ?.filter { it.type == "STRING" && node.inputs.containsKey(it.name) }
+                        ?.map { inputDef -> TextEncoderNode(node, inputDef.name) }
+                        ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            }
+        } else {
+            emptyList()
+        }
+
+        // Combine both strategies
+        val allTextEncoderNodes = textEncoderNodes + outputBasedNodes
+
         // For each text encoder, trace its output to find if it connects to positive or negative
-        for ((node, inputKey) in textEncoderNodes) {
+        for ((node, inputKey) in allTextEncoderNodes) {
             val textInput = node.inputs[inputKey]
             val currentValue = when (textInput) {
                 is InputValue.Literal -> textInput.value
@@ -1202,7 +1256,7 @@ class WorkflowEditorViewModel : ViewModel() {
             )
 
             // Determine if this node connects to positive or negative input
-            val connectionType = traceClipTextEncodeConnection(graph, node.id)
+            val connectionType = traceConditioningConnection(graph, node.id)
 
             when (connectionType) {
                 "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
@@ -1230,56 +1284,23 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Trace a CLIPTextEncode node's output to find what type of connection it has.
+     * Trace a conditioning node's output to find what type of connection it has.
      * Uses WorkflowGraph.edges to trace connections.
      * Returns "positive", "negative", or null if no connection found.
+     *
+     * This is classType-agnostic: it simply checks if the target input name
+     * indicates positive or negative conditioning, regardless of the target node type.
      */
-    private fun traceClipTextEncodeConnection(graph: WorkflowGraph, clipNodeId: String): String? {
-        // Find edges originating from this CLIPTextEncode node
-        val outgoingEdges = graph.edges.filter { it.sourceNodeId == clipNodeId }
+    private fun traceConditioningConnection(graph: WorkflowGraph, conditioningNodeId: String): String? {
+        // Find edges originating from this conditioning node
+        val outgoingEdges = graph.edges.filter { it.sourceNodeId == conditioningNodeId }
 
         for (edge in outgoingEdges) {
-            val targetNode = graph.nodes.find { it.id == edge.targetNodeId } ?: continue
-            val targetClassType = targetNode.classType
-
-            // Check KSampler and KSamplerAdvanced nodes
-            if (targetClassType == "KSampler" || targetClassType == "KSamplerAdvanced") {
-                when (edge.targetInputName) {
-                    "positive" -> return "positive"
-                    "negative" -> return "negative"
-                }
-            }
-
-            // For video workflows, check conditioning nodes
-            if (targetClassType.contains("ImageToVideo", ignoreCase = true) ||
-                targetClassType.contains("TextToVideo", ignoreCase = true)) {
-                when (edge.targetInputName) {
-                    "positive" -> return "positive"
-                    "negative" -> return "negative"
-                }
-            }
-
-            // Check BasicGuider nodes (Flux-style single conditioning)
-            if (targetClassType == "BasicGuider") {
-                if (edge.targetInputName == "conditioning") {
-                    return "positive"  // BasicGuider only has positive conditioning
-                }
-            }
-
-            // Check CFGGuider nodes
-            if (targetClassType == "CFGGuider") {
-                when (edge.targetInputName) {
-                    "positive" -> return "positive"
-                    "negative" -> return "negative"
-                }
-            }
-
-            // Check SamplerCustom and SamplerCustomAdvanced
-            if (targetClassType.startsWith("SamplerCustom")) {
-                when (edge.targetInputName) {
-                    "positive" -> return "positive"
-                    "negative" -> return "negative"
-                }
+            // Check target input name - works for any node type (KSampler, custom samplers, etc.)
+            when (edge.targetInputName.lowercase()) {
+                "positive" -> return "positive"
+                "negative" -> return "negative"
+                "conditioning" -> return "positive"  // Single conditioning input (like BasicGuider)
             }
         }
 
