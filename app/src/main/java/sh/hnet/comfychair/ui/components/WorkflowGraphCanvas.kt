@@ -842,7 +842,7 @@ private fun DrawScope.drawNode(
             val currentValue = editedValue ?: originalValue
 
             // Check if this value has been edited AND is different from (normalized) original
-            val isEdited = editedValue != null && editedValue != originalValue
+            val isEdited = editedValue != null && !valuesEqual(editedValue, originalValue, inputDefinition?.type)
 
             // Only show value string for literal inputs (not connection-type)
             val valueStr = if (!isConnectionInput) {
@@ -1338,6 +1338,45 @@ private fun formatInputValue(
         is Number -> value.toString()
         is Boolean -> value.toString()
         else -> value.toString().take(20)
+    }
+}
+
+/**
+ * Compare two values for equality, handling numeric type mismatches.
+ * For example, 8.0 (Double) and 8 (Int) should be considered equal.
+ */
+private fun valuesEqual(a: Any?, b: Any?, type: String?): Boolean {
+    if (a == b) return true
+    if (a == null || b == null) return false
+
+    return when (type) {
+        "INT" -> {
+            val aInt = when (a) {
+                is Number -> a.toInt()
+                is String -> a.toIntOrNull()
+                else -> null
+            }
+            val bInt = when (b) {
+                is Number -> b.toInt()
+                is String -> b.toIntOrNull()
+                else -> null
+            }
+            aInt != null && bInt != null && aInt == bInt
+        }
+        "FLOAT" -> {
+            val aFloat = when (a) {
+                is Number -> a.toDouble()
+                is String -> a.toDoubleOrNull()
+                else -> null
+            }
+            val bFloat = when (b) {
+                is Number -> b.toDouble()
+                is String -> b.toDoubleOrNull()
+                else -> null
+            }
+            aFloat != null && bFloat != null && aFloat == bFloat
+        }
+        else -> a == b
     }
 }
 
