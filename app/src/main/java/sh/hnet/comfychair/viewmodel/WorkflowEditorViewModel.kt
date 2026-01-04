@@ -20,25 +20,28 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.FieldMappingAnalyzer
+import sh.hnet.comfychair.util.GraphMutationUtils
+import sh.hnet.comfychair.util.GraphViewportCalculator
+import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.DiscardAction
-import sh.hnet.comfychair.workflow.FieldCandidate
-import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
+import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
-import sh.hnet.comfychair.workflow.RequiredField
 import sh.hnet.comfychair.workflow.SlotPosition
-import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
 import sh.hnet.comfychair.workflow.WorkflowGraph
+import sh.hnet.comfychair.workflow.WorkflowGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
@@ -90,6 +93,7 @@ class WorkflowEditorViewModel : ViewModel() {
     // Mutable graph for editing operations
     private var mutableGraph: MutableWorkflowGraph? = null
     private var nodeIdCounter: Int = 0
+    private var groupIdCounter: Int = 0
 
     // Original graph before editing (for discard/restore)
     private var originalGraph: WorkflowGraph? = null
@@ -268,6 +272,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
             mutableGraph = MutableWorkflowGraph.fromImmutable(emptyGraph)
             nodeIdCounter = 1
+            groupIdCounter = 1
 
             _uiState.value = _uiState.value.copy(
                 graph = emptyGraph,
@@ -326,6 +331,7 @@ class WorkflowEditorViewModel : ViewModel() {
                 // Initialize mutable graph for editing
                 mutableGraph = MutableWorkflowGraph.fromImmutable(graph)
                 nodeIdCounter = graph.nodes.mapNotNull { it.id.toIntOrNull() }.maxOrNull()?.plus(1) ?: 1
+                groupIdCounter = graph.groups.maxOfOrNull { it.id }?.plus(1) ?: 1
 
                 _uiState.value = _uiState.value.copy(
                     graph = graph,
@@ -760,45 +766,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Detect workflow type by analyzing nodes in the graph.
      */
     private fun detectWorkflowTypeFromGraph(graph: WorkflowGraph): WorkflowType? {
-        val classTypes = graph.nodes.map { it.classType }.toSet()
-
-        val hasVideoNodes = classTypes.any { classType ->
-            classType.contains("CreateVideo", ignoreCase = true) ||
-            classType.contains("VHS_VideoCombine", ignoreCase = true) ||
-            classType.contains("VideoLinearCFGGuidance", ignoreCase = true)
-        }
-
-        val hasLoadImage = classTypes.any { it.equals("LoadImage", ignoreCase = true) }
-        val hasInpaintingNodes = classTypes.any {
-            it.contains("SetLatentNoiseMask", ignoreCase = true) ||
-            it.contains("Inpaint", ignoreCase = true)
-        }
-        val hasImageEditingNodes = classTypes.any {
-            it.contains("QwenImageEdit", ignoreCase = true)
-        }
-        val hasCheckpointLoader = classTypes.any { it.equals("CheckpointLoaderSimple", ignoreCase = true) }
-        val hasUNETLoader = classTypes.any { it.equals("UNETLoader", ignoreCase = true) }
-
-        return when {
-            // Image-to-video: has both LoadImage and video nodes
-            hasLoadImage && hasVideoNodes -> WorkflowType.ITV
-
-            // Text-to-video: has video nodes but no LoadImage
-            hasVideoNodes -> WorkflowType.TTV
-
-            // Image-to-image editing (uses QwenImageEdit-style nodes)
-            hasImageEditingNodes -> WorkflowType.ITI_EDITING
-
-            // Image-to-image inpainting (with mask nodes or LoadImage)
-            hasInpaintingNodes -> WorkflowType.ITI_INPAINTING
-            hasLoadImage -> WorkflowType.ITI_INPAINTING
-
-            // Text-to-image (no LoadImage, no video nodes)
-            hasCheckpointLoader || hasUNETLoader -> WorkflowType.TTI
-
-            // Default fallback
-            else -> null
-        }
+        return WorkflowJsonAnalyzer.detectWorkflowTypeFromGraph(graph)
     }
 
     // Data to hold pending save information
@@ -886,7 +854,9 @@ class WorkflowEditorViewModel : ViewModel() {
 
                 DebugLogger.d(TAG, "proceedWithSave: Server has ${availableNodes.size} node types")
 
-                val workflowClassTypes = graph.nodes.map { it.classType }.toSet()
+                val workflowClassTypes = graph.nodes
+                    .map { it.classType }
+                    .toSet()
                 val missingNodes = workflowClassTypes.filter { it !in availableNodes }
 
                 if (missingNodes.isNotEmpty()) {
@@ -989,7 +959,9 @@ class WorkflowEditorViewModel : ViewModel() {
 
                 DebugLogger.d(TAG, "proceedWithEditExistingSave: Server has ${availableNodes.size} node types")
 
-                val workflowClassTypes = graph.nodes.map { it.classType }.toSet()
+                val workflowClassTypes = graph.nodes
+                    .map { it.classType }
+                    .toSet()
                 val missingNodes = workflowClassTypes.filter { it !in availableNodes }
 
                 if (missingNodes.isNotEmpty()) {
@@ -1044,267 +1016,14 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Create field mapping state by analyzing graph nodes.
+     * Delegates to FieldMappingAnalyzer utility.
      */
     private fun createFieldMappingStateFromGraph(
         context: Context,
         graph: WorkflowGraph,
         type: WorkflowType
     ): WorkflowMappingState {
-        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Creating mappings for type=$type")
-
-        // Get strictly required keys for this workflow type
-        val strictlyRequiredKeys = TemplateKeyRegistry.getRequiredKeysForType(type)
-        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Strictly required keys: $strictlyRequiredKeys")
-
-        // Get optional keys, adjusted for workflow structure (DualCLIPLoader, BasicGuider)
-        val optionalKeys = getOptionalKeysFromGraph(type, graph)
-        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Optional keys: $optionalKeys")
-
-        // Pre-compute prompt field mappings using graph tracing
-        val promptMappings = createPromptFieldMappingsFromGraph(graph)
-        DebugLogger.d(TAG, "createFieldMappingStateFromGraph: Prompt mappings - positive=${promptMappings["positive_text"]?.size ?: 0}, negative=${promptMappings["negative_text"]?.size ?: 0}")
-
-        val fieldMappings = mutableListOf<FieldMappingState>()
-
-        // Process strictly required keys (isRequired = true)
-        for (fieldKey in strictlyRequiredKeys) {
-            val candidates = findCandidatesForFieldInGraph(fieldKey, graph, promptMappings)
-            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired = true)
-
-            fieldMappings.add(
-                FieldMappingState(
-                    field = requiredField,
-                    candidates = candidates,
-                    // Auto-select when exactly one candidate (unambiguous mapping)
-                    // Otherwise require explicit selection
-                    selectedCandidateIndex = if (candidates.size == 1) 0 else -1
-                )
-            )
-        }
-
-        // Process optional keys (isRequired = false)
-        for (fieldKey in optionalKeys) {
-            val candidates = findCandidatesForFieldInGraph(fieldKey, graph, promptMappings)
-            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired = false)
-
-            fieldMappings.add(
-                FieldMappingState(
-                    field = requiredField,
-                    candidates = candidates,
-                    // Auto-select when exactly one candidate (unambiguous mapping)
-                    // Otherwise require explicit selection
-                    selectedCandidateIndex = if (candidates.size == 1) 0 else -1
-                )
-            )
-        }
-
-        return WorkflowMappingState(
-            workflowType = type,
-            fieldMappings = fieldMappings
-        )
-    }
-
-    /**
-     * Get optional keys for a workflow type, adjusted for graph structure.
-     * Handles BasicGuider (no CFG/negative).
-     * Note: clip_name* fields are now all included by default and visibility is
-     * determined by placeholder presence in the workflow JSON.
-     */
-    private fun getOptionalKeysFromGraph(type: WorkflowType, graph: WorkflowGraph): Set<String> {
-        val baseKeys = TemplateKeyRegistry.getOptionalKeysForType(type).toMutableSet()
-
-        if (type == WorkflowType.TTI) {
-            // Check for BasicGuider (no CFG, no negative prompt)
-            val hasBasicGuider = graph.nodes.any { it.classType == "BasicGuider" }
-            if (hasBasicGuider) {
-                baseKeys.remove("cfg")
-                baseKeys.remove("negative_text")
-            }
-        }
-
-        return baseKeys
-    }
-
-    /**
-     * Find candidates for a field in the graph.
-     * Uses two detection strategies:
-     * 1. Input-key-based: Look for nodes with matching input key names (fast path)
-     * 2. Output-type-based: For "image" field, look for nodes with IMAGE output + ENUM inputs (fallback)
-     */
-    private fun findCandidatesForFieldInGraph(
-        fieldKey: String,
-        graph: WorkflowGraph,
-        promptMappings: Map<String, List<FieldCandidate>>
-    ): List<FieldCandidate> {
-        // Handle positive_text and negative_text with graph tracing
-        if (fieldKey == "positive_text" || fieldKey == "negative_text") {
-            return promptMappings[fieldKey] ?: emptyList()
-        }
-
-        // Strategy 1: Find nodes that have matching input key names
-        val directCandidates = mutableListOf<FieldCandidate>()
-
-        for (node in graph.nodes) {
-            node.inputs.forEach { (inputName, inputValue) ->
-                if (TemplateKeyRegistry.doesInputKeyMatchField(fieldKey, inputName)) {
-                    val currentValue = when (inputValue) {
-                        is InputValue.Literal -> inputValue.value
-                        else -> null
-                    }
-
-                    if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
-                        directCandidates.add(
-                            FieldCandidate(
-                                nodeId = node.id,
-                                nodeName = node.title,
-                                classType = node.classType,
-                                inputKey = inputName,
-                                currentValue = currentValue
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        // Strategy 2 (fallback): For "image" field, find nodes with IMAGE output + ENUM inputs
-        // This works regardless of input key language (Chinese, etc.)
-        if (directCandidates.isEmpty() && fieldKey == "image") {
-            for (node in graph.nodes) {
-                if ("IMAGE" in node.outputs) {
-                    val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
-                    definition?.inputs
-                        ?.filter { it.type == "ENUM" && node.inputs.containsKey(it.name) }
-                        ?.forEach { inputDef ->
-                            val inputValue = node.inputs[inputDef.name]
-                            val currentValue = when (inputValue) {
-                                is InputValue.Literal -> inputValue.value
-                                else -> null
-                            }
-                            directCandidates.add(
-                                FieldCandidate(
-                                    nodeId = node.id,
-                                    nodeName = node.title,
-                                    classType = node.classType,
-                                    inputKey = inputDef.name,
-                                    currentValue = currentValue
-                                )
-                            )
-                        }
-                }
-            }
-        }
-
-        return directCandidates
-    }
-
-    /**
-     * Create field mappings for positive_text and negative_text using graph tracing.
-     * Uses two detection strategies:
-     * 1. Input-key-based: Look for nodes with "text" or "prompt" inputs (fast path)
-     * 2. Output-type-based: Look for nodes with CONDITIONING output + STRING inputs (fallback for custom nodes)
-     */
-    private fun createPromptFieldMappingsFromGraph(graph: WorkflowGraph): Map<String, List<FieldCandidate>> {
-        val positiveTextCandidates = mutableListOf<FieldCandidate>()
-        val negativeTextCandidates = mutableListOf<FieldCandidate>()
-
-        // Text input keys to look for (common English names)
-        val textInputKeys = listOf("text", "prompt")
-
-        // Strategy 1: Find nodes with known text/prompt input keys
-        data class TextEncoderNode(val node: WorkflowNode, val inputKey: String)
-        val textEncoderNodes = graph.nodes.mapNotNull { node ->
-            val matchingInputKey = textInputKeys.firstOrNull { node.inputs.containsKey(it) }
-            if (matchingInputKey != null) TextEncoderNode(node, matchingInputKey) else null
-        }
-
-        // Strategy 2 (fallback): Find nodes with CONDITIONING output + STRING inputs
-        // This works regardless of input key language (Chinese, etc.)
-        val outputBasedNodes = if (textEncoderNodes.isEmpty()) {
-            graph.nodes.flatMap { node ->
-                if ("CONDITIONING" in node.outputs) {
-                    val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
-                    definition?.inputs
-                        ?.filter { it.type == "STRING" && node.inputs.containsKey(it.name) }
-                        ?.map { inputDef -> TextEncoderNode(node, inputDef.name) }
-                        ?: emptyList()
-                } else {
-                    emptyList()
-                }
-            }
-        } else {
-            emptyList()
-        }
-
-        // Combine both strategies
-        val allTextEncoderNodes = textEncoderNodes + outputBasedNodes
-
-        // For each text encoder, trace its output to find if it connects to positive or negative
-        for ((node, inputKey) in allTextEncoderNodes) {
-            val textInput = node.inputs[inputKey]
-            val currentValue = when (textInput) {
-                is InputValue.Literal -> textInput.value
-                else -> null
-            }
-
-            val candidate = FieldCandidate(
-                nodeId = node.id,
-                nodeName = node.title,
-                classType = node.classType,
-                inputKey = inputKey,
-                currentValue = currentValue
-            )
-
-            // Determine if this node connects to positive or negative input
-            val connectionType = traceConditioningConnection(graph, node.id)
-
-            when (connectionType) {
-                "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
-                "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
-                else -> {
-                    // Unknown connection - use title-based classification
-                    val titleLower = node.title.lowercase()
-                    when {
-                        titleLower.contains("positive") -> positiveTextCandidates.add(candidate)
-                        titleLower.contains("negative") -> negativeTextCandidates.add(candidate)
-                        else -> {
-                            // Add to both as fallback candidates
-                            positiveTextCandidates.add(candidate)
-                            negativeTextCandidates.add(candidate)
-                        }
-                    }
-                }
-            }
-        }
-
-        return mapOf(
-            "positive_text" to positiveTextCandidates,
-            "negative_text" to negativeTextCandidates
-        )
-    }
-
-    /**
-     * Trace a conditioning node's output to find what type of connection it has.
-     * Uses WorkflowGraph.edges to trace connections.
-     * Returns "positive", "negative", or null if no connection found.
-     *
-     * This is classType-agnostic: it simply checks if the target input name
-     * indicates positive or negative conditioning, regardless of the target node type.
-     */
-    private fun traceConditioningConnection(graph: WorkflowGraph, conditioningNodeId: String): String? {
-        // Find edges originating from this conditioning node
-        val outgoingEdges = graph.edges.filter { it.sourceNodeId == conditioningNodeId }
-
-        for (edge in outgoingEdges) {
-            // Check target input name - works for any node type (KSampler, custom samplers, etc.)
-            when (edge.targetInputName.lowercase()) {
-                "positive" -> return "positive"
-                "negative" -> return "negative"
-                "conditioning" -> return "positive"  // Single conditioning input (like BasicGuider)
-            }
-        }
-
-        return null
+        return FieldMappingAnalyzer.createFieldMappingState(context, graph, type, nodeTypeRegistry)
     }
 
     /**
@@ -1497,24 +1216,16 @@ class WorkflowEditorViewModel : ViewModel() {
      * Zoom by a factor while keeping the canvas center stationary
      */
     private fun zoomTowardCenter(zoomFactor: Float) {
-        val oldScale = _uiState.value.scale
-        val newScale = (oldScale * zoomFactor).coerceIn(0.2f, 3f)
-        val oldOffset = _uiState.value.offset
-
-        // Center of the canvas
-        val centerX = canvasWidth / 2
-        val centerY = canvasHeight / 2
-
-        // Adjust offset to keep the center point stationary
-        val scaleChange = newScale / oldScale
-        val newOffset = Offset(
-            x = centerX - (centerX - oldOffset.x) * scaleChange,
-            y = centerY - (centerY - oldOffset.y) * scaleChange
+        val center = Offset(canvasWidth / 2, canvasHeight / 2)
+        val transform = GraphViewportCalculator.zoomTowardPoint(
+            focusPoint = center,
+            currentScale = _uiState.value.scale,
+            currentOffset = _uiState.value.offset,
+            zoomFactor = zoomFactor
         )
-
         _uiState.value = _uiState.value.copy(
-            scale = newScale,
-            offset = newOffset
+            scale = transform.scale,
+            offset = transform.offset
         )
     }
 
@@ -1522,29 +1233,15 @@ class WorkflowEditorViewModel : ViewModel() {
      * Fit the entire graph to the screen (both width and height)
      */
     private fun fitToScreen() {
-        val bounds = _uiState.value.graphBounds
-        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
-            return
-        }
-
-        // Small top padding, reserve space for bottom toolbar
-        val topPadding = 8f
-        val bottomToolbarPadding = 100f
-        val availableHeight = canvasHeight - topPadding - bottomToolbarPadding
-
-        // Calculate scale to fit in available area
-        val scaleX = canvasWidth / bounds.width
-        val scaleY = availableHeight / bounds.height
-        val scale = minOf(scaleX, scaleY, 1.5f) * 0.95f // 95% of fit, max 1.5x
-
-        // Calculate offset - center horizontally, anchor to top vertically
-        val scaledWidth = bounds.width * scale
-        val offsetX = (canvasWidth - scaledWidth) / 2 - bounds.minX * scale
-        val offsetY = topPadding - bounds.minY * scale
+        val transform = GraphViewportCalculator.fitToScreen(
+            bounds = _uiState.value.graphBounds,
+            canvasWidth = canvasWidth,
+            canvasHeight = canvasHeight
+        ) ?: return
 
         _uiState.value = _uiState.value.copy(
-            scale = scale,
-            offset = Offset(offsetX, offsetY)
+            scale = transform.scale,
+            offset = transform.offset
         )
         lastFitMode = FitMode.FIT_ALL
     }
@@ -1553,27 +1250,15 @@ class WorkflowEditorViewModel : ViewModel() {
      * Fit the graph width to the screen, showing the top of the graph
      */
     private fun fitToWidth() {
-        val bounds = _uiState.value.graphBounds
-        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
-            return
-        }
-
-        // Small padding on sides
-        val horizontalPadding = 16f
-        val availableWidth = canvasWidth - horizontalPadding * 2
-
-        // Calculate scale to fit width only
-        val scale = minOf(availableWidth / bounds.width, 1.5f) // max 1.5x
-
-        // Calculate offset - center horizontally, anchor to top vertically
-        val scaledWidth = bounds.width * scale
-        val offsetX = (canvasWidth - scaledWidth) / 2 - bounds.minX * scale
-        val topPadding = 8f
-        val offsetY = topPadding - bounds.minY * scale
+        val transform = GraphViewportCalculator.fitToWidth(
+            bounds = _uiState.value.graphBounds,
+            canvasWidth = canvasWidth,
+            canvasHeight = canvasHeight
+        ) ?: return
 
         _uiState.value = _uiState.value.copy(
-            scale = scale,
-            offset = Offset(offsetX, offsetY)
+            scale = transform.scale,
+            offset = transform.offset
         )
         lastFitMode = FitMode.FIT_WIDTH
     }
@@ -1582,27 +1267,15 @@ class WorkflowEditorViewModel : ViewModel() {
      * Fit the graph height to the screen, showing the left side of the graph
      */
     private fun fitToHeight() {
-        val bounds = _uiState.value.graphBounds
-        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
-            return
-        }
-
-        // Small top padding, reserve space for bottom toolbar
-        val topPadding = 8f
-        val bottomToolbarPadding = 100f
-        val availableHeight = canvasHeight - topPadding - bottomToolbarPadding
-
-        // Calculate scale to fit height only
-        val scale = minOf(availableHeight / bounds.height, 1.5f) // max 1.5x
-
-        // Calculate offset - anchor to left horizontally, anchor to top vertically
-        val leftPadding = 16f
-        val offsetX = leftPadding - bounds.minX * scale
-        val offsetY = topPadding - bounds.minY * scale
+        val transform = GraphViewportCalculator.fitToHeight(
+            bounds = _uiState.value.graphBounds,
+            canvasWidth = canvasWidth,
+            canvasHeight = canvasHeight
+        ) ?: return
 
         _uiState.value = _uiState.value.copy(
-            scale = scale,
-            offset = Offset(offsetX, offsetY)
+            scale = transform.scale,
+            offset = transform.offset
         )
         lastFitMode = FitMode.FIT_HEIGHT
     }
@@ -2011,6 +1684,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Initialize node ID counter based on existing IDs
         nodeIdCounter = graph.nodes.mapNotNull { it.id.toIntOrNull() }.maxOrNull()?.plus(1) ?: 1
+        groupIdCounter = graph.groups.maxOfOrNull { it.id }?.plus(1) ?: 1
 
         _uiState.value = state.copy(
             isEditMode = true,
@@ -2137,15 +1811,7 @@ class WorkflowEditorViewModel : ViewModel() {
         val graph = mutableGraph ?: return
         if (!state.isEditMode || state.selectedNodeIds.isEmpty()) return
 
-        val selectedIds = state.selectedNodeIds
-
-        // Remove nodes
-        graph.nodes.removeAll { it.id in selectedIds }
-
-        // Remove edges connected to deleted nodes
-        graph.edges.removeAll { edge ->
-            edge.sourceNodeId in selectedIds || edge.targetNodeId in selectedIds
-        }
+        GraphMutationUtils.deleteNodes(graph, state.selectedNodeIds)
 
         // Re-layout graph after deletion to fill gaps
         relayoutGraph()
@@ -2166,47 +1832,18 @@ class WorkflowEditorViewModel : ViewModel() {
         val graph = mutableGraph ?: return
         if (!state.isEditMode || state.selectedNodeIds.isEmpty()) return
 
-        val selectedIds = state.selectedNodeIds
-        val nodesToDuplicate = graph.nodes.filter { it.id in selectedIds }
-
-        // Create ID mapping from old to new
-        val idMapping = mutableMapOf<String, String>()
-
-        // Duplicate nodes with offset position (temporary - will be re-laid out)
-        val duplicatedNodes = nodesToDuplicate.map { node ->
-            val newId = generateUniqueNodeId()
-            idMapping[node.id] = newId
-            node.copy(
-                id = newId,
-                x = node.x + 50f,
-                y = node.y + 50f
-            )
-        }
-
-        // Duplicate internal edges (edges between selected nodes)
-        val internalEdges = graph.edges.filter { edge ->
-            edge.sourceNodeId in selectedIds && edge.targetNodeId in selectedIds
-        }
-        val duplicatedEdges = internalEdges.map { edge ->
-            edge.copy(
-                sourceNodeId = idMapping[edge.sourceNodeId] ?: edge.sourceNodeId,
-                targetNodeId = idMapping[edge.targetNodeId] ?: edge.targetNodeId
-            )
-        }
-
-        // Add duplicated nodes and edges
-        graph.nodes.addAll(duplicatedNodes)
-        graph.edges.addAll(duplicatedEdges)
-
-        // Store new node IDs before relayout (IDs are preserved)
-        val newNodeIds = duplicatedNodes.map { it.id }.toSet()
+        val result = GraphMutationUtils.duplicateNodes(
+            graph = graph,
+            nodeIds = state.selectedNodeIds,
+            idGenerator = { (nodeIdCounter++).toString() }
+        )
 
         // Re-layout to prevent overlaps
         relayoutGraph()
 
         // Update selection to the new nodes
         _uiState.value = _uiState.value.copy(
-            selectedNodeIds = newNodeIds,
+            selectedNodeIds = result.newNodeIds,
             hasUnsavedChanges = true
         )
     }
@@ -2216,6 +1853,64 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     private fun generateUniqueNodeId(): String {
         return (nodeIdCounter++).toString()
+    }
+
+    /**
+     * Create a group from the currently selected nodes.
+     * Requires at least 2 nodes to be selected.
+     */
+    fun createGroupFromSelection() {
+        val state = _uiState.value
+        val graph = mutableGraph ?: return
+        if (!state.isEditMode || state.selectedNodeIds.size < 2) return
+
+        val newGroup = GroupManager.createGroup(
+            graph = graph,
+            nodeIds = state.selectedNodeIds,
+            title = "Group",
+            idGenerator = { groupIdCounter++ }
+        ) ?: return
+
+        _uiState.value = _uiState.value.copy(
+            graph = graph.toImmutable(),
+            hasUnsavedChanges = true
+        )
+
+        // Trigger relayout to recalculate group bounds
+        relayoutGraph()
+    }
+
+    /**
+     * Check if a node is inside a group (for enabling/disabling ungroup action).
+     * Uses explicit memberNodeIds if available, otherwise falls back to position detection.
+     */
+    fun isSelectedNodeInGroup(): Boolean {
+        val graph = mutableGraph ?: return false
+        val state = _uiState.value
+        if (state.selectedNodeIds.isEmpty()) return false
+
+        return GroupManager.isAnyNodeInGroup(graph, state.selectedNodeIds)
+    }
+
+    /**
+     * Remove selected nodes from the group they belong to.
+     * If the group has fewer than 2 members remaining, the group is dissolved entirely.
+     */
+    fun ungroupSelectedNode() {
+        val state = _uiState.value
+        val graph = mutableGraph ?: return
+        if (!state.isEditMode || state.selectedNodeIds.isEmpty()) return
+
+        val modified = GroupManager.removeNodesFromGroups(graph, state.selectedNodeIds)
+        if (!modified) return
+
+        _uiState.value = _uiState.value.copy(
+            graph = graph.toImmutable(),
+            hasUnsavedChanges = true
+        )
+
+        // Trigger relayout to recalculate group bounds
+        relayoutGraph()
     }
 
     /**
@@ -2501,67 +2196,19 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Calculate all valid input slots for a given output.
-     * Returns slots on OTHER nodes that are type-compatible.
-     * Only connection-type inputs (Connection or UnconnectedSlot) are valid targets.
+     * Delegates to ConnectionValidator utility.
      */
     private fun calculateValidInputSlots(
         sourceNodeId: String,
         outputType: String?,
         graph: MutableWorkflowGraph
     ): List<SlotPosition> {
-        val validSlots = mutableListOf<SlotPosition>()
-
-        // Check all other nodes
-        for (node in graph.nodes) {
-            // Skip the source node - can't connect to self
-            if (node.id == sourceNodeId) continue
-
-            // Check each input on this node
-            var inputIndex = 0
-            for ((inputName, inputValue) in node.inputs) {
-                // Only connection-type inputs can be connected
-                val isConnectionInput = inputValue is InputValue.Connection || inputValue is InputValue.UnconnectedSlot
-
-                if (isConnectionInput) {
-                    // Get input type - prefer from UnconnectedSlot, fallback to registry
-                    val inputType = when (inputValue) {
-                        is InputValue.UnconnectedSlot -> inputValue.slotType
-                        else -> nodeTypeRegistry.getInputType(node.classType, inputName)
-                    }
-
-                    // Type compatibility check:
-                    // - "*" matches anything
-                    // - Exact match
-                    // - null types are considered compatible (for flexibility)
-                    val isCompatible = outputType == null ||
-                        inputType == null ||
-                        inputType == "*" ||
-                        outputType == "*" ||
-                        inputType.equals(outputType, ignoreCase = true)
-
-                    if (isCompatible) {
-                        // Calculate input slot position (left side of node)
-                        val slotY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
-                            (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
-
-                        validSlots.add(
-                            SlotPosition(
-                                nodeId = node.id,
-                                slotName = inputName,
-                                isOutput = false,
-                                outputIndex = 0,
-                                center = Offset(node.x, slotY),
-                                slotType = inputType
-                            )
-                        )
-                    }
-                }
-                // Always increment inputIndex to maintain correct Y position
-                inputIndex++
-            }
-        }
-
-        return validSlots
+        return ConnectionValidator.calculateValidInputSlots(
+            graph = graph,
+            sourceNodeId = sourceNodeId,
+            outputType = outputType,
+            nodeTypeRegistry = nodeTypeRegistry
+        )
     }
 
     /**

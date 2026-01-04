@@ -36,10 +36,22 @@ private data class ThumbnailNode(
 )
 
 /**
+ * Simplified group data for thumbnail rendering
+ */
+private data class ThumbnailGroup(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+    val color: Color
+)
+
+/**
  * Cached thumbnail data
  */
 private data class ThumbnailData(
     val nodes: List<ThumbnailNode>,
+    val groups: List<ThumbnailGroup>,
     val bounds: GraphBounds
 )
 
@@ -91,6 +103,21 @@ fun WorkflowThumbnail(
                 val scaledHeight = bounds.height * scale
                 val offsetX = padding + (availableWidth - scaledWidth) / 2
                 val offsetY = padding + (availableHeight - scaledHeight) / 2
+
+                // Draw groups first (behind nodes)
+                thumbnailData.groups.forEach { group ->
+                    val groupX = offsetX + (group.x - bounds.minX) * scale
+                    val groupY = offsetY + (group.y - bounds.minY) * scale
+                    val groupWidth = group.width * scale
+                    val groupHeight = group.height * scale
+
+                    drawRoundRect(
+                        color = group.color.copy(alpha = 0.2f),
+                        topLeft = Offset(groupX, groupY),
+                        size = Size(groupWidth, groupHeight),
+                        cornerRadius = CornerRadius(2.dp.toPx())
+                    )
+                }
 
                 // Draw each node as a small rounded rectangle
                 thumbnailData.nodes.forEach { node ->
@@ -149,7 +176,29 @@ private fun computeThumbnailData(jsonContent: String, isDarkTheme: Boolean): Thu
             )
         }
 
-        ThumbnailData(nodes = thumbnailNodes, bounds = bounds)
+        // Calculate rendered groups with computed bounds
+        val renderedGroups = layoutEngine.calculateRenderedGroups(
+            layoutedGraph.groups,
+            layoutedGraph.nodes
+        )
+
+        // Convert groups to simplified thumbnail groups
+        val thumbnailGroups = renderedGroups.map { group ->
+            val groupColor = try {
+                Color(android.graphics.Color.parseColor(group.color))
+            } catch (e: Exception) {
+                Color(android.graphics.Color.parseColor("#3f789e"))
+            }
+            ThumbnailGroup(
+                x = group.x,
+                y = group.y,
+                width = group.width,
+                height = group.height,
+                color = groupColor
+            )
+        }
+
+        ThumbnailData(nodes = thumbnailNodes, groups = thumbnailGroups, bounds = bounds)
     } catch (e: Exception) {
         // Return null on any parsing error - thumbnail will show empty
         null

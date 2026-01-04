@@ -366,6 +366,7 @@
     <string name="button_delete">Delete</string>
     <string name="button_discard">Discard</string>
     <string name="button_cancel">Cancel</string>
+    <string name="button_done">Done</string>
     <string name="edit">Edit</string>
     <string name="edit_structure">Edit structure</string>
     <string name="error_cannot_edit_builtin">Built-in workflows cannot be edited</string>
@@ -431,6 +432,8 @@
     <string name="workflow_editor_relayout">Re-arrange nodes</string>
     <string name="workflow_editor_more">More actions</string>
     <string name="workflow_editor_cleanup">Cleanup</string>
+    <string name="workflow_editor_group">Group</string>
+    <string name="workflow_editor_ungroup">Ungroup</string>
     <string name="workflow_editor_done">Done</string>
     <string name="workflow_editor_discard_title">Discard workflow?</string>
     <string name="workflow_editor_discard_message">You have unsaved changes. Are you sure you want to discard this workflow?</string>

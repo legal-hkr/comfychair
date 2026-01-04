@@ -57,6 +57,7 @@ import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
+import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
@@ -119,6 +120,7 @@ fun WorkflowGraphCanvas(
     isEditMode: Boolean = false,
     selectedNodeIds: Set<String> = emptySet(),
     connectionModeState: ConnectionModeState? = null,
+    renderedGroups: List<RenderedGroup> = emptyList(),
     nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap(),
     onNodeTapped: ((String) -> Unit)? = null,
     onTapOutsideNodes: (() -> Unit)? = null,
@@ -343,12 +345,13 @@ fun WorkflowGraphCanvas(
                                 val editIconRight = node.x + node.width - 8f
                                 val editIconLeft = editIconRight - 32f
 
-                                if (onRenameNodeTapped != null &&
-                                    graphX >= editIconLeft && graphX <= editIconRight &&
+                                if (graphX >= editIconLeft && graphX <= editIconRight &&
                                     graphY >= iconTop && graphY <= iconBottom
                                 ) {
-                                    onRenameNodeTapped(node.id)
-                                    return@detectTapGestures
+                                    if (onRenameNodeTapped != null) {
+                                        onRenameNodeTapped(node.id)
+                                        return@detectTapGestures
+                                    }
                                 }
                             }
                         }
@@ -411,7 +414,15 @@ fun WorkflowGraphCanvas(
             translate(offset.x, offset.y)
             scale(scale, scale, Offset.Zero)
         }) {
-            // Draw edges first (behind nodes) - use animatedNodes for positions
+            // Draw groups first (behind everything)
+            renderedGroups.forEach { group ->
+                drawGroup(
+                    group = group,
+                    colors = colors
+                )
+            }
+
+            // Draw edges (behind nodes) - use animatedNodes for positions
             graph.edges.forEach { edge ->
                 drawEdge(
                     edge = edge,
@@ -1184,6 +1195,54 @@ private fun DrawScope.drawEdge(
         radius = 8f,
         center = Offset(endX, endY)
     )
+}
+
+/**
+ * Draw a group container.
+ * Groups are semi-transparent rectangles with titles.
+ */
+private fun DrawScope.drawGroup(
+    group: RenderedGroup,
+    colors: CanvasColors
+) {
+    // Parse group color (hex string like "#3f789e")
+    val groupColor = try {
+        Color(android.graphics.Color.parseColor(group.color))
+    } catch (e: Exception) {
+        Color(android.graphics.Color.parseColor("#3f789e"))
+    }
+
+    val cornerRadius = 16f
+    val fontSize = WorkflowLayoutEngine.GROUP_HEADER_HEIGHT
+
+    // Draw semi-transparent background
+    drawRoundRect(
+        color = groupColor.copy(alpha = 0.15f),
+        topLeft = Offset(group.x, group.y),
+        size = Size(group.width, group.height),
+        cornerRadius = CornerRadius(cornerRadius)
+    )
+
+    // Draw border
+    drawRoundRect(
+        color = groupColor.copy(alpha = 0.6f),
+        topLeft = Offset(group.x, group.y),
+        size = Size(group.width, group.height),
+        cornerRadius = CornerRadius(cornerRadius),
+        style = Stroke(width = 3f)
+    )
+
+    // Draw title text
+    drawContext.canvas.nativeCanvas.apply {
+        val titlePaint = android.graphics.Paint().apply {
+            color = groupColor.toArgb()
+            textSize = fontSize
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            isAntiAlias = true
+        }
+        val titleY = group.y + fontSize + 4f
+        drawText(group.title, group.x + 16f, titleY, titlePaint)
+    }
 }
 
 /**

@@ -71,6 +71,38 @@ enum class NodeCategory {
 }
 
 /**
+ * Represents a group container in the workflow graph.
+ * Groups visually organize related nodes together.
+ *
+ * Note: Bounds (x, y, width, height) are computed from member nodes, not stored.
+ * Use [RenderedGroup] for rendering with computed bounds.
+ */
+@Immutable
+data class WorkflowGroup(
+    val id: Int,
+    val title: String,
+    val memberNodeIds: Set<String>
+)
+
+/**
+ * A group with computed rendering bounds.
+ * Created by [WorkflowLayoutEngine.calculateRenderedGroups] from [WorkflowGroup] and node positions.
+ */
+@Immutable
+data class RenderedGroup(
+    val group: WorkflowGroup,
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+    val color: String = "#3f789e"
+) {
+    val id: Int get() = group.id
+    val title: String get() = group.title
+    val memberNodeIds: Set<String> get() = group.memberNodeIds
+}
+
+/**
  * Complete parsed workflow graph
  */
 @Stable
@@ -79,6 +111,7 @@ data class WorkflowGraph(
     val description: String,
     val nodes: List<WorkflowNode>,
     val edges: List<WorkflowEdge>,
+    val groups: List<WorkflowGroup> = emptyList(),
     val templateVariables: Set<String>
 )
 
@@ -91,6 +124,7 @@ data class MutableWorkflowGraph(
     var description: String,
     val nodes: MutableList<WorkflowNode>,
     val edges: MutableList<WorkflowEdge>,
+    val groups: MutableList<WorkflowGroup>,
     val templateVariables: MutableSet<String>
 ) {
     /**
@@ -101,6 +135,7 @@ data class MutableWorkflowGraph(
         description = description,
         nodes = nodes.toList(),
         edges = edges.toList(),
+        groups = groups.toList(),
         templateVariables = templateVariables.toSet()
     )
 
@@ -113,6 +148,7 @@ data class MutableWorkflowGraph(
             description = graph.description,
             nodes = graph.nodes.toMutableList(),
             edges = graph.edges.toMutableList(),
+            groups = graph.groups.toMutableList(),
             templateVariables = graph.templateVariables.toMutableSet()
         )
     }

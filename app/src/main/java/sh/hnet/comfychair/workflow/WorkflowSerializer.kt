@@ -42,7 +42,7 @@ class WorkflowSerializer {
      * @return JSON string with name, description, and nodes wrapper
      */
     fun serializeWithWrapper(graph: WorkflowGraph, includeMetadata: Boolean = true): String {
-        DebugLogger.d(TAG, "Serializing workflow with wrapper: name=${graph.name}, ${graph.nodes.size} nodes")
+        DebugLogger.d(TAG, "Serializing workflow with wrapper: name=${graph.name}, ${graph.nodes.size} nodes, ${graph.groups.size} groups")
         val rootJson = JSONObject()
         rootJson.put("name", graph.name)
         rootJson.put("description", graph.description)
@@ -54,10 +54,99 @@ class WorkflowSerializer {
         }
         rootJson.put("nodes", nodesJson)
 
+        // Serialize groups if present
+        if (graph.groups.isNotEmpty()) {
+            rootJson.put("groups", serializeGroups(graph.groups, graph.nodes))
+        }
+
         val result = rootJson.toString(2)
         DebugLogger.d(TAG, "Serialized workflow with wrapper: ${result.length} chars")
         return result
     }
+
+    /**
+     * Serialize groups to JSON array.
+     *
+     * Core data (ComfyChair format): id, title, member_nodes
+     * Computed for compatibility (ComfyUI): bounding array
+     *
+     * @param groups The groups to serialize
+     * @param nodes All nodes in the graph (for computing bounding boxes)
+     */
+    private fun serializeGroups(groups: List<WorkflowGroup>, nodes: List<WorkflowNode>): JSONArray {
+        val nodeMap = nodes.associateBy { it.id }
+        val groupsArray = JSONArray()
+
+        for (group in groups) {
+            val groupJson = JSONObject()
+            groupJson.put("id", group.id)
+            groupJson.put("title", group.title)
+
+            // Serialize member node IDs (core data)
+            val memberNodesArray = JSONArray()
+            group.memberNodeIds.forEach { memberNodesArray.put(it) }
+            groupJson.put("member_nodes", memberNodesArray)
+
+            // Compute and serialize bounding box for ComfyUI compatibility
+            val bounds = computeGroupBounds(group.memberNodeIds, nodeMap)
+            if (bounds != null) {
+                val boundingArray = JSONArray()
+                boundingArray.put(bounds.x.toDouble())
+                boundingArray.put(bounds.y.toDouble())
+                boundingArray.put(bounds.width.toDouble())
+                boundingArray.put(bounds.height.toDouble())
+                groupJson.put("bounding", boundingArray)
+            }
+
+            // Default visual styling for ComfyUI
+            groupJson.put("color", "#3f789e")
+            groupJson.put("font_size", 24)
+
+            groupsArray.put(groupJson)
+        }
+        return groupsArray
+    }
+
+    /**
+     * Compute bounding box for a group from its member nodes.
+     *
+     * @param memberNodeIds IDs of nodes in the group
+     * @param nodeMap Map of node ID to node
+     * @return Computed bounds, or null if no members found
+     */
+    private fun computeGroupBounds(
+        memberNodeIds: Set<String>,
+        nodeMap: Map<String, WorkflowNode>
+    ): GroupBounds? {
+        val members = memberNodeIds.mapNotNull { nodeMap[it] }
+        if (members.isEmpty()) return null
+
+        // Padding around nodes within group
+        val padding = 20f
+        val headerHeight = 30f  // Space for group title
+
+        val minX = members.minOf { it.x } - padding
+        val minY = members.minOf { it.y } - padding - headerHeight
+        val maxX = members.maxOf { it.x + it.width } + padding
+        val maxY = members.maxOf { it.y + it.height } + padding
+
+        return GroupBounds(
+            x = minX,
+            y = minY,
+            width = maxX - minX,
+            height = maxY - minY
+        )
+    }
+
+    /**
+     * Simple bounds container for group bounding box computation.
+     */
+    private data class GroupBounds(
+        val x: Float,
+        val y: Float,
+        val width: Float,
+        val height: Float
+    )
 
     /**
      * Serialize a single node to JSON.

@@ -273,6 +273,7 @@
     <string name="button_save">Zapisz</string>
     <string name="button_delete">Usuń</string>
     <string name="button_cancel">Anuluj</string>
+    <string name="button_done">Gotowe</string>
     <string name="edit">Edytuj</string>
     <string name="edit_structure">Edytuj strukturę</string>
     <string name="error_cannot_edit_builtin">Wbudowane workflow nie mogą być edytowane</string>
@@ -463,6 +464,8 @@
     <string name="workflow_editor_relayout">Przeorganizuj węzły</string>
     <string name="workflow_editor_more">Więcej opcji</string>
     <string name="workflow_editor_cleanup">Uporządkuj</string>
+    <string name="workflow_editor_group">Grupuj</string>
+    <string name="workflow_editor_ungroup">Rozgrupuj</string>
     <string name="workflow_editor_done">Gotowe</string>
     <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
     <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>

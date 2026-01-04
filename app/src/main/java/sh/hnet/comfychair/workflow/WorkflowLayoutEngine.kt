@@ -18,26 +18,294 @@ class WorkflowLayoutEngine {
         const val MAX_NODES_PER_COLUMN = 8
         const val MIN_COLUMNS = 2
         const val ROW_SPACING = 120f
+
+        // Group constants
+        const val GROUP_PADDING = 32f
+        const val GROUP_HEADER_HEIGHT = 24f  // Smaller than node header
     }
 
     /**
-     * Compute positions for all nodes in the graph
+     * Compute positions for all nodes in the graph.
+     * Uses group-aware layout when groups are present.
      */
     fun layoutGraph(graph: WorkflowGraph): WorkflowGraph {
         if (graph.nodes.isEmpty()) return graph
 
-        // Step 1: Build dependency map (node -> nodes it depends on)
+        // Fast path: no groups, use standard layout
+        if (graph.groups.isEmpty()) {
+            return layoutWithoutGroups(graph)
+        }
+
+        // Group-aware layout
+        return layoutWithGroups(graph)
+    }
+
+    /**
+     * Standard layout algorithm for graphs without groups.
+     */
+    private fun layoutWithoutGroups(graph: WorkflowGraph): WorkflowGraph {
         val dependencies = buildDependencyMap(graph)
-
-        // Step 2: Assign layers using longest path method
-        // Orphan nodes (no connections) are placed at the end
         val layers = assignLayers(graph.nodes, dependencies, graph.edges)
-
-        // Step 3: Order nodes within each layer
         val orderedLayers = orderNodesInLayers(layers, graph.edges)
-
-        // Step 4: Calculate final positions
         return positionNodes(graph, orderedLayers)
+    }
+
+    /**
+     * Internal layout result for a group's members.
+     * Positions are relative to the group's origin (0,0).
+     */
+    private data class GroupInternalLayout(
+        val groupId: Int,
+        val memberPositions: Map<String, RelativePosition>,
+        val width: Float,
+        val height: Float
+    )
+
+    private data class RelativePosition(val x: Float, val y: Float, val width: Float, val height: Float)
+
+    /**
+     * Group-aware layout: treats groups as single units during layout.
+     */
+    private fun layoutWithGroups(graph: WorkflowGraph): WorkflowGraph {
+        val nodeMap = graph.nodes.associateBy { it.id }
+        val groupedNodeIds = graph.groups.flatMap { it.memberNodeIds }.toSet()
+
+        // Step 1: Compute internal layout for each group
+        val groupInternalLayouts = mutableMapOf<Int, GroupInternalLayout>()
+        for (group in graph.groups) {
+            val memberNodes = group.memberNodeIds.mapNotNull { nodeMap[it] }
+            if (memberNodes.size >= 2) {
+                groupInternalLayouts[group.id] = computeGroupInternalLayout(
+                    group.id, memberNodes, graph.edges, groupedNodeIds
+                )
+            }
+        }
+
+        // Step 2: Create virtual nodes for groups
+        val virtualGroupNodes = graph.groups.mapNotNull { group ->
+            val layout = groupInternalLayouts[group.id] ?: return@mapNotNull null
+            createVirtualNodeForGroup(group, layout)
+        }
+        val virtualNodeIds = virtualGroupNodes.map { it.id }.toSet()
+
+        // Step 3: Build combined node list and collapsed edges
+        val ungroupedNodes = graph.nodes.filter { it.id !in groupedNodeIds }
+        val combinedNodes = ungroupedNodes + virtualGroupNodes
+        val collapsedEdges = collapseEdgesForGroups(graph.edges, graph.groups, groupedNodeIds)
+
+        // Step 4: Run standard layout on combined nodes
+        val dependencies = buildDependencyMapFromEdges(combinedNodes, collapsedEdges)
+        val layers = assignLayers(combinedNodes, dependencies, collapsedEdges)
+        val orderedLayers = orderNodesInLayers(layers, collapsedEdges)
+        val positioned = positionNodes(
+            WorkflowGraph(
+                name = graph.name,
+                description = graph.description,
+                nodes = combinedNodes,
+                edges = collapsedEdges,
+                groups = emptyList(),
+                templateVariables = graph.templateVariables
+            ),
+            orderedLayers
+        )
+
+        // Step 5: Expand virtual nodes back to member positions
+        val finalNodes = expandVirtualNodesToMembers(
+            positioned.nodes, virtualNodeIds, groupInternalLayouts, graph.nodes
+        )
+
+        return graph.copy(nodes = finalNodes)
+    }
+
+    /**
+     * Compute internal layout for nodes within a group.
+     * Positions are relative to group origin (0,0).
+     * Optimizes for external connections: inputs on left, outputs on right.
+     */
+    private fun computeGroupInternalLayout(
+        groupId: Int,
+        memberNodes: List<WorkflowNode>,
+        allEdges: List<WorkflowEdge>,
+        groupedNodeIds: Set<String>
+    ): GroupInternalLayout {
+        val memberIds = memberNodes.map { it.id }.toSet()
+
+        // Categorize nodes by external connection type
+        val nodesWithExternalInputs = mutableSetOf<String>()
+        val nodesWithExternalOutputs = mutableSetOf<String>()
+
+        for (edge in allEdges) {
+            val sourceInGroup = edge.sourceNodeId in memberIds
+            val targetInGroup = edge.targetNodeId in memberIds
+
+            if (sourceInGroup && !targetInGroup) {
+                // Edge going OUT of group
+                nodesWithExternalOutputs.add(edge.sourceNodeId)
+            }
+            if (!sourceInGroup && targetInGroup) {
+                // Edge coming INTO group
+                nodesWithExternalInputs.add(edge.targetNodeId)
+            }
+        }
+
+        // Sort members: external inputs first, then middle, then external outputs
+        val sortedMembers = memberNodes.sortedWith { a, b ->
+            val aHasInput = a.id in nodesWithExternalInputs
+            val aHasOutput = a.id in nodesWithExternalOutputs
+            val bHasInput = b.id in nodesWithExternalInputs
+            val bHasOutput = b.id in nodesWithExternalOutputs
+
+            when {
+                aHasInput && !bHasInput -> -1
+                !aHasInput && bHasInput -> 1
+                aHasOutput && !bHasOutput -> 1
+                !aHasOutput && bHasOutput -> -1
+                else -> 0
+            }
+        }
+
+        // Position nodes vertically within the group
+        // Nodes start at (0,0) relative to virtual node position - this keeps them
+        // aligned with ungrouped nodes. The group background will extend outward.
+        val memberPositions = mutableMapOf<String, RelativePosition>()
+        var currentY = 0f
+
+        for (node in sortedMembers) {
+            val height = calculateNodeHeight(node)
+            memberPositions[node.id] = RelativePosition(
+                x = 0f,
+                y = currentY,
+                width = NODE_WIDTH,
+                height = height
+            )
+            currentY += height + VERTICAL_SPACING
+        }
+
+        // Remove trailing spacing
+        if (sortedMembers.isNotEmpty()) {
+            currentY -= VERTICAL_SPACING
+        }
+
+        // Virtual node size = just the nodes, no padding
+        // The group background (rendered separately) will extend outward with padding
+        val totalWidth = NODE_WIDTH
+        val totalHeight = currentY
+
+        return GroupInternalLayout(
+            groupId = groupId,
+            memberPositions = memberPositions,
+            width = totalWidth,
+            height = totalHeight
+        )
+    }
+
+    /**
+     * Create a virtual node representing a group for layout purposes.
+     */
+    private fun createVirtualNodeForGroup(
+        group: WorkflowGroup,
+        layout: GroupInternalLayout
+    ): WorkflowNode {
+        return WorkflowNode(
+            id = "virtual_group_${group.id}",
+            classType = "ComfyChairGroup",
+            title = group.title,
+            category = NodeCategory.OTHER,
+            inputs = emptyMap(),
+            outputs = emptyList(),
+            templateInputKeys = emptySet(),
+            width = layout.width,
+            height = layout.height
+        )
+    }
+
+    /**
+     * Collapse edges so that edges to/from group members become edges to/from the virtual group node.
+     */
+    private fun collapseEdgesForGroups(
+        edges: List<WorkflowEdge>,
+        groups: List<WorkflowGroup>,
+        groupedNodeIds: Set<String>
+    ): List<WorkflowEdge> {
+        // Build map: nodeId -> virtual group node ID
+        val nodeToVirtualGroup = mutableMapOf<String, String>()
+        for (group in groups) {
+            val virtualId = "virtual_group_${group.id}"
+            for (nodeId in group.memberNodeIds) {
+                nodeToVirtualGroup[nodeId] = virtualId
+            }
+        }
+
+        return edges.mapNotNull { edge ->
+            val newSourceId = nodeToVirtualGroup[edge.sourceNodeId] ?: edge.sourceNodeId
+            val newTargetId = nodeToVirtualGroup[edge.targetNodeId] ?: edge.targetNodeId
+
+            // Skip internal edges (both endpoints in same group)
+            if (newSourceId == newTargetId && newSourceId.startsWith("virtual_group_")) {
+                return@mapNotNull null
+            }
+
+            edge.copy(
+                sourceNodeId = newSourceId,
+                targetNodeId = newTargetId
+            )
+        }.distinctBy { "${it.sourceNodeId}->${it.targetNodeId}" }
+    }
+
+    /**
+     * Build dependency map from edges (for combined nodes).
+     */
+    private fun buildDependencyMapFromEdges(
+        nodes: List<WorkflowNode>,
+        edges: List<WorkflowEdge>
+    ): Map<String, Set<String>> {
+        val dependencies = mutableMapOf<String, MutableSet<String>>()
+
+        nodes.forEach { node ->
+            dependencies[node.id] = mutableSetOf()
+        }
+
+        edges.forEach { edge ->
+            dependencies[edge.targetNodeId]?.add(edge.sourceNodeId)
+        }
+
+        return dependencies
+    }
+
+    /**
+     * Expand virtual group nodes back to their member nodes with proper positions.
+     */
+    private fun expandVirtualNodesToMembers(
+        positionedNodes: List<WorkflowNode>,
+        virtualNodeIds: Set<String>,
+        groupInternalLayouts: Map<Int, GroupInternalLayout>,
+        originalNodes: List<WorkflowNode>
+    ): List<WorkflowNode> {
+        val result = mutableListOf<WorkflowNode>()
+        val originalNodeMap = originalNodes.associateBy { it.id }
+
+        for (node in positionedNodes) {
+            if (node.id in virtualNodeIds) {
+                // This is a virtual group node - expand to members
+                val groupId = node.id.removePrefix("virtual_group_").toIntOrNull() ?: continue
+                val layout = groupInternalLayouts[groupId] ?: continue
+
+                for ((memberId, relPos) in layout.memberPositions) {
+                    val originalNode = originalNodeMap[memberId] ?: continue
+                    result.add(originalNode.copy(
+                        x = node.x + relPos.x,
+                        y = node.y + relPos.y,
+                        width = relPos.width,
+                        height = relPos.height
+                    ))
+                }
+            } else {
+                // Regular node - keep as is
+                result.add(node)
+            }
+        }
+
+        return result
     }
 
     /**
@@ -249,7 +517,9 @@ class WorkflowLayoutEngine {
             rowLayers.maxOfOrNull { layer ->
                 var layerHeight = 0f
                 for (node in layer) {
-                    layerHeight += calculateNodeHeight(node) + VERTICAL_SPACING
+                    // Use pre-set height for virtual nodes, calculate for regular nodes
+                    val nodeHeight = if (node.height > 0) node.height else calculateNodeHeight(node)
+                    layerHeight += nodeHeight + VERTICAL_SPACING
                 }
                 // Remove trailing spacing
                 if (layer.isNotEmpty()) layerHeight -= VERTICAL_SPACING
@@ -267,12 +537,14 @@ class WorkflowLayoutEngine {
 
                 for (node in layer) {
                     val nodeIndex = nodeIndexMap[node.id] ?: continue
-                    val height = calculateNodeHeight(node)
+                    // Use pre-set dimensions for virtual nodes, calculate for regular nodes
+                    val height = if (node.height > 0) node.height else calculateNodeHeight(node)
+                    val width = if (node.width > 0) node.width else NODE_WIDTH
 
                     updatedNodes[nodeIndex] = node.copy(
                         x = columnX,
                         y = currentY,
-                        width = NODE_WIDTH,
+                        width = width,
                         height = height
                     )
 
@@ -312,5 +584,42 @@ class WorkflowLayoutEngine {
         val contentHeight = (literalInputCount * INPUT_ROW_HEIGHT) + connectionAreaHeight
 
         return maxOf(NODE_MIN_HEIGHT, NODE_HEADER_HEIGHT + contentHeight + 16f)
+    }
+
+    /**
+     * Calculate rendered groups with computed bounds from member node positions.
+     *
+     * @param groups The workflow groups (with membership data only)
+     * @param nodes All nodes in the graph (must have positions assigned)
+     * @return List of RenderedGroup with computed bounds for rendering
+     */
+    fun calculateRenderedGroups(
+        groups: List<WorkflowGroup>,
+        nodes: List<WorkflowNode>
+    ): List<RenderedGroup> {
+        if (groups.isEmpty()) return emptyList()
+
+        val nodeMap = nodes.associateBy { it.id }
+
+        return groups.mapNotNull { group ->
+            val memberNodes = group.memberNodeIds.mapNotNull { nodeMap[it] }
+
+            // Skip groups with no valid members (nodes may have been deleted)
+            if (memberNodes.isEmpty()) return@mapNotNull null
+
+            // Calculate bounds to encompass all member nodes
+            val minX = memberNodes.minOf { it.x } - GROUP_PADDING
+            val minY = memberNodes.minOf { it.y } - GROUP_PADDING - GROUP_HEADER_HEIGHT
+            val maxX = memberNodes.maxOf { it.x + it.width } + GROUP_PADDING
+            val maxY = memberNodes.maxOf { it.y + it.height } + GROUP_PADDING
+
+            RenderedGroup(
+                group = group,
+                x = minX,
+                y = minY,
+                width = maxX - minX,
+                height = maxY - minY
+            )
+        }
     }
 }

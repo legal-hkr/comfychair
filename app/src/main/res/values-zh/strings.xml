@@ -273,6 +273,7 @@
     <string name="button_save">保存</string>
     <string name="button_delete">删除</string>
     <string name="button_cancel">取消</string>
+    <string name="button_done">完成</string>
     <string name="edit">编辑</string>
     <string name="edit_structure">编辑结构</string>
     <string name="error_cannot_edit_builtin">内置工作流无法编辑</string>
@@ -463,6 +464,8 @@
     <string name="workflow_editor_relayout">重新排列节点</string>
     <string name="workflow_editor_more">更多操作</string>
     <string name="workflow_editor_cleanup">整理</string>
+    <string name="workflow_editor_group">分组</string>
+    <string name="workflow_editor_ungroup">取消分组</string>
     <string name="workflow_editor_done">完成</string>
     <string name="workflow_editor_discard_title">放弃工作流？</string>
     <string name="workflow_editor_discard_message">您有未保存的更改。确定要放弃此工作流吗？</string>

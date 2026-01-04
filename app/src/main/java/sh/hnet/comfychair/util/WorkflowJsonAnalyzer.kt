@@ -4,6 +4,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.WorkflowValidationResult
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import sh.hnet.comfychair.workflow.WorkflowGraph
 
 /**
  * Utilities for analyzing workflow JSON content.
@@ -130,6 +131,55 @@ internal object WorkflowJsonAnalyzer {
             hasVideoNodes -> WorkflowType.TTV
 
             // Image-to-image editing (no mask, uses QwenImageEdit-style nodes)
+            hasImageEditingNodes -> WorkflowType.ITI_EDITING
+
+            // Image-to-image inpainting (with mask nodes or LoadImage)
+            hasInpaintingNodes -> WorkflowType.ITI_INPAINTING
+            hasLoadImage -> WorkflowType.ITI_INPAINTING
+
+            // Text-to-image (no LoadImage, no video nodes)
+            hasCheckpointLoader || hasUNETLoader -> WorkflowType.TTI
+
+            // Default fallback
+            else -> null
+        }
+    }
+
+    /**
+     * Detect workflow type by analyzing nodes in a parsed WorkflowGraph.
+     * This is the graph-based equivalent of [detectWorkflowType] for JSON.
+     *
+     * @param graph The parsed workflow graph
+     * @return Detected workflow type, or null if type cannot be determined
+     */
+    fun detectWorkflowTypeFromGraph(graph: WorkflowGraph): WorkflowType? {
+        val classTypes = graph.nodes.map { it.classType }.toSet()
+
+        val hasVideoNodes = classTypes.any { classType ->
+            classType.contains("CreateVideo", ignoreCase = true) ||
+            classType.contains("VHS_VideoCombine", ignoreCase = true) ||
+            classType.contains("VideoLinearCFGGuidance", ignoreCase = true)
+        }
+
+        val hasLoadImage = classTypes.any { it.equals("LoadImage", ignoreCase = true) }
+        val hasInpaintingNodes = classTypes.any {
+            it.contains("SetLatentNoiseMask", ignoreCase = true) ||
+            it.contains("Inpaint", ignoreCase = true)
+        }
+        val hasImageEditingNodes = classTypes.any {
+            it.contains("QwenImageEdit", ignoreCase = true)
+        }
+        val hasCheckpointLoader = classTypes.any { it.equals("CheckpointLoaderSimple", ignoreCase = true) }
+        val hasUNETLoader = classTypes.any { it.equals("UNETLoader", ignoreCase = true) }
+
+        return when {
+            // Image-to-video: has both LoadImage and video nodes
+            hasLoadImage && hasVideoNodes -> WorkflowType.ITV
+
+            // Text-to-video: has video nodes but no LoadImage
+            hasVideoNodes -> WorkflowType.TTV
+
+            // Image-to-image editing (uses QwenImageEdit-style nodes)
             hasImageEditingNodes -> WorkflowType.ITI_EDITING
 
             // Image-to-image inpainting (with mask nodes or LoadImage)

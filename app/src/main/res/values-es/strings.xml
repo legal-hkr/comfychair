@@ -273,6 +273,7 @@
     <string name="button_save">Guardar</string>
     <string name="button_delete">Eliminar</string>
     <string name="button_cancel">Cancelar</string>
+    <string name="button_done">Hecho</string>
     <string name="edit">Editar</string>
     <string name="edit_structure">Editar estructura</string>
     <string name="error_cannot_edit_builtin">Los workflows integrados no se pueden editar</string>
@@ -463,6 +464,8 @@
     <string name="workflow_editor_relayout">Reorganizar nodos</string>
     <string name="workflow_editor_more">Más acciones</string>
     <string name="workflow_editor_cleanup">Limpiar</string>
+    <string name="workflow_editor_group">Agrupar</string>
+    <string name="workflow_editor_ungroup">Desagrupar</string>
     <string name="workflow_editor_done">Listo</string>
     <string name="workflow_editor_discard_title">¿Descartar flujo de trabajo?</string>
     <string name="workflow_editor_discard_message">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>

@@ -47,6 +47,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitScreen
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Tune
@@ -105,7 +107,10 @@ import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.FieldMappingState
+import sh.hnet.comfychair.workflow.RenderedGroup
+import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
+import sh.hnet.comfychair.workflow.WorkflowNode
 
 /**
  * Main screen for the workflow editor
@@ -252,6 +257,14 @@ fun WorkflowEditorScreen(
                 val displayScale = if (useAnimatedValues) animatedScale.value else uiState.scale
                 val displayOffset = if (useAnimatedValues) animatedOffset.value else uiState.offset
 
+                // Calculate rendered groups with computed bounds
+                val layoutEngine = remember { WorkflowLayoutEngine() }
+                val renderedGroups = remember(uiState.graph?.groups, uiState.graph?.nodes) {
+                    uiState.graph?.let { graph ->
+                        layoutEngine.calculateRenderedGroups(graph.groups, graph.nodes)
+                    } ?: emptyList()
+                }
+
                 // Graph canvas with optional side sheet
                 Row(modifier = Modifier.fillMaxSize()) {
                     // Canvas takes remaining space with padding for status bar and small bottom margin
@@ -277,6 +290,7 @@ fun WorkflowEditorScreen(
                             isEditMode = uiState.isEditMode,
                             selectedNodeIds = uiState.selectedNodeIds,
                             connectionModeState = uiState.connectionModeState,
+                            renderedGroups = renderedGroups,
                             nodeDefinitions = uiState.nodeDefinitions,
                             onNodeTapped = { nodeId ->
                                 when {
@@ -383,6 +397,7 @@ fun WorkflowEditorScreen(
             }
         }
 
+
         // Field mapping panel (only in mapping mode)
         if (uiState.isFieldMappingMode && uiState.mappingState != null) {
             FieldMappingPanel(
@@ -417,6 +432,7 @@ fun WorkflowEditorScreen(
                 isEditMode = uiState.isEditMode,
                 viewingWorkflowIsBuiltIn = uiState.viewingWorkflowIsBuiltIn,
                 hasSelection = uiState.selectedNodeIds.isNotEmpty(),
+                selectedCount = uiState.selectedNodeIds.size,
                 scale = uiState.scale,
                 onConfirmMapping = {
                     // If we have a workflow ID (existing or in edit mode), save directly
@@ -468,6 +484,9 @@ fun WorkflowEditorScreen(
                         }
                     }
                 },
+                onGroupSelected = { viewModel.createGroupFromSelection() },
+                onUngroupSelected = { viewModel.ungroupSelectedNode() },
+                canUngroup = viewModel.isSelectedNodeInGroup(),
                 onCleanup = { viewModel.relayoutGraph() },
                 onDone = { viewModel.showSaveDialog(context) }
             )
@@ -649,6 +668,7 @@ private fun WorkflowEditorFloatingToolbar(
     isEditMode: Boolean,
     viewingWorkflowIsBuiltIn: Boolean,
     hasSelection: Boolean,
+    selectedCount: Int,
     scale: Float,
     onConfirmMapping: () -> Unit,
     onZoomIn: () -> Unit,
@@ -661,6 +681,9 @@ private fun WorkflowEditorFloatingToolbar(
     onDuplicateSelected: () -> Unit,
     onAddNode: () -> Unit,
     onBypassSelected: () -> Unit,
+    onGroupSelected: () -> Unit,
+    onUngroupSelected: () -> Unit,
+    canUngroup: Boolean,
     onCleanup: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier
@@ -757,6 +780,49 @@ private fun WorkflowEditorFloatingToolbar(
                                         Icons.Default.VisibilityOff,
                                         contentDescription = null,
                                         tint = if (hasSelection)
+                                            MaterialTheme.colorScheme.onSurface
+                                        else
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            // Group (enabled when 2+ nodes selected)
+                            val canGroup = hasSelection && selectedCount >= 2
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workflow_editor_group)) },
+                                onClick = {
+                                    onGroupSelected()
+                                    showMoreMenu = false
+                                },
+                                enabled = canGroup,
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Filled.GridView,
+                                        contentDescription = null,
+                                        tint = if (canGroup)
+                                            MaterialTheme.colorScheme.onSurface
+                                        else
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                }
+                            )
+
+                            // Ungroup (enabled when selected node is in a group)
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workflow_editor_ungroup)) },
+                                onClick = {
+                                    onUngroupSelected()
+                                    showMoreMenu = false
+                                },
+                                enabled = canUngroup,
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Filled.ViewModule,
+                                        contentDescription = null,
+                                        tint = if (canUngroup)
                                             MaterialTheme.colorScheme.onSurface
                                         else
                                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)

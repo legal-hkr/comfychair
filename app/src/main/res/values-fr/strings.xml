@@ -273,6 +273,7 @@
     <string name="button_save">Enregistrer</string>
     <string name="button_delete">Supprimer</string>
     <string name="button_cancel">Annuler</string>
+    <string name="button_done">Terminé</string>
     <string name="edit">Modifier</string>
     <string name="edit_structure">Modifier la structure</string>
     <string name="error_cannot_edit_builtin">Les workflows intégrés ne peuvent pas être modifiés</string>
@@ -463,6 +464,8 @@
     <string name="workflow_editor_relayout">Réorganiser les nœuds</string>
     <string name="workflow_editor_more">Plus d\'actions</string>
     <string name="workflow_editor_cleanup">Nettoyer</string>
+    <string name="workflow_editor_group">Grouper</string>
+    <string name="workflow_editor_ungroup">Dégrouper</string>
     <string name="workflow_editor_done">Terminé</string>
     <string name="workflow_editor_discard_title">Abandonner le workflow ?</string>
     <string name="workflow_editor_discard_message">Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir abandonner ce workflow ?</string>
