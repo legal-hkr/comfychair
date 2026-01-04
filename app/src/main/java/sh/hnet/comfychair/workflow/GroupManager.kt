@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.workflow
 
+import sh.hnet.comfychair.util.DebugLogger
+
 /**
  * Manages workflow node groups.
  *
@@ -9,6 +11,8 @@ package sh.hnet.comfychair.workflow
  * Enforces one-node-one-group constraint: a node can only belong to one group at a time.
  */
 object GroupManager {
+
+    private const val TAG = "GroupManager"
 
     /**
      * Create a new group containing the specified nodes.
@@ -28,10 +32,18 @@ object GroupManager {
         title: String = "Group",
         idGenerator: () -> Int
     ): WorkflowGroup? {
-        if (nodeIds.size < 2) return null
+        DebugLogger.d(TAG, "createGroup: requested with ${nodeIds.size} nodes: $nodeIds, title='$title'")
+
+        if (nodeIds.size < 2) {
+            DebugLogger.w(TAG, "createGroup: rejected - need at least 2 nodes, got ${nodeIds.size}")
+            return null
+        }
 
         val nodes = graph.nodes.filter { it.id in nodeIds }
-        if (nodes.size < 2) return null
+        if (nodes.size < 2) {
+            DebugLogger.w(TAG, "createGroup: rejected - only ${nodes.size} of ${nodeIds.size} requested nodes exist in graph")
+            return null
+        }
 
         // CRITICAL: Remove nodes from any existing groups first (one-node-one-group)
         removeNodesFromGroups(graph, nodeIds)
@@ -43,6 +55,8 @@ object GroupManager {
         )
 
         graph.groups.add(newGroup)
+        DebugLogger.i(TAG, "createGroup: created group id=${newGroup.id} '$title' with ${nodeIds.size} members: $nodeIds")
+        DebugLogger.d(TAG, "createGroup: graph now has ${graph.groups.size} groups")
         return newGroup
     }
 
@@ -117,6 +131,8 @@ object GroupManager {
     ): Boolean {
         if (nodeIds.isEmpty()) return false
 
+        DebugLogger.d(TAG, "removeNodesFromGroups: removing nodes $nodeIds from groups")
+
         var modified = false
         val groupsToRemove = mutableListOf<Int>()
 
@@ -126,13 +142,16 @@ object GroupManager {
 
             if (hasSelectedNode) {
                 val newMemberIds = group.memberNodeIds - nodeIds
+                val removedNodes = group.memberNodeIds.intersect(nodeIds)
 
                 if (newMemberIds.size < 2) {
                     // Mark for removal (dissolve group)
                     groupsToRemove.add(index)
+                    DebugLogger.d(TAG, "removeNodesFromGroups: group ${group.id} '${group.title}' will be dissolved (removed $removedNodes, only ${newMemberIds.size} members left)")
                 } else {
                     // Update group with reduced membership
                     graph.groups[index] = group.copy(memberNodeIds = newMemberIds)
+                    DebugLogger.d(TAG, "removeNodesFromGroups: group ${group.id} '${group.title}' updated - removed $removedNodes, ${newMemberIds.size} members remain")
                 }
                 modified = true
             }
@@ -140,7 +159,13 @@ object GroupManager {
 
         // Remove dissolved groups (in reverse order to preserve indices)
         groupsToRemove.sortedDescending().forEach { index ->
+            val dissolved = graph.groups[index]
+            DebugLogger.i(TAG, "removeNodesFromGroups: dissolved group ${dissolved.id} '${dissolved.title}'")
             graph.groups.removeAt(index)
+        }
+
+        if (modified) {
+            DebugLogger.d(TAG, "removeNodesFromGroups: graph now has ${graph.groups.size} groups")
         }
 
         return modified
@@ -159,10 +184,17 @@ object GroupManager {
         groupId: Int,
         newTitle: String
     ): Boolean {
-        val index = graph.groups.indexOfFirst { it.id == groupId }
-        if (index < 0) return false
+        DebugLogger.d(TAG, "renameGroup: renaming group $groupId to '$newTitle'")
 
+        val index = graph.groups.indexOfFirst { it.id == groupId }
+        if (index < 0) {
+            DebugLogger.w(TAG, "renameGroup: group $groupId not found")
+            return false
+        }
+
+        val oldTitle = graph.groups[index].title
         graph.groups[index] = graph.groups[index].copy(title = newTitle)
+        DebugLogger.i(TAG, "renameGroup: group $groupId renamed from '$oldTitle' to '$newTitle'")
         return true
     }
 

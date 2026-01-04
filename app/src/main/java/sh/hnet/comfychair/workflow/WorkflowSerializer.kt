@@ -74,10 +74,13 @@ class WorkflowSerializer {
      * @param nodes All nodes in the graph (for computing bounding boxes)
      */
     private fun serializeGroups(groups: List<WorkflowGroup>, nodes: List<WorkflowNode>): JSONArray {
+        DebugLogger.d(TAG, "serializeGroups: serializing ${groups.size} groups")
         val nodeMap = nodes.associateBy { it.id }
         val groupsArray = JSONArray()
 
         for (group in groups) {
+            DebugLogger.d(TAG, "serializeGroups: processing group id=${group.id} '${group.title}' with ${group.memberNodeIds.size} members: ${group.memberNodeIds}")
+
             val groupJson = JSONObject()
             groupJson.put("id", group.id)
             groupJson.put("title", group.title)
@@ -96,6 +99,9 @@ class WorkflowSerializer {
                 boundingArray.put(bounds.width.toDouble())
                 boundingArray.put(bounds.height.toDouble())
                 groupJson.put("bounding", boundingArray)
+                DebugLogger.d(TAG, "serializeGroups: group ${group.id} bounds: x=${bounds.x}, y=${bounds.y}, w=${bounds.width}, h=${bounds.height}")
+            } else {
+                DebugLogger.w(TAG, "serializeGroups: group ${group.id} has no valid bounds (members not found in node map)")
             }
 
             // Default visual styling for ComfyUI
@@ -104,6 +110,8 @@ class WorkflowSerializer {
 
             groupsArray.put(groupJson)
         }
+
+        DebugLogger.i(TAG, "serializeGroups: serialized ${groupsArray.length()} groups to JSON")
         return groupsArray
     }
 

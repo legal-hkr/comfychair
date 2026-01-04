@@ -27,10 +27,16 @@ class WorkflowParser {
 
         // Parse groups if present (at root level)
         if (json.has("groups")) {
+            DebugLogger.d(TAG, "Found 'groups' key in JSON at root level")
             val groupsArray = json.optJSONArray("groups")
             if (groupsArray != null) {
+                DebugLogger.d(TAG, "Groups array has ${groupsArray.length()} entries")
                 groups.addAll(parseGroups(groupsArray))
+            } else {
+                DebugLogger.w(TAG, "'groups' key exists but is not a JSON array")
             }
+        } else {
+            DebugLogger.d(TAG, "No 'groups' key found in JSON root")
         }
 
         // Determine the structure: our custom format has "nodes" object, ComfyUI API format has nodes at top level
@@ -136,22 +142,41 @@ class WorkflowParser {
      * Groups with fewer than 2 members are skipped.
      */
     private fun parseGroups(groupsArray: JSONArray): List<WorkflowGroup> {
+        DebugLogger.d(TAG, "parseGroups: parsing ${groupsArray.length()} group entries")
         val result = mutableListOf<WorkflowGroup>()
+
         for (i in 0 until groupsArray.length()) {
-            val groupJson = groupsArray.optJSONObject(i) ?: continue
+            val groupJson = groupsArray.optJSONObject(i)
+            if (groupJson == null) {
+                DebugLogger.w(TAG, "parseGroups: entry $i is not a JSON object, skipping")
+                continue
+            }
+
             val id = groupJson.optInt("id", -1)
-            if (id < 0) continue
+            if (id < 0) {
+                DebugLogger.w(TAG, "parseGroups: entry $i has invalid id ($id), skipping")
+                continue
+            }
 
             val title = groupJson.optString("title", "Group")
+            val hasMemberNodes = groupJson.has("member_nodes")
+            val hasBounding = groupJson.has("bounding")
+
+            DebugLogger.d(TAG, "parseGroups: entry $i - id=$id, title='$title', has member_nodes=$hasMemberNodes, has bounding=$hasBounding")
 
             // Parse member node IDs (required for new format)
             val memberNodeIds = groupJson.optJSONArray("member_nodes")?.let { arr ->
-                (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }.toSet()
-            } ?: emptySet()
+                val ids = (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }.toSet()
+                DebugLogger.d(TAG, "parseGroups: group $id member_nodes array has ${arr.length()} entries, parsed ${ids.size} valid IDs: $ids")
+                ids
+            } ?: run {
+                DebugLogger.d(TAG, "parseGroups: group $id has no member_nodes array (legacy format?)")
+                emptySet()
+            }
 
             // Skip groups with < 2 members (including legacy groups without member_nodes)
             if (memberNodeIds.size < 2) {
-                DebugLogger.w(TAG, "Skipping group $id '$title': has ${memberNodeIds.size} members (minimum 2 required)")
+                DebugLogger.w(TAG, "parseGroups: skipping group $id '$title': has ${memberNodeIds.size} members (minimum 2 required)")
                 continue
             }
 
@@ -162,8 +187,10 @@ class WorkflowParser {
                     memberNodeIds = memberNodeIds
                 )
             )
+            DebugLogger.i(TAG, "parseGroups: successfully parsed group $id '$title' with ${memberNodeIds.size} members")
         }
-        DebugLogger.d(TAG, "Parsed ${result.size} groups")
+
+        DebugLogger.i(TAG, "parseGroups: parsed ${result.size} valid groups out of ${groupsArray.length()} entries")
         return result
     }
 
