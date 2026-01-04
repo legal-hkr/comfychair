@@ -508,4 +508,5 @@
     <string name="field_desc_scale_by">Facteur d\'échelle pour l\'upscale</string>
     <string name="field_desc_stop_at_clip_layer">Couche CLIP où s\'arrêter (négative)</string>
     <string name="field_desc_fallback">Champ requis : %1$s</string>
+    <string name="content_description_show_help">Afficher l\'aide</string>
 </resources>

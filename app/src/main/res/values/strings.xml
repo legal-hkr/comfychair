@@ -400,6 +400,7 @@
     <string name="content_description_source_image">Source image</string>
     <string name="content_description_decrease">Decrease value</string>
     <string name="content_description_increase">Increase value</string>
+    <string name="content_description_show_help">Show help</string>
 
     <!-- Empty state messages -->
     <string name="gallery_empty">No images yet</string>

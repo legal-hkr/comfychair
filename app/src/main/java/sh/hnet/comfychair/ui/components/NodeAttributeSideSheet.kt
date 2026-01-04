@@ -64,8 +64,10 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.ui.components.shared.ExpandableTooltip
 import sh.hnet.comfychair.ui.components.shared.ModelPathText
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
+import sh.hnet.comfychair.ui.components.shared.TooltipLabel
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.InputDefinition
@@ -331,6 +333,7 @@ private fun InputEditor(
                             label = input.name,
                             value = input.currentValue?.toString() ?: "",
                             options = options,
+                            tooltip = definition?.tooltip,
                             onValueChange = { onValueChange(it) }
                         )
                     } else {
@@ -338,6 +341,7 @@ private fun InputEditor(
                             label = input.name,
                             value = input.currentValue?.toString() ?: "",
                             options = options,
+                            tooltip = definition?.tooltip,
                             onValueChange = { onValueChange(it) }
                         )
                     }
@@ -347,6 +351,7 @@ private fun InputEditor(
                         label = input.name,
                         value = (input.currentValue as? Boolean) ?: false,
                         isModified = showReset,
+                        tooltip = definition?.tooltip,
                         onValueChange = { onValueChange(it) }
                     )
                 }
@@ -357,6 +362,7 @@ private fun InputEditor(
                         min = definition?.min?.toInt(),
                         max = definition?.max?.toInt(),
                         step = definition?.step?.toInt(),
+                        tooltip = definition?.tooltip,
                         onValueChange = { onValueChange(it) },
                         context = context
                     )
@@ -368,6 +374,7 @@ private fun InputEditor(
                         min = definition?.min?.toFloat(),
                         max = definition?.max?.toFloat(),
                         step = definition?.step?.toFloat(),
+                        tooltip = definition?.tooltip,
                         onValueChange = { onValueChange(it) },
                         context = context
                     )
@@ -377,6 +384,7 @@ private fun InputEditor(
                         label = input.name,
                         value = input.currentValue?.toString() ?: "",
                         multiline = definition?.multiline ?: false,
+                        tooltip = definition?.tooltip,
                         onValueChange = { onValueChange(it) },
                         context = context
                     )
@@ -387,6 +395,7 @@ private fun InputEditor(
                         label = input.name,
                         value = input.currentValue?.toString() ?: "",
                         multiline = false,
+                        tooltip = null,
                         onValueChange = { onValueChange(it) },
                         context = context
                     )
@@ -459,42 +468,61 @@ private fun EnumEditor(
     label: String,
     value: String,
     options: List<String>,
+    tooltip: String?,
     onValueChange: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var tooltipExpanded by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-        )
-
-        ExposedDropdownMenu(
+    Column {
+        ExposedDropdownMenuBox(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onExpandedChange = { expanded = it }
         ) {
-            options.forEach { option ->
-                key(option) {
-                    DropdownMenuItem(
-                        text = { ModelPathText(option) },
-                        onClick = {
-                            onValueChange(option)
-                            expanded = false
-                        }
+            OutlinedTextField(
+                value = value,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                label = {
+                    TooltipLabel(
+                        text = label,
+                        tooltip = tooltip,
+                        expanded = tooltipExpanded,
+                        onToggle = { tooltipExpanded = !tooltipExpanded }
                     )
+                },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(
+                        expanded = expanded,
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable)
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { option ->
+                    key(option) {
+                        DropdownMenuItem(
+                            text = { ModelPathText(option) },
+                            onClick = {
+                                onValueChange(option)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
+
+        ExpandableTooltip(
+            tooltip = tooltip,
+            expanded = tooltipExpanded
+        )
     }
 }
 
@@ -507,8 +535,11 @@ private fun BooleanEditor(
     label: String,
     value: Boolean,
     isModified: Boolean,
+    tooltip: String?,
     onValueChange: (Boolean) -> Unit
 ) {
+    var tooltipExpanded by remember { mutableStateOf(false) }
+
     val switchColors = if (isModified) {
         SwitchDefaults.colors(
             checkedThumbColor = MaterialTheme.colorScheme.onError,
@@ -520,21 +551,29 @@ private fun BooleanEditor(
         SwitchDefaults.colors()
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Switch(
-            checked = value,
-            onCheckedChange = onValueChange,
-            colors = switchColors
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TooltipLabel(
+                text = label,
+                tooltip = tooltip,
+                expanded = tooltipExpanded,
+                onToggle = { tooltipExpanded = !tooltipExpanded },
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = value,
+                onCheckedChange = onValueChange,
+                colors = switchColors
+            )
+        }
+
+        ExpandableTooltip(
+            tooltip = tooltip,
+            expanded = tooltipExpanded
         )
     }
 }
@@ -549,6 +588,7 @@ private fun IntEditor(
     min: Int?,
     max: Int?,
     step: Int?,
+    tooltip: String?,
     onValueChange: (Int) -> Unit,
     context: android.content.Context
 ) {
@@ -576,6 +616,7 @@ private fun IntEditor(
         decimalPlaces = 0,
         error = error,
         hint = hint,
+        tooltip = tooltip,
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -590,6 +631,7 @@ private fun FloatEditor(
     min: Float?,
     max: Float?,
     step: Float?,
+    tooltip: String?,
     onValueChange: (Float) -> Unit,
     context: android.content.Context
 ) {
@@ -617,6 +659,7 @@ private fun FloatEditor(
         decimalPlaces = 2,
         error = error,
         hint = hint,
+        tooltip = tooltip,
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -629,28 +672,44 @@ private fun StringEditor(
     label: String,
     value: String,
     multiline: Boolean,
+    tooltip: String?,
     onValueChange: (String) -> Unit,
     context: android.content.Context
 ) {
     var textValue by remember(value) { mutableStateOf(value) }
+    var tooltipExpanded by remember { mutableStateOf(false) }
     val error = ValidationUtils.validateString(textValue, context = context)
 
-    OutlinedTextField(
-        value = textValue,
-        onValueChange = { newValue ->
-            textValue = newValue
-            onValueChange(newValue)
-        },
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        isError = error != null,
-        supportingText = if (error != null) {
-            { Text(error) }
-        } else null,
-        singleLine = !multiline,
-        minLines = if (multiline) 3 else 1,
-        maxLines = if (multiline) 10 else 1,
-        modifier = Modifier.fillMaxWidth()
-    )
+    Column {
+        OutlinedTextField(
+            value = textValue,
+            onValueChange = { newValue ->
+                textValue = newValue
+                onValueChange(newValue)
+            },
+            label = {
+                TooltipLabel(
+                    text = label,
+                    tooltip = tooltip,
+                    expanded = tooltipExpanded,
+                    onToggle = { tooltipExpanded = !tooltipExpanded }
+                )
+            },
+            isError = error != null,
+            supportingText = if (error != null) {
+                { Text(error) }
+            } else null,
+            singleLine = !multiline,
+            minLines = if (multiline) 3 else 1,
+            maxLines = if (multiline) 10 else 1,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        ExpandableTooltip(
+            tooltip = tooltip,
+            expanded = tooltipExpanded
+        )
+    }
 }
 
 private const val TAG = "ImagePreview"
@@ -679,9 +738,11 @@ private fun ImageEnumEditor(
     label: String,
     value: String,
     options: List<String>,
+    tooltip: String?,
     onValueChange: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var tooltipExpanded by remember { mutableStateOf(false) }
 
     Column {
         ExposedDropdownMenuBox(
@@ -692,11 +753,21 @@ private fun ImageEnumEditor(
                 value = value,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                label = {
+                    TooltipLabel(
+                        text = label,
+                        tooltip = tooltip,
+                        expanded = tooltipExpanded,
+                        onToggle = { tooltipExpanded = !tooltipExpanded }
+                    )
+                },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(
+                        expanded = expanded,
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable)
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
             )
 
             ExposedDropdownMenu(
@@ -716,6 +787,11 @@ private fun ImageEnumEditor(
                 }
             }
         }
+
+        ExpandableTooltip(
+            tooltip = tooltip,
+            expanded = tooltipExpanded
+        )
 
         // Image preview
         if (value.isNotEmpty()) {

@@ -508,4 +508,5 @@
     <string name="field_desc_scale_by">Współczynnik skalowania do powiększania</string>
     <string name="field_desc_stop_at_clip_layer">Warstwa CLIP, na której zatrzymać (ujemna)</string>
     <string name="field_desc_fallback">Wymagane pole: %1$s</string>
+    <string name="content_description_show_help">Pokaż pomoc</string>
 </resources>

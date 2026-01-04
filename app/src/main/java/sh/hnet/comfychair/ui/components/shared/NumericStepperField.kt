@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.ui.components.shared
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -8,14 +11,18 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import java.util.Locale
@@ -33,6 +40,7 @@ import java.util.Locale
  * @param decimalPlaces Number of decimal places (0 for integers)
  * @param error Error message to display, or null
  * @param hint Hint text to display below the field (shown when no error)
+ * @param tooltip Help text that can be expanded by tapping the label
  * @param enabled Whether the field and buttons are enabled
  * @param modifier Modifier for the text field
  */
@@ -47,54 +55,79 @@ fun NumericStepperField(
     decimalPlaces: Int = 0,
     error: String? = null,
     hint: String? = null,
+    tooltip: String? = null,
     enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val currentValue = value.toFloatOrNull()
     val canDecrement = enabled && currentValue != null && currentValue > min
     val canIncrement = enabled && currentValue != null && currentValue < max
+    var tooltipExpanded by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (decimalPlaces > 0) KeyboardType.Decimal else KeyboardType.Number
-        ),
-        isError = error != null,
-        supportingText = when {
-            error != null -> { { Text(error) } }
-            hint != null -> { { Text(hint) } }
-            else -> null
-        },
-        modifier = modifier,
-        singleLine = true,
-        enabled = enabled,
-        shape = RoundedCornerShape(28.dp),
-        leadingIcon = {
-            IconButton(
-                onClick = { performDecrement(value, min, step, decimalPlaces, onValueChange) },
-                enabled = canDecrement
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Remove,
-                    contentDescription = stringResource(R.string.content_description_decrease)
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = {
+                TooltipLabel(
+                    text = label,
+                    tooltip = tooltip,
+                    expanded = tooltipExpanded,
+                    onToggle = { tooltipExpanded = !tooltipExpanded }
                 )
+            },
+            textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (decimalPlaces > 0) KeyboardType.Decimal else KeyboardType.Number
+            ),
+            isError = error != null,
+            supportingText = if (error != null) {
+                { Text(error) }
+            } else null,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = enabled,
+            shape = RoundedCornerShape(28.dp),
+            leadingIcon = {
+                IconButton(
+                    onClick = { performDecrement(value, min, step, decimalPlaces, onValueChange) },
+                    enabled = canDecrement
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = stringResource(R.string.content_description_decrease)
+                    )
+                }
+            },
+            trailingIcon = {
+                IconButton(
+                    onClick = { performIncrement(value, max, step, decimalPlaces, onValueChange) },
+                    enabled = canIncrement
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.content_description_increase)
+                    )
+                }
             }
-        },
-        trailingIcon = {
-            IconButton(
-                onClick = { performIncrement(value, max, step, decimalPlaces, onValueChange) },
-                enabled = canIncrement
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.content_description_increase)
-                )
-            }
+        )
+
+        // Hint row (just the hint text, no tooltip icon - that's now in the label)
+        if (error == null && hint != null) {
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
         }
-    )
+
+        // Expandable tooltip
+        ExpandableTooltip(
+            tooltip = tooltip,
+            expanded = tooltipExpanded
+        )
+    }
 }
 
 private fun performDecrement(

@@ -508,4 +508,5 @@
     <string name="field_desc_scale_by">放大的缩放因子</string>
     <string name="field_desc_stop_at_clip_layer">停止的 CLIP 层（负数）</string>
     <string name="field_desc_fallback">必填字段：%1$s</string>
+    <string name="content_description_show_help">显示帮助</string>
 </resources>

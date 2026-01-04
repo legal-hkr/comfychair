@@ -508,4 +508,5 @@
     <string name="field_desc_scale_by">Factor de escala para escalado</string>
     <string name="field_desc_stop_at_clip_layer">Capa CLIP donde detenerse (negativa)</string>
     <string name="field_desc_fallback">Campo requerido: %1$s</string>
+    <string name="content_description_show_help">Mostrar ayuda</string>
 </resources>
