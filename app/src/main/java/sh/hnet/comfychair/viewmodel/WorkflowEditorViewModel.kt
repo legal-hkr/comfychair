@@ -1056,9 +1056,9 @@ class WorkflowEditorViewModel : ViewModel() {
             DebugLogger.d(TAG, "confirmMappingAndSave: Field '${fieldMapping.field.fieldKey}' -> node ${selectedCandidate.nodeId}, input '${selectedCandidate.inputKey}'")
         }
 
-        // Serialize graph to JSON
-        DebugLogger.d(TAG, "confirmMappingAndSave: Serializing graph with ${pending.graph.nodes.size} nodes")
-        val jsonContent = serializer.serialize(pending.graph)
+        // Serialize graph to JSON (with wrapper to include groups)
+        DebugLogger.d(TAG, "confirmMappingAndSave: Serializing graph with ${pending.graph.nodes.size} nodes, ${pending.graph.groups.size} groups")
+        val jsonContent = serializer.serializeWithWrapper(pending.graph)
         DebugLogger.d(TAG, "confirmMappingAndSave: JSON length=${jsonContent.length}")
 
         // Save using WorkflowManager - update if editing existing workflow, create if new
