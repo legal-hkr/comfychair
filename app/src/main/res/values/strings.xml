@@ -434,6 +434,8 @@
     <string name="workflow_editor_cleanup">Cleanup</string>
     <string name="workflow_editor_group">Group</string>
     <string name="workflow_editor_ungroup">Ungroup</string>
+    <string name="workflow_editor_rename_group_title">Rename group</string>
+    <string name="workflow_editor_rename_group_label">Group name</string>
     <string name="workflow_editor_done">Done</string>
     <string name="workflow_editor_discard_title">Discard workflow?</string>
     <string name="workflow_editor_discard_message">You have unsaved changes. Are you sure you want to discard this workflow?</string>

@@ -1562,6 +1562,22 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
+     * Rename a group (change its title).
+     */
+    fun renameGroup(groupId: Int, newTitle: String) {
+        val graph = mutableGraph ?: return
+
+        // Use GroupManager to rename the group
+        val renamed = GroupManager.renameGroup(graph, groupId, newTitle)
+        if (!renamed) return
+
+        // Update the immutable graph state
+        updateGraphState()
+
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
+    }
+
+    /**
      * Toggle the bypass state of a node.
      * Bypassed nodes (mode=4) are skipped during execution but connections pass through.
      */

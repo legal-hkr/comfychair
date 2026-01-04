@@ -466,6 +466,8 @@
     <string name="workflow_editor_cleanup">整理</string>
     <string name="workflow_editor_group">分组</string>
     <string name="workflow_editor_ungroup">取消分组</string>
+    <string name="workflow_editor_rename_group_title">重命名分组</string>
+    <string name="workflow_editor_rename_group_label">分组名称</string>
     <string name="workflow_editor_done">完成</string>
     <string name="workflow_editor_discard_title">放弃工作流？</string>
     <string name="workflow_editor_discard_message">您有未保存的更改。确定要放弃此工作流吗？</string>

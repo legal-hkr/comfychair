@@ -466,6 +466,8 @@
     <string name="workflow_editor_cleanup">Aufräumen</string>
     <string name="workflow_editor_group">Gruppieren</string>
     <string name="workflow_editor_ungroup">Gruppierung aufheben</string>
+    <string name="workflow_editor_rename_group_title">Gruppe umbenennen</string>
+    <string name="workflow_editor_rename_group_label">Gruppenname</string>
     <string name="workflow_editor_done">Fertig</string>
     <string name="workflow_editor_discard_title">Workflow verwerfen?</string>
     <string name="workflow_editor_discard_message">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>

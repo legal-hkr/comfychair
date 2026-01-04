@@ -126,7 +126,8 @@ fun WorkflowGraphCanvas(
     onTapOutsideNodes: (() -> Unit)? = null,
     onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
     onInputSlotTapped: ((SlotPosition) -> Unit)? = null,
-    onRenameNodeTapped: ((String) -> Unit)? = null
+    onRenameNodeTapped: ((String) -> Unit)? = null,
+    onRenameGroupTapped: ((Int) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -134,6 +135,7 @@ fun WorkflowGraphCanvas(
     val currentGraphState = rememberUpdatedState(graph)
     val currentConnectionModeState = rememberUpdatedState(connectionModeState)
     val currentIsEditMode = rememberUpdatedState(isEditMode)
+    val currentRenderedGroups = rememberUpdatedState(renderedGroups)
 
     // Calculate selected node IDs from mapping state - only for the currently selected field
     val mappingSelectedNodeIds = remember(mappingState, selectedFieldKey) {
@@ -278,8 +280,8 @@ fun WorkflowGraphCanvas(
 
     Canvas(
         modifier = modifier
-            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped) {
-                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onRenameGroupTapped) {
+                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onRenameGroupTapped != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
@@ -354,6 +356,24 @@ fun WorkflowGraphCanvas(
                                     }
                                 }
                             }
+
+                            // Check for taps on group edit icon (top-right corner, same as nodes)
+                            for (group in currentRenderedGroups.value) {
+                                // Edit icon is in the top-right corner (same positioning as nodes)
+                                val editIconRight = group.x + group.width - 8f
+                                val editIconLeft = editIconRight - 32f
+                                val iconTop = group.y + 8f
+                                val iconBottom = group.y + WorkflowLayoutEngine.GROUP_HEADER_HEIGHT + 12f
+
+                                if (graphX >= editIconLeft && graphX <= editIconRight &&
+                                    graphY >= iconTop && graphY <= iconBottom
+                                ) {
+                                    if (onRenameGroupTapped != null) {
+                                        onRenameGroupTapped(group.id)
+                                        return@detectTapGestures
+                                    }
+                                }
+                            }
                         }
 
                         // Find tapped node
@@ -418,7 +438,9 @@ fun WorkflowGraphCanvas(
             renderedGroups.forEach { group ->
                 drawGroup(
                     group = group,
-                    colors = colors
+                    colors = colors,
+                    showEditIcon = isEditMode,
+                    editIconDrawable = editIconDrawable
                 )
             }
 
@@ -1203,7 +1225,9 @@ private fun DrawScope.drawEdge(
  */
 private fun DrawScope.drawGroup(
     group: RenderedGroup,
-    colors: CanvasColors
+    colors: CanvasColors,
+    showEditIcon: Boolean = false,
+    editIconDrawable: Drawable? = null
 ) {
     // Parse group color (hex string like "#3f789e")
     val groupColor = try {
@@ -1232,7 +1256,7 @@ private fun DrawScope.drawGroup(
         style = Stroke(width = 3f)
     )
 
-    // Draw title text
+    // Draw title text and edit icon
     drawContext.canvas.nativeCanvas.apply {
         val titlePaint = android.graphics.Paint().apply {
             color = groupColor.toArgb()
@@ -1240,8 +1264,23 @@ private fun DrawScope.drawGroup(
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             isAntiAlias = true
         }
-        val titleY = group.y + fontSize + 4f
+        // Match node vertical positioning: title baseline at y + 12 + fontSize
+        val titleY = group.y + 12f + fontSize
         drawText(group.title, group.x + 16f, titleY, titlePaint)
+
+        // Draw edit icon in top-right corner (same as nodes) when in edit mode
+        if (showEditIcon && editIconDrawable != null) {
+            val iconSize = 40
+            val iconLeft = (group.x + group.width - 48f).toInt()
+            val iconTop = (group.y + 12f).toInt()
+
+            val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
+            if (iconCopy != null) {
+                DrawableCompat.setTint(iconCopy, groupColor.toArgb())
+                iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
+                iconCopy.draw(this)
+            }
+        }
     }
 }
 

@@ -466,6 +466,8 @@
     <string name="workflow_editor_cleanup">Uporządkuj</string>
     <string name="workflow_editor_group">Grupuj</string>
     <string name="workflow_editor_ungroup">Rozgrupuj</string>
+    <string name="workflow_editor_rename_group_title">Zmień nazwę grupy</string>
+    <string name="workflow_editor_rename_group_label">Nazwa grupy</string>
     <string name="workflow_editor_done">Gotowe</string>
     <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
     <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>

@@ -466,6 +466,8 @@
     <string name="workflow_editor_cleanup">Limpiar</string>
     <string name="workflow_editor_group">Agrupar</string>
     <string name="workflow_editor_ungroup">Desagrupar</string>
+    <string name="workflow_editor_rename_group_title">Renombrar grupo</string>
+    <string name="workflow_editor_rename_group_label">Nombre del grupo</string>
     <string name="workflow_editor_done">Listo</string>
     <string name="workflow_editor_discard_title">¿Descartar flujo de trabajo?</string>
     <string name="workflow_editor_discard_message">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>

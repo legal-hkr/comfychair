@@ -135,6 +135,11 @@ fun WorkflowEditorScreen(
     var renameDialogText by remember { mutableStateOf("") }
     var renamingNodeId by remember { mutableStateOf<String?>(null) }
 
+    // Group rename dialog state
+    var showGroupRenameDialog by remember { mutableStateOf(false) }
+    var groupRenameDialogText by remember { mutableStateOf("") }
+    var renamingGroupId by remember { mutableStateOf<Int?>(null) }
+
     // Node browser bottom sheet state (hoisted outside conditional for animation stability)
     val nodeBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -351,6 +356,15 @@ fun WorkflowEditorScreen(
                                     renamingNodeId = nodeId
                                     renameDialogText = node.title
                                     showRenameDialog = true
+                                }
+                            },
+                            onRenameGroupTapped = { groupId ->
+                                // Find the group and open rename dialog
+                                val group = uiState.graph?.groups?.find { it.id == groupId }
+                                if (group != null) {
+                                    renamingGroupId = groupId
+                                    groupRenameDialogText = group.title
+                                    showGroupRenameDialog = true
                                 }
                             },
                             onTransform = { scale, offset ->
@@ -601,6 +615,51 @@ fun WorkflowEditorScreen(
                         onClick = {
                             showRenameDialog = false
                             renamingNodeId = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.button_cancel))
+                    }
+                }
+            )
+        }
+
+        // Group rename dialog
+        if (showGroupRenameDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showGroupRenameDialog = false
+                    renamingGroupId = null
+                },
+                title = { Text(stringResource(R.string.workflow_editor_rename_group_title)) },
+                text = {
+                    OutlinedTextField(
+                        value = groupRenameDialogText,
+                        onValueChange = { groupRenameDialogText = it },
+                        label = { Text(stringResource(R.string.workflow_editor_rename_group_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val groupId = renamingGroupId
+                            if (groupId != null && groupRenameDialogText.isNotBlank()) {
+                                viewModel.renameGroup(groupId, groupRenameDialogText.trim())
+                                showGroupRenameDialog = false
+                                renamingGroupId = null
+                            }
+                        },
+                        enabled = groupRenameDialogText.isNotBlank()
+                    ) {
+                        Text(stringResource(R.string.button_save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showGroupRenameDialog = false
+                            renamingGroupId = null
                         }
                     ) {
                         Text(stringResource(R.string.button_cancel))
