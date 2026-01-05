@@ -9,6 +9,30 @@
     "sampler_name": "lcm",
     "scheduler": "normal"
   },
+  "groups": [
+    {
+      "id": 1,
+      "title": "CLIP Configuration",
+      "member_nodes": ["4", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "VAE Configuration",
+      "member_nodes": ["3", "note:2"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Models\n\n- **CLIP 1:** L (clip_l)\n- **CLIP 2:** G (clip_g)\n- **CLIP 3:** T5 XXL\n- **CLIP 4:** Llama 3.1 8B Instruct\n\nHiDream uses a quadruple-encoder architecture for enhanced prompt understanding and semantic precision."
+    },
+    {
+      "id": 2,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **AE** (ae.safetensors) for optimal results with HiDream models."
+    }
+  ],
   "nodes": {
     "1": {
       "class_type": "UNETLoader",

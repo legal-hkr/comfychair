@@ -9,6 +9,40 @@
     "negative_prompt": "",
     "denoise": 1.0
   },
+  "groups": [
+    {
+      "id": 1,
+      "title": "CLIP Configuration",
+      "member_nodes": ["2", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "VAE Configuration",
+      "member_nodes": ["3", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "Sampling Configuration",
+      "member_nodes": ["8", "note:3"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Model\n\nUse **Qwen 3 4V** for optimal text-to-image generation with Z-Image Turbo."
+    },
+    {
+      "id": 2,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **AE** (ae.safetensors) for optimal results with Z-Image Turbo."
+    },
+    {
+      "id": 3,
+      "title": "Sampler Settings",
+      "content": "### Recommended Settings\n\n- **Steps:** 9\n- **CFG:** 1.0\n- **Negative prompt:** Not required\n\n---\n\n*Z-Image Turbo is optimized for fast inference without the need for negative conditioning.*"
+    }
+  ],
   "nodes": {
     "1": {
       "class_type": "UNETLoader",

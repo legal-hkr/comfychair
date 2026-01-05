@@ -14,6 +14,13 @@
     "scale_by": 1.5,
     "stop_at_clip_layer": -2
   },
+  "notes": [
+    {
+      "id": 1,
+      "title": "Light Workflow Settings",
+      "content": "### Important Configuration\n\nThis workflow is designed for **SDXL Light** distilled models.\n\n**Required settings:**\n\n- **Steps:** Less than 10 (typically 4-8)\n- **Sampler:** Euler or Euler Ancestral\n- **CFG:** Maximum 2.0 when using negative prompts\n- **CFG:** 1.0 recommended if no negative prompt is needed\n\n---\n\n*Light models are optimized for fast inference with minimal steps.*"
+    }
+  ],
   "nodes": {
     "1": {
       "class_type": "CheckpointLoaderSimple",

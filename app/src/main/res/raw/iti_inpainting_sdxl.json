@@ -10,6 +10,13 @@
     "negative_prompt": "",
     "denoise": 0.8
   },
+  "notes": [
+    {
+      "id": 1,
+      "title": "Inpainting Model Requirements",
+      "content": "### Important Notice\n\nInpainting workflows typically require **specialized inpainting variants** of models.\n\nStandard text-to-image checkpoints may not produce optimal results for inpainting tasks.\n\n---\n\nLook for models with **\"inpainting\"** in their name, such as:\n\n- sdxl-1.0-inpainting\n- Other inpainting-specific fine-tunes"
+    }
+  ],
   "nodes": {
     "1": {
       "class_type": "CheckpointLoaderSimple",

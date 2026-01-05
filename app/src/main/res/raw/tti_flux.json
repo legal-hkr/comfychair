@@ -8,6 +8,30 @@
     "sampler_name": "euler",
     "scheduler": "simple"
   },
+  "groups": [
+    {
+      "id": 1,
+      "title": "CLIP Configuration",
+      "member_nodes": ["3", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "VAE Configuration",
+      "member_nodes": ["2", "note:2"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Models\n\n- **CLIP 1:** T5 XXL\n- **CLIP 2:** L (clip_l)\n\nFlux uses a dual-encoder architecture that combines the text understanding capabilities of T5 with CLIP's visual-semantic alignment."
+    },
+    {
+      "id": 2,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **AE** (ae.safetensors) for optimal results with Flux models."
+    }
+  ],
   "nodes": {
     "1": {
       "class_type": "UNETLoader",

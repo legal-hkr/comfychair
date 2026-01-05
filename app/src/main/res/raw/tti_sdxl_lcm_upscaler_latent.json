@@ -14,6 +14,13 @@
     "scale_by": 1.5,
     "stop_at_clip_layer": -2
   },
+  "notes": [
+    {
+      "id": 1,
+      "title": "DMD2 Workflow Settings",
+      "content": "### Important Configuration\n\nThis workflow is designed for **DMD2** (Distribution Matching Distillation) models.\n\n**Required settings:**\n\n- **Sampler:** LCM\n- **CFG:** Maximum 2.0 when using negative prompts\n- **CFG:** 1.0 recommended if no negative prompt is needed\n\n---\n\n*Using higher CFG values may produce artifacts or degraded output quality.*"
+    }
+  ],
   "nodes": {
     "1": {
       "class_type": "CheckpointLoaderSimple",

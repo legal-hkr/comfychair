@@ -9,6 +9,60 @@
     "scheduler": "simple",
     "denoise": 1.0
   },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["1", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "Lightning LoRA",
+      "member_nodes": ["2", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "CLIP Configuration",
+      "member_nodes": ["3", "note:3"]
+    },
+    {
+      "id": 4,
+      "title": "VAE Configuration",
+      "member_nodes": ["4", "note:4"]
+    },
+    {
+      "id": 5,
+      "title": "Sampling Configuration",
+      "member_nodes": ["14", "note:5"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **QwenImage Edit 2509 FP8 e4m3fn** for optimal image editing results."
+    },
+    {
+      "id": 2,
+      "title": "Lightning LoRA",
+      "content": "### Required LoRA\n\nThis workflow uses Lightning LoRA for fast inference.\n\nUse **QwenImage Edit 2509 Lightning 4 Steps BF16** for 4-step generation."
+    },
+    {
+      "id": 3,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Model\n\nUse **2.5 VL 7B FP8 Scaled** for optimal text understanding with QwenImage Edit."
+    },
+    {
+      "id": 4,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **QwenImage** VAE for optimal results with QwenImage Edit models."
+    },
+    {
+      "id": 5,
+      "title": "Sampler Settings",
+      "content": "### Recommended Settings\n\n- **Steps:** 4\n- **CFG:** 1.0\n- **Negative prompt:** Not required\n\n---\n\n*Lightning LoRA enables fast 4-step inference without the need for negative conditioning.*"
+    }
+  ],
   "nodes": {
     "1": {
       "inputs": {
