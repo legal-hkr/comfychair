@@ -254,8 +254,15 @@ class WorkflowLayoutEngine {
             }
         }
 
-        // Sort members: external inputs first, then middle (including unconnected), then external outputs
+        // Sort members: external inputs first, then middle, then external outputs, then notes last
         val sortedMembers = memberNodes.sortedWith { a, b ->
+            val aIsNote = a.id.startsWith(VIRTUAL_NOTE_PREFIX)
+            val bIsNote = b.id.startsWith(VIRTUAL_NOTE_PREFIX)
+
+            // Notes always go last (rightmost/bottom position in grid)
+            if (aIsNote && !bIsNote) return@sortedWith 1
+            if (bIsNote && !aIsNote) return@sortedWith -1
+
             val aHasInput = a.id in nodesWithExternalInputs
             val aHasOutput = a.id in nodesWithExternalOutputs
             val bHasInput = b.id in nodesWithExternalInputs
