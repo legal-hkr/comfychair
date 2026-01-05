@@ -437,7 +437,6 @@
     <string name="workflow_editor_rename_group_title">Rename group</string>
     <string name="workflow_editor_rename_group_label">Group name</string>
     <string name="workflow_editor_add_note">Add note</string>
-    <string name="workflow_editor_rename_note_title">Rename note</string>
     <string name="workflow_editor_rename_note_label">Note title</string>
     <string name="workflow_editor_edit_note_content">Edit note</string>
     <string name="workflow_editor_note_content_label">Content (Markdown)</string>

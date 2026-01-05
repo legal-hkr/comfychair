@@ -147,8 +147,7 @@ fun WorkflowGraphCanvas(
     onRenameNodeTapped: ((String) -> Unit)? = null,
     onRenameGroupTapped: ((Int) -> Unit)? = null,
     onNoteTapped: ((Int) -> Unit)? = null,
-    onRenameNoteTapped: ((Int) -> Unit)? = null,
-    onEditNoteContentTapped: ((Int) -> Unit)? = null
+    onRenameNoteTapped: ((Int) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -302,8 +301,8 @@ fun WorkflowGraphCanvas(
 
     Canvas(
         modifier = modifier
-            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onRenameGroupTapped, onNoteTapped, onRenameNoteTapped, onEditNoteContentTapped) {
-                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onRenameGroupTapped != null || onNoteTapped != null || onRenameNoteTapped != null || onEditNoteContentTapped != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onRenameGroupTapped, onNoteTapped, onRenameNoteTapped) {
+                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onRenameGroupTapped != null || onNoteTapped != null || onRenameNoteTapped != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
@@ -416,18 +415,12 @@ fun WorkflowGraphCanvas(
                             }
                         }
 
-                        // Check for taps on notes (body for content edit, works in BOTH modes)
+                        // Check for taps on notes (select/deselect, same as nodes)
                         for (note in currentNotes.value) {
-                            val noteHeaderHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
                             if (graphX >= note.x && graphX <= note.x + note.width &&
                                 graphY >= note.y && graphY <= note.y + note.height
                             ) {
-                                // Tap on body area -> edit content (available in both modes)
-                                if (graphY > note.y + noteHeaderHeight) {
-                                    onEditNoteContentTapped?.invoke(note.id)
-                                    return@detectTapGestures
-                                }
-                                // Tap on header (not on edit icon) -> select note
+                                // Tap anywhere on note (except edit icon) -> select/deselect
                                 onNoteTapped?.invoke(note.id)
                                 return@detectTapGestures
                             }

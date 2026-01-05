@@ -469,7 +469,6 @@
     <string name="workflow_editor_rename_group_title">重命名分组</string>
     <string name="workflow_editor_rename_group_label">分组名称</string>
     <string name="workflow_editor_add_note">添加备注</string>
-    <string name="workflow_editor_rename_note_title">重命名备注</string>
     <string name="workflow_editor_rename_note_label">备注标题</string>
     <string name="workflow_editor_edit_note_content">编辑备注</string>
     <string name="workflow_editor_note_content_label">内容 (Markdown)</string>

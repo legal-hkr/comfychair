@@ -469,7 +469,6 @@
     <string name="workflow_editor_rename_group_title">Renommer le groupe</string>
     <string name="workflow_editor_rename_group_label">Nom du groupe</string>
     <string name="workflow_editor_add_note">Ajouter une note</string>
-    <string name="workflow_editor_rename_note_title">Renommer la note</string>
     <string name="workflow_editor_rename_note_label">Titre de la note</string>
     <string name="workflow_editor_edit_note_content">Modifier la note</string>
     <string name="workflow_editor_note_content_label">Contenu (Markdown)</string>

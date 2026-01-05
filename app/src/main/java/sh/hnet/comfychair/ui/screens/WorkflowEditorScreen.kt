@@ -141,15 +141,11 @@ fun WorkflowEditorScreen(
     var groupRenameDialogText by remember { mutableStateOf("") }
     var renamingGroupId by remember { mutableStateOf<Int?>(null) }
 
-    // Note rename dialog state
-    var showNoteRenameDialog by remember { mutableStateOf(false) }
-    var noteRenameDialogText by remember { mutableStateOf("") }
-    var renamingNoteId by remember { mutableStateOf<Int?>(null) }
-
-    // Note content edit dialog state
-    var showNoteContentDialog by remember { mutableStateOf(false) }
-    var noteContentDialogText by remember { mutableStateOf("") }
-    var editingNoteContentId by remember { mutableStateOf<Int?>(null) }
+    // Note edit dialog state (combined title + content)
+    var showEditNoteDialog by remember { mutableStateOf(false) }
+    var editNoteDialogTitle by remember { mutableStateOf("") }
+    var editNoteDialogContent by remember { mutableStateOf("") }
+    var editingNoteId by remember { mutableStateOf<Int?>(null) }
 
     // Node browser bottom sheet state (hoisted outside conditional for animation stability)
     val nodeBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -384,21 +380,13 @@ fun WorkflowEditorScreen(
                                 viewModel.toggleNoteSelection(noteId)
                             },
                             onRenameNoteTapped = { noteId ->
-                                // Find the note and open rename dialog
+                                // Find the note and open combined edit dialog
                                 val note = viewModel.getNote(noteId)
                                 if (note != null) {
-                                    renamingNoteId = noteId
-                                    noteRenameDialogText = note.title
-                                    showNoteRenameDialog = true
-                                }
-                            },
-                            onEditNoteContentTapped = { noteId ->
-                                // Find the note and open content edit dialog
-                                val note = viewModel.getNote(noteId)
-                                if (note != null) {
-                                    editingNoteContentId = noteId
-                                    noteContentDialogText = note.content
-                                    showNoteContentDialog = true
+                                    editingNoteId = noteId
+                                    editNoteDialogTitle = note.title
+                                    editNoteDialogContent = note.content
+                                    showEditNoteDialog = true
                                 }
                             },
                             onTransform = { scale, offset ->
@@ -705,80 +693,48 @@ fun WorkflowEditorScreen(
             )
         }
 
-        // Note rename dialog
-        if (showNoteRenameDialog) {
+        // Note edit dialog (combined title + content)
+        if (showEditNoteDialog) {
             AlertDialog(
                 onDismissRequest = {
-                    showNoteRenameDialog = false
-                    renamingNoteId = null
-                },
-                title = { Text(stringResource(R.string.workflow_editor_rename_note_title)) },
-                text = {
-                    OutlinedTextField(
-                        value = noteRenameDialogText,
-                        onValueChange = { noteRenameDialogText = it },
-                        label = { Text(stringResource(R.string.workflow_editor_rename_note_label)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val noteId = renamingNoteId
-                            if (noteId != null && noteRenameDialogText.isNotBlank()) {
-                                viewModel.renameNote(noteId, noteRenameDialogText.trim())
-                                showNoteRenameDialog = false
-                                renamingNoteId = null
-                            }
-                        },
-                        enabled = noteRenameDialogText.isNotBlank()
-                    ) {
-                        Text(stringResource(R.string.button_save))
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showNoteRenameDialog = false
-                            renamingNoteId = null
-                        }
-                    ) {
-                        Text(stringResource(R.string.button_cancel))
-                    }
-                }
-            )
-        }
-
-        // Note content edit dialog
-        if (showNoteContentDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showNoteContentDialog = false
-                    editingNoteContentId = null
+                    showEditNoteDialog = false
+                    editingNoteId = null
                 },
                 title = { Text(stringResource(R.string.workflow_editor_edit_note_content)) },
                 text = {
-                    OutlinedTextField(
-                        value = noteContentDialogText,
-                        onValueChange = { noteContentDialogText = it },
-                        label = { Text(stringResource(R.string.workflow_editor_note_content_label)) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp),
-                        maxLines = 20
-                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = editNoteDialogTitle,
+                            onValueChange = { editNoteDialogTitle = it },
+                            label = { Text(stringResource(R.string.workflow_editor_rename_note_label)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = editNoteDialogContent,
+                            onValueChange = { editNoteDialogContent = it },
+                            label = { Text(stringResource(R.string.workflow_editor_note_content_label)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(250.dp),
+                            maxLines = 15
+                        )
+                    }
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            val noteId = editingNoteContentId
-                            if (noteId != null) {
-                                viewModel.updateNoteContent(noteId, noteContentDialogText)
-                                showNoteContentDialog = false
-                                editingNoteContentId = null
+                            val noteId = editingNoteId
+                            if (noteId != null && editNoteDialogTitle.isNotBlank()) {
+                                viewModel.renameNote(noteId, editNoteDialogTitle.trim())
+                                viewModel.updateNoteContent(noteId, editNoteDialogContent)
+                                showEditNoteDialog = false
+                                editingNoteId = null
                             }
-                        }
+                        },
+                        enabled = editNoteDialogTitle.isNotBlank()
                     ) {
                         Text(stringResource(R.string.button_save))
                     }
@@ -786,8 +742,8 @@ fun WorkflowEditorScreen(
                 dismissButton = {
                     TextButton(
                         onClick = {
-                            showNoteContentDialog = false
-                            editingNoteContentId = null
+                            showEditNoteDialog = false
+                            editingNoteId = null
                         }
                     ) {
                         Text(stringResource(R.string.button_cancel))
