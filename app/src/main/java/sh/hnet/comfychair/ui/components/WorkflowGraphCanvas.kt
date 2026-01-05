@@ -103,18 +103,18 @@ private data class CanvasColors(
 )
 
 /**
- * Note color scheme - distinct amber/gold tones
+ * Note color scheme - sticky note style with single color
  */
 private object NoteColors {
-    // Light theme
-    val HeaderLight = Color(0xFF8B6914)      // Dark amber
-    val BodyLight = Color(0xFFFAF3E0)        // Warm cream
-    val ContentLight = Color(0xFF3D3D3D)     // Dark gray for content
+    // Light theme - classic yellow sticky note
+    val NoteLight = Color(0xFFFFE066)        // Warm yellow
+    val TextLight = Color(0xFF4A4A4A)        // Dark gray for text
+    val BorderLight = Color(0xFFD4B840)      // Darker yellow for border
 
-    // Dark theme
-    val HeaderDark = Color(0xFFD4A017)       // Golden amber
-    val BodyDark = Color(0xFF2A2516)         // Dark warm brown
-    val ContentDark = Color(0xFFE0E0E0)      // Light gray for content
+    // Dark theme - golden yellow sticky note (distinct from brown sampler nodes)
+    val NoteDark = Color(0xFF6B5B20)         // Darker golden/mustard
+    val TextDark = Color(0xFFF0E8D8)         // Warm cream text
+    val BorderDark = Color(0xFF8B7B30)       // Lighter gold for border
 }
 
 /**
@@ -853,19 +853,26 @@ private fun DrawScope.drawNode(
     showEditIcon: Boolean = false,
     editIconDrawable: Drawable? = null
 ) {
-    // Determine border color and width based on highlight state
-    val (borderColor, borderWidth) = when (highlightState) {
-        NodeHighlightState.SELECTED -> colors.selectedBorder to 8f
-        NodeHighlightState.CANDIDATE -> colors.candidateBorder to 6f
-        NodeHighlightState.NONE -> colors.nodeBorder to 3f
-    }
-
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
     val cornerRadius = 16f
 
     // Use color pair for header and body if available, otherwise use defaults
     val baseHeaderColor = colorPair?.header ?: colors.nodeHeaderBackground
     val baseBodyColor = colorPair?.body ?: colors.nodeBackground
+
+    // Determine border color and width based on highlight state
+    // For NONE state, use a toned border matching the node's header color
+    // In dark mode, lighten the border; in light mode, use header color directly
+    val tonedBorderColor = if (colors.isDarkTheme) {
+        lerp(baseHeaderColor, Color.White, 0.3f)
+    } else {
+        baseHeaderColor.copy(alpha = 0.9f)
+    }
+    val (borderColor, borderWidth) = when (highlightState) {
+        NodeHighlightState.SELECTED -> colors.selectedBorder to 8f
+        NodeHighlightState.CANDIDATE -> colors.candidateBorder to 6f
+        NodeHighlightState.NONE -> tonedBorderColor to 3f
+    }
 
     // Apply bypass dimming effect - lerp towards black (dark mode) or white (light mode)
     val (headerColor, bodyColor, actualBorderColor) = if (node.isBypassed) {
@@ -918,9 +925,9 @@ private fun DrawScope.drawNode(
         style = Stroke(width = borderWidth)
     )
 
-    // Header separator line
+    // Header separator line - use header color for consistency
     drawLine(
-        color = colors.nodeBorder.copy(alpha = 0.5f),
+        color = headerColor.copy(alpha = 0.6f),
         start = Offset(node.x, node.y + headerHeight),
         end = Offset(node.x + node.width, node.y + headerHeight),
         strokeWidth = 2f
@@ -1463,10 +1470,10 @@ private fun DrawScope.drawNote(
     textMeasurer: TextMeasurer? = null,
     density: androidx.compose.ui.unit.Density? = null
 ) {
-    // Select colors based on theme
-    val headerColor = if (colors.isDarkTheme) NoteColors.HeaderDark else NoteColors.HeaderLight
-    val bodyColor = if (colors.isDarkTheme) NoteColors.BodyDark else NoteColors.BodyLight
-    val contentColor = if (colors.isDarkTheme) NoteColors.ContentDark else NoteColors.ContentLight
+    // Select colors based on theme - sticky note style with single color
+    val noteColor = if (colors.isDarkTheme) NoteColors.NoteDark else NoteColors.NoteLight
+    val textColor = if (colors.isDarkTheme) NoteColors.TextDark else NoteColors.TextLight
+    val noteBorderColor = if (colors.isDarkTheme) NoteColors.BorderDark else NoteColors.BorderLight
 
     val cornerRadius = 16f
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
@@ -1484,7 +1491,7 @@ private fun DrawScope.drawNote(
         val lineHeightSp = with(density) { 24f.toSp() }
 
         // Parse markdown to AnnotatedString
-        val codeBackgroundColor = headerColor.copy(alpha = 0.3f)
+        val codeBackgroundColor = noteBorderColor.copy(alpha = 0.4f)
         val annotatedContent = MarkdownParser.parse(
             markdown = note.content,
             codeBackgroundColor = codeBackgroundColor,
@@ -1495,7 +1502,7 @@ private fun DrawScope.drawNote(
         textLayoutResult = textMeasurer.measure(
             text = annotatedContent,
             style = TextStyle(
-                color = contentColor,
+                color = textColor,
                 fontSize = fontSizeSp,
                 lineHeight = lineHeightSp
             ),
@@ -1512,39 +1519,17 @@ private fun DrawScope.drawNote(
         }
     }
 
-    // Draw note background using effectiveHeight
+    // Draw single-color sticky note background
     drawRoundRect(
-        color = bodyColor,
+        color = noteColor,
         topLeft = Offset(note.x, note.y),
         size = Size(note.width, effectiveHeight),
         cornerRadius = CornerRadius(cornerRadius)
     )
 
-    // Create clip path for header to have rounded top corners
-    val noteClipPath = Path().apply {
-        addRoundRect(
-            RoundRect(
-                left = note.x,
-                top = note.y,
-                right = note.x + note.width,
-                bottom = note.y + effectiveHeight,
-                cornerRadius = CornerRadius(cornerRadius)
-            )
-        )
-    }
-
-    // Header background - clipped to note shape
-    clipPath(noteClipPath) {
-        drawRect(
-            color = headerColor,
-            topLeft = Offset(note.x, note.y),
-            size = Size(note.width, headerHeight)
-        )
-    }
-
     // Border
     val borderWidth = if (isSelected) 6f else 3f
-    val borderColor = if (isSelected) colors.selectedBorder else headerColor.copy(alpha = 0.8f)
+    val borderColor = if (isSelected) colors.selectedBorder else noteBorderColor
     drawRoundRect(
         color = borderColor,
         topLeft = Offset(note.x, note.y),
@@ -1553,19 +1538,11 @@ private fun DrawScope.drawNote(
         style = Stroke(width = borderWidth)
     )
 
-    // Header separator line
-    drawLine(
-        color = headerColor.copy(alpha = 0.6f),
-        start = Offset(note.x, note.y + headerHeight),
-        end = Offset(note.x + note.width, note.y + headerHeight),
-        strokeWidth = 2f
-    )
-
-    // STEP 3: Draw title using native canvas
+    // Draw title using native canvas
     drawContext.canvas.nativeCanvas.apply {
         val titleMaxWidth = if (showEditIcon) note.width - 104f else note.width - 32f
         val titlePaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.WHITE
+            color = textColor.toArgb()
             textSize = 24f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             isAntiAlias = true
@@ -1573,7 +1550,7 @@ private fun DrawScope.drawNote(
         val title = truncateText(note.title, titleMaxWidth, titlePaint)
         drawText(title, note.x + 16f, note.y + 40f, titlePaint)
 
-        // Draw edit icon in header when in edit mode
+        // Draw edit icon when in edit mode
         if (showEditIcon && editIconDrawable != null) {
             val iconSize = 40
             val iconLeft = (note.x + note.width - 48f).toInt()
@@ -1581,14 +1558,14 @@ private fun DrawScope.drawNote(
 
             val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
             if (iconCopy != null) {
-                DrawableCompat.setTint(iconCopy, android.graphics.Color.WHITE)
+                DrawableCompat.setTint(iconCopy, textColor.toArgb())
                 iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
                 iconCopy.draw(this)
             }
         }
     }
 
-    // STEP 4: Draw markdown content
+    // Draw markdown content
     if (textLayoutResult != null) {
         drawText(
             textLayoutResult = textLayoutResult,
@@ -1598,7 +1575,7 @@ private fun DrawScope.drawNote(
         // Fallback: Draw content using native canvas (no markdown formatting)
         drawContext.canvas.nativeCanvas.apply {
             val contentPaint = android.graphics.Paint().apply {
-                color = contentColor.toArgb()
+                color = textColor.toArgb()
                 textSize = 20f
                 isAntiAlias = true
             }

@@ -231,8 +231,8 @@ private fun computeThumbnailData(jsonContent: String, isDarkTheme: Boolean): Thu
             )
         }
 
-        // Convert notes to simplified thumbnail notes (amber/gold color)
-        val noteColor = if (isDarkTheme) Color(0xFFD4A017) else Color(0xFF8B6914)
+        // Convert notes to simplified thumbnail notes (sticky note yellow)
+        val noteColor = if (isDarkTheme) Color(0xFF6B5B20) else Color(0xFFFFE066)
         val thumbnailNotes = layoutedGraph.notes.map { note ->
             ThumbnailNote(
                 x = note.x,
