@@ -294,8 +294,9 @@ fun WorkflowGraphCanvas(
         graph.nodes.forEach { node ->
             val existingPosition = animatedPositions[node.id]
             if (existingPosition != null) {
-                // Animate to new position if it changed
-                if (existingPosition.x.targetValue != node.x || existingPosition.y.targetValue != node.y) {
+                // Animate to new position if current value differs from target
+                // (handles both target changes AND interrupted animations)
+                if (existingPosition.x.value != node.x || existingPosition.y.value != node.y) {
                     launch {
                         existingPosition.x.animateTo(node.x, animationSpec)
                     }
@@ -304,11 +305,18 @@ fun WorkflowGraphCanvas(
                     }
                 }
             } else {
-                // New node - start at target position (no animation for new nodes)
-                animatedPositions[node.id] = AnimatedNodePosition(
-                    x = Animatable(node.x),
-                    y = Animatable(node.y)
+                // New node - start at origin (0,0) and animate to target position
+                val newPosition = AnimatedNodePosition(
+                    x = Animatable(0f),
+                    y = Animatable(0f)
                 )
+                animatedPositions[node.id] = newPosition
+                launch {
+                    newPosition.x.animateTo(node.x, animationSpec)
+                }
+                launch {
+                    newPosition.y.animateTo(node.y, animationSpec)
+                }
             }
         }
     }
@@ -325,8 +333,9 @@ fun WorkflowGraphCanvas(
         notes.forEach { note ->
             val existingPosition = animatedNotePositions[note.id]
             if (existingPosition != null) {
-                // Animate to new position if it changed
-                if (existingPosition.x.targetValue != note.x || existingPosition.y.targetValue != note.y) {
+                // Animate to new position if current value differs from target
+                // (handles both target changes AND interrupted animations)
+                if (existingPosition.x.value != note.x || existingPosition.y.value != note.y) {
                     launch {
                         existingPosition.x.animateTo(note.x, animationSpec)
                     }
@@ -335,11 +344,18 @@ fun WorkflowGraphCanvas(
                     }
                 }
             } else {
-                // New note - start at target position (no animation for new notes)
-                animatedNotePositions[note.id] = AnimatedNodePosition(
-                    x = Animatable(note.x),
-                    y = Animatable(note.y)
+                // New note - start at origin (0,0) and animate to target position
+                val newPosition = AnimatedNodePosition(
+                    x = Animatable(0f),
+                    y = Animatable(0f)
                 )
+                animatedNotePositions[note.id] = newPosition
+                launch {
+                    newPosition.x.animateTo(note.x, animationSpec)
+                }
+                launch {
+                    newPosition.y.animateTo(note.y, animationSpec)
+                }
             }
         }
     }
