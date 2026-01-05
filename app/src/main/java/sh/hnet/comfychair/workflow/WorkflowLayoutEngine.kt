@@ -20,8 +20,10 @@ class WorkflowLayoutEngine {
         const val ROW_SPACING = 120f
 
         // Group constants
-        const val GROUP_PADDING = 32f
-        const val GROUP_HEADER_HEIGHT = 24f  // Smaller than node header
+        const val GROUP_PADDING_TOP = 32f
+        const val GROUP_PADDING_SIDE = 16f    // Left and right padding (50% of top)
+        const val GROUP_PADDING_BOTTOM = 16f  // Bottom padding (50% of top)
+        const val GROUP_HEADER_HEIGHT = 24f   // Smaller than node header
 
         // Note constants
         const val NOTE_LINE_HEIGHT = 24f
@@ -782,10 +784,10 @@ class WorkflowLayoutEngine {
             if (allBounds.isEmpty()) return@mapNotNull null
 
             // Calculate bounds to encompass all members
-            val minX = allBounds.minOf { it.x } - GROUP_PADDING
-            val minY = allBounds.minOf { it.y } - GROUP_PADDING - GROUP_HEADER_HEIGHT
-            val maxX = allBounds.maxOf { it.x + it.width } + GROUP_PADDING
-            val maxY = allBounds.maxOf { it.y + it.height } + GROUP_PADDING
+            val minX = allBounds.minOf { it.x } - GROUP_PADDING_SIDE
+            val minY = allBounds.minOf { it.y } - GROUP_PADDING_TOP - GROUP_HEADER_HEIGHT
+            val maxX = allBounds.maxOf { it.x + it.width } + GROUP_PADDING_SIDE
+            val maxY = allBounds.maxOf { it.y + it.height } + GROUP_PADDING_BOTTOM
 
             RenderedGroup(
                 group = group,
