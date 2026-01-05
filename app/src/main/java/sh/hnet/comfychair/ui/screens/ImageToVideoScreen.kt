@@ -65,6 +65,7 @@ import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
@@ -98,6 +99,9 @@ fun ImageToVideoScreen(
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == ImageToVideoViewModel.OWNER_ID
+
+    // Check offline mode
+    val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
 
     var showOptionsSheet by remember { mutableStateOf(false) }
 
@@ -370,6 +374,7 @@ fun ImageToVideoScreen(
                 queueSize = queueState.totalQueueSize,
                 isExecuting = queueState.isExecuting,
                 isEnabled = imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank(),
+                isOfflineMode = isOfflineMode,
                 onGenerate = {
                     scope.launch {
                         val workflowJson = imageToVideoViewModel.prepareWorkflow()

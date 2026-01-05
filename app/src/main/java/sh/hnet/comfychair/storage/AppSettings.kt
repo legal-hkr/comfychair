@@ -14,6 +14,7 @@ object AppSettings {
     private const val KEY_DEBUG_LOGGING_ENABLED = "debug_logging_enabled"
     private const val KEY_AUTO_CONNECT = "autoConnect"
     private const val KEY_SHOW_BUILT_IN_WORKFLOWS = "show_built_in_workflows"
+    private const val KEY_OFFLINE_MODE = "offline_mode"
 
     /**
      * Check if live preview is enabled.
@@ -131,6 +132,28 @@ object AppSettings {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_SHOW_BUILT_IN_WORKFLOWS, show)
+            .apply()
+    }
+
+    /**
+     * Check if offline mode is enabled.
+     * When enabled, the app operates with cached data only and does not connect to the server.
+     * Requires disk-first cache mode to be enabled for full functionality.
+     * Default is false (online mode).
+     */
+    fun isOfflineMode(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_OFFLINE_MODE, false)
+    }
+
+    /**
+     * Set whether offline mode should be enabled.
+     * Note: Should only be enabled when disk-first cache mode is active.
+     */
+    fun setOfflineMode(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_OFFLINE_MODE, enabled)
             .apply()
     }
 }

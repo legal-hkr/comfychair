@@ -45,6 +45,7 @@ import sh.hnet.comfychair.R
  * @param queueSize Total number of jobs in the server queue (all clients)
  * @param isExecuting Whether any job is currently executing on the server
  * @param isEnabled Whether the button should be enabled (valid input to submit)
+ * @param isOfflineMode Whether the app is in offline mode (disables all generation)
  * @param onGenerate Callback when Generate/Add to queue is clicked
  * @param onCancelCurrent Callback to cancel the currently executing job
  * @param onAddToFrontOfQueue Callback to add to front of queue
@@ -57,6 +58,7 @@ fun GenerationButton(
     queueSize: Int,
     isExecuting: Boolean,
     isEnabled: Boolean,
+    isOfflineMode: Boolean = false,
     onGenerate: () -> Unit,
     onCancelCurrent: () -> Unit,
     onAddToFrontOfQueue: () -> Unit = {},
@@ -79,12 +81,13 @@ fun GenerationButton(
 
     Row(modifier = modifier) {
         // Leading button - fills available width, always submits to queue
+        // Disabled when offline mode is active or input is invalid
         SplitButtonDefaults.ElevatedLeadingButton(
             onClick = {
                 focusManager.clearFocus()
                 onGenerate()
             },
-            enabled = isEnabled,
+            enabled = isEnabled && !isOfflineMode,
             colors = ButtonDefaults.elevatedButtonColors(
                 containerColor = containerColor,
                 contentColor = contentColor
@@ -109,11 +112,12 @@ fun GenerationButton(
             label = "dropdown icon rotation"
         )
 
+        // Trailing button - disabled in offline mode (no queue operations available)
         Box(modifier = Modifier.wrapContentWidth(unbounded = true)) {
             SplitButtonDefaults.ElevatedTrailingButton(
                 checked = showMenu,
                 onCheckedChange = { showMenu = it },
-                enabled = true,
+                enabled = !isOfflineMode,
                 colors = ButtonDefaults.elevatedButtonColors(
                     containerColor = containerColor,
                     contentColor = contentColor

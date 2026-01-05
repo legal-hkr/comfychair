@@ -58,6 +58,7 @@ import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.config.TextToImageCallbacks
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
@@ -95,6 +96,9 @@ fun TextToImageScreen(
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == TextToImageViewModel.OWNER_ID
+
+    // Check offline mode
+    val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
 
     // Fetch models when connected
     LaunchedEffect(connectionStatus) {
@@ -257,6 +261,7 @@ fun TextToImageScreen(
                 queueSize = queueState.totalQueueSize,
                 isExecuting = queueState.isExecuting,
                 isEnabled = uiState.positivePrompt.isNotBlank(),
+                isOfflineMode = isOfflineMode,
                 onGenerate = {
                     if (textToImageViewModel.hasValidConfiguration()) {
                         val workflowJson = textToImageViewModel.prepareWorkflowJson()

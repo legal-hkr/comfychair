@@ -98,6 +98,9 @@
     <string name="memory_first_cache_warning">Previews may be lost if the app is closed unexpectedly.</string>
     <string name="disable_media_cache_label">Disable media cache</string>
     <string name="disable_media_cache_description">Do not save preview images and videos to disk</string>
+    <string name="offline_mode_label">Offline mode</string>
+    <string name="offline_mode_description">Browse cached data without network connection</string>
+    <string name="offline_mode_requires_disk_cache">Enable disk-first cache for offline support</string>
     <string name="auto_connect_label">Auto-connect</string>
     <string name="auto_connect_description">Automatically connect to the last server on app launch</string>
     <string name="show_built_in_workflows_label">Show built-in workflows</string>

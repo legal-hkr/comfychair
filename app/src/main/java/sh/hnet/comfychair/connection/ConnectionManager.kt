@@ -27,6 +27,7 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.storage.ObjectInfoCache
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
@@ -90,6 +91,7 @@ object ConnectionManager {
 
     private var _client: ComfyUIClient? = null
     private var _clientId: String? = null
+    private var _applicationContext: Context? = null
 
     // Shared node type registry (populated from /object_info)
     val nodeTypeRegistry = NodeTypeRegistry()
@@ -207,6 +209,9 @@ object ConnectionManager {
 
         // Generate unique client ID for this session
         _clientId = "comfychair_android_${UUID.randomUUID()}"
+
+        // Store application context for offline cache operations
+        _applicationContext = context.applicationContext
 
         // Create shared client with detected protocol and shared client ID
         _client = ComfyUIClient(context.applicationContext, hostname, port).apply {
@@ -564,6 +569,13 @@ object ConnectionManager {
                 // Parse node definitions for workflow editor
                 nodeTypeRegistry.parseObjectInfo(objectInfo)
 
+                // Cache object_info to disk for offline mode
+                val ctx = _applicationContext
+                val serverId = currentServerId
+                if (ctx != null && serverId != null) {
+                    ObjectInfoCache.saveObjectInfo(ctx, serverId, objectInfo)
+                }
+
                 // Extract model lists for generation screens (field-name-based discovery)
                 val models = extractModelLists()
                 _modelCache.value = models.copy(isLoaded = true, isLoading = false)
@@ -591,6 +603,53 @@ object ConnectionManager {
         }
         DebugLogger.i(TAG, "Refreshing server data")
         fetchServerData()
+    }
+
+    /**
+     * Load server data from offline cache.
+     * Used when offline mode is enabled to populate node registry and model lists.
+     *
+     * @param context Application context for cache access
+     * @param serverId Server ID to load cache for
+     * @return true if cache was loaded successfully, false otherwise
+     */
+    fun loadFromOfflineCache(context: Context, serverId: String): Boolean {
+        DebugLogger.i(TAG, "Loading server data from offline cache for server: $serverId")
+
+        if (!ObjectInfoCache.hasCache(context, serverId)) {
+            DebugLogger.w(TAG, "No offline cache available for server: $serverId")
+            return false
+        }
+
+        val objectInfo = ObjectInfoCache.loadObjectInfo(context, serverId)
+        if (objectInfo == null) {
+            DebugLogger.e(TAG, "Failed to load offline cache for server: $serverId")
+            return false
+        }
+
+        // Parse node definitions for workflow editor
+        nodeTypeRegistry.parseObjectInfo(objectInfo)
+
+        // Extract model lists for generation screens
+        val models = extractModelLists()
+        _modelCache.value = models.copy(isLoaded = true, isLoading = false)
+
+        DebugLogger.i(TAG, "Offline cache loaded: ${models.checkpoints.size} checkpoints, " +
+                "${models.unets.size} unets, ${models.vaes.size} vaes, " +
+                "${models.clips.size} clips, ${models.loras.size} loras")
+
+        return true
+    }
+
+    /**
+     * Check if offline cache is available for a server.
+     *
+     * @param context Application context for cache access
+     * @param serverId Server ID to check
+     * @return true if cache exists, false otherwise
+     */
+    fun hasOfflineCache(context: Context, serverId: String): Boolean {
+        return ObjectInfoCache.hasCache(context, serverId)
     }
 
     /**

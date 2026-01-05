@@ -60,6 +60,7 @@ fun ApplicationSettingsScreen(
     val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
     val isAutoConnectEnabled by viewModel.isAutoConnectEnabled.collectAsState()
     val isShowBuiltInWorkflows by viewModel.isShowBuiltInWorkflows.collectAsState()
+    val isOfflineMode by viewModel.isOfflineMode.collectAsState()
 
     // State and effects
     // Backup/restore state
@@ -294,6 +295,42 @@ fun ApplicationSettingsScreen(
                             checked = isMediaCacheDisabled,
                             onCheckedChange = { viewModel.setMediaCacheDisabled(context, it) },
                             enabled = isMemoryFirstCache
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Offline mode toggle (only available when disk-first mode is enabled)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.offline_mode_label),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (!isMemoryFirstCache)
+                                    MaterialTheme.colorScheme.onSurface
+                                else
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                            Text(
+                                text = stringResource(
+                                    if (isMemoryFirstCache) R.string.offline_mode_requires_disk_cache
+                                    else R.string.offline_mode_description
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (!isMemoryFirstCache)
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                            )
+                        }
+                        Switch(
+                            checked = isOfflineMode,
+                            onCheckedChange = { viewModel.setOfflineMode(context, it) },
+                            enabled = !isMemoryFirstCache
                         )
                     }
 

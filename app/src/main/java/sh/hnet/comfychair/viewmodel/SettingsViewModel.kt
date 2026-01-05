@@ -115,6 +115,9 @@ class SettingsViewModel : ViewModel() {
     private val _isShowBuiltInWorkflows = MutableStateFlow(true)
     val isShowBuiltInWorkflows: StateFlow<Boolean> = _isShowBuiltInWorkflows.asStateFlow()
 
+    private val _isOfflineMode = MutableStateFlow(false)
+    val isOfflineMode: StateFlow<Boolean> = _isOfflineMode.asStateFlow()
+
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
@@ -130,6 +133,7 @@ class SettingsViewModel : ViewModel() {
         _isDebugLoggingEnabled.value = AppSettings.isDebugLoggingEnabled(context)
         _isAutoConnectEnabled.value = AppSettings.isAutoConnectEnabled(context)
         _isShowBuiltInWorkflows.value = AppSettings.isShowBuiltInWorkflows(context)
+        _isOfflineMode.value = AppSettings.isOfflineMode(context)
 
         // Initialize debug logger with saved state
         DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
@@ -477,6 +481,20 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
+     * Set whether offline mode should be enabled.
+     * Offline mode allows browsing cached data without network connectivity.
+     * Requires disk-first cache mode to be enabled for full functionality.
+     */
+    fun setOfflineMode(context: Context, enabled: Boolean) {
+        AppSettings.setOfflineMode(context, enabled)
+        _isOfflineMode.value = enabled
+        // Notify that app state needs refresh (generation buttons etc.)
+        viewModelScope.launch {
+            _events.emit(SettingsEvent.RefreshNeeded)
+        }
+    }
+
+    /**
      * Create a backup and write it to the given URI.
      */
     fun createBackup(context: Context, uri: Uri) {
@@ -604,6 +622,7 @@ class SettingsViewModel : ViewModel() {
         val restoredDebugLogging = AppSettings.isDebugLoggingEnabled(context)
         val newAutoConnect = AppSettings.isAutoConnectEnabled(context)
         val newShowBuiltInWorkflows = AppSettings.isShowBuiltInWorkflows(context)
+        val newOfflineMode = AppSettings.isOfflineMode(context)
 
         // If debug logging was enabled before restore, keep it enabled
         val finalDebugLogging = if (preserveDebugLogging && !restoredDebugLogging) {
@@ -623,6 +642,7 @@ class SettingsViewModel : ViewModel() {
         _isDebugLoggingEnabled.value = finalDebugLogging
         _isAutoConnectEnabled.value = newAutoConnect
         _isShowBuiltInWorkflows.value = newShowBuiltInWorkflows
+        _isOfflineMode.value = newOfflineMode
 
         // Update DebugLogger state to match
         DebugLogger.setEnabled(finalDebugLogging)
