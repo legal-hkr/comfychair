@@ -32,6 +32,7 @@ import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeCategory
@@ -45,6 +46,7 @@ import sh.hnet.comfychair.workflow.WorkflowGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
+import sh.hnet.comfychair.workflow.WorkflowNote
 import sh.hnet.comfychair.workflow.WorkflowParser
 import sh.hnet.comfychair.workflow.WorkflowSerializer
 
@@ -238,6 +240,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     isFieldMappingMode = true,
                     mappingState = mappingState,
                     selectedNodeIds = emptySet(),  // Ensure selection is clear in mapping mode
+                    selectedNoteIds = emptySet(),
                     highlightedNodeIds = highlightedNodes,
                     canConfirmMapping = mappingState.allRequiredFieldsMapped
                 )
@@ -903,6 +906,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     mappingState = mappingState,
                     isEditMode = false,  // Exit edit mode
                     selectedNodeIds = emptySet(),  // Clear selection when entering mapping mode
+                    selectedNoteIds = emptySet(),
                     canConfirmMapping = mappingState.allRequiredFieldsMapped,
                     highlightedNodeIds = calculateHighlightedNodes(mappingState)
                 )
@@ -1007,6 +1011,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     mappingState = mappingState,
                     isEditMode = false,  // Exit edit mode
                     selectedNodeIds = emptySet(),  // Clear selection when entering mapping mode
+                    selectedNoteIds = emptySet(),
                     canConfirmMapping = mappingState.allRequiredFieldsMapped,
                     highlightedNodeIds = calculateHighlightedNodes(mappingState)
                 )
@@ -1577,6 +1582,87 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
     }
 
+    // ========== Note Operations ==========
+
+    /**
+     * Add a new note to the workflow.
+     */
+    fun addNote() {
+        val graph = mutableGraph ?: return
+
+        // Create note using NoteManager
+        NoteManager.createNote(graph)
+
+        // Re-layout to position the new note
+        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+
+        // Update bounds
+        val newBounds = layoutEngine.calculateBounds(layoutedGraph)
+
+        _uiState.value = _uiState.value.copy(
+            graph = layoutedGraph,
+            graphBounds = newBounds,
+            hasUnsavedChanges = true
+        )
+    }
+
+    /**
+     * Rename a note (change its title).
+     */
+    fun renameNote(noteId: Int, newTitle: String) {
+        val graph = mutableGraph ?: return
+
+        val renamed = NoteManager.renameNote(graph, noteId, newTitle)
+        if (!renamed) return
+
+        updateGraphState()
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
+    }
+
+    /**
+     * Update a note's content.
+     */
+    fun updateNoteContent(noteId: Int, newContent: String) {
+        val graph = mutableGraph ?: return
+
+        val updated = NoteManager.updateNoteContent(graph, noteId, newContent)
+        if (!updated) return
+
+        // Re-layout since note height may have changed
+        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+
+        // Update bounds
+        val newBounds = layoutEngine.calculateBounds(layoutedGraph)
+
+        _uiState.value = _uiState.value.copy(
+            graph = layoutedGraph,
+            graphBounds = newBounds,
+            hasUnsavedChanges = true
+        )
+    }
+
+    /**
+     * Delete a note by ID.
+     */
+    fun deleteNote(noteId: Int) {
+        val graph = mutableGraph ?: return
+
+        val deleted = NoteManager.deleteNote(graph, noteId)
+        if (!deleted) return
+
+        updateGraphState()
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
+    }
+
+    /**
+     * Get a note by ID.
+     */
+    fun getNote(noteId: Int): sh.hnet.comfychair.workflow.WorkflowNote? {
+        return mutableGraph?.let { NoteManager.getNote(it, noteId) }
+    }
+
     /**
      * Toggle the bypass state of a node.
      * Bypassed nodes (mode=4) are skipped during execution but connections pass through.
@@ -1705,6 +1791,7 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = state.copy(
             isEditMode = true,
             selectedNodeIds = emptySet(),
+            selectedNoteIds = emptySet(),
             hasUnsavedChanges = false
         )
     }
@@ -1727,6 +1814,7 @@ class WorkflowEditorViewModel : ViewModel() {
             graphBounds = restoredBounds ?: _uiState.value.graphBounds,
             isEditMode = false,
             selectedNodeIds = emptySet(),
+            selectedNoteIds = emptySet(),
             hasUnsavedChanges = false,
             showNodeBrowser = false,
             nodeInsertPosition = null,
@@ -1770,6 +1858,7 @@ class WorkflowEditorViewModel : ViewModel() {
             isFieldMappingMode = false,
             mappingState = null,
             selectedNodeIds = emptySet(),
+            selectedNoteIds = emptySet(),
             hasUnsavedChanges = false,
             showNodeBrowser = false,
             nodeInsertPosition = null,
@@ -1812,28 +1901,57 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Clear node selection.
+     * Clear node and note selection.
      */
     fun clearSelection() {
         val state = _uiState.value
-        _uiState.value = state.copy(selectedNodeIds = emptySet())
+        _uiState.value = state.copy(
+            selectedNodeIds = emptySet(),
+            selectedNoteIds = emptySet()
+        )
     }
 
     /**
-     * Delete selected nodes and their connected edges.
+     * Toggle note selection.
+     */
+    fun toggleNoteSelection(noteId: Int) {
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        val newSelection = if (noteId in state.selectedNoteIds) {
+            state.selectedNoteIds - noteId
+        } else {
+            state.selectedNoteIds + noteId
+        }
+
+        _uiState.value = state.copy(selectedNoteIds = newSelection)
+    }
+
+    /**
+     * Delete selected nodes and notes with their connected edges.
      */
     fun deleteSelectedNodes() {
         val state = _uiState.value
         val graph = mutableGraph ?: return
-        if (!state.isEditMode || state.selectedNodeIds.isEmpty()) return
+        if (!state.isEditMode) return
+        if (state.selectedNodeIds.isEmpty() && state.selectedNoteIds.isEmpty()) return
 
-        GraphMutationUtils.deleteNodes(graph, state.selectedNodeIds)
+        // Delete selected nodes
+        if (state.selectedNodeIds.isNotEmpty()) {
+            GraphMutationUtils.deleteNodes(graph, state.selectedNodeIds)
+        }
+
+        // Delete selected notes
+        for (noteId in state.selectedNoteIds) {
+            NoteManager.deleteNote(graph, noteId)
+        }
 
         // Re-layout graph after deletion to fill gaps
         relayoutGraph()
 
         _uiState.value = _uiState.value.copy(
             selectedNodeIds = emptySet(),
+            selectedNoteIds = emptySet(),
             hasUnsavedChanges = true
         )
     }
@@ -1872,17 +1990,22 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Create a group from the currently selected nodes.
-     * Requires at least 2 nodes to be selected.
+     * Create a group from the currently selected nodes and/or notes.
+     * Requires at least 2 items (nodes or notes) to be selected.
      */
     fun createGroupFromSelection() {
         val state = _uiState.value
         val graph = mutableGraph ?: return
-        if (!state.isEditMode || state.selectedNodeIds.size < 2) return
+        val totalSelected = state.selectedNodeIds.size + state.selectedNoteIds.size
+        if (!state.isEditMode || totalSelected < 2) return
+
+        // Convert note IDs to member format (note:X) and combine with node IDs
+        val noteMemberIds = state.selectedNoteIds.map { WorkflowNote.noteIdToMemberId(it) }.toSet()
+        val allMemberIds = state.selectedNodeIds + noteMemberIds
 
         val newGroup = GroupManager.createGroup(
             graph = graph,
-            nodeIds = state.selectedNodeIds,
+            memberIds = allMemberIds,
             title = "Group",
             idGenerator = { groupIdCounter++ }
         ) ?: return

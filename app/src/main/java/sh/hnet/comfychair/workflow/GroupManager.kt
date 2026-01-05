@@ -15,47 +15,56 @@ object GroupManager {
     private const val TAG = "GroupManager"
 
     /**
-     * Create a new group containing the specified nodes.
+     * Create a new group containing the specified nodes and/or notes.
      *
-     * Enforces one-node-one-group: if any nodes are already in other groups,
+     * Enforces one-member-one-group: if any members are already in other groups,
      * they are removed from those groups first.
      *
      * @param graph The mutable graph to add the group to
-     * @param nodeIds IDs of nodes to include in the group (must be >= 2)
+     * @param memberIds IDs of members to include (node IDs or "note:X" IDs, must be >= 2)
      * @param title Group title (default: "Group")
      * @param idGenerator Function to generate a unique group ID
-     * @return The created group, or null if fewer than 2 nodes specified
+     * @return The created group, or null if fewer than 2 valid members specified
      */
     fun createGroup(
         graph: MutableWorkflowGraph,
-        nodeIds: Set<String>,
+        memberIds: Set<String>,
         title: String = "Group",
         idGenerator: () -> Int
     ): WorkflowGroup? {
-        DebugLogger.d(TAG, "createGroup: requested with ${nodeIds.size} nodes: $nodeIds, title='$title'")
+        DebugLogger.d(TAG, "createGroup: requested with ${memberIds.size} members: $memberIds, title='$title'")
 
-        if (nodeIds.size < 2) {
-            DebugLogger.w(TAG, "createGroup: rejected - need at least 2 nodes, got ${nodeIds.size}")
+        if (memberIds.size < 2) {
+            DebugLogger.w(TAG, "createGroup: rejected - need at least 2 members, got ${memberIds.size}")
             return null
         }
 
-        val nodes = graph.nodes.filter { it.id in nodeIds }
-        if (nodes.size < 2) {
-            DebugLogger.w(TAG, "createGroup: rejected - only ${nodes.size} of ${nodeIds.size} requested nodes exist in graph")
+        // Count valid members (nodes and notes that actually exist in the graph)
+        val validNodeIds = memberIds.filter { memberId ->
+            !WorkflowNote.isNoteMemberId(memberId) && graph.nodes.any { it.id == memberId }
+        }
+        val validNoteIds = memberIds.filter { memberId ->
+            WorkflowNote.isNoteMemberId(memberId) &&
+            graph.notes.any { it.id == WorkflowNote.memberIdToNoteId(memberId) }
+        }
+        val validMemberCount = validNodeIds.size + validNoteIds.size
+
+        if (validMemberCount < 2) {
+            DebugLogger.w(TAG, "createGroup: rejected - only $validMemberCount of ${memberIds.size} requested members exist in graph")
             return null
         }
 
-        // CRITICAL: Remove nodes from any existing groups first (one-node-one-group)
-        removeNodesFromGroups(graph, nodeIds)
+        // CRITICAL: Remove members from any existing groups first (one-member-one-group)
+        removeNodesFromGroups(graph, memberIds)
 
         val newGroup = WorkflowGroup(
             id = idGenerator(),
             title = title,
-            memberNodeIds = nodeIds
+            memberNodeIds = memberIds
         )
 
         graph.groups.add(newGroup)
-        DebugLogger.i(TAG, "createGroup: created group id=${newGroup.id} '$title' with ${nodeIds.size} members: $nodeIds")
+        DebugLogger.i(TAG, "createGroup: created group id=${newGroup.id} '$title' with ${memberIds.size} members: $memberIds")
         DebugLogger.d(TAG, "createGroup: graph now has ${graph.groups.size} groups")
         return newGroup
     }

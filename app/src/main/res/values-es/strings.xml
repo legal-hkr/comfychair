@@ -468,6 +468,11 @@
     <string name="workflow_editor_ungroup">Desagrupar</string>
     <string name="workflow_editor_rename_group_title">Renombrar grupo</string>
     <string name="workflow_editor_rename_group_label">Nombre del grupo</string>
+    <string name="workflow_editor_add_note">Agregar nota</string>
+    <string name="workflow_editor_rename_note_title">Renombrar nota</string>
+    <string name="workflow_editor_rename_note_label">Título de la nota</string>
+    <string name="workflow_editor_edit_note_content">Editar nota</string>
+    <string name="workflow_editor_note_content_label">Contenido (Markdown)</string>
     <string name="workflow_editor_done">Listo</string>
     <string name="workflow_editor_discard_title">¿Descartar flujo de trabajo?</string>
     <string name="workflow_editor_discard_message">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>

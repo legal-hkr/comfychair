@@ -468,6 +468,11 @@
     <string name="workflow_editor_ungroup">Rozgrupuj</string>
     <string name="workflow_editor_rename_group_title">Zmień nazwę grupy</string>
     <string name="workflow_editor_rename_group_label">Nazwa grupy</string>
+    <string name="workflow_editor_add_note">Dodaj notatkę</string>
+    <string name="workflow_editor_rename_note_title">Zmień nazwę notatki</string>
+    <string name="workflow_editor_rename_note_label">Tytuł notatki</string>
+    <string name="workflow_editor_edit_note_content">Edytuj notatkę</string>
+    <string name="workflow_editor_note_content_label">Treść (Markdown)</string>
     <string name="workflow_editor_done">Gotowe</string>
     <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
     <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>

@@ -468,6 +468,11 @@
     <string name="workflow_editor_ungroup">Gruppierung aufheben</string>
     <string name="workflow_editor_rename_group_title">Gruppe umbenennen</string>
     <string name="workflow_editor_rename_group_label">Gruppenname</string>
+    <string name="workflow_editor_add_note">Notiz hinzufügen</string>
+    <string name="workflow_editor_rename_note_title">Notiz umbenennen</string>
+    <string name="workflow_editor_rename_note_label">Notiztitel</string>
+    <string name="workflow_editor_edit_note_content">Notiz bearbeiten</string>
+    <string name="workflow_editor_note_content_label">Inhalt (Markdown)</string>
     <string name="workflow_editor_done">Fertig</string>
     <string name="workflow_editor_discard_title">Workflow verwerfen?</string>
     <string name="workflow_editor_discard_message">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>

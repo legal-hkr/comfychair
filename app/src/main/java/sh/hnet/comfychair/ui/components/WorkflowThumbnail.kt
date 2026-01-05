@@ -47,11 +47,23 @@ private data class ThumbnailGroup(
 )
 
 /**
+ * Simplified note data for thumbnail rendering
+ */
+private data class ThumbnailNote(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float,
+    val color: Color
+)
+
+/**
  * Cached thumbnail data
  */
 private data class ThumbnailData(
     val nodes: List<ThumbnailNode>,
     val groups: List<ThumbnailGroup>,
+    val notes: List<ThumbnailNote>,
     val bounds: GraphBounds
 )
 
@@ -138,6 +150,26 @@ fun WorkflowThumbnail(
                         cornerRadius = CornerRadius(2.dp.toPx())
                     )
                 }
+
+                // Draw notes (amber/gold color)
+                thumbnailData.notes.forEach { note ->
+                    val noteX = offsetX + (note.x - bounds.minX) * scale
+                    val noteY = offsetY + (note.y - bounds.minY) * scale
+                    val noteWidth = note.width * scale
+                    val noteHeight = note.height * scale
+
+                    // Minimum size to ensure visibility
+                    val minSize = 2.dp.toPx()
+                    val drawWidth = maxOf(noteWidth, minSize)
+                    val drawHeight = maxOf(noteHeight, minSize)
+
+                    drawRoundRect(
+                        color = note.color,
+                        topLeft = Offset(noteX, noteY),
+                        size = Size(drawWidth, drawHeight),
+                        cornerRadius = CornerRadius(2.dp.toPx())
+                    )
+                }
             }
         }
     }
@@ -179,7 +211,8 @@ private fun computeThumbnailData(jsonContent: String, isDarkTheme: Boolean): Thu
         // Calculate rendered groups with computed bounds
         val renderedGroups = layoutEngine.calculateRenderedGroups(
             layoutedGraph.groups,
-            layoutedGraph.nodes
+            layoutedGraph.nodes,
+            layoutedGraph.notes
         )
 
         // Convert groups to simplified thumbnail groups
@@ -198,7 +231,19 @@ private fun computeThumbnailData(jsonContent: String, isDarkTheme: Boolean): Thu
             )
         }
 
-        ThumbnailData(nodes = thumbnailNodes, groups = thumbnailGroups, bounds = bounds)
+        // Convert notes to simplified thumbnail notes (amber/gold color)
+        val noteColor = if (isDarkTheme) Color(0xFFD4A017) else Color(0xFF8B6914)
+        val thumbnailNotes = layoutedGraph.notes.map { note ->
+            ThumbnailNote(
+                x = note.x,
+                y = note.y,
+                width = note.width,
+                height = note.height,
+                color = noteColor
+            )
+        }
+
+        ThumbnailData(nodes = thumbnailNodes, groups = thumbnailGroups, notes = thumbnailNotes, bounds = bounds)
     } catch (e: Exception) {
         // Return null on any parsing error - thumbnail will show empty
         null

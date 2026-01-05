@@ -121,7 +121,23 @@ class WorkflowParser {
             }
         }
 
-        DebugLogger.d(TAG, "Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${groups.size} groups, ${allTemplateVars.size} template vars")
+        // Parse notes if present (at root level)
+        val notes = if (json.has("notes")) {
+            DebugLogger.d(TAG, "Found 'notes' key in JSON at root level")
+            val notesArray = json.optJSONArray("notes")
+            if (notesArray != null) {
+                DebugLogger.d(TAG, "Notes array has ${notesArray.length()} entries")
+                parseNotes(notesArray)
+            } else {
+                DebugLogger.w(TAG, "'notes' key exists but is not a JSON array")
+                emptyList()
+            }
+        } else {
+            DebugLogger.d(TAG, "No 'notes' key found in JSON root")
+            emptyList()
+        }
+
+        DebugLogger.d(TAG, "Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${groups.size} groups, ${notes.size} notes, ${allTemplateVars.size} template vars")
 
         return WorkflowGraph(
             name = workflowName,
@@ -129,6 +145,7 @@ class WorkflowParser {
             nodes = nodes,
             edges = edges,
             groups = groups,
+            notes = notes,
             templateVariables = allTemplateVars
         )
     }
@@ -191,6 +208,45 @@ class WorkflowParser {
         }
 
         DebugLogger.i(TAG, "parseGroups: parsed ${result.size} valid groups out of ${groupsArray.length()} entries")
+        return result
+    }
+
+    /**
+     * Parse notes array from workflow JSON.
+     *
+     * Format: { id, title, content }
+     */
+    private fun parseNotes(notesArray: JSONArray): List<WorkflowNote> {
+        DebugLogger.d(TAG, "parseNotes: parsing ${notesArray.length()} note entries")
+        val result = mutableListOf<WorkflowNote>()
+
+        for (i in 0 until notesArray.length()) {
+            val noteJson = notesArray.optJSONObject(i)
+            if (noteJson == null) {
+                DebugLogger.w(TAG, "parseNotes: entry $i is not a JSON object, skipping")
+                continue
+            }
+
+            val id = noteJson.optInt("id", -1)
+            if (id < 0) {
+                DebugLogger.w(TAG, "parseNotes: entry $i has invalid id ($id), skipping")
+                continue
+            }
+
+            val title = noteJson.optString("title", "Note")
+            val content = noteJson.optString("content", "")
+
+            result.add(
+                WorkflowNote(
+                    id = id,
+                    title = title,
+                    content = content
+                )
+            )
+            DebugLogger.d(TAG, "parseNotes: parsed note id=$id title='$title' (${content.length} chars)")
+        }
+
+        DebugLogger.i(TAG, "parseNotes: parsed ${result.size} notes out of ${notesArray.length()} entries")
         return result
     }
 

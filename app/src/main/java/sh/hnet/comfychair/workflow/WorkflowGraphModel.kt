@@ -103,6 +103,36 @@ data class RenderedGroup(
 }
 
 /**
+ * Represents a markdown note in the workflow graph.
+ * Notes look like nodes but are separate entities for documentation purposes.
+ * They participate in layout and can be grouped with nodes.
+ *
+ * Note IDs are integers (like groups), prefixed as "note:N" when stored in group memberNodeIds.
+ */
+@Immutable
+data class WorkflowNote(
+    val id: Int,
+    val title: String,
+    val content: String,
+    val x: Float = 0f,
+    val y: Float = 0f,
+    val width: Float = 420f,  // Same as NODE_WIDTH
+    val height: Float = 0f    // Calculated: content-based, capped at 840f
+) {
+    companion object {
+        /** Convert note ID to member ID string for group membership */
+        fun noteIdToMemberId(noteId: Int): String = "note:$noteId"
+
+        /** Extract note ID from member ID string, or null if not a note */
+        fun memberIdToNoteId(memberId: String): Int? =
+            memberId.removePrefix("note:").toIntOrNull()?.takeIf { memberId.startsWith("note:") }
+
+        /** Check if a member ID represents a note */
+        fun isNoteMemberId(memberId: String): Boolean = memberId.startsWith("note:")
+    }
+}
+
+/**
  * Complete parsed workflow graph
  */
 @Stable
@@ -112,6 +142,7 @@ data class WorkflowGraph(
     val nodes: List<WorkflowNode>,
     val edges: List<WorkflowEdge>,
     val groups: List<WorkflowGroup> = emptyList(),
+    val notes: List<WorkflowNote> = emptyList(),
     val templateVariables: Set<String>
 )
 
@@ -125,6 +156,7 @@ data class MutableWorkflowGraph(
     val nodes: MutableList<WorkflowNode>,
     val edges: MutableList<WorkflowEdge>,
     val groups: MutableList<WorkflowGroup>,
+    val notes: MutableList<WorkflowNote>,
     val templateVariables: MutableSet<String>
 ) {
     /**
@@ -136,6 +168,7 @@ data class MutableWorkflowGraph(
         nodes = nodes.toList(),
         edges = edges.toList(),
         groups = groups.toList(),
+        notes = notes.toList(),
         templateVariables = templateVariables.toSet()
     )
 
@@ -149,6 +182,7 @@ data class MutableWorkflowGraph(
             nodes = graph.nodes.toMutableList(),
             edges = graph.edges.toMutableList(),
             groups = graph.groups.toMutableList(),
+            notes = graph.notes.toMutableList(),
             templateVariables = graph.templateVariables.toMutableSet()
         )
     }
@@ -209,6 +243,7 @@ data class WorkflowEditorUiState(
     // Graph editing mode (add/delete/duplicate nodes, edit connections)
     val isEditMode: Boolean = false,
     val selectedNodeIds: Set<String> = emptySet(),
+    val selectedNoteIds: Set<Int> = emptySet(),
     val hasUnsavedChanges: Boolean = false,
     val showNodeBrowser: Boolean = false,
     val nodeInsertPosition: Offset? = null,

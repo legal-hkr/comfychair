@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewModule
@@ -139,6 +140,16 @@ fun WorkflowEditorScreen(
     var showGroupRenameDialog by remember { mutableStateOf(false) }
     var groupRenameDialogText by remember { mutableStateOf("") }
     var renamingGroupId by remember { mutableStateOf<Int?>(null) }
+
+    // Note rename dialog state
+    var showNoteRenameDialog by remember { mutableStateOf(false) }
+    var noteRenameDialogText by remember { mutableStateOf("") }
+    var renamingNoteId by remember { mutableStateOf<Int?>(null) }
+
+    // Note content edit dialog state
+    var showNoteContentDialog by remember { mutableStateOf(false) }
+    var noteContentDialogText by remember { mutableStateOf("") }
+    var editingNoteContentId by remember { mutableStateOf<Int?>(null) }
 
     // Node browser bottom sheet state (hoisted outside conditional for animation stability)
     val nodeBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -264,9 +275,9 @@ fun WorkflowEditorScreen(
 
                 // Calculate rendered groups with computed bounds
                 val layoutEngine = remember { WorkflowLayoutEngine() }
-                val renderedGroups = remember(uiState.graph?.groups, uiState.graph?.nodes) {
+                val renderedGroups = remember(uiState.graph?.groups, uiState.graph?.nodes, uiState.graph?.notes) {
                     uiState.graph?.let { graph ->
-                        layoutEngine.calculateRenderedGroups(graph.groups, graph.nodes)
+                        layoutEngine.calculateRenderedGroups(graph.groups, graph.nodes, graph.notes)
                     } ?: emptyList()
                 }
 
@@ -367,6 +378,29 @@ fun WorkflowEditorScreen(
                                     showGroupRenameDialog = true
                                 }
                             },
+                            notes = uiState.graph?.notes ?: emptyList(),
+                            selectedNoteIds = uiState.selectedNoteIds,
+                            onNoteTapped = { noteId ->
+                                viewModel.toggleNoteSelection(noteId)
+                            },
+                            onRenameNoteTapped = { noteId ->
+                                // Find the note and open rename dialog
+                                val note = viewModel.getNote(noteId)
+                                if (note != null) {
+                                    renamingNoteId = noteId
+                                    noteRenameDialogText = note.title
+                                    showNoteRenameDialog = true
+                                }
+                            },
+                            onEditNoteContentTapped = { noteId ->
+                                // Find the note and open content edit dialog
+                                val note = viewModel.getNote(noteId)
+                                if (note != null) {
+                                    editingNoteContentId = noteId
+                                    noteContentDialogText = note.content
+                                    showNoteContentDialog = true
+                                }
+                            },
                             onTransform = { scale, offset ->
                                 viewModel.onTransform(scale, offset)
                             },
@@ -445,8 +479,8 @@ fun WorkflowEditorScreen(
                 canConfirmMapping = uiState.canConfirmMapping,
                 isEditMode = uiState.isEditMode,
                 viewingWorkflowIsBuiltIn = uiState.viewingWorkflowIsBuiltIn,
-                hasSelection = uiState.selectedNodeIds.isNotEmpty(),
-                selectedCount = uiState.selectedNodeIds.size,
+                hasSelection = uiState.selectedNodeIds.isNotEmpty() || uiState.selectedNoteIds.isNotEmpty(),
+                selectedCount = uiState.selectedNodeIds.size + uiState.selectedNoteIds.size,
                 scale = uiState.scale,
                 onConfirmMapping = {
                     // If we have a workflow ID (existing or in edit mode), save directly
@@ -488,6 +522,9 @@ fun WorkflowEditorScreen(
                     val centerX = (uiState.graphBounds.minX + uiState.graphBounds.maxX) / 2
                     val centerY = (uiState.graphBounds.minY + uiState.graphBounds.maxY) / 2
                     viewModel.showNodeBrowser(Offset(centerX, centerY))
+                },
+                onAddNote = {
+                    viewModel.addNote()
                 },
                 onBypassSelected = {
                     // Toggle bypass for all selected nodes
@@ -668,6 +705,97 @@ fun WorkflowEditorScreen(
             )
         }
 
+        // Note rename dialog
+        if (showNoteRenameDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showNoteRenameDialog = false
+                    renamingNoteId = null
+                },
+                title = { Text(stringResource(R.string.workflow_editor_rename_note_title)) },
+                text = {
+                    OutlinedTextField(
+                        value = noteRenameDialogText,
+                        onValueChange = { noteRenameDialogText = it },
+                        label = { Text(stringResource(R.string.workflow_editor_rename_note_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val noteId = renamingNoteId
+                            if (noteId != null && noteRenameDialogText.isNotBlank()) {
+                                viewModel.renameNote(noteId, noteRenameDialogText.trim())
+                                showNoteRenameDialog = false
+                                renamingNoteId = null
+                            }
+                        },
+                        enabled = noteRenameDialogText.isNotBlank()
+                    ) {
+                        Text(stringResource(R.string.button_save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showNoteRenameDialog = false
+                            renamingNoteId = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.button_cancel))
+                    }
+                }
+            )
+        }
+
+        // Note content edit dialog
+        if (showNoteContentDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showNoteContentDialog = false
+                    editingNoteContentId = null
+                },
+                title = { Text(stringResource(R.string.workflow_editor_edit_note_content)) },
+                text = {
+                    OutlinedTextField(
+                        value = noteContentDialogText,
+                        onValueChange = { noteContentDialogText = it },
+                        label = { Text(stringResource(R.string.workflow_editor_note_content_label)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        maxLines = 20
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val noteId = editingNoteContentId
+                            if (noteId != null) {
+                                viewModel.updateNoteContent(noteId, noteContentDialogText)
+                                showNoteContentDialog = false
+                                editingNoteContentId = null
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.button_save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showNoteContentDialog = false
+                            editingNoteContentId = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.button_cancel))
+                    }
+                }
+            )
+        }
+
         // Save new workflow dialog
         if (uiState.showSaveDialog) {
             SaveNewWorkflowDialog(
@@ -739,6 +867,7 @@ private fun WorkflowEditorFloatingToolbar(
     onDeleteSelected: () -> Unit,
     onDuplicateSelected: () -> Unit,
     onAddNode: () -> Unit,
+    onAddNote: () -> Unit,
     onBypassSelected: () -> Unit,
     onGroupSelected: () -> Unit,
     onUngroupSelected: () -> Unit,
@@ -885,6 +1014,23 @@ private fun WorkflowEditorFloatingToolbar(
                                             MaterialTheme.colorScheme.onSurface
                                         else
                                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            // Add note (always enabled)
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workflow_editor_add_note)) },
+                                onClick = {
+                                    onAddNote()
+                                    showMoreMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.EditNote,
+                                        contentDescription = null
                                     )
                                 }
                             )

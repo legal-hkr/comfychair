@@ -698,6 +698,10 @@ object WorkflowManager {
             if (isWrapped && json.has("groups")) {
                 put("groups", json.getJSONArray("groups"))
             }
+            // Include notes if present in original JSON
+            if (isWrapped && json.has("notes")) {
+                put("notes", json.getJSONArray("notes"))
+            }
             // Store field mappings for reference
             if (fieldMappings.isNotEmpty()) {
                 put("fieldMappings", JSONObject().apply {
@@ -873,6 +877,10 @@ object WorkflowManager {
             // Include groups if present in original JSON
             if (isWrapped && json.has("groups")) {
                 put("groups", json.getJSONArray("groups"))
+            }
+            // Include notes if present in original JSON
+            if (isWrapped && json.has("notes")) {
+                put("notes", json.getJSONArray("notes"))
             }
             if (fieldMappings.isNotEmpty()) {
                 put("fieldMappings", JSONObject().apply {

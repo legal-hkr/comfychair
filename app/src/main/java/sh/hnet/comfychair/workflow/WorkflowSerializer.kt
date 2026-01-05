@@ -56,7 +56,12 @@ class WorkflowSerializer {
 
         // Serialize groups if present
         if (graph.groups.isNotEmpty()) {
-            rootJson.put("groups", serializeGroups(graph.groups, graph.nodes))
+            rootJson.put("groups", serializeGroups(graph.groups, graph.nodes, graph.notes))
+        }
+
+        // Serialize notes if present
+        if (graph.notes.isNotEmpty()) {
+            rootJson.put("notes", serializeNotes(graph.notes))
         }
 
         val result = rootJson.toString(2)
@@ -72,10 +77,16 @@ class WorkflowSerializer {
      *
      * @param groups The groups to serialize
      * @param nodes All nodes in the graph (for computing bounding boxes)
+     * @param notes All notes in the graph (groups can contain notes too)
      */
-    private fun serializeGroups(groups: List<WorkflowGroup>, nodes: List<WorkflowNode>): JSONArray {
+    private fun serializeGroups(
+        groups: List<WorkflowGroup>,
+        nodes: List<WorkflowNode>,
+        notes: List<WorkflowNote>
+    ): JSONArray {
         DebugLogger.d(TAG, "serializeGroups: serializing ${groups.size} groups")
         val nodeMap = nodes.associateBy { it.id }
+        val noteMap = notes.associateBy { WorkflowNote.noteIdToMemberId(it.id) }
         val groupsArray = JSONArray()
 
         for (group in groups) {
@@ -91,7 +102,7 @@ class WorkflowSerializer {
             groupJson.put("member_nodes", memberNodesArray)
 
             // Compute and serialize bounding box for ComfyUI compatibility
-            val bounds = computeGroupBounds(group.memberNodeIds, nodeMap)
+            val bounds = computeGroupBounds(group.memberNodeIds, nodeMap, noteMap)
             if (bounds != null) {
                 val boundingArray = JSONArray()
                 boundingArray.put(bounds.x.toDouble())
@@ -101,7 +112,7 @@ class WorkflowSerializer {
                 groupJson.put("bounding", boundingArray)
                 DebugLogger.d(TAG, "serializeGroups: group ${group.id} bounds: x=${bounds.x}, y=${bounds.y}, w=${bounds.width}, h=${bounds.height}")
             } else {
-                DebugLogger.w(TAG, "serializeGroups: group ${group.id} has no valid bounds (members not found in node map)")
+                DebugLogger.w(TAG, "serializeGroups: group ${group.id} has no valid bounds (members not found in node/note map)")
             }
 
             // Default visual styling for ComfyUI
@@ -116,27 +127,65 @@ class WorkflowSerializer {
     }
 
     /**
-     * Compute bounding box for a group from its member nodes.
+     * Serialize notes to JSON array.
      *
-     * @param memberNodeIds IDs of nodes in the group
+     * @param notes The notes to serialize
+     */
+    private fun serializeNotes(notes: List<WorkflowNote>): JSONArray {
+        DebugLogger.d(TAG, "serializeNotes: serializing ${notes.size} notes")
+        val notesArray = JSONArray()
+
+        for (note in notes) {
+            val noteJson = JSONObject()
+            noteJson.put("id", note.id)
+            noteJson.put("title", note.title)
+            noteJson.put("content", note.content)
+            notesArray.put(noteJson)
+            DebugLogger.d(TAG, "serializeNotes: note id=${note.id} '${note.title}' (${note.content.length} chars)")
+        }
+
+        DebugLogger.i(TAG, "serializeNotes: serialized ${notesArray.length()} notes to JSON")
+        return notesArray
+    }
+
+    /**
+     * Compute bounding box for a group from its member nodes and notes.
+     *
+     * @param memberIds IDs of nodes/notes in the group (notes prefixed with "note:")
      * @param nodeMap Map of node ID to node
+     * @param noteMap Map of member ID ("note:N") to note
      * @return Computed bounds, or null if no members found
      */
     private fun computeGroupBounds(
-        memberNodeIds: Set<String>,
-        nodeMap: Map<String, WorkflowNode>
+        memberIds: Set<String>,
+        nodeMap: Map<String, WorkflowNode>,
+        noteMap: Map<String, WorkflowNote>
     ): GroupBounds? {
-        val members = memberNodeIds.mapNotNull { nodeMap[it] }
-        if (members.isEmpty()) return null
+        // Collect bounds from both nodes and notes
+        val allBounds = mutableListOf<MemberBounds>()
 
-        // Padding around nodes within group
+        for (memberId in memberIds) {
+            if (WorkflowNote.isNoteMemberId(memberId)) {
+                noteMap[memberId]?.let { note ->
+                    allBounds.add(MemberBounds(note.x, note.y, note.width, note.height))
+                }
+            } else {
+                nodeMap[memberId]?.let { node ->
+                    allBounds.add(MemberBounds(node.x, node.y, node.width, node.height))
+                }
+            }
+        }
+
+        if (allBounds.isEmpty()) return null
+
+        // Padding around members within group
         val padding = 20f
         val headerHeight = 30f  // Space for group title
 
-        val minX = members.minOf { it.x } - padding
-        val minY = members.minOf { it.y } - padding - headerHeight
-        val maxX = members.maxOf { it.x + it.width } + padding
-        val maxY = members.maxOf { it.y + it.height } + padding
+        val minX = allBounds.minOf { it.x } - padding
+        val minY = allBounds.minOf { it.y } - padding - headerHeight
+        val maxX = allBounds.maxOf { it.x + it.width } + padding
+        val maxY = allBounds.maxOf { it.y + it.height } + padding
 
         return GroupBounds(
             x = minX,
@@ -145,6 +194,16 @@ class WorkflowSerializer {
             height = maxY - minY
         )
     }
+
+    /**
+     * Simple bounds container for member (node or note) bounds.
+     */
+    private data class MemberBounds(
+        val x: Float,
+        val y: Float,
+        val width: Float,
+        val height: Float
+    )
 
     /**
      * Simple bounds container for group bounding box computation.

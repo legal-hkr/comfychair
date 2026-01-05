@@ -22,22 +22,54 @@ class WorkflowLayoutEngine {
         // Group constants
         const val GROUP_PADDING = 32f
         const val GROUP_HEADER_HEIGHT = 24f  // Smaller than node header
+
+        // Note constants
+        const val NOTE_MAX_HEIGHT = 840f  // 2x NODE_WIDTH
+        const val NOTE_LINE_HEIGHT = 24f
+        const val NOTE_BODY_PADDING = 32f
+
+        // Virtual note node prefix for layout integration
+        const val VIRTUAL_NOTE_PREFIX = "virtual_note_"
     }
 
     /**
-     * Compute positions for all nodes in the graph.
+     * Compute positions for all nodes and notes in the graph.
+     * Notes are converted to virtual nodes and laid out using the same algorithm as real nodes.
      * Uses group-aware layout when groups are present.
      */
     fun layoutGraph(graph: WorkflowGraph): WorkflowGraph {
-        if (graph.nodes.isEmpty()) return graph
+        if (graph.nodes.isEmpty() && graph.notes.isEmpty()) return graph
 
-        // Fast path: no groups, use standard layout
-        if (graph.groups.isEmpty()) {
-            return layoutWithoutGroups(graph)
+        // Create virtual nodes for notes (notes have no edges → treated as orphans in final layer)
+        val virtualNoteNodes = graph.notes.map { note ->
+            createVirtualNodeForNote(note)
+        }
+        val virtualNoteNodeIds = virtualNoteNodes.map { it.id }.toSet()
+
+        // Combine real nodes with virtual note nodes
+        val combinedNodes = graph.nodes + virtualNoteNodes
+        val graphWithVirtuals = graph.copy(nodes = combinedNodes)
+
+        // Run layout (virtual notes as orphans go to final layer with other unconnected nodes)
+        val layoutedWithVirtuals = if (combinedNodes.isEmpty()) {
+            graphWithVirtuals
+        } else if (graph.groups.isEmpty()) {
+            layoutWithoutGroups(graphWithVirtuals)
+        } else {
+            layoutWithGroups(graphWithVirtuals)
         }
 
-        // Group-aware layout
-        return layoutWithGroups(graph)
+        // Extract positions from virtual nodes back to notes
+        val (realNodes, positionedNotes) = separateVirtualNotes(
+            layoutedWithVirtuals.nodes,
+            virtualNoteNodeIds,
+            graph.notes
+        )
+
+        return layoutedWithVirtuals.copy(
+            nodes = realNodes,
+            notes = positionedNotes
+        )
     }
 
     /**
@@ -48,6 +80,65 @@ class WorkflowLayoutEngine {
         val layers = assignLayers(graph.nodes, dependencies, graph.edges)
         val orderedLayers = orderNodesInLayers(layers, graph.edges)
         return positionNodes(graph, orderedLayers)
+    }
+
+    /**
+     * Create a virtual node representing a note for layout purposes.
+     * Notes have no edges, so they will be treated as orphans and placed in the final layer.
+     */
+    private fun createVirtualNodeForNote(note: WorkflowNote): WorkflowNode {
+        val height = if (note.height > 0) note.height else calculateNoteHeight(note)
+        return WorkflowNode(
+            id = "$VIRTUAL_NOTE_PREFIX${note.id}",
+            classType = "ComfyChairNote",
+            title = note.title,
+            category = NodeCategory.OTHER,
+            inputs = emptyMap(),
+            outputs = emptyList(),
+            templateInputKeys = emptySet(),
+            width = note.width,
+            height = height
+        )
+    }
+
+    /**
+     * Translate a group member ID to the corresponding node ID.
+     * Notes use "note:X" format in groups but "virtual_note_X" as node IDs.
+     */
+    private fun memberIdToNodeId(memberId: String): String {
+        return if (WorkflowNote.isNoteMemberId(memberId)) {
+            val noteId = WorkflowNote.memberIdToNoteId(memberId)
+            "$VIRTUAL_NOTE_PREFIX$noteId"
+        } else {
+            memberId
+        }
+    }
+
+    /**
+     * Separate virtual note nodes from real nodes and extract note positions.
+     * Returns a pair of (real nodes, positioned notes).
+     */
+    private fun separateVirtualNotes(
+        allNodes: List<WorkflowNode>,
+        virtualNoteNodeIds: Set<String>,
+        originalNotes: List<WorkflowNote>
+    ): Pair<List<WorkflowNode>, List<WorkflowNote>> {
+        val noteMap = originalNotes.associateBy { it.id }
+
+        val realNodes = allNodes.filter { it.id !in virtualNoteNodeIds }
+        val positionedNotes = allNodes
+            .filter { it.id in virtualNoteNodeIds }
+            .mapNotNull { virtualNode ->
+                val noteId = virtualNode.id.removePrefix(VIRTUAL_NOTE_PREFIX).toIntOrNull()
+                    ?: return@mapNotNull null
+                noteMap[noteId]?.copy(
+                    x = virtualNode.x,
+                    y = virtualNode.y,
+                    height = virtualNode.height
+                )
+            }
+
+        return Pair(realNodes, positionedNotes)
     }
 
     /**
@@ -65,15 +156,26 @@ class WorkflowLayoutEngine {
 
     /**
      * Group-aware layout: treats groups as single units during layout.
+     * Notes are already converted to virtual nodes (virtual_note_X) by layoutGraph(),
+     * so we just need to translate member IDs (note:X -> virtual_note_X) when looking up.
      */
     private fun layoutWithGroups(graph: WorkflowGraph): WorkflowGraph {
         val nodeMap = graph.nodes.associateBy { it.id }
-        val groupedNodeIds = graph.groups.flatMap { it.memberNodeIds }.toSet()
+        // Translate member IDs and collect all grouped node IDs (including virtual note nodes)
+        val groupedNodeIds = graph.groups.flatMap { group ->
+            group.memberNodeIds.map { memberIdToNodeId(it) }
+        }.toSet()
 
         // Step 1: Compute internal layout for each group
         val groupInternalLayouts = mutableMapOf<Int, GroupInternalLayout>()
         for (group in graph.groups) {
-            val memberNodes = group.memberNodeIds.mapNotNull { nodeMap[it] }
+            // Look up member nodes using ID translation (note:X -> virtual_note_X)
+            val memberNodes = group.memberNodeIds.mapNotNull { memberId ->
+                val nodeId = memberIdToNodeId(memberId)
+                nodeMap[nodeId]
+            }
+
+            // Group needs at least 2 members
             if (memberNodes.size >= 2) {
                 groupInternalLayouts[group.id] = computeGroupInternalLayout(
                     group.id, memberNodes, graph.edges, groupedNodeIds
@@ -118,10 +220,11 @@ class WorkflowLayoutEngine {
     }
 
     /**
-     * Compute internal layout for nodes within a group.
+     * Compute internal layout for members within a group.
      * Positions are relative to group origin (0,0).
      * Uses grid layout with preference for horizontal arrangement.
      * Optimizes for external connections: inputs on left, outputs on right.
+     * Unconnected members (including virtual note nodes) are placed last.
      */
     private fun computeGroupInternalLayout(
         groupId: Int,
@@ -149,7 +252,7 @@ class WorkflowLayoutEngine {
             }
         }
 
-        // Sort members: external inputs first (leftmost), then middle, then external outputs (rightmost)
+        // Sort members: external inputs first, then middle (including unconnected), then external outputs
         val sortedMembers = memberNodes.sortedWith { a, b ->
             val aHasInput = a.id in nodesWithExternalInputs
             val aHasOutput = a.id in nodesWithExternalOutputs
@@ -157,49 +260,53 @@ class WorkflowLayoutEngine {
             val bHasOutput = b.id in nodesWithExternalOutputs
 
             when {
-                // Nodes with only inputs go first (leftmost columns)
+                // Members with only inputs go first (leftmost columns)
                 aHasInput && !aHasOutput && !(bHasInput && !bHasOutput) -> -1
                 bHasInput && !bHasOutput && !(aHasInput && !aHasOutput) -> 1
-                // Nodes with only outputs go last (rightmost columns)
+                // Members with only outputs go last (rightmost columns)
                 aHasOutput && !aHasInput && !(bHasOutput && !bHasInput) -> 1
                 bHasOutput && !bHasInput && !(aHasOutput && !aHasInput) -> -1
                 else -> 0
             }
         }
 
-        // Calculate grid dimensions: prefer vertical (more rows than columns) for portrait screens
-        val nodeCount = sortedMembers.size
-        val rows = kotlin.math.ceil(kotlin.math.sqrt(nodeCount.toDouble())).toInt().coerceAtLeast(1)
-        val columns = kotlin.math.ceil(nodeCount.toDouble() / rows).toInt().coerceAtLeast(1)
-
-        // Calculate height for each node
-        val nodeHeights = sortedMembers.map { calculateNodeHeight(it) }
-
-        // Calculate row heights (max height of nodes in each row)
-        val rowHeights = (0 until rows).map { row ->
-            val startIdx = row * columns
-            val endIdx = minOf(startIdx + columns, nodeCount)
-            (startIdx until endIdx).maxOfOrNull { nodeHeights[it] } ?: NODE_MIN_HEIGHT
+        // Create member info list with dimensions (use defaults if not yet laid out)
+        data class MemberInfo(val id: String, val width: Float, val height: Float)
+        val allMembers = sortedMembers.map { node ->
+            val width = if (node.width > 0) node.width else NODE_WIDTH
+            val height = if (node.height > 0) node.height else calculateNodeHeight(node)
+            MemberInfo(node.id, width, height)
         }
 
-        // Position nodes in grid pattern
-        // Nodes start at (0,0) relative to virtual node position - this keeps them
+        // Calculate grid dimensions: prefer vertical (more rows than columns) for portrait screens
+        val totalCount = allMembers.size
+        val rows = kotlin.math.ceil(kotlin.math.sqrt(totalCount.toDouble())).toInt().coerceAtLeast(1)
+        val columns = kotlin.math.ceil(totalCount.toDouble() / rows).toInt().coerceAtLeast(1)
+
+        // Calculate row heights (max height of members in each row)
+        val rowHeights = (0 until rows).map { row ->
+            val startIdx = row * columns
+            val endIdx = minOf(startIdx + columns, totalCount)
+            (startIdx until endIdx).maxOfOrNull { allMembers[it].height } ?: NODE_MIN_HEIGHT
+        }
+
+        // Position all members in grid pattern
+        // Members start at (0,0) relative to virtual node position - this keeps them
         // aligned with ungrouped nodes. The group background will extend outward.
         val memberPositions = mutableMapOf<String, RelativePosition>()
 
-        sortedMembers.forEachIndexed { index, node ->
+        allMembers.forEachIndexed { index, member ->
             val col = index % columns
             val row = index / columns
 
             val x = col * (NODE_WIDTH + HORIZONTAL_SPACING)
             val y = (0 until row).sumOf { rowHeights[it].toDouble() + VERTICAL_SPACING }.toFloat()
-            val height = nodeHeights[index]
 
-            memberPositions[node.id] = RelativePosition(
+            memberPositions[member.id] = RelativePosition(
                 x = x,
                 y = y,
-                width = NODE_WIDTH,
-                height = height
+                width = member.width,
+                height = member.height
             )
         }
 
@@ -247,7 +354,8 @@ class WorkflowLayoutEngine {
         val nodeToVirtualGroup = mutableMapOf<String, String>()
         for (group in groups) {
             val virtualId = "virtual_group_${group.id}"
-            for (nodeId in group.memberNodeIds) {
+            for (memberId in group.memberNodeIds) {
+                val nodeId = memberIdToNodeId(memberId)  // Translate note:X → virtual_note_X
                 nodeToVirtualGroup[nodeId] = virtualId
             }
         }
@@ -325,21 +433,30 @@ class WorkflowLayoutEngine {
     }
 
     /**
-     * Calculate the bounds of the laid out graph
+     * Calculate the bounds of the laid out graph (nodes and notes)
      */
     fun calculateBounds(graph: WorkflowGraph): GraphBounds {
-        if (graph.nodes.isEmpty()) return GraphBounds()
+        if (graph.nodes.isEmpty() && graph.notes.isEmpty()) return GraphBounds()
 
         var minX = Float.MAX_VALUE
         var minY = Float.MAX_VALUE
         var maxX = Float.MIN_VALUE
         var maxY = Float.MIN_VALUE
 
+        // Include nodes in bounds
         graph.nodes.forEach { node ->
             minX = minOf(minX, node.x)
             minY = minOf(minY, node.y)
             maxX = maxOf(maxX, node.x + node.width)
             maxY = maxOf(maxY, node.y + node.height)
+        }
+
+        // Include notes in bounds
+        graph.notes.forEach { note ->
+            minX = minOf(minX, note.x)
+            minY = minOf(minY, note.y)
+            maxX = maxOf(maxX, note.x + note.width)
+            maxY = maxOf(maxY, note.y + note.height)
         }
 
         return GraphBounds(
@@ -619,31 +736,57 @@ class WorkflowLayoutEngine {
     }
 
     /**
-     * Calculate rendered groups with computed bounds from member node positions.
+     * Calculate the height of a note based on its content.
+     * Height is dynamic (adjusts to content), with no minimum, capped at NOTE_MAX_HEIGHT.
+     */
+    fun calculateNoteHeight(note: WorkflowNote): Float {
+        val lines = note.content.lines().size.coerceAtLeast(1)
+        val contentHeight = lines * NOTE_LINE_HEIGHT + NODE_HEADER_HEIGHT + NOTE_BODY_PADDING
+        return minOf(contentHeight, NOTE_MAX_HEIGHT)
+    }
+
+    /**
+     * Calculate rendered groups with computed bounds from member node and note positions.
      *
      * @param groups The workflow groups (with membership data only)
      * @param nodes All nodes in the graph (must have positions assigned)
+     * @param notes All notes in the graph (must have positions assigned)
      * @return List of RenderedGroup with computed bounds for rendering
      */
     fun calculateRenderedGroups(
         groups: List<WorkflowGroup>,
-        nodes: List<WorkflowNode>
+        nodes: List<WorkflowNode>,
+        notes: List<WorkflowNote> = emptyList()
     ): List<RenderedGroup> {
         if (groups.isEmpty()) return emptyList()
 
         val nodeMap = nodes.associateBy { it.id }
+        val noteMap = notes.associateBy { WorkflowNote.noteIdToMemberId(it.id) }
 
         return groups.mapNotNull { group ->
-            val memberNodes = group.memberNodeIds.mapNotNull { nodeMap[it] }
+            // Collect bounds from both member nodes and notes
+            val allBounds = mutableListOf<MemberBoundsData>()
 
-            // Skip groups with no valid members (nodes may have been deleted)
-            if (memberNodes.isEmpty()) return@mapNotNull null
+            for (memberId in group.memberNodeIds) {
+                if (WorkflowNote.isNoteMemberId(memberId)) {
+                    noteMap[memberId]?.let { note ->
+                        allBounds.add(MemberBoundsData(note.x, note.y, note.width, note.height))
+                    }
+                } else {
+                    nodeMap[memberId]?.let { node ->
+                        allBounds.add(MemberBoundsData(node.x, node.y, node.width, node.height))
+                    }
+                }
+            }
 
-            // Calculate bounds to encompass all member nodes
-            val minX = memberNodes.minOf { it.x } - GROUP_PADDING
-            val minY = memberNodes.minOf { it.y } - GROUP_PADDING - GROUP_HEADER_HEIGHT
-            val maxX = memberNodes.maxOf { it.x + it.width } + GROUP_PADDING
-            val maxY = memberNodes.maxOf { it.y + it.height } + GROUP_PADDING
+            // Skip groups with no valid members
+            if (allBounds.isEmpty()) return@mapNotNull null
+
+            // Calculate bounds to encompass all members
+            val minX = allBounds.minOf { it.x } - GROUP_PADDING
+            val minY = allBounds.minOf { it.y } - GROUP_PADDING - GROUP_HEADER_HEIGHT
+            val maxX = allBounds.maxOf { it.x + it.width } + GROUP_PADDING
+            val maxY = allBounds.maxOf { it.y + it.height } + GROUP_PADDING
 
             RenderedGroup(
                 group = group,
@@ -654,4 +797,14 @@ class WorkflowLayoutEngine {
             )
         }
     }
+
+    /**
+     * Simple bounds data for member (node or note).
+     */
+    private data class MemberBoundsData(
+        val x: Float,
+        val y: Float,
+        val width: Float,
+        val height: Float
+    )
 }
