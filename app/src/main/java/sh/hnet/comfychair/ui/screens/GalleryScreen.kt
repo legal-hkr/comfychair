@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
@@ -64,6 +65,7 @@ import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
@@ -84,6 +86,9 @@ fun GalleryScreen(
     val context = LocalContext.current
     val uiState by galleryViewModel.uiState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
+
+    // Check offline mode
+    val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
 
     // State and effects
     // Activity result launcher for MediaViewerActivity
@@ -310,6 +315,7 @@ fun GalleryScreen(
                         GalleryItemCard(
                             item = item,
                             isSelected = galleryViewModel.isItemSelected(item),
+                            isOfflineMode = isOfflineMode,
                             onTap = {
                                 if (uiState.isSelectionMode) {
                                     // In selection mode, tap toggles selection
@@ -340,6 +346,7 @@ fun GalleryScreen(
 private fun GalleryItemCard(
     item: GalleryItem,
     isSelected: Boolean,
+    isOfflineMode: Boolean = false,
     onTap: () -> Unit,
     onLongPress: () -> Unit
 ) {
@@ -404,7 +411,7 @@ private fun GalleryItemCard(
                     }
                 }
                 else -> {
-                    // Fallback placeholder
+                    // Fallback placeholder - show CloudOff for offline mode, otherwise normal icon
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -412,8 +419,18 @@ private fun GalleryItemCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (item.isVideo) Icons.Default.PlayArrow else Icons.Default.Image,
-                            contentDescription = null,
+                            imageVector = if (isOfflineMode) {
+                                Icons.Default.CloudOff
+                            } else if (item.isVideo) {
+                                Icons.Default.PlayArrow
+                            } else {
+                                Icons.Default.Image
+                            },
+                            contentDescription = if (isOfflineMode) {
+                                stringResource(R.string.content_description_not_cached)
+                            } else {
+                                null
+                            },
                             modifier = Modifier.size(32.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )

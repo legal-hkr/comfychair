@@ -16,6 +16,8 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
@@ -27,9 +29,22 @@ class GalleryRepository private constructor() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    // Application context for accessing settings and cache
+    private var applicationContext: Context? = null
+
     // Accessor for shared client from ConnectionManager
     private val comfyUIClient: ComfyUIClient?
         get() = ConnectionManager.clientOrNull
+
+    /**
+     * Initialize with application context.
+     * Called when needed to access settings/cache.
+     */
+    fun initialize(context: Context) {
+        if (applicationContext == null) {
+            applicationContext = context.applicationContext
+        }
+    }
 
     // Gallery data state
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
@@ -76,10 +91,14 @@ class GalleryRepository private constructor() {
 
     /**
      * Start background preloading of gallery data.
-     * Called after WebSocket connection is established.
+     * Called after WebSocket connection is established, or when entering offline mode.
      */
     fun startBackgroundPreload() {
-        if (comfyUIClient == null) {
+        val context = applicationContext
+        val isOffline = context != null && AppSettings.isOfflineMode(context)
+
+        // In online mode, require a client
+        if (!isOffline && comfyUIClient == null) {
             return
         }
 
@@ -93,8 +112,10 @@ class GalleryRepository private constructor() {
             loadGalleryInternal(isRefresh = false)
         }
 
-        // Start periodic refresh
-        startPeriodicRefresh()
+        // Start periodic refresh only in online mode
+        if (!isOffline) {
+            startPeriodicRefresh()
+        }
     }
 
     /**
@@ -171,6 +192,14 @@ class GalleryRepository private constructor() {
      * @return true if load succeeded, false otherwise
      */
     private suspend fun loadGalleryInternal(isRefresh: Boolean): Boolean {
+        val context = applicationContext
+        val serverId = ConnectionManager.currentServerId
+
+        // Check if in offline mode - load from cache instead
+        if (context != null && AppSettings.isOfflineMode(context)) {
+            return loadFromOfflineCache()
+        }
+
         val client = comfyUIClient ?: run {
             return false
         }
@@ -214,6 +243,14 @@ class GalleryRepository private constructor() {
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
             DebugLogger.d(TAG, "Gallery refresh complete: ${items.size} items (was $previousCount)")
+
+            // Cache gallery metadata for offline mode
+            if (context != null && serverId != null) {
+                withContext(Dispatchers.IO) {
+                    GalleryMetadataCache.saveMetadata(context, serverId, items)
+                }
+            }
+
             return true
         } catch (e: Exception) {
             DebugLogger.w(TAG, "Gallery refresh failed: ${e.message}")
@@ -222,6 +259,27 @@ class GalleryRepository private constructor() {
             _isLoading.value = false
             _isRefreshing.value = false
         }
+    }
+
+    /**
+     * Load gallery data from offline cache.
+     * @return true if cache was loaded successfully, false otherwise
+     */
+    private fun loadFromOfflineCache(): Boolean {
+        val context = applicationContext ?: return false
+        val serverId = ConnectionManager.currentServerId ?: return false
+
+        val cachedItems = GalleryMetadataCache.loadMetadata(context, serverId)
+        if (cachedItems != null) {
+            _galleryItems.value = cachedItems
+            _lastRefreshTime.value = GalleryMetadataCache.getCacheTimestamp(context, serverId)
+            hasLoadedOnce = true
+            DebugLogger.d(TAG, "Gallery loaded from offline cache: ${cachedItems.size} items")
+            return true
+        }
+
+        DebugLogger.w(TAG, "No offline cache available for gallery")
+        return false
     }
 
     /**
@@ -329,6 +387,8 @@ class GalleryRepository private constructor() {
 
     /**
      * Clear cached data (for logout/disconnect)
+     * Note: Uses MediaCache.reset() to preserve disk cache for offline mode.
+     * User can still clear disk cache manually via Settings → Clear Cache.
      */
     fun clearCache() {
         DebugLogger.i(TAG, "Clearing cache")
@@ -339,8 +399,8 @@ class GalleryRepository private constructor() {
             pendingDeletions.clear()
         }
         stopPeriodicRefresh()
-        // Clear media cache
-        MediaCache.clearAll()
+        // Clear media cache (preserves disk cache for offline mode)
+        MediaCache.reset()
     }
 
     /**

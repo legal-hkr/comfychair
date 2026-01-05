@@ -28,6 +28,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
+import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
 import androidx.compose.runtime.Immutable
@@ -484,13 +485,67 @@ class SettingsViewModel : ViewModel() {
      * Set whether offline mode should be enabled.
      * Offline mode allows browsing cached data without network connectivity.
      * Requires disk-first cache mode to be enabled for full functionality.
+     *
+     * When disabling offline mode, a connectivity check is performed first.
+     * If the server is unreachable, offline mode stays enabled and an error is shown.
      */
     fun setOfflineMode(context: Context, enabled: Boolean) {
-        AppSettings.setOfflineMode(context, enabled)
-        _isOfflineMode.value = enabled
-        // Notify that app state needs refresh (generation buttons etc.)
-        viewModelScope.launch {
-            _events.emit(SettingsEvent.RefreshNeeded)
+        if (enabled) {
+            // Enabling offline mode - no connectivity check needed
+            AppSettings.setOfflineMode(context, true)
+            _isOfflineMode.value = true
+            viewModelScope.launch {
+                _events.emit(SettingsEvent.RefreshNeeded)
+            }
+        } else {
+            // Disabling offline mode - check connectivity first
+            viewModelScope.launch {
+                val isConnected = checkConnectivity(context)
+                if (isConnected) {
+                    AppSettings.setOfflineMode(context, false)
+                    _isOfflineMode.value = false
+                    _events.emit(SettingsEvent.RefreshNeeded)
+                } else {
+                    // Server unreachable, keep offline mode enabled
+                    _events.emit(SettingsEvent.ShowToast(R.string.cannot_go_online))
+                }
+            }
+        }
+    }
+
+    /**
+     * Check connectivity to the current server.
+     * Creates a temporary client if no existing client is available (e.g., in offline mode).
+     * @return true if server is reachable, false otherwise
+     */
+    private suspend fun checkConnectivity(context: Context): Boolean {
+        // Try to use existing client first
+        val existingClient = comfyUIClient
+        if (existingClient != null) {
+            return withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    existingClient.testConnection { success, _, _ ->
+                        continuation.resumeWith(Result.success(success))
+                    }
+                }
+            }
+        }
+
+        // No existing client (offline mode) - create temporary client using selected server
+        val serverStorage = ServerStorage(context)
+        val server = serverStorage.getSelectedServer() ?: return false
+
+        val tempClient = ComfyUIClient(context.applicationContext, server.hostname, server.port)
+        return try {
+            withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    tempClient.testConnection { success, _, _ ->
+                        continuation.resumeWith(Result.success(success))
+                    }
+                }
+            }
+        } finally {
+            tempClient.shutdown()
         }
     }
 

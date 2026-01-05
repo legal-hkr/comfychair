@@ -16,6 +16,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.DebugLogger
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -93,6 +94,8 @@ data class PrefetchRequest(
  */
 object MediaCache {
 
+    private const val TAG = "MediaCache"
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // Accessor for shared client from ConnectionManager
@@ -144,9 +147,17 @@ object MediaCache {
             prefetchQueue.clear()
             inProgressKeys.clear()
             completionCallbacks.clear()
+        } else {
+            // Switching TO memory-first (privacy mode): clear disk cache
+            // This ensures no gallery data persists on disk when user chooses memory-first
+            applicationContext?.let { context ->
+                try {
+                    getDiskCacheDir(context).deleteRecursively()
+                } catch (_: Exception) {
+                    // Ignore deletion failures
+                }
+            }
         }
-        // Switching TO memory-first: no action needed
-        // Content will be fetched on-demand and cached in memory
 
         isMemoryFirstMode = enabled
     }
@@ -453,6 +464,7 @@ object MediaCache {
      * Fetch bitmap with caching.
      * Returns cached version immediately if available.
      * In disk-first mode, checks disk cache first then fetches from server and saves to disk.
+     * In offline mode (no client), only returns cached content.
      */
     suspend fun fetchBitmap(
         key: MediaCacheKey,
@@ -462,12 +474,21 @@ object MediaCache {
         priority: Int = PriorityLruCache.PRIORITY_DEFAULT
     ): Bitmap? {
         val keyStr = key.keyString
-        val client = comfyUIClient ?: return null
         val context = applicationContext ?: return null
+        val client = comfyUIClient  // May be null in offline mode
 
         if (isMemoryFirstMode) {
             // Memory-first: check memory cache first
-            bitmapCache.get(keyStr)?.let { return it }
+            bitmapCache.get(keyStr)?.let {
+                DebugLogger.d(TAG, "fetchBitmap: $keyStr from memory cache -> HIT")
+                return it
+            }
+
+            // No client in offline mode - can't fetch from server
+            if (client == null) {
+                DebugLogger.d(TAG, "fetchBitmap: $keyStr -> no client (offline), cache MISS")
+                return null
+            }
 
             return withContext(Dispatchers.IO) {
                 if (isVideo) {
@@ -479,21 +500,32 @@ object MediaCache {
         } else {
             // Disk-first: check disk cache first, fetch and save to disk if not found
             return withContext(Dispatchers.IO) {
-                // Check disk cache first
+                // Check disk cache first (works in offline mode!)
                 if (!isVideo) {
-                    readBitmapFromDisk(context, key)?.let { return@withContext it }
+                    readBitmapFromDisk(context, key)?.let {
+                        DebugLogger.d(TAG, "fetchBitmap: $keyStr from disk cache -> HIT")
+                        return@withContext it
+                    }
                 } else {
                     // For video, check if we have cached video and extract thumbnail
                     if (existsInDiskCache(context, key, true)) {
                         val videoBytes = readVideoBytesFromDisk(context, key)
                         if (videoBytes != null) {
+                            DebugLogger.d(TAG, "fetchBitmap: $keyStr video from disk cache -> HIT")
                             val (_, thumbnail) = extractVideoData(keyStr, videoBytes, context)
                             return@withContext thumbnail
                         }
                     }
                 }
 
+                // No client in offline mode - can't fetch from server
+                if (client == null) {
+                    DebugLogger.d(TAG, "fetchBitmap: $keyStr -> no client (offline), disk cache MISS")
+                    return@withContext null
+                }
+
                 // Fetch from server
+                DebugLogger.d(TAG, "fetchBitmap: $keyStr -> fetching from server")
                 if (isVideo) {
                     fetchVideoBitmapDiskFirst(key, subfolder, type, client, context)
                 } else {
@@ -614,6 +646,7 @@ object MediaCache {
     /**
      * Fetch full-size image with caching.
      * In disk-first mode, checks disk cache first then fetches from server and saves to disk.
+     * In offline mode (no client), only returns cached content.
      *
      * @param priority Cache priority level (default: PRIORITY_CURRENT for direct requests)
      */
@@ -623,12 +656,21 @@ object MediaCache {
         type: String,
         priority: Int = PriorityLruCache.PRIORITY_CURRENT
     ): Bitmap? {
-        val client = comfyUIClient ?: return null
         val context = applicationContext ?: return null
+        val client = comfyUIClient  // May be null in offline mode
 
         if (isMemoryFirstMode) {
             // Memory-first: check memory cache first
-            bitmapCache.get(key.keyString)?.let { return it }
+            bitmapCache.get(key.keyString)?.let {
+                DebugLogger.d(TAG, "fetchImage: ${key.keyString} from memory cache -> HIT")
+                return it
+            }
+
+            // No client in offline mode - can't fetch from server
+            if (client == null) {
+                DebugLogger.d(TAG, "fetchImage: ${key.keyString} -> no client (offline), cache MISS")
+                return null
+            }
 
             return withContext(Dispatchers.IO) {
                 val bitmap = suspendCancellableCoroutine { continuation ->
@@ -643,8 +685,18 @@ object MediaCache {
         } else {
             // Disk-first: check disk cache first, fetch and save to disk if not found
             return withContext(Dispatchers.IO) {
-                readBitmapFromDisk(context, key)?.let { return@withContext it }
+                readBitmapFromDisk(context, key)?.let {
+                    DebugLogger.d(TAG, "fetchImage: ${key.keyString} from disk cache -> HIT")
+                    return@withContext it
+                }
 
+                // No client in offline mode - can't fetch from server
+                if (client == null) {
+                    DebugLogger.d(TAG, "fetchImage: ${key.keyString} -> no client (offline), disk cache MISS")
+                    return@withContext null
+                }
+
+                DebugLogger.d(TAG, "fetchImage: ${key.keyString} -> fetching from server")
                 val bitmap = suspendCancellableCoroutine { continuation ->
                     client.fetchImage(key.filename, subfolder, type) { bmp ->
                         continuation.resume(bmp)
@@ -669,18 +721,28 @@ object MediaCache {
     /**
      * Fetch video bytes with caching.
      * In disk-first mode, checks disk cache first then fetches from server and saves to disk.
+     * In offline mode (no client), only returns cached content.
      */
     suspend fun fetchVideoBytes(
         key: MediaCacheKey,
         subfolder: String,
         type: String
     ): ByteArray? {
-        val client = comfyUIClient ?: return null
         val context = applicationContext ?: return null
+        val client = comfyUIClient  // May be null in offline mode
 
         if (isMemoryFirstMode) {
             // Memory-first: check memory cache first
-            videoCache.get(key.keyString)?.let { return it }
+            videoCache.get(key.keyString)?.let {
+                DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} from memory cache -> HIT")
+                return it
+            }
+
+            // No client in offline mode - can't fetch from server
+            if (client == null) {
+                DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} -> no client (offline), cache MISS")
+                return null
+            }
 
             return withContext(Dispatchers.IO) {
                 val bytes = suspendCancellableCoroutine { continuation ->
@@ -695,8 +757,18 @@ object MediaCache {
         } else {
             // Disk-first: check disk cache first, fetch and save to disk if not found
             return withContext(Dispatchers.IO) {
-                readVideoBytesFromDisk(context, key)?.let { return@withContext it }
+                readVideoBytesFromDisk(context, key)?.let {
+                    DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} from disk cache -> HIT")
+                    return@withContext it
+                }
 
+                // No client in offline mode - can't fetch from server
+                if (client == null) {
+                    DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} -> no client (offline), disk cache MISS")
+                    return@withContext null
+                }
+
+                DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} -> fetching from server")
                 val bytes = suspendCancellableCoroutine { continuation ->
                     client.fetchVideo(key.filename, subfolder, type) { videoBytes ->
                         continuation.resume(videoBytes)
@@ -1064,12 +1136,23 @@ object MediaCache {
     /**
      * Reset cache (on logout/disconnect).
      * Called by ConnectionManager when disconnecting.
+     * Only clears memory caches - disk cache is preserved for offline mode.
+     * Note: isMemoryFirstMode is NOT reset - it's a user preference that persists across sessions.
      */
     fun reset() {
-        clearAll()
+        // Only clear memory caches, NOT disk cache (needed for offline mode)
+        bitmapCache.evictAll()
+        videoCache.evictAll()
+        videoUriCache.clear()
+        videoDimensionsCache.clear()
+        prefetchQueue.clear()
+        inProgressKeys.clear()
+        completionCallbacks.clear()
+
         applicationContext = null
         isPrefetchWorkersStarted = false
-        isMemoryFirstMode = true  // Reset to default
+        // Don't reset isMemoryFirstMode - it's a user preference loaded from AppSettings
+        // Don't delete disk cache - it's needed for offline mode
     }
 
     // Utilities

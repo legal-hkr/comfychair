@@ -76,6 +76,9 @@ fun LoginScreen() {
     // Server storage
     val serverStorage = remember { ServerStorage(context.applicationContext) }
 
+    // Check offline mode
+    var isOfflineMode by remember { mutableStateOf(AppSettings.isOfflineMode(context)) }
+
     // State
     var servers by remember { mutableStateOf(serverStorage.getServers()) }
     var selectedServer by remember {
@@ -93,6 +96,8 @@ fun LoginScreen() {
     var showServerDialog by remember { mutableStateOf(false) }
     var serverToEdit by remember { mutableStateOf<Server?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showOfflinePrompt by remember { mutableStateOf(false) }
+    var offlinePromptServer by remember { mutableStateOf<Server?>(null) }
 
     // String resources
     val warningSelfSigned = stringResource(R.string.warning_self_signed_cert)
@@ -153,10 +158,52 @@ fun LoginScreen() {
                 context.startActivity(intent)
             } else {
                 connectionState = ConnectionState.FAILED
-                // Show error Toast
-                errorMessage?.let { msg ->
-                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+
+                // Check if offline cache exists - offer offline mode
+                if (ConnectionManager.hasOfflineCache(context, server.id)) {
+                    offlinePromptServer = server
+                    showOfflinePrompt = true
+                } else {
+                    // No cache available, just show error Toast
+                    errorMessage?.let { msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                    }
                 }
+
+                delay(2000)
+                connectionState = ConnectionState.IDLE
+            }
+        }
+    }
+
+    // Offline connection function - loads from cache instead of connecting to server
+    fun attemptOfflineConnection(server: Server) {
+        // Check if cache exists for this server
+        if (!ConnectionManager.hasOfflineCache(context, server.id)) {
+            Toast.makeText(context, R.string.error_no_offline_cache, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        connectionState = ConnectionState.CONNECTING
+
+        scope.launch {
+            // Load data from cache
+            val success = ConnectionManager.loadFromOfflineCache(context, server.id)
+
+            if (success) {
+                connectionState = ConnectionState.CONNECTED
+
+                delay(500)
+
+                // Save selected server
+                serverStorage.setSelectedServerId(server.id)
+
+                // Navigate to main activity (no actual connection established)
+                val intent = Intent(context, MainContainerActivity::class.java)
+                context.startActivity(intent)
+            } else {
+                connectionState = ConnectionState.FAILED
+                Toast.makeText(context, R.string.error_no_offline_cache, Toast.LENGTH_LONG).show()
                 delay(2000)
                 connectionState = ConnectionState.IDLE
             }
@@ -173,6 +220,9 @@ fun LoginScreen() {
                 selectedServer = serverStorage.getSelectedServerId()?.let { id -> servers.find { it.id == id } }
                     ?: servers.firstOrNull()
 
+                // Reload offline mode setting in case it was changed in settings
+                isOfflineMode = AppSettings.isOfflineMode(context)
+
                 // Reset connection state when screen becomes visible again
                 if (connectionState == ConnectionState.CONNECTED) {
                     connectionState = ConnectionState.IDLE
@@ -186,10 +236,10 @@ fun LoginScreen() {
         }
     }
 
-    // Auto-connect on fresh app launch (if enabled in settings, we have a selected server, and user didn't explicitly logout)
+    // Auto-connect on fresh app launch (if enabled in settings, we have a selected server, user didn't explicitly logout, and not in offline mode)
     LaunchedEffect(Unit) {
         val isAutoConnectEnabled = AppSettings.isAutoConnectEnabled(context)
-        val shouldAutoConnect = isAutoConnectEnabled && !ConnectionManager.isUserInitiatedLogout
+        val shouldAutoConnect = isAutoConnectEnabled && !ConnectionManager.isUserInitiatedLogout && !isOfflineMode
         ConnectionManager.clearLogoutFlag()
 
         if (!hasAutoConnected && shouldAutoConnect && selectedServer != null) {
@@ -285,6 +335,35 @@ fun LoginScreen() {
         )
     }
 
+    // Offline prompt dialog - shown when connection fails but cache exists
+    if (showOfflinePrompt && offlinePromptServer != null) {
+        AlertDialog(
+            onDismissRequest = { showOfflinePrompt = false },
+            title = { Text(stringResource(R.string.offline_prompt_title)) },
+            text = { Text(stringResource(R.string.offline_prompt_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showOfflinePrompt = false
+                        // Enable offline mode and attempt offline connection
+                        AppSettings.setOfflineMode(context, true)
+                        isOfflineMode = true
+                        offlinePromptServer?.let { server ->
+                            attemptOfflineConnection(server)
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.offline_prompt_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOfflinePrompt = false }) {
+                    Text(stringResource(R.string.offline_prompt_dismiss))
+                }
+            }
+        )
+    }
+
     // UI
     Column(
         modifier = Modifier
@@ -336,9 +415,14 @@ fun LoginScreen() {
         ConnectionSplitButton(
             connectionState = connectionState,
             hasSelectedServer = selectedServer != null,
+            isOfflineMode = isOfflineMode,
             onConnect = {
                 if (selectedServer != null) {
-                    attemptConnection(selectedServer!!)
+                    if (isOfflineMode) {
+                        attemptOfflineConnection(selectedServer!!)
+                    } else {
+                        attemptConnection(selectedServer!!)
+                    }
                 }
             },
             onAddServer = {

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
@@ -39,8 +40,9 @@ class GalleryContainerActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Guard check - redirect to login if not connected
-        if (!ConnectionManager.isConnected) {
+        // Guard check - redirect to login if not connected (unless in offline mode)
+        val isOfflineMode = AppSettings.isOfflineMode(this)
+        if (!ConnectionManager.isConnected && !isOfflineMode) {
             val intent = Intent(this, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)

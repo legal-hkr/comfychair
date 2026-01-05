@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.navigation.MainRoute
@@ -66,14 +67,18 @@ class MainContainerActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Guard check - redirect to login if not connected
-        if (!ConnectionManager.isConnected) {
+        // Guard check - redirect to login if not connected (unless in offline mode)
+        val isOfflineMode = AppSettings.isOfflineMode(this)
+        if (!ConnectionManager.isConnected && !isOfflineMode) {
             val intent = Intent(this, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
             finish()
             return
         }
+
+        // Initialize GalleryRepository for offline cache access
+        GalleryRepository.getInstance().initialize(this)
 
         // Enable debug logging based on saved preference (must be early to capture init logs)
         DebugLogger.setEnabled(AppSettings.isDebugLoggingEnabled(this))

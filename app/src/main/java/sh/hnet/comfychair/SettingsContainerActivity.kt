@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.navigation.SettingsNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.SettingsEvent
@@ -37,8 +38,9 @@ class SettingsContainerActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Guard check - redirect to login if not connected
-        if (!ConnectionManager.isConnected) {
+        // Guard check - redirect to login if not connected (unless in offline mode)
+        val isOfflineMode = AppSettings.isOfflineMode(this)
+        if (!ConnectionManager.isConnected && !isOfflineMode) {
             val intent = Intent(this, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)

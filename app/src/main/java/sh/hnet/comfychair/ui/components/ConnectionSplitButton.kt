@@ -44,6 +44,7 @@ import sh.hnet.comfychair.ui.screens.ConnectionState
  *
  * @param connectionState Current connection state
  * @param hasSelectedServer Whether a server is currently selected
+ * @param isOfflineMode Whether offline mode is enabled
  * @param onConnect Callback when Connect button is clicked
  * @param onAddServer Callback to add a new server
  * @param onEditServer Callback to edit the selected server
@@ -55,6 +56,7 @@ import sh.hnet.comfychair.ui.screens.ConnectionState
 fun ConnectionSplitButton(
     connectionState: ConnectionState,
     hasSelectedServer: Boolean,
+    isOfflineMode: Boolean = false,
     onConnect: () -> Unit,
     onAddServer: () -> Unit,
     onEditServer: () -> Unit,
@@ -77,12 +79,14 @@ fun ConnectionSplitButton(
         ConnectionState.CONNECTED -> MaterialTheme.colorScheme.onTertiary
     }
 
-    // Button text based on connection state
-    val buttonText = when (connectionState) {
-        ConnectionState.IDLE -> stringResource(R.string.button_connect)
-        ConnectionState.CONNECTING -> stringResource(R.string.button_connecting)
-        ConnectionState.FAILED -> stringResource(R.string.button_failed)
-        ConnectionState.CONNECTED -> stringResource(R.string.button_connected)
+    // Button text based on connection state and offline mode
+    val buttonText = when {
+        isOfflineMode && connectionState == ConnectionState.IDLE -> stringResource(R.string.button_offline)
+        connectionState == ConnectionState.IDLE -> stringResource(R.string.button_connect)
+        connectionState == ConnectionState.CONNECTING -> stringResource(R.string.button_connecting)
+        connectionState == ConnectionState.FAILED -> stringResource(R.string.button_failed)
+        connectionState == ConnectionState.CONNECTED -> stringResource(R.string.button_connected)
+        else -> stringResource(R.string.button_connect)
     }
 
     // Leading button enabled when IDLE and has a selected server

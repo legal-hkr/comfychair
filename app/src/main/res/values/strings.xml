@@ -26,6 +26,12 @@
     <string name="button_connecting">Connecting…</string>
     <string name="button_failed">Failed</string>
     <string name="button_connected">Connected</string>
+    <string name="button_offline">Offline</string>
+    <string name="error_no_offline_cache">No cached data available for this server</string>
+    <string name="offline_prompt_title">Server unreachable</string>
+    <string name="offline_prompt_message">Cannot connect to the server. Would you like to continue in offline mode using cached data?</string>
+    <string name="offline_prompt_confirm">Go Offline</string>
+    <string name="offline_prompt_dismiss">Cancel</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Required</string>
@@ -48,6 +54,7 @@
     <!-- Gallery screen strings -->
     <string name="gallery_title">Gallery</string>
     <string name="gallery_thumbnail_description">Generated image thumbnail</string>
+    <string name="content_description_not_cached">Not available offline</string>
 
     <!-- Navigation strings -->
     <string name="nav_text_to_image">Text to image</string>
@@ -101,6 +108,7 @@
     <string name="offline_mode_label">Offline mode</string>
     <string name="offline_mode_description">Browse cached data without network connection</string>
     <string name="offline_mode_requires_disk_cache">Enable disk-first cache for offline support</string>
+    <string name="cannot_go_online">Cannot go online - server unreachable</string>
     <string name="auto_connect_label">Auto-connect</string>
     <string name="auto_connect_description">Automatically connect to the last server on app launch</string>
     <string name="show_built_in_workflows_label">Show built-in workflows</string>

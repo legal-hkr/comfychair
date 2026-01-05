@@ -27,6 +27,7 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.ObjectInfoCache
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
@@ -44,6 +45,10 @@ sealed class ConnectionState {
         val port: Int,
         val protocol: String,
         val clientId: String
+    ) : ConnectionState()
+    /** Offline mode - using cached data without actual server connection */
+    data class OfflineConnected(
+        val serverId: String
     ) : ConnectionState()
 }
 
@@ -151,10 +156,14 @@ object ConnectionManager {
         get() = (connectionState.value as? ConnectionState.Connected)?.protocol ?: "http"
 
     /**
-     * Current server ID, or null if not connected.
+     * Current server ID, or null if not connected (includes offline mode).
      */
     val currentServerId: String?
-        get() = (connectionState.value as? ConnectionState.Connected)?.serverId
+        get() = when (val state = connectionState.value) {
+            is ConnectionState.Connected -> state.serverId
+            is ConnectionState.OfflineConnected -> state.serverId
+            else -> null
+        }
 
     /**
      * Current client ID for WebSocket communication.
@@ -627,6 +636,12 @@ object ConnectionManager {
             return false
         }
 
+        // Store application context for cache operations
+        _applicationContext = context.applicationContext
+
+        // Set offline connected state so currentServerId is available
+        _connectionState.value = ConnectionState.OfflineConnected(serverId = serverId)
+
         // Parse node definitions for workflow editor
         nodeTypeRegistry.parseObjectInfo(objectInfo)
 
@@ -637,6 +652,19 @@ object ConnectionManager {
         DebugLogger.i(TAG, "Offline cache loaded: ${models.checkpoints.size} checkpoints, " +
                 "${models.unets.size} unets, ${models.vaes.size} vaes, " +
                 "${models.clips.size} clips, ${models.loras.size} loras")
+
+        // Initialize MediaCache with context and set cache mode from user preferences
+        // This must happen BEFORE gallery preload so images can be fetched from disk cache
+        val isMemoryFirst = AppSettings.isMemoryFirstCache(context)
+        MediaCache.ensureInitialized(context)
+        MediaCache.setMemoryFirstMode(isMemoryFirst)
+        DebugLogger.d(TAG, "MediaCache initialized for offline mode (memoryFirst=$isMemoryFirst)")
+
+        // Trigger gallery preload from cache
+        GalleryRepository.getInstance().apply {
+            initialize(context)
+            startBackgroundPreload()
+        }
 
         return true
     }
