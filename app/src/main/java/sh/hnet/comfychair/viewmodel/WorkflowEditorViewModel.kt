@@ -101,10 +101,19 @@ class WorkflowEditorViewModel : ViewModel() {
     private var originalGraph: WorkflowGraph? = null
     private var originalBounds: GraphBounds? = null
 
+    // Guard against re-initialization (e.g., Activity recreation on theme change)
+    private var isInitialized = false
+
     /**
      * Initialize the editor with a workflow ID (view mode)
      */
     fun initialize(context: Context, workflowId: String?, workflowJson: String?) {
+        // Skip if already initialized (e.g., Activity recreation on theme change)
+        if (isInitialized) {
+            DebugLogger.d(TAG, "initialize: Already initialized, skipping reload")
+            return
+        }
+
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
         // Set up storage for node attribute edits
@@ -189,6 +198,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     originalWorkflowDescription = description,
                     viewingWorkflowIsBuiltIn = isBuiltIn
                 )
+                isInitialized = true
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -207,6 +217,12 @@ class WorkflowEditorViewModel : ViewModel() {
         description: String,
         mappingState: WorkflowMappingState
     ) {
+        // Skip if already initialized (e.g., Activity recreation on theme change)
+        if (isInitialized) {
+            DebugLogger.d(TAG, "initializeForMapping: Already initialized, skipping reload")
+            return
+        }
+
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
         // Fetch object_info first for edge type resolution, then parse workflow
@@ -244,6 +260,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     highlightedNodeIds = highlightedNodes,
                     canConfirmMapping = mappingState.allRequiredFieldsMapped
                 )
+                isInitialized = true
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -258,6 +275,12 @@ class WorkflowEditorViewModel : ViewModel() {
      * Creates an empty mutable graph and enters edit mode automatically.
      */
     fun initializeForCreation(context: Context) {
+        // Skip if already initialized (e.g., Activity recreation on theme change)
+        if (isInitialized) {
+            DebugLogger.d(TAG, "initializeForCreation: Already initialized, skipping reload")
+            return
+        }
+
         DebugLogger.i(TAG, "initializeForCreation: Starting create mode")
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
@@ -287,6 +310,7 @@ class WorkflowEditorViewModel : ViewModel() {
                 hasUnsavedChanges = false,
                 graphBounds = GraphBounds()
             )
+            isInitialized = true
         }
     }
 
@@ -296,6 +320,12 @@ class WorkflowEditorViewModel : ViewModel() {
      * Save flow skips the save dialog and updates the existing file.
      */
     fun initializeForEditingExisting(context: Context, workflowId: String) {
+        // Skip if already initialized (e.g., Activity recreation on theme change)
+        if (isInitialized) {
+            DebugLogger.d(TAG, "initializeForEditingExisting: Already initialized, skipping reload")
+            return
+        }
+
         DebugLogger.i(TAG, "initializeForEditingExisting: Loading workflow $workflowId")
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
@@ -351,6 +381,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     originalWorkflowDescription = workflow.description,
                     hasUnsavedChanges = false
                 )
+                isInitialized = true
 
                 DebugLogger.i(TAG, "initializeForEditingExisting: Loaded workflow ${workflow.name}, type=${workflow.type}")
             } catch (e: Exception) {
