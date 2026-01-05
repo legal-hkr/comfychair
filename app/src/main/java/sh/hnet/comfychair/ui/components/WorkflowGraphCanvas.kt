@@ -99,7 +99,8 @@ private data class CanvasColors(
     val categoryColors: Map<NodeCategory, SlotColors.NodeColorPair>,
     val positivePromptColors: SlotColors.NodeColorPair,
     val negativePromptColors: SlotColors.NodeColorPair,
-    val isDarkTheme: Boolean
+    val isDarkTheme: Boolean,
+    val groupColor: Color = Color(0xFF3F789E)  // Blue for group outlines
 )
 
 /**
@@ -1400,12 +1401,7 @@ private fun DrawScope.drawGroup(
     showEditIcon: Boolean = false,
     editIconDrawable: Drawable? = null
 ) {
-    // Parse group color (hex string like "#3f789e")
-    val groupColor = try {
-        Color(android.graphics.Color.parseColor(group.color))
-    } catch (e: Exception) {
-        Color(android.graphics.Color.parseColor("#3f789e"))
-    }
+    val groupColor = colors.groupColor
 
     val cornerRadius = 16f
     val fontSize = WorkflowLayoutEngine.GROUP_HEADER_HEIGHT

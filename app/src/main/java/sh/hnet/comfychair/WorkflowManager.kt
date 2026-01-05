@@ -469,6 +469,26 @@ object WorkflowManager {
     }
 
     /**
+     * Export a workflow in internal format (preserves placeholders, groups, notes, etc.).
+     * This exports the complete workflow JSON as stored internally.
+     *
+     * @return Result containing the JSON string in internal format, or error
+     */
+    fun exportWorkflowInternal(workflowId: String): Result<String> {
+        val workflow = workflows.find { it.id == workflowId }
+            ?: return Result.failure(Exception("Workflow not found"))
+
+        return try {
+            // Parse and re-format with indentation for readability
+            val json = JSONObject(workflow.jsonContent)
+            DebugLogger.i(TAG, "Exported workflow in internal format: ${workflow.name}")
+            Result.success(json.toString(2))
+        } catch (e: Exception) {
+            Result.failure(Exception("Failed to parse workflow JSON"))
+        }
+    }
+
+    /**
      * Get default value for a placeholder name.
      */
     private fun getDefaultValueForPlaceholder(placeholder: String, defaults: WorkflowDefaults): Any? {

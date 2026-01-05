@@ -216,12 +216,8 @@ private fun computeThumbnailData(jsonContent: String, isDarkTheme: Boolean): Thu
         )
 
         // Convert groups to simplified thumbnail groups
+        val groupColor = Color(0xFF3F789E)  // Blue for groups
         val thumbnailGroups = renderedGroups.map { group ->
-            val groupColor = try {
-                Color(android.graphics.Color.parseColor(group.color))
-            } catch (e: Exception) {
-                Color(android.graphics.Color.parseColor("#3f789e"))
-            }
             ThumbnailGroup(
                 x = group.x,
                 y = group.y,

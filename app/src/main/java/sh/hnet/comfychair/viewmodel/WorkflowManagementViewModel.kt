@@ -29,6 +29,14 @@ import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.ValidationUtils
 
 /**
+ * Export format options
+ */
+enum class ExportFormat {
+    INTERNAL,  // Full internal format with placeholders, groups, notes
+    API        // Raw ComfyUI API format with placeholders replaced
+}
+
+/**
  * UI state for the Workflow Management screen
  */
 data class WorkflowManagementUiState(
@@ -82,6 +90,7 @@ data class WorkflowManagementUiState(
 
     // Export state
     val exportingWorkflow: WorkflowManager.Workflow? = null,
+    val exportFormat: ExportFormat = ExportFormat.INTERNAL,
 
     // Loading state
     val isLoading: Boolean = false
@@ -954,10 +963,13 @@ class WorkflowManagementViewModel : ViewModel() {
 
     // Export flow
 
-    fun onExportWorkflow(workflow: WorkflowManager.Workflow) {
+    fun onExportWorkflow(workflow: WorkflowManager.Workflow, format: ExportFormat) {
         val suggestedFilename = WorkflowManager.generateExportFilename(workflow.name)
 
-        _uiState.value = _uiState.value.copy(exportingWorkflow = workflow)
+        _uiState.value = _uiState.value.copy(
+            exportingWorkflow = workflow,
+            exportFormat = format
+        )
 
         viewModelScope.launch {
             _events.emit(WorkflowManagementEvent.LaunchExportFilePicker(suggestedFilename))
@@ -966,9 +978,13 @@ class WorkflowManagementViewModel : ViewModel() {
 
     fun performExport(context: Context, uri: Uri) {
         val workflow = _uiState.value.exportingWorkflow ?: return
+        val format = _uiState.value.exportFormat
 
         viewModelScope.launch {
-            val result = WorkflowManager.exportWorkflowToComfyUIFormat(workflow.id)
+            val result = when (format) {
+                ExportFormat.INTERNAL -> WorkflowManager.exportWorkflowInternal(workflow.id)
+                ExportFormat.API -> WorkflowManager.exportWorkflowToComfyUIFormat(workflow.id)
+            }
 
             if (result.isSuccess) {
                 val jsonContent = result.getOrThrow()

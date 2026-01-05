@@ -291,6 +291,7 @@
     <string name="workflow_menu_duplicate">Dupliquer</string>
     <string name="workflow_menu_delete">Supprimer</string>
     <string name="workflow_menu_export">Exporter</string>
+    <string name="workflow_menu_export_api">Exporter (Format API)</string>
     <string name="duplicate_workflow_title">Dupliquer le workflow</string>
     <string name="workflow_export_success">Workflow exporté</string>
     <string name="workflow_export_failed">Échec de l\'exportation du workflow</string>

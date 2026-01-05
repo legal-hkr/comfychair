@@ -69,6 +69,7 @@ import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.WorkflowTypeDisplay
+import sh.hnet.comfychair.viewmodel.ExportFormat
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
@@ -231,7 +232,7 @@ fun WorkflowsSettingsScreen(
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
+                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -245,7 +246,7 @@ fun WorkflowsSettingsScreen(
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
+                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -259,7 +260,7 @@ fun WorkflowsSettingsScreen(
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
+                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -273,7 +274,7 @@ fun WorkflowsSettingsScreen(
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
+                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -287,7 +288,7 @@ fun WorkflowsSettingsScreen(
                         onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { viewModel.onExportWorkflow(it) },
+                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
                         onDelete = { viewModel.onDeleteWorkflow(it) }
                     )
                 }
@@ -412,7 +413,7 @@ private fun WorkflowSection(
     onEditStructure: (WorkflowManager.Workflow) -> Unit,
     onRename: (WorkflowManager.Workflow) -> Unit,
     onDuplicate: (WorkflowManager.Workflow) -> Unit,
-    onExport: (WorkflowManager.Workflow) -> Unit,
+    onExport: (WorkflowManager.Workflow, ExportFormat) -> Unit,
     onDelete: (WorkflowManager.Workflow) -> Unit
 ) {
     Column {
@@ -446,7 +447,7 @@ private fun WorkflowSection(
                                 onEditStructure = { onEditStructure(workflow) },
                                 onRename = { onRename(workflow) },
                                 onDuplicate = { onDuplicate(workflow) },
-                                onExport = { onExport(workflow) },
+                                onExport = { format -> onExport(workflow, format) },
                                 onDelete = { onDelete(workflow) }
                             )
                             if (index < workflows.size - 1) {
@@ -473,7 +474,7 @@ private fun WorkflowListItemContent(
     onEditStructure: () -> Unit,
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
-    onExport: () -> Unit,
+    onExport: (ExportFormat) -> Unit,
     onDelete: () -> Unit
 ) {
     var showContextMenu by remember { mutableStateOf(false) }
@@ -566,12 +567,24 @@ private fun WorkflowListItemContent(
                     }
                 )
 
-                // Export - available for all workflows
+                // Export (Internal format) - available for all workflows
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.workflow_menu_export)) },
                     onClick = {
                         showContextMenu = false
-                        onExport()
+                        onExport(ExportFormat.INTERNAL)
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.SaveAlt, contentDescription = null)
+                    }
+                )
+
+                // Export (API Format) - available for all workflows
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.workflow_menu_export_api)) },
+                    onClick = {
+                        showContextMenu = false
+                        onExport(ExportFormat.API)
                     },
                     leadingIcon = {
                         Icon(Icons.Default.SaveAlt, contentDescription = null)

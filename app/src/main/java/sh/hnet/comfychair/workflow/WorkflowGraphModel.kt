@@ -94,8 +94,7 @@ data class RenderedGroup(
     val x: Float,
     val y: Float,
     val width: Float,
-    val height: Float,
-    val color: String = "#3f789e"
+    val height: Float
 ) {
     val id: Int get() = group.id
     val title: String get() = group.title

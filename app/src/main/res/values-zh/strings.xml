@@ -291,6 +291,7 @@
     <string name="workflow_menu_duplicate">复制</string>
     <string name="workflow_menu_delete">删除</string>
     <string name="workflow_menu_export">导出</string>
+    <string name="workflow_menu_export_api">导出 (API 格式)</string>
     <string name="duplicate_workflow_title">复制工作流</string>
     <string name="workflow_export_success">工作流已导出</string>
     <string name="workflow_export_failed">导出工作流失败</string>

@@ -115,10 +115,6 @@ class WorkflowSerializer {
                 DebugLogger.w(TAG, "serializeGroups: group ${group.id} has no valid bounds (members not found in node/note map)")
             }
 
-            // Default visual styling for ComfyUI
-            groupJson.put("color", "#3f789e")
-            groupJson.put("font_size", 24)
-
             groupsArray.put(groupJson)
         }
 
