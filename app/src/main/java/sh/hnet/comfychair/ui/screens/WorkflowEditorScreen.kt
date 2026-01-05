@@ -389,6 +389,10 @@ fun WorkflowEditorScreen(
                                     showEditNoteDialog = true
                                 }
                             },
+                            onNoteHeightsChanged = {
+                                // Note heights were measured during drawing, trigger relayout
+                                viewModel.relayoutGraph()
+                            },
                             onTransform = { scale, offset ->
                                 viewModel.onTransform(scale, offset)
                             },

@@ -2069,16 +2069,19 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Re-layout the entire graph. Call this after structural changes (add/delete nodes)
-     * to recalculate optimal positions for all nodes.
+     * or when note heights change to recalculate positions.
      */
     fun relayoutGraph() {
-        val graph = mutableGraph ?: return
+        // Use mutableGraph if in edit mode, otherwise use immutable graph from state
+        val currentGraph = mutableGraph?.toImmutable() ?: _uiState.value.graph ?: return
 
         // Re-layout the entire graph
-        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+        val layoutedGraph = layoutEngine.layoutGraph(currentGraph)
 
-        // Update mutable graph from layouted result
-        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+        // Update mutable graph if in edit mode
+        if (mutableGraph != null) {
+            mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+        }
 
         // Recalculate bounds
         val newBounds = layoutEngine.calculateBounds(layoutedGraph)

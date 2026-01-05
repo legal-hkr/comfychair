@@ -92,6 +92,10 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.ui.compose)
 
+    // Markdown parsing
+    implementation(libs.commonmark)
+    implementation(libs.commonmark.ext.gfm.strikethrough)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -8,22 +8,6 @@ import sh.hnet.comfychair.util.DebugLogger
 object NoteManager {
     private const val TAG = "NoteManager"
 
-    // Height calculation constants (same as WorkflowLayoutEngine)
-    private const val NOTE_LINE_HEIGHT = 24f
-    private const val NODE_HEADER_HEIGHT = 64f
-    private const val NOTE_BODY_PADDING = 32f
-    private const val NOTE_MAX_HEIGHT = 840f
-
-    /**
-     * Calculate note height based on content.
-     * Height is dynamic based on line count, capped at NOTE_MAX_HEIGHT.
-     */
-    private fun calculateNoteHeight(content: String): Float {
-        val lines = content.lines().size.coerceAtLeast(1)
-        val contentHeight = lines * NOTE_LINE_HEIGHT + NODE_HEADER_HEIGHT + NOTE_BODY_PADDING
-        return minOf(contentHeight, NOTE_MAX_HEIGHT)
-    }
-
     /**
      * Generate a unique note ID (max existing + 1, like groups).
      */
@@ -46,15 +30,14 @@ object NoteManager {
         content: String = ""
     ): WorkflowNote {
         val id = generateNoteId(graph)
-        val height = calculateNoteHeight(content)
         val note = WorkflowNote(
             id = id,
             title = title,
             content = content,
-            height = height
+            height = 0f  // Height will be set by renderer after TextMeasurer measurement
         )
         graph.notes.add(note)
-        DebugLogger.i(TAG, "Created note: id=$id, title='$title' (${content.length} chars, height=$height)")
+        DebugLogger.i(TAG, "Created note: id=$id, title='$title' (${content.length} chars)")
         return note
     }
 
@@ -115,9 +98,8 @@ object NoteManager {
         val index = graph.notes.indexOfFirst { it.id == noteId }
         if (index >= 0) {
             val note = graph.notes[index]
-            val newHeight = calculateNoteHeight(newContent)
-            graph.notes[index] = note.copy(content = newContent, height = newHeight)
-            DebugLogger.i(TAG, "Updated note $noteId content (${newContent.length} chars, height=$newHeight)")
+            graph.notes[index] = note.copy(content = newContent)  // Keep measured height
+            DebugLogger.i(TAG, "Updated note $noteId content (${newContent.length} chars)")
             return true
         }
         DebugLogger.w(TAG, "Note not found for content update: id=$noteId")

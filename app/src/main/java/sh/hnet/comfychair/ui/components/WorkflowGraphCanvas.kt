@@ -11,6 +11,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -44,11 +46,19 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.MarkdownParser
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.getEffectiveDefault
@@ -147,7 +157,8 @@ fun WorkflowGraphCanvas(
     onRenameNodeTapped: ((String) -> Unit)? = null,
     onRenameGroupTapped: ((Int) -> Unit)? = null,
     onNoteTapped: ((Int) -> Unit)? = null,
-    onRenameNoteTapped: ((Int) -> Unit)? = null
+    onRenameNoteTapped: ((Int) -> Unit)? = null,
+    onNoteHeightsChanged: (() -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -188,6 +199,21 @@ fun WorkflowGraphCanvas(
         ContextCompat.getDrawable(context, R.drawable.edit_24px)
     }
 
+    // TextMeasurer for markdown rendering in notes
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+
+    // Track if note heights changed during drawing (triggers relayout)
+    var noteHeightsChanged by remember { mutableStateOf(false) }
+
+    // Trigger relayout callback when note heights change
+    LaunchedEffect(noteHeightsChanged) {
+        if (noteHeightsChanged) {
+            onNoteHeightsChanged?.invoke()
+            noteHeightsChanged = false
+        }
+    }
+
     // Extract theme colors
     val isDarkTheme = isSystemInDarkTheme()
     val colors = CanvasColors(
@@ -212,6 +238,9 @@ fun WorkflowGraphCanvas(
 
     // Animation state for node positions
     val animatedPositions = remember { mutableStateMapOf<String, AnimatedNodePosition>() }
+
+    // Animation state for note positions (notes use Int IDs)
+    val animatedNotePositions = remember { mutableStateMapOf<Int, AnimatedNodePosition>() }
 
     // Animation spec for smooth transitions
     val animationSpec = tween<Float>(
@@ -284,6 +313,37 @@ fun WorkflowGraphCanvas(
         }
     }
 
+    // Animate note positions when notes change
+    LaunchedEffect(notes) {
+        val currentNoteIds = notes.map { it.id }.toSet()
+
+        // Remove animated positions for deleted notes
+        val deletedIds = animatedNotePositions.keys - currentNoteIds
+        deletedIds.forEach { animatedNotePositions.remove(it) }
+
+        // Update or create animated positions for each note
+        notes.forEach { note ->
+            val existingPosition = animatedNotePositions[note.id]
+            if (existingPosition != null) {
+                // Animate to new position if it changed
+                if (existingPosition.x.targetValue != note.x || existingPosition.y.targetValue != note.y) {
+                    launch {
+                        existingPosition.x.animateTo(note.x, animationSpec)
+                    }
+                    launch {
+                        existingPosition.y.animateTo(note.y, animationSpec)
+                    }
+                }
+            } else {
+                // New note - start at target position (no animation for new notes)
+                animatedNotePositions[note.id] = AnimatedNodePosition(
+                    x = Animatable(note.x),
+                    y = Animatable(note.y)
+                )
+            }
+        }
+    }
+
     // Build animated nodes for drawing - reads Animatable.value directly to trigger recomposition
     // Note: This is computed every recomposition to pick up animation value changes
     val animatedNodes = graph.nodes.map { node ->
@@ -292,6 +352,16 @@ fun WorkflowGraphCanvas(
             node.copy(x = animPos.x.value, y = animPos.y.value)
         } else {
             node
+        }
+    }
+
+    // Build animated notes for drawing
+    val animatedNotes = notes.map { note ->
+        val animPos = animatedNotePositions[note.id]
+        if (animPos != null) {
+            note.copy(x = animPos.x.value, y = animPos.y.value)
+        } else {
+            note
         }
     }
 
@@ -561,15 +631,31 @@ fun WorkflowGraphCanvas(
             }
 
             // Draw notes (after nodes, no connection slots)
-            notes.forEach { note ->
-                val isSelected = note.id in selectedNoteIds
+            // Track height changes to trigger relayout if needed
+            // Use animatedNotes for smooth position animation, but track height on original notes
+            var anyHeightChanged = false
+            val originalNotesById = notes.associateBy { it.id }
+            animatedNotes.forEach { animatedNote ->
+                val originalNote = originalNotesById[animatedNote.id]
+                val heightBefore = originalNote?.height ?: 0f
+                val isSelected = animatedNote.id in selectedNoteIds
                 drawNote(
-                    note = note,
+                    note = animatedNote,
                     colors = colors,
                     isSelected = isSelected,
                     showEditIcon = isEditMode,
-                    editIconDrawable = editIconDrawable
+                    editIconDrawable = editIconDrawable,
+                    textMeasurer = textMeasurer,
+                    density = density
                 )
+                // Copy measured height back to original note for layout
+                if (originalNote != null && animatedNote.height != heightBefore) {
+                    originalNote.height = animatedNote.height
+                    anyHeightChanged = true
+                }
+            }
+            if (anyHeightChanged) {
+                noteHeightsChanged = true
             }
 
             // Draw slot circles for connection editing
@@ -1349,13 +1435,17 @@ private fun DrawScope.drawGroup(
 /**
  * Draw a markdown note.
  * Notes look like nodes but with distinct amber/gold colors.
+ * Uses TextMeasurer for markdown-formatted content with word wrapping.
+ * Measures actual height and updates note.height for layout consistency.
  */
 private fun DrawScope.drawNote(
     note: WorkflowNote,
     colors: CanvasColors,
     isSelected: Boolean = false,
     showEditIcon: Boolean = false,
-    editIconDrawable: Drawable? = null
+    editIconDrawable: Drawable? = null,
+    textMeasurer: TextMeasurer? = null,
+    density: androidx.compose.ui.unit.Density? = null
 ) {
     // Select colors based on theme
     val headerColor = if (colors.isDarkTheme) NoteColors.HeaderDark else NoteColors.HeaderLight
@@ -1364,12 +1454,53 @@ private fun DrawScope.drawNote(
 
     val cornerRadius = 16f
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+    val contentPadding = 16f
 
-    // Draw body background
+    // Measure text and calculate actual height
+    var effectiveHeight = note.height
+    var textLayoutResult: androidx.compose.ui.text.TextLayoutResult? = null
+
+    if (textMeasurer != null && density != null) {
+        val contentWidth = (note.width - contentPadding * 2).toInt()
+
+        // Convert pixel sizes to sp (20f pixels = same as node text)
+        val fontSizeSp = with(density) { 20f.toSp() }
+        val lineHeightSp = with(density) { 24f.toSp() }
+
+        // Parse markdown to AnnotatedString
+        val codeBackgroundColor = headerColor.copy(alpha = 0.3f)
+        val annotatedContent = MarkdownParser.parse(
+            markdown = note.content,
+            codeBackgroundColor = codeBackgroundColor,
+            baseFontSize = fontSizeSp
+        )
+
+        // Measure text with constraints
+        textLayoutResult = textMeasurer.measure(
+            text = annotatedContent,
+            style = TextStyle(
+                color = contentColor,
+                fontSize = fontSizeSp,
+                lineHeight = lineHeightSp
+            ),
+            constraints = Constraints(maxWidth = contentWidth)
+        )
+
+        // Calculate actual height from measured content
+        val measuredHeight = headerHeight + contentPadding * 2 + textLayoutResult.size.height
+        effectiveHeight = measuredHeight
+
+        // Update note model for layout consistency
+        if (note.height != effectiveHeight) {
+            note.height = effectiveHeight
+        }
+    }
+
+    // Draw note background using effectiveHeight
     drawRoundRect(
         color = bodyColor,
         topLeft = Offset(note.x, note.y),
-        size = Size(note.width, note.height),
+        size = Size(note.width, effectiveHeight),
         cornerRadius = CornerRadius(cornerRadius)
     )
 
@@ -1380,7 +1511,7 @@ private fun DrawScope.drawNote(
                 left = note.x,
                 top = note.y,
                 right = note.x + note.width,
-                bottom = note.y + note.height,
+                bottom = note.y + effectiveHeight,
                 cornerRadius = CornerRadius(cornerRadius)
             )
         )
@@ -1401,7 +1532,7 @@ private fun DrawScope.drawNote(
     drawRoundRect(
         color = borderColor,
         topLeft = Offset(note.x, note.y),
-        size = Size(note.width, note.height),
+        size = Size(note.width, effectiveHeight),
         cornerRadius = CornerRadius(cornerRadius),
         style = Stroke(width = borderWidth)
     )
@@ -1414,9 +1545,8 @@ private fun DrawScope.drawNote(
         strokeWidth = 2f
     )
 
-    // Draw text using native canvas
+    // STEP 3: Draw title using native canvas
     drawContext.canvas.nativeCanvas.apply {
-        // Title text
         val titleMaxWidth = if (showEditIcon) note.width - 104f else note.width - 32f
         val titlePaint = android.graphics.Paint().apply {
             color = android.graphics.Color.WHITE
@@ -1440,35 +1570,32 @@ private fun DrawScope.drawNote(
                 iconCopy.draw(this)
             }
         }
+    }
 
-        // Draw content preview (first few lines, truncated)
-        val contentPaint = android.graphics.Paint().apply {
-            color = contentColor.toArgb()
-            textSize = 20f
-            isAntiAlias = true
-        }
-
-        val maxContentHeight = note.height - headerHeight - 32f
-        val lineHeight = WorkflowLayoutEngine.NOTE_LINE_HEIGHT
-        val maxLines = (maxContentHeight / lineHeight).toInt().coerceAtLeast(1)
-        val lines = note.content.lines().take(maxLines)
-
-        var contentY = note.y + headerHeight + 28f
-        for (line in lines) {
-            if (contentY > note.y + note.height - 16f) break
-            val truncatedLine = truncateText(line, note.width - 32f, contentPaint)
-            drawText(truncatedLine, note.x + 16f, contentY, contentPaint)
-            contentY += lineHeight
-        }
-
-        // Show "..." if content is truncated
-        if (note.content.lines().size > maxLines) {
-            val ellipsisPaint = android.graphics.Paint().apply {
-                color = contentColor.copy(alpha = 0.6f).toArgb()
+    // STEP 4: Draw markdown content
+    if (textLayoutResult != null) {
+        drawText(
+            textLayoutResult = textLayoutResult,
+            topLeft = Offset(note.x + contentPadding, note.y + headerHeight + contentPadding)
+        )
+    } else {
+        // Fallback: Draw content using native canvas (no markdown formatting)
+        drawContext.canvas.nativeCanvas.apply {
+            val contentPaint = android.graphics.Paint().apply {
+                color = contentColor.toArgb()
                 textSize = 20f
                 isAntiAlias = true
             }
-            drawText("...", note.x + 16f, note.y + note.height - 16f, ellipsisPaint)
+
+            val lineHeight = WorkflowLayoutEngine.NOTE_LINE_HEIGHT
+            val lines = note.content.lines()
+
+            var contentY = note.y + headerHeight + 28f
+            for (line in lines) {
+                val truncatedLine = truncateText(line, note.width - 32f, contentPaint)
+                drawText(truncatedLine, note.x + 16f, contentY, contentPaint)
+                contentY += lineHeight
+            }
         }
     }
 }

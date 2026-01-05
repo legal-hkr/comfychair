@@ -109,7 +109,7 @@ data class RenderedGroup(
  *
  * Note IDs are integers (like groups), prefixed as "note:N" when stored in group memberNodeIds.
  */
-@Immutable
+@Stable
 data class WorkflowNote(
     val id: Int,
     val title: String,
@@ -117,7 +117,7 @@ data class WorkflowNote(
     val x: Float = 0f,
     val y: Float = 0f,
     val width: Float = 420f,  // Same as NODE_WIDTH
-    val height: Float = 0f    // Calculated: content-based, capped at 840f
+    var height: Float = 0f    // Set by renderer after TextMeasurer measurement
 ) {
     companion object {
         /** Convert note ID to member ID string for group membership */

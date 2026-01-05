@@ -24,7 +24,6 @@ class WorkflowLayoutEngine {
         const val GROUP_HEADER_HEIGHT = 24f  // Smaller than node header
 
         // Note constants
-        const val NOTE_MAX_HEIGHT = 840f  // 2x NODE_WIDTH
         const val NOTE_LINE_HEIGHT = 24f
         const val NOTE_BODY_PADDING = 32f
 
@@ -87,6 +86,7 @@ class WorkflowLayoutEngine {
      * Notes have no edges, so they will be treated as orphans and placed in the final layer.
      */
     private fun createVirtualNodeForNote(note: WorkflowNote): WorkflowNode {
+        // Use measured height if available, otherwise fallback to estimate
         val height = if (note.height > 0) note.height else calculateNoteHeight(note)
         return WorkflowNode(
             id = "$VIRTUAL_NOTE_PREFIX${note.id}",
@@ -737,12 +737,11 @@ class WorkflowLayoutEngine {
 
     /**
      * Calculate the height of a note based on its content.
-     * Height is dynamic (adjusts to content), with no minimum, capped at NOTE_MAX_HEIGHT.
+     * This is a fallback estimate - actual height is measured by TextMeasurer in drawNote().
      */
     fun calculateNoteHeight(note: WorkflowNote): Float {
         val lines = note.content.lines().size.coerceAtLeast(1)
-        val contentHeight = lines * NOTE_LINE_HEIGHT + NODE_HEADER_HEIGHT + NOTE_BODY_PADDING
-        return minOf(contentHeight, NOTE_MAX_HEIGHT)
+        return lines * NOTE_LINE_HEIGHT + NODE_HEADER_HEIGHT + NOTE_BODY_PADDING
     }
 
     /**
