@@ -55,9 +55,9 @@ object FieldMappingAnalyzer {
                 FieldMappingState(
                     field = requiredField,
                     candidates = candidates,
-                    // Auto-select when exactly one candidate (unambiguous mapping)
-                    // Otherwise require explicit selection
-                    selectedCandidateIndex = if (candidates.size == 1) 0 else -1
+                    // Auto-select first candidate if any exist
+                    // User can change selection in mapping UI if needed
+                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
                 )
             )
         }
@@ -71,9 +71,9 @@ object FieldMappingAnalyzer {
                 FieldMappingState(
                     field = requiredField,
                     candidates = candidates,
-                    // Auto-select when exactly one candidate (unambiguous mapping)
-                    // Otherwise require explicit selection
-                    selectedCandidateIndex = if (candidates.size == 1) 0 else -1
+                    // Auto-select first candidate if any exist
+                    // User can change selection in mapping UI if needed
+                    selectedCandidateIndex = if (candidates.isNotEmpty()) 0 else -1
                 )
             )
         }
