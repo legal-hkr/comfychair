@@ -59,6 +59,7 @@ fun GenerationButton(
     isExecuting: Boolean,
     isEnabled: Boolean,
     isOfflineMode: Boolean = false,
+    isUploading: Boolean = false,
     onGenerate: () -> Unit,
     onCancelCurrent: () -> Unit,
     onAddToFrontOfQueue: () -> Unit = {},
@@ -72,11 +73,12 @@ fun GenerationButton(
     val containerColor = MaterialTheme.colorScheme.primary
     val contentColor = MaterialTheme.colorScheme.onPrimary
 
-    // Button text changes based on queue size
-    val buttonText = if (queueSize > 0) {
-        stringResource(R.string.button_add_to_queue, queueSize)
-    } else {
-        stringResource(R.string.button_generate)
+    // Button text changes based on upload state and queue size
+    val buttonText = when {
+        isUploading && queueSize > 0 -> stringResource(R.string.button_uploading_queue, queueSize)
+        isUploading -> stringResource(R.string.button_uploading)
+        queueSize > 0 -> stringResource(R.string.button_add_to_queue, queueSize)
+        else -> stringResource(R.string.button_generate)
     }
 
     Row(modifier = modifier) {

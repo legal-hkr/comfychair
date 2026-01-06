@@ -36,6 +36,10 @@
     <string name="connection_lost_message">Impossible de se connecter au serveur après plusieurs tentatives.</string>
     <string name="session_expired_title">Session expirée</string>
     <string name="session_expired_message">Votre session a expiré. Veuillez vous reconnecter.</string>
+    <string name="transfer_stalled_title">Transfert bloqué</string>
+    <string name="transfer_stalled_message">Aucune donnée n\'a été transférée pendant 30 secondes. Cela peut indiquer un problème de connexion.</string>
+    <string name="error_upload_stalled">Téléversement bloqué</string>
+    <string name="error_download_stalled">Téléchargement bloqué</string>
     <string name="action_retry">Réessayer</string>
     <string name="action_go_offline">Mode hors ligne</string>
     <string name="action_return_to_login">Retour à la connexion</string>
@@ -178,6 +182,8 @@
     <!-- Generation button states -->
     <string name="button_cancel_generation">Annuler la génération</string>
     <string name="button_add_to_queue">Ajouter à la file (%d)</string>
+    <string name="button_uploading">Téléversement…</string>
+    <string name="button_uploading_queue">Téléversement… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Annuler l\'actuel</string>

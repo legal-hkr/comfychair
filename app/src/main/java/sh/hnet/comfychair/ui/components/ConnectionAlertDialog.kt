@@ -2,13 +2,13 @@ package sh.hnet.comfychair.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +23,7 @@ import sh.hnet.comfychair.connection.ConnectionFailure
  * Shows different options based on failure type:
  * - Network failure: Retry / Go Offline (if cache exists) / Return to Login
  * - Auth failure: Return to Login only (no point retrying with invalid credentials)
+ * - Stall failure: Retry / Cancel (simpler two-button layout)
  *
  * Buttons are stacked vertically with thumb-friendly ordering (primary action at bottom).
  */
@@ -36,14 +37,18 @@ fun ConnectionAlertDialog(
     onDismiss: () -> Unit
 ) {
     val isAuthFailure = failureType == ConnectionFailure.AUTHENTICATION
+    val isStallFailure = failureType == ConnectionFailure.STALLED
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
                 text = stringResource(
-                    if (isAuthFailure) R.string.session_expired_title
-                    else R.string.connection_lost_title
+                    when {
+                        isAuthFailure -> R.string.session_expired_title
+                        isStallFailure -> R.string.transfer_stalled_title
+                        else -> R.string.connection_lost_title
+                    }
                 )
             )
         },
@@ -51,12 +56,27 @@ fun ConnectionAlertDialog(
             Column {
                 Text(
                     text = stringResource(
-                        if (isAuthFailure) R.string.session_expired_message
-                        else R.string.connection_lost_message
+                        when {
+                            isAuthFailure -> R.string.session_expired_message
+                            isStallFailure -> R.string.transfer_stalled_message
+                            else -> R.string.connection_lost_message
+                        }
                     )
                 )
 
-                if (!isAuthFailure) {
+                if (isStallFailure) {
+                    // Stall failure - informative only with single dismiss button
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(onClick = onDismiss) {
+                            Text(stringResource(R.string.button_dismiss))
+                        }
+                    }
+                } else if (!isAuthFailure) {
                     // Network failure - show vertically stacked buttons
                     // Order: tertiary (top) → secondary → primary (bottom, easiest thumb reach)
                     Column(
@@ -102,7 +122,7 @@ fun ConnectionAlertDialog(
                     Text(stringResource(R.string.action_return_to_login))
                 }
             }
-            // For network failure, buttons are in the text content above
+            // For network/stall failure, buttons are in the text content above
         }
     )
 }

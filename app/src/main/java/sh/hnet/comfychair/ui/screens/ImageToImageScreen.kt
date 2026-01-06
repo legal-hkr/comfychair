@@ -141,6 +141,9 @@ fun ImageToImageScreen(
                 is ImageToImageEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
+                is ImageToImageEvent.ConnectionFailed -> {
+                    // Handled by MainContainerActivity
+                }
             }
         }
     }
@@ -383,6 +386,7 @@ fun ImageToImageScreen(
                     uiState.positivePrompt.isNotBlank() &&
                     uiState.sourceImage != null,
                 isOfflineMode = isOfflineMode,
+                isUploading = uiState.isUploading,
                 onGenerate = {
                     scope.launch {
                         // In inpainting mode, require mask

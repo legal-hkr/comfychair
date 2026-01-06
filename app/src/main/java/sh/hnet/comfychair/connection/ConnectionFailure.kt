@@ -12,5 +12,7 @@ enum class ConnectionFailure {
     /** Network or other recoverable error - retry may succeed */
     NETWORK,
     /** Server is not a valid ComfyUI server */
-    INVALID_SERVER
+    INVALID_SERVER,
+    /** Transfer stalled - no data transferred for extended period */
+    STALLED
 }

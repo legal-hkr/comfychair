@@ -36,6 +36,10 @@
     <string name="connection_lost_message">No se pudo conectar al servidor después de varios intentos.</string>
     <string name="session_expired_title">Sesión expirada</string>
     <string name="session_expired_message">Su sesión ha expirado. Por favor inicie sesión de nuevo.</string>
+    <string name="transfer_stalled_title">Transferencia detenida</string>
+    <string name="transfer_stalled_message">No se transfirieron datos durante 30 segundos. Esto podría indicar un problema de conexión.</string>
+    <string name="error_upload_stalled">Carga detenida</string>
+    <string name="error_download_stalled">Descarga detenida</string>
     <string name="action_retry">Reintentar</string>
     <string name="action_go_offline">Modo sin conexión</string>
     <string name="action_return_to_login">Volver al inicio</string>
@@ -178,6 +182,8 @@
     <!-- Generation button states -->
     <string name="button_cancel_generation">Cancelar generación</string>
     <string name="button_add_to_queue">Añadir a la cola (%d)</string>
+    <string name="button_uploading">Subiendo…</string>
+    <string name="button_uploading_queue">Subiendo… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Cancelar actual</string>

@@ -29,6 +29,8 @@ import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 @Composable
 fun MainNavHost(
     generationViewModel: GenerationViewModel,
+    imageToImageViewModel: ImageToImageViewModel,
+    imageToVideoViewModel: ImageToVideoViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToGallery: () -> Unit,
     onLogout: () -> Unit,
@@ -61,7 +63,6 @@ fun MainNavHost(
             }
 
             composable(MainRoute.ImageToImage.route) {
-                val imageToImageViewModel: ImageToImageViewModel = viewModel()
                 ImageToImageScreen(
                     generationViewModel = generationViewModel,
                     imageToImageViewModel = imageToImageViewModel,
@@ -81,7 +82,6 @@ fun MainNavHost(
             }
 
             composable(MainRoute.ImageToVideo.route) {
-                val imageToVideoViewModel: ImageToVideoViewModel = viewModel()
                 ImageToVideoScreen(
                     generationViewModel = generationViewModel,
                     imageToVideoViewModel = imageToVideoViewModel,

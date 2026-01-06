@@ -29,7 +29,9 @@ import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.ImageToImageEvent
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
+import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
@@ -47,6 +49,8 @@ class MainContainerActivity : ComponentActivity() {
 
     // ViewModels
     private val generationViewModel: GenerationViewModel by viewModels()
+    private val imageToImageViewModel: ImageToImageViewModel by viewModels()
+    private val imageToVideoViewModel: ImageToVideoViewModel by viewModels()
 
     // Activity result launchers
     private val settingsLauncher = registerForActivityResult(
@@ -136,7 +140,7 @@ class MainContainerActivity : ComponentActivity() {
                 // State for connection alert dialog
                 var connectionAlertState by remember { mutableStateOf<ConnectionAlertState?>(null) }
 
-                // Observe connection failure events
+                // Observe connection failure events from GenerationViewModel
                 LaunchedEffect(Unit) {
                     generationViewModel.events.collect { event ->
                         if (event is GenerationEvent.ConnectionFailed) {
@@ -148,9 +152,35 @@ class MainContainerActivity : ComponentActivity() {
                     }
                 }
 
+                // Observe connection failure events from ImageToImageViewModel
+                LaunchedEffect(Unit) {
+                    imageToImageViewModel.events.collect { event ->
+                        if (event is ImageToImageEvent.ConnectionFailed) {
+                            connectionAlertState = ConnectionAlertState(
+                                failureType = event.failureType,
+                                hasOfflineCache = false // Stall failures don't have offline cache option
+                            )
+                        }
+                    }
+                }
+
+                // Observe connection failure events from ImageToVideoViewModel
+                LaunchedEffect(Unit) {
+                    imageToVideoViewModel.events.collect { event ->
+                        if (event is ImageToVideoEvent.ConnectionFailed) {
+                            connectionAlertState = ConnectionAlertState(
+                                failureType = event.failureType,
+                                hasOfflineCache = false // Stall failures don't have offline cache option
+                            )
+                        }
+                    }
+                }
+
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MainNavHost(
                         generationViewModel = generationViewModel,
+                        imageToImageViewModel = imageToImageViewModel,
+                        imageToVideoViewModel = imageToVideoViewModel,
                         onNavigateToSettings = { openSettings() },
                         onNavigateToGallery = { openGallery() },
                         onLogout = { logout() },

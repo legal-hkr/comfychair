@@ -36,6 +36,10 @@
     <string name="connection_lost_message">Verbindung zum Server nach mehreren Versuchen fehlgeschlagen.</string>
     <string name="session_expired_title">Sitzung abgelaufen</string>
     <string name="session_expired_message">Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.</string>
+    <string name="transfer_stalled_title">Übertragung gestoppt</string>
+    <string name="transfer_stalled_message">30 Sekunden lang wurden keine Daten übertragen. Dies könnte auf ein Verbindungsproblem hinweisen.</string>
+    <string name="error_upload_stalled">Upload gestoppt</string>
+    <string name="error_download_stalled">Download gestoppt</string>
     <string name="action_retry">Erneut versuchen</string>
     <string name="action_go_offline">Offline gehen</string>
     <string name="action_return_to_login">Zur Anmeldung</string>
@@ -196,6 +200,8 @@
     <!-- Generation button states -->
     <string name="button_cancel_generation">Generierung abbrechen</string>
     <string name="button_add_to_queue">Zur Warteschlange (%d)</string>
+    <string name="button_uploading">Hochladen…</string>
+    <string name="button_uploading_queue">Hochladen… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Aktuellen abbrechen</string>

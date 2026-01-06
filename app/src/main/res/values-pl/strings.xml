@@ -36,6 +36,10 @@
     <string name="connection_lost_message">Nie udało się połączyć z serwerem po wielu próbach.</string>
     <string name="session_expired_title">Sesja wygasła</string>
     <string name="session_expired_message">Twoja sesja wygasła. Zaloguj się ponownie.</string>
+    <string name="transfer_stalled_title">Transfer zatrzymany</string>
+    <string name="transfer_stalled_message">Przez 30 sekund nie przesłano żadnych danych. Może to wskazywać na problem z połączeniem.</string>
+    <string name="error_upload_stalled">Wysyłanie zatrzymane</string>
+    <string name="error_download_stalled">Pobieranie zatrzymane</string>
     <string name="action_retry">Spróbuj ponownie</string>
     <string name="action_go_offline">Tryb offline</string>
     <string name="action_return_to_login">Powrót do logowania</string>
@@ -178,6 +182,8 @@
     <!-- Generation button states -->
     <string name="button_cancel_generation">Anuluj generowanie</string>
     <string name="button_add_to_queue">Dodaj do kolejki (%d)</string>
+    <string name="button_uploading">Przesyłanie…</string>
+    <string name="button_uploading_queue">Przesyłanie… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Anuluj bieżące</string>

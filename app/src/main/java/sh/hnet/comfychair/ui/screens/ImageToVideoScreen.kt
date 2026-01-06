@@ -157,6 +157,9 @@ fun ImageToVideoScreen(
                 is ImageToVideoEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
+                is ImageToVideoEvent.ConnectionFailed -> {
+                    // Handled by MainContainerActivity
+                }
             }
         }
     }
@@ -375,6 +378,7 @@ fun ImageToVideoScreen(
                 isExecuting = queueState.isExecuting,
                 isEnabled = imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank(),
                 isOfflineMode = isOfflineMode,
+                isUploading = uiState.isUploading,
                 onGenerate = {
                     scope.launch {
                         val workflowJson = imageToVideoViewModel.prepareWorkflow()

@@ -14,6 +14,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
@@ -139,7 +140,10 @@ data class ImageToVideoUiState(
     val lownoiseLoraChain: List<LoraSelection> = emptyList(),
 
     // Workflow capabilities (unified flags derived from placeholders)
-    val capabilities: WorkflowCapabilities = WorkflowCapabilities()
+    val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
+
+    // Upload state
+    val isUploading: Boolean = false
 )
 
 /**
@@ -148,6 +152,7 @@ data class ImageToVideoUiState(
 sealed class ImageToVideoEvent {
     data class ShowToast(val messageResId: Int) : ImageToVideoEvent()
     data class ShowToastMessage(val message: String) : ImageToVideoEvent()
+    data class ConnectionFailed(val failureType: ConnectionFailure) : ImageToVideoEvent()
 }
 
 /**
@@ -763,66 +768,79 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         val length = state.length.toIntOrNull() ?: return null
         val fps = state.fps.toIntOrNull() ?: return null
 
-        // Convert bitmap to PNG byte array
-        // Ensure we have ARGB_8888 format for proper PNG encoding
-        val imageBytes = withContext(Dispatchers.IO) {
-            val bitmapToUpload = if (sourceImage.config != Bitmap.Config.ARGB_8888) {
-                sourceImage.copy(Bitmap.Config.ARGB_8888, false)
-            } else {
-                sourceImage
+        _uiState.update { it.copy(isUploading = true) }
+        return try {
+            // Convert bitmap to PNG byte array
+            // Ensure we have ARGB_8888 format for proper PNG encoding
+            val imageBytes = withContext(Dispatchers.IO) {
+                val bitmapToUpload = if (sourceImage.config != Bitmap.Config.ARGB_8888) {
+                    sourceImage.copy(Bitmap.Config.ARGB_8888, false)
+                } else {
+                    sourceImage
+                }
+                val outputStream = java.io.ByteArrayOutputStream()
+                bitmapToUpload.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                if (bitmapToUpload !== sourceImage) {
+                    bitmapToUpload.recycle()
+                }
+                outputStream.toByteArray()
             }
-            val outputStream = java.io.ByteArrayOutputStream()
-            bitmapToUpload.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            if (bitmapToUpload !== sourceImage) {
-                bitmapToUpload.recycle()
-            }
-            outputStream.toByteArray()
-        }
 
-        // Upload to ComfyUI
-        val uploadedFilename: String? = withContext(Dispatchers.IO) {
-            kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(imageBytes, "itv_source.png") { success, filename, _, _ ->
-                    continuation.resumeWith(Result.success(if (success) filename else null))
+            // Upload to ComfyUI
+            data class UploadResult(val filename: String?, val failureType: ConnectionFailure)
+            val uploadResult: UploadResult = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.uploadImage(imageBytes, "itv_source.png") { success, filename, _, failureType ->
+                        continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
+                    }
                 }
             }
-        }
 
-        if (uploadedFilename == null) {
-            _events.emit(ImageToVideoEvent.ShowToast(R.string.failed_save_image))
-            return null
-        }
+            if (uploadResult.filename == null) {
+                // Check for stall or auth failure - show dialog instead of toast
+                if (uploadResult.failureType == ConnectionFailure.STALLED ||
+                    uploadResult.failureType == ConnectionFailure.AUTHENTICATION) {
+                    _events.emit(ImageToVideoEvent.ConnectionFailed(uploadResult.failureType))
+                } else {
+                    _events.emit(ImageToVideoEvent.ShowToast(R.string.failed_save_image))
+                }
+                return null
+            }
+            val uploadedFilename = uploadResult.filename
 
-        val baseWorkflow = WorkflowManager.prepareImageToVideoWorkflowById(
-            workflowId = state.selectedWorkflowId,
-            positivePrompt = state.positivePrompt,
-            negativePrompt = state.negativePrompt,
-            highnoiseUnet = state.selectedHighnoiseUnet,
-            lownoiseUnet = state.selectedLownoiseUnet,
-            highnoiseLora = state.selectedHighnoiseLora,
-            lownoiseLora = state.selectedLownoiseLora,
-            vae = state.selectedVae,
-            clip = state.selectedClip,
-            clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
-            clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
-            clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
-            clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
-            width = width,
-            height = height,
-            length = length,
-            fps = fps,
-            imageFilename = uploadedFilename
-        ) ?: return null
+            val baseWorkflow = WorkflowManager.prepareImageToVideoWorkflowById(
+                workflowId = state.selectedWorkflowId,
+                positivePrompt = state.positivePrompt,
+                negativePrompt = state.negativePrompt,
+                highnoiseUnet = state.selectedHighnoiseUnet,
+                lownoiseUnet = state.selectedLownoiseUnet,
+                highnoiseLora = state.selectedHighnoiseLora,
+                lownoiseLora = state.selectedLownoiseLora,
+                vae = state.selectedVae,
+                clip = state.selectedClip,
+                clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
+                clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
+                clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
+                clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
+                width = width,
+                height = height,
+                length = length,
+                fps = fps,
+                imageFilename = uploadedFilename
+            ) ?: return null
 
-        // Inject additional LoRAs if configured (separate chains for high noise and low noise)
-        var workflow = baseWorkflow
-        if (state.highnoiseLoraChain.isNotEmpty()) {
-            workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
+            // Inject additional LoRAs if configured (separate chains for high noise and low noise)
+            var workflow = baseWorkflow
+            if (state.highnoiseLoraChain.isNotEmpty()) {
+                workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
+            }
+            if (state.lownoiseLoraChain.isNotEmpty()) {
+                workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.lownoiseLoraChain, isHighNoise = false)
+            }
+            workflow
+        } finally {
+            _uiState.update { it.copy(isUploading = false) }
         }
-        if (state.lownoiseLoraChain.isNotEmpty()) {
-            workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.lownoiseLoraChain, isHighNoise = false)
-        }
-        return workflow
     }
 
     override fun hasValidConfiguration(): Boolean {

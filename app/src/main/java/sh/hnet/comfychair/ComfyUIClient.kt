@@ -16,9 +16,18 @@ import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.util.ProgressTrackingRequestBody
+import sh.hnet.comfychair.util.ProgressTrackingResponseBody
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * ComfyUIClient - Handles communication with ComfyUI server
@@ -41,6 +50,8 @@ class ComfyUIClient(
 ) {
     companion object {
         private const val TAG = "API"
+        private const val STALL_TIMEOUT_MS = 30_000L         // 30 seconds of no progress = stall
+        private const val STALL_CHECK_INTERVAL_MS = 5_000L   // Check every 5 seconds
     }
 
     // Auth interceptor for adding Authorization headers
@@ -65,6 +76,16 @@ class ComfyUIClient(
             .readTimeout(0, TimeUnit.SECONDS)      // No read timeout for WebSocket
             .writeTimeout(10, TimeUnit.SECONDS)
             .pingInterval(30, TimeUnit.SECONDS)    // Keep connection alive with pings
+    ).build()
+
+    // Client for large transfers (uploads/downloads) - timeouts disabled, stall detection handles them
+    // This allows slow but progressing transfers to complete while detecting truly stalled connections
+    private val transferClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
+        OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)      // Disabled - stall detection handles this
+            .writeTimeout(0, TimeUnit.SECONDS)     // Disabled - stall detection handles this
     ).build()
 
     // Store which protocol worked (http or https)
@@ -994,16 +1015,42 @@ class ComfyUIClient(
             .get()
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        val call = transferClient.newCall(request)
+
+        // Track progress timestamp for stall detection
+        val progressTime = AtomicLong(System.currentTimeMillis())
+
+        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(STALL_CHECK_INTERVAL_MS)
+                if (System.currentTimeMillis() - progressTime.get() > STALL_TIMEOUT_MS) {
+                    DebugLogger.w(TAG, "Image download stalled - cancelling")
+                    call.cancel()
+                    break
+                }
+            }
+        }
+
+        call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                watchdogJob.cancel()
+                if (call.isCanceled()) {
+                    DebugLogger.w(TAG, "Image download stalled")
+                }
                 callback(null)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                watchdogJob.cancel()
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val bytes = response.body?.bytes()
+                            val trackedBody = response.body?.let { body ->
+                                ProgressTrackingResponseBody(body) { _, _ ->
+                                    progressTime.set(System.currentTimeMillis())
+                                }
+                            }
+                            val bytes = trackedBody?.bytes()
                             if (bytes != null) {
                                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                                 callback(bitmap)
@@ -1049,16 +1096,42 @@ class ComfyUIClient(
             .get()
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        val call = transferClient.newCall(request)
+
+        // Track progress timestamp for stall detection
+        val progressTime = AtomicLong(System.currentTimeMillis())
+
+        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(STALL_CHECK_INTERVAL_MS)
+                if (System.currentTimeMillis() - progressTime.get() > STALL_TIMEOUT_MS) {
+                    DebugLogger.w(TAG, "Raw bytes download stalled - cancelling")
+                    call.cancel()
+                    break
+                }
+            }
+        }
+
+        call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                watchdogJob.cancel()
+                if (call.isCanceled()) {
+                    DebugLogger.w(TAG, "Raw bytes download stalled")
+                }
                 callback(null)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                watchdogJob.cancel()
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val bytes = response.body?.bytes()
+                            val trackedBody = response.body?.let { body ->
+                                ProgressTrackingResponseBody(body) { _, _ ->
+                                    progressTime.set(System.currentTimeMillis())
+                                }
+                            }
+                            val bytes = trackedBody?.bytes()
                             callback(bytes)
                         } catch (e: Exception) {
                             callback(null)
@@ -1100,16 +1173,42 @@ class ComfyUIClient(
             .get()
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        val call = transferClient.newCall(request)
+
+        // Track progress timestamp for stall detection
+        val progressTime = AtomicLong(System.currentTimeMillis())
+
+        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(STALL_CHECK_INTERVAL_MS)
+                if (System.currentTimeMillis() - progressTime.get() > STALL_TIMEOUT_MS) {
+                    DebugLogger.w(TAG, "Video download stalled - cancelling")
+                    call.cancel()
+                    break
+                }
+            }
+        }
+
+        call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                watchdogJob.cancel()
+                if (call.isCanceled()) {
+                    DebugLogger.w(TAG, "Video download stalled")
+                }
                 callback(null)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                watchdogJob.cancel()
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val bytes = response.body?.bytes()
+                            val trackedBody = response.body?.let { body ->
+                                ProgressTrackingResponseBody(body) { _, _ ->
+                                    progressTime.set(System.currentTimeMillis())
+                                }
+                            }
+                            val bytes = trackedBody?.bytes()
                             callback(bytes)
                         } catch (e: Exception) {
                             callback(null)
@@ -1355,18 +1454,44 @@ class ComfyUIClient(
             .addFormDataPart("overwrite", overwrite.toString())
             .build()
 
+        // Wrap with progress tracking for stall detection
+        val progressBody = ProgressTrackingRequestBody(requestBody)
+
         val request = Request.Builder()
             .url(url)
-            .post(requestBody)
+            .post(progressBody)
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        val call = transferClient.newCall(request)
+
+        // Watchdog coroutine to detect stalls
+        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(STALL_CHECK_INTERVAL_MS)
+                if (System.currentTimeMillis() - progressBody.lastProgressTime > STALL_TIMEOUT_MS) {
+                    DebugLogger.w(TAG, "Upload stalled - cancelling")
+                    call.cancel()
+                    break
+                }
+            }
+        }
+
+        call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.e(TAG, "Upload failed: ${e.message}")
-                callback(false, null, "Upload failed: ${e.message}", ConnectionFailure.NETWORK)
+                watchdogJob.cancel()
+                if (call.isCanceled()) {
+                    // Stall detected - watchdog cancelled the call
+                    DebugLogger.w(TAG, "Upload stalled")
+                    callback(false, null, context?.getString(R.string.error_upload_stalled)
+                        ?: "Upload stalled", ConnectionFailure.STALLED)
+                } else {
+                    DebugLogger.e(TAG, "Upload failed: ${e.message}")
+                    callback(false, null, "Upload failed: ${e.message}", ConnectionFailure.NETWORK)
+                }
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                watchdogJob.cancel()
                 response.use {
                     if (response.isSuccessful) {
                         try {

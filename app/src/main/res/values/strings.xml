@@ -38,6 +38,10 @@
     <string name="connection_lost_message">Unable to connect to the server after multiple attempts.</string>
     <string name="session_expired_title">Session Expired</string>
     <string name="session_expired_message">Your session has expired. Please log in again.</string>
+    <string name="transfer_stalled_title">Transfer Stalled</string>
+    <string name="transfer_stalled_message">No data was transferred for 30 seconds. This may indicate a connection problem.</string>
+    <string name="error_upload_stalled">Upload stalled</string>
+    <string name="error_download_stalled">Download stalled</string>
     <string name="action_retry">Retry</string>
     <string name="action_go_offline">Go Offline</string>
     <string name="action_return_to_login">Return to Login</string>
@@ -199,6 +203,8 @@
     <!-- Generation button states -->
     <string name="button_cancel_generation">Cancel generation</string>
     <string name="button_add_to_queue">Add to queue (%d)</string>
+    <string name="button_uploading">Uploading…</string>
+    <string name="button_uploading_queue">Uploading… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Cancel current</string>
