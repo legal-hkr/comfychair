@@ -95,9 +95,17 @@
     <string name="gallery_refresh_success">Gallery refreshed</string>
     <string name="gallery_refresh_failed">Failed to refresh gallery</string>
 
-    <!-- App management strings -->
-    <string name="app_management_title">App management</string>
-    <string name="app_management_description">Manage local app data and settings</string>
+    <!-- Settings section titles -->
+    <string name="settings_connection_title">Connection</string>
+    <string name="settings_connection_description">Server connection behavior</string>
+    <string name="settings_generation_title">Generation</string>
+    <string name="settings_generation_description">Generation experience settings</string>
+    <string name="settings_cache_title">Cache and storage</string>
+    <string name="settings_cache_description">Media caching settings</string>
+    <string name="settings_reset_title">Reset</string>
+    <string name="settings_reset_description">Reset app data and settings</string>
+
+    <!-- App settings strings -->
     <string name="live_preview_label">Show live preview</string>
     <string name="live_preview_description">Display intermediate images during generation</string>
     <string name="memory_first_cache_label">In-memory first cache</string>
@@ -107,7 +115,7 @@
     <string name="disable_media_cache_description">Do not save preview images and videos to disk</string>
     <string name="offline_mode_label">Offline mode</string>
     <string name="offline_mode_description">Browse cached data without network connection</string>
-    <string name="offline_mode_requires_disk_cache">Enable disk-first cache for offline support</string>
+    <string name="offline_mode_requires_disk_cache">Disable \"In-memory first cache\" to enable offline mode</string>
     <string name="cannot_go_online">Cannot go online - server unreachable</string>
     <string name="auto_connect_label">Auto-connect</string>
     <string name="auto_connect_description">Automatically connect to the last server on app launch</string>

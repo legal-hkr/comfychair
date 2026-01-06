@@ -35,7 +35,17 @@
     <string name="content_description_not_cached">Non disponible hors ligne</string>
     <string name="offline_mode_label">Mode hors ligne</string>
     <string name="offline_mode_description">Parcourir les données mises en cache sans connexion réseau</string>
-    <string name="offline_mode_requires_disk_cache">Activer le cache sur disque pour le support hors ligne</string>
+    <string name="offline_mode_requires_disk_cache">Désactiver \"Cache mémoire prioritaire\" pour activer le mode hors ligne</string>
+
+    <!-- Settings section titles -->
+    <string name="settings_connection_title">Connexion</string>
+    <string name="settings_connection_description">Comportement de connexion au serveur</string>
+    <string name="settings_generation_title">Génération</string>
+    <string name="settings_generation_description">Paramètres de l\'expérience de génération</string>
+    <string name="settings_cache_title">Cache et stockage</string>
+    <string name="settings_cache_description">Paramètres du cache média</string>
+    <string name="settings_reset_title">Réinitialiser</string>
+    <string name="settings_reset_description">Réinitialiser les données et paramètres de l\'application</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Requis</string>
@@ -96,9 +106,7 @@
     <string name="gallery_refresh_success">Galerie actualisée</string>
     <string name="gallery_refresh_failed">Échec de l\'actualisation de la galerie</string>
 
-    <!-- App management strings -->
-    <string name="app_management_title">Gestion de l\'application</string>
-    <string name="app_management_description">Gérer les données et paramètres locaux de l\'application</string>
+    <!-- App settings strings -->
     <string name="live_preview_label">Afficher l\'aperçu en direct</string>
     <string name="live_preview_description">Afficher les images intermédiaires pendant la génération</string>
     <string name="memory_first_cache_label">Cache mémoire prioritaire</string>

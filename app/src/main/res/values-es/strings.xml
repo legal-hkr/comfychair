@@ -35,7 +35,17 @@
     <string name="content_description_not_cached">No disponible sin conexión</string>
     <string name="offline_mode_label">Modo sin conexión</string>
     <string name="offline_mode_description">Explorar datos en caché sin conexión de red</string>
-    <string name="offline_mode_requires_disk_cache">Habilitar caché en disco para soporte sin conexión</string>
+    <string name="offline_mode_requires_disk_cache">Desactivar \"Caché en memoria primero\" para habilitar el modo sin conexión</string>
+
+    <!-- Settings section titles -->
+    <string name="settings_connection_title">Conexión</string>
+    <string name="settings_connection_description">Comportamiento de conexión al servidor</string>
+    <string name="settings_generation_title">Generación</string>
+    <string name="settings_generation_description">Configuración de la experiencia de generación</string>
+    <string name="settings_cache_title">Caché y almacenamiento</string>
+    <string name="settings_cache_description">Configuración del caché de medios</string>
+    <string name="settings_reset_title">Restablecer</string>
+    <string name="settings_reset_description">Restablecer datos y configuración de la aplicación</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Requerido</string>
@@ -96,9 +106,7 @@
     <string name="gallery_refresh_success">Galería actualizada</string>
     <string name="gallery_refresh_failed">Error al actualizar la galería</string>
 
-    <!-- App management strings -->
-    <string name="app_management_title">Gestión de la aplicación</string>
-    <string name="app_management_description">Gestionar datos y configuración local de la aplicación</string>
+    <!-- App settings strings -->
     <string name="live_preview_label">Mostrar vista previa en vivo</string>
     <string name="live_preview_description">Mostrar imágenes intermedias durante la generación</string>
     <string name="memory_first_cache_label">Caché en memoria primero</string>

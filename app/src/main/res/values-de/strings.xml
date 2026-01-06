@@ -35,7 +35,17 @@
     <string name="content_description_not_cached">Offline nicht verfügbar</string>
     <string name="offline_mode_label">Offline-Modus</string>
     <string name="offline_mode_description">Zwischengespeicherte Daten ohne Netzwerkverbindung durchsuchen</string>
-    <string name="offline_mode_requires_disk_cache">Aktivieren Sie den Disk-First-Cache für Offline-Unterstützung</string>
+    <string name="offline_mode_requires_disk_cache">Deaktivieren Sie \"Speicher-First-Cache\" um den Offline-Modus zu aktivieren</string>
+
+    <!-- Settings section titles -->
+    <string name="settings_connection_title">Verbindung</string>
+    <string name="settings_connection_description">Verbindungsverhalten zum Server</string>
+    <string name="settings_generation_title">Generierung</string>
+    <string name="settings_generation_description">Einstellungen für die Generierung</string>
+    <string name="settings_cache_title">Cache und Speicher</string>
+    <string name="settings_cache_description">Einstellungen für den Medien-Cache</string>
+    <string name="settings_reset_title">Zurücksetzen</string>
+    <string name="settings_reset_description">App-Daten und Einstellungen zurücksetzen</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Erforderlich</string>
@@ -96,9 +106,7 @@
     <string name="gallery_refresh_success">Galerie aktualisiert</string>
     <string name="gallery_refresh_failed">Galerie konnte nicht aktualisiert werden</string>
 
-    <!-- App management strings -->
-    <string name="app_management_title">App-Verwaltung</string>
-    <string name="app_management_description">Lokale App-Daten und Einstellungen verwalten</string>
+    <!-- App settings strings -->
     <string name="live_preview_label">Live-Vorschau anzeigen</string>
     <string name="live_preview_description">Zwischenbilder während der Generierung anzeigen</string>
     <string name="memory_first_cache_label">Speicher-First-Cache</string>

@@ -35,7 +35,17 @@
     <string name="content_description_not_cached">Niedostępne offline</string>
     <string name="offline_mode_label">Tryb offline</string>
     <string name="offline_mode_description">Przeglądaj dane z pamięci podręcznej bez połączenia sieciowego</string>
-    <string name="offline_mode_requires_disk_cache">Włącz pamięć podręczną na dysku dla obsługi trybu offline</string>
+    <string name="offline_mode_requires_disk_cache">Wyłącz \"Pamięć podręczna w pamięci RAM\" aby włączyć tryb offline</string>
+
+    <!-- Settings section titles -->
+    <string name="settings_connection_title">Połączenie</string>
+    <string name="settings_connection_description">Zachowanie połączenia z serwerem</string>
+    <string name="settings_generation_title">Generowanie</string>
+    <string name="settings_generation_description">Ustawienia generowania</string>
+    <string name="settings_cache_title">Pamięć podręczna i przechowywanie</string>
+    <string name="settings_cache_description">Ustawienia pamięci podręcznej mediów</string>
+    <string name="settings_reset_title">Resetowanie</string>
+    <string name="settings_reset_description">Zresetuj dane i ustawienia aplikacji</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Wymagane</string>
@@ -97,8 +107,6 @@
     <string name="gallery_refresh_failed">Nie udało się odświeżyć galerii</string>
 
     <!-- App management strings -->
-    <string name="app_management_title">Zarządzanie aplikacją</string>
-    <string name="app_management_description">Zarządzaj lokalnymi danymi i ustawieniami aplikacji</string>
     <string name="live_preview_label">Pokaż podgląd na żywo</string>
     <string name="live_preview_description">Wyświetlaj obrazy pośrednie podczas generowania</string>
     <string name="memory_first_cache_label">Pamięć podręczna w pamięci RAM</string>

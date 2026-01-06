@@ -35,7 +35,17 @@
     <string name="content_description_not_cached">离线不可用</string>
     <string name="offline_mode_label">离线模式</string>
     <string name="offline_mode_description">无需网络连接即可浏览缓存数据</string>
-    <string name="offline_mode_requires_disk_cache">启用磁盘优先缓存以支持离线功能</string>
+    <string name="offline_mode_requires_disk_cache">禁用"内存优先缓存"以启用离线模式</string>
+
+    <!-- Settings section titles -->
+    <string name="settings_connection_title">连接</string>
+    <string name="settings_connection_description">服务器连接行为</string>
+    <string name="settings_generation_title">生成</string>
+    <string name="settings_generation_description">生成体验设置</string>
+    <string name="settings_cache_title">缓存和存储</string>
+    <string name="settings_cache_description">媒体缓存设置</string>
+    <string name="settings_reset_title">重置</string>
+    <string name="settings_reset_description">重置应用数据和设置</string>
 
     <!-- Validation error messages -->
     <string name="error_required">必填项</string>
@@ -97,8 +107,6 @@
     <string name="gallery_refresh_failed">刷新图库失败</string>
 
     <!-- App management strings -->
-    <string name="app_management_title">应用管理</string>
-    <string name="app_management_description">管理本地应用数据和设置</string>
     <string name="live_preview_label">显示实时预览</string>
     <string name="live_preview_description">在生成过程中显示中间图像</string>
     <string name="memory_first_cache_label">内存优先缓存</string>
