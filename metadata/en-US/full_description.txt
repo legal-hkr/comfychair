@@ -6,15 +6,19 @@ What you can do:
 - Create AI videos from text or animate still images
 - Manage your generation queue, cancel jobs, or prioritize requests
 - Browse and organize all your creations in a unified gallery
+- Work offline with cached data when your server is unavailable
 
 Flexible workflow support:
 - Works with both traditional Checkpoint and modern UNET workflows (Flux, Z-Image, and more)
 - Stack up to 5 LoRAs with individual strength controls
 - Create new workflows from scratch or import existing ones from ComfyUI
 - Full node graph visualization and editing with a searchable node browser
+- Organize nodes into groups and add notes with Markdown support
 
 Built for mobile:
 - Smooth, responsive interface built with Jetpack Compose
+- Manage multiple servers with per-server settings
+- HTTP Basic Auth and API key authentication for secured servers
 - Pinch-to-zoom media viewer with swipe navigation
 - Batch operations for saving, sharing, or deleting multiple items
 - Backup and restore your configuration across devices

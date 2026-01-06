@@ -1,0 +1,19 @@
+v0.8.7
+
+New features:
+- Added HTTP Basic Auth and API key authentication support
+- Added offline mode: browse cached data without network connection
+- Added workflow notes with Markdown support
+- Added node groups with grid layout and renaming
+- Added ComfyChair JSON workflow import/export
+- Added initial drawing animation to workflow graphs
+
+Improvements:
+- Refined App Settings layout with organized sections
+- Added helpful notes to built-in workflows
+- Improved reconnection handling and per-server gallery caching
+
+Bug fixes:
+- Fixed workflow saving with multiple required field candidates
+- Fixed Workflow Editor state persistence during theme changes
+- Fixed JSON deserialization for node group restoration

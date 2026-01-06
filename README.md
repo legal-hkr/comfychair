@@ -2,7 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.8.6
+**Current version**: v0.8.7
 
 [<img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png"
     alt="Get it on GitHub"
@@ -27,6 +27,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 - **Multi-server support**: Save and manage multiple ComfyUI server connections with per-server settings and optional auto-login
 - **Server connection**: Connect to remote or local ComfyUI servers with automatic HTTP/HTTPS detection and self-signed certificate support
+- **Authentication**: HTTP Basic Auth and API key/Bearer token authentication for servers behind reverse proxies
+- **Offline mode**: Browse cached data without network connection, with automatic offline prompt when server is unreachable
 - **Queue management**: Submit multiple jobs without waiting, view queue count, cancel current job, add to front of queue, or clear queue entirely
 - **Dual workflow support**:
   - **Checkpoint mode**: Traditional CheckpointLoaderSimple workflows
@@ -86,6 +88,10 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Search by display name, class type, category, or description
   - Delete, duplicate, bypass, and rename nodes
   - Cleanup tool to remove disconnected nodes
+- **Node groups**:
+  - Organize nodes into collapsible groups with grid layout
+  - Rename groups via context menu
+  - Groups persist across saves and theme changes
 - **Connection management**:
   - Create connections by tapping an output socket and then an input socket
   - Target sockets glow when compatible during connection creation
@@ -102,12 +108,18 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Template values highlighted with "UI:" prefix
   - Connected inputs styled with wire colors
   - Edited values highlighted for easy identification
+- **Workflow notes**:
+  - Add notes to workflows with Markdown support
+  - Unified title and text editor
+  - Notes displayed in the workflow graph
 - **Navigation and zoom**:
   - Material Design 3 Expressive floating toolbar
   - Zoom controls with percentage display
   - Fit all / Fit width zoom options
+  - Initial drawing animation when opening workflows
 - **Workflow management**:
   - Create workflows from scratch or import existing ones exported from ComfyUI
+  - Import/export workflows in ComfyChair JSON format (preserves field mappings and settings)
   - Dynamic workflow thumbnails showing mini graph previews
   - Context menus for edit, rename, duplicate, export, and delete
   - Flexible field mapping: only Positive Prompt required (plus source image for image workflows)
