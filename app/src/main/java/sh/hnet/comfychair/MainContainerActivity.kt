@@ -2,7 +2,6 @@ package sh.hnet.comfychair
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,25 +9,28 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
-import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.navigation.MainRoute
+import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
+import sh.hnet.comfychair.ui.components.ConnectionAlertState
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
+import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 
@@ -93,27 +95,6 @@ class MainContainerActivity : ComponentActivity() {
         // Initialize the ViewModel (uses ConnectionManager internally)
         generationViewModel.initialize(this)
 
-        // Subscribe to auth failure events - navigate to login when authentication expires
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                generationViewModel.events.collect { event ->
-                    if (event is GenerationEvent.AuthenticationFailed) {
-                        Toast.makeText(
-                            this@MainContainerActivity,
-                            R.string.auth_session_expired,
-                            Toast.LENGTH_LONG
-                        ).show()
-                        // Generation state is automatically saved by onStop() when activity finishes
-                        // After re-login, restoreGenerationState() will restore it
-                        val intent = Intent(this@MainContainerActivity, MainActivity::class.java)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(intent)
-                        finish()
-                    }
-                }
-            }
-        }
-
         // Set current server ID for per-server media scoping
         val serverId = ConnectionManager.currentServerId
         DebugLogger.d("MainContainer", "setCurrentServerId: ${serverId?.take(8) ?: "NULL"}...")
@@ -152,6 +133,21 @@ class MainContainerActivity : ComponentActivity() {
 
         setContent {
             ComfyChairTheme {
+                // State for connection alert dialog
+                var connectionAlertState by remember { mutableStateOf<ConnectionAlertState?>(null) }
+
+                // Observe connection failure events
+                LaunchedEffect(Unit) {
+                    generationViewModel.events.collect { event ->
+                        if (event is GenerationEvent.ConnectionFailed) {
+                            connectionAlertState = ConnectionAlertState(
+                                failureType = event.failureType,
+                                hasOfflineCache = event.hasOfflineCache
+                            )
+                        }
+                    }
+                }
+
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MainNavHost(
                         generationViewModel = generationViewModel,
@@ -159,6 +155,30 @@ class MainContainerActivity : ComponentActivity() {
                         onNavigateToGallery = { openGallery() },
                         onLogout = { logout() },
                         startDestination = startDestination
+                    )
+                }
+
+                // Show connection alert dialog when connection fails
+                connectionAlertState?.let { state ->
+                    ConnectionAlertDialog(
+                        failureType = state.failureType,
+                        hasOfflineCache = state.hasOfflineCache,
+                        onRetry = {
+                            connectionAlertState = null
+                            ConnectionManager.resetReconnectAttempts()
+                            ConnectionManager.openWebSocket()
+                        },
+                        onGoOffline = {
+                            connectionAlertState = null
+                            AppSettings.setOfflineMode(this@MainContainerActivity, true)
+                            // Stay in app with offline mode enabled
+                        },
+                        onReturnToLogin = {
+                            connectionAlertState = null
+                            generationViewModel.logout()
+                            finish()
+                        },
+                        onDismiss = { connectionAlertState = null }
                     )
                 }
             }

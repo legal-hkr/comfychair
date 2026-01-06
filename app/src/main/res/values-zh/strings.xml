@@ -31,6 +31,16 @@
     <string name="auth_error_unauthorized">身份验证失败。请检查您的凭据。</string>
     <string name="auth_session_expired">会话已过期。请重新登录。</string>
 
+    <!-- Connection alert dialog -->
+    <string name="connection_lost_title">连接丢失</string>
+    <string name="connection_lost_message">多次尝试后仍无法连接到服务器。</string>
+    <string name="session_expired_title">会话已过期</string>
+    <string name="session_expired_message">您的会话已过期。请重新登录。</string>
+    <string name="action_retry">重试</string>
+    <string name="action_go_offline">离线模式</string>
+    <string name="action_return_to_login">返回登录</string>
+    <string name="error_cannot_go_online">无法连接到服务器</string>
+
     <!-- Connection button states -->
     <string name="button_connect">连接</string>
     <string name="button_connecting">连接中…</string>
@@ -48,6 +58,7 @@
     <string name="offline_mode_label">离线模式</string>
     <string name="offline_mode_description">无需网络连接即可浏览缓存数据</string>
     <string name="offline_mode_requires_disk_cache">禁用"内存优先缓存"以启用离线模式</string>
+    <string name="cannot_go_online">无法上线 - 服务器无法访问</string>
 
     <!-- Settings section titles -->
     <string name="settings_connection_title">连接</string>

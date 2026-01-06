@@ -31,6 +31,16 @@
     <string name="auth_error_unauthorized">Échec de l\'authentification. Veuillez vérifier vos identifiants.</string>
     <string name="auth_session_expired">Session expirée. Veuillez vous reconnecter.</string>
 
+    <!-- Connection alert dialog -->
+    <string name="connection_lost_title">Connexion perdue</string>
+    <string name="connection_lost_message">Impossible de se connecter au serveur après plusieurs tentatives.</string>
+    <string name="session_expired_title">Session expirée</string>
+    <string name="session_expired_message">Votre session a expiré. Veuillez vous reconnecter.</string>
+    <string name="action_retry">Réessayer</string>
+    <string name="action_go_offline">Mode hors ligne</string>
+    <string name="action_return_to_login">Retour à la connexion</string>
+    <string name="error_cannot_go_online">Impossible de se connecter au serveur</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Connecter</string>
     <string name="button_connecting">Connexion…</string>
@@ -48,6 +58,7 @@
     <string name="offline_mode_label">Mode hors ligne</string>
     <string name="offline_mode_description">Parcourir les données mises en cache sans connexion réseau</string>
     <string name="offline_mode_requires_disk_cache">Désactiver \"Cache mémoire prioritaire\" pour activer le mode hors ligne</string>
+    <string name="cannot_go_online">Impossible de se connecter - serveur inaccessible</string>
 
     <!-- Settings section titles -->
     <string name="settings_connection_title">Connexion</string>

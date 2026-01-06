@@ -71,7 +71,11 @@ sealed class GenerationEvent {
     data object GenerationCancelled : GenerationEvent()
     data object ConnectionLostDuringGeneration : GenerationEvent()
     data object ClearPreviewForResume : GenerationEvent()
-    data object AuthenticationFailed : GenerationEvent()
+    /** Connection failed after max retry attempts. Contains failure details for dialog. */
+    data class ConnectionFailed(
+        val failureType: ConnectionFailure,
+        val hasOfflineCache: Boolean
+    ) : GenerationEvent()
 }
 
 /**
@@ -213,10 +217,20 @@ class GenerationViewModel : ViewModel() {
                     }
                     is WebSocketState.Failed -> {
                         _connectionStatus.value = ConnectionStatus.FAILED
-                        // Check if this is an authentication failure
-                        if (state.failureType == ConnectionFailure.AUTHENTICATION) {
-                            dispatchEvent(GenerationEvent.AuthenticationFailed)
-                        }
+                        // Emit connection failed event with context for dialog
+                        // Offline mode requires disk-first cache (not memory-first) and existing cache
+                        val hasCache = applicationContext?.let { ctx ->
+                            val isMemoryFirst = AppSettings.isMemoryFirstCache(ctx)
+                            if (isMemoryFirst) {
+                                false // Offline mode not available with memory-first cache
+                            } else {
+                                ConnectionManager.hasOfflineCache(ctx, ConnectionManager.currentServerId ?: "")
+                            }
+                        } ?: false
+                        dispatchEvent(GenerationEvent.ConnectionFailed(
+                            failureType = state.failureType,
+                            hasOfflineCache = hasCache
+                        ))
                     }
                     is WebSocketState.Disconnected -> {
                         _connectionStatus.value = ConnectionStatus.DISCONNECTED
@@ -630,7 +644,7 @@ class GenerationViewModel : ViewModel() {
 
         DebugLogger.d(TAG, "Submitting workflow to server")
         val mainHandler = Handler(Looper.getMainLooper())
-        client.submitPrompt(workflowJson, front) { success, promptId, errorMessage ->
+        client.submitPrompt(workflowJson, front) { success, promptId, errorMessage, failureType ->
             if (success && promptId != null) {
                 DebugLogger.i(TAG, "Workflow submitted successfully (promptId: ${Obfuscator.promptId(promptId)})")
 
@@ -665,7 +679,17 @@ class GenerationViewModel : ViewModel() {
                 mainHandler.post { onResult(true, promptId, null) }
             } else {
                 DebugLogger.e(TAG, "Workflow submission failed: $errorMessage")
-                mainHandler.post { onResult(false, null, errorMessage) }
+                // For authentication errors, show the connection alert dialog instead of Toast
+                if (failureType == ConnectionFailure.AUTHENTICATION) {
+                    mainHandler.post {
+                        dispatchEvent(GenerationEvent.ConnectionFailed(
+                            failureType = ConnectionFailure.AUTHENTICATION,
+                            hasOfflineCache = false // Not relevant for auth failure
+                        ))
+                    }
+                } else {
+                    mainHandler.post { onResult(false, null, errorMessage) }
+                }
             }
         }
     }

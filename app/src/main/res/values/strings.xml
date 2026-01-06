@@ -33,6 +33,16 @@
     <string name="auth_error_unauthorized">Authentication failed. Please check your credentials.</string>
     <string name="auth_session_expired">Session expired. Please log in again.</string>
 
+    <!-- Connection alert dialog -->
+    <string name="connection_lost_title">Connection Lost</string>
+    <string name="connection_lost_message">Unable to connect to the server after multiple attempts.</string>
+    <string name="session_expired_title">Session Expired</string>
+    <string name="session_expired_message">Your session has expired. Please log in again.</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_go_offline">Go Offline</string>
+    <string name="action_return_to_login">Return to Login</string>
+    <string name="error_cannot_go_online">Cannot connect to server</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>
     <string name="button_connecting">Connecting…</string>

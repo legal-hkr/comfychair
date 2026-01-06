@@ -753,16 +753,17 @@ class ComfyUIClient(
      *                 - success: true if submitted successfully
      *                 - promptId: The prompt ID assigned by the server (for tracking)
      *                 - errorMessage: error message if failed
+     *                 - failureType: type of failure (NONE for success, AUTHENTICATION for 401/403, NETWORK for other errors)
      */
     fun submitPrompt(
         workflowJson: String,
         front: Boolean = false,
-        callback: (success: Boolean, promptId: String?, errorMessage: String?) -> Unit
+        callback: (success: Boolean, promptId: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
     ) {
         DebugLogger.i(TAG, "Submitting prompt${if (front) " (front of queue)" else ""}")
         val baseUrl = getBaseUrl() ?: run {
             DebugLogger.w(TAG, "Submit failed: no connection")
-            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
+            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server", ConnectionFailure.NETWORK)
             return
         }
 
@@ -793,7 +794,7 @@ class ComfyUIClient(
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 DebugLogger.e(TAG, "Submit failed: ${e.message}")
-                callback(false, null, "Failed to submit prompt: ${e.message}")
+                callback(false, null, "Failed to submit prompt: ${e.message}", ConnectionFailure.NETWORK)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
@@ -804,22 +805,29 @@ class ComfyUIClient(
                             val json = JSONObject(responseBody)
                             val promptId = json.optString("prompt_id")
                             DebugLogger.i(TAG, "Prompt submitted (promptId: ${Obfuscator.promptId(promptId)})")
-                            callback(true, promptId, null)
+                            callback(true, promptId, null, ConnectionFailure.NONE)
                         } catch (e: Exception) {
                             DebugLogger.e(TAG, "Failed to parse submit response: ${e.message}")
-                            callback(false, null, "Failed to parse response: ${e.message}")
+                            callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK)
                         }
                     } else {
-                        // Try to extract error details from response body
-                        val errorDetail = try {
-                            val errorJson = JSONObject(responseBody)
-                            errorJson.optString("error", "") +
-                                (errorJson.optJSONObject("node_errors")?.toString() ?: "")
-                        } catch (e: Exception) {
-                            responseBody.take(500) // Truncate long responses
+                        // Handle authentication errors with clean messages (avoid raw HTML)
+                        if (response.code == 401 || response.code == 403) {
+                            DebugLogger.e(TAG, "Authentication error ${response.code}")
+                            callback(false, null, context?.getString(R.string.auth_error_unauthorized)
+                                ?: "Authentication failed", ConnectionFailure.AUTHENTICATION)
+                        } else {
+                            // Try to extract error details from response body
+                            val errorDetail = try {
+                                val errorJson = JSONObject(responseBody)
+                                errorJson.optString("error", "") +
+                                    (errorJson.optJSONObject("node_errors")?.toString() ?: "")
+                            } catch (e: Exception) {
+                                responseBody.take(500) // Truncate long responses
+                            }
+                            DebugLogger.e(TAG, "Server error ${response.code}")
+                            callback(false, null, "Server error ${response.code}: $errorDetail", ConnectionFailure.NETWORK)
                         }
-                        DebugLogger.e(TAG, "Server error ${response.code}")
-                        callback(false, null, "Server error ${response.code}: $errorDetail")
                     }
                 }
             }
@@ -1317,18 +1325,19 @@ class ComfyUIClient(
      *                 - success: true if uploaded successfully
      *                 - filename: The actual filename saved on the server
      *                 - errorMessage: error message if failed
+     *                 - failureType: type of failure (NONE for success, AUTHENTICATION for 401/403, NETWORK for other errors)
      */
     fun uploadImage(
         imageData: ByteArray,
         filename: String,
         subfolder: String = "",
         overwrite: Boolean = true,
-        callback: (success: Boolean, filename: String?, errorMessage: String?) -> Unit
+        callback: (success: Boolean, filename: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
     ) {
         DebugLogger.i(TAG, "Uploading image: ${Obfuscator.filename(filename)} (${imageData.size} bytes)")
         val baseUrl = getBaseUrl() ?: run {
             DebugLogger.w(TAG, "Upload failed: no connection")
-            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server")
+            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server", ConnectionFailure.NETWORK)
             return
         }
 
@@ -1354,7 +1363,7 @@ class ComfyUIClient(
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 DebugLogger.e(TAG, "Upload failed: ${e.message}")
-                callback(false, null, "Upload failed: ${e.message}")
+                callback(false, null, "Upload failed: ${e.message}", ConnectionFailure.NETWORK)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
@@ -1364,14 +1373,21 @@ class ComfyUIClient(
                             val json = JSONObject(response.body?.string() ?: "{}")
                             val savedFilename = json.optString("name", filename)
                             DebugLogger.i(TAG, "Upload successful")
-                            callback(true, savedFilename, null)
+                            callback(true, savedFilename, null, ConnectionFailure.NONE)
                         } catch (e: Exception) {
                             DebugLogger.e(TAG, "Failed to parse upload response: ${e.message}")
-                            callback(false, null, "Failed to parse response: ${e.message}")
+                            callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK)
                         }
                     } else {
-                        DebugLogger.e(TAG, "Upload error: ${response.code}")
-                        callback(false, null, "Server error: ${response.code}")
+                        // Handle authentication errors with clean messages
+                        if (response.code == 401 || response.code == 403) {
+                            DebugLogger.e(TAG, "Upload auth error: ${response.code}")
+                            callback(false, null, context?.getString(R.string.auth_error_unauthorized)
+                                ?: "Authentication failed", ConnectionFailure.AUTHENTICATION)
+                        } else {
+                            DebugLogger.e(TAG, "Upload error: ${response.code}")
+                            callback(false, null, "Server error: ${response.code}", ConnectionFailure.NETWORK)
+                        }
                     }
                 }
             }

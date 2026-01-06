@@ -28,6 +28,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
+import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
@@ -535,7 +536,11 @@ class SettingsViewModel : ViewModel() {
         val serverStorage = ServerStorage(context)
         val server = serverStorage.getSelectedServer() ?: return false
 
-        val tempClient = ComfyUIClient(context.applicationContext, server.hostname, server.port)
+        // Load credentials for the server (fixes offline->online transition bug)
+        val credentialStorage = CredentialStorage(context)
+        val credentials = credentialStorage.getCredentials(server.id, server.authType)
+
+        val tempClient = ComfyUIClient(context.applicationContext, server.hostname, server.port, credentials)
         return try {
             withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->

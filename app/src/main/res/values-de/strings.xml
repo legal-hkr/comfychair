@@ -31,6 +31,16 @@
     <string name="auth_error_unauthorized">Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.</string>
     <string name="auth_session_expired">Sitzung abgelaufen. Bitte melden Sie sich erneut an.</string>
 
+    <!-- Connection alert dialog -->
+    <string name="connection_lost_title">Verbindung verloren</string>
+    <string name="connection_lost_message">Verbindung zum Server nach mehreren Versuchen fehlgeschlagen.</string>
+    <string name="session_expired_title">Sitzung abgelaufen</string>
+    <string name="session_expired_message">Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.</string>
+    <string name="action_retry">Erneut versuchen</string>
+    <string name="action_go_offline">Offline gehen</string>
+    <string name="action_return_to_login">Zur Anmeldung</string>
+    <string name="error_cannot_go_online">Verbindung zum Server nicht möglich</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Verbinden</string>
     <string name="button_connecting">Verbinde…</string>
@@ -48,6 +58,7 @@
     <string name="offline_mode_label">Offline-Modus</string>
     <string name="offline_mode_description">Zwischengespeicherte Daten ohne Netzwerkverbindung durchsuchen</string>
     <string name="offline_mode_requires_disk_cache">Deaktivieren Sie \"Speicher-First-Cache\" um den Offline-Modus zu aktivieren</string>
+    <string name="cannot_go_online">Kann nicht online gehen - Server nicht erreichbar</string>
 
     <!-- Settings section titles -->
     <string name="settings_connection_title">Verbindung</string>

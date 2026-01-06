@@ -31,6 +31,16 @@
     <string name="auth_error_unauthorized">Error de autenticación. Por favor verifique sus credenciales.</string>
     <string name="auth_session_expired">Sesión expirada. Por favor inicie sesión de nuevo.</string>
 
+    <!-- Connection alert dialog -->
+    <string name="connection_lost_title">Conexión perdida</string>
+    <string name="connection_lost_message">No se pudo conectar al servidor después de varios intentos.</string>
+    <string name="session_expired_title">Sesión expirada</string>
+    <string name="session_expired_message">Su sesión ha expirado. Por favor inicie sesión de nuevo.</string>
+    <string name="action_retry">Reintentar</string>
+    <string name="action_go_offline">Modo sin conexión</string>
+    <string name="action_return_to_login">Volver al inicio</string>
+    <string name="error_cannot_go_online">No se puede conectar al servidor</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Conectar</string>
     <string name="button_connecting">Conectando…</string>
@@ -48,6 +58,7 @@
     <string name="offline_mode_label">Modo sin conexión</string>
     <string name="offline_mode_description">Explorar datos en caché sin conexión de red</string>
     <string name="offline_mode_requires_disk_cache">Desactivar \"Caché en memoria primero\" para habilitar el modo sin conexión</string>
+    <string name="cannot_go_online">No se puede conectar - servidor inalcanzable</string>
 
     <!-- Settings section titles -->
     <string name="settings_connection_title">Conexión</string>

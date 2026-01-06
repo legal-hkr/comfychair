@@ -782,7 +782,7 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         // Upload to ComfyUI
         val uploadedFilename: String? = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(imageBytes, "itv_source.png") { success, filename, _ ->
+                client.uploadImage(imageBytes, "itv_source.png") { success, filename, _, _ ->
                     continuation.resumeWith(Result.success(if (success) filename else null))
                 }
             }

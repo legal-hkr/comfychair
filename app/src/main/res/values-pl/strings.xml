@@ -31,6 +31,16 @@
     <string name="auth_error_unauthorized">Uwierzytelnianie nie powiodło się. Sprawdź dane logowania.</string>
     <string name="auth_session_expired">Sesja wygasła. Zaloguj się ponownie.</string>
 
+    <!-- Connection alert dialog -->
+    <string name="connection_lost_title">Utracono połączenie</string>
+    <string name="connection_lost_message">Nie udało się połączyć z serwerem po wielu próbach.</string>
+    <string name="session_expired_title">Sesja wygasła</string>
+    <string name="session_expired_message">Twoja sesja wygasła. Zaloguj się ponownie.</string>
+    <string name="action_retry">Spróbuj ponownie</string>
+    <string name="action_go_offline">Tryb offline</string>
+    <string name="action_return_to_login">Powrót do logowania</string>
+    <string name="error_cannot_go_online">Nie można połączyć z serwerem</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Połącz</string>
     <string name="button_connecting">Łączenie…</string>
@@ -48,6 +58,7 @@
     <string name="offline_mode_label">Tryb offline</string>
     <string name="offline_mode_description">Przeglądaj dane z pamięci podręcznej bez połączenia sieciowego</string>
     <string name="offline_mode_requires_disk_cache">Wyłącz \"Pamięć podręczna w pamięci RAM\" aby włączyć tryb offline</string>
+    <string name="cannot_go_online">Nie można przejść online - serwer nieosiągalny</string>
 
     <!-- Settings section titles -->
     <string name="settings_connection_title">Połączenie</string>

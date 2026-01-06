@@ -1535,7 +1535,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         // Upload source image
         val uploadedSource: String? = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(sourceBytes, "editing_source.png") { success, filename, _ ->
+                client.uploadImage(sourceBytes, "editing_source.png") { success, filename, _, _ ->
                     continuation.resumeWith(Result.success(if (success) filename else null))
                 }
             }
@@ -1556,7 +1556,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             uploadedRef1 = withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.uploadImage(ref1Bytes, "reference_1.png") { success, filename, _ ->
+                    client.uploadImage(ref1Bytes, "reference_1.png") { success, filename, _, _ ->
                         continuation.resumeWith(Result.success(if (success) filename else null))
                     }
                 }
@@ -1573,7 +1573,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             uploadedRef2 = withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.uploadImage(ref2Bytes, "reference_2.png") { success, filename, _ ->
+                    client.uploadImage(ref2Bytes, "reference_2.png") { success, filename, _, _ ->
                         continuation.resumeWith(Result.success(if (success) filename else null))
                     }
                 }
@@ -1639,7 +1639,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         // Upload to ComfyUI
         val uploadedFilename: String? = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(imageBytes, "inpaint_source.png") { success, filename, _ ->
+                client.uploadImage(imageBytes, "inpaint_source.png") { success, filename, _, _ ->
                     continuation.resumeWith(Result.success(if (success) filename else null))
                 }
             }

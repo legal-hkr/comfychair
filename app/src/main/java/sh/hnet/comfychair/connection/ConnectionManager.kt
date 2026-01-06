@@ -293,6 +293,16 @@ object ConnectionManager {
     }
 
     /**
+     * Reset reconnection attempt counter and state.
+     * Called when user chooses to retry connection from the connection alert dialog.
+     */
+    fun resetReconnectAttempts() {
+        DebugLogger.i(TAG, "Resetting reconnect attempts")
+        reconnectAttempts = 0
+        _webSocketState.value = WebSocketState.Disconnected
+    }
+
+    /**
      * Clear all connection-dependent caches.
      */
     private fun invalidateAll() {
