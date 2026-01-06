@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -337,7 +339,7 @@ fun LoginScreen() {
             title = { Text(stringResource(R.string.server_delete_title)) },
             text = { Text(stringResource(R.string.server_delete_message, selectedServer!!.name)) },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         val serverToDelete = selectedServer!!
                         serverStorage.deleteServer(serverToDelete.id)
@@ -353,16 +355,16 @@ fun LoginScreen() {
 
                         showDeleteConfirmation = false
                         Toast.makeText(context, R.string.server_deleted_success, Toast.LENGTH_SHORT).show()
-                    }
-                ) {
-                    Text(
-                        stringResource(R.string.server_delete_button),
-                        color = MaterialTheme.colorScheme.error
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
                     )
+                ) {
+                    Text(stringResource(R.string.server_delete_button))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
+                OutlinedButton(onClick = { showDeleteConfirmation = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             }
@@ -376,7 +378,7 @@ fun LoginScreen() {
             title = { Text(stringResource(R.string.offline_prompt_title)) },
             text = { Text(stringResource(R.string.offline_prompt_message)) },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showOfflinePrompt = false
                         // Enable offline mode and attempt offline connection
@@ -391,7 +393,7 @@ fun LoginScreen() {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showOfflinePrompt = false }) {
+                OutlinedButton(onClick = { showOfflinePrompt = false }) {
                     Text(stringResource(R.string.offline_prompt_dismiss))
                 }
             }

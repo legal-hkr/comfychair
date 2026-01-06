@@ -19,14 +19,15 @@ import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -441,7 +442,7 @@ fun ServerDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     if (validate()) {
                         onSave(
@@ -458,7 +459,7 @@ fun ServerDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_cancel))
             }
         }

@@ -20,9 +20,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -131,7 +131,7 @@ fun ApplicationSettingsScreen(
             title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
             text = { Text(stringResource(R.string.backup_restore_confirm_message)) },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         pendingRestoreUri?.let { viewModel.restoreBackup(context, it) }
                         showRestoreDialog = false
@@ -142,7 +142,7 @@ fun ApplicationSettingsScreen(
                 }
             },
             dismissButton = {
-                TextButton(
+                OutlinedButton(
                     onClick = {
                         showRestoreDialog = false
                         pendingRestoreUri = null

@@ -72,7 +72,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -625,7 +628,7 @@ fun WorkflowEditorScreen(
                     )
                 },
                 confirmButton = {
-                    TextButton(
+                    Button(
                         onClick = {
                             val nodeId = renamingNodeId
                             if (nodeId != null && renameDialogText.isNotBlank()) {
@@ -640,7 +643,7 @@ fun WorkflowEditorScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(
+                    OutlinedButton(
                         onClick = {
                             showRenameDialog = false
                             renamingNodeId = null
@@ -670,7 +673,7 @@ fun WorkflowEditorScreen(
                     )
                 },
                 confirmButton = {
-                    TextButton(
+                    Button(
                         onClick = {
                             val groupId = renamingGroupId
                             if (groupId != null && groupRenameDialogText.isNotBlank()) {
@@ -685,7 +688,7 @@ fun WorkflowEditorScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(
+                    OutlinedButton(
                         onClick = {
                             showGroupRenameDialog = false
                             renamingGroupId = null
@@ -728,7 +731,7 @@ fun WorkflowEditorScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(
+                    Button(
                         onClick = {
                             val noteId = editingNoteId
                             if (noteId != null && editNoteDialogTitle.isNotBlank()) {
@@ -744,7 +747,7 @@ fun WorkflowEditorScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(
+                    OutlinedButton(
                         onClick = {
                             showEditNoteDialog = false
                             editingNoteId = null
@@ -1359,15 +1362,17 @@ private fun DiscardConfirmationDialog(
         title = { Text(stringResource(R.string.workflow_editor_discard_title)) },
         text = { Text(stringResource(R.string.workflow_editor_discard_message)) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    stringResource(R.string.button_discard),
-                    color = MaterialTheme.colorScheme.error
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
                 )
+            ) {
+                Text(stringResource(R.string.button_discard))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_cancel))
             }
         }
@@ -1476,7 +1481,7 @@ private fun SaveNewWorkflowDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = onConfirm,
                 enabled = selectedType != null && name.isNotBlank() && !isValidating
             ) {
@@ -1484,7 +1489,7 @@ private fun SaveNewWorkflowDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isValidating) {
+            OutlinedButton(onClick = onDismiss, enabled = !isValidating) {
                 Text(stringResource(R.string.button_cancel))
             }
         }
@@ -1517,7 +1522,7 @@ private fun MissingNodesDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_dismiss))
             }
         }
@@ -1548,7 +1553,7 @@ private fun MissingFieldsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_dismiss))
             }
         }
@@ -1564,7 +1569,7 @@ private fun DuplicateNameDialog(
         title = { Text(stringResource(R.string.duplicate_name_title)) },
         text = { Text(stringResource(R.string.duplicate_name_message)) },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_ok))
             }
         }

@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,9 +45,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -724,7 +726,7 @@ private fun ImportWorkflowDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = onConfirm,
                 enabled = selectedType != null && name.isNotBlank() && !isValidating
             ) {
@@ -732,7 +734,7 @@ private fun ImportWorkflowDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isValidating) {
+            OutlinedButton(onClick = onDismiss, enabled = !isValidating) {
                 Text(stringResource(R.string.button_cancel))
             }
         }
@@ -765,7 +767,7 @@ private fun MissingNodesDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_dismiss))
             }
         }
@@ -796,7 +798,7 @@ private fun MissingFieldsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_dismiss))
             }
         }
@@ -812,7 +814,7 @@ private fun DuplicateNameDialog(
         title = { Text(stringResource(R.string.duplicate_name_title)) },
         text = { Text(stringResource(R.string.duplicate_name_message)) },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_ok))
             }
         }
@@ -857,7 +859,7 @@ private fun EditWorkflowDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = onConfirm,
                 enabled = name.isNotBlank() && nameError == null && descriptionError == null
             ) {
@@ -865,7 +867,7 @@ private fun EditWorkflowDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_cancel))
             }
         }
@@ -885,15 +887,17 @@ private fun DeleteWorkflowDialog(
             Text(stringResource(R.string.delete_workflow_message, workflowName))
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    stringResource(R.string.button_delete),
-                    color = MaterialTheme.colorScheme.error
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
                 )
+            ) {
+                Text(stringResource(R.string.button_delete))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_cancel))
             }
         }
@@ -938,7 +942,7 @@ private fun DuplicateWorkflowDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = onConfirm,
                 enabled = name.isNotBlank() && nameError == null && descriptionError == null
             ) {
@@ -946,7 +950,7 @@ private fun DuplicateWorkflowDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_cancel))
             }
         }

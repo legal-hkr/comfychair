@@ -52,7 +52,7 @@
     <string name="error_no_offline_cache">Aucune donnée mise en cache disponible pour ce serveur</string>
     <string name="offline_prompt_title">Serveur inaccessible</string>
     <string name="offline_prompt_message">Impossible de se connecter au serveur. Voulez-vous continuer en mode hors ligne avec les données mises en cache ?</string>
-    <string name="offline_prompt_confirm">Passer hors ligne</string>
+    <string name="offline_prompt_confirm">Mode hors ligne</string>
     <string name="offline_prompt_dismiss">Annuler</string>
     <string name="content_description_not_cached">Non disponible hors ligne</string>
     <string name="offline_mode_label">Mode hors ligne</string>

@@ -52,7 +52,7 @@
     <string name="error_no_offline_cache">此服务器没有可用的缓存数据</string>
     <string name="offline_prompt_title">服务器无法访问</string>
     <string name="offline_prompt_message">无法连接到服务器。是否要使用缓存数据继续离线模式？</string>
-    <string name="offline_prompt_confirm">进入离线模式</string>
+    <string name="offline_prompt_confirm">离线模式</string>
     <string name="offline_prompt_dismiss">取消</string>
     <string name="content_description_not_cached">离线不可用</string>
     <string name="offline_mode_label">离线模式</string>
