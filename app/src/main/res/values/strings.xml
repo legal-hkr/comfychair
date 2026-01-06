@@ -21,6 +21,17 @@
     <string name="server_delete_message">Are you sure you want to delete \"%s\"? This will also remove all saved preferences for this server.</string>
     <string name="server_deleted_success">Server deleted</string>
 
+    <!-- Authentication strings -->
+    <string name="auth_type_label">Authentication</string>
+    <string name="auth_type_none">None</string>
+    <string name="auth_type_basic">Basic</string>
+    <string name="auth_type_bearer">API key</string>
+    <string name="auth_username_label">Username</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_token_label">API key / token</string>
+    <string name="auth_credentials_required">Credentials required</string>
+    <string name="auth_error_unauthorized">Authentication failed. Please check your credentials.</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>
     <string name="button_connecting">Connecting…</string>

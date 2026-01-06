@@ -23,6 +23,7 @@ import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
@@ -195,9 +196,17 @@ object ConnectionManager {
      * @param hostname Server hostname
      * @param port Server port
      * @param protocol Detected protocol ("http" or "https")
+     * @param credentials Authentication credentials for the server
      */
     @Synchronized
-    fun connect(context: Context, serverId: String, hostname: String, port: Int, protocol: String) {
+    fun connect(
+        context: Context,
+        serverId: String,
+        hostname: String,
+        port: Int,
+        protocol: String,
+        credentials: AuthCredentials = AuthCredentials.None
+    ) {
         DebugLogger.i(TAG, "Connecting to ${Obfuscator.hostname(hostname)} (protocol: $protocol, serverId: $serverId)")
         val current = connectionState.value
 
@@ -222,8 +231,8 @@ object ConnectionManager {
         // Store application context for offline cache operations
         _applicationContext = context.applicationContext
 
-        // Create shared client with detected protocol and shared client ID
-        _client = ComfyUIClient(context.applicationContext, hostname, port).apply {
+        // Create shared client with detected protocol, shared client ID, and credentials
+        _client = ComfyUIClient(context.applicationContext, hostname, port, credentials).apply {
             setWorkingProtocol(protocol)
             setClientId(_clientId!!)
         }

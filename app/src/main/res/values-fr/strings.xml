@@ -19,6 +19,17 @@
     <string name="server_delete_message">Voulez-vous vraiment supprimer \"%s\" ? Cela supprimera également toutes les préférences enregistrées pour ce serveur.</string>
     <string name="server_deleted_success">Serveur supprimé</string>
 
+    <!-- Authentication strings -->
+    <string name="auth_type_label">Authentification</string>
+    <string name="auth_type_none">Aucune</string>
+    <string name="auth_type_basic">Basique</string>
+    <string name="auth_type_bearer">Clé API</string>
+    <string name="auth_username_label">Utilisateur</string>
+    <string name="auth_password_label">Mot de passe</string>
+    <string name="auth_token_label">Clé API / jeton</string>
+    <string name="auth_credentials_required">Identifiants requis</string>
+    <string name="auth_error_unauthorized">Échec de l\'authentification. Veuillez vérifier vos identifiants.</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Connecter</string>
     <string name="button_connecting">Connexion…</string>

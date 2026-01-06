@@ -19,6 +19,17 @@
     <string name="server_delete_message">Möchten Sie \"%s\" wirklich löschen? Dies entfernt auch alle gespeicherten Einstellungen für diesen Server.</string>
     <string name="server_deleted_success">Server gelöscht</string>
 
+    <!-- Authentication strings -->
+    <string name="auth_type_label">Authentifizierung</string>
+    <string name="auth_type_none">Keine</string>
+    <string name="auth_type_basic">Basic</string>
+    <string name="auth_type_bearer">API-Schlüssel</string>
+    <string name="auth_username_label">Benutzername</string>
+    <string name="auth_password_label">Passwort</string>
+    <string name="auth_token_label">API-Schlüssel / Token</string>
+    <string name="auth_credentials_required">Anmeldedaten erforderlich</string>
+    <string name="auth_error_unauthorized">Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.</string>
+
     <!-- Connection button states -->
     <string name="button_connect">Verbinden</string>
     <string name="button_connecting">Verbinde…</string>

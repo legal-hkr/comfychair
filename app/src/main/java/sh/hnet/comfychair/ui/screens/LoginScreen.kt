@@ -43,8 +43,11 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.MainContainerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.AuthCredentials
+import sh.hnet.comfychair.model.AuthType
 import sh.hnet.comfychair.model.Server
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.ui.components.ConnectionSplitButton
 import sh.hnet.comfychair.ui.components.ServerDialog
@@ -73,8 +76,9 @@ fun LoginScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Server storage
+    // Server and credential storage
     val serverStorage = remember { ServerStorage(context.applicationContext) }
+    val credentialStorage = remember { CredentialStorage(context.applicationContext) }
 
     // Check offline mode
     var isOfflineMode by remember { mutableStateOf(AppSettings.isOfflineMode(context)) }
@@ -109,7 +113,15 @@ fun LoginScreen() {
         warningMessage = null
 
         scope.launch {
-            val client = ComfyUIClient(context.applicationContext, server.hostname, server.port)
+            // Load credentials for the server
+            val credentials = credentialStorage.getCredentials(server.id, server.authType)
+
+            val client = ComfyUIClient(
+                context.applicationContext,
+                server.hostname,
+                server.port,
+                credentials
+            )
             comfyUIClient = client
 
             // Test connection using suspendCoroutine
@@ -150,7 +162,8 @@ fun LoginScreen() {
                     serverId = server.id,
                     hostname = server.hostname,
                     port = server.port,
-                    protocol = detectedProtocol
+                    protocol = detectedProtocol,
+                    credentials = credentials
                 )
 
                 // Navigate to main activity
@@ -260,8 +273,16 @@ fun LoginScreen() {
 
     // Server dialog
     if (showServerDialog) {
+        // Load existing credentials for editing
+        val existingCredentials = remember(serverToEdit) {
+            serverToEdit?.let { server ->
+                credentialStorage.getCredentials(server.id, server.authType)
+            } ?: AuthCredentials.None
+        }
+
         ServerDialog(
             server = serverToEdit,
+            existingCredentials = existingCredentials,
             isNameTaken = { name, excludeServerId ->
                 serverStorage.isServerNameTaken(name, excludeServerId)
             },
@@ -269,15 +290,20 @@ fun LoginScreen() {
                 showServerDialog = false
                 serverToEdit = null
             },
-            onSave = { name, hostname, port ->
+            onSave = { name, hostname, port, authType, credentials ->
                 if (serverToEdit != null) {
                     // Update existing server
                     val updatedServer = serverToEdit!!.copy(
                         name = name,
                         hostname = hostname,
-                        port = port
+                        port = port,
+                        authType = authType
                     )
                     serverStorage.updateServer(updatedServer)
+
+                    // Save credentials
+                    credentialStorage.saveCredentials(updatedServer.id, credentials)
+
                     servers = serverStorage.getServers()
 
                     // If editing the selected server, update selection
@@ -286,8 +312,12 @@ fun LoginScreen() {
                     }
                 } else {
                     // Add new server
-                    val newServer = Server.create(name, hostname, port)
+                    val newServer = Server.create(name, hostname, port, authType)
                     serverStorage.addServer(newServer)
+
+                    // Save credentials
+                    credentialStorage.saveCredentials(newServer.id, credentials)
+
                     servers = serverStorage.getServers()
 
                     // Select the new server
@@ -311,6 +341,10 @@ fun LoginScreen() {
                     onClick = {
                         val serverToDelete = selectedServer!!
                         serverStorage.deleteServer(serverToDelete.id)
+
+                        // Also delete credentials for the server
+                        credentialStorage.deleteCredentials(serverToDelete.id)
+
                         servers = serverStorage.getServers()
 
                         // Select another server or null

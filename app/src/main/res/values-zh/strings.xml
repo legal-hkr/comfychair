@@ -19,6 +19,17 @@
     <string name="server_delete_message">确定要删除"%s"吗？这也将删除此服务器的所有保存的偏好设置。</string>
     <string name="server_deleted_success">服务器已删除</string>
 
+    <!-- Authentication strings -->
+    <string name="auth_type_label">身份验证</string>
+    <string name="auth_type_none">无</string>
+    <string name="auth_type_basic">基本</string>
+    <string name="auth_type_bearer">API 密钥</string>
+    <string name="auth_username_label">用户名</string>
+    <string name="auth_password_label">密码</string>
+    <string name="auth_token_label">API 密钥 / 令牌</string>
+    <string name="auth_credentials_required">需要凭据</string>
+    <string name="auth_error_unauthorized">身份验证失败。请检查您的凭据。</string>
+
     <!-- Connection button states -->
     <string name="button_connect">连接</string>
     <string name="button_connecting">连接中…</string>

@@ -96,6 +96,9 @@ dependencies {
     implementation(libs.commonmark)
     implementation(libs.commonmark.ext.gfm.strikethrough)
 
+    // Security (encrypted SharedPreferences)
+    implementation(libs.androidx.security.crypto)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

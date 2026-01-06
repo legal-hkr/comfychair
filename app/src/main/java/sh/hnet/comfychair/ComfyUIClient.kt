@@ -12,6 +12,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import java.io.IOException
@@ -29,19 +30,25 @@ import java.util.concurrent.TimeUnit
  * @param context Application context for string resources
  * @param hostname The server hostname or IP address (e.g., "192.168.1.100")
  * @param port The server port number (default: 8188)
+ * @param credentials Authentication credentials for the server
  */
 class ComfyUIClient(
     private val context: Context? = null,
     private val hostname: String,
-    private val port: Int
+    private val port: Int,
+    credentials: AuthCredentials = AuthCredentials.None
 ) {
     companion object {
         private const val TAG = "API"
     }
 
+    // Auth interceptor for adding Authorization headers
+    private val authInterceptor = AuthInterceptor(credentials)
+
     // OkHttpClient for HTTP requests - short timeouts are fine
     private val httpClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
         OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)  // Max time to establish connection
             .readTimeout(10, TimeUnit.SECONDS)     // Max time to read response
             .writeTimeout(10, TimeUnit.SECONDS)    // Max time to write request
@@ -52,6 +59,7 @@ class ComfyUIClient(
     // pingInterval keeps the connection alive during long operations
     private val webSocketClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
         OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.SECONDS)      // No read timeout for WebSocket
             .writeTimeout(10, TimeUnit.SECONDS)
@@ -76,6 +84,22 @@ class ComfyUIClient(
      * @return "http", "https", or null if not yet determined
      */
     fun getWorkingProtocol(): String? = workingProtocol
+
+    /**
+     * Update the credentials used for authentication.
+     * Thread-safe - can be called from any thread.
+     *
+     * @param credentials The new credentials to use
+     */
+    fun setCredentials(credentials: AuthCredentials) {
+        authInterceptor.setCredentials(credentials)
+    }
+
+    /**
+     * Get the current credentials.
+     * @return The current authentication credentials
+     */
+    fun getCredentials(): AuthCredentials = authInterceptor.getCredentials()
 
     // Store the active WebSocket connection
     private var webSocket: WebSocket? = null
@@ -183,14 +207,27 @@ class ComfyUIClient(
                             }
                         }
                     } else {
-                        // Got response but status code indicates error (e.g., 404, 500)
-                        if (protocol == "https") {
-                            // Try HTTP as fallback
+                        // Got response but status code indicates error
+                        val code = response.code
+
+                        // Check for authentication errors - these should not fallback to HTTP
+                        // since authentication is protocol-independent
+                        if (code == 401 || code == 403) {
+                            workingProtocol = protocol  // Protocol works, auth doesn't
+                            DebugLogger.w(TAG, "Authentication failed (protocol: $protocol, code: $code)")
+                            callback(
+                                false,
+                                context?.getString(R.string.auth_error_unauthorized)
+                                    ?: "Authentication failed. Please check your credentials.",
+                                SelfSignedCertHelper.certificateIssue
+                            )
+                        } else if (protocol == "https") {
+                            // Try HTTP as fallback for other errors
                             tryConnection("http", callback)
                         } else {
                             // Both protocols failed
-                            DebugLogger.w(TAG, "Connection failed: server error ${response.code}")
-                            callback(false, "Server returned error: ${response.code}", CertificateIssue.NONE)
+                            DebugLogger.w(TAG, "Connection failed: server error $code")
+                            callback(false, "Server returned error: $code", CertificateIssue.NONE)
                         }
                     }
                 }
