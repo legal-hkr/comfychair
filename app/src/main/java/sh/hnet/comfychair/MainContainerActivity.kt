@@ -2,6 +2,7 @@ package sh.hnet.comfychair
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,6 +11,10 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
@@ -20,6 +25,7 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
+import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
@@ -86,6 +92,27 @@ class MainContainerActivity : ComponentActivity() {
 
         // Initialize the ViewModel (uses ConnectionManager internally)
         generationViewModel.initialize(this)
+
+        // Subscribe to auth failure events - navigate to login when authentication expires
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                generationViewModel.events.collect { event ->
+                    if (event is GenerationEvent.AuthenticationFailed) {
+                        Toast.makeText(
+                            this@MainContainerActivity,
+                            R.string.auth_session_expired,
+                            Toast.LENGTH_LONG
+                        ).show()
+                        // Generation state is automatically saved by onStop() when activity finishes
+                        // After re-login, restoreGenerationState() will restore it
+                        val intent = Intent(this@MainContainerActivity, MainActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        finish()
+                    }
+                }
+            }
+        }
 
         // Set current server ID for per-server media scoping
         val serverId = ConnectionManager.currentServerId

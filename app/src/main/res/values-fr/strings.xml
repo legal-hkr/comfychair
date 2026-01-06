@@ -29,6 +29,7 @@
     <string name="auth_token_label">Clé API / jeton</string>
     <string name="auth_credentials_required">Identifiants requis</string>
     <string name="auth_error_unauthorized">Échec de l\'authentification. Veuillez vérifier vos identifiants.</string>
+    <string name="auth_session_expired">Session expirée. Veuillez vous reconnecter.</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Connecter</string>

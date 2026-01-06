@@ -28,5 +28,8 @@ sealed class WebSocketState {
     data object Connecting : WebSocketState()
     data object Connected : WebSocketState()
     data class Reconnecting(val attempt: Int, val maxAttempts: Int) : WebSocketState()
-    data class Failed(val reason: String?) : WebSocketState()
+    data class Failed(
+        val reason: String?,
+        val failureType: ConnectionFailure = ConnectionFailure.NETWORK
+    ) : WebSocketState()
 }

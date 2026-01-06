@@ -29,6 +29,7 @@
     <string name="auth_token_label">Clave API / token</string>
     <string name="auth_credentials_required">Credenciales requeridas</string>
     <string name="auth_error_unauthorized">Error de autenticación. Por favor verifique sus credenciales.</string>
+    <string name="auth_session_expired">Sesión expirada. Por favor inicie sesión de nuevo.</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Conectar</string>

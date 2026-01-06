@@ -31,6 +31,7 @@
     <string name="auth_token_label">API key / token</string>
     <string name="auth_credentials_required">Credentials required</string>
     <string name="auth_error_unauthorized">Authentication failed. Please check your credentials.</string>
+    <string name="auth_session_expired">Session expired. Please log in again.</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>

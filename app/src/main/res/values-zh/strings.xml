@@ -29,6 +29,7 @@
     <string name="auth_token_label">API 密钥 / 令牌</string>
     <string name="auth_credentials_required">需要凭据</string>
     <string name="auth_error_unauthorized">身份验证失败。请检查您的凭据。</string>
+    <string name="auth_session_expired">会话已过期。请重新登录。</string>
 
     <!-- Connection button states -->
     <string name="button_connect">连接</string>

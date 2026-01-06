@@ -524,7 +524,7 @@ class SettingsViewModel : ViewModel() {
         if (existingClient != null) {
             return withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    existingClient.testConnection { success, _, _ ->
+                    existingClient.testConnection { success, _, _, _ ->
                         continuation.resumeWith(Result.success(success))
                     }
                 }
@@ -539,7 +539,7 @@ class SettingsViewModel : ViewModel() {
         return try {
             withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    tempClient.testConnection { success, _, _ ->
+                    tempClient.testConnection { success, _, _, _ ->
                         continuation.resumeWith(Result.success(success))
                     }
                 }

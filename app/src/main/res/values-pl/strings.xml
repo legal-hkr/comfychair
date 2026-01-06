@@ -29,6 +29,7 @@
     <string name="auth_token_label">Klucz API / token</string>
     <string name="auth_credentials_required">Wymagane dane logowania</string>
     <string name="auth_error_unauthorized">Uwierzytelnianie nie powiodło się. Sprawdź dane logowania.</string>
+    <string name="auth_session_expired">Sesja wygasła. Zaloguj się ponownie.</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Połącz</string>

@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.connection.WebSocketMessage
@@ -70,6 +71,7 @@ sealed class GenerationEvent {
     data object GenerationCancelled : GenerationEvent()
     data object ConnectionLostDuringGeneration : GenerationEvent()
     data object ClearPreviewForResume : GenerationEvent()
+    data object AuthenticationFailed : GenerationEvent()
 }
 
 /**
@@ -211,6 +213,10 @@ class GenerationViewModel : ViewModel() {
                     }
                     is WebSocketState.Failed -> {
                         _connectionStatus.value = ConnectionStatus.FAILED
+                        // Check if this is an authentication failure
+                        if (state.failureType == ConnectionFailure.AUTHENTICATION) {
+                            dispatchEvent(GenerationEvent.AuthenticationFailed)
+                        }
                     }
                     is WebSocketState.Disconnected -> {
                         _connectionStatus.value = ConnectionStatus.DISCONNECTED

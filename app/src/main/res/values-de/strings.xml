@@ -29,6 +29,7 @@
     <string name="auth_token_label">API-Schlüssel / Token</string>
     <string name="auth_credentials_required">Anmeldedaten erforderlich</string>
     <string name="auth_error_unauthorized">Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.</string>
+    <string name="auth_session_expired">Sitzung abgelaufen. Bitte melden Sie sich erneut an.</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Verbinden</string>

@@ -126,7 +126,7 @@ fun LoginScreen() {
 
             // Test connection using suspendCoroutine
             val result = suspendCoroutine { continuation ->
-                client.testConnection { success, errorMessage, certIssue ->
+                client.testConnection { success, errorMessage, certIssue, _ ->
                     continuation.resume(Triple(success, errorMessage, certIssue))
                 }
             }

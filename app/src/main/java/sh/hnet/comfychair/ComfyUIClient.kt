@@ -12,6 +12,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
@@ -128,8 +129,9 @@ class ComfyUIClient(
      *                 - success: true if connected, false if failed
      *                 - errorMessage: error message if failed, null if success
      *                 - certIssue: the type of certificate issue detected (NONE, SELF_SIGNED, UNKNOWN_CA)
+     *                 - failureType: the type of failure (NONE, AUTHENTICATION, NETWORK, INVALID_SERVER)
      */
-    fun testConnection(callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue) -> Unit) {
+    fun testConnection(callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue, failureType: ConnectionFailure) -> Unit) {
         DebugLogger.i(TAG, "Testing connection to ${Obfuscator.hostname(hostname)}")
         // Reset the certificate issue detection
         SelfSignedCertHelper.reset()
@@ -145,7 +147,7 @@ class ComfyUIClient(
      */
     private fun tryConnection(
         protocol: String,
-        callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue) -> Unit
+        callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue, failureType: ConnectionFailure) -> Unit
     ) {
         // Build the URL to test
         // ComfyUI provides /system_stats endpoint that returns server info
@@ -167,7 +169,7 @@ class ComfyUIClient(
                     tryConnection("http", callback)
                 } else {
                     // HTTP also failed - both protocols don't work
-                    callback(false, "Connection failed: ${e.message}", CertificateIssue.NONE)
+                    callback(false, "Connection failed: ${e.message}", CertificateIssue.NONE, ConnectionFailure.NETWORK)
                 }
             }
 
@@ -185,7 +187,7 @@ class ComfyUIClient(
                                 workingProtocol = protocol
                                 val certIssue = SelfSignedCertHelper.certificateIssue
                                 DebugLogger.i(TAG, "Connection successful (protocol: $protocol)")
-                                callback(true, null, certIssue)
+                                callback(true, null, certIssue, ConnectionFailure.NONE)
                             } else {
                                 // Response doesn't match ComfyUI format
                                 DebugLogger.w(TAG, "Invalid response: not a ComfyUI server")
@@ -193,7 +195,7 @@ class ComfyUIClient(
                                     tryConnection("http", callback)
                                 } else {
                                     callback(false, context?.getString(R.string.error_not_comfyui_server)
-                                        ?: "Not a ComfyUI server", CertificateIssue.NONE)
+                                        ?: "Not a ComfyUI server", CertificateIssue.NONE, ConnectionFailure.INVALID_SERVER)
                                 }
                             }
                         } catch (e: Exception) {
@@ -203,7 +205,7 @@ class ComfyUIClient(
                                 tryConnection("http", callback)
                             } else {
                                 callback(false, context?.getString(R.string.error_invalid_server_response)
-                                    ?: "Invalid server response", CertificateIssue.NONE)
+                                    ?: "Invalid server response", CertificateIssue.NONE, ConnectionFailure.INVALID_SERVER)
                             }
                         }
                     } else {
@@ -219,7 +221,8 @@ class ComfyUIClient(
                                 false,
                                 context?.getString(R.string.auth_error_unauthorized)
                                     ?: "Authentication failed. Please check your credentials.",
-                                SelfSignedCertHelper.certificateIssue
+                                SelfSignedCertHelper.certificateIssue,
+                                ConnectionFailure.AUTHENTICATION
                             )
                         } else if (protocol == "https") {
                             // Try HTTP as fallback for other errors
@@ -227,7 +230,7 @@ class ComfyUIClient(
                         } else {
                             // Both protocols failed
                             DebugLogger.w(TAG, "Connection failed: server error $code")
-                            callback(false, "Server returned error: $code", CertificateIssue.NONE)
+                            callback(false, "Server returned error: $code", CertificateIssue.NONE, ConnectionFailure.NETWORK)
                         }
                     }
                 }

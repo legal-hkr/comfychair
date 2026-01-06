@@ -188,7 +188,7 @@ class MediaViewerViewModel : ViewModel() {
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     kotlin.coroutines.suspendCoroutine { continuation ->
-                        client.testConnection { success, _, _ ->
+                        client.testConnection { success, _, _, _ ->
                             continuation.resumeWith(Result.success(success))
                         }
                     }

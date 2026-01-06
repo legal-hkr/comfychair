@@ -521,7 +521,10 @@ object ConnectionManager {
     private fun scheduleReconnect() {
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             DebugLogger.w(TAG, "Max reconnect attempts reached")
-            _webSocketState.value = WebSocketState.Failed("Max reconnect attempts reached")
+            _webSocketState.value = WebSocketState.Failed(
+                reason = "Max reconnect attempts reached",
+                failureType = ConnectionFailure.NETWORK
+            )
             return
         }
 
@@ -543,10 +546,19 @@ object ConnectionManager {
 
         client.closeWebSocket()
 
-        client.testConnection { success, _, _ ->
+        client.testConnection { success, errorMessage, _, failureType ->
             if (success) {
                 openWebSocket()
+            } else if (failureType == ConnectionFailure.AUTHENTICATION) {
+                // Auth failure - don't retry, notify UI immediately
+                DebugLogger.w(TAG, "Authentication failed during reconnection")
+                reconnectAttempts = MAX_RECONNECT_ATTEMPTS  // Prevent further retries
+                _webSocketState.value = WebSocketState.Failed(
+                    reason = errorMessage,
+                    failureType = ConnectionFailure.AUTHENTICATION
+                )
             } else {
+                // Network error - schedule retry
                 scheduleReconnect()
             }
         }
