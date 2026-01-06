@@ -24,6 +24,18 @@
     <string name="button_connecting">Conectando…</string>
     <string name="button_failed">Error</string>
     <string name="button_connected">Conectado</string>
+    <string name="button_offline">Sin conexión</string>
+
+    <!-- Offline mode strings -->
+    <string name="error_no_offline_cache">No hay datos en caché disponibles para este servidor</string>
+    <string name="offline_prompt_title">Servidor inaccesible</string>
+    <string name="offline_prompt_message">No se puede conectar al servidor. ¿Desea continuar en modo sin conexión usando datos en caché?</string>
+    <string name="offline_prompt_confirm">Ir sin conexión</string>
+    <string name="offline_prompt_dismiss">Cancelar</string>
+    <string name="content_description_not_cached">No disponible sin conexión</string>
+    <string name="offline_mode_label">Modo sin conexión</string>
+    <string name="offline_mode_description">Explorar datos en caché sin conexión de red</string>
+    <string name="offline_mode_requires_disk_cache">Habilitar caché en disco para soporte sin conexión</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Requerido</string>

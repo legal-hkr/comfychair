@@ -24,6 +24,18 @@
     <string name="button_connecting">连接中…</string>
     <string name="button_failed">连接失败</string>
     <string name="button_connected">已连接</string>
+    <string name="button_offline">离线</string>
+
+    <!-- Offline mode strings -->
+    <string name="error_no_offline_cache">此服务器没有可用的缓存数据</string>
+    <string name="offline_prompt_title">服务器无法访问</string>
+    <string name="offline_prompt_message">无法连接到服务器。是否要使用缓存数据继续离线模式？</string>
+    <string name="offline_prompt_confirm">进入离线模式</string>
+    <string name="offline_prompt_dismiss">取消</string>
+    <string name="content_description_not_cached">离线不可用</string>
+    <string name="offline_mode_label">离线模式</string>
+    <string name="offline_mode_description">无需网络连接即可浏览缓存数据</string>
+    <string name="offline_mode_requires_disk_cache">启用磁盘优先缓存以支持离线功能</string>
 
     <!-- Validation error messages -->
     <string name="error_required">必填项</string>

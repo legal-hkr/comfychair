@@ -24,6 +24,18 @@
     <string name="button_connecting">Connexion…</string>
     <string name="button_failed">Échec</string>
     <string name="button_connected">Connecté</string>
+    <string name="button_offline">Hors ligne</string>
+
+    <!-- Offline mode strings -->
+    <string name="error_no_offline_cache">Aucune donnée mise en cache disponible pour ce serveur</string>
+    <string name="offline_prompt_title">Serveur inaccessible</string>
+    <string name="offline_prompt_message">Impossible de se connecter au serveur. Voulez-vous continuer en mode hors ligne avec les données mises en cache ?</string>
+    <string name="offline_prompt_confirm">Passer hors ligne</string>
+    <string name="offline_prompt_dismiss">Annuler</string>
+    <string name="content_description_not_cached">Non disponible hors ligne</string>
+    <string name="offline_mode_label">Mode hors ligne</string>
+    <string name="offline_mode_description">Parcourir les données mises en cache sans connexion réseau</string>
+    <string name="offline_mode_requires_disk_cache">Activer le cache sur disque pour le support hors ligne</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Requis</string>

@@ -24,6 +24,18 @@
     <string name="button_connecting">Łączenie…</string>
     <string name="button_failed">Błąd</string>
     <string name="button_connected">Połączono</string>
+    <string name="button_offline">Tryb offline</string>
+
+    <!-- Offline mode strings -->
+    <string name="error_no_offline_cache">Brak danych w pamięci podręcznej dla tego serwera</string>
+    <string name="offline_prompt_title">Serwer niedostępny</string>
+    <string name="offline_prompt_message">Nie można połączyć się z serwerem. Czy chcesz kontynuować w trybie offline, używając danych z pamięci podręcznej?</string>
+    <string name="offline_prompt_confirm">Przejdź do trybu offline</string>
+    <string name="offline_prompt_dismiss">Anuluj</string>
+    <string name="content_description_not_cached">Niedostępne offline</string>
+    <string name="offline_mode_label">Tryb offline</string>
+    <string name="offline_mode_description">Przeglądaj dane z pamięci podręcznej bez połączenia sieciowego</string>
+    <string name="offline_mode_requires_disk_cache">Włącz pamięć podręczną na dysku dla obsługi trybu offline</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Wymagane</string>

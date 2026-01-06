@@ -24,6 +24,18 @@
     <string name="button_connecting">Verbinde…</string>
     <string name="button_failed">Fehlgeschlagen</string>
     <string name="button_connected">Verbunden</string>
+    <string name="button_offline">Offline</string>
+
+    <!-- Offline mode strings -->
+    <string name="error_no_offline_cache">Keine zwischengespeicherten Daten für diesen Server verfügbar</string>
+    <string name="offline_prompt_title">Server nicht erreichbar</string>
+    <string name="offline_prompt_message">Verbindung zum Server nicht möglich. Möchten Sie im Offline-Modus mit zwischengespeicherten Daten fortfahren?</string>
+    <string name="offline_prompt_confirm">Offline gehen</string>
+    <string name="offline_prompt_dismiss">Abbrechen</string>
+    <string name="content_description_not_cached">Offline nicht verfügbar</string>
+    <string name="offline_mode_label">Offline-Modus</string>
+    <string name="offline_mode_description">Zwischengespeicherte Daten ohne Netzwerkverbindung durchsuchen</string>
+    <string name="offline_mode_requires_disk_cache">Aktivieren Sie den Disk-First-Cache für Offline-Unterstützung</string>
 
     <!-- Validation error messages -->
     <string name="error_required">Erforderlich</string>
