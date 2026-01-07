@@ -13,7 +13,6 @@
     <string name="server_hostname_placeholder">192.168.1.100</string>
     <string name="server_name_taken_error">This name is already used</string>
     <string name="server_select_placeholder">Select a server</string>
-    <string name="server_dropdown_expand">Expand server list</string>
     <string name="server_edit_button">Edit server</string>
     <string name="server_add_button">Add server</string>
     <string name="server_delete_button">Delete server</string>
@@ -29,9 +28,7 @@
     <string name="auth_username_label">Username</string>
     <string name="auth_password_label">Password</string>
     <string name="auth_token_label">API key / token</string>
-    <string name="auth_credentials_required">Credentials required</string>
     <string name="auth_error_unauthorized">Authentication failed. Please check your credentials.</string>
-    <string name="auth_session_expired">Session expired. Please log in again.</string>
 
     <!-- Connection alert dialog -->
     <string name="connection_lost_title">Connection Lost</string>
@@ -41,11 +38,11 @@
     <string name="transfer_stalled_title">Transfer Stalled</string>
     <string name="transfer_stalled_message">No data was transferred for 30 seconds. This may indicate a connection problem.</string>
     <string name="error_upload_stalled">Upload stalled</string>
-    <string name="error_download_stalled">Download stalled</string>
-    <string name="action_retry">Retry</string>
+    <string name="action_reconnect">Reconnect</string>
+    <string name="action_reconnecting">Reconnecting…</string>
+    <string name="toast_reconnect_failed">Unable to reconnect</string>
     <string name="action_go_offline">Go Offline</string>
     <string name="action_return_to_login">Return to Login</string>
-    <string name="error_cannot_go_online">Cannot connect to server</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>
@@ -71,10 +68,6 @@
     <!-- Query screen strings -->
     <string name="prompt_hint">Prompt</string>
     <string name="negative_prompt_hint">Negative prompt</string>
-    <string name="default_prompt_text_to_image" translatable="false">A warm and cozy photo of a woman sitting in a comfy chair and sipping coffee</string>
-    <string name="default_prompt_image_to_image" translatable="false">A woman with short, pink hair</string>
-    <string name="default_prompt_text_to_video" translatable="false">A woman sitting in a comfy chair, reading a book and gently turning pages</string>
-    <string name="default_prompt_image_to_video" translatable="false">The woman gently moves, her hair swaying slightly in a soft breeze</string>
     <string name="button_generate">Generate</string>
 
     <!-- Gallery screen strings -->
@@ -164,7 +157,6 @@
     <string name="backup_restore_failed">Failed to restore backup</string>
     <string name="backup_error_invalid_json">Invalid backup file format</string>
     <string name="backup_error_unsupported_version">Unsupported backup version</string>
-    <string name="backup_error_invalid_connection">Invalid connection settings in backup</string>
     <string name="backup_error_no_servers">No servers found in backup</string>
     <string name="backup_restore_confirm_title">Restore settings?</string>
     <string name="backup_restore_confirm_message">This will replace your current settings. This action cannot be undone.</string>
@@ -187,7 +179,6 @@
     <string name="lownoise_lora_label">Low noise LoRA</string>
     <string name="length_label">Length</string>
     <string name="fps_label" translatable="false">FPS</string>
-    <string name="video_parameters_title">Video parameters</string>
     <string name="placeholder_video_description">Generated video will appear here</string>
 
     <!-- Image-to-image fragment strings -->
@@ -201,14 +192,13 @@
     <string name="no_source_image">No source image selected</string>
 
     <!-- Generation button states -->
-    <string name="button_cancel_generation">Cancel generation</string>
     <string name="button_add_to_queue">Add to queue (%d)</string>
     <string name="button_uploading">Uploading…</string>
     <string name="button_uploading_queue">Uploading… (%d)</string>
+    <string name="button_connecting_queue">Connecting… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Cancel current</string>
-    <string name="menu_add_to_end_of_queue">Add to end of queue</string>
     <string name="menu_add_to_front_of_queue">Add to front of queue</string>
     <string name="content_description_queue_menu">Queue menu</string>
     <string name="content_description_server_menu">Server menu</string>
@@ -217,17 +207,12 @@
     <string name="error_not_comfyui_server">Not a ComfyUI server</string>
     <string name="error_invalid_server_response">Invalid server response</string>
     <string name="error_failed_load_workflow">Failed to load workflow</string>
-    <string name="error_failed_start_generation">Failed to start generation: %s</string>
     <string name="error_generation_failed">Generation failed</string>
-    <string name="error_unknown">Unknown error</string>
     <string name="connection_lost_generation_may_continue">Connection lost. Will check for completion when reconnected.</string>
     <string name="error_no_connection">No connection to server</string>
     <string name="error_workflow_not_found">Workflow not found</string>
     <string name="error_no_workflow_specified">No workflow specified</string>
     <string name="error_client_not_initialized">Client not initialized</string>
-    <string name="error_websocket_not_connected">WebSocket not connected</string>
-    <string name="error_invalid_json">Invalid JSON: %s</string>
-    <string name="error_cannot_determine_workflow_type">Cannot determine workflow type from content</string>
 
     <!-- Save/share messages -->
     <string name="image_saved_to_gallery">Image saved to gallery</string>
@@ -243,9 +228,6 @@
 
     <!-- Image-to-image messages -->
     <string name="paint_mask_hint">Please paint a mask area for inpainting</string>
-
-    <!-- Image/Video parameters section -->
-    <string name="image_parameters_title">Image parameters</string>
 
     <!-- Save options -->
     <string name="save_to_gallery">Save to gallery</string>
@@ -276,8 +258,6 @@
     <string name="button_options">Options</string>
 
     <!-- Configuration bottom sheet labels -->
-    <string name="mode_checkpoint" translatable="false">Checkpoint</string>
-    <string name="mode_unet" translatable="false">UNET</string>
     <string name="mode_inpainting">Inpainting</string>
     <string name="mode_editing">Editing</string>
     <string name="label_workflow">Workflow</string>
@@ -328,16 +308,13 @@
     <string name="error_clip_layer_range">Must be -24 to -1</string>
 
     <!-- Node attribute editor -->
-    <string name="node_editor_title">Edit node</string>
     <string name="node_editor_reset">Reset</string>
-    <string name="node_editor_close">Close</string>
     <string name="node_editor_no_editable_inputs">No editable inputs</string>
     <string name="node_editor_range_min_max">%1$s – %2$s</string>
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
     <string name="node_editor_image_load_error">Failed to load image</string>
-    <string name="node_editor_rename">Rename node</string>
     <string name="node_editor_rename_title">Rename node</string>
     <string name="node_editor_rename_label">Node name</string>
     <string name="node_editor_bypass">Bypass</string>
@@ -349,10 +326,6 @@
     <string name="field_unet_model">UNET model</string>
     <string name="field_input_image">Input image</string>
     <string name="field_frame_rate">Frame rate</string>
-    <string name="field_clip1">CLIP 1</string>
-    <string name="field_clip2">CLIP 2</string>
-    <string name="field_clip3">CLIP 3</string>
-    <string name="field_clip4">CLIP 4</string>
 
     <!-- Field descriptions for workflow editor -->
     <string name="field_desc_positive_prompt">The text prompt for generation</string>
@@ -413,11 +386,7 @@
     <string name="button_delete">Delete</string>
     <string name="button_discard">Discard</string>
     <string name="button_cancel">Cancel</string>
-    <string name="button_done">Done</string>
-    <string name="edit">Edit</string>
-    <string name="edit_structure">Edit structure</string>
     <string name="error_cannot_edit_builtin">Built-in workflows cannot be edited</string>
-    <string name="delete">Delete</string>
     <string name="workflow_error_invalid_json">Invalid JSON format</string>
     <string name="workflow_import_success">Workflow imported</string>
     <string name="workflow_import_failed">Failed to import workflow</string>
@@ -465,7 +434,6 @@
     <string name="media_viewer_next">Next</string>
 
     <!-- Workflow editor strings -->
-    <string name="workflow_editor_title">Workflow editor</string>
     <string name="workflow_editor_zoom_in">Zoom in</string>
     <string name="workflow_editor_zoom_out">Zoom out</string>
     <string name="workflow_editor_reset_zoom">Reset view</string>
@@ -477,7 +445,6 @@
     <string name="workflow_editor_delete_node">Delete selected</string>
     <string name="workflow_editor_duplicate_node">Duplicate selected</string>
     <string name="workflow_editor_add_node">Add node</string>
-    <string name="workflow_editor_relayout">Re-arrange nodes</string>
     <string name="workflow_editor_more">More actions</string>
     <string name="workflow_editor_cleanup">Cleanup</string>
     <string name="workflow_editor_group">Group</string>
@@ -497,6 +464,8 @@
     <string name="node_browser_search_placeholder">Search nodes…</string>
     <string name="node_browser_no_results">No nodes match your search</string>
     <string name="node_browser_io_info">%1$d inputs, %2$d outputs</string>
+    <string name="node_browser_deprecated">Deprecated</string>
+    <string name="node_browser_experimental">Experimental</string>
     <string name="node_browser_filter_category">Category</string>
     <string name="node_browser_filter_subcategory">Subcategory</string>
     <string name="node_browser_filter_group">Group</string>
@@ -530,12 +499,7 @@
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Failed to fetch server nodes</string>
-    <string name="workflow_error_save_failed">Failed to save workflow file: %s</string>
-    <string name="workflow_error_duplicate_filename">A workflow with this name already exists</string>
-    <string name="workflow_error_missing_placeholders">Missing placeholders: %s</string>
-    <string name="workflow_error_missing_inputs">Missing required inputs: %s</string>
     <string name="workflow_name_error_too_long">Name must be 40 characters or less</string>
-    <string name="workflow_name_error_invalid_chars">Name can only contain letters, numbers, spaces, underscores, dashes, and brackets</string>
     <string name="workflow_description_error_too_long">Description must be 120 characters or less</string>
 
     <!-- Metadata viewer strings -->
@@ -584,7 +548,6 @@
     <string name="debug_logging_view_button">View logs</string>
     <string name="debug_log_title">Debug log</string>
     <string name="debug_log_empty">No log entries</string>
-    <string name="debug_log_refresh">Refresh</string>
     <string name="debug_log_save">Save</string>
     <string name="debug_log_follow">Follow</string>
     <string name="debug_log_saved">Log saved successfully</string>

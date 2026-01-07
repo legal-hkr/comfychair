@@ -10,6 +10,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -241,7 +242,6 @@ data class ImageToImageUiState(
 sealed class ImageToImageEvent {
     data class ShowToast(val messageResId: Int) : ImageToImageEvent()
     data class ShowToastMessage(val message: String) : ImageToImageEvent()
-    data class ConnectionFailed(val failureType: ConnectionFailure) : ImageToImageEvent()
 }
 
 /**
@@ -1511,6 +1511,16 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
      */
     suspend fun prepareWorkflow(): String? {
         val client = comfyUIClient ?: return null
+        val context = applicationContext ?: return null
+
+        // Check connection before uploading
+        val connected = suspendCoroutine { cont ->
+            ConnectionManager.ensureConnection(context) { success ->
+                cont.resumeWith(Result.success(success))
+            }
+        }
+        if (!connected) return null  // Dialog already shown by ensureConnection
+
         val state = _uiState.value
         val sourceImage = state.sourceImage ?: return null
 
@@ -1556,7 +1566,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             // Check for stall or auth failure - show dialog instead of toast
             if (sourceResult.failureType == ConnectionFailure.STALLED ||
                 sourceResult.failureType == ConnectionFailure.AUTHENTICATION) {
-                _events.emit(ImageToImageEvent.ConnectionFailed(sourceResult.failureType))
+                applicationContext?.let { ctx ->
+                    ConnectionManager.showConnectionAlert(ctx, sourceResult.failureType)
+                }
             } else {
                 _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
             }
@@ -1581,7 +1593,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             if (ref1Result.filename == null && (ref1Result.failureType == ConnectionFailure.STALLED ||
                 ref1Result.failureType == ConnectionFailure.AUTHENTICATION)) {
-                _events.emit(ImageToImageEvent.ConnectionFailed(ref1Result.failureType))
+                applicationContext?.let { ctx ->
+                    ConnectionManager.showConnectionAlert(ctx, ref1Result.failureType)
+                }
                 return null
             }
             uploadedRef1 = ref1Result.filename
@@ -1604,7 +1618,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             if (ref2Result.filename == null && (ref2Result.failureType == ConnectionFailure.STALLED ||
                 ref2Result.failureType == ConnectionFailure.AUTHENTICATION)) {
-                _events.emit(ImageToImageEvent.ConnectionFailed(ref2Result.failureType))
+                applicationContext?.let { ctx ->
+                    ConnectionManager.showConnectionAlert(ctx, ref2Result.failureType)
+                }
                 return null
             }
             uploadedRef2 = ref2Result.filename
@@ -1680,7 +1696,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             // Check for stall or auth failure - show dialog instead of toast
             if (uploadResult.failureType == ConnectionFailure.STALLED ||
                 uploadResult.failureType == ConnectionFailure.AUTHENTICATION) {
-                _events.emit(ImageToImageEvent.ConnectionFailed(uploadResult.failureType))
+                applicationContext?.let { ctx ->
+                    ConnectionManager.showConnectionAlert(ctx, uploadResult.failureType)
+                }
             } else {
                 _events.emit(ImageToImageEvent.ShowToast(R.string.failed_save_image))
             }
@@ -1786,7 +1804,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     val subfolder = imageInfo.optString("subfolder", "")
                     val type = imageInfo.optString("type", "output")
 
-                    client.fetchImage(filename, subfolder, type) { bitmap ->
+                    client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
                         if (bitmap != null) {
                             // Store in cache (memory or disk based on mode)
                             MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap, context)
@@ -1799,6 +1817,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                                 viewMode = ImageToImageViewMode.PREVIEW
                             )
                             onComplete(true)
+                        } else if (failureType == ConnectionFailure.STALLED) {
+                            ConnectionManager.showConnectionAlert(context, failureType)
+                            onComplete(false)
                         } else {
                             onComplete(false)
                         }

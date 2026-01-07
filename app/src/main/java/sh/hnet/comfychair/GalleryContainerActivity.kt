@@ -15,11 +15,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
@@ -58,6 +61,10 @@ class GalleryContainerActivity : ComponentActivity() {
 
         setContent {
             ComfyChairTheme {
+                // Observe connection alert state from ConnectionManager (single source of truth)
+                val connectionAlertState by ConnectionManager.connectionAlertState.collectAsState()
+                val isReconnecting by ConnectionManager.isReconnecting.collectAsState()
+
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Scaffold(
                         floatingActionButton = {
@@ -81,6 +88,27 @@ class GalleryContainerActivity : ComponentActivity() {
                             modifier = Modifier.padding(paddingValues)
                         )
                     }
+                }
+
+                // Show connection alert dialog when connection fails
+                connectionAlertState?.let { state ->
+                    ConnectionAlertDialog(
+                        failureType = state.failureType,
+                        hasOfflineCache = state.hasOfflineCache,
+                        isReconnecting = isReconnecting,
+                        onReconnect = {
+                            ConnectionManager.retrySingleAttempt(this@GalleryContainerActivity)
+                        },
+                        onGoOffline = {
+                            ConnectionManager.clearConnectionAlert()
+                            AppSettings.setOfflineMode(this@GalleryContainerActivity, true)
+                        },
+                        onReturnToLogin = {
+                            ConnectionManager.clearConnectionAlert()
+                            logout()
+                        },
+                        onDismiss = { ConnectionManager.clearConnectionAlert() }
+                    )
                 }
             }
         }

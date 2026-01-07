@@ -71,11 +71,6 @@ sealed class GenerationEvent {
     data object GenerationCancelled : GenerationEvent()
     data object ConnectionLostDuringGeneration : GenerationEvent()
     data object ClearPreviewForResume : GenerationEvent()
-    /** Connection failed after max retry attempts. Contains failure details for dialog. */
-    data class ConnectionFailed(
-        val failureType: ConnectionFailure,
-        val hasOfflineCache: Boolean
-    ) : GenerationEvent()
 }
 
 /**
@@ -217,20 +212,12 @@ class GenerationViewModel : ViewModel() {
                     }
                     is WebSocketState.Failed -> {
                         _connectionStatus.value = ConnectionStatus.FAILED
-                        // Emit connection failed event with context for dialog
-                        // Offline mode requires disk-first cache (not memory-first) and existing cache
-                        val hasCache = applicationContext?.let { ctx ->
-                            val isMemoryFirst = AppSettings.isMemoryFirstCache(ctx)
-                            if (isMemoryFirst) {
-                                false // Offline mode not available with memory-first cache
-                            } else {
-                                ConnectionManager.hasOfflineCache(ctx, ConnectionManager.currentServerId ?: "")
+                        // Only show dialog if actively generating - otherwise user doesn't need to know
+                        if (_generationState.value.isGenerating) {
+                            applicationContext?.let { ctx ->
+                                ConnectionManager.showConnectionAlert(ctx, state.failureType)
                             }
-                        } ?: false
-                        dispatchEvent(GenerationEvent.ConnectionFailed(
-                            failureType = state.failureType,
-                            hasOfflineCache = hasCache
-                        ))
+                        }
                     }
                     is WebSocketState.Disconnected -> {
                         _connectionStatus.value = ConnectionStatus.DISCONNECTED
@@ -565,10 +552,13 @@ class GenerationViewModel : ViewModel() {
                             val subfolder = imageInfo.optString("subfolder", "")
                             val type = imageInfo.optString("type", "output")
 
-                            client.fetchImage(filename, subfolder, type) { bitmap ->
+                            client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
                                 if (bitmap != null) {
                                     MediaStateHolder.putBitmap(mediaKey, bitmap, context)
                                     DebugLogger.i(TAG, "Immediate image fetch successful, stored to ${mediaKey::class.simpleName}")
+                                } else if (failureType == ConnectionFailure.STALLED) {
+                                    DebugLogger.w(TAG, "Immediate image fetch stalled")
+                                    ConnectionManager.showConnectionAlert(context, failureType)
                                 } else {
                                     DebugLogger.w(TAG, "Immediate image fetch failed: bitmap is null")
                                 }
@@ -610,25 +600,26 @@ class GenerationViewModel : ViewModel() {
             return
         }
 
+        val context = applicationContext ?: run {
+            DebugLogger.e(TAG, "Cannot start generation: no application context")
+            onResult(false, null, "No application context")
+            return
+        }
+
         // Store the owner and content type before starting generation
         generationOwnerId = ownerId
         generationContentType = contentType
 
-        if (!ConnectionManager.isWebSocketConnected) {
-            DebugLogger.d(TAG, "WebSocket not connected, opening connection...")
-            ConnectionManager.openWebSocket()
-
-            viewModelScope.launch {
-                delay(2000)
-                if (ConnectionManager.isWebSocketConnected) {
-                    submitWorkflow(workflowJson, front, onResult)
-                } else {
-                    DebugLogger.e(TAG, "WebSocket connection failed")
-                    onResult(false, null, applicationContext?.getString(R.string.error_websocket_not_connected) ?: "WebSocket not connected")
-                }
+        // Ensure connection before starting - will try to reconnect if needed
+        // Dialog is shown by ensureConnection if reconnection fails
+        ConnectionManager.ensureConnection(context) { connected ->
+            if (connected) {
+                submitWorkflow(workflowJson, front, onResult)
+            } else {
+                // Connection failed - dialog already shown by ensureConnection
+                // Don't show Toast (no error message) to avoid duplicate notifications
+                onResult(false, null, null)
             }
-        } else {
-            submitWorkflow(workflowJson, front, onResult)
         }
     }
 
@@ -682,10 +673,9 @@ class GenerationViewModel : ViewModel() {
                 // For authentication errors, show the connection alert dialog instead of Toast
                 if (failureType == ConnectionFailure.AUTHENTICATION) {
                     mainHandler.post {
-                        dispatchEvent(GenerationEvent.ConnectionFailed(
-                            failureType = ConnectionFailure.AUTHENTICATION,
-                            hasOfflineCache = false // Not relevant for auth failure
-                        ))
+                        applicationContext?.let { ctx ->
+                            ConnectionManager.showConnectionAlert(ctx, ConnectionFailure.AUTHENTICATION)
+                        }
                     }
                 } else {
                     mainHandler.post { onResult(false, null, errorMessage) }

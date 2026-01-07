@@ -2,6 +2,8 @@ package sh.hnet.comfychair.connection
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.widget.Toast
+import sh.hnet.comfychair.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,8 +16,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -77,7 +81,7 @@ sealed class ConnectionState {
 object ConnectionManager {
     private const val TAG = "Connection"
     private const val KEEPALIVE_INTERVAL_MS = 30000L
-    private const val MAX_RECONNECT_ATTEMPTS = 5
+    private const val MAX_RECONNECT_ATTEMPTS = 3
 
     // Connection state
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
@@ -95,6 +99,18 @@ object ConnectionManager {
     )
     val webSocketMessages: SharedFlow<WebSocketMessage> = _webSocketMessages.asSharedFlow()
 
+    // Connection alert dialog state - single source of truth
+    private val _connectionAlertState = MutableStateFlow<ConnectionAlertState?>(null)
+    val connectionAlertState: StateFlow<ConnectionAlertState?> = _connectionAlertState.asStateFlow()
+
+    // Connection check in progress (for "Connecting..." button state)
+    private val _isConnecting = MutableStateFlow(false)
+    val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
+
+    // Reconnection in progress (for "Reconnecting..." dialog button state)
+    private val _isReconnecting = MutableStateFlow(false)
+    val isReconnecting: StateFlow<Boolean> = _isReconnecting.asStateFlow()
+
     private var _client: ComfyUIClient? = null
     private var _clientId: String? = null
     private var _applicationContext: Context? = null
@@ -110,6 +126,10 @@ object ConnectionManager {
     private var reconnectAttempts = 0
     private var keepaliveJob: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Reconnection coordination - prevents race conditions between multiple reconnection paths
+    private var reconnectionSessionId = 0L
+    private var pendingReconnectJob: Job? = null
 
     /**
      * Flag indicating that the user explicitly logged out.
@@ -261,6 +281,8 @@ object ConnectionManager {
         }
 
         DebugLogger.i(TAG, "Disconnecting")
+        pendingReconnectJob?.cancel()
+        pendingReconnectJob = null
         closeWebSocketInternal()
         invalidateAll()
         _client?.shutdown()
@@ -288,6 +310,8 @@ object ConnectionManager {
     fun logout() {
         DebugLogger.i(TAG, "User initiated logout")
         isUserInitiatedLogout = true
+        pendingReconnectJob?.cancel()
+        pendingReconnectJob = null
         reconnectAttempts = MAX_RECONNECT_ATTEMPTS  // Prevent reconnection attempts
         disconnect()
     }
@@ -300,6 +324,235 @@ object ConnectionManager {
         DebugLogger.i(TAG, "Resetting reconnect attempts")
         reconnectAttempts = 0
         _webSocketState.value = WebSocketState.Disconnected
+    }
+
+    /**
+     * Start a new reconnection session.
+     * Cancels any pending auto-reconnect and returns a new session ID.
+     * Call at the start of any reconnection entry point (manual retry, silent reconnect, or ensureConnection).
+     */
+    private fun startNewReconnectionSession(): Long {
+        pendingReconnectJob?.cancel()
+        pendingReconnectJob = null
+        return ++reconnectionSessionId
+    }
+
+    /**
+     * Check if a reconnection session is still valid.
+     * Used in callbacks to detect and ignore stale results.
+     */
+    private fun isSessionValid(sessionId: Long): Boolean {
+        return sessionId == reconnectionSessionId
+    }
+
+    /**
+     * Show the connection alert dialog.
+     * This is the single entry point for showing connection dialogs from anywhere in the app.
+     *
+     * @param context Context for checking offline cache availability
+     * @param failureType The type of connection failure
+     */
+    fun showConnectionAlert(context: Context, failureType: ConnectionFailure) {
+        val hasCache = when {
+            failureType == ConnectionFailure.STALLED -> false
+            failureType == ConnectionFailure.AUTHENTICATION -> false
+            AppSettings.isMemoryFirstCache(context) -> false
+            else -> hasOfflineCache(context, currentServerId ?: "")
+        }
+        DebugLogger.d(TAG, "showConnectionAlert: failureType=$failureType, hasCache=$hasCache")
+        _connectionAlertState.value = ConnectionAlertState(failureType, hasCache)
+    }
+
+    /**
+     * Clear the connection alert dialog.
+     * Called when user dismisses the dialog or takes an action (retry, go offline, etc.).
+     */
+    fun clearConnectionAlert() {
+        DebugLogger.d(TAG, "clearConnectionAlert")
+        _connectionAlertState.value = null
+    }
+
+    /**
+     * Ensure connection is ready before an operation.
+     * Always verifies with HTTP test - don't trust cached WebSocket state.
+     * Sets isConnecting state for UI feedback (e.g., "Connecting..." button).
+     *
+     * @param context Context for dialog
+     * @param onResult Callback with success (true) or failure (false).
+     *                 On failure, dialog is already shown via showConnectionAlert.
+     */
+    fun ensureConnection(context: Context, onResult: (success: Boolean) -> Unit) {
+        DebugLogger.d(TAG, "ensureConnection: verifying connection")
+        _isConnecting.value = true
+
+        val client = _client
+        if (client == null) {
+            DebugLogger.w(TAG, "ensureConnection: no client")
+            _isConnecting.value = false
+            showConnectionAlert(context, ConnectionFailure.NETWORK)
+            onResult(false)
+            return
+        }
+
+        val sessionId = startNewReconnectionSession()  // Cancel any pending auto-reconnect
+
+        // Always verify with HTTP test - don't trust cached state
+        client.testConnection { success, _, _, failureType ->
+            scope.launch {
+                // Ignore stale callback if another reconnection started
+                if (!isSessionValid(sessionId)) {
+                    DebugLogger.d(TAG, "ensureConnection: ignoring stale callback (session $sessionId)")
+                    _isConnecting.value = false
+                    return@launch
+                }
+
+                if (success) {
+                    DebugLogger.d(TAG, "ensureConnection: server reachable")
+                    // Server reachable - ensure WebSocket is connected
+                    if (isWebSocketConnected) {
+                        _isConnecting.value = false
+                        onResult(true)
+                    } else {
+                        DebugLogger.i(TAG, "ensureConnection: opening WebSocket")
+                        openWebSocket()
+                        val finalState = withTimeoutOrNull(10000L) {
+                            _webSocketState.first { it is WebSocketState.Connected || it is WebSocketState.Failed }
+                        }
+                        _isConnecting.value = false
+                        when (finalState) {
+                            is WebSocketState.Connected -> {
+                                DebugLogger.i(TAG, "ensureConnection: WebSocket connected")
+                                onResult(true)
+                            }
+                            else -> {
+                                DebugLogger.w(TAG, "ensureConnection: WebSocket failed")
+                                showConnectionAlert(context, ConnectionFailure.NETWORK)
+                                onResult(false)
+                            }
+                        }
+                    }
+                } else {
+                    _isConnecting.value = false
+                    DebugLogger.w(TAG, "ensureConnection: server unreachable, failureType=$failureType")
+                    showConnectionAlert(context, failureType)
+                    onResult(false)
+                }
+            }
+        }
+    }
+
+    /**
+     * Retry connection with a single attempt, triggered by user tapping "Reconnect" in the dialog.
+     * Sets isReconnecting state for UI feedback (spinner on button).
+     * Shows Toast and keeps dialog open on failure.
+     * Closes dialog on success.
+     */
+    fun retrySingleAttempt(context: Context) {
+        DebugLogger.d(TAG, "retrySingleAttempt: called, _client=${if (_client != null) "exists" else "NULL"}")
+        _isReconnecting.value = true
+
+        val sessionId = startNewReconnectionSession()  // Cancel any pending auto-reconnect
+
+        val client = _client ?: run {
+            DebugLogger.w(TAG, "retrySingleAttempt: aborting - client is null")
+            _isReconnecting.value = false
+            Toast.makeText(context, R.string.toast_reconnect_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        DebugLogger.i(TAG, "User initiated single retry attempt (session $sessionId)")
+        _webSocketState.value = WebSocketState.Disconnected
+
+        client.closeWebSocket()
+        DebugLogger.d(TAG, "retrySingleAttempt: closed WebSocket, calling testConnection")
+        client.testConnection { success, errorMessage, _, failureType ->
+            scope.launch {
+                // Ignore stale callback if session has changed
+                if (!isSessionValid(sessionId)) {
+                    DebugLogger.d(TAG, "retrySingleAttempt: ignoring stale callback (session $sessionId)")
+                    return@launch
+                }
+
+                DebugLogger.d(TAG, "retrySingleAttempt: testConnection callback - success=$success, failureType=$failureType")
+                if (success) {
+                    DebugLogger.i(TAG, "Single retry succeeded, opening WebSocket")
+                    reconnectAttempts = 0
+                    openWebSocket()
+
+                    // Wait for WebSocket to actually connect before clearing dialog
+                    val finalState = withTimeoutOrNull(10000L) {
+                        _webSocketState.first { it is WebSocketState.Connected || it is WebSocketState.Failed }
+                    }
+
+                    _isReconnecting.value = false
+                    if (finalState is WebSocketState.Connected) {
+                        DebugLogger.i(TAG, "WebSocket connected, clearing dialog")
+                        clearConnectionAlert()
+                    } else {
+                        DebugLogger.w(TAG, "WebSocket failed to connect after successful HTTP test")
+                        Toast.makeText(context, R.string.toast_reconnect_failed, Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    _isReconnecting.value = false
+                    DebugLogger.w(TAG, "Single retry failed: $failureType")
+                    _webSocketState.value = WebSocketState.Failed(
+                        reason = errorMessage,
+                        failureType = failureType
+                    )
+                    Toast.makeText(context, R.string.toast_reconnect_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempt a silent reconnection when app returns from background.
+     * Unlike retrySingleAttempt(), this is designed to recover gracefully:
+     * - If already connected, does nothing
+     * - If reconnect succeeds, app continues normally
+     * - If reconnect fails, sets Failed state (dialog will appear via normal ViewModel flow)
+     */
+    fun attemptSilentReconnect() {
+        // Already connected or connecting - don't interfere
+        if (_webSocketState.value is WebSocketState.Connected ||
+            _webSocketState.value is WebSocketState.Connecting) {
+            DebugLogger.d(TAG, "attemptSilentReconnect: state=${_webSocketState.value}, skipping")
+            return
+        }
+
+        val client = _client ?: run {
+            DebugLogger.w(TAG, "attemptSilentReconnect: client is null")
+            return
+        }
+
+        val sessionId = startNewReconnectionSession()  // Cancel any pending auto-reconnect
+
+        DebugLogger.i(TAG, "Attempting silent reconnect on resume")
+        // Set to Disconnected so openWebSocket() will work and StateFlow will emit on failure
+        _webSocketState.value = WebSocketState.Disconnected
+
+        client.closeWebSocket()
+        client.testConnection { success, errorMessage, _, failureType ->
+            // Ignore stale callback if another reconnection started
+            if (!isSessionValid(sessionId)) {
+                DebugLogger.d(TAG, "attemptSilentReconnect: ignoring stale callback (session $sessionId)")
+                return@testConnection
+            }
+
+            DebugLogger.d(TAG, "attemptSilentReconnect: testConnection result - success=$success, failureType=$failureType")
+            if (success) {
+                DebugLogger.i(TAG, "Silent reconnect succeeded, opening WebSocket")
+                reconnectAttempts = 0
+                openWebSocket()
+            } else {
+                DebugLogger.w(TAG, "Silent reconnect failed: $failureType")
+                _webSocketState.value = WebSocketState.Failed(
+                    reason = errorMessage,
+                    failureType = failureType
+                )
+                // Dialog will appear via existing GenerationViewModel observation
+            }
+        }
     }
 
     /**
@@ -323,6 +576,7 @@ object ConnectionManager {
      * @return true if connection attempt started
      */
     fun openWebSocket(): Boolean {
+        DebugLogger.d(TAG, "openWebSocket: called, currentState=${_webSocketState.value}")
         val client = _client ?: run {
             DebugLogger.w(TAG, "Cannot open WebSocket: client is null")
             return false
@@ -335,7 +589,7 @@ object ConnectionManager {
         // Already connected or connecting
         if (_webSocketState.value is WebSocketState.Connected ||
             _webSocketState.value is WebSocketState.Connecting) {
-            DebugLogger.d(TAG, "WebSocket already connected/connecting")
+            DebugLogger.d(TAG, "WebSocket already connected/connecting - skipping open")
             return true
         }
 
@@ -347,6 +601,16 @@ object ConnectionManager {
                 DebugLogger.i(TAG, "WebSocket connected")
                 reconnectAttempts = 0
                 _webSocketState.value = WebSocketState.Connected
+
+                // Clear any pending connection dialog and reset flags
+                // This handles the case where auto-reconnect succeeds while dialog is open
+                if (_connectionAlertState.value != null) {
+                    DebugLogger.i(TAG, "WebSocket connected, clearing dialog")
+                    _connectionAlertState.value = null
+                }
+                _isReconnecting.value = false
+                _isConnecting.value = false
+
                 startKeepalive()
                 GalleryRepository.getInstance().startBackgroundPreload()
             }
@@ -529,6 +793,12 @@ object ConnectionManager {
      * Schedule WebSocket reconnection with exponential backoff
      */
     private fun scheduleReconnect() {
+        // Don't auto-reconnect if manual retry or ensureConnection is in progress
+        if (_isReconnecting.value || _isConnecting.value) {
+            DebugLogger.d(TAG, "scheduleReconnect: skipped (manual reconnection in progress)")
+            return
+        }
+
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             DebugLogger.w(TAG, "Max reconnect attempts reached")
             _webSocketState.value = WebSocketState.Failed(
@@ -541,22 +811,37 @@ object ConnectionManager {
         reconnectAttempts++
         _webSocketState.value = WebSocketState.Reconnecting(reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
 
-        val delayMs = (Math.pow(2.0, (reconnectAttempts - 1).toDouble()) * 1000).toLong()
-        scope.launch {
+        // Linear delay: 2s, 4s, 6s for attempts 1, 2, 3
+        val delayMs = (reconnectAttempts * 2000).toLong()
+        val sessionId = reconnectionSessionId  // Capture current session
+
+        pendingReconnectJob = scope.launch {
             delay(delayMs)
-            reconnectWebSocket()
+            // Only proceed if session still valid (wasn't cancelled by manual retry)
+            if (isSessionValid(sessionId)) {
+                reconnectWebSocket(sessionId)
+            } else {
+                DebugLogger.d(TAG, "scheduleReconnect: cancelled (session invalidated)")
+            }
         }
     }
 
     /**
      * Attempt to reconnect WebSocket
+     * @param sessionId The reconnection session ID for stale callback detection
      */
-    private fun reconnectWebSocket() {
+    private fun reconnectWebSocket(sessionId: Long) {
         val client = _client ?: return
 
         client.closeWebSocket()
 
         client.testConnection { success, errorMessage, _, failureType ->
+            // Ignore stale callback if session has changed
+            if (!isSessionValid(sessionId)) {
+                DebugLogger.d(TAG, "reconnectWebSocket: ignoring stale callback (session $sessionId)")
+                return@testConnection
+            }
+
             if (success) {
                 openWebSocket()
             } else if (failureType == ConnectionFailure.AUTHENTICATION) {

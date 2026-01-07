@@ -14,6 +14,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
@@ -720,11 +721,16 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                             val subfolder = imageInfo.optString("subfolder", "")
                             val type = imageInfo.optString("type", "output")
 
-                            client.fetchImage(filename, subfolder, type) { bitmap ->
+                            client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
                                 viewModelScope.launch {
                                     if (bitmap != null) {
                                         setCurrentImage(bitmap, filename, subfolder, type)
                                         onComplete(true)
+                                    } else if (failureType == ConnectionFailure.STALLED) {
+                                        applicationContext?.let { ctx ->
+                                            ConnectionManager.showConnectionAlert(ctx, failureType)
+                                        }
+                                        onComplete(false)
                                     } else {
                                         onComplete(false)
                                     }

@@ -543,7 +543,7 @@ object MediaCache {
         priority: Int
     ): Bitmap? {
         val bitmap = suspendCancellableCoroutine { continuation ->
-            client.fetchImage(key.filename, subfolder, type) { bmp ->
+            client.fetchImage(key.filename, subfolder, type) { bmp, _ ->
                 continuation.resume(bmp)
             }
         }
@@ -574,7 +574,7 @@ object MediaCache {
         if (videoBytes == null) {
             // Fetch video bytes
             videoBytes = suspendCancellableCoroutine { continuation ->
-                client.fetchVideo(key.filename, subfolder, type) { bytes ->
+                client.fetchVideo(key.filename, subfolder, type) { bytes, _ ->
                     continuation.resume(bytes)
                 }
             }
@@ -606,7 +606,7 @@ object MediaCache {
         context: Context
     ): Bitmap? {
         val bitmap = suspendCancellableCoroutine { continuation ->
-            client.fetchImage(key.filename, subfolder, type) { bmp ->
+            client.fetchImage(key.filename, subfolder, type) { bmp, _ ->
                 continuation.resume(bmp)
             }
         }
@@ -628,7 +628,7 @@ object MediaCache {
 
         // Fetch video bytes
         val videoBytes = suspendCancellableCoroutine<ByteArray?> { continuation ->
-            client.fetchVideo(key.filename, subfolder, type) { bytes ->
+            client.fetchVideo(key.filename, subfolder, type) { bytes, _ ->
                 continuation.resume(bytes)
             }
         } ?: return null
@@ -674,7 +674,7 @@ object MediaCache {
 
             return withContext(Dispatchers.IO) {
                 val bitmap = suspendCancellableCoroutine { continuation ->
-                    client.fetchImage(key.filename, subfolder, type) { bmp ->
+                    client.fetchImage(key.filename, subfolder, type) { bmp, _ ->
                         continuation.resume(bmp)
                     }
                 }
@@ -698,7 +698,7 @@ object MediaCache {
 
                 DebugLogger.d(TAG, "fetchImage: ${key.keyString} -> fetching from server")
                 val bitmap = suspendCancellableCoroutine { continuation ->
-                    client.fetchImage(key.filename, subfolder, type) { bmp ->
+                    client.fetchImage(key.filename, subfolder, type) { bmp, _ ->
                         continuation.resume(bmp)
                     }
                 }
@@ -746,7 +746,7 @@ object MediaCache {
 
             return withContext(Dispatchers.IO) {
                 val bytes = suspendCancellableCoroutine { continuation ->
-                    client.fetchVideo(key.filename, subfolder, type) { videoBytes ->
+                    client.fetchVideo(key.filename, subfolder, type) { videoBytes, _ ->
                         continuation.resume(videoBytes)
                     }
                 }
@@ -770,7 +770,7 @@ object MediaCache {
 
                 DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} -> fetching from server")
                 val bytes = suspendCancellableCoroutine { continuation ->
-                    client.fetchVideo(key.filename, subfolder, type) { videoBytes ->
+                    client.fetchVideo(key.filename, subfolder, type) { videoBytes, _ ->
                         continuation.resume(videoBytes)
                     }
                 }

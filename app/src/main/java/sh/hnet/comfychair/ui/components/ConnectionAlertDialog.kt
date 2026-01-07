@@ -3,10 +3,14 @@ package sh.hnet.comfychair.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,17 +25,19 @@ import sh.hnet.comfychair.connection.ConnectionFailure
  * Alert dialog shown when WebSocket connection fails after max retry attempts.
  *
  * Shows different options based on failure type:
- * - Network failure: Retry / Go Offline (if cache exists) / Return to Login
+ * - Network failure: Reconnect / Go Offline (if cache exists) / Return to Login
  * - Auth failure: Return to Login only (no point retrying with invalid credentials)
- * - Stall failure: Retry / Cancel (simpler two-button layout)
+ * - Stall failure: Dismiss only (informative)
  *
+ * The Reconnect button shows a loading state with "Reconnecting..." while attempting.
  * Buttons are stacked vertically with thumb-friendly ordering (primary action at bottom).
  */
 @Composable
 fun ConnectionAlertDialog(
     failureType: ConnectionFailure,
     hasOfflineCache: Boolean,
-    onRetry: () -> Unit,
+    isReconnecting: Boolean = false,
+    onReconnect: () -> Unit,
     onGoOffline: () -> Unit,
     onReturnToLogin: () -> Unit,
     onDismiss: () -> Unit
@@ -40,7 +46,7 @@ fun ConnectionAlertDialog(
     val isStallFailure = failureType == ConnectionFailure.STALLED
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isReconnecting) onDismiss() },
         title = {
             Text(
                 text = stringResource(
@@ -89,6 +95,7 @@ fun ConnectionAlertDialog(
                         // Tertiary: Return to Login (outlined button, top)
                         OutlinedButton(
                             onClick = onReturnToLogin,
+                            enabled = !isReconnecting,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(stringResource(R.string.action_return_to_login))
@@ -98,18 +105,29 @@ fun ConnectionAlertDialog(
                         if (hasOfflineCache) {
                             OutlinedButton(
                                 onClick = onGoOffline,
+                                enabled = !isReconnecting,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(stringResource(R.string.action_go_offline))
                             }
                         }
 
-                        // Primary: Retry (filled button, bottom - easiest thumb reach)
+                        // Primary: Reconnect (filled button, bottom - easiest thumb reach)
                         Button(
-                            onClick = onRetry,
+                            onClick = onReconnect,
+                            enabled = !isReconnecting,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.action_retry))
+                            if (isReconnecting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.action_reconnecting))
+                            } else {
+                                Text(stringResource(R.string.action_reconnect))
+                            }
                         }
                     }
                 }
@@ -126,11 +144,3 @@ fun ConnectionAlertDialog(
         }
     )
 }
-
-/**
- * State holder for connection alert dialog.
- */
-data class ConnectionAlertState(
-    val failureType: ConnectionFailure,
-    val hasOfflineCache: Boolean
-)

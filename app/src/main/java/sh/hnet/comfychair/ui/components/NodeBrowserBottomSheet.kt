@@ -373,7 +373,7 @@ private fun NodeTypeRow(
                 if (nodeType.deprecated) {
                     Icon(
                         imageVector = Icons.Default.Warning,
-                        contentDescription = "Deprecated",
+                        contentDescription = stringResource(R.string.node_browser_deprecated),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.error
                     )
@@ -382,7 +382,7 @@ private fun NodeTypeRow(
                 if (nodeType.experimental) {
                     Icon(
                         imageVector = Icons.Default.Science,
-                        contentDescription = "Experimental",
+                        contentDescription = stringResource(R.string.node_browser_experimental),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.tertiary
                     )

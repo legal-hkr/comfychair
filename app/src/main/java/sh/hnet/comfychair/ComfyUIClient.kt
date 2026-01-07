@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
@@ -50,8 +51,8 @@ class ComfyUIClient(
 ) {
     companion object {
         private const val TAG = "API"
-        private const val STALL_TIMEOUT_MS = 30_000L         // 30 seconds of no progress = stall
-        private const val STALL_CHECK_INTERVAL_MS = 5_000L   // Check every 5 seconds
+        private const val STALL_TIMEOUT_MS = 30_000L          // 30 seconds without progress = stalled
+        private const val STALL_CHECK_INTERVAL_MS = 5_000L    // Check every 5 seconds
     }
 
     // Auth interceptor for adding Authorization headers
@@ -987,6 +988,63 @@ class ComfyUIClient(
     }
 
     /**
+     * Result of a download operation with stall detection.
+     * Contains either the downloaded bytes or information about the failure.
+     */
+    private data class DownloadResult(
+        val bytes: ByteArray?,
+        val failureType: ConnectionFailure
+    )
+
+    /**
+     * Downloads bytes from a response body with stall detection.
+     * Creates a watchdog coroutine that monitors download progress and cancels
+     * the call if no data is received within STALL_TIMEOUT_MS.
+     *
+     * @param call The OkHttp call (used for cancellation on stall)
+     * @param body The response body to download
+     * @param logTag Description for log messages (e.g., "Image", "Video")
+     * @return DownloadResult containing bytes and failure type
+     */
+    private fun downloadWithStallDetection(
+        call: okhttp3.Call,
+        body: ResponseBody,
+        logTag: String
+    ): DownloadResult {
+        val trackedBody = ProgressTrackingResponseBody(body)
+        var wasStalled = false
+
+        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(STALL_CHECK_INTERVAL_MS)
+                if (System.currentTimeMillis() - trackedBody.lastProgressTime > STALL_TIMEOUT_MS) {
+                    DebugLogger.w(TAG, "$logTag download stalled - cancelling")
+                    wasStalled = true
+                    call.cancel()
+                    break
+                }
+            }
+        }
+
+        val bytes = try {
+            trackedBody.bytes()
+        } catch (e: IOException) {
+            DebugLogger.d(TAG, "$logTag download interrupted: ${e.message}")
+            null
+        } finally {
+            watchdogJob.cancel()
+        }
+
+        val failureType = when {
+            bytes != null -> ConnectionFailure.NONE
+            wasStalled -> ConnectionFailure.STALLED
+            else -> ConnectionFailure.NETWORK
+        }
+
+        return DownloadResult(bytes, failureType)
+    }
+
+    /**
      * Fetch a generated image from the ComfyUI server
      * Downloads and decodes the image into a Bitmap
      *
@@ -995,16 +1053,17 @@ class ComfyUIClient(
      * @param type The image type (usually "output" or "temp")
      * @param callback Called with the result:
      *                 - bitmap: The decoded image, or null on error
+     *                 - failureType: type of failure (NONE for success, STALLED if download stalled, NETWORK for other errors)
      */
     fun fetchImage(
         filename: String,
         subfolder: String = "",
         type: String = "output",
-        callback: (bitmap: Bitmap?) -> Unit
+        callback: (bitmap: Bitmap?, failureType: ConnectionFailure) -> Unit
     ) {
         DebugLogger.d(TAG, "Fetching image: ${Obfuscator.filename(filename)}")
         val baseUrl = getBaseUrl() ?: run {
-            callback(null)
+            callback(null, ConnectionFailure.NETWORK)
             return
         }
 
@@ -1017,51 +1076,25 @@ class ComfyUIClient(
 
         val call = transferClient.newCall(request)
 
-        // Track progress timestamp for stall detection
-        val progressTime = AtomicLong(System.currentTimeMillis())
-
-        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                delay(STALL_CHECK_INTERVAL_MS)
-                if (System.currentTimeMillis() - progressTime.get() > STALL_TIMEOUT_MS) {
-                    DebugLogger.w(TAG, "Image download stalled - cancelling")
-                    call.cancel()
-                    break
-                }
-            }
-        }
-
         call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                watchdogJob.cancel()
-                if (call.isCanceled()) {
+                val failureType = if (call.isCanceled()) {
                     DebugLogger.w(TAG, "Image download stalled")
+                    ConnectionFailure.STALLED
+                } else {
+                    ConnectionFailure.NETWORK
                 }
-                callback(null)
+                callback(null, failureType)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
-                watchdogJob.cancel()
                 response.use {
-                    if (response.isSuccessful) {
-                        try {
-                            val trackedBody = response.body?.let { body ->
-                                ProgressTrackingResponseBody(body) { _, _ ->
-                                    progressTime.set(System.currentTimeMillis())
-                                }
-                            }
-                            val bytes = trackedBody?.bytes()
-                            if (bytes != null) {
-                                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                                callback(bitmap)
-                            } else {
-                                callback(null)
-                            }
-                        } catch (e: Exception) {
-                            callback(null)
-                        }
+                    if (response.isSuccessful && response.body != null) {
+                        val result = downloadWithStallDetection(call, response.body!!, "Image")
+                        val bitmap = result.bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                        callback(bitmap, result.failureType)
                     } else {
-                        callback(null)
+                        callback(null, ConnectionFailure.NETWORK)
                     }
                 }
             }
@@ -1077,15 +1110,16 @@ class ComfyUIClient(
      * @param type The file type (usually "output" or "temp")
      * @param callback Called with the result:
      *                 - bytes: The raw file bytes, or null on error
+     *                 - failureType: type of failure (NONE for success, STALLED if download stalled, NETWORK for other errors)
      */
     fun fetchRawBytes(
         filename: String,
         subfolder: String = "",
         type: String = "output",
-        callback: (bytes: ByteArray?) -> Unit
+        callback: (bytes: ByteArray?, failureType: ConnectionFailure) -> Unit
     ) {
         val baseUrl = getBaseUrl() ?: run {
-            callback(null)
+            callback(null, ConnectionFailure.NETWORK)
             return
         }
 
@@ -1098,46 +1132,24 @@ class ComfyUIClient(
 
         val call = transferClient.newCall(request)
 
-        // Track progress timestamp for stall detection
-        val progressTime = AtomicLong(System.currentTimeMillis())
-
-        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                delay(STALL_CHECK_INTERVAL_MS)
-                if (System.currentTimeMillis() - progressTime.get() > STALL_TIMEOUT_MS) {
-                    DebugLogger.w(TAG, "Raw bytes download stalled - cancelling")
-                    call.cancel()
-                    break
-                }
-            }
-        }
-
         call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                watchdogJob.cancel()
-                if (call.isCanceled()) {
+                val failureType = if (call.isCanceled()) {
                     DebugLogger.w(TAG, "Raw bytes download stalled")
+                    ConnectionFailure.STALLED
+                } else {
+                    ConnectionFailure.NETWORK
                 }
-                callback(null)
+                callback(null, failureType)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
-                watchdogJob.cancel()
                 response.use {
-                    if (response.isSuccessful) {
-                        try {
-                            val trackedBody = response.body?.let { body ->
-                                ProgressTrackingResponseBody(body) { _, _ ->
-                                    progressTime.set(System.currentTimeMillis())
-                                }
-                            }
-                            val bytes = trackedBody?.bytes()
-                            callback(bytes)
-                        } catch (e: Exception) {
-                            callback(null)
-                        }
+                    if (response.isSuccessful && response.body != null) {
+                        val result = downloadWithStallDetection(call, response.body!!, "Raw bytes")
+                        callback(result.bytes, result.failureType)
                     } else {
-                        callback(null)
+                        callback(null, ConnectionFailure.NETWORK)
                     }
                 }
             }
@@ -1153,16 +1165,17 @@ class ComfyUIClient(
      * @param type The video type (usually "output" or "temp")
      * @param callback Called with the result:
      *                 - bytes: The raw video bytes, or null on error
+     *                 - failureType: type of failure (NONE for success, STALLED if download stalled, NETWORK for other errors)
      */
     fun fetchVideo(
         filename: String,
         subfolder: String = "",
         type: String = "output",
-        callback: (bytes: ByteArray?) -> Unit
+        callback: (bytes: ByteArray?, failureType: ConnectionFailure) -> Unit
     ) {
         DebugLogger.d(TAG, "Fetching video: ${Obfuscator.filename(filename)}")
         val baseUrl = getBaseUrl() ?: run {
-            callback(null)
+            callback(null, ConnectionFailure.NETWORK)
             return
         }
 
@@ -1175,46 +1188,24 @@ class ComfyUIClient(
 
         val call = transferClient.newCall(request)
 
-        // Track progress timestamp for stall detection
-        val progressTime = AtomicLong(System.currentTimeMillis())
-
-        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                delay(STALL_CHECK_INTERVAL_MS)
-                if (System.currentTimeMillis() - progressTime.get() > STALL_TIMEOUT_MS) {
-                    DebugLogger.w(TAG, "Video download stalled - cancelling")
-                    call.cancel()
-                    break
-                }
-            }
-        }
-
         call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                watchdogJob.cancel()
-                if (call.isCanceled()) {
+                val failureType = if (call.isCanceled()) {
                     DebugLogger.w(TAG, "Video download stalled")
+                    ConnectionFailure.STALLED
+                } else {
+                    ConnectionFailure.NETWORK
                 }
-                callback(null)
+                callback(null, failureType)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
-                watchdogJob.cancel()
                 response.use {
-                    if (response.isSuccessful) {
-                        try {
-                            val trackedBody = response.body?.let { body ->
-                                ProgressTrackingResponseBody(body) { _, _ ->
-                                    progressTime.set(System.currentTimeMillis())
-                                }
-                            }
-                            val bytes = trackedBody?.bytes()
-                            callback(bytes)
-                        } catch (e: Exception) {
-                            callback(null)
-                        }
+                    if (response.isSuccessful && response.body != null) {
+                        val result = downloadWithStallDetection(call, response.body!!, "Video")
+                        callback(result.bytes, result.failureType)
                     } else {
-                        callback(null)
+                        callback(null, ConnectionFailure.NETWORK)
                     }
                 }
             }

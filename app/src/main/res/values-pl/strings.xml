@@ -11,7 +11,6 @@
     <string name="server_hostname_placeholder">192.168.1.100</string>
     <string name="server_name_taken_error">Ta nazwa jest już używana</string>
     <string name="server_select_placeholder">Wybierz serwer</string>
-    <string name="server_dropdown_expand">Rozwiń listę serwerów</string>
     <string name="server_edit_button">Edytuj serwer</string>
     <string name="server_add_button">Dodaj serwer</string>
     <string name="server_delete_button">Usuń serwer</string>
@@ -27,9 +26,7 @@
     <string name="auth_username_label">Nazwa użytkownika</string>
     <string name="auth_password_label">Hasło</string>
     <string name="auth_token_label">Klucz API / token</string>
-    <string name="auth_credentials_required">Wymagane dane logowania</string>
     <string name="auth_error_unauthorized">Uwierzytelnianie nie powiodło się. Sprawdź dane logowania.</string>
-    <string name="auth_session_expired">Sesja wygasła. Zaloguj się ponownie.</string>
 
     <!-- Connection alert dialog -->
     <string name="connection_lost_title">Utracono połączenie</string>
@@ -39,15 +36,16 @@
     <string name="transfer_stalled_title">Transfer zatrzymany</string>
     <string name="transfer_stalled_message">Przez 30 sekund nie przesłano żadnych danych. Może to wskazywać na problem z połączeniem.</string>
     <string name="error_upload_stalled">Wysyłanie zatrzymane</string>
-    <string name="error_download_stalled">Pobieranie zatrzymane</string>
-    <string name="action_retry">Spróbuj ponownie</string>
+    <string name="action_reconnect">Połącz ponownie</string>
+    <string name="action_reconnecting">Ponowne łączenie…</string>
+    <string name="toast_reconnect_failed">Nie można połączyć</string>
     <string name="action_go_offline">Tryb offline</string>
     <string name="action_return_to_login">Powrót do logowania</string>
-    <string name="error_cannot_go_online">Nie można połączyć z serwerem</string>
 
     <!-- Connection button states -->
     <string name="button_connect">Połącz</string>
     <string name="button_connecting">Łączenie…</string>
+    <string name="button_connecting_queue">Łączenie… (%d)</string>
     <string name="button_failed">Błąd</string>
     <string name="button_connected">Połączono</string>
     <string name="button_offline">Tryb offline</string>
@@ -166,7 +164,6 @@
     <string name="highnoise_lora_label">LoRA wysokiego szumu</string>
     <string name="lownoise_lora_label">LoRA niskiego szumu</string>
     <string name="length_label">Długość</string>
-    <string name="video_parameters_title">Parametry wideo</string>
     <string name="placeholder_video_description">Wygenerowane wideo pojawi się tutaj</string>
 
     <!-- Image-to-image fragment strings -->
@@ -180,14 +177,12 @@
     <string name="no_source_image">Nie wybrano obrazu źródłowego</string>
 
     <!-- Generation button states -->
-    <string name="button_cancel_generation">Anuluj generowanie</string>
     <string name="button_add_to_queue">Dodaj do kolejki (%d)</string>
     <string name="button_uploading">Przesyłanie…</string>
     <string name="button_uploading_queue">Przesyłanie… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Anuluj bieżące</string>
-    <string name="menu_add_to_end_of_queue">Dodaj na koniec kolejki</string>
     <string name="menu_add_to_front_of_queue">Dodaj na początek kolejki</string>
     <string name="content_description_queue_menu">Menu kolejki</string>
     <string name="content_description_server_menu">Menu serwera</string>
@@ -196,17 +191,12 @@
     <string name="error_not_comfyui_server">To nie jest serwer ComfyUI</string>
     <string name="error_invalid_server_response">Nieprawidłowa odpowiedź serwera</string>
     <string name="error_failed_load_workflow">Nie udało się załadować workflow</string>
-    <string name="error_failed_start_generation">Nie udało się rozpocząć generowania: %s</string>
     <string name="error_generation_failed">Generowanie nie powiodło się</string>
-    <string name="error_unknown">Nieznany błąd</string>
     <string name="connection_lost_generation_may_continue">Utracono połączenie. Sprawdzenie zakończenia po ponownym połączeniu.</string>
     <string name="error_no_connection">Brak połączenia z serwerem</string>
     <string name="error_workflow_not_found">Nie znaleziono workflow</string>
     <string name="error_no_workflow_specified">Nie określono workflow</string>
     <string name="error_client_not_initialized">Klient nie zainicjalizowany</string>
-    <string name="error_websocket_not_connected">WebSocket nie połączony</string>
-    <string name="error_invalid_json">Nieprawidłowy JSON: %s</string>
-    <string name="error_cannot_determine_workflow_type">Nie można określić typu workflow</string>
 
     <!-- Save/share messages -->
     <string name="image_saved_to_gallery">Obraz zapisany do galerii</string>
@@ -224,7 +214,6 @@
     <string name="paint_mask_hint">Namaluj obszar maski do inpaintingu</string>
 
     <!-- Image/Video parameters section -->
-    <string name="image_parameters_title">Parametry obrazu</string>
 
     <!-- Save options -->
     <string name="save_to_gallery">Zapisz do galerii</string>
@@ -283,15 +272,12 @@
     <string name="error_invalid_number">Nieprawidłowa liczba</string>
 
     <!-- Node attribute editor -->
-    <string name="node_editor_title">Edytuj węzeł</string>
     <string name="node_editor_reset">Resetuj</string>
-    <string name="node_editor_close">Zamknij</string>
     <string name="node_editor_no_editable_inputs">Brak edytowalnych pól</string>
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
     <string name="node_editor_image_load_error">Nie udało się załadować obrazu</string>
-    <string name="node_editor_rename">Zmień nazwę węzła</string>
     <string name="node_editor_rename_title">Zmień nazwę węzła</string>
     <string name="node_editor_rename_label">Nazwa węzła</string>
     <string name="node_editor_bypass">Pomiń</string>
@@ -322,11 +308,7 @@
     <string name="button_save">Zapisz</string>
     <string name="button_delete">Usuń</string>
     <string name="button_cancel">Anuluj</string>
-    <string name="button_done">Gotowe</string>
-    <string name="edit">Edytuj</string>
-    <string name="edit_structure">Edytuj strukturę</string>
     <string name="error_cannot_edit_builtin">Wbudowane workflow nie mogą być edytowane</string>
-    <string name="delete">Usuń</string>
     <string name="workflow_error_invalid_json">Nieprawidłowy format JSON</string>
     <string name="workflow_import_success">Workflow zaimportowany</string>
     <string name="workflow_import_failed">Nie udało się zaimportować workflow</string>
@@ -373,7 +355,6 @@
     <string name="media_viewer_next">Następny</string>
 
     <!-- Workflow editor strings -->
-    <string name="workflow_editor_title">Edytor workflow</string>
     <string name="workflow_editor_zoom_in">Powiększ</string>
     <string name="workflow_editor_zoom_out">Pomniejsz</string>
     <string name="workflow_editor_reset_zoom">Resetuj widok</string>
@@ -407,12 +388,7 @@
 
     <!-- Workflow validation errors -->
     <string name="workflow_error_fetch_nodes_failed">Nie udało się pobrać węzłów z serwera</string>
-    <string name="workflow_error_save_failed">Nie udało się zapisać pliku workflow: %s</string>
-    <string name="workflow_error_duplicate_filename">Workflow o tej nazwie już istnieje</string>
-    <string name="workflow_error_missing_placeholders">Brakujące placeholdery: %s</string>
-    <string name="workflow_error_missing_inputs">Brakujące wymagane dane wejściowe: %s</string>
     <string name="workflow_name_error_too_long">Nazwa może mieć maksymalnie 40 znaków</string>
-    <string name="workflow_name_error_invalid_chars">Nazwa może zawierać tylko litery, cyfry, spacje, podkreślniki, myślniki i nawiasy</string>
     <string name="workflow_description_error_too_long">Opis może mieć maksymalnie 120 znaków</string>
 
     <!-- Metadata viewer strings -->
@@ -452,7 +428,6 @@
     <string name="backup_restore_failed">Nie udało się przywrócić kopii zapasowej</string>
     <string name="backup_error_invalid_json">Nieprawidłowy format pliku kopii zapasowej</string>
     <string name="backup_error_unsupported_version">Nieobsługiwana wersja kopii zapasowej</string>
-    <string name="backup_error_invalid_connection">Nieprawidłowe ustawienia połączenia w kopii zapasowej</string>
     <string name="backup_error_no_servers">Nie znaleziono serwerów w kopii zapasowej</string>
     <string name="backup_restore_confirm_title">Przywrócić ustawienia?</string>
     <string name="backup_restore_confirm_message">Spowoduje to zastąpienie bieżących ustawień. Tej czynności nie można cofnąć.</string>
@@ -474,7 +449,6 @@
     <string name="debug_logging_view_button">Wyświetl logi</string>
     <string name="debug_log_title">Log debugowania</string>
     <string name="debug_log_empty">Brak wpisów w logu</string>
-    <string name="debug_log_refresh">Odśwież</string>
     <string name="debug_log_save">Save</string>
     <string name="debug_log_follow">Śledź</string>
     <string name="debug_log_saved">Log zapisany pomyślnie</string>
@@ -502,6 +476,8 @@
     <string name="node_browser_search_placeholder">Szukaj węzłów…</string>
     <string name="node_browser_no_results">Nie znaleziono pasujących węzłów</string>
     <string name="node_browser_io_info">%1$d wejść, %2$d wyjść</string>
+    <string name="node_browser_deprecated">Przestarzały</string>
+    <string name="node_browser_experimental">Eksperymentalny</string>
     <string name="node_browser_filter_category">Kategoria</string>
     <string name="node_browser_filter_subcategory">Podkategoria</string>
     <string name="node_browser_filter_group">Grupa</string>
@@ -511,7 +487,6 @@
     <string name="workflow_editor_delete_node">Usuń zaznaczone</string>
     <string name="workflow_editor_duplicate_node">Duplikuj zaznaczone</string>
     <string name="workflow_editor_add_node">Dodaj węzeł</string>
-    <string name="workflow_editor_relayout">Przeorganizuj węzły</string>
     <string name="workflow_editor_more">Więcej opcji</string>
     <string name="workflow_editor_cleanup">Uporządkuj</string>
     <string name="workflow_editor_group">Grupuj</string>
@@ -533,10 +508,6 @@
     <string name="field_unet_model">Model UNET</string>
     <string name="field_input_image">Obraz wejściowy</string>
     <string name="field_frame_rate">Liczba klatek</string>
-    <string name="field_clip1">CLIP 1</string>
-    <string name="field_clip2">CLIP 2</string>
-    <string name="field_clip3">CLIP 3</string>
-    <string name="field_clip4">CLIP 4</string>
 
     <!-- Field descriptions for workflow editor -->
     <string name="field_desc_positive_prompt">Tekstowy prompt do generowania</string>

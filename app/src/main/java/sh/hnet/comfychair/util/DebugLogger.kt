@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.util
 
+import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,6 +41,10 @@ object DebugLogger {
     private var enabled = false
     private const val MAX_ENTRIES = 1000
 
+    // TODO: Set to false before release - temporary LogCat output for debugging
+    private const val LOGCAT_ENABLED = true
+    private const val LOGCAT_TAG = "ComfyChair"
+
     /**
      * Enable or disable logging.
      * When transitioning from disabled to enabled, clears previous logs and starts fresh.
@@ -78,6 +83,17 @@ object DebugLogger {
         // Trim old entries if over limit
         while (entries.size > MAX_ENTRIES) {
             entries.removeAt(0)
+        }
+
+        // Temporary: Also output to LogCat for real-time debugging
+        if (LOGCAT_ENABLED) {
+            val logcatMessage = "[$tag] $message"
+            when (level) {
+                LogLevel.DEBUG -> Log.d(LOGCAT_TAG, logcatMessage)
+                LogLevel.INFO -> Log.i(LOGCAT_TAG, logcatMessage)
+                LogLevel.WARN -> Log.w(LOGCAT_TAG, logcatMessage)
+                LogLevel.ERROR -> Log.e(LOGCAT_TAG, logcatMessage)
+            }
         }
     }
 

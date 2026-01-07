@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
+import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -152,7 +153,6 @@ data class ImageToVideoUiState(
 sealed class ImageToVideoEvent {
     data class ShowToast(val messageResId: Int) : ImageToVideoEvent()
     data class ShowToastMessage(val message: String) : ImageToVideoEvent()
-    data class ConnectionFailed(val failureType: ConnectionFailure) : ImageToVideoEvent()
 }
 
 /**
@@ -749,6 +749,15 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     suspend fun prepareWorkflow(): String? {
         val client = comfyUIClient ?: return null
         val context = applicationContext ?: return null
+
+        // Check connection before uploading
+        val connected = suspendCoroutine { cont ->
+            ConnectionManager.ensureConnection(context) { success ->
+                cont.resumeWith(Result.success(success))
+            }
+        }
+        if (!connected) return null  // Dialog already shown by ensureConnection
+
         val state = _uiState.value
 
         val sourceImage = state.sourceImage
@@ -800,7 +809,9 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                 // Check for stall or auth failure - show dialog instead of toast
                 if (uploadResult.failureType == ConnectionFailure.STALLED ||
                     uploadResult.failureType == ConnectionFailure.AUTHENTICATION) {
-                    _events.emit(ImageToVideoEvent.ConnectionFailed(uploadResult.failureType))
+                    applicationContext?.let { ctx ->
+                        ConnectionManager.showConnectionAlert(ctx, uploadResult.failureType)
+                    }
                 } else {
                     _events.emit(ImageToVideoEvent.ShowToast(R.string.failed_save_image))
                 }

@@ -840,7 +840,7 @@ private fun ImagePreview(
             filename = filename,
             subfolder = "",
             type = "input"
-        ) { bitmap ->
+        ) { bitmap, _ ->
             loadState = if (bitmap != null) {
                 DebugLogger.d(TAG, "ImagePreview: Successfully loaded image")
                 ImageLoadState.Success(bitmap)

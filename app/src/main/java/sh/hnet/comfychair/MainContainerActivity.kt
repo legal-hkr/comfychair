@@ -9,11 +9,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
@@ -23,15 +20,11 @@ import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
-import sh.hnet.comfychair.ui.components.ConnectionAlertState
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.ImageToImageEvent
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
-import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
@@ -137,44 +130,9 @@ class MainContainerActivity : ComponentActivity() {
 
         setContent {
             ComfyChairTheme {
-                // State for connection alert dialog
-                var connectionAlertState by remember { mutableStateOf<ConnectionAlertState?>(null) }
-
-                // Observe connection failure events from GenerationViewModel
-                LaunchedEffect(Unit) {
-                    generationViewModel.events.collect { event ->
-                        if (event is GenerationEvent.ConnectionFailed) {
-                            connectionAlertState = ConnectionAlertState(
-                                failureType = event.failureType,
-                                hasOfflineCache = event.hasOfflineCache
-                            )
-                        }
-                    }
-                }
-
-                // Observe connection failure events from ImageToImageViewModel
-                LaunchedEffect(Unit) {
-                    imageToImageViewModel.events.collect { event ->
-                        if (event is ImageToImageEvent.ConnectionFailed) {
-                            connectionAlertState = ConnectionAlertState(
-                                failureType = event.failureType,
-                                hasOfflineCache = false // Stall failures don't have offline cache option
-                            )
-                        }
-                    }
-                }
-
-                // Observe connection failure events from ImageToVideoViewModel
-                LaunchedEffect(Unit) {
-                    imageToVideoViewModel.events.collect { event ->
-                        if (event is ImageToVideoEvent.ConnectionFailed) {
-                            connectionAlertState = ConnectionAlertState(
-                                failureType = event.failureType,
-                                hasOfflineCache = false // Stall failures don't have offline cache option
-                            )
-                        }
-                    }
-                }
+                // Observe connection alert state from ConnectionManager (single source of truth)
+                val connectionAlertState by ConnectionManager.connectionAlertState.collectAsState()
+                val isReconnecting by ConnectionManager.isReconnecting.collectAsState()
 
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MainNavHost(
@@ -193,22 +151,20 @@ class MainContainerActivity : ComponentActivity() {
                     ConnectionAlertDialog(
                         failureType = state.failureType,
                         hasOfflineCache = state.hasOfflineCache,
-                        onRetry = {
-                            connectionAlertState = null
-                            ConnectionManager.resetReconnectAttempts()
-                            ConnectionManager.openWebSocket()
+                        isReconnecting = isReconnecting,
+                        onReconnect = {
+                            ConnectionManager.retrySingleAttempt(this@MainContainerActivity)
                         },
                         onGoOffline = {
-                            connectionAlertState = null
+                            ConnectionManager.clearConnectionAlert()
                             AppSettings.setOfflineMode(this@MainContainerActivity, true)
-                            // Stay in app with offline mode enabled
                         },
                         onReturnToLogin = {
-                            connectionAlertState = null
+                            ConnectionManager.clearConnectionAlert()
                             generationViewModel.logout()
                             finish()
                         },
-                        onDismiss = { connectionAlertState = null }
+                        onDismiss = { ConnectionManager.clearConnectionAlert() }
                     )
                 }
             }
@@ -262,8 +218,16 @@ class MainContainerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        val isGenerating = generationViewModel.generationState.value.isGenerating
+
+        // Only attempt reconnection if generating (need the connection)
+        // Otherwise, connection will be established on-demand when user taps Generate
+        if (!AppSettings.isOfflineMode(this) && isGenerating) {
+            ConnectionManager.attemptSilentReconnect()
+        }
+
         // Check if there's a pending generation that may have completed while in background
-        if (generationViewModel.generationState.value.isGenerating) {
+        if (isGenerating) {
             generationViewModel.checkServerForCompletion()
         }
     }

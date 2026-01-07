@@ -436,7 +436,7 @@ class MediaViewerViewModel : ViewModel() {
                 // For items with server file info and a client, fetch from server
                 item.filename.isNotEmpty() && comfyUIClient != null -> {
                     kotlin.coroutines.suspendCoroutine { continuation ->
-                        comfyUIClient!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes ->
+                        comfyUIClient!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes, _ ->
                             continuation.resumeWith(Result.success(rawBytes))
                         }
                     }

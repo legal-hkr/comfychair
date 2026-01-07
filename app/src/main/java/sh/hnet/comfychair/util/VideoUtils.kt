@@ -16,6 +16,8 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.connection.ConnectionFailure
+import sh.hnet.comfychair.connection.ConnectionManager
 
 /**
  * Utility functions for video operations shared across video generation screens.
@@ -75,9 +77,16 @@ object VideoUtils {
                     val type = videoInfo.optString("type", "output")
 
                     // Fetch video bytes
-                    client.fetchVideo(filename, subfolder, type) { videoBytes ->
+                    client.fetchVideo(filename, subfolder, type) { videoBytes, failureType ->
                         if (videoBytes == null) {
-                            mainHandler.post { onComplete(null) }
+                            if (failureType == ConnectionFailure.STALLED) {
+                                mainHandler.post {
+                                    ConnectionManager.showConnectionAlert(context, failureType)
+                                    onComplete(null)
+                                }
+                            } else {
+                                mainHandler.post { onComplete(null) }
+                            }
                             return@fetchVideo
                         }
 

@@ -62,6 +62,7 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
@@ -96,6 +97,7 @@ fun ImageToVideoScreen(
     val generationState by generationViewModel.generationState.collectAsState()
     val uiState by imageToVideoViewModel.uiState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
+    val isConnecting by ConnectionManager.isConnecting.collectAsState()
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == ImageToVideoViewModel.OWNER_ID
@@ -156,9 +158,6 @@ fun ImageToVideoScreen(
                 }
                 is ImageToVideoEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                }
-                is ImageToVideoEvent.ConnectionFailed -> {
-                    // Handled by MainContainerActivity
                 }
             }
         }
@@ -379,6 +378,7 @@ fun ImageToVideoScreen(
                 isEnabled = imageToVideoViewModel.hasValidConfiguration() && uiState.positivePrompt.isNotBlank(),
                 isOfflineMode = isOfflineMode,
                 isUploading = uiState.isUploading,
+                isConnecting = isConnecting,
                 onGenerate = {
                     scope.launch {
                         val workflowJson = imageToVideoViewModel.prepareWorkflow()

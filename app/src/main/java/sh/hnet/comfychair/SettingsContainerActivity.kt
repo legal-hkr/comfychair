@@ -9,9 +9,12 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
 import sh.hnet.comfychair.ui.navigation.SettingsNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.SettingsEvent
@@ -53,6 +56,10 @@ class SettingsContainerActivity : ComponentActivity() {
 
         setContent {
             ComfyChairTheme {
+                // Observe connection alert state from ConnectionManager (single source of truth)
+                val connectionAlertState by ConnectionManager.connectionAlertState.collectAsState()
+                val isReconnecting by ConnectionManager.isReconnecting.collectAsState()
+
                 // Listen for RefreshNeeded and NavigateToLogin events
                 LaunchedEffect(Unit) {
                     settingsViewModel.events.collect { event ->
@@ -92,6 +99,27 @@ class SettingsContainerActivity : ComponentActivity() {
                         workflowManagementViewModel = workflowManagementViewModel,
                         onNavigateToGeneration = { finish() },
                         onLogout = { logout() }
+                    )
+                }
+
+                // Show connection alert dialog when connection fails
+                connectionAlertState?.let { state ->
+                    ConnectionAlertDialog(
+                        failureType = state.failureType,
+                        hasOfflineCache = state.hasOfflineCache,
+                        isReconnecting = isReconnecting,
+                        onReconnect = {
+                            ConnectionManager.retrySingleAttempt(this@SettingsContainerActivity)
+                        },
+                        onGoOffline = {
+                            ConnectionManager.clearConnectionAlert()
+                            AppSettings.setOfflineMode(this@SettingsContainerActivity, true)
+                        },
+                        onReturnToLogin = {
+                            ConnectionManager.clearConnectionAlert()
+                            logout()
+                        },
+                        onDismiss = { ConnectionManager.clearConnectionAlert() }
                     )
                 }
             }

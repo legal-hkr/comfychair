@@ -62,6 +62,7 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.cache.MaskEditorStateHolder
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
@@ -96,6 +97,7 @@ fun ImageToImageScreen(
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
     val uiState by imageToImageViewModel.uiState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
+    val isConnecting by ConnectionManager.isConnecting.collectAsState()
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == ImageToImageViewModel.OWNER_ID
@@ -140,9 +142,6 @@ fun ImageToImageScreen(
                 }
                 is ImageToImageEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                }
-                is ImageToImageEvent.ConnectionFailed -> {
-                    // Handled by MainContainerActivity
                 }
             }
         }
@@ -387,6 +386,7 @@ fun ImageToImageScreen(
                     uiState.sourceImage != null,
                 isOfflineMode = isOfflineMode,
                 isUploading = uiState.isUploading,
+                isConnecting = isConnecting,
                 onGenerate = {
                     scope.launch {
                         // In inpainting mode, require mask
