@@ -536,6 +536,10 @@
     <string name="field_desc_upscale_method">Interpolationsmethode für Hochskalierung</string>
     <string name="field_desc_scale_by">Skalierungsfaktor für Hochskalierung</string>
     <string name="field_desc_stop_at_clip_layer">CLIP-Schicht zum Stoppen (negativ)</string>
+    <string name="field_text_encoder">Textencoder</string>
+    <string name="field_desc_text_encoder">Textencoder-Modell für Prompt-Verarbeitung</string>
+    <string name="field_latent_upscale_model">Latent-Upscale-Modell</string>
+    <string name="field_desc_latent_upscale_model">Modell für Latent-Space-Hochskalierung</string>
     <string name="field_desc_fallback">Erforderliches Feld: %1$s</string>
     <string name="content_description_show_help">Hilfe anzeigen</string>
 </resources>

@@ -643,7 +643,8 @@ fun WorkflowGraphCanvas(
                     displayNameResolver = displayNameResolver,
                     inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
                     showEditIcon = isEditMode,
-                    editIconDrawable = editIconDrawable
+                    editIconDrawable = editIconDrawable,
+                    mappedFields = graph.mappedFields
                 )
             }
 
@@ -852,7 +853,8 @@ private fun DrawScope.drawNode(
     displayNameResolver: (String) -> String = { it },
     inputWireColors: Map<String, Int> = emptyMap(),
     showEditIcon: Boolean = false,
-    editIconDrawable: Drawable? = null
+    editIconDrawable: Drawable? = null,
+    mappedFields: Map<Pair<String, String>, String> = emptyMap()
 ) {
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
     val cornerRadius = 16f
@@ -1051,7 +1053,7 @@ private fun DrawScope.drawNode(
 
             // Only show value string for literal inputs (not connection-type)
             val valueStr = if (!isConnectionInput) {
-                currentValue?.let { formatInputValue(it, uiFieldPrefix, displayNameResolver) }
+                currentValue?.let { formatInputValue(it, node.id, name, mappedFields, uiFieldPrefix, displayNameResolver) }
             } else {
                 null
             }
@@ -1715,9 +1717,14 @@ private fun truncateText(text: String, maxWidth: Float, paint: Paint): String {
 /**
  * Format an input value for display.
  * Template placeholders like {{clip_name}} are converted to UI display names.
+ * Also shows "UI: X" label for fields that are mapped in the original workflow,
+ * even if the current value is a literal (e.g., saved edit replaced placeholder).
  */
 private fun formatInputValue(
     value: Any,
+    nodeId: String,
+    inputName: String,
+    mappedFields: Map<Pair<String, String>, String>,
     uiFieldPrefix: String,
     displayNameResolver: (String) -> String
 ): String {
@@ -1731,14 +1738,31 @@ private fun formatInputValue(
                 val placeholderName = match.groupValues[1]
                 val displayName = displayNameResolver(placeholderName)
                 uiFieldPrefix.format(displayName)
-            } else if (value.length > 20) {
-                "\"${value.take(17)}...\""
             } else {
-                "\"$value\""
+                // Check if this field is mapped in the original workflow
+                val mappedPlaceholder = mappedFields[Pair(nodeId, inputName)]
+                if (mappedPlaceholder != null) {
+                    // Show "UI: X" label for mapped field even with literal value
+                    val displayName = displayNameResolver(mappedPlaceholder)
+                    uiFieldPrefix.format(displayName)
+                } else if (value.length > 20) {
+                    "\"${value.take(17)}...\""
+                } else {
+                    "\"$value\""
+                }
             }
         }
 
-        is Number -> value.toString()
+        is Number -> {
+            // Check if this field is mapped in the original workflow
+            val mappedPlaceholder = mappedFields[Pair(nodeId, inputName)]
+            if (mappedPlaceholder != null) {
+                val displayName = displayNameResolver(mappedPlaceholder)
+                uiFieldPrefix.format(displayName)
+            } else {
+                value.toString()
+            }
+        }
         is Boolean -> value.toString()
         else -> value.toString().take(20)
     }

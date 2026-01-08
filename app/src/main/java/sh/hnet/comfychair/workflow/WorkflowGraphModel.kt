@@ -142,7 +142,12 @@ data class WorkflowGraph(
     val edges: List<WorkflowEdge>,
     val groups: List<WorkflowGroup> = emptyList(),
     val notes: List<WorkflowNote> = emptyList(),
-    val templateVariables: Set<String>
+    val templateVariables: Set<String>,
+    /**
+     * Maps (nodeId, inputName) pairs to placeholder names for fields that have {{...}} values.
+     * Used to show "UI: X" labels even when saved edits replace placeholders with literal values.
+     */
+    val mappedFields: Map<Pair<String, String>, String> = emptyMap()
 )
 
 /**
@@ -156,7 +161,9 @@ data class MutableWorkflowGraph(
     val edges: MutableList<WorkflowEdge>,
     val groups: MutableList<WorkflowGroup>,
     val notes: MutableList<WorkflowNote>,
-    val templateVariables: MutableSet<String>
+    val templateVariables: MutableSet<String>,
+    /** Immutable - original workflow mappings don't change during editing */
+    val mappedFields: Map<Pair<String, String>, String> = emptyMap()
 ) {
     /**
      * Convert to immutable WorkflowGraph
@@ -168,7 +175,8 @@ data class MutableWorkflowGraph(
         edges = edges.toList(),
         groups = groups.toList(),
         notes = notes.toList(),
-        templateVariables = templateVariables.toSet()
+        templateVariables = templateVariables.toSet(),
+        mappedFields = mappedFields
     )
 
     companion object {
@@ -182,7 +190,8 @@ data class MutableWorkflowGraph(
             edges = graph.edges.toMutableList(),
             groups = graph.groups.toMutableList(),
             notes = graph.notes.toMutableList(),
-            templateVariables = graph.templateVariables.toMutableSet()
+            templateVariables = graph.templateVariables.toMutableSet(),
+            mappedFields = graph.mappedFields
         )
     }
 }

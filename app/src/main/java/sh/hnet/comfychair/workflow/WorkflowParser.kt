@@ -24,6 +24,7 @@ class WorkflowParser {
         val edges = mutableListOf<WorkflowEdge>()
         val groups = mutableListOf<WorkflowGroup>()
         val allTemplateVars = mutableSetOf<String>()
+        val mappedFields = mutableMapOf<Pair<String, String>, String>()
 
         // Parse groups if present (at root level)
         if (json.has("groups")) {
@@ -76,6 +77,8 @@ class WorkflowParser {
                         templateKeys.add(key)
                         // Also track the placeholder name for the graph
                         allTemplateVars.add(placeholderName)
+                        // Track mapped field: (nodeId, inputName) -> placeholderName
+                        mappedFields[Pair(nodeId, key)] = placeholderName
                     }
                 }
             }
@@ -137,7 +140,7 @@ class WorkflowParser {
             emptyList()
         }
 
-        DebugLogger.d(TAG, "Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${groups.size} groups, ${notes.size} notes, ${allTemplateVars.size} template vars")
+        DebugLogger.d(TAG, "Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${groups.size} groups, ${notes.size} notes, ${allTemplateVars.size} template vars, ${mappedFields.size} mapped fields")
 
         return WorkflowGraph(
             name = workflowName,
@@ -146,7 +149,8 @@ class WorkflowParser {
             edges = edges,
             groups = groups,
             notes = notes,
-            templateVariables = allTemplateVars
+            templateVariables = allTemplateVars,
+            mappedFields = mappedFields
         )
     }
 

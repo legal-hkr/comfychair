@@ -357,6 +357,10 @@
     <string name="field_desc_upscale_method">Interpolation method for upscaling</string>
     <string name="field_desc_scale_by">Scale factor for upscaling</string>
     <string name="field_desc_stop_at_clip_layer">CLIP layer to stop at (negative)</string>
+    <string name="field_text_encoder">Text encoder</string>
+    <string name="field_desc_text_encoder">Text encoder model for prompt processing</string>
+    <string name="field_latent_upscale_model">Latent upscale model</string>
+    <string name="field_desc_latent_upscale_model">Model for latent space upscaling</string>
     <string name="field_desc_fallback">Required field: %1$s</string>
 
     <!-- Settings screen strings -->

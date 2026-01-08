@@ -538,6 +538,10 @@
     <string name="field_desc_upscale_method">Metoda interpolacji do powiększania</string>
     <string name="field_desc_scale_by">Współczynnik skalowania do powiększania</string>
     <string name="field_desc_stop_at_clip_layer">Warstwa CLIP, na której zatrzymać (ujemna)</string>
+    <string name="field_text_encoder">Enkoder tekstu</string>
+    <string name="field_desc_text_encoder">Model enkodera tekstu do przetwarzania promptów</string>
+    <string name="field_latent_upscale_model">Model powiększania latentnego</string>
+    <string name="field_desc_latent_upscale_model">Model do powiększania w przestrzeni latentnej</string>
     <string name="field_desc_fallback">Wymagane pole: %1$s</string>
     <string name="content_description_show_help">Pokaż pomoc</string>
 </resources>

@@ -538,6 +538,10 @@
     <string name="field_desc_upscale_method">放大的插值方法</string>
     <string name="field_desc_scale_by">放大的缩放因子</string>
     <string name="field_desc_stop_at_clip_layer">停止的 CLIP 层（负数）</string>
+    <string name="field_text_encoder">文本编码器</string>
+    <string name="field_desc_text_encoder">用于提示词处理的文本编码器模型</string>
+    <string name="field_latent_upscale_model">潜空间放大模型</string>
+    <string name="field_desc_latent_upscale_model">用于潜空间放大的模型</string>
     <string name="field_desc_fallback">必填字段：%1$s</string>
     <string name="content_description_show_help">显示帮助</string>
 </resources>

@@ -538,6 +538,10 @@
     <string name="field_desc_upscale_method">Méthode d\'interpolation pour l\'upscale</string>
     <string name="field_desc_scale_by">Facteur d\'échelle pour l\'upscale</string>
     <string name="field_desc_stop_at_clip_layer">Couche CLIP où s\'arrêter (négative)</string>
+    <string name="field_text_encoder">Encodeur de texte</string>
+    <string name="field_desc_text_encoder">Modèle d\'encodeur de texte pour le traitement des prompts</string>
+    <string name="field_latent_upscale_model">Modèle d\'upscale latent</string>
+    <string name="field_desc_latent_upscale_model">Modèle pour l\'upscale dans l\'espace latent</string>
     <string name="field_desc_fallback">Champ requis : %1$s</string>
     <string name="content_description_show_help">Afficher l\'aide</string>
 </resources>

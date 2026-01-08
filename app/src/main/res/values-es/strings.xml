@@ -538,6 +538,10 @@
     <string name="field_desc_upscale_method">Método de interpolación para escalar</string>
     <string name="field_desc_scale_by">Factor de escala para escalado</string>
     <string name="field_desc_stop_at_clip_layer">Capa CLIP donde detenerse (negativa)</string>
+    <string name="field_text_encoder">Codificador de texto</string>
+    <string name="field_desc_text_encoder">Modelo de codificador de texto para procesamiento de prompts</string>
+    <string name="field_latent_upscale_model">Modelo de escalado latente</string>
+    <string name="field_desc_latent_upscale_model">Modelo para escalado en espacio latente</string>
     <string name="field_desc_fallback">Campo requerido: %1$s</string>
     <string name="content_description_show_help">Mostrar ayuda</string>
 </resources>

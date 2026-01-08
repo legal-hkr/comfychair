@@ -281,7 +281,13 @@ object FieldDisplayRegistry {
         "batch_size" to Pair(R.string.label_batch_size, R.string.field_desc_batch_size),
         "upscale_method" to Pair(R.string.label_upscale_method, R.string.field_desc_upscale_method),
         "scale_by" to Pair(R.string.label_scale_by, R.string.field_desc_scale_by),
-        "stop_at_clip_layer" to Pair(R.string.label_stop_at_clip_layer, R.string.field_desc_stop_at_clip_layer)
+        "stop_at_clip_layer" to Pair(R.string.label_stop_at_clip_layer, R.string.field_desc_stop_at_clip_layer),
+        // LTX 2.0 specific fields
+        "latent_upscale_model" to Pair(R.string.field_latent_upscale_model, R.string.field_desc_latent_upscale_model),
+        "text_encoder_name" to Pair(R.string.field_text_encoder, R.string.field_desc_text_encoder),
+        "text_encoder" to Pair(R.string.field_text_encoder, R.string.field_desc_text_encoder),
+        // ComfyUI field name aliases (map to same display as placeholders)
+        "frames_number" to Pair(R.string.length_label, R.string.field_desc_length)
     )
 
     /**
