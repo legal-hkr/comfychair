@@ -70,7 +70,7 @@ import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
-import sh.hnet.comfychair.ui.components.config.ImageToImageCallbacks
+import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
@@ -498,7 +498,7 @@ fun ImageToImageScreen(
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             val callbacks = remember(imageToImageViewModel) {
-                ImageToImageCallbacks(
+                UnifiedCallbacks(
                     // Mode selection
                     onModeChange = imageToImageViewModel::onModeChange,
                     // Reference image callbacks (editing mode)

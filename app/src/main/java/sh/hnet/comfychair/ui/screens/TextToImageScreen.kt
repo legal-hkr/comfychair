@@ -57,7 +57,7 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
-import sh.hnet.comfychair.ui.components.config.TextToImageCallbacks
+import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
@@ -358,7 +358,7 @@ fun TextToImageScreen(
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             val callbacks = remember(textToImageViewModel) {
-                TextToImageCallbacks(
+                UnifiedCallbacks(
                     onWorkflowChange = textToImageViewModel::onWorkflowChange,
                     onViewWorkflow = {
                         val workflowId = uiState.availableWorkflows

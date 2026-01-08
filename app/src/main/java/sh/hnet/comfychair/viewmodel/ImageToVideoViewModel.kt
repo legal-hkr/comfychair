@@ -19,6 +19,7 @@ import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
@@ -67,46 +68,46 @@ data class ImageToVideoUiState(
     val workflowPlaceholders: Set<String> = emptySet(),
 
     // Model selections - single-model patterns (e.g., LTX 2.0)
-    val selectedCheckpoint: String = "",
-    val selectedUnet: String = "",
-    val selectedLoraName: String = "",  // Mandatory LoRA dropdown
+    override val selectedCheckpoint: String = "",
+    override val selectedUnet: String = "",
+    override val selectedLoraName: String = "",  // Mandatory LoRA dropdown
     // Model selections - dual-model patterns (e.g., Wan 2.2)
     val selectedHighnoiseUnet: String = "",
     val selectedLownoiseUnet: String = "",
     val selectedHighnoiseLora: String = "",
     val selectedLownoiseLora: String = "",
     // Model selections - common
-    val selectedVae: String = "",
-    val selectedClip: String = "",
-    val selectedClip1: String = "",
-    val selectedClip2: String = "",
-    val selectedClip3: String = "",
-    val selectedClip4: String = "",
-    val selectedTextEncoder: String = "",
-    val selectedLatentUpscaleModel: String = "",
+    override val selectedVae: String = "",
+    override val selectedClip: String = "",
+    override val selectedClip1: String = "",
+    override val selectedClip2: String = "",
+    override val selectedClip3: String = "",
+    override val selectedClip4: String = "",
+    override val selectedTextEncoder: String = "",
+    override val selectedLatentUpscaleModel: String = "",
 
     // Available models
-    val availableCheckpoints: List<String> = emptyList(),
-    val availableUnets: List<String> = emptyList(),
-    val availableLoras: List<String> = emptyList(),
-    val availableVaes: List<String> = emptyList(),
-    val availableClips: List<String> = emptyList(),
-    val availableUpscaleMethods: List<String> = emptyList(),
-    val availableTextEncoders: List<String> = emptyList(),
-    val availableLatentUpscaleModels: List<String> = emptyList(),
+    override val availableCheckpoints: List<String> = emptyList(),
+    override val availableUnets: List<String> = emptyList(),
+    override val availableLoras: List<String> = emptyList(),
+    override val availableVaes: List<String> = emptyList(),
+    override val availableClips: List<String> = emptyList(),
+    override val availableUpscaleMethods: List<String> = emptyList(),
+    override val availableTextEncoders: List<String> = emptyList(),
+    override val availableLatentUpscaleModels: List<String> = emptyList(),
 
     // Workflow-specific filtered options (from actual node type in workflow)
-    val filteredCheckpoints: List<String>? = null,
-    val filteredUnets: List<String>? = null,
-    val filteredLoras: List<String>? = null,  // For mandatory LoRA dropdown
-    val filteredVaes: List<String>? = null,
-    val filteredClips: List<String>? = null,
-    val filteredClips1: List<String>? = null,
-    val filteredClips2: List<String>? = null,
-    val filteredClips3: List<String>? = null,
-    val filteredClips4: List<String>? = null,
-    val filteredTextEncoders: List<String>? = null,
-    val filteredLatentUpscaleModels: List<String>? = null,
+    override val filteredCheckpoints: List<String>? = null,
+    override val filteredUnets: List<String>? = null,
+    override val filteredLoras: List<String>? = null,  // For mandatory LoRA dropdown
+    override val filteredVaes: List<String>? = null,
+    override val filteredClips: List<String>? = null,
+    override val filteredClips1: List<String>? = null,
+    override val filteredClips2: List<String>? = null,
+    override val filteredClips3: List<String>? = null,
+    override val filteredClips4: List<String>? = null,
+    override val filteredTextEncoders: List<String>? = null,
+    override val filteredLatentUpscaleModels: List<String>? = null,
 
     // Generation parameters
     val width: String = "848",
@@ -114,17 +115,17 @@ data class ImageToVideoUiState(
     val megapixels: String = "1.0",
     val length: String = "33",
     val fps: String = "16",
-    val steps: String = "20",
-    val cfg: String = "7.0",
-    val sampler: String = "euler",
-    val scheduler: String = "normal",
-    val randomSeed: Boolean = true,
-    val seed: String = "0",
-    val denoise: String = "1.0",
-    val batchSize: String = "1",
-    val upscaleMethod: String = "nearest-exact",
-    val scaleBy: String = "1.5",
-    val stopAtClipLayer: String = "-1",
+    override val steps: String = "20",
+    override val cfg: String = "7.0",
+    override val sampler: String = "euler",
+    override val scheduler: String = "normal",
+    override val randomSeed: Boolean = true,
+    override val seed: String = "0",
+    override val denoise: String = "1.0",
+    override val batchSize: String = "1",
+    override val upscaleMethod: String = "nearest-exact",
+    override val scaleBy: String = "1.5",
+    override val stopAtClipLayer: String = "-1",
 
     // Validation errors
     val widthError: String? = null,
@@ -132,13 +133,13 @@ data class ImageToVideoUiState(
     val megapixelsError: String? = null,
     val lengthError: String? = null,
     val fpsError: String? = null,
-    val stepsError: String? = null,
-    val cfgError: String? = null,
-    val seedError: String? = null,
-    val denoiseError: String? = null,
-    val batchSizeError: String? = null,
-    val scaleByError: String? = null,
-    val stopAtClipLayerError: String? = null,
+    override val stepsError: String? = null,
+    override val cfgError: String? = null,
+    override val seedError: String? = null,
+    override val denoiseError: String? = null,
+    override val batchSizeError: String? = null,
+    override val scaleByError: String? = null,
+    override val stopAtClipLayerError: String? = null,
 
     // Positive prompt (global)
     val positivePrompt: String = "",
@@ -170,12 +171,15 @@ data class ImageToVideoUiState(
     val highnoiseLoraChain: List<LoraSelection> = emptyList(),
     val lownoiseLoraChain: List<LoraSelection> = emptyList(),
 
+    // Primary LoRA chain (for CommonGenerationState interface - video screens use dual chains)
+    override val loraChain: List<LoraSelection> = emptyList(),
+
     // Workflow capabilities (unified flags derived from placeholders)
-    val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
+    override val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
 
     // Upload state
     val isUploading: Boolean = false
-)
+) : CommonGenerationState
 
 /**
  * Events emitted by the image-to-video screen

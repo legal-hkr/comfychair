@@ -70,7 +70,7 @@ import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
-import sh.hnet.comfychair.ui.components.config.ImageToVideoCallbacks
+import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
@@ -474,7 +474,7 @@ fun ImageToVideoScreen(
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
             val callbacks = remember(imageToVideoViewModel) {
-                ImageToVideoCallbacks(
+                UnifiedCallbacks(
                     onWorkflowChange = imageToVideoViewModel::onWorkflowChange,
                     onViewWorkflow = {
                         val workflowId = uiState.availableWorkflows

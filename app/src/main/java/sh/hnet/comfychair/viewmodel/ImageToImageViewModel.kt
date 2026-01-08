@@ -24,6 +24,7 @@ import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
@@ -110,70 +111,72 @@ data class ImageToImageUiState(
     val workflowPlaceholders: Set<String> = emptySet(),
 
     // Workflow capabilities (unified flags derived from placeholders)
-    val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
+    override val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
 
     // Available models (from server)
-    val checkpoints: List<String> = emptyList(),
-    val unets: List<String> = emptyList(),
-    val vaes: List<String> = emptyList(),
-    val clips: List<String> = emptyList(),
-    val availableLoras: List<String> = emptyList(),
-    val availableUpscaleMethods: List<String> = emptyList(),
-    val textEncoders: List<String> = emptyList(),
-    val latentUpscaleModels: List<String> = emptyList(),
+    override val availableCheckpoints: List<String> = emptyList(),
+    override val availableUnets: List<String> = emptyList(),
+    override val availableVaes: List<String> = emptyList(),
+    override val availableClips: List<String> = emptyList(),
+    override val availableLoras: List<String> = emptyList(),
+    override val availableUpscaleMethods: List<String> = emptyList(),
+    override val availableTextEncoders: List<String> = emptyList(),
+    override val availableLatentUpscaleModels: List<String> = emptyList(),
 
     // Inpainting mode - unified model selections (visibility driven by capabilities)
-    val selectedCheckpoint: String = "",
-    val selectedUnet: String = "",
-    val selectedVae: String = "",
-    val selectedClip: String = "",
-    val selectedClip1: String = "",
-    val selectedClip2: String = "",
-    val selectedClip3: String = "",
-    val selectedClip4: String = "",
-    val selectedTextEncoder: String = "",
-    val selectedLatentUpscaleModel: String = "",
+    override val selectedCheckpoint: String = "",
+    override val selectedUnet: String = "",
+    override val selectedVae: String = "",
+    override val selectedClip: String = "",
+    override val selectedClip1: String = "",
+    override val selectedClip2: String = "",
+    override val selectedClip3: String = "",
+    override val selectedClip4: String = "",
+    override val selectedTextEncoder: String = "",
+    override val selectedLatentUpscaleModel: String = "",
+    override val selectedLoraName: String = "",  // Mandatory LoRA (for CommonGenerationState interface)
 
     // Workflow-specific filtered options (from actual node type in workflow)
-    val filteredCheckpoints: List<String>? = null,
-    val filteredUnets: List<String>? = null,
-    val filteredVaes: List<String>? = null,
-    val filteredClips: List<String>? = null,
-    val filteredClips1: List<String>? = null,
-    val filteredClips2: List<String>? = null,
-    val filteredClips3: List<String>? = null,
-    val filteredClips4: List<String>? = null,
-    val filteredTextEncoders: List<String>? = null,
-    val filteredLatentUpscaleModels: List<String>? = null,
+    override val filteredCheckpoints: List<String>? = null,
+    override val filteredUnets: List<String>? = null,
+    override val filteredVaes: List<String>? = null,
+    override val filteredClips: List<String>? = null,
+    override val filteredClips1: List<String>? = null,
+    override val filteredClips2: List<String>? = null,
+    override val filteredClips3: List<String>? = null,
+    override val filteredClips4: List<String>? = null,
+    override val filteredTextEncoders: List<String>? = null,
+    override val filteredLatentUpscaleModels: List<String>? = null,
+    override val filteredLoras: List<String>? = null,
 
     // Inpainting mode - unified generation parameters
     val positivePrompt: String = "",
     val negativePrompt: String = "",
     val megapixels: String = "1.0",
-    val steps: String = "20",
-    val cfg: String = "7.0",
-    val sampler: String = "euler",
-    val scheduler: String = "normal",
-    val randomSeed: Boolean = true,
-    val seed: String = "0",
-    val denoise: String = "1.0",
-    val batchSize: String = "1",
-    val upscaleMethod: String = "nearest-exact",
-    val scaleBy: String = "1.5",
-    val stopAtClipLayer: String = "-1",
+    override val steps: String = "20",
+    override val cfg: String = "7.0",
+    override val sampler: String = "euler",
+    override val scheduler: String = "normal",
+    override val randomSeed: Boolean = true,
+    override val seed: String = "0",
+    override val denoise: String = "1.0",
+    override val batchSize: String = "1",
+    override val upscaleMethod: String = "nearest-exact",
+    override val scaleBy: String = "1.5",
+    override val stopAtClipLayer: String = "-1",
 
     // Inpainting mode - unified LoRA chain
-    val loraChain: List<LoraSelection> = emptyList(),
+    override val loraChain: List<LoraSelection> = emptyList(),
 
     // Validation errors (shared between modes)
     val megapixelsError: String? = null,
-    val cfgError: String? = null,
-    val stepsError: String? = null,
-    val seedError: String? = null,
-    val denoiseError: String? = null,
-    val batchSizeError: String? = null,
-    val scaleByError: String? = null,
-    val stopAtClipLayerError: String? = null,
+    override val cfgError: String? = null,
+    override val stepsError: String? = null,
+    override val seedError: String? = null,
+    override val denoiseError: String? = null,
+    override val batchSizeError: String? = null,
+    override val scaleByError: String? = null,
+    override val stopAtClipLayerError: String? = null,
 
     // Deferred model selections for inpainting (for restoring after models load)
     val deferredCheckpoint: String? = null,
@@ -246,7 +249,7 @@ data class ImageToImageUiState(
 
     // Upload state
     val isUploading: Boolean = false
-)
+) : CommonGenerationState
 
 /**
  * Events emitted by the Image-to-image screen
@@ -326,13 +329,13 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         ?: validateModelSelection(state.selectedEditingLatentUpscaleModel, cache.latentUpscaleModels)
 
                     state.copy(
-                        checkpoints = cache.checkpoints,
-                        unets = cache.unets,
-                        vaes = cache.vaes,
-                        clips = cache.clips,
+                        availableCheckpoints = cache.checkpoints,
+                        availableUnets = cache.unets,
+                        availableVaes = cache.vaes,
+                        availableClips = cache.clips,
                         availableLoras = cache.loras,
-                        textEncoders = cache.textEncoders,
-                        latentUpscaleModels = cache.latentUpscaleModels,
+                        availableTextEncoders = cache.textEncoders,
+                        availableLatentUpscaleModels = cache.latentUpscaleModels,
                         // Apply validated model selections
                         selectedCheckpoint = checkpoint,
                         selectedUnet = unet,
