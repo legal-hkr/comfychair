@@ -97,8 +97,13 @@ data class ImageToVideoUiState(
     // Generation parameters
     val width: String = "848",
     val height: String = "480",
+    val megapixels: String = "1.0",
     val length: String = "33",
     val fps: String = "16",
+    val steps: String = "20",
+    val cfg: String = "7.0",
+    val sampler: String = "euler",
+    val scheduler: String = "normal",
     val randomSeed: Boolean = true,
     val seed: String = "0",
     val denoise: String = "1.0",
@@ -110,8 +115,11 @@ data class ImageToVideoUiState(
     // Validation errors
     val widthError: String? = null,
     val heightError: String? = null,
+    val megapixelsError: String? = null,
     val lengthError: String? = null,
     val fpsError: String? = null,
+    val stepsError: String? = null,
+    val cfgError: String? = null,
     val seedError: String? = null,
     val denoiseError: String? = null,
     val batchSizeError: String? = null,
@@ -582,6 +590,12 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         if (error == null) savePreferences()
     }
 
+    fun onMegapixelsChange(megapixels: String) {
+        val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
+        _uiState.value = _uiState.value.copy(megapixels = megapixels, megapixelsError = error)
+        if (error == null) savePreferences()
+    }
+
     fun onLengthChange(length: String) {
         val error = validateVideoLength(length)
         _uiState.value = _uiState.value.copy(length = length, lengthError = error)
@@ -592,6 +606,28 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         val error = ValidationUtils.validateFrameRate(fps, applicationContext)
         _uiState.value = _uiState.value.copy(fps = fps, fpsError = error)
         if (error == null) savePreferences()
+    }
+
+    fun onStepsChange(steps: String) {
+        val error = ValidationUtils.validateSteps(steps, applicationContext)
+        _uiState.value = _uiState.value.copy(steps = steps, stepsError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onCfgChange(cfg: String) {
+        val error = ValidationUtils.validateCfg(cfg, applicationContext)
+        _uiState.value = _uiState.value.copy(cfg = cfg, cfgError = error)
+        if (error == null) savePreferences()
+    }
+
+    fun onSamplerChange(sampler: String) {
+        _uiState.value = _uiState.value.copy(sampler = sampler)
+        savePreferences()
+    }
+
+    fun onSchedulerChange(scheduler: String) {
+        _uiState.value = _uiState.value.copy(scheduler = scheduler)
+        savePreferences()
     }
 
     fun onRandomSeedToggle() {

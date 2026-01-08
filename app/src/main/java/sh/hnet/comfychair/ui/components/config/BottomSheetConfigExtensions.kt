@@ -25,6 +25,7 @@ data class TextToImageCallbacks(
     val onClip2Change: (String) -> Unit,
     val onClip3Change: (String) -> Unit,
     val onClip4Change: (String) -> Unit,
+    val onMandatoryLoraChange: (String) -> Unit,  // Mandatory LoRA dropdown (single selection)
     val onWidthChange: (String) -> Unit,
     val onHeightChange: (String) -> Unit,
     val onStepsChange: (String) -> Unit,
@@ -41,7 +42,7 @@ data class TextToImageCallbacks(
     val onStopAtClipLayerChange: (String) -> Unit,
     val onAddLora: () -> Unit,
     val onRemoveLora: (Int) -> Unit,
-    val onLoraNameChange: (Int, String) -> Unit,
+    val onLoraNameChange: (Int, String) -> Unit,  // LoRA chain item name change
     val onLoraStrengthChange: (Int, Float) -> Unit
 )
 
@@ -62,8 +63,13 @@ data class TextToVideoCallbacks(
     val onClip4Change: (String) -> Unit,
     val onWidthChange: (String) -> Unit,
     val onHeightChange: (String) -> Unit,
+    val onMegapixelsChange: (String) -> Unit,
     val onLengthChange: (String) -> Unit,
     val onFpsChange: (String) -> Unit,
+    val onStepsChange: (String) -> Unit,
+    val onCfgChange: (String) -> Unit,
+    val onSamplerChange: (String) -> Unit,
+    val onSchedulerChange: (String) -> Unit,
     val onRandomSeedToggle: () -> Unit,
     val onSeedChange: (String) -> Unit,
     val onRandomizeSeed: () -> Unit,
@@ -99,8 +105,13 @@ data class ImageToVideoCallbacks(
     val onClip4Change: (String) -> Unit,
     val onWidthChange: (String) -> Unit,
     val onHeightChange: (String) -> Unit,
+    val onMegapixelsChange: (String) -> Unit,
     val onLengthChange: (String) -> Unit,
     val onFpsChange: (String) -> Unit,
+    val onStepsChange: (String) -> Unit,
+    val onCfgChange: (String) -> Unit,
+    val onSamplerChange: (String) -> Unit,
+    val onSchedulerChange: (String) -> Unit,
     val onRandomSeedToggle: () -> Unit,
     val onSeedChange: (String) -> Unit,
     val onRandomizeSeed: () -> Unit,
@@ -357,6 +368,14 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
             )
         ),
         lora = LoraConfig(
+            loraName = if (capabilities.hasLoraName) ModelField(
+                label = R.string.label_lora,
+                selectedValue = selectedLoraName,
+                options = availableLoras,
+                filteredOptions = filteredLoras,
+                onValueChange = callbacks.onMandatoryLoraChange,
+                isVisible = true
+            ) else null,
             primaryChain = if (capabilities.hasLora) LoraChainField(
                 title = R.string.lora_chain_title,
                 chain = loraChain,
@@ -481,6 +500,12 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 error = heightError,
                 isVisible = capabilities.hasHeight
             ),
+            megapixels = NumericField(
+                value = megapixels,
+                onValueChange = callbacks.onMegapixelsChange,
+                error = megapixelsError,
+                isVisible = capabilities.hasMegapixels
+            ),
             length = NumericField(
                 value = length,
                 onValueChange = callbacks.onLengthChange,
@@ -492,6 +517,30 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 onValueChange = callbacks.onFpsChange,
                 error = fpsError,
                 isVisible = capabilities.hasFrameRate
+            ),
+            steps = NumericField(
+                value = steps,
+                onValueChange = callbacks.onStepsChange,
+                error = stepsError,
+                isVisible = capabilities.hasSteps
+            ),
+            cfg = NumericField(
+                value = cfg,
+                onValueChange = callbacks.onCfgChange,
+                error = cfgError,
+                isVisible = capabilities.hasCfg
+            ),
+            sampler = DropdownField(
+                selectedValue = sampler,
+                options = SamplerOptions.SAMPLERS,
+                onValueChange = callbacks.onSamplerChange,
+                isVisible = capabilities.hasSamplerName
+            ),
+            scheduler = DropdownField(
+                selectedValue = scheduler,
+                options = SamplerOptions.SCHEDULERS,
+                onValueChange = callbacks.onSchedulerChange,
+                isVisible = capabilities.hasScheduler
             ),
             seed = SeedConfig(
                 randomSeed = randomSeed,
@@ -668,6 +717,12 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 error = heightError,
                 isVisible = capabilities.hasHeight
             ),
+            megapixels = NumericField(
+                value = megapixels,
+                onValueChange = callbacks.onMegapixelsChange,
+                error = megapixelsError,
+                isVisible = capabilities.hasMegapixels
+            ),
             length = NumericField(
                 value = length,
                 onValueChange = callbacks.onLengthChange,
@@ -679,6 +734,30 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 onValueChange = callbacks.onFpsChange,
                 error = fpsError,
                 isVisible = capabilities.hasFrameRate
+            ),
+            steps = NumericField(
+                value = steps,
+                onValueChange = callbacks.onStepsChange,
+                error = stepsError,
+                isVisible = capabilities.hasSteps
+            ),
+            cfg = NumericField(
+                value = cfg,
+                onValueChange = callbacks.onCfgChange,
+                error = cfgError,
+                isVisible = capabilities.hasCfg
+            ),
+            sampler = DropdownField(
+                selectedValue = sampler,
+                options = SamplerOptions.SAMPLERS,
+                onValueChange = callbacks.onSamplerChange,
+                isVisible = capabilities.hasSamplerName
+            ),
+            scheduler = DropdownField(
+                selectedValue = scheduler,
+                options = SamplerOptions.SCHEDULERS,
+                onValueChange = callbacks.onSchedulerChange,
+                isVisible = capabilities.hasScheduler
             ),
             seed = SeedConfig(
                 randomSeed = randomSeed,

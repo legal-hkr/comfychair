@@ -1543,6 +1543,7 @@ object WorkflowManager {
         clip2: String? = null,
         clip3: String? = null,
         clip4: String? = null,
+        lora: String? = null,  // Mandatory LoRA (single selection dropdown)
         width: Int,
         height: Int,
         steps: Int,
@@ -1570,6 +1571,7 @@ object WorkflowManager {
         clip2?.let { DebugLogger.d(TAG, "CLIP2: ${Obfuscator.modelName(it)}") }
         clip3?.let { DebugLogger.d(TAG, "CLIP3: ${Obfuscator.modelName(it)}") }
         clip4?.let { DebugLogger.d(TAG, "CLIP4: ${Obfuscator.modelName(it)}") }
+        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
 
         // Determine actual seed value - use provided seed if randomSeed is false, otherwise generate random
         val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
@@ -1589,6 +1591,7 @@ object WorkflowManager {
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
+        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
 
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(

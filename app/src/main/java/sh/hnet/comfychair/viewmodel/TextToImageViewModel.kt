@@ -95,6 +95,11 @@ data class TextToImageUiState(
     // Unified LoRA chain - visibility controlled by capabilities.hasLora
     val loraChain: List<LoraSelection> = emptyList(),
 
+    // Mandatory LoRA (single selection dropdown) - visibility controlled by capabilities.hasLoraName
+    val selectedLoraName: String = "",
+    val deferredLoraName: String? = null,
+    val filteredLoras: List<String>? = null,
+
     // Deferred model selections (for restoring after models load)
     val deferredCheckpoint: String? = null,
     val deferredUnet: String? = null,
@@ -196,6 +201,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         ?: validateModelSelection(state.selectedClip3, cache.clips)
                     val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip4, cache.clips)
+                    val loraName = state.deferredLoraName?.takeIf { it in cache.loras }
+                        ?: validateModelSelection(state.selectedLoraName, cache.loras)
 
                     state.copy(
                         availableCheckpoints = cache.checkpoints,
@@ -215,6 +222,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         selectedClip2 = clip2,
                         selectedClip3 = clip3,
                         selectedClip4 = clip4,
+                        selectedLoraName = loraName,
                         // Clear deferred values once applied
                         deferredCheckpoint = null,
                         deferredUnet = null,
@@ -224,6 +232,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         deferredClip2 = null,
                         deferredClip3 = null,
                         deferredClip4 = null,
+                        deferredLoraName = null,
                         loraChain = LoraChainManager.filterUnavailable(state.loraChain, cache.loras)
                     )
                 }
@@ -381,6 +390,11 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
     fun onClip4Change(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip4 = clip)
+        saveConfiguration()
+    }
+
+    fun onMandatoryLoraChange(loraName: String) {
+        _uiState.value = _uiState.value.copy(selectedLoraName = loraName)
         saveConfiguration()
     }
 
@@ -674,6 +688,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
+            lora = state.selectedLoraName.takeIf { it.isNotEmpty() },
             // Unified generation parameters
             width = state.width.toIntOrNull() ?: 1024,
             height = state.height.toIntOrNull() ?: 1024,
@@ -787,6 +802,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
+            // Mandatory LoRA (single selection dropdown)
+            loraModel = state.selectedLoraName.takeIf { it.isNotEmpty() },
             // Unified LoRA chain
             loraChain = LoraSelection.toJsonString(state.loraChain).takeIf { state.loraChain.isNotEmpty() },
             // Unified generation parameters
@@ -889,6 +906,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val savedClip2 = savedValues?.clip2Model
         val savedClip3 = savedValues?.clip3Model
         val savedClip4 = savedValues?.clip4Model
+        val savedLoraName = savedValues?.loraModel
 
         // Load model into appropriate field based on capabilities
         // If workflow has ckpt_name placeholder, savedModel is a checkpoint
@@ -941,6 +959,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 ?: validateModelSelection("", cache.clips),
             selectedClip4 = savedClip4?.takeIf { it in cache.clips }
                 ?: validateModelSelection("", cache.clips),
+            selectedLoraName = savedLoraName?.takeIf { it in cache.loras }
+                ?: validateModelSelection("", cache.loras),
 
             // Deferred values - applied when model cache updates
             deferredCheckpoint = if (capabilities.hasCheckpointName) savedModel else null,
@@ -951,6 +971,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             deferredClip2 = savedClip2,
             deferredClip3 = savedClip3,
             deferredClip4 = savedClip4,
+            deferredLoraName = savedLoraName,
 
             // Unified LoRA chain
             loraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
@@ -978,7 +999,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name1"),
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
-            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4")
+            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
+            filteredLoras = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "lora_name")
         )
     }
 
