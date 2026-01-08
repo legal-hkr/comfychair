@@ -2,8 +2,8 @@
   "name": "LTX 2.0",
   "description": "Generate videos from text using LTX 2.0 with audio support",
   "defaults": {
-    "width": 1280,
-    "height": 720,
+    "width": 720,
+    "height": 1280,
     "length": 121,
     "frame_rate": 24,
     "negative_prompt": "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles"
