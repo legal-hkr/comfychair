@@ -25,8 +25,12 @@ import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.PendingWorkflowUpload
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.LiteGraphConverter
 import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 
 /**
  * Export format options
@@ -67,6 +71,9 @@ data class WorkflowManagementUiState(
 
     // Pending workflow for editor
     val pendingWorkflowForMapping: PendingWorkflowUpload? = null,
+
+    // LiteGraph conversion warnings
+    val pendingImportWarnings: List<String> = emptyList(),
 
     // Edit dialog state
     val showEditDialog: Boolean = false,
@@ -111,6 +118,10 @@ sealed class WorkflowManagementEvent {
  * ViewModel for the Workflow Management screen
  */
 class WorkflowManagementViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "WorkflowImport"
+    }
 
     // State
     private val _uiState = MutableStateFlow(WorkflowManagementUiState())
@@ -285,8 +296,37 @@ class WorkflowManagementViewModel : ViewModel() {
                     return@launch
                 }
 
+                // Check if JSON is LiteGraph format and convert if needed
+                var jsonContent = state.pendingImportJsonContent
+                var conversionWarnings = emptyList<String>()
+
+                try {
+                    val jsonObject = JSONObject(jsonContent)
+                    val isLiteGraph = WorkflowJsonAnalyzer.isLiteGraphFormat(jsonObject)
+                    DebugLogger.i(TAG, "Import: format=${if (isLiteGraph) "LiteGraph" else "API/ComfyChair"}")
+
+                    if (isLiteGraph) {
+                        val converter = LiteGraphConverter { classType ->
+                            ConnectionManager.nodeTypeRegistry.getNodeDefinition(classType)
+                        }
+                        val result = converter.convert(jsonObject)
+                        jsonContent = result.jsonContent
+                        conversionWarnings = result.warnings
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.e(TAG, "Import failed: ${e.message}")
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_invalid_json))
+                    _uiState.value = _uiState.value.copy(isValidatingNodes = false)
+                    return@launch
+                }
+
+                // Store conversion warnings
+                if (conversionWarnings.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(pendingImportWarnings = conversionWarnings)
+                }
+
                 // Extract class types from workflow
-                val classTypesResult = WorkflowManager.extractClassTypes(state.pendingImportJsonContent)
+                val classTypesResult = WorkflowManager.extractClassTypes(jsonContent)
                 if (classTypesResult.isFailure) {
                     _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_error_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
@@ -297,6 +337,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 // Validate nodes
                 val missingNodes = WorkflowManager.validateNodesAgainstServer(workflowClassTypes, availableNodes)
                 if (missingNodes.isNotEmpty()) {
+                    DebugLogger.w(TAG, "Import blocked: ${missingNodes.size} missing nodes: ${missingNodes.joinToString()}")
                     _uiState.value = _uiState.value.copy(
                         isValidatingNodes = false,
                         showMissingNodesDialog = true,
@@ -306,7 +347,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 // Validate required fields for type
-                val keyValidation = WorkflowManager.validateWorkflowKeys(state.pendingImportJsonContent, selectedType)
+                val keyValidation = WorkflowManager.validateWorkflowKeys(jsonContent, selectedType)
                 when (keyValidation) {
                     is WorkflowValidationResult.MissingKeys -> {
                         _uiState.value = _uiState.value.copy(
@@ -323,7 +364,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 // Create field mapping state
                 val mappingState = createFieldMappingState(
                     context,
-                    state.pendingImportJsonContent,
+                    jsonContent,
                     selectedType
                 )
 
@@ -340,7 +381,7 @@ class WorkflowManagementViewModel : ViewModel() {
 
                 // Prepare pending import and launch editor
                 val pendingImport = PendingWorkflowUpload(
-                    jsonContent = state.pendingImportJsonContent,
+                    jsonContent = jsonContent,
                     name = name,
                     description = description,
                     type = selectedType,
@@ -657,7 +698,8 @@ class WorkflowManagementViewModel : ViewModel() {
             importDescription = "",
             importNameError = null,
             importDescriptionError = null,
-            pendingWorkflowForMapping = null
+            pendingWorkflowForMapping = null,
+            pendingImportWarnings = emptyList()
         )
     }
 
@@ -688,6 +730,7 @@ class WorkflowManagementViewModel : ViewModel() {
      */
     fun completeImport(fieldMappings: Map<String, Pair<String, String>>) {
         val pending = _uiState.value.pendingWorkflowForMapping ?: return
+        val warnings = _uiState.value.pendingImportWarnings
 
         viewModelScope.launch {
             val result = WorkflowManager.addUserWorkflowWithMapping(
@@ -700,6 +743,14 @@ class WorkflowManagementViewModel : ViewModel() {
 
             if (result.isSuccess) {
                 _events.emit(WorkflowManagementEvent.ShowToast(R.string.workflow_import_success))
+                // Show conversion warnings if any
+                if (warnings.isNotEmpty()) {
+                    val warningMessage = applicationContext?.getString(
+                        R.string.litegraph_conversion_notes,
+                        warnings.size
+                    ) ?: "Conversion completed with ${warnings.size} note(s)"
+                    _events.emit(WorkflowManagementEvent.ShowToastMessage(warningMessage))
+                }
                 _events.emit(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
             } else {
@@ -708,7 +759,10 @@ class WorkflowManagementViewModel : ViewModel() {
                 ))
             }
 
-            _uiState.value = _uiState.value.copy(pendingWorkflowForMapping = null)
+            _uiState.value = _uiState.value.copy(
+                pendingWorkflowForMapping = null,
+                pendingImportWarnings = emptyList()
+            )
         }
     }
 

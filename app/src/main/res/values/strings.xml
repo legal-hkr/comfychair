@@ -404,6 +404,7 @@
     <string name="duplicate_workflow_title">Duplicate workflow</string>
     <string name="workflow_export_success">Workflow exported</string>
     <string name="workflow_export_failed">Failed to export workflow</string>
+    <string name="litegraph_conversion_notes">Conversion completed with %d note(s)</string>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menu</string>

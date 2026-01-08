@@ -621,6 +621,7 @@ object WorkflowManager {
 
         // Check if already wrapped
         val isWrapped = json.has("nodes") && json.optJSONObject("nodes") != null
+
         val nodesJson = if (isWrapped) json.getJSONObject("nodes") else json
 
         // Extract original values before replacing with placeholders to create defaults

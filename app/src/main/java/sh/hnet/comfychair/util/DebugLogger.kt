@@ -41,8 +41,7 @@ object DebugLogger {
     private var enabled = false
     private const val MAX_ENTRIES = 1000
 
-    // TODO: Set to false before release - temporary LogCat output for debugging
-    private const val LOGCAT_ENABLED = true
+    private const val LOGCAT_ENABLED = false
     private const val LOGCAT_TAG = "ComfyChair"
 
     /**

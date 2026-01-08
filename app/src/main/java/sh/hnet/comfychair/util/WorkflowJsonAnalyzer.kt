@@ -54,7 +54,27 @@ internal object WorkflowJsonAnalyzer {
     }
 
     /**
-     * Extract the nodes object from workflow JSON, handling both wrapped and raw formats
+     * Detect if the workflow JSON is in LiteGraph format (ComfyUI's default "Save" format).
+     *
+     * LiteGraph format has:
+     * - nodes: JSONArray (not JSONObject)
+     * - links: JSONArray
+     *
+     * API format has:
+     * - nodes as JSONObject with numeric string keys, no links array
+     */
+    fun isLiteGraphFormat(json: JSONObject): Boolean {
+        // LiteGraph format has nodes as array and links array
+        return json.has("nodes") &&
+               json.optJSONArray("nodes") != null &&
+               json.has("links") &&
+               json.optJSONArray("links") != null
+    }
+
+    /**
+     * Extract the nodes object from workflow JSON, handling both wrapped and raw formats.
+     * NOTE: This does NOT handle LiteGraph format - use isLiteGraphFormat() to detect
+     * and LiteGraphConverter to convert before calling this.
      */
     fun extractNodesObject(json: JSONObject): JSONObject {
         return if (json.has("nodes") && json.optJSONObject("nodes") != null) {

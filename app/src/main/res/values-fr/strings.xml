@@ -326,6 +326,7 @@
     <string name="duplicate_workflow_title">Dupliquer le workflow</string>
     <string name="workflow_export_success">Workflow exporté</string>
     <string name="workflow_export_failed">Échec de l\'exportation du workflow</string>
+    <string name="litegraph_conversion_notes">Conversion terminée avec %d remarque(s)</string>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menu</string>

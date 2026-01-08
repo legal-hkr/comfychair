@@ -326,6 +326,7 @@
     <string name="duplicate_workflow_title">复制工作流</string>
     <string name="workflow_export_success">工作流已导出</string>
     <string name="workflow_export_failed">导出工作流失败</string>
+    <string name="litegraph_conversion_notes">转换完成，有 %d 条备注</string>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">菜单</string>
