@@ -118,7 +118,7 @@
         "width": "{{width}}",
         "height": "{{height}}",
         "length": "{{length}}",
-        "batch_size": 1
+        "batch_size": "{{batch_size}}"
       },
       "_meta": {
         "title": "Empty LTX Video Latent"
@@ -130,7 +130,7 @@
         "audio_vae": ["3", 0],
         "frames_number": "{{length}}",
         "frame_rate": "{{frame_rate}}",
-        "batch_size": 1
+        "batch_size": "{{batch_size}}"
       },
       "_meta": {
         "title": "Empty LTX Audio Latent"

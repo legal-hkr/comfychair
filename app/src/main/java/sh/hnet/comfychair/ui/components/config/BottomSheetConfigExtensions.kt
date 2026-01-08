@@ -159,7 +159,18 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomS
                 onValueChange = callbacks.onMandatoryLoraChange ?: noOpString,
                 isVisible = true
             ) else null,
-            // Video screens use dual LoRA chains instead of primary chain
+            // Primary LoRA chain for single-model workflows (e.g., LTX 2.0)
+            primaryChain = if (capabilities.hasLora) LoraChainField(
+                title = R.string.lora_chain_title,
+                chain = loraChain,
+                availableLoras = availableLoras,
+                onAdd = callbacks.onAddLora ?: {},
+                onRemove = callbacks.onRemoveLora ?: {},
+                onNameChange = callbacks.onLoraNameChange ?: { _, _ -> },
+                onStrengthChange = callbacks.onLoraStrengthChange ?: { _, _ -> },
+                isVisible = true
+            ) else null,
+            // Dual-model LoRA chains (for Wan 2.2 style workflows)
             highnoiseChain = buildVideoLoraChain(
                 titleResId = R.string.highnoise_lora_chain_title,
                 chain = highnoiseLoraChain,
@@ -284,7 +295,18 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): Bottom
                 onValueChange = callbacks.onMandatoryLoraChange ?: noOpString,
                 isVisible = true
             ) else null,
-            // Video screens use dual LoRA chains instead of primary chain
+            // Primary LoRA chain for single-model workflows (e.g., LTX 2.0)
+            primaryChain = if (capabilities.hasLora) LoraChainField(
+                title = R.string.lora_chain_title,
+                chain = loraChain,
+                availableLoras = availableLoras,
+                onAdd = callbacks.onAddLora ?: {},
+                onRemove = callbacks.onRemoveLora ?: {},
+                onNameChange = callbacks.onLoraNameChange ?: { _, _ -> },
+                onStrengthChange = callbacks.onLoraStrengthChange ?: { _, _ -> },
+                isVisible = true
+            ) else null,
+            // Dual-model LoRA chains (for Wan 2.2 style workflows)
             highnoiseChain = buildVideoLoraChain(
                 titleResId = R.string.highnoise_lora_chain_title,
                 chain = highnoiseLoraChain,

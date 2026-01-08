@@ -520,6 +520,11 @@ fun ImageToVideoScreen(
                     onUpscaleMethodChange = imageToVideoViewModel::onUpscaleMethodChange,
                     onScaleByChange = imageToVideoViewModel::onScaleByChange,
                     onStopAtClipLayerChange = imageToVideoViewModel::onStopAtClipLayerChange,
+                    // Primary LoRA chain (for single-model workflows like LTX 2.0)
+                    onAddLora = imageToVideoViewModel::onAddLora,
+                    onRemoveLora = imageToVideoViewModel::onRemoveLora,
+                    onLoraNameChange = imageToVideoViewModel::onLoraNameChange,
+                    onLoraStrengthChange = imageToVideoViewModel::onLoraStrengthChange,
                     // Dual-model LoRA chains
                     onAddHighnoiseLora = imageToVideoViewModel::onAddHighnoiseLora,
                     onRemoveHighnoiseLora = imageToVideoViewModel::onRemoveHighnoiseLora,

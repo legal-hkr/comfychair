@@ -749,6 +749,43 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         savePreferences()
     }
 
+    // Primary LoRA chain operations (for single-model workflows like LTX 2.0)
+    fun onAddLora() {
+        val state = _uiState.value
+        val newChain = LoraChainManager.addLora(state.loraChain, state.availableLoras)
+        if (newChain === state.loraChain) return // No change
+
+        _uiState.value = state.copy(loraChain = newChain)
+        savePreferences()
+    }
+
+    fun onRemoveLora(index: Int) {
+        val state = _uiState.value
+        val newChain = LoraChainManager.removeLora(state.loraChain, index)
+        if (newChain === state.loraChain) return // No change
+
+        _uiState.value = state.copy(loraChain = newChain)
+        savePreferences()
+    }
+
+    fun onLoraNameChange(index: Int, name: String) {
+        val state = _uiState.value
+        val newChain = LoraChainManager.updateLoraName(state.loraChain, index, name)
+        if (newChain === state.loraChain) return // No change
+
+        _uiState.value = state.copy(loraChain = newChain)
+        savePreferences()
+    }
+
+    fun onLoraStrengthChange(index: Int, strength: Float) {
+        val state = _uiState.value
+        val newChain = LoraChainManager.updateLoraStrength(state.loraChain, index, strength)
+        if (newChain === state.loraChain) return // No change
+
+        _uiState.value = state.copy(loraChain = newChain)
+        savePreferences()
+    }
+
     // High noise LoRA chain operations
     fun onAddHighnoiseLora() {
         val state = _uiState.value
@@ -913,8 +950,15 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             fps = fps
         ) ?: return null
 
-        // Inject additional LoRAs if configured (separate chains for high noise and low noise)
+        // Inject LoRAs if configured
         var workflow = baseWorkflow
+
+        // Primary LoRA chain for single-model workflows (e.g., LTX 2.0)
+        if (state.loraChain.isNotEmpty()) {
+            workflow = WorkflowManager.injectLoraChain(workflow, state.loraChain, sh.hnet.comfychair.WorkflowType.TTV)
+        }
+
+        // Dual-model LoRA chains for workflows like Wan 2.2
         if (state.highnoiseLoraChain.isNotEmpty()) {
             workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
         }

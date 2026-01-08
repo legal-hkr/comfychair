@@ -426,6 +426,11 @@ fun TextToVideoScreen(
                     onUpscaleMethodChange = textToVideoViewModel::onUpscaleMethodChange,
                     onScaleByChange = textToVideoViewModel::onScaleByChange,
                     onStopAtClipLayerChange = textToVideoViewModel::onStopAtClipLayerChange,
+                    // Primary LoRA chain (for single-model workflows like LTX 2.0)
+                    onAddLora = textToVideoViewModel::onAddLora,
+                    onRemoveLora = textToVideoViewModel::onRemoveLora,
+                    onLoraNameChange = textToVideoViewModel::onLoraNameChange,
+                    onLoraStrengthChange = textToVideoViewModel::onLoraStrengthChange,
                     // Dual-model LoRA chains
                     onAddHighnoiseLora = textToVideoViewModel::onAddHighnoiseLora,
                     onRemoveHighnoiseLora = textToVideoViewModel::onRemoveHighnoiseLora,
