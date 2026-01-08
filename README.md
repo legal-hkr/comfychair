@@ -2,7 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.8.7
+**Current version**: v0.8.8
 
 [<img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png"
     alt="Get it on GitHub"
@@ -118,8 +118,11 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Fit all / Fit width zoom options
   - Initial drawing animation when opening workflows
 - **Workflow management**:
-  - Create workflows from scratch or import existing ones exported from ComfyUI
-  - Import/export workflows in ComfyChair JSON format (preserves field mappings and settings)
+  - Create workflows from scratch or import existing ones from ComfyUI
+  - Supported formats:
+    - ComfyUI LiteGraph (import only) - native ComfyUI workflow format with subgraph support
+    - ComfyUI API JSON (import/export) - workflow format used by the ComfyUI API
+    - ComfyChair JSON (import/export) - preserves field mappings and app settings
   - Dynamic workflow thumbnails showing mini graph previews
   - Context menus for edit, rename, duplicate, export, and delete
   - Flexible field mapping: only Positive Prompt required (plus source image for image workflows)

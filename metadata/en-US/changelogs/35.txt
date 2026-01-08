@@ -1,0 +1,20 @@
+v0.8.8
+
+New features:
+- Added LTX 2.0 Text to video and Image to video workflow support
+- Added ComfyUI LiteGraph workflow import with subgraph support (#12)
+- Added Qwen Image workflows with Lightning LoRA variant
+- Added upload/download stall detection with 30-second timeout (#11)
+
+Improvements:
+- Updated dialog box visual style
+- Enhanced network error handling and recovery
+- Single-node groups now allowed
+
+Bug fixes:
+- Fixed image queue race condition causing missed/duplicated photos (#13)
+- Fixed workflow defaults loading by ID instead of name
+- Fixed LoRA chain display for video workflows
+- Fixed "UI: X" labels for mapped fields
+- Fixed missing fields in Generation Bottom Sheet
+- Fixed WebSocket auth failures being confused with network errors (#9)
