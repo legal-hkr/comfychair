@@ -1,0 +1,188 @@
+{
+  "name": "Qwen Image (Lightning LoRA)",
+  "description": "Workflow for Qwen Image UNET model with Lightning LoRA for fast generation",
+  "defaults": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 8,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["1", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "Lightning LoRA",
+      "member_nodes": ["2", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "CLIP Configuration",
+      "member_nodes": ["3", "note:3"]
+    },
+    {
+      "id": 4,
+      "title": "VAE Configuration",
+      "member_nodes": ["4", "note:4"]
+    },
+    {
+      "id": 5,
+      "title": "Sampling Configuration",
+      "member_nodes": ["9", "note:5"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **Qwen Image FP8 e4m3fn** for optimal results."
+    },
+    {
+      "id": 2,
+      "title": "Lightning LoRA",
+      "content": "### Required LoRA\n\nThis workflow uses Lightning LoRA for fast inference.\n\nUse **Qwen Image Lightning 8 Steps** for 8-step generation."
+    },
+    {
+      "id": 3,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Model\n\nUse **2.5 VL 7B FP8 Scaled** for optimal text understanding with Qwen Image."
+    },
+    {
+      "id": 4,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Qwen Image models."
+    },
+    {
+      "id": 5,
+      "title": "Sampler Settings",
+      "content": "### Recommended Settings\n\n- **Steps:** 8\n- **CFG:** 1.0\n- **Sampler:** euler\n- **Scheduler:** simple\n\n---\n\n*Lightning LoRA enables fast 8-step inference.*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "{{lora_name}}",
+        "strength_model": 1.0,
+        "model": ["1", 0]
+      },
+      "_meta": {
+        "title": "Load LoRA (Mandatory)"
+      }
+    },
+    "3": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "qwen_image",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "4": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "5": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "batch_size": "{{batch_size}}"
+      },
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["3", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["3", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "8": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "shift": 3.1,
+        "model": ["2", 0]
+      },
+      "_meta": {
+        "title": "ModelSamplingAuraFlow"
+      }
+    },
+    "9": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": 1.0,
+        "model": ["8", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "10": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["9", 0],
+        "vae": ["4", 0]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "11": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["10", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

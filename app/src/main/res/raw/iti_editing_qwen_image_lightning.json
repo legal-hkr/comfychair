@@ -1,6 +1,6 @@
 {
-  "name": "QwenImage Edit (Lightning LoRA)",
-  "description": "QwenImage Edit workflow with optional reference images (Lightning LoRA)",
+  "name": "Qwen Image Edit (Lightning LoRA)",
+  "description": "Qwen Image Edit workflow with optional reference images (Lightning LoRA)",
   "defaults": {
     "megapixels": 2.0,
     "steps": 4,
@@ -40,22 +40,22 @@
     {
       "id": 1,
       "title": "Diffusion Model Selection",
-      "content": "### Recommended UNET Model\n\nUse **QwenImage Edit 2509 FP8 e4m3fn** for optimal image editing results."
+      "content": "### Recommended UNET Model\n\nUse **Qwen Image Edit FP8 e4m3fn** for optimal image editing results."
     },
     {
       "id": 2,
       "title": "Lightning LoRA",
-      "content": "### Required LoRA\n\nThis workflow uses Lightning LoRA for fast inference.\n\nUse **QwenImage Edit 2509 Lightning 4 Steps BF16** for 4-step generation."
+      "content": "### Required LoRA\n\nThis workflow uses Lightning LoRA for fast inference.\n\nUse **Qwen Image Edit Lightning 4 Steps BF16** for 4-step generation."
     },
     {
       "id": 3,
       "title": "CLIP Model Selection",
-      "content": "### Recommended CLIP Model\n\nUse **2.5 VL 7B FP8 Scaled** for optimal text understanding with QwenImage Edit."
+      "content": "### Recommended CLIP Model\n\nUse **2.5 VL 7B FP8 Scaled** for optimal text understanding with Qwen Image Edit."
     },
     {
       "id": 4,
       "title": "VAE Selection",
-      "content": "### Recommended VAE\n\nUse **QwenImage** VAE for optimal results with QwenImage Edit models."
+      "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Qwen Image Edit models."
     },
     {
       "id": 5,
