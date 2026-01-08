@@ -918,9 +918,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val storage = workflowValuesStorage ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
-        // Load saved values by workflow ID, defaults by workflow name
+        // Load saved values and defaults by workflow ID (not name, to avoid duplicate name issues)
         val savedValues = storage.loadValues(serverId, workflow.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflow.name)
+        val defaults = WorkflowManager.getWorkflowDefaultsById(workflow.id)
 
         // Get workflow placeholders - these determine field visibility via capabilities
         val placeholders = WorkflowManager.getWorkflowPlaceholders(workflow.id)

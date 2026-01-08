@@ -379,9 +379,9 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         val storage = workflowValuesStorage ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
-        // Load saved values by workflow ID, defaults by workflow name
+        // Load saved values and defaults by workflow ID (not name, to avoid duplicate name issues)
         val savedValues = storage.loadValues(serverId, workflowItem.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowItem.name)
+        val defaults = WorkflowManager.getWorkflowDefaultsById(workflowItem.id)
         val cache = ConnectionManager.modelCache.value
 
         // Get placeholders from workflow JSON to determine field visibility

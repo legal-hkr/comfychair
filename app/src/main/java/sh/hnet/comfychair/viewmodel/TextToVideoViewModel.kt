@@ -361,9 +361,9 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         val storage = workflowValuesStorage ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
-        // Load saved values by workflow ID, defaults by workflow name
+        // Load saved values and defaults by workflow ID (not name, to avoid duplicate name issues)
         val savedValues = storage.loadValues(serverId, workflowItem.id)
-        val defaults = WorkflowManager.getWorkflowDefaults(workflowItem.name)
+        val defaults = WorkflowManager.getWorkflowDefaultsById(workflowItem.id)
 
         // Get workflow placeholders - these determine field visibility
         val placeholders = WorkflowManager.getWorkflowPlaceholders(workflowItem.id)
