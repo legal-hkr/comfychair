@@ -27,6 +27,7 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
+import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
@@ -985,7 +986,7 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             data class UploadResult(val filename: String?, val failureType: ConnectionFailure)
             val uploadResult: UploadResult = withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.uploadImage(imageBytes, "itv_source.png") { success, filename, _, failureType ->
+                    client.uploadImage(imageBytes, UuidUtils.generateUniqueUploadFilename("itv_source")) { success, filename, _, failureType ->
                         continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
                     }
                 }

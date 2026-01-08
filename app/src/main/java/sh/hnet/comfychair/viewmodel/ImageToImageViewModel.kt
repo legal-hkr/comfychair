@@ -32,6 +32,7 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
+import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
@@ -1631,7 +1632,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         data class UploadResult(val filename: String?, val failureType: ConnectionFailure)
         val sourceResult: UploadResult = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(sourceBytes, "editing_source.png") { success, filename, _, failureType ->
+                client.uploadImage(sourceBytes, UuidUtils.generateUniqueUploadFilename("editing_source")) { success, filename, _, failureType ->
                     continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
                 }
             }
@@ -1661,7 +1662,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             val ref1Result: UploadResult = withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.uploadImage(ref1Bytes, "reference_1.png") { success, filename, _, failureType ->
+                    client.uploadImage(ref1Bytes, UuidUtils.generateUniqueUploadFilename("reference_1")) { success, filename, _, failureType ->
                         continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
                     }
                 }
@@ -1686,7 +1687,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             val ref2Result: UploadResult = withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.uploadImage(ref2Bytes, "reference_2.png") { success, filename, _, failureType ->
+                    client.uploadImage(ref2Bytes, UuidUtils.generateUniqueUploadFilename("reference_2")) { success, filename, _, failureType ->
                         continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
                     }
                 }
@@ -1763,7 +1764,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         data class UploadResult(val filename: String?, val failureType: ConnectionFailure)
         val uploadResult: UploadResult = withContext(Dispatchers.IO) {
             kotlin.coroutines.suspendCoroutine { continuation ->
-                client.uploadImage(imageBytes, "inpaint_source.png") { success, filename, _, failureType ->
+                client.uploadImage(imageBytes, UuidUtils.generateUniqueUploadFilename("inpaint_source")) { success, filename, _, failureType ->
                     continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
                 }
             }

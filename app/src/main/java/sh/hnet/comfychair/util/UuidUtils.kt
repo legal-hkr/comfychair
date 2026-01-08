@@ -30,4 +30,16 @@ object UuidUtils {
     fun generateRandomId(): String {
         return UUID.randomUUID().toString()
     }
+
+    /**
+     * Generate a unique filename for image uploads to prevent race conditions
+     * when multiple jobs are queued rapidly. Uses timestamp for uniqueness.
+     *
+     * @param prefix The base name for the file (e.g., "editing_source", "itv_source")
+     * @param extension The file extension without dot (default: "png")
+     * @return A unique filename like "editing_source_1704729600000.png"
+     */
+    fun generateUniqueUploadFilename(prefix: String, extension: String = "png"): String {
+        return "${prefix}_${System.currentTimeMillis()}.${extension}"
+    }
 }
