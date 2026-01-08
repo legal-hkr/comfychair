@@ -27,14 +27,17 @@ data class WorkflowValues(
     val frameRate: Int? = null,
 
     // Model selections (always saved, never in defaults)
-    val model: String? = null,      // Unified model (checkpoint or UNET)
-    val loraModel: String? = null,  // Mandatory LoRA for editing mode
+    val model: String? = null,      // Checkpoint ({{ckpt_name}})
+    val unetModel: String? = null,  // Single UNET ({{unet_name}})
+    val loraModel: String? = null,  // Mandatory LoRA ({{lora_name}})
     val vaeModel: String? = null,
     val clipModel: String? = null,
     val clip1Model: String? = null,  // For multi-CLIP slot 1
     val clip2Model: String? = null,  // For multi-CLIP slot 2
     val clip3Model: String? = null,  // For multi-CLIP slot 3
     val clip4Model: String? = null,  // For multi-CLIP slot 4
+    val textEncoderModel: String? = null,  // Text encoder ({{text_encoder_name}})
+    val latentUpscaleModel: String? = null,  // Latent upscale model ({{latent_upscale_model}})
     val highnoiseUnetModel: String? = null,
     val lownoiseUnetModel: String? = null,
     val highnoiseLoraModel: String? = null,
@@ -72,6 +75,7 @@ data class WorkflowValues(
                 length = json.optInt("length").takeIf { it > 0 },
                 frameRate = json.optInt("frameRate").takeIf { it > 0 },
                 model = json.optString("model").takeIf { it.isNotEmpty() },
+                unetModel = json.optString("unetModel").takeIf { it.isNotEmpty() },
                 loraModel = json.optString("loraModel").takeIf { it.isNotEmpty() },
                 vaeModel = json.optString("vaeModel").takeIf { it.isNotEmpty() },
                 clipModel = json.optString("clipModel").takeIf { it.isNotEmpty() },
@@ -79,6 +83,8 @@ data class WorkflowValues(
                 clip2Model = json.optString("clip2Model").takeIf { it.isNotEmpty() },
                 clip3Model = json.optString("clip3Model").takeIf { it.isNotEmpty() },
                 clip4Model = json.optString("clip4Model").takeIf { it.isNotEmpty() },
+                textEncoderModel = json.optString("textEncoderModel").takeIf { it.isNotEmpty() },
+                latentUpscaleModel = json.optString("latentUpscaleModel").takeIf { it.isNotEmpty() },
                 highnoiseUnetModel = json.optString("highnoiseUnetModel").takeIf { it.isNotEmpty() },
                 lownoiseUnetModel = json.optString("lownoiseUnetModel").takeIf { it.isNotEmpty() },
                 highnoiseLoraModel = json.optString("highnoiseLoraModel").takeIf { it.isNotEmpty() },
@@ -110,6 +116,7 @@ data class WorkflowValues(
                 values.length?.let { put("length", it) }
                 values.frameRate?.let { put("frameRate", it) }
                 values.model?.let { put("model", it) }
+                values.unetModel?.let { put("unetModel", it) }
                 values.loraModel?.let { put("loraModel", it) }
                 values.vaeModel?.let { put("vaeModel", it) }
                 values.clipModel?.let { put("clipModel", it) }
@@ -117,6 +124,8 @@ data class WorkflowValues(
                 values.clip2Model?.let { put("clip2Model", it) }
                 values.clip3Model?.let { put("clip3Model", it) }
                 values.clip4Model?.let { put("clip4Model", it) }
+                values.textEncoderModel?.let { put("textEncoderModel", it) }
+                values.latentUpscaleModel?.let { put("latentUpscaleModel", it) }
                 values.highnoiseUnetModel?.let { put("highnoiseUnetModel", it) }
                 values.lownoiseUnetModel?.let { put("lownoiseUnetModel", it) }
                 values.highnoiseLoraModel?.let { put("highnoiseLoraModel", it) }

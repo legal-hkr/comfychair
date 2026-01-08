@@ -270,6 +270,8 @@
     <string name="label_clip2" translatable="false">CLIP 2</string>
     <string name="label_clip3" translatable="false">CLIP 3</string>
     <string name="label_clip4" translatable="false">CLIP 4</string>
+    <string name="label_text_encoder" translatable="false">Text Encoder</string>
+    <string name="label_latent_upscale_model" translatable="false">Latent Upscale Model</string>
     <string name="label_width">Width</string>
     <string name="label_height">Height</string>
     <string name="label_steps">Steps</string>

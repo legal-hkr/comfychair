@@ -169,6 +169,7 @@ private fun ModelSelectionSection(models: ModelConfig) {
         listOfNotNull(
             models.checkpoint?.takeIf { it.isVisible },
             models.unet?.takeIf { it.isVisible },
+            models.latentUpscaleModel?.takeIf { it.isVisible },
             models.highnoiseUnet?.takeIf { it.isVisible },
             models.lownoiseUnet?.takeIf { it.isVisible },
             models.vae?.takeIf { it.isVisible },
@@ -176,7 +177,8 @@ private fun ModelSelectionSection(models: ModelConfig) {
             models.clip1?.takeIf { it.isVisible },
             models.clip2?.takeIf { it.isVisible },
             models.clip3?.takeIf { it.isVisible },
-            models.clip4?.takeIf { it.isVisible }
+            models.clip4?.takeIf { it.isVisible },
+            models.textEncoder?.takeIf { it.isVisible }
         )
     }
 
@@ -192,6 +194,7 @@ private fun ModelSelectionSection(models: ModelConfig) {
     // Render each visible model field in order
     models.checkpoint?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.unet?.takeIf { it.isVisible }?.let { RenderModelField(it) }
+    models.latentUpscaleModel?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.highnoiseUnet?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.lownoiseUnet?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.vae?.takeIf { it.isVisible }?.let { RenderModelField(it) }
@@ -200,6 +203,7 @@ private fun ModelSelectionSection(models: ModelConfig) {
     models.clip2?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.clip3?.takeIf { it.isVisible }?.let { RenderModelField(it) }
     models.clip4?.takeIf { it.isVisible }?.let { RenderModelField(it) }
+    models.textEncoder?.takeIf { it.isVisible }?.let { RenderModelField(it) }
 }
 
 @Composable

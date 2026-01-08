@@ -1535,15 +1535,24 @@ object WorkflowManager {
         workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
+        // Single-model patterns
         checkpoint: String = "",
         unet: String = "",
+        lora: String? = null,  // Mandatory LoRA (single selection dropdown)
+        // Dual-model patterns (for unified support)
+        highnoiseUnet: String = "",
+        lownoiseUnet: String = "",
+        highnoiseLora: String = "",
+        lownoiseLora: String = "",
+        // Common models
         vae: String = "",
         clip: String? = null,
         clip1: String? = null,
         clip2: String? = null,
         clip3: String? = null,
         clip4: String? = null,
-        lora: String? = null,  // Mandatory LoRA (single selection dropdown)
+        textEncoder: String? = null,
+        latentUpscaleModel: String? = null,
         width: Int,
         height: Int,
         steps: Int,
@@ -1565,13 +1574,17 @@ object WorkflowManager {
         DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
         if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
         if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
+        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
         if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
         clip?.let { DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(it)}") }
         clip1?.let { DebugLogger.d(TAG, "CLIP1: ${Obfuscator.modelName(it)}") }
         clip2?.let { DebugLogger.d(TAG, "CLIP2: ${Obfuscator.modelName(it)}") }
         clip3?.let { DebugLogger.d(TAG, "CLIP3: ${Obfuscator.modelName(it)}") }
         clip4?.let { DebugLogger.d(TAG, "CLIP4: ${Obfuscator.modelName(it)}") }
-        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
 
         // Determine actual seed value - use provided seed if randomSeed is false, otherwise generate random
         val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
@@ -1583,15 +1596,24 @@ object WorkflowManager {
         // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
+        // Single-model placeholders
         processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
+        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
+        // Dual-model placeholders
+        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
+        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
+        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
+        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
+        // Common model placeholders
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         clip?.let { processedJson = processedJson.replace("{{clip_name}}", escapeForJson(it)) }
         clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
+        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
+        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
 
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(
@@ -1621,14 +1643,24 @@ object WorkflowManager {
         workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
+        // Single-model patterns
         checkpoint: String = "",
         unet: String = "",
+        lora: String? = null,  // Mandatory LoRA (single selection dropdown)
+        // Dual-model patterns (for unified support)
+        highnoiseUnet: String = "",
+        lownoiseUnet: String = "",
+        highnoiseLora: String = "",
+        lownoiseLora: String = "",
+        // Common models
         vae: String = "",
         clip: String = "",
         clip1: String? = null,
         clip2: String? = null,
         clip3: String? = null,
         clip4: String? = null,
+        textEncoder: String? = null,
+        latentUpscaleModel: String? = null,
         megapixels: Float = 1.0f,
         steps: Int,
         cfg: Float = 8.0f,
@@ -1644,6 +1676,11 @@ object WorkflowManager {
         DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
         if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
         if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
+        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
         if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
         if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
@@ -1657,14 +1694,24 @@ object WorkflowManager {
         // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
+        // Single-model placeholders
         processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
         processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
+        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
+        // Dual-model placeholders
+        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
+        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
+        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
+        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
+        // Common model placeholders
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
         clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
+        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
+        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
 
         // Type-specific: source image placeholder (both template and literal formats)
         val escapedImageFilename = escapeForJson(imageFilename)
@@ -1703,6 +1750,8 @@ object WorkflowManager {
         clip2: String? = null,
         clip3: String? = null,
         clip4: String? = null,
+        textEncoder: String? = null,
+        latentUpscaleModel: String? = null,
         megapixels: Float = 2.0f,
         steps: Int,
         cfg: Float = 1.0f,
@@ -1743,6 +1792,8 @@ object WorkflowManager {
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
+        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
+        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
 
         // Type-specific: source image placeholder (both template and literal formats)
         val escapedSourceFilename = escapeForJson(sourceImageFilename)
@@ -1855,16 +1906,24 @@ object WorkflowManager {
         workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
-        highnoiseUnet: String,
-        lownoiseUnet: String,
-        highnoiseLora: String,
-        lownoiseLora: String,
-        vae: String,
-        clip: String,
+        // Single-model patterns (e.g., LTX 2.0)
+        checkpoint: String = "",
+        unet: String = "",
+        lora: String? = null,
+        // Dual-model patterns (e.g., Wan 2.2)
+        highnoiseUnet: String = "",
+        lownoiseUnet: String = "",
+        highnoiseLora: String = "",
+        lownoiseLora: String = "",
+        // Common models
+        vae: String = "",
+        clip: String = "",
         clip1: String? = null,
         clip2: String? = null,
         clip3: String? = null,
         clip4: String? = null,
+        textEncoder: String? = null,
+        latentUpscaleModel: String? = null,
         width: Int,
         height: Int,
         length: Int,
@@ -1874,11 +1933,15 @@ object WorkflowManager {
         DebugLogger.i(TAG, "Preparing TTV workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
-        DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
-        DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
-        DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
-        DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
-        DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}, CLIP: ${Obfuscator.modelName(clip)}")
+        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
+        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
+        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
+        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
+        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
 
         val randomSeed = (0..999999999999).random()
         val escapedPositivePrompt = escapeForJson(positivePrompt)
@@ -1889,16 +1952,24 @@ object WorkflowManager {
         // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
+        // Single-model placeholders
+        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
+        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
+        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
+        // Dual-model placeholders
         processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
         processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
         processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
         processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
+        // Common model placeholders
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
         clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
+        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
+        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
 
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(
@@ -1922,16 +1993,24 @@ object WorkflowManager {
         workflowId: String,
         positivePrompt: String,
         negativePrompt: String = "",
-        highnoiseUnet: String,
-        lownoiseUnet: String,
-        highnoiseLora: String,
-        lownoiseLora: String,
-        vae: String,
-        clip: String,
+        // Single-model patterns (e.g., LTX 2.0)
+        checkpoint: String = "",
+        unet: String = "",
+        lora: String? = null,
+        // Dual-model patterns (e.g., Wan 2.2)
+        highnoiseUnet: String = "",
+        lownoiseUnet: String = "",
+        highnoiseLora: String = "",
+        lownoiseLora: String = "",
+        // Common models
+        vae: String = "",
+        clip: String = "",
         clip1: String? = null,
         clip2: String? = null,
         clip3: String? = null,
         clip4: String? = null,
+        textEncoder: String? = null,
+        latentUpscaleModel: String? = null,
         width: Int,
         height: Int,
         length: Int,
@@ -1942,11 +2021,15 @@ object WorkflowManager {
         DebugLogger.i(TAG, "Preparing ITV workflow: ${workflow.name} (id: $workflowId)")
         DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
         DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
-        DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
-        DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
-        DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
-        DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
-        DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}, CLIP: ${Obfuscator.modelName(clip)}")
+        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
+        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
+        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
+        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
+        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
 
         val randomSeed = (0..999999999999).random()
@@ -1958,16 +2041,24 @@ object WorkflowManager {
         // Type-specific placeholders: prompts and models
         processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
         processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
+        // Single-model placeholders
+        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
+        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
+        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
+        // Dual-model placeholders
         processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
         processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
         processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
         processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
+        // Common model placeholders
         processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
         processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
         clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
         clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
         clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
         clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
+        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
+        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
 
         // Type-specific: source image placeholder
         processedJson = processedJson.replace("{{image_filename}}", escapeForJson(imageFilename))

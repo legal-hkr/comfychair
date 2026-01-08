@@ -40,6 +40,8 @@ data class WorkflowCapabilities(
     val hasClipName2: Boolean = false,
     val hasClipName3: Boolean = false,
     val hasClipName4: Boolean = false,
+    val hasTextEncoderName: Boolean = false,
+    val hasLatentUpscaleModel: Boolean = false,
 
     // Mandatory LoRA dropdown flags (*Name pattern)
     val hasLoraName: Boolean = false,
@@ -94,6 +96,8 @@ data class WorkflowCapabilities(
                 hasClipName2 = "clip_name2" in placeholders,
                 hasClipName3 = "clip_name3" in placeholders,
                 hasClipName4 = "clip_name4" in placeholders,
+                hasTextEncoderName = "text_encoder_name" in placeholders,
+                hasLatentUpscaleModel = "latent_upscale_model" in placeholders,
 
                 // Mandatory LoRA dropdowns
                 hasLoraName = "lora_name" in placeholders,

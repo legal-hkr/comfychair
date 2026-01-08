@@ -486,6 +486,11 @@ fun ImageToVideoScreen(
                         }
                     },
                     onNegativePromptChange = imageToVideoViewModel::onNegativePromptChange,
+                    // Single-model patterns
+                    onCheckpointChange = imageToVideoViewModel::onCheckpointChange,
+                    onUnetChange = imageToVideoViewModel::onUnetChange,
+                    onMandatoryLoraChange = imageToVideoViewModel::onMandatoryLoraChange,
+                    // Dual-model patterns
                     onHighnoiseUnetChange = imageToVideoViewModel::onHighnoiseUnetChange,
                     onLownoiseUnetChange = imageToVideoViewModel::onLownoiseUnetChange,
                     onHighnoiseLoraChange = imageToVideoViewModel::onHighnoiseLoraChange,
@@ -496,6 +501,8 @@ fun ImageToVideoScreen(
                     onClip2Change = imageToVideoViewModel::onClip2Change,
                     onClip3Change = imageToVideoViewModel::onClip3Change,
                     onClip4Change = imageToVideoViewModel::onClip4Change,
+                    onTextEncoderChange = imageToVideoViewModel::onTextEncoderChange,
+                    onLatentUpscaleModelChange = imageToVideoViewModel::onLatentUpscaleModelChange,
                     onWidthChange = imageToVideoViewModel::onWidthChange,
                     onHeightChange = imageToVideoViewModel::onHeightChange,
                     onMegapixelsChange = imageToVideoViewModel::onMegapixelsChange,
@@ -513,6 +520,7 @@ fun ImageToVideoScreen(
                     onUpscaleMethodChange = imageToVideoViewModel::onUpscaleMethodChange,
                     onScaleByChange = imageToVideoViewModel::onScaleByChange,
                     onStopAtClipLayerChange = imageToVideoViewModel::onStopAtClipLayerChange,
+                    // Dual-model LoRA chains
                     onAddHighnoiseLora = imageToVideoViewModel::onAddHighnoiseLora,
                     onRemoveHighnoiseLora = imageToVideoViewModel::onRemoveHighnoiseLora,
                     onHighnoiseLoraNameChange = imageToVideoViewModel::onHighnoiseLoraChainNameChange,

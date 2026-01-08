@@ -1,0 +1,387 @@
+{
+  "name": "LTX 2.0",
+  "description": "Generate videos from text using LTX 2.0 with audio support",
+  "defaults": {
+    "width": 1280,
+    "height": 720,
+    "length": 121,
+    "frame_rate": 24,
+    "negative_prompt": "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Model Loaders",
+      "member_nodes": ["1", "2", "3", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "Prompts",
+      "member_nodes": ["4", "5"]
+    },
+    {
+      "id": 3,
+      "title": "Video Settings",
+      "member_nodes": ["6", "7", "8", "note:2"]
+    },
+    {
+      "id": 4,
+      "title": "Stage 1 Sampling",
+      "member_nodes": ["9", "10", "11", "12", "13", "14"]
+    },
+    {
+      "id": 5,
+      "title": "Stage 2 Upscale",
+      "member_nodes": ["15", "16", "17", "18", "19", "20", "21", "22"]
+    },
+    {
+      "id": 6,
+      "title": "Output",
+      "member_nodes": ["23", "24", "25", "26"]
+    },
+    {
+      "id": 7,
+      "title": "LoRA",
+      "member_nodes": ["27", "note:3"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Model Information",
+      "content": "### LTX 2.0 Models\n\n**Checkpoints:**\n- ltx-2-19b-dev.safetensors\n- ltx-2-19b-dev-fp8.safetensors\n\n**Text Encoders:**\n- gemma_3_12B_it.safetensors\n\n**LoRAs:**\n- ltx-2-19b-distilled-lora-384.safetensors\n\n**Upscale Models:**\n- ltx-2-spatial-upscaler-x2-1.0.safetensors"
+    },
+    {
+      "id": 2,
+      "title": "Video Size Constraints",
+      "content": "### LTX 2.0 Size Requirements\n\n- Width and height must be divisible by 32\n- Frame count must be divisible by 8 + 1\n- Default: 720p resolution (1280x720)\n\n---\n\n*Invalid parameters will be silently adjusted to closest valid values.*"
+    },
+    {
+      "id": 3,
+      "title": "LoRA Usage",
+      "content": "### Using LoRAs\n\n- Camera control LoRAs are available\n- For camera LoRA, recommended strength = 1\n- The distilled LoRA speeds up generation"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "2": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": "{{text_encoder_name}}",
+        "ckpt_name": "{{ckpt_name}}",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load Text Encoder (Gemma)"
+      }
+    },
+    "3": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Audio VAE"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "6": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "length": "{{length}}",
+        "batch_size": 1
+      },
+      "_meta": {
+        "title": "Empty LTX Video Latent"
+      }
+    },
+    "7": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": ["3", 0],
+        "frames_number": "{{length}}",
+        "frame_rate": "{{frame_rate}}",
+        "batch_size": 1
+      },
+      "_meta": {
+        "title": "Empty LTX Audio Latent"
+      }
+    },
+    "8": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": ["6", 0],
+        "audio_latent": ["7", 0]
+      },
+      "_meta": {
+        "title": "Concat AV Latent"
+      }
+    },
+    "9": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": ["4", 0],
+        "negative": ["5", 0],
+        "frame_rate": "{{frame_rate}}"
+      },
+      "_meta": {
+        "title": "LTX Conditioning"
+      }
+    },
+    "10": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "{{seed}}"
+      },
+      "_meta": {
+        "title": "Random Noise"
+      }
+    },
+    "11": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler_ancestral"
+      },
+      "_meta": {
+        "title": "Sampler Select"
+      }
+    },
+    "12": {
+      "class_type": "LTXVScheduler",
+      "inputs": {
+        "steps": 20,
+        "max_shift": 2.05,
+        "base_shift": 0.95,
+        "stretch": true,
+        "terminal": 0.1,
+        "latent": ["8", 0]
+      },
+      "_meta": {
+        "title": "LTX Scheduler"
+      }
+    },
+    "13": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "cfg": 4.0,
+        "model": ["27", 0],
+        "positive": ["9", 0],
+        "negative": ["9", 1]
+      },
+      "_meta": {
+        "title": "CFG Guider (Stage 1)"
+      }
+    },
+    "14": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["10", 0],
+        "guider": ["13", 0],
+        "sampler": ["11", 0],
+        "sigmas": ["12", 0],
+        "latent_image": ["8", 0]
+      },
+      "_meta": {
+        "title": "Sampler (Stage 1)"
+      }
+    },
+    "15": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": ["14", 0]
+      },
+      "_meta": {
+        "title": "Separate AV Latent (Stage 1)"
+      }
+    },
+    "16": {
+      "class_type": "LTXVCropGuides",
+      "inputs": {
+        "positive": ["9", 0],
+        "negative": ["9", 1],
+        "latent": ["15", 0]
+      },
+      "_meta": {
+        "title": "LTX Crop Guides"
+      }
+    },
+    "17": {
+      "class_type": "LatentUpscaleModelLoader",
+      "inputs": {
+        "model_name": "{{latent_upscale_model}}"
+      },
+      "_meta": {
+        "title": "Load Latent Upscale Model"
+      }
+    },
+    "18": {
+      "class_type": "LTXVLatentUpsampler",
+      "inputs": {
+        "samples": ["16", 2],
+        "upscale_model": ["17", 0],
+        "vae": ["1", 2]
+      },
+      "_meta": {
+        "title": "Latent Upsampler (2x)"
+      }
+    },
+    "19": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": ["18", 0],
+        "audio_latent": ["15", 1]
+      },
+      "_meta": {
+        "title": "Concat AV Latent (Upscaled)"
+      }
+    },
+    "20": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "cfg": 1.0,
+        "model": ["27", 0],
+        "positive": ["16", 0],
+        "negative": ["16", 1]
+      },
+      "_meta": {
+        "title": "CFG Guider (Stage 2)"
+      }
+    },
+    "21": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 0
+      },
+      "_meta": {
+        "title": "Random Noise (Stage 2)"
+      }
+    },
+    "22": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler_ancestral"
+      },
+      "_meta": {
+        "title": "Sampler Select (Stage 2)"
+      }
+    },
+    "23": {
+      "class_type": "ManualSigmas",
+      "inputs": {
+        "sigmas": "0.909375, 0.725, 0.421875, 0.0"
+      },
+      "_meta": {
+        "title": "Manual Sigmas (Stage 2)"
+      }
+    },
+    "24": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["21", 0],
+        "guider": ["20", 0],
+        "sampler": ["22", 0],
+        "sigmas": ["23", 0],
+        "latent_image": ["19", 0]
+      },
+      "_meta": {
+        "title": "Sampler (Stage 2)"
+      }
+    },
+    "25": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": ["24", 1]
+      },
+      "_meta": {
+        "title": "Separate AV Latent (Stage 2)"
+      }
+    },
+    "26": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": ["25", 0],
+        "vae": ["1", 2],
+        "tile_size": 512,
+        "overlap": 64,
+        "temporal_size": 4096,
+        "temporal_overlap": 8
+      },
+      "_meta": {
+        "title": "VAE Decode (Tiled)"
+      }
+    },
+    "27": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": ["1", 0],
+        "lora_name": "{{lora_name}}",
+        "strength_model": 1.0
+      },
+      "_meta": {
+        "title": "Load LoRA (Distilled)"
+      }
+    },
+    "28": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": ["25", 1],
+        "audio_vae": ["3", 0]
+      },
+      "_meta": {
+        "title": "Audio VAE Decode"
+      }
+    },
+    "29": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": ["26", 0],
+        "audio": ["28", 0],
+        "fps": "{{frame_rate}}"
+      },
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "30": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "codec": "auto",
+        "video": ["29", 0]
+      },
+      "_meta": {
+        "title": "Save Video"
+      }
+    }
+  }
+}

@@ -43,7 +43,9 @@ object TemplateKeyRegistry {
         "batch_size" to "batch_size",
         "upscale_method" to "upscale_method",
         "scale_by" to "scale_by",
-        "stop_at_clip_layer" to "stop_at_clip_layer"
+        "stop_at_clip_layer" to "stop_at_clip_layer",
+        "text_encoder_name" to "text_encoder",
+        "latent_upscale_model" to "model_name"
     )
 
     /**
@@ -79,7 +81,9 @@ object TemplateKeyRegistry {
         "batch_size" to "batch_size",
         "upscale_method" to "upscale_method",
         "scale_by" to "scale_by",
-        "stop_at_clip_layer" to "stop_at_clip_layer"
+        "stop_at_clip_layer" to "stop_at_clip_layer",
+        "text_encoder" to "text_encoder_name"
+        // Note: "model_name" is used by multiple unrelated node types, skip reverse mapping
     )
 
     /**
@@ -117,7 +121,8 @@ object TemplateKeyRegistry {
         "highnoise_unet_name", "lownoise_unet_name",
         "highnoise_lora_name", "lownoise_lora_name",
         "length", "fps",
-        "seed", "denoise", "batch_size", "upscale_method", "scale_by", "stop_at_clip_layer"
+        "seed", "denoise", "batch_size", "upscale_method", "scale_by", "stop_at_clip_layer",
+        "text_encoder_name", "latent_upscale_model"
     )
 
     /**

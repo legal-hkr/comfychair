@@ -25,6 +25,8 @@ data class TextToImageCallbacks(
     val onClip2Change: (String) -> Unit,
     val onClip3Change: (String) -> Unit,
     val onClip4Change: (String) -> Unit,
+    val onTextEncoderChange: (String) -> Unit,
+    val onLatentUpscaleModelChange: (String) -> Unit,
     val onMandatoryLoraChange: (String) -> Unit,  // Mandatory LoRA dropdown (single selection)
     val onWidthChange: (String) -> Unit,
     val onHeightChange: (String) -> Unit,
@@ -51,6 +53,11 @@ data class TextToVideoCallbacks(
     val onWorkflowChange: (String) -> Unit,
     val onViewWorkflow: () -> Unit,
     val onNegativePromptChange: (String) -> Unit,
+    // Single-model patterns (e.g., LTX 2.0)
+    val onCheckpointChange: (String) -> Unit,
+    val onUnetChange: (String) -> Unit,
+    val onMandatoryLoraChange: (String) -> Unit,
+    // Dual-model patterns (e.g., Wan 2.2)
     val onHighnoiseUnetChange: (String) -> Unit,
     val onLownoiseUnetChange: (String) -> Unit,
     val onHighnoiseLoraChange: (String) -> Unit,
@@ -61,6 +68,8 @@ data class TextToVideoCallbacks(
     val onClip2Change: (String) -> Unit,
     val onClip3Change: (String) -> Unit,
     val onClip4Change: (String) -> Unit,
+    val onTextEncoderChange: (String) -> Unit,
+    val onLatentUpscaleModelChange: (String) -> Unit,
     val onWidthChange: (String) -> Unit,
     val onHeightChange: (String) -> Unit,
     val onMegapixelsChange: (String) -> Unit,
@@ -78,6 +87,7 @@ data class TextToVideoCallbacks(
     val onUpscaleMethodChange: (String) -> Unit,
     val onScaleByChange: (String) -> Unit,
     val onStopAtClipLayerChange: (String) -> Unit,
+    // Dual-model LoRA chains
     val onAddHighnoiseLora: () -> Unit,
     val onRemoveHighnoiseLora: (Int) -> Unit,
     val onHighnoiseLoraNameChange: (Int, String) -> Unit,
@@ -93,6 +103,11 @@ data class ImageToVideoCallbacks(
     val onWorkflowChange: (String) -> Unit,
     val onViewWorkflow: () -> Unit,
     val onNegativePromptChange: (String) -> Unit,
+    // Single-model patterns (e.g., LTX 2.0)
+    val onCheckpointChange: (String) -> Unit,
+    val onUnetChange: (String) -> Unit,
+    val onMandatoryLoraChange: (String) -> Unit,
+    // Dual-model patterns (e.g., Wan 2.2)
     val onHighnoiseUnetChange: (String) -> Unit,
     val onLownoiseUnetChange: (String) -> Unit,
     val onHighnoiseLoraChange: (String) -> Unit,
@@ -103,6 +118,8 @@ data class ImageToVideoCallbacks(
     val onClip2Change: (String) -> Unit,
     val onClip3Change: (String) -> Unit,
     val onClip4Change: (String) -> Unit,
+    val onTextEncoderChange: (String) -> Unit,
+    val onLatentUpscaleModelChange: (String) -> Unit,
     val onWidthChange: (String) -> Unit,
     val onHeightChange: (String) -> Unit,
     val onMegapixelsChange: (String) -> Unit,
@@ -120,6 +137,7 @@ data class ImageToVideoCallbacks(
     val onUpscaleMethodChange: (String) -> Unit,
     val onScaleByChange: (String) -> Unit,
     val onStopAtClipLayerChange: (String) -> Unit,
+    // Dual-model LoRA chains
     val onAddHighnoiseLora: () -> Unit,
     val onRemoveHighnoiseLora: (Int) -> Unit,
     val onHighnoiseLoraNameChange: (Int, String) -> Unit,
@@ -156,6 +174,8 @@ data class ImageToImageCallbacks(
     val onClip2Change: (String) -> Unit,
     val onClip3Change: (String) -> Unit,
     val onClip4Change: (String) -> Unit,
+    val onTextEncoderChange: (String) -> Unit,
+    val onLatentUpscaleModelChange: (String) -> Unit,
     // Editing models
     val onEditingUnetChange: (String) -> Unit,
     val onEditingLoraChange: (String) -> Unit,
@@ -165,6 +185,8 @@ data class ImageToImageCallbacks(
     val onEditingClip2Change: (String) -> Unit,
     val onEditingClip3Change: (String) -> Unit,
     val onEditingClip4Change: (String) -> Unit,
+    val onEditingTextEncoderChange: (String) -> Unit,
+    val onEditingLatentUpscaleModelChange: (String) -> Unit,
     // Inpainting parameters
     val onMegapixelsChange: (String) -> Unit,
     val onStepsChange: (String) -> Unit,
@@ -288,6 +310,22 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: TextToImageCallbacks): Bot
                 filteredOptions = filteredClips4,
                 onValueChange = callbacks.onClip4Change,
                 isVisible = true
+            ) else null,
+            textEncoder = if (capabilities.hasTextEncoderName) ModelField(
+                label = R.string.label_text_encoder,
+                selectedValue = selectedTextEncoder,
+                options = availableTextEncoders,
+                filteredOptions = filteredTextEncoders,
+                onValueChange = callbacks.onTextEncoderChange,
+                isVisible = true
+            ) else null,
+            latentUpscaleModel = if (capabilities.hasLatentUpscaleModel) ModelField(
+                label = R.string.label_latent_upscale_model,
+                selectedValue = selectedLatentUpscaleModel,
+                options = availableLatentUpscaleModels,
+                filteredOptions = filteredLatentUpscaleModels,
+                onValueChange = callbacks.onLatentUpscaleModelChange,
+                isVisible = true
             ) else null
         ),
         parameters = ParameterConfig(
@@ -408,6 +446,24 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
         ),
         itiConfig = null,
         models = ModelConfig(
+            // Single-model patterns (e.g., LTX 2.0)
+            checkpoint = if (capabilities.hasCheckpointName) ModelField(
+                label = R.string.label_checkpoint,
+                selectedValue = selectedCheckpoint,
+                options = availableCheckpoints,
+                filteredOptions = filteredCheckpoints,
+                onValueChange = callbacks.onCheckpointChange,
+                isVisible = true
+            ) else null,
+            unet = if (capabilities.hasUnetName) ModelField(
+                label = R.string.label_unet,
+                selectedValue = selectedUnet,
+                options = availableUnets,
+                filteredOptions = filteredUnets,
+                onValueChange = callbacks.onUnetChange,
+                isVisible = true
+            ) else null,
+            // Dual-model patterns (e.g., Wan 2.2)
             highnoiseUnet = if (capabilities.hasHighnoiseUnetName) ModelField(
                 label = R.string.highnoise_unet_label,
                 selectedValue = selectedHighnoiseUnet,
@@ -484,6 +540,22 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
                 options = availableClips,
                 filteredOptions = filteredClips4,
                 onValueChange = callbacks.onClip4Change,
+                isVisible = true
+            ) else null,
+            textEncoder = if (capabilities.hasTextEncoderName) ModelField(
+                label = R.string.label_text_encoder,
+                selectedValue = selectedTextEncoder,
+                options = availableTextEncoders,
+                filteredOptions = filteredTextEncoders,
+                onValueChange = callbacks.onTextEncoderChange,
+                isVisible = true
+            ) else null,
+            latentUpscaleModel = if (capabilities.hasLatentUpscaleModel) ModelField(
+                label = R.string.label_latent_upscale_model,
+                selectedValue = selectedLatentUpscaleModel,
+                options = availableLatentUpscaleModels,
+                filteredOptions = filteredLatentUpscaleModels,
+                onValueChange = callbacks.onLatentUpscaleModelChange,
                 isVisible = true
             ) else null
         ),
@@ -583,6 +655,16 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: TextToVideoCallbacks): Bot
             )
         ),
         lora = LoraConfig(
+            // Single-model LoRA (mandatory dropdown)
+            loraName = if (capabilities.hasLoraName) ModelField(
+                label = R.string.label_lora,
+                selectedValue = selectedLoraName,
+                options = availableLoras,
+                filteredOptions = filteredLoras,
+                onValueChange = callbacks.onMandatoryLoraChange,
+                isVisible = true
+            ) else null,
+            // Dual-model LoRA chains
             highnoiseChain = if (capabilities.hasHighnoiseLora) LoraChainField(
                 title = R.string.highnoise_lora_chain_title,
                 chain = highnoiseLoraChain,
@@ -625,6 +707,24 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
         ),
         itiConfig = null,
         models = ModelConfig(
+            // Single-model patterns (e.g., LTX 2.0)
+            checkpoint = if (capabilities.hasCheckpointName) ModelField(
+                label = R.string.label_checkpoint,
+                selectedValue = selectedCheckpoint,
+                options = availableCheckpoints,
+                filteredOptions = filteredCheckpoints,
+                onValueChange = callbacks.onCheckpointChange,
+                isVisible = true
+            ) else null,
+            unet = if (capabilities.hasUnetName) ModelField(
+                label = R.string.label_unet,
+                selectedValue = selectedUnet,
+                options = availableUnets,
+                filteredOptions = filteredUnets,
+                onValueChange = callbacks.onUnetChange,
+                isVisible = true
+            ) else null,
+            // Dual-model patterns (e.g., Wan 2.2)
             highnoiseUnet = if (capabilities.hasHighnoiseUnetName) ModelField(
                 label = R.string.highnoise_unet_label,
                 selectedValue = selectedHighnoiseUnet,
@@ -701,6 +801,22 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
                 options = availableClips,
                 filteredOptions = filteredClips4,
                 onValueChange = callbacks.onClip4Change,
+                isVisible = true
+            ) else null,
+            textEncoder = if (capabilities.hasTextEncoderName) ModelField(
+                label = R.string.label_text_encoder,
+                selectedValue = selectedTextEncoder,
+                options = availableTextEncoders,
+                filteredOptions = filteredTextEncoders,
+                onValueChange = callbacks.onTextEncoderChange,
+                isVisible = true
+            ) else null,
+            latentUpscaleModel = if (capabilities.hasLatentUpscaleModel) ModelField(
+                label = R.string.label_latent_upscale_model,
+                selectedValue = selectedLatentUpscaleModel,
+                options = availableLatentUpscaleModels,
+                filteredOptions = filteredLatentUpscaleModels,
+                onValueChange = callbacks.onLatentUpscaleModelChange,
                 isVisible = true
             ) else null
         ),
@@ -800,6 +916,16 @@ fun ImageToVideoUiState.toBottomSheetConfig(callbacks: ImageToVideoCallbacks): B
             )
         ),
         lora = LoraConfig(
+            // Single-model LoRA (mandatory dropdown)
+            loraName = if (capabilities.hasLoraName) ModelField(
+                label = R.string.label_lora,
+                selectedValue = selectedLoraName,
+                options = availableLoras,
+                filteredOptions = filteredLoras,
+                onValueChange = callbacks.onMandatoryLoraChange,
+                isVisible = true
+            ) else null,
+            // Dual-model LoRA chains
             highnoiseChain = if (capabilities.hasHighnoiseLora) LoraChainField(
                 title = R.string.highnoise_lora_chain_title,
                 chain = highnoiseLoraChain,
@@ -919,6 +1045,22 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     filteredOptions = filteredClips4,
                     onValueChange = callbacks.onEditingClip4Change,
                     isVisible = true
+                ) else null,
+                textEncoder = if (capabilities.hasTextEncoderName) ModelField(
+                    label = R.string.label_text_encoder,
+                    selectedValue = selectedEditingTextEncoder,
+                    options = textEncoders,
+                    filteredOptions = filteredTextEncoders,
+                    onValueChange = callbacks.onEditingTextEncoderChange,
+                    isVisible = true
+                ) else null,
+                latentUpscaleModel = if (capabilities.hasLatentUpscaleModel) ModelField(
+                    label = R.string.label_latent_upscale_model,
+                    selectedValue = selectedEditingLatentUpscaleModel,
+                    options = latentUpscaleModels,
+                    filteredOptions = filteredLatentUpscaleModels,
+                    onValueChange = callbacks.onEditingLatentUpscaleModelChange,
+                    isVisible = true
                 ) else null
             )
         } else {
@@ -986,6 +1128,22 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: ImageToImageCallbacks): B
                     options = clips,
                     filteredOptions = filteredClips4,
                     onValueChange = callbacks.onClip4Change,
+                    isVisible = true
+                ) else null,
+                textEncoder = if (capabilities.hasTextEncoderName) ModelField(
+                    label = R.string.label_text_encoder,
+                    selectedValue = selectedTextEncoder,
+                    options = textEncoders,
+                    filteredOptions = filteredTextEncoders,
+                    onValueChange = callbacks.onTextEncoderChange,
+                    isVisible = true
+                ) else null,
+                latentUpscaleModel = if (capabilities.hasLatentUpscaleModel) ModelField(
+                    label = R.string.label_latent_upscale_model,
+                    selectedValue = selectedLatentUpscaleModel,
+                    options = latentUpscaleModels,
+                    filteredOptions = filteredLatentUpscaleModels,
+                    onValueChange = callbacks.onLatentUpscaleModelChange,
                     isVisible = true
                 ) else null
             )

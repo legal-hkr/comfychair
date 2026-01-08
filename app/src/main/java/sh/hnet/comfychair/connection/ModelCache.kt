@@ -14,6 +14,8 @@ data class ModelCache(
     val clips: List<String> = emptyList(),
     val loras: List<String> = emptyList(),
     val upscaleMethods: List<String> = emptyList(),
+    val textEncoders: List<String> = emptyList(),
+    val latentUpscaleModels: List<String> = emptyList(),
     val isLoaded: Boolean = false,
     val isLoading: Boolean = false,
     val lastError: String? = null

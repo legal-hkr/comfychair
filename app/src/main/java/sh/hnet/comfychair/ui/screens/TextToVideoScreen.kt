@@ -392,6 +392,11 @@ fun TextToVideoScreen(
                         }
                     },
                     onNegativePromptChange = textToVideoViewModel::onNegativePromptChange,
+                    // Single-model patterns
+                    onCheckpointChange = textToVideoViewModel::onCheckpointChange,
+                    onUnetChange = textToVideoViewModel::onUnetChange,
+                    onMandatoryLoraChange = textToVideoViewModel::onMandatoryLoraChange,
+                    // Dual-model patterns
                     onHighnoiseUnetChange = textToVideoViewModel::onHighnoiseUnetChange,
                     onLownoiseUnetChange = textToVideoViewModel::onLownoiseUnetChange,
                     onHighnoiseLoraChange = textToVideoViewModel::onHighnoiseLoraChange,
@@ -402,6 +407,8 @@ fun TextToVideoScreen(
                     onClip2Change = textToVideoViewModel::onClip2Change,
                     onClip3Change = textToVideoViewModel::onClip3Change,
                     onClip4Change = textToVideoViewModel::onClip4Change,
+                    onTextEncoderChange = textToVideoViewModel::onTextEncoderChange,
+                    onLatentUpscaleModelChange = textToVideoViewModel::onLatentUpscaleModelChange,
                     onWidthChange = textToVideoViewModel::onWidthChange,
                     onHeightChange = textToVideoViewModel::onHeightChange,
                     onMegapixelsChange = textToVideoViewModel::onMegapixelsChange,
@@ -419,6 +426,7 @@ fun TextToVideoScreen(
                     onUpscaleMethodChange = textToVideoViewModel::onUpscaleMethodChange,
                     onScaleByChange = textToVideoViewModel::onScaleByChange,
                     onStopAtClipLayerChange = textToVideoViewModel::onStopAtClipLayerChange,
+                    // Dual-model LoRA chains
                     onAddHighnoiseLora = textToVideoViewModel::onAddHighnoiseLora,
                     onRemoveHighnoiseLora = textToVideoViewModel::onRemoveHighnoiseLora,
                     onHighnoiseLoraNameChange = textToVideoViewModel::onHighnoiseLoraChainNameChange,

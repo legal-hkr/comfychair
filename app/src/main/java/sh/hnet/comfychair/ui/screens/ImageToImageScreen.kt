@@ -539,6 +539,8 @@ fun ImageToImageScreen(
                     onClip2Change = imageToImageViewModel::onClip2Change,
                     onClip3Change = imageToImageViewModel::onClip3Change,
                     onClip4Change = imageToImageViewModel::onClip4Change,
+                    onTextEncoderChange = imageToImageViewModel::onTextEncoderChange,
+                    onLatentUpscaleModelChange = imageToImageViewModel::onLatentUpscaleModelChange,
                     // Editing model selection callbacks
                     onEditingUnetChange = imageToImageViewModel::onEditingUnetChange,
                     onEditingLoraChange = imageToImageViewModel::onEditingLoraChange,
@@ -548,6 +550,8 @@ fun ImageToImageScreen(
                     onEditingClip2Change = imageToImageViewModel::onEditingClip2Change,
                     onEditingClip3Change = imageToImageViewModel::onEditingClip3Change,
                     onEditingClip4Change = imageToImageViewModel::onEditingClip4Change,
+                    onEditingTextEncoderChange = imageToImageViewModel::onEditingTextEncoderChange,
+                    onEditingLatentUpscaleModelChange = imageToImageViewModel::onEditingLatentUpscaleModelChange,
                     // Inpainting parameter callbacks
                     onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
                     onStepsChange = imageToImageViewModel::onStepsChange,

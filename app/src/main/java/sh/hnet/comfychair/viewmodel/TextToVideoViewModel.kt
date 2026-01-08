@@ -52,33 +52,47 @@ data class TextToVideoUiState(
     // Workflow placeholders - detected from {{placeholder}} patterns in workflow JSON
     val workflowPlaceholders: Set<String> = emptySet(),
 
-    // Model selections
+    // Model selections - single-model patterns (e.g., LTX 2.0)
+    val selectedCheckpoint: String = "",
+    val selectedUnet: String = "",
+    val selectedLoraName: String = "",  // Mandatory LoRA dropdown
+    // Model selections - dual-model patterns (e.g., Wan 2.2)
     val selectedHighnoiseUnet: String = "",
     val selectedLownoiseUnet: String = "",
     val selectedHighnoiseLora: String = "",
     val selectedLownoiseLora: String = "",
+    // Model selections - common
     val selectedVae: String = "",
     val selectedClip: String = "",
     val selectedClip1: String = "",
     val selectedClip2: String = "",
     val selectedClip3: String = "",
     val selectedClip4: String = "",
+    val selectedTextEncoder: String = "",
+    val selectedLatentUpscaleModel: String = "",
 
     // Available models
+    val availableCheckpoints: List<String> = emptyList(),
     val availableUnets: List<String> = emptyList(),
     val availableLoras: List<String> = emptyList(),
     val availableVaes: List<String> = emptyList(),
     val availableClips: List<String> = emptyList(),
     val availableUpscaleMethods: List<String> = emptyList(),
+    val availableTextEncoders: List<String> = emptyList(),
+    val availableLatentUpscaleModels: List<String> = emptyList(),
 
     // Workflow-specific filtered options (from actual node type in workflow)
+    val filteredCheckpoints: List<String>? = null,
     val filteredUnets: List<String>? = null,
+    val filteredLoras: List<String>? = null,  // For mandatory LoRA dropdown
     val filteredVaes: List<String>? = null,
     val filteredClips: List<String>? = null,
     val filteredClips1: List<String>? = null,
     val filteredClips2: List<String>? = null,
     val filteredClips3: List<String>? = null,
     val filteredClips4: List<String>? = null,
+    val filteredTextEncoders: List<String>? = null,
+    val filteredLatentUpscaleModels: List<String>? = null,
 
     // Generation parameters
     val width: String = "848",
@@ -119,16 +133,24 @@ data class TextToVideoUiState(
     val negativePrompt: String = "",
 
     // Deferred model selections (for restoring after models load)
+    // Single-model patterns
+    val deferredCheckpoint: String? = null,
+    val deferredUnet: String? = null,
+    val deferredLoraName: String? = null,
+    // Dual-model patterns
     val deferredHighnoiseUnet: String? = null,
     val deferredLownoiseUnet: String? = null,
     val deferredHighnoiseLora: String? = null,
     val deferredLownoiseLora: String? = null,
+    // Common
     val deferredVae: String? = null,
     val deferredClip: String? = null,
     val deferredClip1: String? = null,
     val deferredClip2: String? = null,
     val deferredClip3: String? = null,
     val deferredClip4: String? = null,
+    val deferredTextEncoder: String? = null,
+    val deferredLatentUpscaleModel: String? = null,
 
     // Additional LoRA chains (optional, 0-5 LoRAs on top of mandatory LightX2V LoRAs)
     val highnoiseLoraChain: List<LoraSelection> = emptyList(),
@@ -170,6 +192,14 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             ConnectionManager.modelCache.collect { cache ->
                 _uiState.update { state ->
                     // Apply deferred selections first, then validate or fall back to first available
+                    // Single-model patterns
+                    val checkpoint = state.deferredCheckpoint?.takeIf { it in cache.checkpoints }
+                        ?: validateModelSelection(state.selectedCheckpoint, cache.checkpoints)
+                    val unet = state.deferredUnet?.takeIf { it in cache.unets }
+                        ?: validateModelSelection(state.selectedUnet, cache.unets)
+                    val loraName = state.deferredLoraName?.takeIf { it in cache.loras }
+                        ?: validateModelSelection(state.selectedLoraName, cache.loras)
+                    // Dual-model patterns
                     val highnoiseUnet = state.deferredHighnoiseUnet?.takeIf { it in cache.unets }
                         ?: validateModelSelection(state.selectedHighnoiseUnet, cache.unets)
                     val lownoiseUnet = state.deferredLownoiseUnet?.takeIf { it in cache.unets }
@@ -178,6 +208,7 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                         ?: validateModelSelection(state.selectedHighnoiseLora, cache.loras)
                     val lownoiseLora = state.deferredLownoiseLora?.takeIf { it in cache.loras }
                         ?: validateModelSelection(state.selectedLownoiseLora, cache.loras)
+                    // Common
                     val vae = state.deferredVae?.takeIf { it in cache.vaes }
                         ?: validateModelSelection(state.selectedVae, cache.vaes)
                     val clip = state.deferredClip?.takeIf { it in cache.clips }
@@ -190,23 +221,41 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                         ?: validateModelSelection(state.selectedClip3, cache.clips)
                     val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip4, cache.clips)
+                    val textEncoder = state.deferredTextEncoder?.takeIf { it in cache.textEncoders }
+                        ?: validateModelSelection(state.selectedTextEncoder, cache.textEncoders)
+                    val latentUpscaleModel = state.deferredLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                        ?: validateModelSelection(state.selectedLatentUpscaleModel, cache.latentUpscaleModels)
 
                     state.copy(
+                        availableCheckpoints = cache.checkpoints,
                         availableUnets = cache.unets,
                         availableLoras = cache.loras,
                         availableVaes = cache.vaes,
                         availableClips = cache.clips,
+                        availableTextEncoders = cache.textEncoders,
+                        availableLatentUpscaleModels = cache.latentUpscaleModels,
+                        // Single-model selections
+                        selectedCheckpoint = checkpoint,
+                        selectedUnet = unet,
+                        selectedLoraName = loraName,
+                        // Dual-model selections
                         selectedHighnoiseUnet = highnoiseUnet,
                         selectedLownoiseUnet = lownoiseUnet,
                         selectedHighnoiseLora = highnoiseLora,
                         selectedLownoiseLora = lownoiseLora,
+                        // Common selections
                         selectedVae = vae,
                         selectedClip = clip,
                         selectedClip1 = clip1,
                         selectedClip2 = clip2,
                         selectedClip3 = clip3,
                         selectedClip4 = clip4,
+                        selectedTextEncoder = textEncoder,
+                        selectedLatentUpscaleModel = latentUpscaleModel,
                         // Clear deferred values once applied
+                        deferredCheckpoint = null,
+                        deferredUnet = null,
+                        deferredLoraName = null,
                         deferredHighnoiseUnet = null,
                         deferredLownoiseUnet = null,
                         deferredHighnoiseLora = null,
@@ -217,6 +266,8 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                         deferredClip2 = null,
                         deferredClip3 = null,
                         deferredClip4 = null,
+                        deferredTextEncoder = null,
+                        deferredLatentUpscaleModel = null,
                         // Filter LoRA chains
                         highnoiseLoraChain = LoraChainManager.filterUnavailable(state.highnoiseLoraChain, cache.loras),
                         lownoiseLoraChain = LoraChainManager.filterUnavailable(state.lownoiseLoraChain, cache.loras)
@@ -330,7 +381,14 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 ?: defaults?.length?.toString() ?: "33",
             fps = savedValues?.frameRate?.toString()
                 ?: defaults?.frameRate?.toString() ?: "16",
-            // Apply model selections with deferred mechanism
+            // Apply single-model selections with deferred mechanism
+            selectedCheckpoint = savedValues?.model?.takeIf { it in cache.checkpoints }
+                ?: state.selectedCheckpoint,
+            selectedUnet = savedValues?.unetModel?.takeIf { it in cache.unets }
+                ?: state.selectedUnet,
+            selectedLoraName = savedValues?.loraModel?.takeIf { it in cache.loras }
+                ?: state.selectedLoraName,
+            // Apply dual-model selections with deferred mechanism
             selectedHighnoiseUnet = savedValues?.highnoiseUnetModel?.takeIf { it in cache.unets }
                 ?: state.selectedHighnoiseUnet,
             selectedLownoiseUnet = savedValues?.lownoiseUnetModel?.takeIf { it in cache.unets }
@@ -339,6 +397,7 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 ?: state.selectedHighnoiseLora,
             selectedLownoiseLora = savedValues?.lownoiseLoraModel?.takeIf { it in cache.loras }
                 ?: state.selectedLownoiseLora,
+            // Apply common model selections
             selectedVae = savedValues?.vaeModel?.takeIf { it in cache.vaes }
                 ?: state.selectedVae,
             selectedClip = savedValues?.clipModel?.takeIf { it in cache.clips }
@@ -351,27 +410,43 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 ?: state.selectedClip3,
             selectedClip4 = savedValues?.clip4Model?.takeIf { it in cache.clips }
                 ?: state.selectedClip4,
-            // Deferred values for when cache updates
+            selectedTextEncoder = savedValues?.textEncoderModel?.takeIf { it in cache.textEncoders }
+                ?: state.selectedTextEncoder,
+            selectedLatentUpscaleModel = savedValues?.latentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                ?: state.selectedLatentUpscaleModel,
+            // Deferred values for when cache updates - single-model
+            deferredCheckpoint = savedValues?.model,
+            deferredUnet = savedValues?.unetModel,
+            deferredLoraName = savedValues?.loraModel,
+            // Deferred values for when cache updates - dual-model
             deferredHighnoiseUnet = savedValues?.highnoiseUnetModel,
             deferredLownoiseUnet = savedValues?.lownoiseUnetModel,
             deferredHighnoiseLora = savedValues?.highnoiseLoraModel,
             deferredLownoiseLora = savedValues?.lownoiseLoraModel,
+            // Deferred values for when cache updates - common
             deferredVae = savedValues?.vaeModel,
             deferredClip = savedValues?.clipModel,
             deferredClip1 = savedValues?.clip1Model,
             deferredClip2 = savedValues?.clip2Model,
             deferredClip3 = savedValues?.clip3Model,
             deferredClip4 = savedValues?.clip4Model,
+            deferredTextEncoder = savedValues?.textEncoderModel,
+            deferredLatentUpscaleModel = savedValues?.latentUpscaleModel,
             highnoiseLoraChain = savedValues?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             lownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-            // Workflow-specific filtered options (video workflows use highnoise_unet_name for UNET)
-            filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "highnoise_unet_name"),
+            // Workflow-specific filtered options
+            filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "ckpt_name"),
+            filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "unet_name")
+                ?: WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "highnoise_unet_name"),
+            filteredLoras = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "lora_name"),
             filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "vae_name"),
             filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name"),
             filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name1"),
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name4"),
+            filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "text_encoder_name"),
+            filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "latent_upscale_model"),
             // Workflow capabilities from placeholders
             capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
         )
@@ -422,16 +497,24 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             length = state.length.toIntOrNull(),
             frameRate = state.fps.toIntOrNull(),
             negativePrompt = state.negativePrompt.takeIf { it.isNotEmpty() },
+            // Single-model patterns
+            model = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
+            unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },
+            loraModel = state.selectedLoraName.takeIf { it.isNotEmpty() },
+            // Dual-model patterns
             highnoiseUnetModel = state.selectedHighnoiseUnet.takeIf { it.isNotEmpty() },
             lownoiseUnetModel = state.selectedLownoiseUnet.takeIf { it.isNotEmpty() },
             highnoiseLoraModel = state.selectedHighnoiseLora.takeIf { it.isNotEmpty() },
             lownoiseLoraModel = state.selectedLownoiseLora.takeIf { it.isNotEmpty() },
+            // Common models
             vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
             clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
             clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
             clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
+            textEncoderModel = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             highnoiseLoraChain = LoraSelection.toJsonString(state.highnoiseLoraChain).takeIf { state.highnoiseLoraChain.isNotEmpty() },
             lownoiseLoraChain = LoraSelection.toJsonString(state.lownoiseLoraChain).takeIf { state.lownoiseLoraChain.isNotEmpty() },
             nodeAttributeEdits = existingValues?.nodeAttributeEdits
@@ -498,6 +581,22 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         savePreferences()
     }
 
+    // Single-model callbacks
+    fun onCheckpointChange(checkpoint: String) {
+        _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoint)
+        savePreferences()
+    }
+
+    fun onUnetChange(unet: String) {
+        _uiState.value = _uiState.value.copy(selectedUnet = unet)
+        savePreferences()
+    }
+
+    fun onMandatoryLoraChange(lora: String) {
+        _uiState.value = _uiState.value.copy(selectedLoraName = lora)
+        savePreferences()
+    }
+
     fun onVaeChange(vae: String) {
         _uiState.value = _uiState.value.copy(selectedVae = vae)
         savePreferences()
@@ -525,6 +624,16 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
 
     fun onClip4Change(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip4 = clip)
+        savePreferences()
+    }
+
+    fun onTextEncoderChange(textEncoder: String) {
+        _uiState.value = _uiState.value.copy(selectedTextEncoder = textEncoder)
+        savePreferences()
+    }
+
+    fun onLatentUpscaleModelChange(model: String) {
+        _uiState.value = _uiState.value.copy(selectedLatentUpscaleModel = model)
         savePreferences()
     }
 
@@ -776,16 +885,24 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             workflowId = state.selectedWorkflowId,
             positivePrompt = state.positivePrompt,
             negativePrompt = state.negativePrompt,
+            // Single-model patterns (e.g., LTX 2.0)
+            checkpoint = state.selectedCheckpoint,
+            unet = state.selectedUnet,
+            lora = state.selectedLoraName.takeIf { it.isNotEmpty() },
+            // Dual-model patterns (e.g., Wan 2.2)
             highnoiseUnet = state.selectedHighnoiseUnet,
             lownoiseUnet = state.selectedLownoiseUnet,
             highnoiseLora = state.selectedHighnoiseLora,
             lownoiseLora = state.selectedLownoiseLora,
+            // Common models
             vae = state.selectedVae,
             clip = state.selectedClip,
             clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
             clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
+            textEncoder = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             width = width,
             height = height,
             length = length,

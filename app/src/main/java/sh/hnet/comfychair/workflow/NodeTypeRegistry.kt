@@ -376,6 +376,15 @@ class NodeTypeRegistry {
     }
 
     /**
+     * Get options for a specific input on a specific node type.
+     * Use this when a generic field name like "model_name" is used by multiple
+     * unrelated node types and you need options from a specific one.
+     */
+    fun getOptionsForNodeInput(classType: String, inputName: String): List<String> {
+        return getInputDefinition(classType, inputName)?.options ?: emptyList()
+    }
+
+    /**
      * Get node types grouped by category.
      */
     fun getNodeTypesByCategory(): Map<String, List<NodeTypeDefinition>> {

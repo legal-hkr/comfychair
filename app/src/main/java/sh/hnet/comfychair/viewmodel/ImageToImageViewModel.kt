@@ -119,6 +119,8 @@ data class ImageToImageUiState(
     val clips: List<String> = emptyList(),
     val availableLoras: List<String> = emptyList(),
     val availableUpscaleMethods: List<String> = emptyList(),
+    val textEncoders: List<String> = emptyList(),
+    val latentUpscaleModels: List<String> = emptyList(),
 
     // Inpainting mode - unified model selections (visibility driven by capabilities)
     val selectedCheckpoint: String = "",
@@ -129,6 +131,8 @@ data class ImageToImageUiState(
     val selectedClip2: String = "",
     val selectedClip3: String = "",
     val selectedClip4: String = "",
+    val selectedTextEncoder: String = "",
+    val selectedLatentUpscaleModel: String = "",
 
     // Workflow-specific filtered options (from actual node type in workflow)
     val filteredCheckpoints: List<String>? = null,
@@ -139,6 +143,8 @@ data class ImageToImageUiState(
     val filteredClips2: List<String>? = null,
     val filteredClips3: List<String>? = null,
     val filteredClips4: List<String>? = null,
+    val filteredTextEncoders: List<String>? = null,
+    val filteredLatentUpscaleModels: List<String>? = null,
 
     // Inpainting mode - unified generation parameters
     val positivePrompt: String = "",
@@ -178,6 +184,8 @@ data class ImageToImageUiState(
     val deferredClip2: String? = null,
     val deferredClip3: String? = null,
     val deferredClip4: String? = null,
+    val deferredTextEncoder: String? = null,
+    val deferredLatentUpscaleModel: String? = null,
 
     // ========== EDITING MODE STATE ==========
     // (Editing is a different workflow type, so it has its own set of fields)
@@ -199,6 +207,8 @@ data class ImageToImageUiState(
     val selectedEditingClip2: String = "",
     val selectedEditingClip3: String = "",
     val selectedEditingClip4: String = "",
+    val selectedEditingTextEncoder: String = "",
+    val selectedEditingLatentUpscaleModel: String = "",
 
     // Editing parameters
     val editingMegapixels: String = "2.0",
@@ -231,6 +241,8 @@ data class ImageToImageUiState(
     val deferredEditingClip3: String? = null,
     val deferredEditingClip4: String? = null,
     val deferredEditingLora: String? = null,
+    val deferredEditingTextEncoder: String? = null,
+    val deferredEditingLatentUpscaleModel: String? = null,
 
     // Upload state
     val isUploading: Boolean = false
@@ -288,6 +300,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         ?: validateModelSelection(state.selectedClip3, cache.clips)
                     val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip4, cache.clips)
+                    val textEncoder = state.deferredTextEncoder?.takeIf { it in cache.textEncoders }
+                        ?: validateModelSelection(state.selectedTextEncoder, cache.textEncoders)
+                    val latentUpscaleModel = state.deferredLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                        ?: validateModelSelection(state.selectedLatentUpscaleModel, cache.latentUpscaleModels)
                     val editingUnet = state.deferredEditingUnet?.takeIf { it in cache.unets }
                         ?: validateModelSelection(state.selectedEditingUnet, cache.unets)
                     val editingVae = state.deferredEditingVae?.takeIf { it in cache.vaes }
@@ -304,6 +320,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         ?: validateModelSelection(state.selectedEditingClip4, cache.clips)
                     val editingLora = state.deferredEditingLora?.takeIf { it in cache.loras }
                         ?: validateModelSelection(state.selectedEditingLora, cache.loras)
+                    val editingTextEncoder = state.deferredEditingTextEncoder?.takeIf { it in cache.textEncoders }
+                        ?: validateModelSelection(state.selectedEditingTextEncoder, cache.textEncoders)
+                    val editingLatentUpscaleModel = state.deferredEditingLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                        ?: validateModelSelection(state.selectedEditingLatentUpscaleModel, cache.latentUpscaleModels)
 
                     state.copy(
                         checkpoints = cache.checkpoints,
@@ -311,6 +331,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         vaes = cache.vaes,
                         clips = cache.clips,
                         availableLoras = cache.loras,
+                        textEncoders = cache.textEncoders,
+                        latentUpscaleModels = cache.latentUpscaleModels,
                         // Apply validated model selections
                         selectedCheckpoint = checkpoint,
                         selectedUnet = unet,
@@ -320,6 +342,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         selectedClip2 = clip2,
                         selectedClip3 = clip3,
                         selectedClip4 = clip4,
+                        selectedTextEncoder = textEncoder,
+                        selectedLatentUpscaleModel = latentUpscaleModel,
                         selectedEditingUnet = editingUnet,
                         selectedEditingVae = editingVae,
                         selectedEditingClip = editingClip,
@@ -328,6 +352,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         selectedEditingClip3 = editingClip3,
                         selectedEditingClip4 = editingClip4,
                         selectedEditingLora = editingLora,
+                        selectedEditingTextEncoder = editingTextEncoder,
+                        selectedEditingLatentUpscaleModel = editingLatentUpscaleModel,
                         // Clear deferred values once applied
                         deferredCheckpoint = null,
                         deferredUnet = null,
@@ -337,6 +363,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         deferredClip2 = null,
                         deferredClip3 = null,
                         deferredClip4 = null,
+                        deferredTextEncoder = null,
+                        deferredLatentUpscaleModel = null,
                         deferredEditingUnet = null,
                         deferredEditingVae = null,
                         deferredEditingClip = null,
@@ -345,6 +373,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         deferredEditingClip3 = null,
                         deferredEditingClip4 = null,
                         deferredEditingLora = null,
+                        deferredEditingTextEncoder = null,
+                        deferredEditingLatentUpscaleModel = null,
                         loraChain = LoraChainManager.filterUnavailable(state.loraChain, cache.loras),
                         editingLoraChain = LoraChainManager.filterUnavailable(state.editingLoraChain, cache.loras)
                     )
@@ -597,6 +627,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 ?: validateModelSelection("", cache.clips),
             selectedClip4 = savedClip4?.takeIf { it in cache.clips }
                 ?: validateModelSelection("", cache.clips),
+            selectedTextEncoder = savedValues?.textEncoderModel?.takeIf { it in cache.textEncoders }
+                ?: validateModelSelection("", cache.textEncoders),
+            selectedLatentUpscaleModel = savedValues?.latentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                ?: validateModelSelection("", cache.latentUpscaleModels),
 
             // Deferred values - applied when model cache updates
             deferredCheckpoint = if (capabilities.hasCheckpointName) savedModel else null,
@@ -607,6 +641,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             deferredClip2 = savedClip2,
             deferredClip3 = savedClip3,
             deferredClip4 = savedClip4,
+            deferredTextEncoder = savedValues?.textEncoderModel,
+            deferredLatentUpscaleModel = savedValues?.latentUpscaleModel,
 
             // Unified LoRA chain
             loraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
@@ -634,7 +670,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name1"),
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
-            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4")
+            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
+            filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
+            filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model")
         )
     }
 
@@ -664,6 +702,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         val savedEditingClip3 = savedValues?.clip3Model
         val savedEditingClip4 = savedValues?.clip4Model
         val savedEditingLora = savedValues?.loraModel
+        val savedEditingTextEncoder = savedValues?.textEncoderModel
+        val savedEditingLatentUpscaleModel = savedValues?.latentUpscaleModel
 
         val state = _uiState.value
         _uiState.value = state.copy(
@@ -699,6 +739,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 ?: validateModelSelection(state.selectedEditingClip3, cache.clips),
             selectedEditingClip4 = savedEditingClip4?.takeIf { it in cache.clips }
                 ?: validateModelSelection(state.selectedEditingClip4, cache.clips),
+            selectedEditingTextEncoder = savedEditingTextEncoder?.takeIf { it in cache.textEncoders }
+                ?: validateModelSelection(state.selectedEditingTextEncoder, cache.textEncoders),
+            selectedEditingLatentUpscaleModel = savedEditingLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                ?: validateModelSelection(state.selectedEditingLatentUpscaleModel, cache.latentUpscaleModels),
             // Set deferred values - these will be applied when model cache updates
             deferredEditingUnet = savedEditingUnet,
             deferredEditingVae = savedEditingVae,
@@ -708,6 +752,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             deferredEditingClip3 = savedEditingClip3,
             deferredEditingClip4 = savedEditingClip4,
             deferredEditingLora = savedEditingLora,
+            deferredEditingTextEncoder = savedEditingTextEncoder,
+            deferredEditingLatentUpscaleModel = savedEditingLatentUpscaleModel,
             editingLoraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             // Workflow-specific filtered options (editing mode uses UNET)
             filteredCheckpoints = null,
@@ -718,6 +764,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
+            filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
+            filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model"),
             // Workflow capabilities from placeholders
             capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
         )
@@ -754,6 +802,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
+            textEncoderModel = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             // Unified LoRA chain
             loraChain = LoraSelection.toJsonString(state.loraChain).takeIf { state.loraChain.isNotEmpty() },
             // Unified generation parameters
@@ -796,6 +846,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             clip2Model = state.selectedEditingClip2.takeIf { it.isNotEmpty() },
             clip3Model = state.selectedEditingClip3.takeIf { it.isNotEmpty() },
             clip4Model = state.selectedEditingClip4.takeIf { it.isNotEmpty() },
+            textEncoderModel = state.selectedEditingTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedEditingLatentUpscaleModel.takeIf { it.isNotEmpty() },
             loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() },
             nodeAttributeEdits = existingValues?.nodeAttributeEdits
         )
@@ -1174,6 +1226,16 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         savePreferences()
     }
 
+    fun onTextEncoderChange(textEncoder: String) {
+        _uiState.value = _uiState.value.copy(selectedTextEncoder = textEncoder)
+        savePreferences()
+    }
+
+    fun onLatentUpscaleModelChange(model: String) {
+        _uiState.value = _uiState.value.copy(selectedLatentUpscaleModel = model)
+        savePreferences()
+    }
+
     // Unified parameter callbacks
 
     fun onMegapixelsChange(megapixels: String) {
@@ -1358,6 +1420,16 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
 
     fun onEditingClip4Change(clip: String) {
         _uiState.value = _uiState.value.copy(selectedEditingClip4 = clip)
+        savePreferences()
+    }
+
+    fun onEditingTextEncoderChange(textEncoder: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingTextEncoder = textEncoder)
+        savePreferences()
+    }
+
+    fun onEditingLatentUpscaleModelChange(model: String) {
+        _uiState.value = _uiState.value.copy(selectedEditingLatentUpscaleModel = model)
         savePreferences()
     }
 
@@ -1639,6 +1711,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             clip2 = state.selectedEditingClip2.takeIf { it.isNotEmpty() },
             clip3 = state.selectedEditingClip3.takeIf { it.isNotEmpty() },
             clip4 = state.selectedEditingClip4.takeIf { it.isNotEmpty() },
+            textEncoder = state.selectedEditingTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedEditingLatentUpscaleModel.takeIf { it.isNotEmpty() },
             megapixels = state.editingMegapixels.toFloatOrNull() ?: 2.0f,
             steps = state.editingSteps.toIntOrNull() ?: 4,
             cfg = state.editingCfg.toFloatOrNull() ?: 1.0f,
@@ -1720,6 +1794,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
+            textEncoder = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             // Unified parameters
             megapixels = state.megapixels.toFloatOrNull() ?: 1.0f,
             steps = state.steps.toIntOrNull() ?: 20,

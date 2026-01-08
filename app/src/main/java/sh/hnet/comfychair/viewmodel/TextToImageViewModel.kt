@@ -76,6 +76,8 @@ data class TextToImageUiState(
     val selectedClip2: String = "",  // For multi-CLIP slot 2 (clip_name2 placeholder)
     val selectedClip3: String = "",  // For multi-CLIP slot 3 (clip_name3 placeholder)
     val selectedClip4: String = "",  // For multi-CLIP slot 4 (clip_name4 placeholder)
+    val selectedTextEncoder: String = "",  // For text encoder (text_encoder_name placeholder)
+    val selectedLatentUpscaleModel: String = "",  // For latent upscale model (latent_upscale_model placeholder)
 
     // Unified generation parameters - single set, visibility controlled by capabilities
     val width: String = "1024",
@@ -109,6 +111,8 @@ data class TextToImageUiState(
     val deferredClip2: String? = null,
     val deferredClip3: String? = null,
     val deferredClip4: String? = null,
+    val deferredTextEncoder: String? = null,
+    val deferredLatentUpscaleModel: String? = null,
 
     // Available models (loaded from server)
     val availableCheckpoints: List<String> = emptyList(),
@@ -117,6 +121,8 @@ data class TextToImageUiState(
     val availableClips: List<String> = emptyList(),
     val availableLoras: List<String> = emptyList(),
     val availableUpscaleMethods: List<String> = emptyList(),
+    val availableTextEncoders: List<String> = emptyList(),
+    val availableLatentUpscaleModels: List<String> = emptyList(),
 
     // Workflow-specific filtered options (from actual node type)
     val filteredCheckpoints: List<String>? = null,
@@ -127,6 +133,8 @@ data class TextToImageUiState(
     val filteredClips2: List<String>? = null,     // For multi-CLIP slot 2
     val filteredClips3: List<String>? = null,     // For multi-CLIP slot 3
     val filteredClips4: List<String>? = null,     // For multi-CLIP slot 4
+    val filteredTextEncoders: List<String>? = null,
+    val filteredLatentUpscaleModels: List<String>? = null,
 
     // Generated image (preview)
     val previewBitmap: Bitmap? = null,
@@ -201,6 +209,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         ?: validateModelSelection(state.selectedClip3, cache.clips)
                     val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
                         ?: validateModelSelection(state.selectedClip4, cache.clips)
+                    val textEncoder = state.deferredTextEncoder?.takeIf { it in cache.textEncoders }
+                        ?: validateModelSelection(state.selectedTextEncoder, cache.textEncoders)
+                    val latentUpscaleModel = state.deferredLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                        ?: validateModelSelection(state.selectedLatentUpscaleModel, cache.latentUpscaleModels)
                     val loraName = state.deferredLoraName?.takeIf { it in cache.loras }
                         ?: validateModelSelection(state.selectedLoraName, cache.loras)
 
@@ -211,6 +223,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         availableClips = cache.clips,
                         availableLoras = cache.loras,
                         availableUpscaleMethods = cache.upscaleMethods,
+                        availableTextEncoders = cache.textEncoders,
+                        availableLatentUpscaleModels = cache.latentUpscaleModels,
                         isLoadingModels = cache.isLoading,
                         modelsLoaded = cache.isLoaded,
                         // Apply validated model selections
@@ -222,6 +236,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         selectedClip2 = clip2,
                         selectedClip3 = clip3,
                         selectedClip4 = clip4,
+                        selectedTextEncoder = textEncoder,
+                        selectedLatentUpscaleModel = latentUpscaleModel,
                         selectedLoraName = loraName,
                         // Clear deferred values once applied
                         deferredCheckpoint = null,
@@ -232,6 +248,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                         deferredClip2 = null,
                         deferredClip3 = null,
                         deferredClip4 = null,
+                        deferredTextEncoder = null,
+                        deferredLatentUpscaleModel = null,
                         deferredLoraName = null,
                         loraChain = LoraChainManager.filterUnavailable(state.loraChain, cache.loras)
                     )
@@ -390,6 +408,16 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
     fun onClip4Change(clip: String) {
         _uiState.value = _uiState.value.copy(selectedClip4 = clip)
+        saveConfiguration()
+    }
+
+    fun onTextEncoderChange(textEncoder: String) {
+        _uiState.value = _uiState.value.copy(selectedTextEncoder = textEncoder)
+        saveConfiguration()
+    }
+
+    fun onLatentUpscaleModelChange(model: String) {
+        _uiState.value = _uiState.value.copy(selectedLatentUpscaleModel = model)
         saveConfiguration()
     }
 
@@ -688,6 +716,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
+            textEncoder = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             lora = state.selectedLoraName.takeIf { it.isNotEmpty() },
             // Unified generation parameters
             width = state.width.toIntOrNull() ?: 1024,
@@ -802,6 +832,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
             clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
             clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
+            textEncoderModel = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
+            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             // Mandatory LoRA (single selection dropdown)
             loraModel = state.selectedLoraName.takeIf { it.isNotEmpty() },
             // Unified LoRA chain
@@ -906,6 +938,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val savedClip2 = savedValues?.clip2Model
         val savedClip3 = savedValues?.clip3Model
         val savedClip4 = savedValues?.clip4Model
+        val savedTextEncoder = savedValues?.textEncoderModel
+        val savedLatentUpscaleModel = savedValues?.latentUpscaleModel
         val savedLoraName = savedValues?.loraModel
 
         // Load model into appropriate field based on capabilities
@@ -959,6 +993,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 ?: validateModelSelection("", cache.clips),
             selectedClip4 = savedClip4?.takeIf { it in cache.clips }
                 ?: validateModelSelection("", cache.clips),
+            selectedTextEncoder = savedTextEncoder?.takeIf { it in cache.textEncoders }
+                ?: validateModelSelection("", cache.textEncoders),
+            selectedLatentUpscaleModel = savedLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
+                ?: validateModelSelection("", cache.latentUpscaleModels),
             selectedLoraName = savedLoraName?.takeIf { it in cache.loras }
                 ?: validateModelSelection("", cache.loras),
 
@@ -971,6 +1009,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             deferredClip2 = savedClip2,
             deferredClip3 = savedClip3,
             deferredClip4 = savedClip4,
+            deferredTextEncoder = savedTextEncoder,
+            deferredLatentUpscaleModel = savedLatentUpscaleModel,
             deferredLoraName = savedLoraName,
 
             // Unified LoRA chain
@@ -1000,6 +1040,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
             filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
+            filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
+            filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model"),
             filteredLoras = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "lora_name")
         )
     }

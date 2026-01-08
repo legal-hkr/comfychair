@@ -41,7 +41,7 @@ object DebugLogger {
     private var enabled = false
     private const val MAX_ENTRIES = 1000
 
-    private const val LOGCAT_ENABLED = false
+    private const val LOGCAT_ENABLED = true
     private const val LOGCAT_TAG = "ComfyChair"
 
     /**

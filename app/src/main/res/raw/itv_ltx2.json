@@ -1,0 +1,443 @@
+{
+  "name": "LTX 2.0",
+  "description": "Generate videos from images using LTX 2.0 with audio support",
+  "defaults": {
+    "length": 121,
+    "frame_rate": 24,
+    "negative_prompt": "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Model Loaders",
+      "member_nodes": ["1", "2", "3", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "Image Input",
+      "member_nodes": ["4", "5", "6", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "Prompts",
+      "member_nodes": ["7", "8"]
+    },
+    {
+      "id": 4,
+      "title": "Video Settings",
+      "member_nodes": ["9", "10", "11", "12"]
+    },
+    {
+      "id": 5,
+      "title": "Stage 1 Sampling",
+      "member_nodes": ["13", "14", "15", "16", "17", "18"]
+    },
+    {
+      "id": 6,
+      "title": "Stage 2 Upscale",
+      "member_nodes": ["19", "20", "21", "22", "23", "24", "25", "26", "27"]
+    },
+    {
+      "id": 7,
+      "title": "Output",
+      "member_nodes": ["28", "29", "30", "31"]
+    },
+    {
+      "id": 8,
+      "title": "LoRA",
+      "member_nodes": ["32", "note:3"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Model Information",
+      "content": "### LTX 2.0 Models\n\n**Checkpoints:**\n- ltx-2-19b-dev.safetensors\n- ltx-2-19b-dev-fp8.safetensors\n\n**Text Encoders:**\n- gemma_3_12B_it.safetensors\n\n**LoRAs:**\n- ltx-2-19b-distilled-lora-384.safetensors\n\n**Upscale Models:**\n- ltx-2-spatial-upscaler-x2-1.0.safetensors"
+    },
+    {
+      "id": 2,
+      "title": "Image Requirements",
+      "content": "### LTX 2.0 Size Requirements\n\n- Width and height must be divisible by 32\n- Frame count must be divisible by 8 + 1\n- Input image will be preprocessed automatically\n\n---\n\n*Invalid parameters will be silently adjusted to closest valid values.*"
+    },
+    {
+      "id": 3,
+      "title": "LoRA Usage",
+      "content": "### Using LoRAs\n\n- Camera control LoRAs are available\n- For camera LoRA, recommended strength = 1\n- The distilled LoRA speeds up generation"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Checkpoint"
+      }
+    },
+    "2": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": "{{text_encoder_name}}",
+        "ckpt_name": "{{ckpt_name}}",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load Text Encoder (Gemma)"
+      }
+    },
+    "3": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": "{{ckpt_name}}"
+      },
+      "_meta": {
+        "title": "Load Audio VAE"
+      }
+    },
+    "4": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "{{image_filename}}"
+      },
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "5": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": ["4", 0]
+      },
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "6": {
+      "class_type": "LTXVPreprocess",
+      "inputs": {
+        "image": ["4", 0]
+      },
+      "_meta": {
+        "title": "LTX Preprocess"
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      }
+    },
+    "8": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{negative_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      }
+    },
+    "9": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": ["5", 0],
+        "height": ["5", 1],
+        "length": "{{length}}",
+        "batch_size": 1
+      },
+      "_meta": {
+        "title": "Empty LTX Video Latent"
+      }
+    },
+    "10": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": ["3", 0],
+        "frames_number": "{{length}}",
+        "frame_rate": "{{frame_rate}}",
+        "batch_size": 1
+      },
+      "_meta": {
+        "title": "Empty LTX Audio Latent"
+      }
+    },
+    "11": {
+      "class_type": "LTXVImgToVideoInplace",
+      "inputs": {
+        "vae": ["1", 2],
+        "image": ["6", 0],
+        "latent": ["9", 0],
+        "start_frame": 1,
+        "extend": false
+      },
+      "_meta": {
+        "title": "Image to Video (Stage 1)"
+      }
+    },
+    "12": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": ["11", 0],
+        "audio_latent": ["10", 0]
+      },
+      "_meta": {
+        "title": "Concat AV Latent"
+      }
+    },
+    "13": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": ["7", 0],
+        "negative": ["8", 0],
+        "frame_rate": "{{frame_rate}}"
+      },
+      "_meta": {
+        "title": "LTX Conditioning"
+      }
+    },
+    "14": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "{{seed}}"
+      },
+      "_meta": {
+        "title": "Random Noise"
+      }
+    },
+    "15": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "_meta": {
+        "title": "Sampler Select"
+      }
+    },
+    "16": {
+      "class_type": "LTXVScheduler",
+      "inputs": {
+        "steps": 20,
+        "max_shift": 2.05,
+        "base_shift": 0.95,
+        "stretch": true,
+        "terminal": 0.1,
+        "latent": ["12", 0]
+      },
+      "_meta": {
+        "title": "LTX Scheduler"
+      }
+    },
+    "17": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "cfg": 4.0,
+        "model": ["32", 0],
+        "positive": ["13", 0],
+        "negative": ["13", 1]
+      },
+      "_meta": {
+        "title": "CFG Guider (Stage 1)"
+      }
+    },
+    "18": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["14", 0],
+        "guider": ["17", 0],
+        "sampler": ["15", 0],
+        "sigmas": ["16", 0],
+        "latent_image": ["12", 0]
+      },
+      "_meta": {
+        "title": "Sampler (Stage 1)"
+      }
+    },
+    "19": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": ["18", 0]
+      },
+      "_meta": {
+        "title": "Separate AV Latent (Stage 1)"
+      }
+    },
+    "20": {
+      "class_type": "LTXVCropGuides",
+      "inputs": {
+        "positive": ["13", 0],
+        "negative": ["13", 1],
+        "latent": ["19", 0]
+      },
+      "_meta": {
+        "title": "LTX Crop Guides"
+      }
+    },
+    "21": {
+      "class_type": "LatentUpscaleModelLoader",
+      "inputs": {
+        "model_name": "{{latent_upscale_model}}"
+      },
+      "_meta": {
+        "title": "Load Latent Upscale Model"
+      }
+    },
+    "22": {
+      "class_type": "LTXVLatentUpsampler",
+      "inputs": {
+        "samples": ["20", 2],
+        "upscale_model": ["21", 0],
+        "vae": ["1", 2]
+      },
+      "_meta": {
+        "title": "Latent Upsampler (2x)"
+      }
+    },
+    "23": {
+      "class_type": "LTXVImgToVideoInplace",
+      "inputs": {
+        "vae": ["1", 2],
+        "image": ["6", 0],
+        "latent": ["22", 0],
+        "start_frame": 1,
+        "extend": false
+      },
+      "_meta": {
+        "title": "Image to Video (Stage 2)"
+      }
+    },
+    "24": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": ["23", 0],
+        "audio_latent": ["19", 1]
+      },
+      "_meta": {
+        "title": "Concat AV Latent (Upscaled)"
+      }
+    },
+    "25": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "cfg": 1.0,
+        "model": ["32", 0],
+        "positive": ["20", 0],
+        "negative": ["20", 1]
+      },
+      "_meta": {
+        "title": "CFG Guider (Stage 2)"
+      }
+    },
+    "26": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 0
+      },
+      "_meta": {
+        "title": "Random Noise (Stage 2)"
+      }
+    },
+    "27": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "gradient_estimation"
+      },
+      "_meta": {
+        "title": "Sampler Select (Stage 2)"
+      }
+    },
+    "28": {
+      "class_type": "ManualSigmas",
+      "inputs": {
+        "sigmas": "0.909375, 0.725, 0.421875, 0.0"
+      },
+      "_meta": {
+        "title": "Manual Sigmas (Stage 2)"
+      }
+    },
+    "29": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["26", 0],
+        "guider": ["25", 0],
+        "sampler": ["27", 0],
+        "sigmas": ["28", 0],
+        "latent_image": ["24", 0]
+      },
+      "_meta": {
+        "title": "Sampler (Stage 2)"
+      }
+    },
+    "30": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": ["29", 1]
+      },
+      "_meta": {
+        "title": "Separate AV Latent (Stage 2)"
+      }
+    },
+    "31": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": ["30", 0],
+        "vae": ["1", 2],
+        "tile_size": 512,
+        "overlap": 64,
+        "temporal_size": 4096,
+        "temporal_overlap": 8
+      },
+      "_meta": {
+        "title": "VAE Decode (Tiled)"
+      }
+    },
+    "32": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": ["1", 0],
+        "lora_name": "{{lora_name}}",
+        "strength_model": 1.0
+      },
+      "_meta": {
+        "title": "Load LoRA (Distilled)"
+      }
+    },
+    "33": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": ["30", 1],
+        "audio_vae": ["3", 0]
+      },
+      "_meta": {
+        "title": "Audio VAE Decode"
+      }
+    },
+    "34": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": ["31", 0],
+        "audio": ["33", 0],
+        "fps": "{{frame_rate}}"
+      },
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "35": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "codec": "auto",
+        "video": ["34", 0]
+      },
+      "_meta": {
+        "title": "Save Video"
+      }
+    }
+  }
+}

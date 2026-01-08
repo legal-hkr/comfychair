@@ -378,6 +378,8 @@ fun TextToImageScreen(
                     onClip2Change = textToImageViewModel::onClip2Change,
                     onClip3Change = textToImageViewModel::onClip3Change,
                     onClip4Change = textToImageViewModel::onClip4Change,
+                    onTextEncoderChange = textToImageViewModel::onTextEncoderChange,
+                    onLatentUpscaleModelChange = textToImageViewModel::onLatentUpscaleModelChange,
                     onMandatoryLoraChange = textToImageViewModel::onMandatoryLoraChange,
                     onWidthChange = textToImageViewModel::onWidthChange,
                     onHeightChange = textToImageViewModel::onHeightChange,

@@ -37,6 +37,7 @@ import sh.hnet.comfychair.storage.ObjectInfoCache
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import java.util.UUID
 
 /**
@@ -999,15 +1000,37 @@ object ConnectionManager {
     /**
      * Extract model lists from NodeTypeRegistry by field name.
      * Automatically discovers models from any loader node (standard, GGUF, future plugins).
+     *
+     * Uses TemplateKeyRegistry to translate placeholder names to actual ComfyUI field names.
+     * For example, "text_encoder_name" placeholder maps to "text_encoder" field in LTXAVTextEncoderLoader.
      */
     private fun extractModelLists(): ModelCache {
         return ModelCache(
-            checkpoints = nodeTypeRegistry.getOptionsForField("ckpt_name"),
-            unets = nodeTypeRegistry.getOptionsForField("unet_name"),
-            vaes = nodeTypeRegistry.getOptionsForField("vae_name"),
+            checkpoints = nodeTypeRegistry.getOptionsForField(
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("ckpt_name")
+            ),
+            unets = nodeTypeRegistry.getOptionsForField(
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("unet_name")
+            ),
+            vaes = nodeTypeRegistry.getOptionsForField(
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("vae_name")
+            ),
             clips = nodeTypeRegistry.getOptionsForFieldPrefix("clip_name"),
-            loras = nodeTypeRegistry.getOptionsForField("lora_name"),
-            upscaleMethods = nodeTypeRegistry.getOptionsForField("upscale_method")
+            loras = nodeTypeRegistry.getOptionsForField(
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("lora_name")
+            ),
+            upscaleMethods = nodeTypeRegistry.getOptionsForField(
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("upscale_method")
+            ),
+            textEncoders = nodeTypeRegistry.getOptionsForField(
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("text_encoder_name")
+            ),
+            // Use node-specific extraction for latent upscale models because "model_name"
+            // is a generic field used by multiple unrelated nodes (UpscaleModelLoader, KlingOmniPro*, etc.)
+            latentUpscaleModels = nodeTypeRegistry.getOptionsForNodeInput(
+                "LatentUpscaleModelLoader",
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("latent_upscale_model")
+            )
         )
     }
 }
