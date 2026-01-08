@@ -940,8 +940,8 @@ private fun WorkflowEditorFloatingToolbar(
 
                             HorizontalDivider()
 
-                            // Group (enabled when 2+ nodes selected)
-                            val canGroup = hasSelection && selectedCount >= 2
+                            // Group (enabled when 1+ items selected)
+                            val canGroup = hasSelection && selectedCount >= 1
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.workflow_editor_group)) },
                                 onClick = {

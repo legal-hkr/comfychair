@@ -21,10 +21,10 @@ object GroupManager {
      * they are removed from those groups first.
      *
      * @param graph The mutable graph to add the group to
-     * @param memberIds IDs of members to include (node IDs or "note:X" IDs, must be >= 2)
+     * @param memberIds IDs of members to include (node IDs or "note:X" IDs, must be >= 1)
      * @param title Group title (default: "Group")
      * @param idGenerator Function to generate a unique group ID
-     * @return The created group, or null if fewer than 2 valid members specified
+     * @return The created group, or null if no valid members specified
      */
     fun createGroup(
         graph: MutableWorkflowGraph,
@@ -34,8 +34,8 @@ object GroupManager {
     ): WorkflowGroup? {
         DebugLogger.d(TAG, "createGroup: requested with ${memberIds.size} members: $memberIds, title='$title'")
 
-        if (memberIds.size < 2) {
-            DebugLogger.w(TAG, "createGroup: rejected - need at least 2 members, got ${memberIds.size}")
+        if (memberIds.isEmpty()) {
+            DebugLogger.w(TAG, "createGroup: rejected - need at least 1 member")
             return null
         }
 
@@ -49,8 +49,8 @@ object GroupManager {
         }
         val validMemberCount = validNodeIds.size + validNoteIds.size
 
-        if (validMemberCount < 2) {
-            DebugLogger.w(TAG, "createGroup: rejected - only $validMemberCount of ${memberIds.size} requested members exist in graph")
+        if (validMemberCount < 1) {
+            DebugLogger.w(TAG, "createGroup: rejected - none of ${memberIds.size} requested members exist in graph")
             return null
         }
 
@@ -128,7 +128,7 @@ object GroupManager {
     /**
      * Remove nodes from their groups.
      *
-     * If a group has fewer than 2 members remaining, it is dissolved entirely.
+     * If a group has no members remaining, it is dissolved entirely.
      *
      * @param graph The mutable graph to modify
      * @param nodeIds IDs of nodes to remove from groups
@@ -153,10 +153,10 @@ object GroupManager {
                 val newMemberIds = group.memberNodeIds - nodeIds
                 val removedNodes = group.memberNodeIds.intersect(nodeIds)
 
-                if (newMemberIds.size < 2) {
+                if (newMemberIds.isEmpty()) {
                     // Mark for removal (dissolve group)
                     groupsToRemove.add(index)
-                    DebugLogger.d(TAG, "removeNodesFromGroups: group ${group.id} '${group.title}' will be dissolved (removed $removedNodes, only ${newMemberIds.size} members left)")
+                    DebugLogger.d(TAG, "removeNodesFromGroups: group ${group.id} '${group.title}' will be dissolved (removed $removedNodes, no members left)")
                 } else {
                     // Update group with reduced membership
                     graph.groups[index] = group.copy(memberNodeIds = newMemberIds)

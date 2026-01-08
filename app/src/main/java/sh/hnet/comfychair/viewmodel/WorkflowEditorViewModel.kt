@@ -2022,13 +2022,13 @@ class WorkflowEditorViewModel : ViewModel() {
 
     /**
      * Create a group from the currently selected nodes and/or notes.
-     * Requires at least 2 items (nodes or notes) to be selected.
+     * Requires at least 1 item (node or note) to be selected.
      */
     fun createGroupFromSelection() {
         val state = _uiState.value
         val graph = mutableGraph ?: return
         val totalSelected = state.selectedNodeIds.size + state.selectedNoteIds.size
-        if (!state.isEditMode || totalSelected < 2) return
+        if (!state.isEditMode || totalSelected < 1) return
 
         // Convert note IDs to member format (note:X) and combine with node IDs
         val noteMemberIds = state.selectedNoteIds.map { WorkflowNote.noteIdToMemberId(it) }.toSet()

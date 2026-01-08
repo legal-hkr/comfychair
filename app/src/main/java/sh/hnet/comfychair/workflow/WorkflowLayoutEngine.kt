@@ -177,8 +177,8 @@ class WorkflowLayoutEngine {
                 nodeMap[nodeId]
             }
 
-            // Group needs at least 2 members
-            if (memberNodes.size >= 2) {
+            // Group needs at least 1 member
+            if (memberNodes.isNotEmpty()) {
                 groupInternalLayouts[group.id] = computeGroupInternalLayout(
                     group.id, memberNodes, graph.edges, groupedNodeIds
                 )

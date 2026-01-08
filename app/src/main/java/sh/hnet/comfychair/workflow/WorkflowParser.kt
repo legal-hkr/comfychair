@@ -156,7 +156,7 @@ class WorkflowParser {
      * New format (ComfyChair): { id, title, member_nodes }
      * Legacy format (ComfyUI): { id, title, bounding } - groups without member_nodes are skipped
      *
-     * Groups with fewer than 2 members are skipped.
+     * Groups with no members are skipped.
      */
     private fun parseGroups(groupsArray: JSONArray): List<WorkflowGroup> {
         DebugLogger.d(TAG, "parseGroups: parsing ${groupsArray.length()} group entries")
@@ -191,9 +191,9 @@ class WorkflowParser {
                 emptySet()
             }
 
-            // Skip groups with < 2 members (including legacy groups without member_nodes)
-            if (memberNodeIds.size < 2) {
-                DebugLogger.w(TAG, "parseGroups: skipping group $id '$title': has ${memberNodeIds.size} members (minimum 2 required)")
+            // Skip groups with no members (including legacy groups without member_nodes)
+            if (memberNodeIds.isEmpty()) {
+                DebugLogger.w(TAG, "parseGroups: skipping group $id '$title': has no members")
                 continue
             }
 
