@@ -71,6 +71,7 @@ import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.RenderedGroup
+import sh.hnet.comfychair.workflow.WorkflowGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
@@ -122,11 +123,62 @@ private object NoteColors {
 }
 
 /**
- * Holds animatable position values for a node
+ * Holds animatable position and alpha for a node.
+ * nodeData stores the current node for rendering during fade-out.
+ * When a node is removed, nodeData becomes the snapshot used during fade-out animation.
  */
-private data class AnimatedNodePosition(
+private data class AnimatedNodeState(
     val x: Animatable<Float, AnimationVector1D>,
-    val y: Animatable<Float, AnimationVector1D>
+    val y: Animatable<Float, AnimationVector1D>,
+    val alpha: Animatable<Float, AnimationVector1D>,
+    val nodeData: WorkflowNode? = null,  // Current node data for rendering
+    val isFadingOut: Boolean = false     // True when node is removed and fading out
+)
+
+/**
+ * Holds animatable position and alpha for a note.
+ * noteData stores the current note for rendering during fade-out.
+ */
+private data class AnimatedNoteState(
+    val x: Animatable<Float, AnimationVector1D>,
+    val y: Animatable<Float, AnimationVector1D>,
+    val alpha: Animatable<Float, AnimationVector1D>,
+    val noteData: WorkflowNote? = null,
+    val isFadingOut: Boolean = false
+)
+
+/**
+ * Holds animatable bounds and alpha for a group.
+ * groupData stores the current group for rendering during fade-out.
+ */
+private data class AnimatedGroupState(
+    val x: Animatable<Float, AnimationVector1D>,
+    val y: Animatable<Float, AnimationVector1D>,
+    val width: Animatable<Float, AnimationVector1D>,
+    val height: Animatable<Float, AnimationVector1D>,
+    val alpha: Animatable<Float, AnimationVector1D>,
+    val groupData: RenderedGroup? = null,
+    val isFadingOut: Boolean = false
+)
+
+/**
+ * Unique key for an edge
+ */
+private data class EdgeKey(
+    val sourceNodeId: String,
+    val sourceOutputIndex: Int,
+    val targetNodeId: String,
+    val targetInputName: String
+)
+
+/**
+ * Holds animatable alpha for an edge.
+ * edgeData stores the current edge for rendering during fade-out.
+ */
+private data class AnimatedEdgeState(
+    val alpha: Animatable<Float, AnimationVector1D>,
+    val edgeData: WorkflowEdge? = null,
+    val isFadingOut: Boolean = false
 )
 
 /**
@@ -242,11 +294,17 @@ fun WorkflowGraphCanvas(
     // Constants for slot detection
     val slotHitRadius = 30f  // Larger hit area for easier tapping
 
-    // Animation state for node positions
-    val animatedPositions = remember { mutableStateMapOf<String, AnimatedNodePosition>() }
+    // Animation state for nodes (position + alpha)
+    val animatedNodeStates = remember { mutableStateMapOf<String, AnimatedNodeState>() }
 
-    // Animation state for note positions (notes use Int IDs)
-    val animatedNotePositions = remember { mutableStateMapOf<Int, AnimatedNodePosition>() }
+    // Animation state for notes (position + alpha)
+    val animatedNoteStates = remember { mutableStateMapOf<Int, AnimatedNoteState>() }
+
+    // Animation state for groups (bounds + alpha)
+    val animatedGroupStates = remember { mutableStateMapOf<Int, AnimatedGroupState>() }
+
+    // Animation state for edges (alpha only)
+    val animatedEdgeStates = remember { mutableStateMapOf<EdgeKey, AnimatedEdgeState>() }
 
     // Animation spec for smooth transitions
     val animationSpec = tween<Float>(
@@ -308,102 +366,275 @@ fun WorkflowGraphCanvas(
         }
     }
 
-    // Animate node positions when graph changes
+    // Animate nodes when graph changes (position + fade in/out)
     LaunchedEffect(graph.nodes) {
         val currentNodeIds = graph.nodes.map { it.id }.toSet()
 
-        // Remove animated positions for deleted nodes
-        val deletedIds = animatedPositions.keys - currentNodeIds
-        deletedIds.forEach { animatedPositions.remove(it) }
+        // Handle removed nodes - fade out then remove
+        animatedNodeStates.keys.toList().forEach { nodeId ->
+            if (nodeId !in currentNodeIds) {
+                val state = animatedNodeStates[nodeId] ?: return@forEach
+                if (!state.isFadingOut && state.nodeData != null) {
+                    // Start fade-out: mark as fading out and animate alpha to 0
+                    animatedNodeStates[nodeId] = state.copy(isFadingOut = true)
+                    launch {
+                        state.alpha.animateTo(0f, animationSpec)
+                        animatedNodeStates.remove(nodeId)
+                    }
+                }
+            }
+        }
 
-        // Update or create animated positions for each node
+        // Update or create animated state for current nodes
         graph.nodes.forEach { node ->
-            val existingPosition = animatedPositions[node.id]
-            if (existingPosition != null) {
-                // Animate to new position if current value differs from target
-                // (handles both target changes AND interrupted animations)
-                if (existingPosition.x.value != node.x || existingPosition.y.value != node.y) {
-                    launch {
-                        existingPosition.x.animateTo(node.x, animationSpec)
-                    }
-                    launch {
-                        existingPosition.y.animateTo(node.y, animationSpec)
-                    }
+            val existing = animatedNodeStates[node.id]
+            if (existing != null && !existing.isFadingOut) {
+                // Existing node - animate position, update node data, ensure alpha is 1
+                if (existing.x.value != node.x || existing.y.value != node.y) {
+                    launch { existing.x.animateTo(node.x, animationSpec) }
+                    launch { existing.y.animateTo(node.y, animationSpec) }
+                }
+                // Update node data for rendering
+                animatedNodeStates[node.id] = existing.copy(nodeData = node)
+                if (existing.alpha.value != 1f) {
+                    launch { existing.alpha.animateTo(1f, animationSpec) }
                 }
             } else {
-                // New node - start at origin (0,0) and animate to target position
-                val newPosition = AnimatedNodePosition(
+                // New node - start at origin with alpha 0, fade in
+                val newState = AnimatedNodeState(
                     x = Animatable(0f),
-                    y = Animatable(0f)
+                    y = Animatable(0f),
+                    alpha = Animatable(0f),
+                    nodeData = node
                 )
-                animatedPositions[node.id] = newPosition
-                launch {
-                    newPosition.x.animateTo(node.x, animationSpec)
-                }
-                launch {
-                    newPosition.y.animateTo(node.y, animationSpec)
-                }
+                animatedNodeStates[node.id] = newState
+                launch { newState.x.animateTo(node.x, animationSpec) }
+                launch { newState.y.animateTo(node.y, animationSpec) }
+                launch { newState.alpha.animateTo(1f, animationSpec) }
             }
         }
     }
 
-    // Animate note positions when notes change
+    // Animate notes when notes change (position + fade in/out)
     LaunchedEffect(notes) {
         val currentNoteIds = notes.map { it.id }.toSet()
 
-        // Remove animated positions for deleted notes
-        val deletedIds = animatedNotePositions.keys - currentNoteIds
-        deletedIds.forEach { animatedNotePositions.remove(it) }
+        // Handle removed notes - fade out then remove
+        animatedNoteStates.keys.toList().forEach { noteId ->
+            if (noteId !in currentNoteIds) {
+                val state = animatedNoteStates[noteId] ?: return@forEach
+                if (!state.isFadingOut && state.noteData != null) {
+                    animatedNoteStates[noteId] = state.copy(isFadingOut = true)
+                    launch {
+                        state.alpha.animateTo(0f, animationSpec)
+                        animatedNoteStates.remove(noteId)
+                    }
+                }
+            }
+        }
 
-        // Update or create animated positions for each note
+        // Update or create animated state for current notes
         notes.forEach { note ->
-            val existingPosition = animatedNotePositions[note.id]
-            if (existingPosition != null) {
-                // Animate to new position if current value differs from target
-                // (handles both target changes AND interrupted animations)
-                if (existingPosition.x.value != note.x || existingPosition.y.value != note.y) {
-                    launch {
-                        existingPosition.x.animateTo(note.x, animationSpec)
-                    }
-                    launch {
-                        existingPosition.y.animateTo(note.y, animationSpec)
-                    }
+            val existing = animatedNoteStates[note.id]
+            if (existing != null && !existing.isFadingOut) {
+                if (existing.x.value != note.x || existing.y.value != note.y) {
+                    launch { existing.x.animateTo(note.x, animationSpec) }
+                    launch { existing.y.animateTo(note.y, animationSpec) }
+                }
+                animatedNoteStates[note.id] = existing.copy(noteData = note)
+                if (existing.alpha.value != 1f) {
+                    launch { existing.alpha.animateTo(1f, animationSpec) }
                 }
             } else {
-                // New note - start at origin (0,0) and animate to target position
-                val newPosition = AnimatedNodePosition(
+                val newState = AnimatedNoteState(
                     x = Animatable(0f),
-                    y = Animatable(0f)
+                    y = Animatable(0f),
+                    alpha = Animatable(0f),
+                    noteData = note
                 )
-                animatedNotePositions[note.id] = newPosition
-                launch {
-                    newPosition.x.animateTo(note.x, animationSpec)
-                }
-                launch {
-                    newPosition.y.animateTo(note.y, animationSpec)
-                }
+                animatedNoteStates[note.id] = newState
+                launch { newState.x.animateTo(note.x, animationSpec) }
+                launch { newState.y.animateTo(note.y, animationSpec) }
+                launch { newState.alpha.animateTo(1f, animationSpec) }
             }
         }
     }
 
-    // Build animated nodes for drawing - reads Animatable.value directly to trigger recomposition
-    // Note: This is computed every recomposition to pick up animation value changes
-    val animatedNodes = graph.nodes.map { node ->
-        val animPos = animatedPositions[node.id]
-        if (animPos != null) {
-            node.copy(x = animPos.x.value, y = animPos.y.value)
-        } else {
-            node
+    // Animate groups when groups change (bounds + fade in/out)
+    LaunchedEffect(renderedGroups) {
+        val currentGroupIds = renderedGroups.map { it.id }.toSet()
+
+        // Handle removed groups - fade out then remove
+        animatedGroupStates.keys.toList().forEach { groupId ->
+            if (groupId !in currentGroupIds) {
+                val state = animatedGroupStates[groupId] ?: return@forEach
+                if (!state.isFadingOut && state.groupData != null) {
+                    animatedGroupStates[groupId] = state.copy(isFadingOut = true)
+                    launch {
+                        state.alpha.animateTo(0f, animationSpec)
+                        animatedGroupStates.remove(groupId)
+                    }
+                }
+            }
+        }
+
+        // Update or create animated state for current groups
+        renderedGroups.forEach { group ->
+            val existing = animatedGroupStates[group.id]
+            if (existing != null && !existing.isFadingOut) {
+                if (existing.x.value != group.x || existing.y.value != group.y ||
+                    existing.width.value != group.width || existing.height.value != group.height) {
+                    launch { existing.x.animateTo(group.x, animationSpec) }
+                    launch { existing.y.animateTo(group.y, animationSpec) }
+                    launch { existing.width.animateTo(group.width, animationSpec) }
+                    launch { existing.height.animateTo(group.height, animationSpec) }
+                }
+                animatedGroupStates[group.id] = existing.copy(groupData = group)
+                if (existing.alpha.value != 1f) {
+                    launch { existing.alpha.animateTo(1f, animationSpec) }
+                }
+            } else {
+                // New group - start at origin with actual size and alpha 0
+                val newState = AnimatedGroupState(
+                    x = Animatable(0f),
+                    y = Animatable(0f),
+                    width = Animatable(group.width),
+                    height = Animatable(group.height),
+                    alpha = Animatable(0f),
+                    groupData = group
+                )
+                animatedGroupStates[group.id] = newState
+                launch { newState.x.animateTo(group.x, animationSpec) }
+                launch { newState.y.animateTo(group.y, animationSpec) }
+                launch { newState.alpha.animateTo(1f, animationSpec) }
+            }
         }
     }
 
-    // Build animated notes for drawing
-    val animatedNotes = notes.map { note ->
-        val animPos = animatedNotePositions[note.id]
-        if (animPos != null) {
-            note.copy(x = animPos.x.value, y = animPos.y.value)
-        } else {
-            note
+    // Animate edges when edges change (fade in/out only)
+    LaunchedEffect(graph.edges) {
+        val currentEdgeKeys = graph.edges.map { edge ->
+            EdgeKey(edge.sourceNodeId, edge.sourceOutputIndex, edge.targetNodeId, edge.targetInputName)
+        }.toSet()
+
+        // Handle removed edges - fade out then remove
+        animatedEdgeStates.keys.toList().forEach { edgeKey ->
+            if (edgeKey !in currentEdgeKeys) {
+                val state = animatedEdgeStates[edgeKey] ?: return@forEach
+                if (!state.isFadingOut && state.edgeData != null) {
+                    animatedEdgeStates[edgeKey] = state.copy(isFadingOut = true)
+                    launch {
+                        state.alpha.animateTo(0f, animationSpec)
+                        animatedEdgeStates.remove(edgeKey)
+                    }
+                }
+            }
+        }
+
+        // Update or create animated state for current edges
+        graph.edges.forEach { edge ->
+            val key = EdgeKey(edge.sourceNodeId, edge.sourceOutputIndex, edge.targetNodeId, edge.targetInputName)
+            val existing = animatedEdgeStates[key]
+            if (existing != null && !existing.isFadingOut) {
+                animatedEdgeStates[key] = existing.copy(edgeData = edge)
+                if (existing.alpha.value != 1f) {
+                    launch { existing.alpha.animateTo(1f, animationSpec) }
+                }
+            } else {
+                val newState = AnimatedEdgeState(alpha = Animatable(0f), edgeData = edge)
+                animatedEdgeStates[key] = newState
+                launch { newState.alpha.animateTo(1f, animationSpec) }
+            }
+        }
+    }
+
+    // Build animated nodes for drawing (includes fading-out nodes)
+    // Note: Elements without animation state are skipped - they'll appear next frame after LaunchedEffect initializes
+    data class NodeWithAlpha(val node: WorkflowNode, val alpha: Float)
+    val currentNodeIds = graph.nodes.map { it.id }.toSet()
+    val animatedNodes: List<NodeWithAlpha> = buildList {
+        // Current nodes (not fading out) - only render if animation state exists
+        graph.nodes.forEach { node ->
+            val state = animatedNodeStates[node.id]
+            if (state != null && !state.isFadingOut) {
+                val nodeData = state.nodeData ?: node
+                add(NodeWithAlpha(nodeData.copy(x = state.x.value, y = state.y.value), state.alpha.value))
+            }
+            // Skip nodes without animation state - wait for LaunchedEffect to initialize
+        }
+        // Removed nodes (fading out or about to fade out) - render any node not in current graph
+        animatedNodeStates.forEach { (nodeId, state) ->
+            if (nodeId !in currentNodeIds && state.nodeData != null) {
+                add(NodeWithAlpha(state.nodeData.copy(x = state.x.value, y = state.y.value), state.alpha.value))
+            }
+        }
+    }
+
+    // Build animated notes for drawing (includes fading-out notes)
+    data class NoteWithAlpha(val note: WorkflowNote, val alpha: Float)
+    val currentNoteIds = notes.map { it.id }.toSet()
+    val animatedNotes: List<NoteWithAlpha> = buildList {
+        notes.forEach { note ->
+            val state = animatedNoteStates[note.id]
+            if (state != null && !state.isFadingOut) {
+                val noteData = state.noteData ?: note
+                add(NoteWithAlpha(noteData.copy(x = state.x.value, y = state.y.value), state.alpha.value))
+            }
+            // Skip notes without animation state
+        }
+        // Removed notes - render any note not in current list
+        animatedNoteStates.forEach { (noteId, state) ->
+            if (noteId !in currentNoteIds && state.noteData != null) {
+                add(NoteWithAlpha(state.noteData.copy(x = state.x.value, y = state.y.value), state.alpha.value))
+            }
+        }
+    }
+
+    // Build animated groups for drawing (includes fading-out groups)
+    data class GroupWithAlpha(val group: RenderedGroup, val alpha: Float)
+    val currentGroupIds = renderedGroups.map { it.id }.toSet()
+    val animatedGroups: List<GroupWithAlpha> = buildList {
+        renderedGroups.forEach { group ->
+            val state = animatedGroupStates[group.id]
+            if (state != null && !state.isFadingOut) {
+                add(GroupWithAlpha(
+                    RenderedGroup(group.group, state.x.value, state.y.value, state.width.value, state.height.value),
+                    state.alpha.value
+                ))
+            }
+            // Skip groups without animation state
+        }
+        // Removed groups - render any group not in current list
+        animatedGroupStates.forEach { (groupId, state) ->
+            if (groupId !in currentGroupIds && state.groupData != null) {
+                add(GroupWithAlpha(
+                    state.groupData.copy(x = state.x.value, y = state.y.value, width = state.width.value, height = state.height.value),
+                    state.alpha.value
+                ))
+            }
+        }
+    }
+
+    // Build animated edges for drawing (includes fading-out edges)
+    data class EdgeWithAlpha(val edge: WorkflowEdge, val alpha: Float)
+    val currentEdgeKeys = graph.edges.map { edge ->
+        EdgeKey(edge.sourceNodeId, edge.sourceOutputIndex, edge.targetNodeId, edge.targetInputName)
+    }.toSet()
+    val animatedEdges: List<EdgeWithAlpha> = buildList {
+        graph.edges.forEach { edge ->
+            val key = EdgeKey(edge.sourceNodeId, edge.sourceOutputIndex, edge.targetNodeId, edge.targetInputName)
+            val state = animatedEdgeStates[key]
+            if (state != null && !state.isFadingOut) {
+                val edgeData = state.edgeData ?: edge
+                add(EdgeWithAlpha(edgeData, state.alpha.value))
+            }
+            // Skip edges without animation state
+        }
+        // Removed edges - render any edge not in current graph
+        animatedEdgeStates.forEach { (edgeKey, state) ->
+            if (edgeKey !in currentEdgeKeys && state.edgeData != null) {
+                add(EdgeWithAlpha(state.edgeData, state.alpha.value))
+            }
         }
     }
 
@@ -670,25 +901,34 @@ fun WorkflowGraphCanvas(
             translate(offset.x, offset.y)
             scale(scale, scale, Offset.Zero)
         }) {
-            // Draw groups first (behind everything)
-            renderedGroups.forEach { group ->
-                drawGroup(
-                    group = group,
-                    colors = colors,
-                    showEditIcon = isEditMode,
-                    editIconDrawable = editIconDrawable
-                )
+            // Draw groups first (behind everything) with alpha
+            animatedGroups.forEach { (group, alpha) ->
+                if (alpha > 0.01f) {
+                    drawGroup(
+                        group = group,
+                        colors = colors,
+                        alpha = alpha,
+                        showEditIcon = isEditMode,
+                        editIconDrawable = editIconDrawable
+                    )
+                }
             }
 
-            // Draw edges (behind nodes) - use animatedNodes for positions
-            graph.edges.forEach { edge ->
-                drawEdge(
-                    edge = edge,
-                    nodes = animatedNodes,
-                    colors = colors,
-                    selectedNodeIds = selectedNodeIds,
-                    segmentTime = segmentTime.value
-                )
+            // Build node positions map for edge drawing
+            val nodePositionsMap = animatedNodes.associate { it.node.id to it.node }
+
+            // Draw edges with alpha
+            animatedEdges.forEach { (edge, alpha) ->
+                if (alpha > 0.01f) {
+                    drawEdge(
+                        edge = edge,
+                        nodesById = nodePositionsMap,
+                        colors = colors,
+                        alpha = alpha,
+                        selectedNodeIds = selectedNodeIds,
+                        segmentTime = segmentTime.value
+                    )
+                }
             }
 
             // Build a map of node ID -> (input name -> wire color) for connected inputs
@@ -701,74 +941,78 @@ fun WorkflowGraphCanvas(
                 }
             }
 
-            // Draw nodes at animated positions
-            animatedNodes.forEach { node ->
-                val highlightState = when {
-                    // Mapping mode selection
-                    isFieldMappingMode && node.id in mappingSelectedNodeIds -> NodeHighlightState.SELECTED
-                    isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
-                    // Connection mode - highlight valid target nodes
-                    inConnectionMode && node.id in connectionCandidateNodeIds -> NodeHighlightState.CANDIDATE
-                    // Edit mode selection
-                    isEditMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
-                    // Attribute editing mode
-                    editingNodeId == node.id -> NodeHighlightState.SELECTED
-                    else -> NodeHighlightState.NONE
+            // Draw nodes with alpha
+            animatedNodes.forEach { (node, alpha) ->
+                if (alpha > 0.01f) {
+                    val highlightState = when {
+                        // Mapping mode selection
+                        isFieldMappingMode && node.id in mappingSelectedNodeIds -> NodeHighlightState.SELECTED
+                        isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
+                        // Connection mode - highlight valid target nodes
+                        inConnectionMode && node.id in connectionCandidateNodeIds -> NodeHighlightState.CANDIDATE
+                        // Edit mode selection
+                        isEditMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
+                        // Attribute editing mode
+                        editingNodeId == node.id -> NodeHighlightState.SELECTED
+                        else -> NodeHighlightState.NONE
+                    }
+
+                    // Determine color pair - special handling for positive/negative prompts
+                    val titleLower = node.title.lowercase()
+                    val colorPair = when {
+                        titleLower.contains("positive") -> colors.positivePromptColors
+                        titleLower.contains("negative") -> colors.negativePromptColors
+                        else -> colors.categoryColors[node.category]
+                    }
+
+                    // Get edits for this node
+                    val nodeEdits = nodeAttributeEdits[node.id] ?: emptyMap()
+
+                    // Editable inputs are only highlighted when this node is being edited
+                    val highlightEditableInputs = editingNodeId == node.id
+
+                    drawNode(
+                        node = node,
+                        colors = colors,
+                        alpha = alpha,
+                        highlightState = highlightState,
+                        colorPair = colorPair,
+                        nodeEdits = nodeEdits,
+                        nodeDefinition = nodeDefinitions[node.classType],
+                        editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
+                        uiFieldPrefix = uiFieldPrefix,
+                        displayNameResolver = displayNameResolver,
+                        inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
+                        showEditIcon = isEditMode,
+                        editIconDrawable = editIconDrawable,
+                        mappedFields = graph.mappedFields
+                    )
                 }
-
-                // Determine color pair - special handling for positive/negative prompts
-                val titleLower = node.title.lowercase()
-                val colorPair = when {
-                    titleLower.contains("positive") -> colors.positivePromptColors
-                    titleLower.contains("negative") -> colors.negativePromptColors
-                    else -> colors.categoryColors[node.category]
-                }
-
-                // Get edits for this node
-                val nodeEdits = nodeAttributeEdits[node.id] ?: emptyMap()
-
-                // Editable inputs are only highlighted when this node is being edited
-                val highlightEditableInputs = editingNodeId == node.id
-
-                drawNode(
-                    node = node,
-                    colors = colors,
-                    highlightState = highlightState,
-                    colorPair = colorPair,
-                    nodeEdits = nodeEdits,
-                    nodeDefinition = nodeDefinitions[node.classType],
-                    editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
-                    uiFieldPrefix = uiFieldPrefix,
-                    displayNameResolver = displayNameResolver,
-                    inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
-                    showEditIcon = isEditMode,
-                    editIconDrawable = editIconDrawable,
-                    mappedFields = graph.mappedFields
-                )
             }
 
-            // Draw notes (after nodes, no connection slots)
-            // Track height changes to trigger relayout if needed
-            // Use animatedNotes for smooth position animation, but track height on original notes
+            // Draw notes with alpha
             var anyHeightChanged = false
             val originalNotesById = notes.associateBy { it.id }
-            animatedNotes.forEach { animatedNote ->
-                val originalNote = originalNotesById[animatedNote.id]
-                val heightBefore = originalNote?.height ?: 0f
-                val isSelected = animatedNote.id in selectedNoteIds
-                drawNote(
-                    note = animatedNote,
-                    colors = colors,
-                    isSelected = isSelected,
-                    showEditIcon = isEditMode,
-                    editIconDrawable = editIconDrawable,
-                    textMeasurer = textMeasurer,
-                    density = density
-                )
-                // Copy measured height back to original note for layout
-                if (originalNote != null && animatedNote.height != heightBefore) {
-                    originalNote.height = animatedNote.height
-                    anyHeightChanged = true
+            animatedNotes.forEach { (note, alpha) ->
+                if (alpha > 0.01f) {
+                    val originalNote = originalNotesById[note.id]
+                    val heightBefore = originalNote?.height ?: 0f
+                    val isSelected = note.id in selectedNoteIds
+                    drawNote(
+                        note = note,
+                        colors = colors,
+                        alpha = alpha,
+                        isSelected = isSelected,
+                        showEditIcon = isEditMode,
+                        editIconDrawable = editIconDrawable,
+                        textMeasurer = textMeasurer,
+                        density = density
+                    )
+                    // Copy measured height back to original note for layout
+                    if (originalNote != null && note.height != heightBefore) {
+                        originalNote.height = note.height
+                        anyHeightChanged = true
+                    }
                 }
             }
             if (anyHeightChanged) {
@@ -786,8 +1030,8 @@ fun WorkflowGraphCanvas(
                     }
                 }
 
-                // Draw output slots on all nodes (one per output) - use animatedNodes
-                animatedNodes.forEach { node ->
+                // Draw output slots on all nodes (one per output) - use animatedNodes with alpha
+                animatedNodes.forEach { (node, nodeAlpha) ->
                     val outputX = node.x + node.width
 
                     node.outputs.forEachIndexed { outputIndex, output ->
@@ -807,11 +1051,11 @@ fun WorkflowGraphCanvas(
 
                         // Get slot color based on output type (keep original color, only source slot changes)
                         val typeColor = colors.slotColors[output.type.uppercase()] ?: colors.edgeColor
-                        val slotColor = when {
+                        val slotColor = (when {
                             isSourceSlot -> colors.selectedBorder
                             isLongPressSource -> colors.candidateBorder
                             else -> typeColor
-                        }
+                        }).copy(alpha = nodeAlpha)
 
                         // Use larger size if connected to selected or is source/long-press slot
                         val outerRadius = when {
@@ -836,7 +1080,7 @@ fun WorkflowGraphCanvas(
                         // Draw inner circle for contrast (not for source/long-press slots)
                         if (!isSourceSlot && !isLongPressSource) {
                             drawCircle(
-                                color = colors.nodeBackground,
+                                color = colors.nodeBackground.copy(alpha = nodeAlpha),
                                 radius = innerRadius,
                                 center = Offset(outputX, outputY)
                             )
@@ -853,8 +1097,8 @@ fun WorkflowGraphCanvas(
                     }
                 }
 
-                // Draw input slots for connection-type inputs on all nodes - use animatedNodes
-                animatedNodes.forEach { node ->
+                // Draw input slots for connection-type inputs on all nodes - use animatedNodes with alpha
+                animatedNodes.forEach { (node, nodeAlpha) ->
                     var inputIndex = 0
                     node.inputs.forEach { (inputName, inputValue) ->
                         val isConnectionInput =
@@ -869,7 +1113,7 @@ fun WorkflowGraphCanvas(
                             val isConnectedToSelected = Pair(node.id, inputName) in inputsConnectedToSelected
 
                             // Get slot color - use wire color for connected inputs, slot type for unconnected
-                            val slotColor = when (inputValue) {
+                            val slotColor = (when (inputValue) {
                                 is InputValue.Connection -> {
                                     // Use the wire color from the connected edge
                                     nodeInputColors[node.id]?.get(inputName)?.let { Color(it) } ?: colors.edgeColor
@@ -878,7 +1122,7 @@ fun WorkflowGraphCanvas(
                                     inputValue.slotType?.let { colors.slotColors[it.uppercase()] } ?: colors.edgeColor
                                 }
                                 else -> colors.edgeColor
-                            }
+                            }).copy(alpha = nodeAlpha)
                             val outerRadius = if (isConnectedToSelected) 15f else 10f
                             val innerRadius = if (isConnectedToSelected) 9f else 6f
 
@@ -888,7 +1132,7 @@ fun WorkflowGraphCanvas(
                                 center = Offset(inputX, inputY)
                             )
                             drawCircle(
-                                color = colors.nodeBackground,
+                                color = colors.nodeBackground.copy(alpha = nodeAlpha),
                                 radius = innerRadius,
                                 center = Offset(inputX, inputY)
                             )
@@ -903,10 +1147,10 @@ fun WorkflowGraphCanvas(
                     connectionModeState?.validInputSlots?.forEach { slot ->
                         // Draw pulsing glow effect around the input slot
                         // glowValue ranges from 0 to 1, animating the glow intensity
-                        val baseAlpha = 0.2f + (glowValue * 0.4f)  // Alpha pulses between 0.2 and 0.6
+                        val baseAlpha = 0.3f + (glowValue * 0.4f)  // Alpha pulses between 0.3 and 0.7
 
-                        // Outer glow layer (largest, most transparent) - scaled to match 14f socket
-                        val outerGlowRadius = 33f + (glowValue * 9f)  // Radius pulses between 33 and 42
+                        // Outer glow layer (largest, most transparent) - matches long-press glow size
+                        val outerGlowRadius = 15f + (glowValue * 35f)  // 15 -> 50
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.3f),
                             radius = outerGlowRadius,
@@ -914,7 +1158,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Middle glow layer
-                        val midGlowRadius = 23f + (glowValue * 5f)  // Radius pulses between 23 and 28
+                        val midGlowRadius = 12f + (glowValue * 20f)  // 12 -> 32
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.5f),
                             radius = midGlowRadius,
@@ -922,9 +1166,9 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Inner glow layer (smallest, most opaque)
-                        val innerGlowRadius = 16f + (glowValue * 2f)  // Radius pulses between 16 and 18
+                        val innerGlowRadius = 10f + (glowValue * 10f)  // 10 -> 20
                         drawCircle(
-                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.7f),
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.8f),
                             radius = innerGlowRadius,
                             center = slot.center
                         )
@@ -951,11 +1195,11 @@ fun WorkflowGraphCanvas(
                 longPressSlot?.let { slot ->
                     val progress = longPressProgress.value
                     if (progress > 0f) {
-                        // Three-layer expanding glow effect
+                        // Three-layer expanding glow effect (sized to be visible under finger)
                         val baseAlpha = 0.3f + (progress * 0.4f)  // 0.3 -> 0.7
 
                         // Outer glow - expands significantly
-                        val outerRadius = 15f + (progress * 35f)  // 15 -> 50
+                        val outerRadius = 30f + (progress * 70f)  // 30 -> 100
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.3f),
                             radius = outerRadius,
@@ -963,7 +1207,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Middle glow
-                        val midRadius = 12f + (progress * 20f)  // 12 -> 32
+                        val midRadius = 24f + (progress * 40f)  // 24 -> 64
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.5f),
                             radius = midRadius,
@@ -971,7 +1215,7 @@ fun WorkflowGraphCanvas(
                         )
 
                         // Inner glow
-                        val innerRadius = 10f + (progress * 10f)  // 10 -> 20
+                        val innerRadius = 20f + (progress * 20f)  // 20 -> 40
                         drawCircle(
                             color = colors.candidateBorder.copy(alpha = baseAlpha * 0.8f),
                             radius = innerRadius,
@@ -990,6 +1234,7 @@ fun WorkflowGraphCanvas(
 private fun DrawScope.drawNode(
     node: WorkflowNode,
     colors: CanvasColors,
+    alpha: Float = 1f,
     highlightState: NodeHighlightState = NodeHighlightState.NONE,
     colorPair: SlotColors.NodeColorPair? = null,
     nodeEdits: Map<String, Any> = emptyMap(),
@@ -1005,9 +1250,12 @@ private fun DrawScope.drawNode(
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
     val cornerRadius = 16f
 
+    // Helper to apply alpha to a color
+    fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
+
     // Use color pair for header and body if available, otherwise use defaults
-    val baseHeaderColor = colorPair?.header ?: colors.nodeHeaderBackground
-    val baseBodyColor = colorPair?.body ?: colors.nodeBackground
+    val baseHeaderColor = (colorPair?.header ?: colors.nodeHeaderBackground).withAlpha()
+    val baseBodyColor = (colorPair?.body ?: colors.nodeBackground).withAlpha()
 
     // Determine border color and width based on highlight state
     // For NONE state, use a toned border matching the node's header color
@@ -1015,11 +1263,11 @@ private fun DrawScope.drawNode(
     val tonedBorderColor = if (colors.isDarkTheme) {
         lerp(baseHeaderColor, Color.White, 0.3f)
     } else {
-        baseHeaderColor.copy(alpha = 0.9f)
+        baseHeaderColor.copy(alpha = 0.9f * alpha)
     }
     val (borderColor, borderWidth) = when (highlightState) {
-        NodeHighlightState.SELECTED -> colors.selectedBorder to 8f
-        NodeHighlightState.CANDIDATE -> colors.candidateBorder to 6f
+        NodeHighlightState.SELECTED -> colors.selectedBorder.withAlpha() to 8f
+        NodeHighlightState.CANDIDATE -> colors.candidateBorder.withAlpha() to 6f
         NodeHighlightState.NONE -> tonedBorderColor to 3f
     }
 
@@ -1083,24 +1331,25 @@ private fun DrawScope.drawNode(
     )
 
     // Draw text using native canvas
-    // Dim text colors for bypassed nodes
+    // Dim text colors for bypassed nodes, and apply alpha
     val dimTarget = if (colors.isDarkTheme) Color.Black else Color.White
     val textPrimaryArgb = if (node.isBypassed) {
-        lerp(colors.textPrimary, dimTarget, 0.5f).toArgb()
+        lerp(colors.textPrimary, dimTarget, 0.5f).withAlpha().toArgb()
     } else {
-        colors.textPrimary.toArgb()
+        colors.textPrimary.withAlpha().toArgb()
     }
     val textSecondaryArgb = if (node.isBypassed) {
-        lerp(colors.textSecondary, dimTarget, 0.5f).toArgb()
+        lerp(colors.textSecondary, dimTarget, 0.5f).withAlpha().toArgb()
     } else {
-        colors.textSecondary.toArgb()
+        colors.textSecondary.withAlpha().toArgb()
     }
     val templateHighlightArgb = if (node.isBypassed) {
-        lerp(colors.templateTextHighlight, dimTarget, 0.5f).toArgb()
+        lerp(colors.templateTextHighlight, dimTarget, 0.5f).withAlpha().toArgb()
     } else {
-        colors.templateTextHighlight.toArgb()
+        colors.templateTextHighlight.withAlpha().toArgb()
     }
     val headerColorArgb = headerColor.toArgb()
+    val drawableAlpha = (alpha * 255).toInt()
 
     drawContext.canvas.nativeCanvas.apply {
         // Title text - leave space for icons if shown (edit + bypass = 2 icons)
@@ -1125,6 +1374,7 @@ private fun DrawScope.drawNode(
                 val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
                 if (iconCopy != null) {
                     DrawableCompat.setTint(iconCopy, textSecondaryArgb)
+                    iconCopy.alpha = drawableAlpha
                     iconCopy.setBounds(editIconLeft, iconTop, editIconLeft + iconSize, iconTop + iconSize)
                     iconCopy.draw(this)
                 }
@@ -1140,7 +1390,7 @@ private fun DrawScope.drawNode(
 
         // Paint for editable inputs (when side sheet is open)
         val editablePaint = Paint().apply {
-            color = colors.selectedBorder.toArgb()
+            color = colors.selectedBorder.withAlpha().toArgb()
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
             isAntiAlias = true
@@ -1211,9 +1461,9 @@ private fun DrawScope.drawNode(
 
             // Determine which paint to use for the key name
             val wireColor = inputWireColors[name]
-            // For UnconnectedSlot, get color from slot type
+            // For UnconnectedSlot, get color from slot type (with alpha applied)
             val slotTypeColor = if (value is InputValue.UnconnectedSlot) {
-                colors.slotColors[value.slotType.uppercase()]?.toArgb()
+                colors.slotColors[value.slotType.uppercase()]?.withAlpha()?.toArgb()
             } else null
 
             val keyPaint = when {
@@ -1262,11 +1512,11 @@ private fun DrawScope.drawNode(
                 val trackPaint = Paint().apply {
                     color = when {
                         isEdited -> blendColors(textPrimaryArgb, editedColorArgb, 0.5f)
-                        currentValue -> colors.selectedBorder.toArgb()
-                        else -> colors.nodeBorder.toArgb()
+                        currentValue -> colors.selectedBorder.withAlpha().toArgb()
+                        else -> colors.nodeBorder.withAlpha().toArgb()
                     }
                     isAntiAlias = true
-                }
+                }.also { it.alpha = drawableAlpha }
                 val trackRect = android.graphics.RectF(toggleLeft, toggleTop, toggleRight, toggleBottom)
                 drawRoundRect(trackRect, toggleRadius, toggleRadius, trackPaint)
 
@@ -1289,7 +1539,7 @@ private fun DrawScope.drawNode(
                 val thumbPaint = Paint().apply {
                     color = thumbColor
                     isAntiAlias = true
-                }
+                }.also { it.alpha = drawableAlpha }
                 drawCircle(thumbCenterX, thumbCenterY, thumbRadius, thumbPaint)
             } else if (valueStr != null) {
                 val boxPaddingH = 8f
@@ -1342,8 +1592,8 @@ private fun DrawScope.drawNode(
 
         // Draw outputs on the right side
         node.outputs.forEachIndexed { _, output ->
-            // Get color for output type
-            val outputColorInt = colors.slotColors[output.type.uppercase()]?.toArgb()
+            // Get color for output type (with alpha applied)
+            val outputColorInt = colors.slotColors[output.type.uppercase()]?.withAlpha()?.toArgb()
 
             // Create paint for output name (right-aligned, colored)
             val outputPaint = if (outputColorInt != null) {
@@ -1381,13 +1631,17 @@ private fun DrawScope.drawNode(
  */
 private fun DrawScope.drawEdge(
     edge: WorkflowEdge,
-    nodes: List<WorkflowNode>,
+    nodesById: Map<String, WorkflowNode>,
     colors: CanvasColors,
+    alpha: Float = 1f,
     selectedNodeIds: Set<String> = emptySet(),
     segmentTime: Float = 0f
 ) {
-    val sourceNode = nodes.find { it.id == edge.sourceNodeId } ?: return
-    val targetNode = nodes.find { it.id == edge.targetNodeId } ?: return
+    val sourceNode = nodesById[edge.sourceNodeId] ?: return
+    val targetNode = nodesById[edge.targetNodeId] ?: return
+
+    // Helper to apply alpha to a color
+    fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
 
     // Connection points: always exit right side of source, enter left side of target
     val startX = sourceNode.x + sourceNode.width
@@ -1396,9 +1650,9 @@ private fun DrawScope.drawEdge(
     val endY = targetNode.y + calculateInputY(targetNode, edge.targetInputName)
 
     // Resolve base color from slot type, fallback to default
-    val baseEdgeColor = edge.slotType?.let { slotType ->
+    val baseEdgeColor = (edge.slotType?.let { slotType ->
         colors.slotColors[slotType.uppercase()]
-    } ?: colors.edgeColor
+    } ?: colors.edgeColor).withAlpha()
 
     // Check if this edge is connected to a selected node
     val isConnectedToSelected = edge.sourceNodeId in selectedNodeIds || edge.targetNodeId in selectedNodeIds
@@ -1410,7 +1664,7 @@ private fun DrawScope.drawEdge(
     val edgeWidth: Float
     if (isConnectedToSelected) {
         edgeColor = baseEdgeColor  // Wire stays same color
-        highlightColor = colors.selectedBorder  // Same as highlighted node's frame
+        highlightColor = colors.selectedBorder.withAlpha()  // Same as highlighted node's frame
         edgeWidth = 8f
     } else {
         edgeColor = baseEdgeColor
@@ -1546,6 +1800,7 @@ private fun DrawScope.drawEdge(
 private fun DrawScope.drawGroup(
     group: RenderedGroup,
     colors: CanvasColors,
+    alpha: Float = 1f,
     showEditIcon: Boolean = false,
     editIconDrawable: Drawable? = null
 ) {
@@ -1553,18 +1808,19 @@ private fun DrawScope.drawGroup(
 
     val cornerRadius = 16f
     val fontSize = WorkflowLayoutEngine.GROUP_HEADER_HEIGHT
+    val drawableAlpha = (alpha * 255).toInt()
 
-    // Draw semi-transparent background
+    // Draw semi-transparent background (0.15 base alpha * fade alpha)
     drawRoundRect(
-        color = groupColor.copy(alpha = 0.15f),
+        color = groupColor.copy(alpha = 0.15f * alpha),
         topLeft = Offset(group.x, group.y),
         size = Size(group.width, group.height),
         cornerRadius = CornerRadius(cornerRadius)
     )
 
-    // Draw border
+    // Draw border (0.6 base alpha * fade alpha)
     drawRoundRect(
-        color = groupColor.copy(alpha = 0.6f),
+        color = groupColor.copy(alpha = 0.6f * alpha),
         topLeft = Offset(group.x, group.y),
         size = Size(group.width, group.height),
         cornerRadius = CornerRadius(cornerRadius),
@@ -1573,8 +1829,9 @@ private fun DrawScope.drawGroup(
 
     // Draw title text and edit icon
     drawContext.canvas.nativeCanvas.apply {
+        val titleColorArgb = groupColor.copy(alpha = alpha).toArgb()
         val titlePaint = android.graphics.Paint().apply {
-            color = groupColor.toArgb()
+            color = titleColorArgb
             textSize = fontSize
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             isAntiAlias = true
@@ -1591,7 +1848,8 @@ private fun DrawScope.drawGroup(
 
             val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
             if (iconCopy != null) {
-                DrawableCompat.setTint(iconCopy, groupColor.toArgb())
+                DrawableCompat.setTint(iconCopy, titleColorArgb)
+                iconCopy.alpha = drawableAlpha
                 iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
                 iconCopy.draw(this)
             }
@@ -1608,16 +1866,21 @@ private fun DrawScope.drawGroup(
 private fun DrawScope.drawNote(
     note: WorkflowNote,
     colors: CanvasColors,
+    alpha: Float = 1f,
     isSelected: Boolean = false,
     showEditIcon: Boolean = false,
     editIconDrawable: Drawable? = null,
     textMeasurer: TextMeasurer? = null,
     density: androidx.compose.ui.unit.Density? = null
 ) {
+    // Helper to apply alpha to a color
+    fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
+
     // Select colors based on theme - sticky note style with single color
-    val noteColor = if (colors.isDarkTheme) NoteColors.NoteDark else NoteColors.NoteLight
-    val textColor = if (colors.isDarkTheme) NoteColors.TextDark else NoteColors.TextLight
-    val noteBorderColor = if (colors.isDarkTheme) NoteColors.BorderDark else NoteColors.BorderLight
+    val noteColor = (if (colors.isDarkTheme) NoteColors.NoteDark else NoteColors.NoteLight).withAlpha()
+    val textColor = (if (colors.isDarkTheme) NoteColors.TextDark else NoteColors.TextLight).withAlpha()
+    val noteBorderColor = (if (colors.isDarkTheme) NoteColors.BorderDark else NoteColors.BorderLight).withAlpha()
+    val drawableAlpha = (alpha * 255).toInt()
 
     val cornerRadius = 16f
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
@@ -1635,7 +1898,7 @@ private fun DrawScope.drawNote(
         val lineHeightSp = with(density) { 24f.toSp() }
 
         // Parse markdown to AnnotatedString
-        val codeBackgroundColor = noteBorderColor.copy(alpha = 0.4f)
+        val codeBackgroundColor = noteBorderColor.copy(alpha = noteBorderColor.alpha * 0.4f)
         val annotatedContent = MarkdownParser.parse(
             markdown = note.content,
             codeBackgroundColor = codeBackgroundColor,
@@ -1673,7 +1936,7 @@ private fun DrawScope.drawNote(
 
     // Border
     val borderWidth = if (isSelected) 6f else 3f
-    val borderColor = if (isSelected) colors.selectedBorder else noteBorderColor
+    val borderColor = if (isSelected) colors.selectedBorder.withAlpha() else noteBorderColor
     drawRoundRect(
         color = borderColor,
         topLeft = Offset(note.x, note.y),
@@ -1683,10 +1946,11 @@ private fun DrawScope.drawNote(
     )
 
     // Draw title using native canvas
+    val textColorArgb = textColor.toArgb()
     drawContext.canvas.nativeCanvas.apply {
         val titleMaxWidth = if (showEditIcon) note.width - 104f else note.width - 32f
         val titlePaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
+            color = textColorArgb
             textSize = 24f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             isAntiAlias = true
@@ -1702,24 +1966,26 @@ private fun DrawScope.drawNote(
 
             val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
             if (iconCopy != null) {
-                DrawableCompat.setTint(iconCopy, textColor.toArgb())
+                DrawableCompat.setTint(iconCopy, textColorArgb)
+                iconCopy.alpha = drawableAlpha
                 iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
                 iconCopy.draw(this)
             }
         }
     }
 
-    // Draw markdown content
+    // Draw markdown content with alpha
     if (textLayoutResult != null) {
         drawText(
             textLayoutResult = textLayoutResult,
-            topLeft = Offset(note.x + contentPadding, note.y + headerHeight + contentPadding)
+            topLeft = Offset(note.x + contentPadding, note.y + headerHeight + contentPadding),
+            alpha = alpha
         )
     } else {
         // Fallback: Draw content using native canvas (no markdown formatting)
         drawContext.canvas.nativeCanvas.apply {
             val contentPaint = android.graphics.Paint().apply {
-                color = textColor.toArgb()
+                color = textColorArgb
                 textSize = 20f
                 isAntiAlias = true
             }
