@@ -108,6 +108,7 @@ private fun isConnectionType(type: String): Boolean = type.uppercase() !in LITER
  * @param onNodeTypeSelected Callback when user selects a node type
  * @param onDismiss Callback when sheet is dismissed
  * @param filterToOutputType If set, only show nodes with compatible inputs for this output type
+ * @param filterToInputType If set, only show nodes with compatible outputs for this input type
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,7 +117,8 @@ fun NodeBrowserBottomSheet(
     sheetState: SheetState,
     onNodeTypeSelected: (NodeTypeDefinition) -> Unit,
     onDismiss: () -> Unit,
-    filterToOutputType: String? = null
+    filterToOutputType: String? = null,
+    filterToInputType: String? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -153,10 +155,10 @@ fun NodeBrowserBottomSheet(
     val categoryPrefix = buildCategoryPrefix(level1Selection, level2Selection, level3Selection)
 
     // Filter nodes by compatibility, search query, and category filter
-    val filteredCategories = remember(nodeTypesByCategory, searchQuery, categoryPrefix, filterToOutputType) {
+    val filteredCategories = remember(nodeTypesByCategory, searchQuery, categoryPrefix, filterToOutputType, filterToInputType) {
         var result = nodeTypesByCategory
 
-        // Apply compatibility filter FIRST if set (for long-press connection mode)
+        // Apply compatibility filter for output->input (long-press on output slot)
         if (filterToOutputType != null) {
             result = result.mapValues { (_, nodes) ->
                 nodes.filter { nodeType ->
@@ -164,6 +166,18 @@ fun NodeBrowserBottomSheet(
                     nodeType.inputs.any { input ->
                         isConnectionType(input.type) &&
                         ConnectionValidator.isTypeCompatible(filterToOutputType, input.type)
+                    }
+                }
+            }.filterValues { it.isNotEmpty() }
+        }
+
+        // Apply compatibility filter for input->output (long-press on input slot)
+        if (filterToInputType != null) {
+            result = result.mapValues { (_, nodes) ->
+                nodes.filter { nodeType ->
+                    // Node is compatible if it has any output that matches input type
+                    nodeType.outputs.any { output ->
+                        ConnectionValidator.isTypeCompatible(output.type, filterToInputType)
                     }
                 }
             }.filterValues { it.isNotEmpty() }
@@ -209,14 +223,17 @@ fun NodeBrowserBottomSheet(
                 fontWeight = FontWeight.Bold
             )
 
-            // Show filter chip when filtering by output type
-            if (filterToOutputType != null) {
+            // Show filter chip when filtering by type compatibility
+            if (filterToOutputType != null || filterToInputType != null) {
                 Spacer(modifier = Modifier.height(8.dp))
+                val filterText = when {
+                    filterToOutputType != null -> stringResource(R.string.node_browser_accepts_input, filterToOutputType)
+                    filterToInputType != null -> stringResource(R.string.node_browser_provides_output, filterToInputType)
+                    else -> ""
+                }
                 AssistChip(
                     onClick = { /* Filter is read-only in this mode */ },
-                    label = {
-                        Text(stringResource(R.string.node_browser_compatible_with, filterToOutputType))
-                    },
+                    label = { Text(filterText) },
                     leadingIcon = {
                         Icon(
                             Icons.Default.FilterList,

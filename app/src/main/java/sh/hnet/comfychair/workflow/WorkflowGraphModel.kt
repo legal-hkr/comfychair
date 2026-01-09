@@ -227,13 +227,26 @@ data class SlotPosition(
 )
 
 /**
+ * Direction of connection mode - determines which slot types are source vs target
+ */
+enum class ConnectionDirection {
+    /** User tapped output, selecting input targets */
+    OUTPUT_TO_INPUT,
+    /** User tapped input, selecting output targets */
+    INPUT_TO_OUTPUT
+}
+
+/**
  * State for tap-based connection mode.
- * When active, tapping an output highlights valid inputs, then tapping an input creates the connection.
+ * Unified to handle both directions symmetrically:
+ * - OUTPUT_TO_INPUT: tapping an output highlights valid inputs
+ * - INPUT_TO_OUTPUT: tapping an input highlights valid outputs
  */
 @Stable
 data class ConnectionModeState(
-    val sourceOutputSlot: SlotPosition,
-    val validInputSlots: List<SlotPosition>
+    val direction: ConnectionDirection,
+    val sourceSlot: SlotPosition,
+    val validTargetSlots: List<SlotPosition>
 )
 
 /**
@@ -284,6 +297,11 @@ data class WorkflowEditorUiState(
     val showInputSelectionDialog: Boolean = false,
     val inputSelectionNodeType: NodeTypeDefinition? = null,
     val inputSelectionCompatibleInputs: List<InputDefinition> = emptyList(),
+
+    // Output selection dialog (when multiple compatible outputs exist - reverse connection)
+    val showOutputSelectionDialog: Boolean = false,
+    val outputSelectionNodeType: NodeTypeDefinition? = null,
+    val outputSelectionCompatibleOutputs: List<OutputSlot> = emptyList(),
 
     // Create mode (creating new workflow from scratch)
     val isCreateMode: Boolean = false,

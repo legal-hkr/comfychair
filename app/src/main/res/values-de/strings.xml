@@ -480,7 +480,8 @@
     <string name="node_browser_filter_category">Kategorie</string>
     <string name="node_browser_filter_subcategory">Unterkategorie</string>
     <string name="node_browser_filter_group">Gruppe</string>
-    <string name="node_browser_compatible_with">Kompatibel mit %1$s</string>
+    <string name="node_browser_accepts_input">Akzeptiert %1$s-Eingang</string>
+    <string name="node_browser_provides_output">Liefert %1$s-Ausgang</string>
     <string name="clear_search">Suche löschen</string>
     <string name="workflow_editor_enter_edit_mode">Graph bearbeiten</string>
     <string name="workflow_editor_exit_edit_mode">Bearbeitungsmodus beenden</string>
@@ -502,6 +503,8 @@
     <string name="workflow_editor_discard_message">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>
     <string name="workflow_editor_select_input_title">Mit Eingang verbinden</string>
     <string name="workflow_editor_select_input_message">Wähle einen Eingang auf %1$s:</string>
+    <string name="workflow_editor_select_output_title">Von Ausgang verbinden</string>
+    <string name="workflow_editor_select_output_message">Wähle einen Ausgang auf %1$s:</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Positiver Prompt</string>

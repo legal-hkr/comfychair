@@ -78,6 +78,58 @@ object ConnectionValidator {
     }
 
     /**
+     * Calculate all valid output slots that can provide a connection to the given input.
+     * Returns slots on OTHER nodes that are type-compatible with the input.
+     * This is the reverse of calculateValidInputSlots - used when user taps an input slot.
+     *
+     * @param graph The workflow graph to search
+     * @param targetNodeId ID of the node with the input (the node being connected TO)
+     * @param inputType Type of the input (e.g., "MODEL", "CLIP", "IMAGE")
+     * @param nodeTypeRegistry Registry to look up output types for nodes
+     * @return List of valid output slot positions
+     */
+    fun calculateValidOutputSlots(
+        graph: MutableWorkflowGraph,
+        targetNodeId: String,
+        inputType: String?,
+        nodeTypeRegistry: NodeTypeRegistry
+    ): List<SlotPosition> {
+        val validSlots = mutableListOf<SlotPosition>()
+
+        // Check all other nodes
+        for (node in graph.nodes) {
+            // Skip the target node - can't connect to self
+            if (node.id == targetNodeId) continue
+
+            // Count literal inputs to calculate output Y positions correctly
+            val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
+
+            // Check each output on this node
+            node.outputs.forEachIndexed { outputIndex, output ->
+                if (isTypeCompatible(output.type, inputType)) {
+                    // Calculate output slot position (right side of node)
+                    val slotY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
+                        (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
+                        (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+                    validSlots.add(
+                        SlotPosition(
+                            nodeId = node.id,
+                            slotName = output.name,
+                            isOutput = true,
+                            outputIndex = outputIndex,
+                            center = Offset(node.x + node.width, slotY),
+                            slotType = output.type
+                        )
+                    )
+                }
+            }
+        }
+
+        return validSlots
+    }
+
+    /**
      * Check if an output type is compatible with an input type.
      *
      * Compatibility rules:

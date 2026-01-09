@@ -482,7 +482,8 @@
     <string name="node_browser_filter_category">Kategoria</string>
     <string name="node_browser_filter_subcategory">Podkategoria</string>
     <string name="node_browser_filter_group">Grupa</string>
-    <string name="node_browser_compatible_with">Kompatybilne z %1$s</string>
+    <string name="node_browser_accepts_input">Przyjmuje wejście %1$s</string>
+    <string name="node_browser_provides_output">Dostarcza wyjście %1$s</string>
     <string name="clear_search">Wyczyść wyszukiwanie</string>
     <string name="workflow_editor_enter_edit_mode">Edytuj graf</string>
     <string name="workflow_editor_exit_edit_mode">Wyjdź z trybu edycji</string>
@@ -504,6 +505,8 @@
     <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>
     <string name="workflow_editor_select_input_title">Połącz z wejściem</string>
     <string name="workflow_editor_select_input_message">Wybierz wejście %1$s do połączenia:</string>
+    <string name="workflow_editor_select_output_title">Połącz z wyjścia</string>
+    <string name="workflow_editor_select_output_message">Wybierz wyjście %1$s do połączenia:</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Pozytywny prompt</string>

@@ -112,8 +112,10 @@ import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
+import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.InputDefinition
+import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
@@ -349,18 +351,32 @@ fun WorkflowEditorScreen(
                                 }
                             },
                             onOutputSlotTapped = { outputSlot ->
-                                // Toggle connection mode on output slot tap
-                                if (uiState.connectionModeState?.sourceOutputSlot?.nodeId == outputSlot.nodeId) {
+                                val connectionState = uiState.connectionModeState
+                                when {
+                                    // In INPUT_TO_OUTPUT mode: complete connection to this output
+                                    connectionState?.direction == ConnectionDirection.INPUT_TO_OUTPUT ->
+                                        viewModel.connectToTarget(outputSlot)
                                     // Tapping the same output slot exits connection mode
-                                    viewModel.exitConnectionMode()
-                                } else {
+                                    connectionState?.sourceSlot?.nodeId == outputSlot.nodeId &&
+                                            connectionState.sourceSlot.outputIndex == outputSlot.outputIndex ->
+                                        viewModel.exitConnectionMode()
                                     // Enter connection mode with this output
-                                    viewModel.enterConnectionMode(outputSlot)
+                                    else -> viewModel.enterConnectionMode(outputSlot)
                                 }
                             },
                             onInputSlotTapped = { inputSlot ->
-                                // Connect to this input and exit connection mode
-                                viewModel.connectToInput(inputSlot)
+                                val connectionState = uiState.connectionModeState
+                                when {
+                                    // In OUTPUT_TO_INPUT mode: complete connection to this input
+                                    connectionState?.direction == ConnectionDirection.OUTPUT_TO_INPUT ->
+                                        viewModel.connectToTarget(inputSlot)
+                                    // Tapping the same input slot exits reverse connection mode
+                                    connectionState?.sourceSlot?.nodeId == inputSlot.nodeId &&
+                                            connectionState.sourceSlot.slotName == inputSlot.slotName ->
+                                        viewModel.exitConnectionMode()
+                                    // Enter reverse connection mode with this input
+                                    else -> viewModel.enterReverseConnectionMode(inputSlot)
+                                }
                             },
                             onRenameNodeTapped = { nodeId ->
                                 // Find the node and open rename dialog
@@ -401,6 +417,9 @@ fun WorkflowEditorScreen(
                             },
                             longPressSourceSlot = uiState.longPressSourceSlot,
                             onOutputSlotLongPressed = { slot ->
+                                viewModel.startLongPressConnection(slot)
+                            },
+                            onInputSlotLongPressed = { slot ->
                                 viewModel.startLongPressConnection(slot)
                             },
                             onTransform = { scale, offset ->
@@ -611,6 +630,7 @@ fun WorkflowEditorScreen(
         if (uiState.showCompatibleNodeBrowser) {
             val compatibleBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
+            val sourceSlot = uiState.longPressSourceSlot
 
             NodeBrowserBottomSheet(
                 nodeTypesByCategory = viewModel.getNodeTypesByCategory(),
@@ -619,13 +639,20 @@ fun WorkflowEditorScreen(
                     scope.launch {
                         compatibleBrowserSheetState.hide()
                     }.invokeOnCompletion {
-                        viewModel.selectNodeForConnection(nodeType)
+                        // Call appropriate method based on direction
+                        if (sourceSlot?.isOutput == true) {
+                            viewModel.selectNodeForConnection(nodeType)
+                        } else {
+                            viewModel.selectNodeForReverseConnection(nodeType)
+                        }
                     }
                 },
                 onDismiss = {
                     viewModel.cancelLongPressConnection()
                 },
-                filterToOutputType = uiState.longPressSourceSlot?.slotType
+                // Filter based on direction: output->input or input->output
+                filterToOutputType = if (sourceSlot?.isOutput == true) sourceSlot.slotType else null,
+                filterToInputType = if (sourceSlot?.isOutput == false) sourceSlot.slotType else null
             )
         }
 
@@ -639,6 +666,23 @@ fun WorkflowEditorScreen(
                 compatibleInputs = uiState.inputSelectionCompatibleInputs,
                 onInputSelected = { input ->
                     viewModel.selectInputForConnection(input)
+                },
+                onDismiss = {
+                    viewModel.cancelLongPressConnection()
+                }
+            )
+        }
+
+        // Output selection dialog (when multiple compatible outputs exist - reverse connection)
+        if (uiState.showOutputSelectionDialog) {
+            val nodeTypeName = uiState.outputSelectionNodeType?.displayName
+                ?: uiState.outputSelectionNodeType?.classType ?: ""
+
+            OutputSelectionDialog(
+                nodeTypeName = nodeTypeName,
+                compatibleOutputs = uiState.outputSelectionCompatibleOutputs,
+                onOutputSelected = { output ->
+                    viewModel.selectOutputForConnection(output)
                 },
                 onDismiss = {
                     viewModel.cancelLongPressConnection()
@@ -1699,3 +1743,79 @@ private fun InputSelectionDialog(
     )
 }
 
+/**
+ * Dialog for selecting which output to connect from when multiple compatible outputs exist.
+ * Used in reverse connection flow when the source node has multiple valid outputs.
+ */
+@Composable
+private fun OutputSelectionDialog(
+    nodeTypeName: String,
+    compatibleOutputs: List<OutputSlot>,
+    onOutputSelected: (OutputSlot) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedOutput by remember { mutableStateOf<OutputSlot?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.workflow_editor_select_output_title))
+        },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.workflow_editor_select_output_message, nodeTypeName),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                compatibleOutputs.forEach { output ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = selectedOutput == output,
+                                onClick = { selectedOutput = output }
+                            )
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedOutput == output,
+                            onClick = { selectedOutput = output }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = output.name,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = output.type,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { selectedOutput?.let(onOutputSelected) },
+                enabled = selectedOutput != null
+            ) {
+                Text(stringResource(R.string.button_connect))
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text(stringResource(R.string.button_cancel))
+            }
+        }
+    )
+}

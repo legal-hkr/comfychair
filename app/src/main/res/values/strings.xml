@@ -467,6 +467,8 @@
     <string name="workflow_editor_discard_message">You have unsaved changes. Are you sure you want to discard this workflow?</string>
     <string name="workflow_editor_select_input_title">Connect to input</string>
     <string name="workflow_editor_select_input_message">Select which input on %1$s to connect:</string>
+    <string name="workflow_editor_select_output_title">Connect from output</string>
+    <string name="workflow_editor_select_output_message">Select which output on %1$s to connect:</string>
 
     <!-- Node browser bottom sheet strings -->
     <string name="node_browser_title">Add node</string>
@@ -478,7 +480,8 @@
     <string name="node_browser_filter_category">Category</string>
     <string name="node_browser_filter_subcategory">Subcategory</string>
     <string name="node_browser_filter_group">Group</string>
-    <string name="node_browser_compatible_with">Compatible with %1$s</string>
+    <string name="node_browser_accepts_input">Accepts %1$s input</string>
+    <string name="node_browser_provides_output">Provides %1$s output</string>
     <string name="clear_search">Clear search</string>
 
     <!-- Workflow import dialog strings -->

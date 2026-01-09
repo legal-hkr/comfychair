@@ -66,6 +66,7 @@ import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.SlotColors
+import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowEdge
@@ -216,7 +217,8 @@ fun WorkflowGraphCanvas(
     onRenameNoteTapped: ((Int) -> Unit)? = null,
     onNoteHeightsChanged: (() -> Unit)? = null,
     longPressSourceSlot: SlotPosition? = null,
-    onOutputSlotLongPressed: ((SlotPosition) -> Unit)? = null
+    onOutputSlotLongPressed: ((SlotPosition) -> Unit)? = null,
+    onInputSlotLongPressed: ((SlotPosition) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -226,6 +228,7 @@ fun WorkflowGraphCanvas(
     val currentIsEditMode = rememberUpdatedState(isEditMode)
     val currentRenderedGroups = rememberUpdatedState(renderedGroups)
     val currentNotes = rememberUpdatedState(notes)
+    val currentNodeDefinitions = rememberUpdatedState(nodeDefinitions)
 
     // Calculate selected node IDs from mapping state - only for the currently selected field
     val mappingSelectedNodeIds = remember(mappingState, selectedFieldKey) {
@@ -718,6 +721,81 @@ fun WorkflowGraphCanvas(
                     }
                 }
             }
+            // Long-press gesture handler for input slots (reverse connection)
+            .pointerInput(isEditMode, onInputSlotLongPressed) {
+                if (!isEditMode || onInputSlotLongPressed == null) return@pointerInput
+
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = System.currentTimeMillis()
+                    val longPressTimeout = 500L
+                    val pollInterval = 50L  // Check every 50ms even without events
+
+                    // Transform to graph coordinates
+                    val graphX = (down.position.x - currentOffsetState.value.x) / currentScaleState.value
+                    val graphY = (down.position.y - currentOffsetState.value.y) / currentScaleState.value
+
+                    // Check if down is on an input slot
+                    val hitSlot = findInputSlotAt(
+                        graphX = graphX,
+                        graphY = graphY,
+                        nodes = currentGraphState.value.nodes,
+                        slotHitRadius = slotHitRadius,
+                        nodeDefinitions = currentNodeDefinitions.value
+                    )
+                    if (hitSlot == null) {
+                        return@awaitEachGesture
+                    }
+
+                    // Start visual feedback
+                    longPressSlot = hitSlot
+
+                    var pointer = down
+                    var longPressTriggered = false
+
+                    while (true) {
+                        // Use timeout to avoid blocking forever when finger is still
+                        val event = withTimeoutOrNull(pollInterval) {
+                            awaitPointerEvent(PointerEventPass.Initial)
+                        }
+
+                        // Check timeout first (works even if no event received)
+                        if (System.currentTimeMillis() - downTime > longPressTimeout) {
+                            // Verify finger is still down before triggering
+                            val currentEvent = currentEvent
+                            val stillPressed = currentEvent.changes.any { it.id == pointer.id && it.pressed }
+                            if (stillPressed) {
+                                onInputSlotLongPressed(hitSlot)
+                                longPressTriggered = true
+                            }
+                            longPressSlot = null
+                            // Wait for finger release
+                            waitForUpOrCancellation()
+                            break
+                        }
+
+                        // Process event if one was received
+                        if (event != null) {
+                            val change = event.changes.firstOrNull { it.id == pointer.id }
+
+                            if (change == null || !change.pressed) {
+                                // Released before threshold - cancel
+                                longPressSlot = null
+                                break
+                            }
+
+                            // Check movement tolerance (20f screen pixels)
+                            val moved = (change.position - down.position).getDistance() > 20f
+                            if (moved) {
+                                longPressSlot = null
+                                break
+                            }
+
+                            pointer = change
+                        }
+                    }
+                }
+            }
             .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onRenameGroupTapped, onNoteTapped, onRenameNoteTapped) {
                 if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onRenameGroupTapped != null || onNoteTapped != null || onRenameNoteTapped != null) {
                     detectTapGestures { tapOffset ->
@@ -725,25 +803,29 @@ fun WorkflowGraphCanvas(
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
                         val graphY = (tapOffset.y - currentOffsetState.value.y) / currentScaleState.value
                         val graph = currentGraphState.value
-                        val inConnectionMode = currentConnectionModeState.value != null
+                        val connectionState = currentConnectionModeState.value
+                        val inConnectionMode = connectionState != null
                         val inEditMode = currentIsEditMode.value
 
-                        // In connection mode, check for taps on valid input slots first
-                        if (inConnectionMode && onInputSlotTapped != null) {
-                            val connectionState = currentConnectionModeState.value!!
-                            val tappedInputSlot = connectionState.validInputSlots.find { slot ->
+                        // In connection mode, check for taps on valid target slots
+                        if (connectionState != null) {
+                            val tappedTargetSlot = connectionState.validTargetSlots.find { slot ->
                                 val dx = graphX - slot.center.x
                                 val dy = graphY - slot.center.y
                                 (dx * dx + dy * dy) <= slotHitRadius * slotHitRadius
                             }
-                            if (tappedInputSlot != null) {
-                                onInputSlotTapped(tappedInputSlot)
+                            if (tappedTargetSlot != null) {
+                                // Call appropriate callback based on direction
+                                when (connectionState.direction) {
+                                    ConnectionDirection.OUTPUT_TO_INPUT -> onInputSlotTapped?.invoke(tappedTargetSlot)
+                                    ConnectionDirection.INPUT_TO_OUTPUT -> onOutputSlotTapped?.invoke(tappedTargetSlot)
+                                }
                                 return@detectTapGestures
                             }
                         }
 
-                        // In edit mode, check for taps on output slots
-                        if (inEditMode && onOutputSlotTapped != null) {
+                        // In edit mode (not connection mode), check for taps on output slots to start connection
+                        if (inEditMode && !inConnectionMode && onOutputSlotTapped != null) {
                             for (node in graph.nodes) {
                                 // Output slots are on the right side of the node
                                 val outputX = node.x + node.width
@@ -771,6 +853,21 @@ fun WorkflowGraphCanvas(
                                         return@detectTapGestures
                                     }
                                 }
+                            }
+                        }
+
+                        // In edit mode (not connection mode), check for taps on input slots to start reverse connection
+                        if (inEditMode && !inConnectionMode && onInputSlotTapped != null) {
+                            val tappedInputSlot = findInputSlotAt(
+                                graphX = graphX,
+                                graphY = graphY,
+                                nodes = graph.nodes,
+                                slotHitRadius = slotHitRadius,
+                                nodeDefinitions = currentNodeDefinitions.value
+                            )
+                            if (tappedInputSlot != null) {
+                                onInputSlotTapped(tappedInputSlot)
+                                return@detectTapGestures
                             }
                         }
 
@@ -894,7 +991,7 @@ fun WorkflowGraphCanvas(
             }
     ) {
         // Compute node IDs that are valid connection targets in connection mode
-        val connectionCandidateNodeIds = connectionModeState?.validInputSlots?.map { it.nodeId }?.toSet() ?: emptySet()
+        val connectionCandidateNodeIds = connectionModeState?.validTargetSlots?.map { it.nodeId }?.toSet() ?: emptySet()
 
         // Apply transformation
         withTransform({
@@ -1039,8 +1136,9 @@ fun WorkflowGraphCanvas(
 
                         // Check if this is the source slot in connection mode
                         val isSourceSlot = inConnectionMode &&
-                                connectionModeState?.sourceOutputSlot?.nodeId == node.id &&
-                                connectionModeState?.sourceOutputSlot?.outputIndex == outputIndex
+                                connectionModeState?.direction == ConnectionDirection.OUTPUT_TO_INPUT &&
+                                connectionModeState?.sourceSlot?.nodeId == node.id &&
+                                connectionModeState?.sourceSlot?.outputIndex == outputIndex
 
                         // Check if this is the source slot for long-press connection (Node Browser open)
                         val isLongPressSource = longPressSourceSlot?.nodeId == node.id &&
@@ -1109,11 +1207,22 @@ fun WorkflowGraphCanvas(
                             val inputY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
                                     (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
 
+                            // Check if this is the source slot in reverse connection mode (INPUT_TO_OUTPUT)
+                            val isSourceSlot = inConnectionMode &&
+                                    connectionModeState?.direction == ConnectionDirection.INPUT_TO_OUTPUT &&
+                                    connectionModeState?.sourceSlot?.nodeId == node.id &&
+                                    connectionModeState?.sourceSlot?.slotName == inputName
+
+                            // Check if this is the source slot for long-press connection (Node Browser open)
+                            val isLongPressSource = longPressSourceSlot?.nodeId == node.id &&
+                                    longPressSourceSlot?.isOutput == false &&
+                                    longPressSourceSlot?.slotName == inputName
+
                             // Check if this input is connected to a selected node
                             val isConnectedToSelected = Pair(node.id, inputName) in inputsConnectedToSelected
 
                             // Get slot color - use wire color for connected inputs, slot type for unconnected
-                            val slotColor = (when (inputValue) {
+                            val typeColor = when (inputValue) {
                                 is InputValue.Connection -> {
                                     // Use the wire color from the connected edge
                                     nodeInputColors[node.id]?.get(inputName)?.let { Color(it) } ?: colors.edgeColor
@@ -1122,20 +1231,41 @@ fun WorkflowGraphCanvas(
                                     inputValue.slotType?.let { colors.slotColors[it.uppercase()] } ?: colors.edgeColor
                                 }
                                 else -> colors.edgeColor
+                            }
+                            val slotColor = (when {
+                                isSourceSlot -> colors.selectedBorder
+                                isLongPressSource -> colors.candidateBorder
+                                else -> typeColor
                             }).copy(alpha = nodeAlpha)
-                            val outerRadius = if (isConnectedToSelected) 15f else 10f
-                            val innerRadius = if (isConnectedToSelected) 9f else 6f
+
+                            // Use larger size if connected to selected or is source/long-press slot
+                            val outerRadius = when {
+                                isSourceSlot -> 14f
+                                isLongPressSource -> 16f  // Slightly larger for visibility
+                                isConnectedToSelected -> 15f
+                                else -> 10f
+                            }
+                            val innerRadius = when {
+                                isSourceSlot -> 6f
+                                isLongPressSource -> 0f  // Solid circle for long-press source
+                                isConnectedToSelected -> 9f
+                                else -> 6f
+                            }
 
                             drawCircle(
                                 color = slotColor,
                                 radius = outerRadius,
                                 center = Offset(inputX, inputY)
                             )
-                            drawCircle(
-                                color = colors.nodeBackground.copy(alpha = nodeAlpha),
-                                radius = innerRadius,
-                                center = Offset(inputX, inputY)
-                            )
+
+                            // Draw inner circle for contrast (not for source/long-press slots)
+                            if (!isSourceSlot && !isLongPressSource) {
+                                drawCircle(
+                                    color = colors.nodeBackground.copy(alpha = nodeAlpha),
+                                    radius = innerRadius,
+                                    center = Offset(inputX, inputY)
+                                )
+                            }
                         }
                         inputIndex++
                     }
@@ -1144,7 +1274,7 @@ fun WorkflowGraphCanvas(
                 // Draw highlighted valid input slots when in connection mode
                 if (inConnectionMode) {
                     val glowValue = glowPulse.value
-                    connectionModeState?.validInputSlots?.forEach { slot ->
+                    connectionModeState?.validTargetSlots?.forEach { slot ->
                         // Draw pulsing glow effect around the input slot
                         // glowValue ranges from 0 to 1, animating the glow intensity
                         val baseAlpha = 0.3f + (glowValue * 0.4f)  // Alpha pulses between 0.3 and 0.7
@@ -2269,6 +2399,61 @@ private fun findOutputSlotAt(
                     slotType = output.type
                 )
             }
+        }
+    }
+    return null
+}
+
+/**
+ * Find an input slot at the given graph coordinates.
+ * Only returns connection-type inputs (Connection or UnconnectedSlot).
+ * Returns the SlotPosition if found within the hit radius, null otherwise.
+ */
+private fun findInputSlotAt(
+    graphX: Float,
+    graphY: Float,
+    nodes: List<WorkflowNode>,
+    slotHitRadius: Float,
+    nodeDefinitions: Map<String, NodeTypeDefinition>
+): SlotPosition? {
+    for (node in nodes) {
+        // Input slots are on the left side of the node
+        val inputX = node.x
+        var inputIndex = 0
+
+        for ((inputName, inputValue) in node.inputs) {
+            // Only check connection-type inputs
+            val isConnectionInput = inputValue is InputValue.Connection ||
+                inputValue is InputValue.UnconnectedSlot
+
+            if (isConnectionInput) {
+                val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+                val inputY = node.y + headerHeight + 20f +
+                    (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+                val dx = graphX - inputX
+                val dy = graphY - inputY
+                if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
+                    // Resolve slot type - for connected inputs, look up from node definition
+                    val slotType = when (inputValue) {
+                        is InputValue.UnconnectedSlot -> inputValue.slotType
+                        is InputValue.Connection -> {
+                            nodeDefinitions[node.classType]?.inputs
+                                ?.find { it.name == inputName }?.type
+                        }
+                        else -> null
+                    }
+                    return SlotPosition(
+                        nodeId = node.id,
+                        slotName = inputName,
+                        isOutput = false,
+                        outputIndex = 0,
+                        center = Offset(inputX, inputY),
+                        slotType = slotType
+                    )
+                }
+            }
+            inputIndex++
         }
     }
     return null

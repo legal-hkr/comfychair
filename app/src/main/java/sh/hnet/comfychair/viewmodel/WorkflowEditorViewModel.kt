@@ -26,6 +26,7 @@ import sh.hnet.comfychair.util.FieldMappingAnalyzer
 import sh.hnet.comfychair.util.GraphMutationUtils
 import sh.hnet.comfychair.util.GraphViewportCalculator
 import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
+import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.DiscardAction
 import sh.hnet.comfychair.workflow.FieldMappingState
@@ -40,6 +41,7 @@ import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
@@ -2308,8 +2310,44 @@ class WorkflowEditorViewModel : ViewModel() {
 
         _uiState.value = state.copy(
             connectionModeState = ConnectionModeState(
-                sourceOutputSlot = resolvedOutputSlot,
-                validInputSlots = validInputs
+                direction = ConnectionDirection.OUTPUT_TO_INPUT,
+                sourceSlot = resolvedOutputSlot,
+                validTargetSlots = validInputs
+            )
+        )
+    }
+
+    /**
+     * Enter reverse connection mode when an input slot is tapped.
+     * Calculates valid output slots and highlights them.
+     */
+    fun enterReverseConnectionMode(inputSlot: SlotPosition) {
+        val graph = mutableGraph ?: return
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        // Get the target node
+        val targetNode = graph.nodes.find { it.id == inputSlot.nodeId } ?: return
+
+        // Get input type - prefer from slot, fallback to registry
+        val inputType = inputSlot.slotType
+            ?: nodeTypeRegistry.getInputType(targetNode.classType, inputSlot.slotName)
+
+        // Calculate all valid output slots
+        val validOutputs = calculateValidOutputSlots(
+            targetNodeId = targetNode.id,
+            inputType = inputType,
+            graph = graph
+        )
+
+        // Update the input slot with resolved type
+        val resolvedInputSlot = inputSlot.copy(slotType = inputType)
+
+        _uiState.value = state.copy(
+            connectionModeState = ConnectionModeState(
+                direction = ConnectionDirection.INPUT_TO_OUTPUT,
+                sourceSlot = resolvedInputSlot,
+                validTargetSlots = validOutputs
             )
         )
     }
@@ -2322,27 +2360,34 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Connect to an input slot when tapped in connection mode.
+     * Connect to a target slot when tapped in connection mode.
+     * Handles both directions:
+     * - OUTPUT_TO_INPUT: targetSlot is an input, sourceSlot is an output
+     * - INPUT_TO_OUTPUT: targetSlot is an output, sourceSlot is an input
      */
-    fun connectToInput(inputSlot: SlotPosition) {
+    fun connectToTarget(targetSlot: SlotPosition) {
         val graph = mutableGraph ?: return
         val state = _uiState.value
         val connectionState = state.connectionModeState ?: return
 
-        val sourceSlot = connectionState.sourceOutputSlot
+        // Determine which slot is output and which is input based on direction
+        val (outputSlot, inputSlot) = when (connectionState.direction) {
+            ConnectionDirection.OUTPUT_TO_INPUT -> connectionState.sourceSlot to targetSlot
+            ConnectionDirection.INPUT_TO_OUTPUT -> targetSlot to connectionState.sourceSlot
+        }
 
         // Remove any existing edge to this input (inputs can only have one connection)
         graph.edges.removeAll { edge ->
             edge.targetNodeId == inputSlot.nodeId && edge.targetInputName == inputSlot.slotName
         }
 
-        // Create new edge
+        // Create new edge (always output -> input)
         val newEdge = WorkflowEdge(
-            sourceNodeId = sourceSlot.nodeId,
+            sourceNodeId = outputSlot.nodeId,
             targetNodeId = inputSlot.nodeId,
-            sourceOutputIndex = sourceSlot.outputIndex,
+            sourceOutputIndex = outputSlot.outputIndex,
             targetInputName = inputSlot.slotName,
-            slotType = sourceSlot.slotType
+            slotType = outputSlot.slotType
         )
         graph.edges.add(newEdge)
 
@@ -2351,8 +2396,8 @@ class WorkflowEditorViewModel : ViewModel() {
         if (targetNode != null) {
             val updatedInputs = targetNode.inputs.toMutableMap()
             updatedInputs[inputSlot.slotName] = InputValue.Connection(
-                sourceNodeId = sourceSlot.nodeId,
-                outputIndex = sourceSlot.outputIndex
+                sourceNodeId = outputSlot.nodeId,
+                outputIndex = outputSlot.outputIndex
             )
             // Update the node in place
             val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
@@ -2386,6 +2431,23 @@ class WorkflowEditorViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Calculate all valid output slots for a given input.
+     * Delegates to ConnectionValidator utility.
+     */
+    private fun calculateValidOutputSlots(
+        targetNodeId: String,
+        inputType: String?,
+        graph: MutableWorkflowGraph
+    ): List<SlotPosition> {
+        return ConnectionValidator.calculateValidOutputSlots(
+            graph = graph,
+            targetNodeId = targetNodeId,
+            inputType = inputType,
+            nodeTypeRegistry = nodeTypeRegistry
+        )
+    }
+
     // ===========================================
     // Long-Press Connection Mode (Filtered Node Browser)
     // ===========================================
@@ -2414,7 +2476,10 @@ class WorkflowEditorViewModel : ViewModel() {
             showCompatibleNodeBrowser = false,
             showInputSelectionDialog = false,
             inputSelectionNodeType = null,
-            inputSelectionCompatibleInputs = emptyList()
+            inputSelectionCompatibleInputs = emptyList(),
+            showOutputSelectionDialog = false,
+            outputSelectionNodeType = null,
+            outputSelectionCompatibleOutputs = emptyList()
         )
     }
 
@@ -2454,6 +2519,176 @@ class WorkflowEditorViewModel : ViewModel() {
     fun selectInputForConnection(input: InputDefinition) {
         val nodeType = _uiState.value.inputSelectionNodeType ?: return
         completeConnection(nodeType, input)
+    }
+
+    /**
+     * Handle node selection from the filtered browser for reverse connection.
+     * When user long-pressed an INPUT slot and selected a node to add.
+     * If multiple compatible outputs exist, shows output selection dialog.
+     * If single compatible output, completes connection immediately.
+     */
+    fun selectNodeForReverseConnection(nodeType: NodeTypeDefinition) {
+        val sourceSlot = _uiState.value.longPressSourceSlot ?: return
+        val inputType = sourceSlot.slotType ?: return
+
+        // Find compatible outputs on the selected node
+        val compatibleOutputs = nodeType.outputs.filter { output ->
+            ConnectionValidator.isTypeCompatible(output.type, inputType)
+        }
+
+        when (compatibleOutputs.size) {
+            0 -> cancelLongPressConnection()  // Shouldn't happen if filtering works
+            1 -> completeReverseConnection(nodeType, compatibleOutputs.first())
+            else -> {
+                // Show output selection dialog
+                _uiState.value = _uiState.value.copy(
+                    showCompatibleNodeBrowser = false,
+                    showOutputSelectionDialog = true,
+                    outputSelectionNodeType = nodeType,
+                    outputSelectionCompatibleOutputs = compatibleOutputs
+                )
+            }
+        }
+    }
+
+    /**
+     * Handle output selection from the dialog.
+     */
+    fun selectOutputForConnection(output: OutputSlot) {
+        val nodeType = _uiState.value.outputSelectionNodeType ?: return
+        completeReverseConnection(nodeType, output)
+    }
+
+    /**
+     * Complete the reverse connection by adding a new node and creating an edge.
+     * The new node's output connects TO the long-pressed input slot.
+     */
+    private fun completeReverseConnection(nodeType: NodeTypeDefinition, sourceOutput: OutputSlot) {
+        val targetInputSlot = _uiState.value.longPressSourceSlot ?: run {
+            DebugLogger.e(TAG, "completeReverseConnection: targetInputSlot is null")
+            return
+        }
+        val graph = mutableGraph ?: run {
+            DebugLogger.e(TAG, "completeReverseConnection: mutableGraph is null")
+            return
+        }
+        val state = _uiState.value
+        if (!state.isEditMode) {
+            DebugLogger.e(TAG, "completeReverseConnection: not in edit mode")
+            return
+        }
+
+        DebugLogger.d(TAG, "completeReverseConnection: targetInput=${targetInputSlot.nodeId}:${targetInputSlot.slotName} (${targetInputSlot.slotType})")
+        DebugLogger.d(TAG, "completeReverseConnection: sourceOutput=${sourceOutput.name} (${sourceOutput.type})")
+        DebugLogger.d(TAG, "completeReverseConnection: nodeType=${nodeType.classType}")
+
+        // 1. Create inputs map - all inputs are unconnected for the new node
+        val inputs = linkedMapOf<String, InputValue>()
+
+        // First pass: add all literal (editable) inputs
+        nodeType.inputs.forEach { inputDef ->
+            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            if (!isConnType && !inputDef.forceInput) {
+                inputs[inputDef.name] = InputValue.Literal(inputDef.getEffectiveDefault())
+            }
+        }
+
+        // Second pass: add connection-type inputs (all unconnected)
+        nodeType.inputs.forEach { inputDef ->
+            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            if (isConnType || inputDef.forceInput) {
+                inputs[inputDef.name] = InputValue.UnconnectedSlot(inputDef.type)
+            }
+        }
+
+        // 2. Categorize and calculate dimensions
+        val category = categorizeNodeByClassType(nodeType.classType)
+        val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH
+        val literalInputCount = inputs.count { (_, value) -> value is InputValue.Literal }
+        val connectionInputCount = inputs.count { (_, value) ->
+            value is InputValue.Connection || value is InputValue.UnconnectedSlot
+        }
+        val outputCount = nodeType.outputs.size
+        val connectionAreaHeight = maxOf(connectionInputCount, outputCount) * WorkflowLayoutEngine.INPUT_ROW_HEIGHT
+        val contentHeight = (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) + connectionAreaHeight
+        val nodeHeight = maxOf(
+            WorkflowLayoutEngine.NODE_MIN_HEIGHT,
+            WorkflowLayoutEngine.NODE_HEADER_HEIGHT + contentHeight + 16f
+        )
+
+        // 3. Create the new node with a unique ID
+        val newNodeId = generateUniqueNodeId()
+        val newNode = WorkflowNode(
+            id = newNodeId,
+            classType = nodeType.classType,
+            title = nodeType.classType,
+            category = category,
+            inputs = sortInputsForLayout(inputs),
+            outputs = nodeType.outputs,
+            templateInputKeys = emptySet(),
+            x = 0f,
+            y = 0f,
+            width = nodeWidth,
+            height = nodeHeight
+        )
+
+        DebugLogger.d(TAG, "completeReverseConnection: created newNode id=$newNodeId")
+
+        // 4. Add node to graph
+        graph.nodes.add(newNode)
+
+        // 5. Find output index for the selected output
+        val outputIndex = nodeType.outputs.indexOfFirst { it.name == sourceOutput.name }
+
+        // 6. Create edge from new node's output TO the target input
+        val newEdge = WorkflowEdge(
+            sourceNodeId = newNodeId,
+            sourceOutputIndex = outputIndex,
+            targetNodeId = targetInputSlot.nodeId,
+            targetInputName = targetInputSlot.slotName,
+            slotType = sourceOutput.type
+        )
+        graph.edges.add(newEdge)
+
+        // 7. Update target node's input to be a Connection type
+        val targetNode = graph.nodes.find { it.id == targetInputSlot.nodeId }
+        if (targetNode != null) {
+            val updatedInputs = targetNode.inputs.toMutableMap()
+            updatedInputs[targetInputSlot.slotName] = InputValue.Connection(
+                sourceNodeId = newNodeId,
+                outputIndex = outputIndex
+            )
+            val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
+            if (nodeIndex >= 0) {
+                graph.nodes[nodeIndex] = targetNode.copy(inputs = updatedInputs)
+            }
+        }
+
+        DebugLogger.d(TAG, "completeReverseConnection: added edge: ${newEdge.sourceNodeId}:${newEdge.sourceOutputIndex} -> ${newEdge.targetNodeId}:${newEdge.targetInputName}")
+
+        // 8. Re-layout the graph (single pass)
+        val layoutEngine = WorkflowLayoutEngine()
+        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+
+        // 9. Update graph bounds
+        val newBounds = layoutEngine.calculateBounds(layoutedGraph)
+
+        // 10. Clear long-press state and update UI
+        _uiState.value = _uiState.value.copy(
+            graph = layoutedGraph,
+            graphBounds = newBounds,
+            selectedNodeIds = setOf(newNodeId),
+            longPressSourceSlot = null,
+            showCompatibleNodeBrowser = false,
+            showOutputSelectionDialog = false,
+            outputSelectionNodeType = null,
+            outputSelectionCompatibleOutputs = emptyList(),
+            connectionModeState = null,
+            hasUnsavedChanges = true
+        )
+
+        DebugLogger.d(TAG, "completeReverseConnection: DONE")
     }
 
     /**
@@ -2587,6 +2822,7 @@ class WorkflowEditorViewModel : ViewModel() {
             showInputSelectionDialog = false,
             inputSelectionNodeType = null,
             inputSelectionCompatibleInputs = emptyList(),
+            connectionModeState = null,
             hasUnsavedChanges = true
         )
 
