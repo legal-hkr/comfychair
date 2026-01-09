@@ -15,7 +15,7 @@ data class WorkflowNode(
     val title: String,
     val category: NodeCategory,
     val inputs: Map<String, InputValue>,
-    val outputs: List<String> = emptyList(),  // Output types: ["MODEL", "CLIP", "VAE"]
+    val outputs: List<OutputSlot> = emptyList(),  // Output slots with type and name
     val templateInputKeys: Set<String>,
     val mode: Int = 0,  // 0=active, 2=muted, 4=bypassed
     var x: Float = 0f,

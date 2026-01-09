@@ -419,7 +419,7 @@ fun WorkflowGraphCanvas(
                                 val outputX = node.x + node.width
 
                                 // Check each output at its correct Y position
-                                node.outputs.forEachIndexed { outputIndex, outputType ->
+                                node.outputs.forEachIndexed { outputIndex, output ->
                                     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
                                     val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
                                     val outputY = node.y + headerHeight + 20f +
@@ -431,11 +431,11 @@ fun WorkflowGraphCanvas(
                                     if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
                                         val slotPosition = SlotPosition(
                                             nodeId = node.id,
-                                            slotName = outputType,
+                                            slotName = output.name,
                                             isOutput = true,
                                             outputIndex = outputIndex,
                                             center = Offset(outputX, outputY),
-                                            slotType = outputType
+                                            slotType = output.type
                                         )
                                         onOutputSlotTapped(slotPosition)
                                         return@detectTapGestures
@@ -691,7 +691,7 @@ fun WorkflowGraphCanvas(
                 animatedNodes.forEach { node ->
                     val outputX = node.x + node.width
 
-                    node.outputs.forEachIndexed { outputIndex, outputType ->
+                    node.outputs.forEachIndexed { outputIndex, output ->
                         val outputY = node.y + calculateOutputY(node, outputIndex)
 
                         // Check if this is the source slot in connection mode
@@ -703,7 +703,7 @@ fun WorkflowGraphCanvas(
                         val isConnectedToSelected = Pair(node.id, outputIndex) in outputsConnectedToSelected
 
                         // Get slot color based on output type (keep original color, only source slot changes)
-                        val typeColor = colors.slotColors[outputType.uppercase()] ?: colors.edgeColor
+                        val typeColor = colors.slotColors[output.type.uppercase()] ?: colors.edgeColor
                         val slotColor = if (isSourceSlot) colors.selectedBorder else typeColor
 
                         // Use larger size if connected to selected or is source slot
@@ -1195,9 +1195,9 @@ private fun DrawScope.drawNode(
         var outputY = node.y + headerHeight + 32f + (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
 
         // Draw outputs on the right side
-        node.outputs.forEachIndexed { _, outputType ->
+        node.outputs.forEachIndexed { _, output ->
             // Get color for output type
-            val outputColorInt = colors.slotColors[outputType.uppercase()]?.toArgb()
+            val outputColorInt = colors.slotColors[output.type.uppercase()]?.toArgb()
 
             // Create paint for output name (right-aligned, colored)
             val outputPaint = if (outputColorInt != null) {
@@ -1221,7 +1221,7 @@ private fun DrawScope.drawNode(
 
             // Draw output name (right-aligned, with padding from right edge)
             val outputTextX = node.x + node.width - 16f
-            drawText(outputType, outputTextX, outputY, outputPaint)
+            drawText(output.name, outputTextX, outputY, outputPaint)
 
             outputY += WorkflowLayoutEngine.INPUT_ROW_HEIGHT
         }

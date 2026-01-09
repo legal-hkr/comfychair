@@ -160,7 +160,7 @@ object FieldMappingAnalyzer {
         // This works regardless of input key language (Chinese, etc.)
         if (directCandidates.isEmpty() && fieldKey == "image") {
             for (node in graph.nodes) {
-                if ("IMAGE" in node.outputs) {
+                if (node.outputs.any { it.type == "IMAGE" }) {
                     val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
                     definition?.inputs
                         ?.filter { it.type == "ENUM" && node.inputs.containsKey(it.name) }
@@ -218,7 +218,7 @@ object FieldMappingAnalyzer {
         // This works regardless of input key language (Chinese, etc.)
         val outputBasedNodes = if (textEncoderNodes.isEmpty()) {
             graph.nodes.flatMap { node ->
-                if ("CONDITIONING" in node.outputs) {
+                if (node.outputs.any { it.type == "CONDITIONING" }) {
                     val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
                     definition?.inputs
                         ?.filter { it.type == "STRING" && node.inputs.containsKey(it.name) }

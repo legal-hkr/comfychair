@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import org.json.JSONArray
 import org.json.JSONObject
@@ -42,6 +43,16 @@ fun InputDefinition.getEffectiveDefault(): Any {
 }
 
 /**
+ * Definition of a node output slot from /object_info.
+ * Type is used for wire coloring, name is displayed in the UI.
+ */
+@Immutable
+data class OutputSlot(
+    val type: String,  // e.g., "CONDITIONING" - used for slot colors
+    val name: String   // e.g., "positive" - displayed in UI
+)
+
+/**
  * Full definition of a node type from /object_info
  */
 @Stable
@@ -49,7 +60,7 @@ data class NodeTypeDefinition(
     val classType: String,
     val category: String,
     val inputs: List<InputDefinition>,
-    val outputs: List<String>,
+    val outputs: List<OutputSlot>,
     val displayName: String? = null,    // Human-readable name
     val description: String? = null,    // Node documentation
     val deprecated: Boolean = false,    // Whether node is deprecated
@@ -62,7 +73,8 @@ data class NodeTypeDefinition(
 data class NodeTypeInfo(
     val classType: String,
     val inputTypes: Map<String, String>,    // inputName -> type (e.g., "model" -> "MODEL")
-    val outputTypes: List<String>           // output types by index (e.g., ["MODEL", "CLIP", "VAE"])
+    val outputTypes: List<String>,          // output types by index (e.g., ["MODEL", "CLIP", "VAE"])
+    val outputSlots: List<OutputSlot> = emptyList()  // full output info with names
 )
 
 /**
@@ -101,19 +113,25 @@ class NodeTypeRegistry {
             val optionalJson = inputJson?.optJSONObject("optional")
             parseInputTypes(optionalJson, inputTypes)
 
-            // Parse output types
+            // Parse output types and names
             val outputArray = nodeInfo.optJSONArray("output")
+            val outputNameArray = nodeInfo.optJSONArray("output_name")
             val outputTypes = mutableListOf<String>()
+            val outputSlots = mutableListOf<OutputSlot>()
             if (outputArray != null) {
                 for (i in 0 until outputArray.length()) {
-                    outputTypes.add(outputArray.optString(i, "UNKNOWN"))
+                    val type = outputArray.optString(i, "UNKNOWN")
+                    val name = outputNameArray?.optString(i)?.takeIf { it.isNotEmpty() } ?: type
+                    outputTypes.add(type)
+                    outputSlots.add(OutputSlot(type = type, name = name))
                 }
             }
 
             nodeTypes[classType] = NodeTypeInfo(
                 classType = classType,
                 inputTypes = inputTypes,
-                outputTypes = outputTypes
+                outputTypes = outputTypes,
+                outputSlots = outputSlots
             )
 
             // Parse full input definitions (for attribute editing)
@@ -132,7 +150,7 @@ class NodeTypeRegistry {
                 classType = classType,
                 category = category,
                 inputs = inputDefinitions,
-                outputs = outputTypes,
+                outputs = outputSlots,
                 displayName = displayName,
                 description = description,
                 deprecated = deprecated,
