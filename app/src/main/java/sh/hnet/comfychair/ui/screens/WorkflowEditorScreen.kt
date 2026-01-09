@@ -142,7 +142,7 @@ fun WorkflowEditorScreen(
             Toast.makeText(
                 context,
                 context.getString(R.string.workflow_editor_edit_mode_hint),
-                Toast.LENGTH_LONG
+                Toast.LENGTH_SHORT
             ).show()
         }
         wasEditMode.value = uiState.isEditMode
