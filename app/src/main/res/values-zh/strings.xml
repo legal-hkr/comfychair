@@ -482,6 +482,7 @@
     <string name="node_browser_filter_category">类别</string>
     <string name="node_browser_filter_subcategory">子类别</string>
     <string name="node_browser_filter_group">分组</string>
+    <string name="node_browser_compatible_with">兼容 %1$s</string>
     <string name="clear_search">清除搜索</string>
     <string name="workflow_editor_enter_edit_mode">编辑图表</string>
     <string name="workflow_editor_exit_edit_mode">退出编辑模式</string>
@@ -501,6 +502,8 @@
     <string name="workflow_editor_done">完成</string>
     <string name="workflow_editor_discard_title">放弃工作流？</string>
     <string name="workflow_editor_discard_message">您有未保存的更改。确定要放弃此工作流吗？</string>
+    <string name="workflow_editor_select_input_title">连接到输入</string>
+    <string name="workflow_editor_select_input_message">选择要连接到 %1$s 的哪个输入：</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">正向提示词</string>

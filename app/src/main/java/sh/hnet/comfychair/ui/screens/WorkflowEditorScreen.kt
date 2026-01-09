@@ -12,6 +12,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -77,6 +78,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -111,6 +113,7 @@ import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.FieldMappingState
+import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
@@ -396,6 +399,10 @@ fun WorkflowEditorScreen(
                                 // Note heights were measured during drawing, trigger relayout
                                 viewModel.relayoutGraph()
                             },
+                            longPressSourceSlot = uiState.longPressSourceSlot,
+                            onOutputSlotLongPressed = { slot ->
+                                viewModel.startLongPressConnection(slot)
+                            },
                             onTransform = { scale, offset ->
                                 viewModel.onTransform(scale, offset)
                             },
@@ -596,6 +603,45 @@ fun WorkflowEditorScreen(
                 },
                 onDismiss = {
                     viewModel.hideNodeBrowser()
+                }
+            )
+        }
+
+        // Filtered node browser for long-press connection mode
+        if (uiState.showCompatibleNodeBrowser) {
+            val compatibleBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val scope = rememberCoroutineScope()
+
+            NodeBrowserBottomSheet(
+                nodeTypesByCategory = viewModel.getNodeTypesByCategory(),
+                sheetState = compatibleBrowserSheetState,
+                onNodeTypeSelected = { nodeType ->
+                    scope.launch {
+                        compatibleBrowserSheetState.hide()
+                    }.invokeOnCompletion {
+                        viewModel.selectNodeForConnection(nodeType)
+                    }
+                },
+                onDismiss = {
+                    viewModel.cancelLongPressConnection()
+                },
+                filterToOutputType = uiState.longPressSourceSlot?.slotType
+            )
+        }
+
+        // Input selection dialog (when multiple compatible inputs exist)
+        if (uiState.showInputSelectionDialog) {
+            val nodeTypeName = uiState.inputSelectionNodeType?.displayName
+                ?: uiState.inputSelectionNodeType?.classType ?: ""
+
+            InputSelectionDialog(
+                nodeTypeName = nodeTypeName,
+                compatibleInputs = uiState.inputSelectionCompatibleInputs,
+                onInputSelected = { input ->
+                    viewModel.selectInputForConnection(input)
+                },
+                onDismiss = {
+                    viewModel.cancelLongPressConnection()
                 }
             )
         }
@@ -1571,6 +1617,83 @@ private fun DuplicateNameDialog(
         confirmButton = {
             Button(onClick = onDismiss) {
                 Text(stringResource(R.string.button_ok))
+            }
+        }
+    )
+}
+
+/**
+ * Dialog for selecting which input to connect to when multiple compatible inputs exist.
+ * Used in long-press connection flow when the target node has multiple valid inputs.
+ */
+@Composable
+private fun InputSelectionDialog(
+    nodeTypeName: String,
+    compatibleInputs: List<InputDefinition>,
+    onInputSelected: (InputDefinition) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedInput by remember { mutableStateOf<InputDefinition?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.workflow_editor_select_input_title))
+        },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.workflow_editor_select_input_message, nodeTypeName),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                compatibleInputs.forEach { input ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = selectedInput == input,
+                                onClick = { selectedInput = input }
+                            )
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedInput == input,
+                            onClick = { selectedInput = input }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = input.name,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = input.type,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { selectedInput?.let(onInputSelected) },
+                enabled = selectedInput != null
+            ) {
+                Text(stringResource(R.string.button_connect))
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text(stringResource(R.string.button_cancel))
             }
         }
     )

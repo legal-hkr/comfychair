@@ -276,6 +276,15 @@ data class WorkflowEditorUiState(
     // Connection mode (tap-based connection editing)
     val connectionModeState: ConnectionModeState? = null,
 
+    // Long-press connection mode (filtered node browser)
+    val longPressSourceSlot: SlotPosition? = null,
+    val showCompatibleNodeBrowser: Boolean = false,
+
+    // Input selection dialog (when multiple compatible inputs exist)
+    val showInputSelectionDialog: Boolean = false,
+    val inputSelectionNodeType: NodeTypeDefinition? = null,
+    val inputSelectionCompatibleInputs: List<InputDefinition> = emptyList(),
+
     // Create mode (creating new workflow from scratch)
     val isCreateMode: Boolean = false,
 

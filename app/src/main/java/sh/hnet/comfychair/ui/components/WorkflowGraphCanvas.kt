@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputValue
@@ -159,7 +162,9 @@ fun WorkflowGraphCanvas(
     onRenameGroupTapped: ((Int) -> Unit)? = null,
     onNoteTapped: ((Int) -> Unit)? = null,
     onRenameNoteTapped: ((Int) -> Unit)? = null,
-    onNoteHeightsChanged: (() -> Unit)? = null
+    onNoteHeightsChanged: (() -> Unit)? = null,
+    longPressSourceSlot: SlotPosition? = null,
+    onOutputSlotLongPressed: ((SlotPosition) -> Unit)? = null
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -283,6 +288,26 @@ fun WorkflowGraphCanvas(
         }
     }
 
+    // Long-press glow animation state
+    var longPressSlot by remember { mutableStateOf<SlotPosition?>(null) }
+    val longPressProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(longPressSlot) {
+        if (longPressSlot != null) {
+            // Animate glow expansion during long-press (matches 500ms threshold)
+            longPressProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(500, easing = FastOutSlowInEasing)
+            )
+        } else {
+            // Snap back animation when cancelled
+            longPressProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(150, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
     // Animate node positions when graph changes
     LaunchedEffect(graph.nodes) {
         val currentNodeIds = graph.nodes.map { it.id }.toSet()
@@ -388,6 +413,80 @@ fun WorkflowGraphCanvas(
 
     Canvas(
         modifier = modifier
+            // Long-press gesture handler for output slots
+            .pointerInput(isEditMode, onOutputSlotLongPressed) {
+                if (!isEditMode || onOutputSlotLongPressed == null) return@pointerInput
+
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = System.currentTimeMillis()
+                    val longPressTimeout = 500L
+                    val pollInterval = 50L  // Check every 50ms even without events
+
+                    // Transform to graph coordinates
+                    val graphX = (down.position.x - currentOffsetState.value.x) / currentScaleState.value
+                    val graphY = (down.position.y - currentOffsetState.value.y) / currentScaleState.value
+
+                    // Check if down is on an output slot
+                    val hitSlot = findOutputSlotAt(
+                        graphX = graphX,
+                        graphY = graphY,
+                        nodes = currentGraphState.value.nodes,
+                        slotHitRadius = slotHitRadius
+                    )
+                    if (hitSlot == null) {
+                        return@awaitEachGesture
+                    }
+
+                    // Start visual feedback
+                    longPressSlot = hitSlot
+
+                    var pointer = down
+                    var longPressTriggered = false
+
+                    while (true) {
+                        // Use timeout to avoid blocking forever when finger is still
+                        val event = withTimeoutOrNull(pollInterval) {
+                            awaitPointerEvent(PointerEventPass.Initial)
+                        }
+
+                        // Check timeout first (works even if no event received)
+                        if (System.currentTimeMillis() - downTime > longPressTimeout) {
+                            // Verify finger is still down before triggering
+                            val currentEvent = currentEvent
+                            val stillPressed = currentEvent.changes.any { it.id == pointer.id && it.pressed }
+                            if (stillPressed) {
+                                onOutputSlotLongPressed(hitSlot)
+                                longPressTriggered = true
+                            }
+                            longPressSlot = null
+                            // Wait for finger release
+                            waitForUpOrCancellation()
+                            break
+                        }
+
+                        // Process event if one was received
+                        if (event != null) {
+                            val change = event.changes.firstOrNull { it.id == pointer.id }
+
+                            if (change == null || !change.pressed) {
+                                // Released before threshold - cancel
+                                longPressSlot = null
+                                break
+                            }
+
+                            // Check movement tolerance (20f screen pixels)
+                            val moved = (change.position - down.position).getDistance() > 20f
+                            if (moved) {
+                                longPressSlot = null
+                                break
+                            }
+
+                            pointer = change
+                        }
+                    }
+                }
+            }
             .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onRenameGroupTapped, onNoteTapped, onRenameNoteTapped) {
                 if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onRenameGroupTapped != null || onNoteTapped != null || onRenameNoteTapped != null) {
                     detectTapGestures { tapOffset ->
@@ -699,20 +798,34 @@ fun WorkflowGraphCanvas(
                                 connectionModeState?.sourceOutputSlot?.nodeId == node.id &&
                                 connectionModeState?.sourceOutputSlot?.outputIndex == outputIndex
 
+                        // Check if this is the source slot for long-press connection (Node Browser open)
+                        val isLongPressSource = longPressSourceSlot?.nodeId == node.id &&
+                                longPressSourceSlot?.outputIndex == outputIndex
+
                         // Check if this output is connected to a selected node
                         val isConnectedToSelected = Pair(node.id, outputIndex) in outputsConnectedToSelected
 
                         // Get slot color based on output type (keep original color, only source slot changes)
                         val typeColor = colors.slotColors[output.type.uppercase()] ?: colors.edgeColor
-                        val slotColor = if (isSourceSlot) colors.selectedBorder else typeColor
+                        val slotColor = when {
+                            isSourceSlot -> colors.selectedBorder
+                            isLongPressSource -> colors.candidateBorder
+                            else -> typeColor
+                        }
 
-                        // Use larger size if connected to selected or is source slot
+                        // Use larger size if connected to selected or is source/long-press slot
                         val outerRadius = when {
                             isSourceSlot -> 14f
+                            isLongPressSource -> 16f  // Slightly larger for visibility
                             isConnectedToSelected -> 15f
                             else -> 10f
                         }
-                        val innerRadius = if (isConnectedToSelected && !isSourceSlot) 9f else 6f
+                        val innerRadius = when {
+                            isSourceSlot -> 6f
+                            isLongPressSource -> 0f  // Solid circle for long-press source
+                            isConnectedToSelected -> 9f
+                            else -> 6f
+                        }
 
                         drawCircle(
                             color = slotColor,
@@ -720,8 +833,8 @@ fun WorkflowGraphCanvas(
                             center = Offset(outputX, outputY)
                         )
 
-                        // Draw inner circle for contrast (not for source slot)
-                        if (!isSourceSlot) {
+                        // Draw inner circle for contrast (not for source/long-press slots)
+                        if (!isSourceSlot && !isLongPressSource) {
                             drawCircle(
                                 color = colors.nodeBackground,
                                 radius = innerRadius,
@@ -829,6 +942,39 @@ fun WorkflowGraphCanvas(
                         drawCircle(
                             color = colors.nodeBackground,
                             radius = 7f,
+                            center = slot.center
+                        )
+                    }
+                }
+
+                // Draw expanding glow during long-press gesture
+                longPressSlot?.let { slot ->
+                    val progress = longPressProgress.value
+                    if (progress > 0f) {
+                        // Three-layer expanding glow effect
+                        val baseAlpha = 0.3f + (progress * 0.4f)  // 0.3 -> 0.7
+
+                        // Outer glow - expands significantly
+                        val outerRadius = 15f + (progress * 35f)  // 15 -> 50
+                        drawCircle(
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.3f),
+                            radius = outerRadius,
+                            center = slot.center
+                        )
+
+                        // Middle glow
+                        val midRadius = 12f + (progress * 20f)  // 12 -> 32
+                        drawCircle(
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.5f),
+                            radius = midRadius,
+                            center = slot.center
+                        )
+
+                        // Inner glow
+                        val innerRadius = 10f + (progress * 10f)  // 10 -> 20
+                        drawCircle(
+                            color = colors.candidateBorder.copy(alpha = baseAlpha * 0.8f),
+                            radius = innerRadius,
                             center = slot.center
                         )
                     }
@@ -1821,4 +1967,43 @@ private fun blendColors(color1: Int, color2: Int, ratio: Float): Int {
     val g = (android.graphics.Color.green(color1) * inverseRatio + android.graphics.Color.green(color2) * ratio).toInt()
     val b = (android.graphics.Color.blue(color1) * inverseRatio + android.graphics.Color.blue(color2) * ratio).toInt()
     return android.graphics.Color.argb(a, r, g, b)
+}
+
+/**
+ * Find an output slot at the given graph coordinates.
+ * Returns the SlotPosition if found within the hit radius, null otherwise.
+ */
+private fun findOutputSlotAt(
+    graphX: Float,
+    graphY: Float,
+    nodes: List<WorkflowNode>,
+    slotHitRadius: Float
+): SlotPosition? {
+    for (node in nodes) {
+        // Output slots are on the right side of the node
+        val outputX = node.x + node.width
+
+        // Check each output at its correct Y position
+        node.outputs.forEachIndexed { outputIndex, output ->
+            val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
+            val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
+            val outputY = node.y + headerHeight + 20f +
+                    (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
+                    (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+
+            val dx = graphX - outputX
+            val dy = graphY - outputY
+            if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
+                return SlotPosition(
+                    nodeId = node.id,
+                    slotName = output.name,
+                    isOutput = true,
+                    outputIndex = outputIndex,
+                    center = Offset(outputX, outputY),
+                    slotType = output.type
+                )
+            }
+        }
+    }
+    return null
 }

@@ -18,11 +18,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -49,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 
 /** Split category into hierarchy levels (handles both "/" and "\" separators) */
@@ -91,8 +94,20 @@ private fun buildCategoryPrefix(
         ?.joinToString("/")
 }
 
+/** Literal types that are not connection types */
+private val LITERAL_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+
+/** Check if a type is a connection type (not a literal) */
+private fun isConnectionType(type: String): Boolean = type.uppercase() !in LITERAL_TYPES
+
 /**
  * Bottom sheet for browsing and selecting node types to add to the workflow.
+ *
+ * @param nodeTypesByCategory All available node types grouped by category
+ * @param sheetState The modal sheet state
+ * @param onNodeTypeSelected Callback when user selects a node type
+ * @param onDismiss Callback when sheet is dismissed
+ * @param filterToOutputType If set, only show nodes with compatible inputs for this output type
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +115,8 @@ fun NodeBrowserBottomSheet(
     nodeTypesByCategory: Map<String, List<NodeTypeDefinition>>,
     sheetState: SheetState,
     onNodeTypeSelected: (NodeTypeDefinition) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    filterToOutputType: String? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -136,9 +152,22 @@ fun NodeBrowserBottomSheet(
 
     val categoryPrefix = buildCategoryPrefix(level1Selection, level2Selection, level3Selection)
 
-    // Filter nodes by search query and category filter
-    val filteredCategories = remember(nodeTypesByCategory, searchQuery, categoryPrefix) {
+    // Filter nodes by compatibility, search query, and category filter
+    val filteredCategories = remember(nodeTypesByCategory, searchQuery, categoryPrefix, filterToOutputType) {
         var result = nodeTypesByCategory
+
+        // Apply compatibility filter FIRST if set (for long-press connection mode)
+        if (filterToOutputType != null) {
+            result = result.mapValues { (_, nodes) ->
+                nodes.filter { nodeType ->
+                    // Node is compatible if it has any connection-type input that matches output type
+                    nodeType.inputs.any { input ->
+                        isConnectionType(input.type) &&
+                        ConnectionValidator.isTypeCompatible(filterToOutputType, input.type)
+                    }
+                }
+            }.filterValues { it.isNotEmpty() }
+        }
 
         // Apply category filter (normalize both sides for cross-platform matching)
         if (categoryPrefix != null) {
@@ -179,6 +208,24 @@ fun NodeBrowserBottomSheet(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+
+            // Show filter chip when filtering by output type
+            if (filterToOutputType != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AssistChip(
+                    onClick = { /* Filter is read-only in this mode */ },
+                    label = {
+                        Text(stringResource(R.string.node_browser_compatible_with, filterToOutputType))
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.FilterList,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 

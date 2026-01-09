@@ -31,6 +31,7 @@ import sh.hnet.comfychair.workflow.DiscardAction
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.GroupManager
+import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.getEffectiveDefault
@@ -2383,6 +2384,220 @@ class WorkflowEditorViewModel : ViewModel() {
             outputType = outputType,
             nodeTypeRegistry = nodeTypeRegistry
         )
+    }
+
+    // ===========================================
+    // Long-Press Connection Mode (Filtered Node Browser)
+    // ===========================================
+
+    /**
+     * Start long-press connection mode when an output slot is long-pressed.
+     * Opens the filtered node browser showing only compatible nodes.
+     */
+    fun startLongPressConnection(sourceSlot: SlotPosition) {
+        val state = _uiState.value
+        if (!state.isEditMode) return
+
+        _uiState.value = state.copy(
+            longPressSourceSlot = sourceSlot,
+            showCompatibleNodeBrowser = true,
+            showNodeBrowser = false  // Use filtered browser instead
+        )
+    }
+
+    /**
+     * Cancel long-press connection mode.
+     */
+    fun cancelLongPressConnection() {
+        _uiState.value = _uiState.value.copy(
+            longPressSourceSlot = null,
+            showCompatibleNodeBrowser = false,
+            showInputSelectionDialog = false,
+            inputSelectionNodeType = null,
+            inputSelectionCompatibleInputs = emptyList()
+        )
+    }
+
+    /**
+     * Handle node selection from the filtered browser.
+     * If multiple compatible inputs exist, shows input selection dialog.
+     * If single compatible input, completes connection immediately.
+     */
+    fun selectNodeForConnection(nodeType: NodeTypeDefinition) {
+        val sourceSlot = _uiState.value.longPressSourceSlot ?: return
+        val sourceType = sourceSlot.slotType ?: return
+
+        // Find compatible inputs (connection types only, not literals)
+        val compatibleInputs = nodeType.inputs.filter { input ->
+            isConnectionType(input.type) &&
+            ConnectionValidator.isTypeCompatible(sourceType, input.type)
+        }
+
+        when (compatibleInputs.size) {
+            0 -> cancelLongPressConnection()  // Shouldn't happen if filtering works
+            1 -> completeConnection(nodeType, compatibleInputs.first())
+            else -> {
+                // Show input selection dialog
+                _uiState.value = _uiState.value.copy(
+                    showCompatibleNodeBrowser = false,
+                    showInputSelectionDialog = true,
+                    inputSelectionNodeType = nodeType,
+                    inputSelectionCompatibleInputs = compatibleInputs
+                )
+            }
+        }
+    }
+
+    /**
+     * Handle input selection from the dialog.
+     */
+    fun selectInputForConnection(input: InputDefinition) {
+        val nodeType = _uiState.value.inputSelectionNodeType ?: return
+        completeConnection(nodeType, input)
+    }
+
+    /**
+     * Complete the connection by adding a new node and creating an edge.
+     * This inlines the node creation logic (instead of calling addNode) to:
+     * 1. Avoid double layout passes
+     * 2. Properly track the new node's ID
+     * 3. Set up the connection before the layout
+     */
+    private fun completeConnection(nodeType: NodeTypeDefinition, targetInput: InputDefinition) {
+        val sourceSlot = _uiState.value.longPressSourceSlot ?: run {
+            DebugLogger.e(TAG, "completeConnection: sourceSlot is null")
+            return
+        }
+        val graph = mutableGraph ?: run {
+            DebugLogger.e(TAG, "completeConnection: mutableGraph is null")
+            return
+        }
+        val state = _uiState.value
+        if (!state.isEditMode) {
+            DebugLogger.e(TAG, "completeConnection: not in edit mode")
+            return
+        }
+
+        DebugLogger.d(TAG, "completeConnection: sourceSlot=${sourceSlot.nodeId}:${sourceSlot.outputIndex} (${sourceSlot.slotType})")
+        DebugLogger.d(TAG, "completeConnection: targetInput=${targetInput.name} (${targetInput.type})")
+        DebugLogger.d(TAG, "completeConnection: nodeType=${nodeType.classType}")
+
+        // 1. Create inputs map - same logic as addNode but with the target input as Connection
+        val inputs = linkedMapOf<String, InputValue>()
+
+        // First pass: add all literal (editable) inputs
+        nodeType.inputs.forEach { inputDef ->
+            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            if (!isConnType && !inputDef.forceInput) {
+                inputs[inputDef.name] = InputValue.Literal(inputDef.getEffectiveDefault())
+            }
+        }
+
+        // Second pass: add connection-type inputs
+        nodeType.inputs.forEach { inputDef ->
+            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            if (isConnType || inputDef.forceInput) {
+                // Check if this is the target input we're connecting to
+                if (inputDef.name == targetInput.name) {
+                    // Set up as connected to the source slot
+                    inputs[inputDef.name] = InputValue.Connection(
+                        sourceNodeId = sourceSlot.nodeId,
+                        outputIndex = sourceSlot.outputIndex
+                    )
+                    DebugLogger.d(TAG, "completeConnection: setting ${inputDef.name} as Connection to ${sourceSlot.nodeId}:${sourceSlot.outputIndex}")
+                } else {
+                    inputs[inputDef.name] = InputValue.UnconnectedSlot(inputDef.type)
+                }
+            }
+        }
+
+        // 2. Categorize and calculate dimensions
+        val category = categorizeNodeByClassType(nodeType.classType)
+        val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH
+        val literalInputCount = inputs.count { (_, value) -> value is InputValue.Literal }
+        val connectionInputCount = inputs.count { (_, value) ->
+            value is InputValue.Connection || value is InputValue.UnconnectedSlot
+        }
+        val outputCount = nodeType.outputs.size
+        val connectionAreaHeight = maxOf(connectionInputCount, outputCount) * WorkflowLayoutEngine.INPUT_ROW_HEIGHT
+        val contentHeight = (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) + connectionAreaHeight
+        val nodeHeight = maxOf(
+            WorkflowLayoutEngine.NODE_MIN_HEIGHT,
+            WorkflowLayoutEngine.NODE_HEADER_HEIGHT + contentHeight + 16f
+        )
+
+        // 3. Create the new node with a unique ID
+        val newNodeId = generateUniqueNodeId()
+        val newNode = WorkflowNode(
+            id = newNodeId,
+            classType = nodeType.classType,
+            title = nodeType.classType,
+            category = category,
+            inputs = sortInputsForLayout(inputs),
+            outputs = nodeType.outputs,
+            templateInputKeys = emptySet(),
+            x = 0f,
+            y = 0f,
+            width = nodeWidth,
+            height = nodeHeight
+        )
+
+        DebugLogger.d(TAG, "completeConnection: created newNode id=$newNodeId, inputs=${newNode.inputs.keys}")
+        DebugLogger.d(TAG, "completeConnection: newNode input[${targetInput.name}]=${newNode.inputs[targetInput.name]}")
+
+        // 4. Add node to graph
+        graph.nodes.add(newNode)
+
+        // 5. Create edge from source output to new node's input
+        val newEdge = WorkflowEdge(
+            sourceNodeId = sourceSlot.nodeId,
+            sourceOutputIndex = sourceSlot.outputIndex,
+            targetNodeId = newNodeId,
+            targetInputName = targetInput.name,
+            slotType = sourceSlot.slotType
+        )
+        graph.edges.add(newEdge)
+        DebugLogger.d(TAG, "completeConnection: added edge: ${newEdge.sourceNodeId}:${newEdge.sourceOutputIndex} -> ${newEdge.targetNodeId}:${newEdge.targetInputName}")
+        DebugLogger.d(TAG, "completeConnection: total edges: ${graph.edges.size}")
+
+        // 6. Re-layout the graph (single pass)
+        val layoutEngine = WorkflowLayoutEngine()
+        val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
+        mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
+
+        DebugLogger.d(TAG, "completeConnection: edges after layout: ${layoutedGraph.edges.size}")
+        layoutedGraph.edges.forEach { edge ->
+            DebugLogger.d(TAG, "  edge: ${edge.sourceNodeId}:${edge.sourceOutputIndex} -> ${edge.targetNodeId}:${edge.targetInputName}")
+        }
+
+        // Verify the new node has the connection
+        val verifyNode = layoutedGraph.nodes.find { it.id == newNodeId }
+        DebugLogger.d(TAG, "completeConnection: verify node input[${targetInput.name}]=${verifyNode?.inputs?.get(targetInput.name)}")
+
+        // 7. Update graph bounds
+        val newBounds = layoutEngine.calculateBounds(layoutedGraph)
+
+        // 8. Clear long-press state and update UI
+        _uiState.value = _uiState.value.copy(
+            graph = layoutedGraph,
+            graphBounds = newBounds,
+            selectedNodeIds = setOf(newNodeId),
+            longPressSourceSlot = null,
+            showCompatibleNodeBrowser = false,
+            showInputSelectionDialog = false,
+            inputSelectionNodeType = null,
+            inputSelectionCompatibleInputs = emptyList(),
+            hasUnsavedChanges = true
+        )
+
+        DebugLogger.d(TAG, "completeConnection: DONE")
+    }
+
+    /**
+     * Check if an input type is a connection type (not a literal).
+     */
+    private fun isConnectionType(type: String): Boolean {
+        return type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
     }
 
     /**
