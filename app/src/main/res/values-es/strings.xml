@@ -222,6 +222,7 @@
 
     <!-- Gallery selection mode strings -->
     <string name="gallery_selected_count">%d seleccionado(s)</string>
+    <string name="gallery_enter_selection_mode">Seleccionar elementos</string>
     <string name="cancel_selection">Cancelar selección</string>
     <string name="item_selected">Seleccionado</string>
     <string name="items_saved_to_gallery">Elementos guardados en galería</string>

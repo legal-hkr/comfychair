@@ -222,6 +222,7 @@
 
     <!-- Gallery selection mode strings -->
     <string name="gallery_selected_count">已选择 %d 项</string>
+    <string name="gallery_enter_selection_mode">选择项目</string>
     <string name="cancel_selection">取消选择</string>
     <string name="item_selected">已选择</string>
     <string name="items_saved_to_gallery">项目已保存到相册</string>

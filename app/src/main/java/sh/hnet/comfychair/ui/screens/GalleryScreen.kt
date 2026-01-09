@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
@@ -249,7 +250,10 @@ fun GalleryScreen(
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share))
                     }
                 } else {
-                    // Normal mode actions: Menu
+                    // Normal mode actions: Select and Menu
+                    IconButton(onClick = { galleryViewModel.enterSelectionMode() }) {
+                        Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.gallery_enter_selection_mode))
+                    }
                     AppMenuDropdown(
                         onSettings = onNavigateToSettings,
                         onLogout = onLogout

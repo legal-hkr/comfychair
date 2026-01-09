@@ -222,6 +222,7 @@
 
     <!-- Gallery selection mode strings -->
     <string name="gallery_selected_count">Zaznaczono: %d</string>
+    <string name="gallery_enter_selection_mode">Zaznacz elementy</string>
     <string name="cancel_selection">Anuluj zaznaczenie</string>
     <string name="item_selected">Zaznaczono</string>
     <string name="items_saved_to_gallery">Elementy zapisane do galerii</string>

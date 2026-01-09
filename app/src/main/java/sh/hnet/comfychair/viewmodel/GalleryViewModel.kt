@@ -378,6 +378,10 @@ class GalleryViewModel : ViewModel() {
         _isSelectionMode.value = false
     }
 
+    fun enterSelectionMode() {
+        _isSelectionMode.value = true
+    }
+
     fun deleteSelected() {
         val selectedItems = getSelectedItems()
         if (selectedItems.isEmpty()) return
