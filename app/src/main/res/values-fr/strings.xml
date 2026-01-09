@@ -507,6 +507,7 @@
     <string name="workflow_editor_select_input_message">Sélectionnez l\'entrée de %1$s à connecter :</string>
     <string name="workflow_editor_select_output_title">Connecter depuis la sortie</string>
     <string name="workflow_editor_select_output_message">Sélectionnez la sortie de %1$s à connecter :</string>
+    <string name="workflow_editor_edit_mode_hint">Appuyez sur une prise pour connecter, maintenez pour l\'explorateur</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Prompt positif</string>

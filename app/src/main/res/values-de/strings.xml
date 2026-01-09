@@ -505,6 +505,7 @@
     <string name="workflow_editor_select_input_message">Wähle einen Eingang auf %1$s:</string>
     <string name="workflow_editor_select_output_title">Von Ausgang verbinden</string>
     <string name="workflow_editor_select_output_message">Wähle einen Ausgang auf %1$s:</string>
+    <string name="workflow_editor_edit_mode_hint">Tippe auf Anschluss zum Verbinden, halte für Knotenbrowser</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Positiver Prompt</string>

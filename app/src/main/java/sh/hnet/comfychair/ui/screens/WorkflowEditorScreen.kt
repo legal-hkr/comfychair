@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
@@ -133,6 +134,19 @@ fun WorkflowEditorScreen(
     val uiState by viewModel.uiState.collectAsState()
     val density = LocalDensity.current
     val context = LocalContext.current
+
+    // Show hint Toast when entering edit mode
+    val wasEditMode = remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isEditMode) {
+        if (uiState.isEditMode && !wasEditMode.value) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.workflow_editor_edit_mode_hint),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        wasEditMode.value = uiState.isEditMode
+    }
 
     // Flag to trigger toolbar-initiated zoom animation (vs instant gesture updates)
     val shouldAnimateZoomChange = remember { mutableStateOf(false) }

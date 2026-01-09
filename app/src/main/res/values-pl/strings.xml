@@ -507,6 +507,7 @@
     <string name="workflow_editor_select_input_message">Wybierz wejście %1$s do połączenia:</string>
     <string name="workflow_editor_select_output_title">Połącz z wyjścia</string>
     <string name="workflow_editor_select_output_message">Wybierz wyjście %1$s do połączenia:</string>
+    <string name="workflow_editor_edit_mode_hint">Dotknij gniazda, aby połączyć, przytrzymaj dla przeglądarki</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Pozytywny prompt</string>

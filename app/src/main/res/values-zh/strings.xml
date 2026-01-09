@@ -507,6 +507,7 @@
     <string name="workflow_editor_select_input_message">选择要连接到 %1$s 的哪个输入：</string>
     <string name="workflow_editor_select_output_title">从输出连接</string>
     <string name="workflow_editor_select_output_message">选择要从 %1$s 连接的哪个输出：</string>
+    <string name="workflow_editor_edit_mode_hint">点击接口连接，长按打开节点浏览器</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">正向提示词</string>

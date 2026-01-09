@@ -469,6 +469,7 @@
     <string name="workflow_editor_select_input_message">Select which input on %1$s to connect:</string>
     <string name="workflow_editor_select_output_title">Connect from output</string>
     <string name="workflow_editor_select_output_message">Select which output on %1$s to connect:</string>
+    <string name="workflow_editor_edit_mode_hint">Tap socket to connect, hold for node browser</string>
 
     <!-- Node browser bottom sheet strings -->
     <string name="node_browser_title">Add node</string>
