@@ -21,10 +21,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.MetadataParser
@@ -137,7 +137,6 @@ sealed class MediaViewerEvent {
  */
 class MediaViewerViewModel : ViewModel() {
 
-    private var comfyUIClient: ComfyUIClient? = null
     private var applicationContext: Context? = null
 
     private val _uiState = MutableStateFlow(MediaViewerUiState())
@@ -179,30 +178,13 @@ class MediaViewerViewModel : ViewModel() {
             isLoading = mode == ViewerMode.GALLERY && items.isNotEmpty()
         )
 
-        // Create client when hostname is provided (for gallery mode or single mode with server info)
-        if (hostname.isNotEmpty()) {
-            val client = ComfyUIClient(context.applicationContext, hostname, port)
-            comfyUIClient = client
-
-            // Test connection to establish protocol
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) {
-                    kotlin.coroutines.suspendCoroutine { continuation ->
-                        client.testConnection { success, _, _, _ ->
-                            continuation.resumeWith(Result.success(success))
-                        }
-                    }
-                }
-
-                // For gallery mode, set up priorities and load current item after connection
-                if (mode == ViewerMode.GALLERY && items.isNotEmpty()) {
-                    val currentIdx = _uiState.value.currentIndex
-                    updateCachePrioritiesForIndex(currentIdx)
-                    triggerPrefetchForIndex(currentIdx)
-                    preloadMetadataForIndices()
-                    loadCurrentItem()
-                }
-            }
+        // For gallery mode, set up priorities and load current item
+        if (mode == ViewerMode.GALLERY && items.isNotEmpty()) {
+            val currentIdx = _uiState.value.currentIndex
+            updateCachePrioritiesForIndex(currentIdx)
+            triggerPrefetchForIndex(currentIdx)
+            preloadMetadataForIndices()
+            loadCurrentItem()
         }
     }
 
@@ -434,9 +416,9 @@ class MediaViewerViewModel : ViewModel() {
                     }
                 }
                 // For items with server file info and a client, fetch from server
-                item.filename.isNotEmpty() && comfyUIClient != null -> {
+                item.filename.isNotEmpty() && ConnectionManager.clientOrNull != null -> {
                     kotlin.coroutines.suspendCoroutine { continuation ->
-                        comfyUIClient!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes, _ ->
+                        ConnectionManager.clientOrNull!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes, _ ->
                             continuation.resumeWith(Result.success(rawBytes))
                         }
                     }
@@ -496,11 +478,11 @@ class MediaViewerViewModel : ViewModel() {
     fun deleteCurrentItem() {
         val state = _uiState.value
         val item = state.currentItem ?: return
-        val client = comfyUIClient ?: return
+        val client = ConnectionManager.clientOrNull ?: return
 
         viewModelScope.launch {
             val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
+                kotlin.coroutines.suspendCoroutine<Boolean> { continuation ->
                     client.deleteHistoryItem(item.promptId) { success ->
                         continuation.resumeWith(Result.success(success))
                     }
@@ -863,10 +845,5 @@ class MediaViewerViewModel : ViewModel() {
                 _events.emit(MediaViewerEvent.ShowToast(R.string.failed_share_video))
             }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        comfyUIClient?.closeWebSocket()
     }
 }
