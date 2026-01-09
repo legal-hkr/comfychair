@@ -45,6 +45,23 @@ sealed class InputValue {
 }
 
 /**
+ * Sort inputs so Literals come first, then Connection types.
+ * This ordering is required by the node layout model which positions
+ * outputs after literal inputs in the connection area.
+ */
+fun sortInputsForLayout(inputs: Map<String, InputValue>): Map<String, InputValue> {
+    return inputs.entries
+        .sortedBy { (_, value) ->
+            when (value) {
+                is InputValue.Literal -> 0
+                is InputValue.Connection -> 1
+                is InputValue.UnconnectedSlot -> 1
+            }
+        }
+        .associate { it.key to it.value }
+}
+
+/**
  * Represents a connection/edge between nodes
  */
 @Immutable

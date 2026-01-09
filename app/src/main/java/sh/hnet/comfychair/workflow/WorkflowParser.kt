@@ -103,7 +103,7 @@ class WorkflowParser {
                     classType = classType,
                     title = title,
                     category = categorizeNode(classType),
-                    inputs = inputs,
+                    inputs = sortInputsForLayout(inputs),
                     templateInputKeys = templateKeys,
                     mode = mode
                 )

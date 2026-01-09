@@ -34,6 +34,7 @@ import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.getEffectiveDefault
+import sh.hnet.comfychair.workflow.sortInputsForLayout
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
@@ -2241,7 +2242,7 @@ class WorkflowEditorViewModel : ViewModel() {
             classType = nodeType.classType,
             title = nodeType.classType,  // Use classType as initial title
             category = category,
-            inputs = inputs,
+            inputs = sortInputsForLayout(inputs),
             outputs = nodeType.outputs,  // Populate outputs from NodeTypeDefinition
             templateInputKeys = emptySet(),  // New nodes have no template keys
             x = 0f,  // Will be set by layout
