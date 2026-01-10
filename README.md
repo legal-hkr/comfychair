@@ -2,7 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.8.8
+**Current version**: v0.8.9
 
 [<img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png"
     alt="Get it on GitHub"
@@ -19,7 +19,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ## Screenshots
 
-<img src="metadata/en-US/images/phoneScreenshots/1.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/2.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/3.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/4.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/5.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/6.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/7.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/8.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/9.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/10.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/11.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/12.png" width="200"/>
+<img src="metadata/en-US/images/phoneScreenshots/1.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/2.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/3.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/4.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/5.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/6.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/7.png" width="200"/> <img src="metadata/en-US/images/phoneScreenshots/8.png" width="200"/>
 
 ## Features
 
@@ -74,18 +74,19 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - View all generated images and videos with 2-column grid layout
   - Video indicator on thumbnails
   - Pull-to-refresh to update gallery
-  - Multi-select mode with long press to select items
+  - Multi-select mode with dedicated button or long press to select items
   - Batch operations: save, share, or delete multiple items at once
 - **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
 
 ### Workflows
 
-- **Full node graph visualization**: Colored nodes and connections matching ComfyUI's visual style
+- **Full node graph visualization**: Colored nodes and connections matching ComfyUI's visual style with smooth Bezier curves or Hermite splines
 - **Node management**:
   - Add nodes via searchable Node Browser with category filter chips
   - Human-readable display names shown where available (with class type as subtitle)
   - Deprecated and experimental nodes clearly marked with warning/science icons
   - Search by display name, class type, category, or description
+  - Long-press output slots to open Node Browser filtered by compatible types
   - Delete, duplicate, bypass, and rename nodes
   - Cleanup tool to remove disconnected nodes
 - **Node groups**:
@@ -93,7 +94,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Rename groups via context menu
   - Groups persist across saves and theme changes
 - **Connection management**:
-  - Create connections by tapping an output socket and then an input socket
+  - Create connections by tapping an output socket and then an input socket (or vice versa)
   - Target sockets glow when compatible during connection creation
   - Delete connections via node context menu or by selecting and deleting
   - Selected nodes highlight connections with animated flowing segments

@@ -1,0 +1,17 @@
+v0.8.9
+
+New features:
+- Added selection mode button to Gallery top bar for easier multi-select access
+- Added bidirectional node connections in Workflow Editor (tap input then output)
+- Added long-press on output slots to open Node Browser filtered by compatible types
+- Added helper toast with usage instructions in Workflow Editor
+
+Improvements:
+- Improved edge drawing with smooth Bezier curves and Hermite splines
+- Refined element placement and animations in Workflow Graph Canvas
+- Updated nodes to display meaningful output names
+- Sorted node inputs to show literals first, then connections
+- Added SharedPreferences cleanup routine on app startup
+
+Bug fixes:
+- Fixed Media Viewer metadata fetching

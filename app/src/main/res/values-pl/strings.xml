@@ -146,8 +146,8 @@
     <string name="disable_media_cache_description">Nie zapisuj podglądów obrazów i filmów na dysku</string>
     <string name="auto_connect_label">Automatyczne łączenie</string>
     <string name="auto_connect_description">Automatyczne łączenie z ostatnim serwerem przy uruchomieniu aplikacji</string>
-    <string name="show_built_in_workflows_label">Pokaż wbudowane workflows</string>
-    <string name="show_built_in_workflows_description">Wyświetlaj domyślne workflows dołączone do aplikacji</string>
+    <string name="show_built_in_workflows_label">Pokaż wbudowane przepływy pracy</string>
+    <string name="show_built_in_workflows_description">Wyświetlaj domyślne przepływy pracy dołączone do aplikacji</string>
     <string name="reset_prompts_button">Resetuj prompty</string>
     <string name="reset_prompts_success">Prompty przywrócone do domyślnych</string>
     <string name="clear_cache_button">Wyczyść pamięć podręczną</string>
@@ -195,12 +195,12 @@
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">To nie jest serwer ComfyUI</string>
     <string name="error_invalid_server_response">Nieprawidłowa odpowiedź serwera</string>
-    <string name="error_failed_load_workflow">Nie udało się załadować workflow</string>
+    <string name="error_failed_load_workflow">Nie udało się załadować przepływu pracy</string>
     <string name="error_generation_failed">Generowanie nie powiodło się</string>
     <string name="connection_lost_generation_may_continue">Utracono połączenie. Sprawdzenie zakończenia po ponownym połączeniu.</string>
     <string name="error_no_connection">Brak połączenia z serwerem</string>
-    <string name="error_workflow_not_found">Nie znaleziono workflow</string>
-    <string name="error_no_workflow_specified">Nie określono workflow</string>
+    <string name="error_workflow_not_found">Nie znaleziono przepływu pracy</string>
+    <string name="error_no_workflow_specified">Nie określono przepływu pracy</string>
     <string name="error_client_not_initialized">Klient nie zainicjalizowany</string>
 
     <!-- Save/share messages -->
@@ -252,7 +252,7 @@
     <!-- Configuration bottom sheet labels -->
     <string name="mode_inpainting">Inpainting</string>
     <string name="mode_editing">Edycja</string>
-    <string name="label_workflow">Workflow</string>
+    <string name="label_workflow">Przepływ pracy</string>
     <string name="label_width">Szerokość</string>
     <string name="label_height">Wysokość</string>
     <string name="label_steps">Kroki</string>
@@ -291,10 +291,10 @@
     <!-- Settings screen strings -->
     <string name="nav_application_settings">Aplikacja</string>
     <string name="nav_server_settings">Serwer</string>
-    <string name="nav_workflows_settings">Workflows</string>
+    <string name="nav_workflows_settings">Przepływy pracy</string>
     <string name="application_settings_title">Ustawienia aplikacji</string>
     <string name="server_settings_title">Ustawienia serwera</string>
-    <string name="workflows_settings_title">Workflows</string>
+    <string name="workflows_settings_title">Przepływy pracy</string>
 
     <!-- Workflow management strings -->
     <string name="workflow_section_tti">Tekst na obraz</string>
@@ -302,36 +302,36 @@
     <string name="workflow_section_iti_editing">Obraz na obraz: Edycja</string>
     <string name="workflow_section_ttv">Tekst na wideo</string>
     <string name="workflow_section_itv">Obraz na wideo</string>
-    <string name="workflow_section_empty">Brak workflows</string>
+    <string name="workflow_section_empty">Brak przepływów pracy</string>
     <string name="workflow_built_in_label">Wbudowany</string>
     <string name="workflow_name_label">Nazwa</string>
     <string name="workflow_description_label">Opis</string>
-    <string name="import_workflow_title">Importuj workflow</string>
-    <string name="edit_workflow_title">Edytuj workflow</string>
-    <string name="delete_workflow_title">Usuń workflow</string>
+    <string name="import_workflow_title">Importuj przepływ pracy</string>
+    <string name="edit_workflow_title">Edytuj przepływ pracy</string>
+    <string name="delete_workflow_title">Usuń przepływ pracy</string>
     <string name="delete_workflow_message">Czy na pewno chcesz usunąć \"%s\"?</string>
     <string name="button_import">Importuj</string>
     <string name="button_save">Zapisz</string>
     <string name="button_delete">Usuń</string>
     <string name="button_cancel">Anuluj</string>
-    <string name="error_cannot_edit_builtin">Wbudowane workflow nie mogą być edytowane</string>
+    <string name="error_cannot_edit_builtin">Wbudowane przepływy pracy nie mogą być edytowane</string>
     <string name="workflow_error_invalid_json">Nieprawidłowy format JSON</string>
-    <string name="workflow_import_success">Workflow zaimportowany</string>
-    <string name="workflow_import_failed">Nie udało się zaimportować workflow</string>
-    <string name="workflow_delete_success">Workflow usunięty</string>
-    <string name="workflow_delete_failed">Nie udało się usunąć workflow</string>
-    <string name="workflow_update_success">Workflow zaktualizowany</string>
-    <string name="workflow_update_failed">Nie udało się zaktualizować workflow</string>
-    <string name="workflow_duplicate_success">Workflow zduplikowany</string>
-    <string name="workflow_menu_edit_structure">Edytuj workflow</string>
+    <string name="workflow_import_success">Przepływ pracy zaimportowany</string>
+    <string name="workflow_import_failed">Nie udało się zaimportować przepływu pracy</string>
+    <string name="workflow_delete_success">Przepływ pracy usunięty</string>
+    <string name="workflow_delete_failed">Nie udało się usunąć przepływu pracy</string>
+    <string name="workflow_update_success">Przepływ pracy zaktualizowany</string>
+    <string name="workflow_update_failed">Nie udało się zaktualizować przepływu pracy</string>
+    <string name="workflow_duplicate_success">Przepływ pracy zduplikowany</string>
+    <string name="workflow_menu_edit_structure">Edytuj przepływ pracy</string>
     <string name="workflow_menu_rename">Zmień nazwę</string>
     <string name="workflow_menu_duplicate">Duplikuj</string>
     <string name="workflow_menu_delete">Usuń</string>
     <string name="workflow_menu_export">Eksportuj</string>
     <string name="workflow_menu_export_api">Eksportuj (format API)</string>
-    <string name="duplicate_workflow_title">Duplikuj workflow</string>
-    <string name="workflow_export_success">Workflow wyeksportowany</string>
-    <string name="workflow_export_failed">Nie udało się wyeksportować workflow</string>
+    <string name="duplicate_workflow_title">Duplikuj przepływ pracy</string>
+    <string name="workflow_export_success">Przepływ pracy wyeksportowany</string>
+    <string name="workflow_export_failed">Nie udało się wyeksportować przepływu pracy</string>
     <string name="litegraph_conversion_notes">Konwersja zakończona z %d uwagą/uwagami</string>
 
     <!-- Content descriptions for accessibility -->
@@ -365,24 +365,24 @@
     <string name="workflow_editor_zoom_in">Powiększ</string>
     <string name="workflow_editor_zoom_out">Pomniejsz</string>
     <string name="workflow_editor_reset_zoom">Resetuj widok</string>
-    <string name="workflow_editor_error_loading">Nie udało się załadować workflow</string>
+    <string name="workflow_editor_error_loading">Nie udało się załadować przepływu pracy</string>
 
     <!-- Workflow import dialog strings -->
-    <string name="workflow_type_label">Typ workflow</string>
+    <string name="workflow_type_label">Typ przepływu pracy</string>
     <string name="button_continue">Kontynuuj</string>
     <string name="button_dismiss">Zamknij</string>
     <string name="button_confirm">Potwierdź</string>
     <string name="button_ok">OK</string>
-    <string name="validating_workflow">Walidacja workflow…</string>
+    <string name="validating_workflow">Walidacja przepływu pracy…</string>
 
     <!-- Workflow validation error dialogs -->
     <string name="missing_nodes_title">Brakujące węzły</string>
     <string name="missing_nodes_message">Następujące węzły nie są dostępne na Twoim serwerze ComfyUI:</string>
     <string name="missing_fields_title">Brakujące wymagane pola</string>
-    <string name="missing_fields_message">Workflow nie zawiera wymaganych pól dla wybranego typu:</string>
+    <string name="missing_fields_message">Przepływ pracy nie zawiera wymaganych pól dla wybranego typu:</string>
     <string name="list_item_bullet">- %s</string>
     <string name="duplicate_name_title">Nazwa już istnieje</string>
-    <string name="duplicate_name_message">Workflow o tej nazwie już istnieje. Proszę wybrać inną nazwę.</string>
+    <string name="duplicate_name_message">Przepływ pracy o tej nazwie już istnieje. Proszę wybrać inną nazwę.</string>
 
     <!-- Field mapping UI strings -->
     <string name="field_mapping_title">Mapuj pola</string>
@@ -431,7 +431,7 @@
     <string name="backup_created_success">Kopia zapasowa utworzona pomyślnie</string>
     <string name="backup_created_failed">Nie udało się utworzyć kopii zapasowej</string>
     <string name="backup_restore_success">Ustawienia przywrócone pomyślnie</string>
-    <string name="backup_restore_partial">Ustawienia częściowo przywrócone. Niektóre workflows zostały pominięte.</string>
+    <string name="backup_restore_partial">Ustawienia częściowo przywrócone. Niektóre przepływy pracy zostały pominięte.</string>
     <string name="backup_restore_failed">Nie udało się przywrócić kopii zapasowej</string>
     <string name="backup_error_invalid_json">Nieprawidłowy format pliku kopii zapasowej</string>
     <string name="backup_error_unsupported_version">Nieobsługiwana wersja kopii zapasowej</string>
@@ -462,10 +462,10 @@
     <string name="debug_log_save_failed">Nie udało się zapisać logu</string>
 
     <!-- Missing translations -->
-    <string name="view_workflow">Zobacz workflow</string>
+    <string name="view_workflow">Zobacz przepływ pracy</string>
     <string name="button_discard">Odrzuć</string>
-    <string name="button_new_workflow">Nowy workflow</string>
-    <string name="save_workflow_title">Zapisz nowy workflow</string>
+    <string name="button_new_workflow">Nowy przepływ pracy</string>
+    <string name="save_workflow_title">Zapisz nowy przepływ pracy</string>
     <string name="error_invalid_integer">Musi być liczbą całkowitą</string>
     <string name="error_invalid_option">Nieprawidłowa opcja</string>
     <string name="error_string_too_long">Maksymalna długość: %1$d</string>
@@ -507,8 +507,8 @@
     <string name="workflow_editor_edit_note_content">Edytuj notatkę</string>
     <string name="workflow_editor_note_content_label">Treść (Markdown)</string>
     <string name="workflow_editor_done">Gotowe</string>
-    <string name="workflow_editor_discard_title">Odrzucić workflow?</string>
-    <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten workflow?</string>
+    <string name="workflow_editor_discard_title">Odrzucić przepływ pracy?</string>
+    <string name="workflow_editor_discard_message">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten przepływ pracy?</string>
     <string name="workflow_editor_select_input_title">Połącz z wejściem</string>
     <string name="workflow_editor_select_input_message">Wybierz wejście %1$s do połączenia:</string>
     <string name="workflow_editor_select_output_title">Połącz z wyjścia</string>
