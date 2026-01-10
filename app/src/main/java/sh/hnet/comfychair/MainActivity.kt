@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import sh.hnet.comfychair.storage.PreferencesMaintenance
 import sh.hnet.comfychair.ui.screens.LoginScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 
@@ -23,6 +27,11 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // Run preferences maintenance in background to clean up stale entries
+        lifecycleScope.launch(Dispatchers.IO) {
+            PreferencesMaintenance.performMaintenance(applicationContext)
+        }
 
         setContent {
             ComfyChairTheme {
