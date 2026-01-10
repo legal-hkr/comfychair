@@ -77,6 +77,8 @@ import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowNote
+import sh.hnet.comfychair.workflow.routing.EdgeRouter
+import sh.hnet.comfychair.workflow.routing.RouterProvider
 
 /**
  * Highlight state for nodes in mapping mode
@@ -254,6 +256,9 @@ fun WorkflowGraphCanvas(
     val displayNameResolver: (String) -> String = remember(context) {
         { fieldKey -> FieldDisplayRegistry.getDisplayName(context, fieldKey) }
     }
+
+    // Get the edge router from settings
+    val edgeRouter = remember { RouterProvider.getActiveRouter(context) }
 
     // Load edit icon drawable
     val editIconDrawable = remember(context) {
@@ -1021,6 +1026,7 @@ fun WorkflowGraphCanvas(
                         edge = edge,
                         nodesById = nodePositionsMap,
                         colors = colors,
+                        router = edgeRouter,
                         alpha = alpha,
                         selectedNodeIds = selectedNodeIds,
                         segmentTime = segmentTime.value
@@ -1756,13 +1762,14 @@ private fun DrawScope.drawNode(
 
 /**
  * Draw an edge (connection) between two nodes.
- * Uses bezier curves that depart/arrive horizontally for a natural look.
+ * Uses the configured edge router for path computation.
  * When connected to a selected node, animates interweaving colored segments along the wire.
  */
 private fun DrawScope.drawEdge(
     edge: WorkflowEdge,
     nodesById: Map<String, WorkflowNode>,
     colors: CanvasColors,
+    router: EdgeRouter,
     alpha: Float = 1f,
     selectedNodeIds: Set<String> = emptySet(),
     segmentTime: Float = 0f
@@ -1802,72 +1809,11 @@ private fun DrawScope.drawEdge(
         edgeWidth = 4f
     }
 
-    // Minimum control point offset to ensure wire is visible leaving/entering nodes
-    val minOffset = 20f
-
-    // Store bezier control points for segment position calculation
+    // Compute the path using the configured router
     val startPoint = Offset(startX, startY)
     val endPoint = Offset(endX, endY)
-    var control1: Offset
-    var control2: Offset
-    var isDoubleCurve = false
-    var midPoint = Offset.Zero
-    var control1b = Offset.Zero
-    var control2b = Offset.Zero
-
-    val path = Path().apply {
-        moveTo(startX, startY)
-
-        if (startX < endX) {
-            // Normal case: source is to the left of target
-            // Control point offset based on horizontal distance, with minimum
-            val xDist = endX - startX
-            val offset = maxOf(xDist * 0.4f, minOffset)
-            control1 = Offset(startX + offset, startY)
-            control2 = Offset(endX - offset, endY)
-            cubicTo(
-                control1.x, control1.y,
-                control2.x, control2.y,
-                endX, endY
-            )
-        } else {
-            // Complex case: source is to the right of or same column as target
-            // Need to loop around - go right, then curve back left
-            val loopOffset = maxOf(80f, minOffset)
-            val verticalDist = kotlin.math.abs(endY - startY)
-            val midY = (startY + endY) / 2
-
-            if (verticalDist < 50f) {
-                // Nodes are at similar height - need bigger loop
-                val farRight = maxOf(startX, endX) + loopOffset
-                control1 = Offset(farRight, startY)
-                control2 = Offset(farRight, endY)
-                cubicTo(
-                    control1.x, control1.y,
-                    control2.x, control2.y,
-                    endX, endY
-                )
-            } else {
-                // Nodes have vertical separation - route through middle (two bezier segments)
-                isDoubleCurve = true
-                midPoint = Offset((startX + endX) / 2, midY)
-                control1 = Offset(startX + loopOffset, startY)
-                control2 = Offset(startX + loopOffset, midY)
-                control1b = Offset(endX - loopOffset, midY)
-                control2b = Offset(endX - loopOffset, endY)
-                cubicTo(
-                    control1.x, control1.y,
-                    control2.x, control2.y,
-                    midPoint.x, midPoint.y
-                )
-                cubicTo(
-                    control1b.x, control1b.y,
-                    control2b.x, control2b.y,
-                    endX, endY
-                )
-            }
-        }
-    }
+    val routedPath = router.computeRoute(startPoint, endPoint)
+    val path = routedPath.path
 
     // Draw the path - use animated interweaving segments for highlighted wires
     if (isConnectedToSelected) {

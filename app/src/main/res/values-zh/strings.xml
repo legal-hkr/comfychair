@@ -67,6 +67,11 @@
     <string name="settings_connection_description">服务器连接行为</string>
     <string name="settings_generation_title">生成</string>
     <string name="settings_generation_description">生成体验设置</string>
+    <string name="settings_workflow_editor_title">工作流编辑器</string>
+    <string name="settings_workflow_editor_description">自定义工作流编辑器外观</string>
+    <string name="edge_style_label">连线样式</string>
+    <string name="edge_router_bezier">贝塞尔曲线</string>
+    <string name="edge_router_hermite">埃尔米特样条</string>
     <string name="settings_cache_title">缓存和存储</string>
     <string name="settings_cache_description">媒体缓存设置</string>
     <string name="settings_reset_title">重置</string>

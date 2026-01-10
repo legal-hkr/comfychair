@@ -15,6 +15,8 @@ object AppSettings {
     private const val KEY_AUTO_CONNECT = "autoConnect"
     private const val KEY_SHOW_BUILT_IN_WORKFLOWS = "show_built_in_workflows"
     private const val KEY_OFFLINE_MODE = "offline_mode"
+    private const val KEY_EDGE_ROUTER = "edge_router"
+    private const val DEFAULT_EDGE_ROUTER = "hermite"
 
     /**
      * Check if live preview is enabled.
@@ -154,6 +156,25 @@ object AppSettings {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_OFFLINE_MODE, enabled)
+            .apply()
+    }
+
+    /**
+     * Get the selected edge router ID for the workflow editor.
+     * Default is "hermite" (Hermite spline).
+     */
+    fun getEdgeRouterId(context: Context): String {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_EDGE_ROUTER, DEFAULT_EDGE_ROUTER) ?: DEFAULT_EDGE_ROUTER
+    }
+
+    /**
+     * Set the edge router ID for the workflow editor.
+     */
+    fun setEdgeRouterId(context: Context, routerId: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_EDGE_ROUTER, routerId)
             .apply()
     }
 }

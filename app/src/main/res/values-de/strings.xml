@@ -67,6 +67,11 @@
     <string name="settings_connection_description">Verbindungsverhalten zum Server</string>
     <string name="settings_generation_title">Generierung</string>
     <string name="settings_generation_description">Einstellungen für die Generierung</string>
+    <string name="settings_workflow_editor_title">Workflow-Editor</string>
+    <string name="settings_workflow_editor_description">Erscheinungsbild des Workflow-Editors anpassen</string>
+    <string name="edge_style_label">Kantenstil</string>
+    <string name="edge_router_bezier">Bézierkurve</string>
+    <string name="edge_router_hermite">Hermite-Spline</string>
     <string name="settings_cache_title">Cache und Speicher</string>
     <string name="settings_cache_description">Einstellungen für den Medien-Cache</string>
     <string name="settings_reset_title">Zurücksetzen</string>

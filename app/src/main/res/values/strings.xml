@@ -119,6 +119,11 @@
     <string name="settings_connection_description">Server connection behavior</string>
     <string name="settings_generation_title">Generation</string>
     <string name="settings_generation_description">Generation experience settings</string>
+    <string name="settings_workflow_editor_title">Workflow Editor</string>
+    <string name="settings_workflow_editor_description">Customize the workflow editor appearance</string>
+    <string name="edge_style_label">Edge style</string>
+    <string name="edge_router_bezier">Bezier curve</string>
+    <string name="edge_router_hermite">Hermite spline</string>
     <string name="settings_cache_title">Cache and storage</string>
     <string name="settings_cache_description">Media caching settings</string>
     <string name="settings_reset_title">Reset</string>

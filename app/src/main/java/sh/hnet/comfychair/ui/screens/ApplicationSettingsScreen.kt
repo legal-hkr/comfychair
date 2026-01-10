@@ -17,12 +17,15 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -41,10 +44,12 @@ import sh.hnet.comfychair.ui.components.SettingsScreenScaffold
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
+import sh.hnet.comfychair.workflow.routing.RouterProvider
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ApplicationSettingsScreen(
     viewModel: SettingsViewModel,
@@ -61,6 +66,7 @@ fun ApplicationSettingsScreen(
     val isAutoConnectEnabled by viewModel.isAutoConnectEnabled.collectAsState()
     val isShowBuiltInWorkflows by viewModel.isShowBuiltInWorkflows.collectAsState()
     val isOfflineMode by viewModel.isOfflineMode.collectAsState()
+    val edgeRouterId by viewModel.edgeRouterId.collectAsState()
 
     // State and effects
     // Backup/restore state
@@ -318,6 +324,70 @@ fun ApplicationSettingsScreen(
                         checked = isShowBuiltInWorkflows,
                         onCheckedChange = { viewModel.setShowBuiltInWorkflows(context, it) }
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Workflow Editor Card
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_workflow_editor_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = stringResource(R.string.settings_workflow_editor_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Edge style label
+                Text(
+                    text = stringResource(R.string.edge_style_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Edge router selector using connected button group
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                ) {
+                    ToggleButton(
+                        checked = edgeRouterId == "hermite",
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) viewModel.setEdgeRouterId(context, "hermite")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    ) {
+                        Text(stringResource(R.string.edge_router_hermite))
+                    }
+                    ToggleButton(
+                        checked = edgeRouterId == "bezier",
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) viewModel.setEdgeRouterId(context, "bezier")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    ) {
+                        Text(stringResource(R.string.edge_router_bezier))
+                    }
                 }
             }
         }

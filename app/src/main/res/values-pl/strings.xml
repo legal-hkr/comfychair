@@ -67,6 +67,11 @@
     <string name="settings_connection_description">Zachowanie połączenia z serwerem</string>
     <string name="settings_generation_title">Generowanie</string>
     <string name="settings_generation_description">Ustawienia generowania</string>
+    <string name="settings_workflow_editor_title">Edytor przepływu pracy</string>
+    <string name="settings_workflow_editor_description">Dostosuj wygląd edytora przepływu pracy</string>
+    <string name="edge_style_label">Styl połączeń</string>
+    <string name="edge_router_bezier">Krzywa Béziera</string>
+    <string name="edge_router_hermite">Splajn Hermite\'a</string>
     <string name="settings_cache_title">Pamięć podręczna i przechowywanie</string>
     <string name="settings_cache_description">Ustawienia pamięci podręcznej mediów</string>
     <string name="settings_reset_title">Resetowanie</string>
