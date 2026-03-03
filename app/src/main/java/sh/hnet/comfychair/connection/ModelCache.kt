@@ -16,6 +16,10 @@ data class ModelCache(
     val upscaleMethods: List<String> = emptyList(),
     val textEncoders: List<String> = emptyList(),
     val latentUpscaleModels: List<String> = emptyList(),
+    /** Sampler names from server (includes custom-node samplers like res_multistep, etc.) */
+    val samplers: List<String> = emptyList(),
+    /** Scheduler names from server (includes custom-node schedulers like bong_tangent, etc.) */
+    val schedulers: List<String> = emptyList(),
     val isLoaded: Boolean = false,
     val isLoading: Boolean = false,
     val lastError: String? = null

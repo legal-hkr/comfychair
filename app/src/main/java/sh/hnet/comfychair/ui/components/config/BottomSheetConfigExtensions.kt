@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.ui.components.config
 
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.ImageToImageUiState
@@ -557,13 +558,15 @@ private fun buildEditingModeParameterConfig(
         ),
         sampler = DropdownField(
             selectedValue = state.editingSampler,
-            options = SamplerOptions.SAMPLERS,
+            options = ConnectionManager.modelCache.value.samplers
+                .ifEmpty { SamplerOptions.SAMPLERS },
             onValueChange = callbacks.onEditingSamplerChange ?: noOpString,
             isVisible = caps.hasSamplerName
         ),
         scheduler = DropdownField(
             selectedValue = state.editingScheduler,
-            options = SamplerOptions.SCHEDULERS,
+            options = ConnectionManager.modelCache.value.schedulers
+                .ifEmpty { SamplerOptions.SCHEDULERS },
             onValueChange = callbacks.onEditingSchedulerChange ?: noOpString,
             isVisible = caps.hasScheduler
         ),

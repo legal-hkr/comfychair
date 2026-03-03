@@ -453,9 +453,10 @@ private fun guessType(value: Any?): String {
  * Get default options for known field names when server definition is missing.
  */
 private fun getDefaultOptionsForField(fieldName: String): List<String>? {
+    val cache = ConnectionManager.modelCache.value
     return when (fieldName) {
-        "sampler_name" -> SamplerOptions.SAMPLERS
-        "scheduler" -> SamplerOptions.SCHEDULERS
+        "sampler_name" -> cache.samplers.ifEmpty { SamplerOptions.SAMPLERS }
+        "scheduler" -> cache.schedulers.ifEmpty { SamplerOptions.SCHEDULERS }
         else -> null
     }
 }

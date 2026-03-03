@@ -1030,7 +1030,24 @@ object ConnectionManager {
             latentUpscaleModels = nodeTypeRegistry.getOptionsForNodeInput(
                 "LatentUpscaleModelLoader",
                 TemplateKeyRegistry.getJsonKeyForPlaceholder("latent_upscale_model")
-            )
+            ),
+            // Samplers/schedulers from KSampler node — captures custom-node additions
+            samplers = nodeTypeRegistry.getOptionsForNodeInput(
+                "KSampler",
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("sampler_name")
+            ).ifEmpty {
+                nodeTypeRegistry.getOptionsForField(
+                    TemplateKeyRegistry.getJsonKeyForPlaceholder("sampler_name")
+                )
+            },
+            schedulers = nodeTypeRegistry.getOptionsForNodeInput(
+                "KSampler",
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("scheduler")
+            ).ifEmpty {
+                nodeTypeRegistry.getOptionsForField(
+                    TemplateKeyRegistry.getJsonKeyForPlaceholder("scheduler")
+                )
+            }
         )
     }
 }
