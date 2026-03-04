@@ -453,9 +453,10 @@ private fun guessType(value: Any?): String {
  * Get default options for known field names when server definition is missing.
  */
 private fun getDefaultOptionsForField(fieldName: String): List<String>? {
+    val cache = ConnectionManager.modelCache.value
     return when (fieldName) {
-        "sampler_name" -> SamplerOptions.SAMPLERS
-        "scheduler" -> SamplerOptions.SCHEDULERS
+        "sampler_name" -> cache.samplers.ifEmpty { SamplerOptions.SAMPLERS }
+        "scheduler" -> cache.schedulers.ifEmpty { SamplerOptions.SCHEDULERS }
         else -> null
     }
 }
@@ -475,10 +476,19 @@ private fun EnumEditor(
     var expanded by remember { mutableStateOf(false) }
     var tooltipExpanded by remember { mutableStateOf(false) }
 
+    val tree = remember(options) { sh.hnet.comfychair.ui.components.shared.buildModelTree(options) }
+    val hasFolders = remember(tree) { sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders(tree) }
+    var expandedPath by remember(value) {
+        mutableStateOf(sh.hnet.comfychair.ui.components.shared.folderPathOf(value))
+    }
+
     Column {
         ExposedDropdownMenuBox(
             expanded = expanded,
-            onExpandedChange = { expanded = it }
+            onExpandedChange = {
+                expanded = it
+                if (it) expandedPath = sh.hnet.comfychair.ui.components.shared.folderPathOf(value)
+            }
         ) {
             OutlinedTextField(
                 value = value,
@@ -506,16 +516,31 @@ private fun EnumEditor(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                options.forEach { option ->
-                    key(option) {
-                        DropdownMenuItem(
-                            text = { ModelPathText(option) },
-                            onClick = {
-                                onValueChange(option)
-                                expanded = false
-                            }
-                        )
+                if (!hasFolders) {
+                    options.forEach { option ->
+                        key(option) {
+                            DropdownMenuItem(
+                                text = { ModelPathText(option) },
+                                onClick = {
+                                    onValueChange(option)
+                                    expanded = false
+                                }
+                            )
+                        }
                     }
+                } else {
+                    sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems(
+                        node = tree,
+                        currentPath = "",
+                        expandedPath = expandedPath,
+                        selectedValue = value,
+                        depth = 0,
+                        onExpandFolder = { expandedPath = it },
+                        onSelectModel = { path ->
+                            onValueChange(path)
+                            expanded = false
+                        }
+                    )
                 }
             }
         }

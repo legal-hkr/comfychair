@@ -17,7 +17,15 @@ import androidx.compose.ui.Modifier
 
 /**
  * A dropdown component for selecting models (checkpoints, UNETs, VAEs, CLIPs, etc.)
- * Uses ModelPathText to display paths with dimmed directory portions.
+ *
+ * Automatically switches between flat and hierarchical (folder tree) display
+ * based on whether any option contains path separators.
+ *
+ * Hierarchical behavior:
+ * - Folders shown first, then root-level models
+ * - Clicking a folder expands it (collapses siblings at same level)
+ * - Re-opening auto-expands to the currently selected model's folder
+ * - Selected model is highlighted in primary color
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +38,22 @@ fun ModelDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
+    val tree = remember(options) { buildModelTree(options) }
+    val hasFolders = remember(tree) { modelTreeHasFolders(tree) }
+
+    // Track expanded folder path; auto-expand to selected model's folder
+    var expandedPath by remember(selectedValue) {
+        mutableStateOf(folderPathOf(selectedValue))
+    }
+
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = it },
+        onExpandedChange = {
+            expanded = it
+            if (it) {
+                expandedPath = folderPathOf(selectedValue)
+            }
+        },
         modifier = modifier
     ) {
         OutlinedTextField(
@@ -51,14 +72,31 @@ fun ModelDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { ModelPathText(option) },
-                    onClick = {
-                        onValueChange(option)
+            if (!hasFolders) {
+                // Flat list (original behavior)
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { ModelPathText(option) },
+                        onClick = {
+                            onValueChange(option)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                }
+            } else {
+                // Hierarchical folder tree
+                HierarchicalTreeItems(
+                    node = tree,
+                    currentPath = "",
+                    expandedPath = expandedPath,
+                    selectedValue = selectedValue,
+                    depth = 0,
+                    onExpandFolder = { expandedPath = it },
+                    onSelectModel = { path ->
+                        onValueChange(path)
                         expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    }
                 )
             }
         }

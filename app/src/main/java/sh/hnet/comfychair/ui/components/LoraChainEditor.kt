@@ -36,7 +36,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems
 import sh.hnet.comfychair.ui.components.shared.ModelPathText
+import sh.hnet.comfychair.ui.components.shared.buildModelTree
+import sh.hnet.comfychair.ui.components.shared.folderPathOf
+import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
 import java.util.Locale
 
 /**
@@ -118,6 +122,12 @@ private fun LoraEntryItem(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
+    val tree = remember(availableLoras) { buildModelTree(availableLoras) }
+    val hasFolders = remember(tree) { modelTreeHasFolders(tree) }
+    var expandedPath by remember(lora.name) {
+        mutableStateOf(folderPathOf(lora.name))
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -136,7 +146,10 @@ private fun LoraEntryItem(
             // LoRA dropdown
             ExposedDropdownMenuBox(
                 expanded = expanded,
-                onExpandedChange = { expanded = it },
+                onExpandedChange = {
+                    expanded = it
+                    if (it) expandedPath = folderPathOf(lora.name)
+                },
                 modifier = Modifier.weight(1f)
             ) {
                 OutlinedTextField(
@@ -155,14 +168,29 @@ private fun LoraEntryItem(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    availableLoras.forEach { option ->
-                        DropdownMenuItem(
-                            text = { ModelPathText(option) },
-                            onClick = {
-                                onNameChange(option)
+                    if (!hasFolders) {
+                        availableLoras.forEach { option ->
+                            DropdownMenuItem(
+                                text = { ModelPathText(option) },
+                                onClick = {
+                                    onNameChange(option)
+                                    expanded = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    } else {
+                        HierarchicalTreeItems(
+                            node = tree,
+                            currentPath = "",
+                            expandedPath = expandedPath,
+                            selectedValue = lora.name,
+                            depth = 0,
+                            onExpandFolder = { expandedPath = it },
+                            onSelectModel = { path ->
+                                onNameChange(path)
                                 expanded = false
-                            },
-                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            }
                         )
                     }
                 }
