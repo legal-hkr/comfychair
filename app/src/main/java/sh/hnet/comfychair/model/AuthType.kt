@@ -9,5 +9,7 @@ enum class AuthType {
     /** HTTP Basic authentication (username + password) */
     BASIC,
     /** API key or bearer token authentication */
-    BEARER
+    BEARER,
+    /** Browser-based authentication (e.g., OAuth/SSO via Authentik forward-auth) */
+    BROWSER
 }

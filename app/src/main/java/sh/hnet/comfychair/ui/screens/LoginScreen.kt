@@ -1,7 +1,12 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.app.Activity
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import sh.hnet.comfychair.WebViewAuthActivity
+import sh.hnet.comfychair.connection.ConnectionFailure
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -73,6 +78,20 @@ enum class ConnectionState {
 /**
  * Login screen composable - handles connection to ComfyUI server
  */
+/**
+ * Build a server URL with proper protocol detection.
+ * Port 443 → HTTPS, port 80 → HTTP, port 8188 → HTTP (ComfyUI default).
+ * Standard ports (80/443) omitted from URL. Others included.
+ */
+private fun buildServerUrl(hostname: String, port: Int): String {
+    return when (port) {
+        443 -> "https://$hostname"
+        80 -> "http://$hostname"
+        8188 -> "http://$hostname:8188"
+        else -> "https://$hostname:$port"
+    }
+}
+
 @Composable
 fun LoginScreen() {
     val context = LocalContext.current
@@ -104,6 +123,39 @@ fun LoginScreen() {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showOfflinePrompt by remember { mutableStateOf(false) }
     var offlinePromptServer by remember { mutableStateOf<Server?>(null) }
+    var showBrowserReauthPrompt by remember { mutableStateOf(false) }
+    var browserReauthServer by remember { mutableStateOf<Server?>(null) }
+    // Set to a server to trigger attemptConnection via LaunchedEffect (avoids forward-ref)
+    var pendingBrowserConnect by remember { mutableStateOf<Server?>(null) }
+
+    // Browser auth WebView launcher — used when session expired / first connect
+    val webViewAuthLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val server = browserReauthServer ?: return@rememberLauncherForActivityResult
+            val cookies = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_COOKIES) ?: ""
+            val authDomain = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN) ?: ""
+            val authDomainCookies = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN_COOKIES) ?: ""
+            if (cookies.isNotEmpty()) {
+                credentialStorage.saveCredentials(
+                    server.id,
+                    sh.hnet.comfychair.model.AuthCredentials.Cookie(
+                        cookies = cookies,
+                        authDomain = authDomain,
+                        authDomainCookies = authDomainCookies
+                    )
+                )
+                showBrowserReauthPrompt = false
+                browserReauthServer = null
+                connectionState = ConnectionState.IDLE
+                pendingBrowserConnect = server  // triggers LaunchedEffect below
+            }
+        } else {
+            showBrowserReauthPrompt = false
+            browserReauthServer = null
+        }
+    }
 
     // String resources
     val warningSelfSigned = stringResource(R.string.warning_self_signed_cert)
@@ -115,6 +167,17 @@ fun LoginScreen() {
         warningMessage = null
 
         scope.launch {
+            // For browser auth with no stored cookies, open WebView immediately
+            if (server.authType == sh.hnet.comfychair.model.AuthType.BROWSER &&
+                !credentialStorage.hasCredentials(server.id, server.authType)) {
+                connectionState = ConnectionState.IDLE
+                val serverUrl = buildServerUrl(server.hostname, server.port)
+                browserReauthServer = server
+                val intent = WebViewAuthActivity.createIntent(context, serverUrl, server.hostname)
+                webViewAuthLauncher.launch(intent)
+                return@launch
+            }
+
             // Load credentials for the server
             val credentials = credentialStorage.getCredentials(server.id, server.authType)
 
@@ -174,20 +237,38 @@ fun LoginScreen() {
             } else {
                 connectionState = ConnectionState.FAILED
 
-                // Check if offline cache exists - offer offline mode
-                if (ConnectionManager.hasOfflineCache(context, server.id)) {
+                // For browser auth failures (expired session), offer re-auth via browser
+                if (server.authType == sh.hnet.comfychair.model.AuthType.BROWSER) {
+                    delay(500)
+                    connectionState = ConnectionState.IDLE
+                    val serverUrl = buildServerUrl(server.hostname, server.port)
+                    browserReauthServer = server
+                    val intent = WebViewAuthActivity.createIntent(context, serverUrl, server.hostname)
+                    webViewAuthLauncher.launch(intent)
+                } else if (ConnectionManager.hasOfflineCache(context, server.id)) {
+                    // Check if offline cache exists - offer offline mode
                     offlinePromptServer = server
                     showOfflinePrompt = true
+                    delay(2000)
+                    connectionState = ConnectionState.IDLE
                 } else {
                     // No cache available, just show error Toast
                     errorMessage?.let { msg ->
                         Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                     }
+                    delay(2000)
+                    connectionState = ConnectionState.IDLE
                 }
-
-                delay(2000)
-                connectionState = ConnectionState.IDLE
             }
+        }
+    }
+
+    // Trigger attemptConnection after WebView auth completes (avoids forward-reference issue)
+    LaunchedEffect(pendingBrowserConnect) {
+        pendingBrowserConnect?.let { server ->
+            pendingBrowserConnect = null
+            delay(200)
+            attemptConnection(server)
         }
     }
 

@@ -1,5 +1,6 @@
 package sh.hnet.comfychair
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,10 +9,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import sh.hnet.comfychair.connection.ConnectionState
 import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
@@ -44,6 +51,53 @@ class MainContainerActivity : ComponentActivity() {
     private val generationViewModel: GenerationViewModel by viewModels()
     private val imageToImageViewModel: ImageToImageViewModel by viewModels()
     private val imageToVideoViewModel: ImageToVideoViewModel by viewModels()
+
+    /**
+     * Handle manual re-auth result from WebView.
+     * The silent OkHttp refresh is now handled entirely in ConnectionManager —
+     * this callback is only for the fallback dialog-triggered manual re-auth.
+     */
+    private fun handleReAuthResult(resultCode: Int, data: Intent?) {
+        val cookies = data?.getStringExtra(WebViewAuthActivity.EXTRA_COOKIES) ?: ""
+        val authDomain = data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN) ?: ""
+        val authDomainCookies = data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN_COOKIES) ?: ""
+        if (resultCode == Activity.RESULT_OK && cookies.isNotEmpty()) {
+            // Success — update credentials (with auth domain for future silent refreshes) + reconnect
+            val newCreds = sh.hnet.comfychair.model.AuthCredentials.Cookie(
+                cookies = cookies,
+                authDomain = authDomain,
+                authDomainCookies = authDomainCookies
+            )
+            ConnectionManager.clientOrNull?.setCredentials(newCreds)
+            val serverId = ConnectionManager.currentServerId
+            if (serverId != null) {
+                sh.hnet.comfychair.storage.CredentialStorage(this)
+                    .saveCredentials(serverId, newCreds)
+            }
+            ConnectionManager.clearSessionExpired()
+            ConnectionManager.attemptSilentReconnect()
+        } else {
+            // User cancelled manual re-auth — log out
+            ConnectionManager.clearSessionExpired()
+            generationViewModel.logout()
+            finish()
+        }
+    }
+
+    // Manual re-auth — user-initiated from dialog (silent refresh now done via OkHttp in ConnectionManager)
+    private val manualReAuthLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result -> handleReAuthResult(result.resultCode, result.data) }
+
+    /** Launch WebView for re-auth. */
+    private fun launchReAuth(launcher: androidx.activity.result.ActivityResultLauncher<Intent>) {
+        val connState = ConnectionManager.connectionState.value
+        if (connState is ConnectionState.Connected) {
+            val serverUrl = buildServerUrl(connState.hostname, connState.port)
+            val intent = WebViewAuthActivity.createIntent(this, serverUrl, connState.hostname)
+            launcher.launch(intent)
+        }
+    }
 
     // Activity result launchers
     private val settingsLauncher = registerForActivityResult(
@@ -146,6 +200,36 @@ class MainContainerActivity : ComponentActivity() {
                     )
                 }
 
+                // Session expired — silent OkHttp refresh is attempted automatically by
+                // ConnectionManager. Show the manual re-auth dialog only when silent
+                // refresh has already failed (silentRefreshFailed == true).
+                val sessionExpired by ConnectionManager.sessionExpired.collectAsState()
+                val silentRefreshFailed by ConnectionManager.silentRefreshFailed.collectAsState()
+                if (sessionExpired && silentRefreshFailed) {
+                    // Silent OkHttp refresh failed — show manual re-auth dialog
+                    AlertDialog(
+                        onDismissRequest = { /* don't dismiss by tapping outside */ },
+                        title = { Text(stringResource(R.string.title_session_expired)) },
+                        text = { Text(stringResource(R.string.message_session_expired)) },
+                        confirmButton = {
+                            Button(onClick = {
+                                launchReAuth(manualReAuthLauncher)
+                            }) {
+                                Text(stringResource(R.string.button_reauthenticate))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                ConnectionManager.clearSessionExpired()
+                                generationViewModel.logout()
+                                finish()
+                            }) {
+                                Text(stringResource(R.string.button_logout))
+                            }
+                        }
+                    )
+                }
+
                 // Show connection alert dialog when connection fails
                 connectionAlertState?.let { state ->
                     ConnectionAlertDialog(
@@ -235,5 +319,14 @@ class MainContainerActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         // ViewModel handles cleanup automatically via onCleared()
+    }
+
+    private fun buildServerUrl(hostname: String, port: Int): String {
+        return when (port) {
+            443 -> "https://$hostname"
+            80 -> "http://$hostname"
+            8188 -> "http://$hostname:8188"
+            else -> "https://$hostname:$port"
+        }
     }
 }

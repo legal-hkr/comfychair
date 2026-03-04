@@ -12,14 +12,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Password
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import sh.hnet.comfychair.WebViewAuthActivity
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -29,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +81,8 @@ fun ServerDialog(
     var name by remember { mutableStateOf(server?.name ?: "") }
     var hostname by remember { mutableStateOf(server?.hostname ?: "") }
     var port by remember { mutableStateOf(server?.port?.toString() ?: "8188") }
+    val isCustomPort = server?.port != null && server.port != 443 && server.port != 80
+    var showPortField by remember { mutableStateOf(isCustomPort || server?.authType != AuthType.BROWSER) }
 
     // Authentication state
     var authType by remember { mutableStateOf(server?.authType ?: AuthType.NONE) }
@@ -91,6 +101,12 @@ fun ServerDialog(
             (existingCredentials as? AuthCredentials.Bearer)?.token ?: ""
         )
     }
+    // Browser auth: captures cookies after WebView login
+    var browserCookies by remember {
+        mutableStateOf(
+            (existingCredentials as? AuthCredentials.Cookie)?.cookies ?: ""
+        )
+    }
     var passwordVisible by remember { mutableStateOf(false) }
     var tokenVisible by remember { mutableStateOf(false) }
 
@@ -101,6 +117,17 @@ fun ServerDialog(
     var usernameError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var tokenError by remember { mutableStateOf<String?>(null) }
+
+    // Browser auth WebView launcher
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val webViewLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val cookies = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_COOKIES) ?: ""
+            browserCookies = cookies
+        }
+    }
 
     // Focus requester for name field
     val nameFocusRequester = remember { FocusRequester() }
@@ -155,15 +182,18 @@ fun ServerDialog(
             isValid = false
         }
 
-        // Validate port
-        if (trimmedPort.isEmpty()) {
-            portError = errorRequired
-            isValid = false
-        } else {
-            val portNum = trimmedPort.toIntOrNull()
-            if (portNum == null || portNum !in 1..65535) {
-                portError = errorInvalidPort
+        // Validate port (skip if Browser auth with port hidden)
+        val portHidden = authType == AuthType.BROWSER && !showPortField
+        if (!portHidden) {
+            if (trimmedPort.isEmpty()) {
+                portError = errorRequired
                 isValid = false
+            } else {
+                val portNum = trimmedPort.toIntOrNull()
+                if (portNum == null || portNum !in 1..65535) {
+                    portError = errorInvalidPort
+                    isValid = false
+                }
             }
         }
 
@@ -186,6 +216,7 @@ fun ServerDialog(
                 }
             }
             AuthType.NONE -> { /* No validation needed */ }
+            AuthType.BROWSER -> { /* Cookies are optional — can be fetched on first connect */ }
         }
 
         return isValid
@@ -197,6 +228,11 @@ fun ServerDialog(
             AuthType.NONE -> AuthCredentials.None
             AuthType.BASIC -> AuthCredentials.Basic(username.trim(), password)
             AuthType.BEARER -> AuthCredentials.Bearer(token.trim())
+            AuthType.BROWSER -> if (browserCookies.isNotEmpty()) {
+                AuthCredentials.Cookie(browserCookies)
+            } else {
+                AuthCredentials.None
+            }
         }
     }
 
@@ -262,32 +298,48 @@ fun ServerDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Port
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { newValue ->
-                        port = newValue
-                        // Live validation
-                        val trimmed = newValue.trim()
-                        portError = when {
-                            trimmed.isEmpty() -> null
-                            else -> {
-                                val portNum = trimmed.toIntOrNull()
-                                if (portNum == null || portNum !in 1..65535) {
-                                    errorInvalidPort
-                                } else {
-                                    null
+                // Port — hidden for Browser auth by default (DNS handles it), toggle to show
+                val hidePort = authType == AuthType.BROWSER && !showPortField
+                if (hidePort) {
+                    Button(
+                        onClick = { showPortField = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColors()
+                    ) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text(stringResource(R.string.button_custom_port))
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = port,
+                        onValueChange = { newValue ->
+                            port = newValue
+                            // Live validation
+                            val trimmed = newValue.trim()
+                            portError = when {
+                                trimmed.isEmpty() -> null
+                                else -> {
+                                    val portNum = trimmed.toIntOrNull()
+                                    if (portNum == null || portNum !in 1..65535) {
+                                        errorInvalidPort
+                                    } else {
+                                        null
+                                    }
                                 }
                             }
-                        }
-                    },
-                    label = { Text(stringResource(R.string.hint_port)) },
-                    isError = portError != null,
-                    supportingText = portError?.let { { Text(it) } },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                        },
+                        label = { Text(stringResource(R.string.hint_port)) },
+                        isError = portError != null,
+                        supportingText = portError?.let { { Text(it) } },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -308,6 +360,7 @@ fun ServerDialog(
                         onCheckedChange = { isChecked ->
                             if (isChecked) {
                                 authType = AuthType.NONE
+                                showPortField = true
                                 usernameError = null
                                 passwordError = null
                                 tokenError = null
@@ -326,6 +379,7 @@ fun ServerDialog(
                         onCheckedChange = { isChecked ->
                             if (isChecked) {
                                 authType = AuthType.BASIC
+                                showPortField = true
                                 tokenError = null
                             }
                         },
@@ -342,16 +396,36 @@ fun ServerDialog(
                         onCheckedChange = { isChecked ->
                             if (isChecked) {
                                 authType = AuthType.BEARER
+                                showPortField = true
                                 usernameError = null
                                 passwordError = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Key,
+                            contentDescription = stringResource(R.string.option_auth_type_bearer)
+                        )
+                    }
+                    ToggleButton(
+                        checked = authType == AuthType.BROWSER,
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) {
+                                authType = AuthType.BROWSER
+                                showPortField = false
+                                usernameError = null
+                                passwordError = null
+                                tokenError = null
                             }
                         },
                         modifier = Modifier.weight(1f),
                         shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = stringResource(R.string.option_auth_type_bearer)
+                            imageVector = Icons.Default.Language,
+                            contentDescription = stringResource(R.string.option_auth_type_browser)
                         )
                     }
                 }
@@ -407,6 +481,70 @@ fun ServerDialog(
                     }
                 }
 
+                // Browser auth section
+                AnimatedVisibility(visible = authType == AuthType.BROWSER) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.label_auth_browser_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val trimmedHostname = hostname.trim()
+                                    val portNum = if (authType == AuthType.BROWSER && !showPortField) {
+                                        443
+                                    } else {
+                                        port.trim().toIntOrNull() ?: 8188
+                                    }
+                                    if (trimmedHostname.isNotEmpty()) {
+                                        val serverUrl = when (portNum) {
+                                            443 -> "https://$trimmedHostname"
+                                            80 -> "http://$trimmedHostname"
+                                            else -> "http://$trimmedHostname:$portNum"
+                                        }
+                                        val intent = WebViewAuthActivity.createIntent(
+                                            context, serverUrl, trimmedHostname
+                                        )
+                                        webViewLauncher.launch(intent)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = hostname.trim().isNotEmpty()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Language,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                                Text(stringResource(R.string.button_browser_sign_in))
+                            }
+                            if (browserCookies.isNotEmpty()) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = stringResource(R.string.label_auth_browser_signed_in),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        if (browserCookies.isNotEmpty()) {
+                            Text(
+                                text = stringResource(R.string.label_auth_browser_signed_in),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
                 // Bearer token field
                 AnimatedVisibility(visible = authType == AuthType.BEARER) {
                     OutlinedTextField(
@@ -445,10 +583,15 @@ fun ServerDialog(
             Button(
                 onClick = {
                     if (validate()) {
+                        val effectivePort = if (authType == AuthType.BROWSER && !showPortField) {
+                            443
+                        } else {
+                            port.trim().toInt()
+                        }
                         onSave(
                             name.trim(),
                             hostname.trim(),
-                            port.trim().toInt(),
+                            effectivePort,
                             authType,
                             buildCredentials()
                         )

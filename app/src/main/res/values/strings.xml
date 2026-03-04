@@ -632,4 +632,15 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Save prompt to library</string>
+
+    <!-- Browser / SSO Auth -->
+    <string name="option_auth_type_browser">Browser / SSO</string>
+    <string name="label_auth_browser_hint">Opens a browser window to sign in via your SSO provider (e.g., Authentik). Cookies are captured automatically after login.</string>
+    <string name="button_browser_sign_in">Sign In</string>
+    <string name="label_auth_browser_signed_in">Signed in — cookies captured</string>
+    <string name="title_browser_auth">Sign In</string>
+    <string name="button_browser_auth_done">Done</string>
+    <string name="button_custom_port">Custom port</string>
+    <string name="message_session_expired">Your login session has expired. Please re-authenticate to continue.</string>
+    <string name="button_reauthenticate">Re-authenticate</string>
 </resources>

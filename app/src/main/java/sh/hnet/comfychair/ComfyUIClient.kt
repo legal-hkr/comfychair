@@ -56,7 +56,7 @@ class ComfyUIClient(
     }
 
     // Auth interceptor for adding Authorization headers
-    private val authInterceptor = AuthInterceptor(credentials)
+    internal val authInterceptor = AuthInterceptor(credentials)
 
     // OkHttpClient for HTTP requests - short timeouts are fine
     private val httpClient = SelfSignedCertHelper.configureToAcceptSelfSigned(

@@ -2,6 +2,7 @@ package sh.hnet.comfychair.connection
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.Toast
 import sh.hnet.comfychair.R
 import kotlinx.coroutines.CoroutineScope
@@ -19,13 +20,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.SelfSignedCertHelper
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.cache.MediaCache
@@ -33,12 +38,15 @@ import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.ObjectInfoCache
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 /**
  * Connection state representing whether the app is connected to a ComfyUI server.
@@ -111,6 +119,23 @@ object ConnectionManager {
     // Reconnection in progress (for "Reconnecting..." dialog button state)
     private val _isReconnecting = MutableStateFlow(false)
     val isReconnecting: StateFlow<Boolean> = _isReconnecting.asStateFlow()
+
+    // Browser auth session expired — triggers re-auth flow in UI
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
+
+    /**
+     * Set to true when the silent OkHttp cookie refresh fails (e.g. auth session also expired).
+     * The UI observes this to decide whether to show the manual re-auth dialog.
+     */
+    private val _silentRefreshFailed = MutableStateFlow(false)
+    val silentRefreshFailed: StateFlow<Boolean> = _silentRefreshFailed.asStateFlow()
+
+    /** Reset session expired and silent-refresh-failed flags after re-auth completes. */
+    fun clearSessionExpired() {
+        _sessionExpired.value = false
+        _silentRefreshFailed.value = false
+    }
 
     private var _client: ComfyUIClient? = null
     private var _clientId: String? = null
@@ -256,6 +281,12 @@ object ConnectionManager {
         _client = ComfyUIClient(context.applicationContext, hostname, port, credentials).apply {
             setWorkingProtocol(protocol)
             setClientId(_clientId!!)
+            // Wire session expiry detection for cookie-based auth.
+            // Attempt silent OkHttp refresh first; show UI dialog only on failure.
+            authInterceptor.onSessionExpired = {
+                DebugLogger.w(TAG, "Browser auth session expired — attempting silent OkHttp refresh")
+                attemptSilentCookieRefresh()
+            }
         }
 
         _connectionState.value = ConnectionState.Connected(
@@ -552,6 +583,176 @@ object ConnectionManager {
                     failureType = failureType
                 )
                 // Dialog will appear via existing GenerationViewModel observation
+            }
+        }
+    }
+
+    /**
+     * Attempt to silently refresh the ComfyUI outpost cookie via OkHttp — no UI required.
+     *
+     * Flow:
+     *   1. GET server URL (no redirect follow) → 302 to auth domain
+     *   2. GET auth domain URL with stored auth session cookie → 302 back to ComfyUI
+     *      (auth domain response carries Set-Cookie for the fresh outpost cookie)
+     *   3. Collect all Set-Cookie headers across the redirect chain and merge with existing cookies
+     *   4. On success: update credentials + reconnect silently
+     *   5. On failure: set sessionExpired + silentRefreshFailed so UI shows the dialog
+     */
+    private fun attemptSilentCookieRefresh() {
+        val creds = _client?.getCredentials() as? AuthCredentials.Cookie
+        val authDomain = creds?.authDomain ?: ""
+        val authDomainCookies = creds?.authDomainCookies ?: ""
+
+        if (creds == null || authDomain.isEmpty() || authDomainCookies.isEmpty()) {
+            DebugLogger.w(TAG, "Silent cookie refresh: no auth domain stored, falling back to UI dialog")
+            _silentRefreshFailed.value = true
+            _sessionExpired.value = true
+            return
+        }
+
+        val connState = connectionState.value as? ConnectionState.Connected ?: run {
+            DebugLogger.w(TAG, "Silent cookie refresh: not connected, skipping")
+            _silentRefreshFailed.value = true
+            _sessionExpired.value = true
+            return
+        }
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                // Dedicated OkHttp client for the refresh — no auth interceptor (avoids loops),
+                // no automatic redirect following (we inject cookies per-domain manually).
+                val refreshClient: OkHttpClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
+                    OkHttpClient.Builder()
+                        .connectTimeout(15, TimeUnit.SECONDS)
+                        .readTimeout(15, TimeUnit.SECONDS)
+                        .writeTimeout(15, TimeUnit.SECONDS)
+                        .followRedirects(false)
+                        .followSslRedirects(false)
+                ).build()
+
+                val comfyHost = connState.hostname
+                val serverUrl = "${connState.protocol}://${connState.hostname}:${connState.port}/system_stats"
+
+                // Seed the per-domain cookie map from existing (possibly expired) ComfyUI cookies.
+                // We'll overwrite individual entries as Set-Cookie headers arrive.
+                val cookieMap = LinkedHashMap<String, String>()
+                creds.cookies.split(";").forEach { part ->
+                    val kv = part.trim().split("=", limit = 2)
+                    if (kv.size == 2) cookieMap[kv[0].trim()] = kv[1].trim()
+                }
+
+                var currentUrl = serverUrl
+                var success = false
+                val maxRedirects = 10
+                var redirectCount = 0
+
+                while (redirectCount < maxRedirects) {
+                    val currentHost = try {
+                        Uri.parse(currentUrl).host ?: break
+                    } catch (e: Exception) { break }
+
+                    val requestBuilder = Request.Builder().url(currentUrl).get()
+
+                    // Inject cookies appropriate to the host we're contacting
+                    when {
+                        currentHost.equals(comfyHost, ignoreCase = true) -> {
+                            val cookieStr = cookieMap.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                            if (cookieStr.isNotEmpty()) requestBuilder.header("Cookie", cookieStr)
+                        }
+                        currentHost.equals(authDomain, ignoreCase = true) -> {
+                            requestBuilder.header("Cookie", authDomainCookies)
+                        }
+                        // Unknown host — no cookies injected
+                    }
+
+                    val response: Response = try {
+                        refreshClient.newCall(requestBuilder.build()).execute()
+                    } catch (e: IOException) {
+                        DebugLogger.w(TAG, "Silent cookie refresh: network error at $currentHost: ${e.message}")
+                        break
+                    }
+
+                    // Collect all Set-Cookie headers from this response.
+                    // Parse only the name=value portion (ignore Path/Domain/Expires attributes).
+                    response.headers("Set-Cookie").forEach { header ->
+                        val nameValue = header.split(";")[0].trim()
+                        val kv = nameValue.split("=", limit = 2)
+                        if (kv.size == 2) cookieMap[kv[0].trim()] = kv[1].trim()
+                    }
+
+                    if (response.isRedirect) {
+                        val location = response.header("Location")
+                        if (location == null) {
+                            response.close()
+                            break
+                        }
+
+                        // Resolve relative Location URLs
+                        val nextUrl = when {
+                            location.startsWith("http://") || location.startsWith("https://") -> location
+                            location.startsWith("/") -> "${connState.protocol}://$currentHost$location"
+                            else -> location
+                        }
+
+                        // If we're being redirected back to the ComfyUI host after having
+                        // visited the auth domain, the outpost cookie should be in cookieMap now.
+                        val nextHost = try { Uri.parse(nextUrl).host ?: "" } catch (e: Exception) { "" }
+                        if (nextHost.equals(comfyHost, ignoreCase = true) && redirectCount > 0) {
+                            // Auth domain redirected us back — success, no need to follow further.
+                            DebugLogger.i(TAG, "Silent cookie refresh: auth domain redirected back to ComfyUI")
+                            success = true
+                            response.close()
+                            break
+                        }
+
+                        response.close()
+                        currentUrl = nextUrl
+                        redirectCount++
+                    } else if (response.isSuccessful) {
+                        // Reached ComfyUI directly (maybe cookies were still valid or no redirect needed)
+                        DebugLogger.i(TAG, "Silent cookie refresh: reached ComfyUI successfully")
+                        success = true
+                        response.close()
+                        break
+                    } else {
+                        DebugLogger.w(TAG, "Silent cookie refresh: unexpected status ${response.code} at $currentHost")
+                        response.close()
+                        break
+                    }
+                }
+
+                if (success && cookieMap.isNotEmpty()) {
+                    val newCookieString = cookieMap.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                    val newCreds = AuthCredentials.Cookie(
+                        cookies = newCookieString,
+                        authDomain = authDomain,
+                        authDomainCookies = authDomainCookies
+                    )
+
+                    // Update in-memory credentials (resets sessionExpiredFired in AuthInterceptor)
+                    _client?.setCredentials(newCreds)
+
+                    // Persist to encrypted storage
+                    val ctx = _applicationContext
+                    val serverId = connState.serverId
+                    if (ctx != null) {
+                        CredentialStorage(ctx).saveCredentials(serverId, newCreds)
+                    }
+
+                    // Clear expiry flags and reconnect silently
+                    _silentRefreshFailed.value = false
+                    _sessionExpired.value = false
+                    DebugLogger.i(TAG, "Silent cookie refresh: success — reconnecting")
+                    withContext(Dispatchers.Main) { attemptSilentReconnect() }
+                } else {
+                    DebugLogger.w(TAG, "Silent cookie refresh: failed after $redirectCount redirects — showing UI dialog")
+                    _silentRefreshFailed.value = true
+                    _sessionExpired.value = true
+                }
+            } catch (e: Exception) {
+                DebugLogger.e(TAG, "Silent cookie refresh: unexpected exception: ${e.message}")
+                _silentRefreshFailed.value = true
+                _sessionExpired.value = true
             }
         }
     }
@@ -907,7 +1108,8 @@ object ConnectionManager {
                 _modelCache.value = models.copy(isLoaded = true, isLoading = false)
                 DebugLogger.i(TAG, "Server data loaded: ${models.checkpoints.size} checkpoints, " +
                         "${models.unets.size} unets, ${models.vaes.size} vaes, " +
-                        "${models.clips.size} clips, ${models.loras.size} loras")
+                        "${models.clips.size} clips, ${models.loras.size} loras, " +
+                        "${models.samplers.size} samplers, ${models.schedulers.size} schedulers")
             } else {
                 DebugLogger.w(TAG, "Failed to fetch server data")
                 _modelCache.value = _modelCache.value.copy(
@@ -1030,7 +1232,24 @@ object ConnectionManager {
             latentUpscaleModels = nodeTypeRegistry.getOptionsForNodeInput(
                 "LatentUpscaleModelLoader",
                 TemplateKeyRegistry.getJsonKeyForPlaceholder("latent_upscale_model")
-            )
+            ),
+            // Samplers/schedulers from KSampler node — captures custom-node additions
+            samplers = nodeTypeRegistry.getOptionsForNodeInput(
+                "KSampler",
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("sampler_name")
+            ).ifEmpty {
+                nodeTypeRegistry.getOptionsForField(
+                    TemplateKeyRegistry.getJsonKeyForPlaceholder("sampler_name")
+                )
+            },
+            schedulers = nodeTypeRegistry.getOptionsForNodeInput(
+                "KSampler",
+                TemplateKeyRegistry.getJsonKeyForPlaceholder("scheduler")
+            ).ifEmpty {
+                nodeTypeRegistry.getOptionsForField(
+                    TemplateKeyRegistry.getJsonKeyForPlaceholder("scheduler")
+                )
+            }
         )
     }
 }

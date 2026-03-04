@@ -56,6 +56,13 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ComfyChair.Fullscreen" />
 
+        <!-- WebViewAuthActivity - Browser-based SSO/OAuth authentication -->
+        <activity
+            android:name=".WebViewAuthActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- MaskEditorActivity - Fullscreen inpainting mask editor -->
         <activity
             android:name=".MaskEditorActivity"
