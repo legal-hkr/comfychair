@@ -1,9 +1,12 @@
 package sh.hnet.comfychair
 
 import okhttp3.OkHttpClient
+import sh.hnet.comfychair.util.DebugLogger
+import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
 /**
@@ -16,120 +19,123 @@ enum class CertificateIssue {
 }
 
 /**
- * SelfSignedCertHelper - Helps handle SSL certificate issues
+ * SelfSignedCertHelper - Handles SSL certificate validation with system-first approach
  *
- * In production environments, SSL certificates are issued by trusted Certificate Authorities (CAs).
- * However, many local ComfyUI servers use:
- * 1. Self-signed certificates (not signed by any CA)
- * 2. Certificates from custom/private CAs (not in device's trusted CA store)
+ * Strategy:
+ * 1. Try the system default TrustManager first (validates Let's Encrypt, etc.)
+ * 2. If system validation fails, classify the issue (self-signed vs unknown CA)
+ * 3. Accept the certificate but record the issue type for UI feedback
  *
- * This helper allows the app to connect to such servers while
- * tracking what type of certificate issue was detected.
+ * This way:
+ * - Valid certs (Let's Encrypt, etc.) → NONE, no warning
+ * - Self-signed certs → SELF_SIGNED, user sees warning
+ * - Unknown CA certs → UNKNOWN_CA, user sees warning
  */
 object SelfSignedCertHelper {
+
+    private const val TAG = "SelfSignedCertHelper"
 
     // Track what type of certificate issue was detected
     var certificateIssue = CertificateIssue.NONE
         private set
 
     /**
-     * Create a custom TrustManager that accepts all certificates
-     * This is necessary for self-signed and unknown CA certificates
-     *
-     * SECURITY NOTE: This trusts ALL certificates, including invalid ones.
-     * Only use this for connections to known, trusted local servers.
+     * Get the system default X509TrustManager.
      */
-    private fun createTrustManager(): X509TrustManager {
+    private fun getSystemTrustManager(): X509TrustManager {
+        val factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        factory.init(null as java.security.KeyStore?)
+        return factory.trustManagers
+            .filterIsInstance<X509TrustManager>()
+            .first()
+    }
+
+    /**
+     * Create a TrustManager that tries system validation first,
+     * then falls back to accepting with classification.
+     */
+    private fun createSmartTrustManager(): X509TrustManager {
+        val systemTrustManager = try {
+            getSystemTrustManager()
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "Failed to get system TrustManager: ${e.message}")
+            null
+        }
+
         return object : X509TrustManager {
-            /**
-             * Check if client certificates are trusted
-             * For our use case, we accept all client certificates
-             */
             override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
                 // Accept all client certificates
             }
 
-            /**
-             * Check if server certificates are trusted
-             * This is where we detect certificate issues
-             *
-             * @param chain The certificate chain from the server
-             * @param authType The authentication type (e.g., "RSA", "ECDSA")
-             */
             override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                // If we receive a certificate chain, analyze it
-                if (chain != null && chain.isNotEmpty()) {
-                    val cert = chain[0] // Get the server's certificate
+                if (chain == null || chain.isEmpty()) return
 
-                    // Get issuer and subject Distinguished Names
-                    // Issuer: Who created/signed the certificate
-                    // Subject: Who the certificate is for
-                    val issuer = cert.issuerDN.name
-                    val subject = cert.subjectDN.name
-
-                    if (issuer == subject) {
-                        // Self-signed certificate: the certificate signed itself
-                        // Example: A ComfyUI server that generated its own certificate
-                        certificateIssue = CertificateIssue.SELF_SIGNED
-                    } else {
-                        // Certificate is signed by someone else (a CA)
-                        // But since we're in this custom trust manager, it means
-                        // the default validation failed - so it's an unknown CA
-                        // Example: A private CA that's not in Android's trusted CA store
-                        certificateIssue = CertificateIssue.UNKNOWN_CA
+                // Try system validation first
+                if (systemTrustManager != null) {
+                    try {
+                        systemTrustManager.checkServerTrusted(chain, authType)
+                        // System trusts it — valid cert, no issue
+                        certificateIssue = CertificateIssue.NONE
+                        DebugLogger.d(TAG, "Certificate validated by system trust store")
+                        return
+                    } catch (e: CertificateException) {
+                        // System doesn't trust it — classify the issue
+                        DebugLogger.d(TAG, "System validation failed: ${e.message}")
                     }
                 }
-                // Accept the certificate regardless of the issue
+
+                // System validation failed — classify and accept
+                val cert = chain[0]
+                val issuer = cert.issuerDN.name
+                val subject = cert.subjectDN.name
+
+                certificateIssue = if (issuer == subject) {
+                    DebugLogger.d(TAG, "Self-signed certificate detected")
+                    CertificateIssue.SELF_SIGNED
+                } else {
+                    DebugLogger.d(TAG, "Unknown CA certificate: issuer=$issuer")
+                    CertificateIssue.UNKNOWN_CA
+                }
+                // Accept the certificate regardless
             }
 
-            /**
-             * Return the list of accepted certificate issuers
-             * We accept all, so return empty array
-             */
             override fun getAcceptedIssuers(): Array<X509Certificate> {
-                return arrayOf()
+                // Return system accepted issuers so TLS handshake works properly
+                return systemTrustManager?.acceptedIssuers ?: arrayOf()
             }
         }
     }
 
     /**
-     * Configure an OkHttpClient.Builder to accept certificates with issues
-     * (self-signed certificates and unknown CA certificates)
-     *
-     * @param builder The OkHttpClient.Builder to configure
-     * @return The configured builder (for method chaining)
+     * Configure an OkHttpClient.Builder to handle certificate issues gracefully.
+     * Uses system trust store first, falls back to accept-all for self-signed/unknown CA.
      */
     fun configureToAcceptSelfSigned(builder: OkHttpClient.Builder): OkHttpClient.Builder {
         try {
-            // Reset the certificate issue before each connection attempt
             certificateIssue = CertificateIssue.NONE
 
-            // Create our custom trust manager
-            val trustManager = createTrustManager()
+            val trustManager = createSmartTrustManager()
             val trustManagers = arrayOf<TrustManager>(trustManager)
 
-            // Create an SSL context with our trust manager
             val sslContext = SSLContext.getInstance("TLS")
             sslContext.init(null, trustManagers, java.security.SecureRandom())
 
-            // Configure the builder to use our SSL context
             builder.sslSocketFactory(sslContext.socketFactory, trustManager)
 
-            // Also disable hostname verification
-            // Normally, the SSL certificate must match the hostname
-            // For local servers (e.g., 192.168.1.100), this often doesn't match
+            // Still need permissive hostname verification for IP-based connections
+            // (e.g., 192.168.1.100 won't match any cert CN/SAN)
             builder.hostnameVerifier { _, _ -> true }
 
         } catch (e: Exception) {
-            // If SSL configuration fails, the builder will use default SSL settings
+            DebugLogger.w(TAG, "SSL configuration failed: ${e.message}")
         }
 
         return builder
     }
 
     /**
-     * Reset the certificate issue detection
-     * Should be called before each new connection attempt
+     * Reset the certificate issue detection.
+     * Should be called before each new connection attempt.
      */
     fun reset() {
         certificateIssue = CertificateIssue.NONE

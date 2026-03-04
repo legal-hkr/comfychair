@@ -11,6 +11,9 @@
 
         <!-- Exclude connection settings (hostname/port) for security -->
         <exclude domain="sharedpref" path="ComfyChairPrefs.xml" />
+
+        <!-- Exclude EncryptedSharedPreferences — Keystore keys don't survive restore -->
+        <exclude domain="sharedpref" path="ModelBrowserSecurePrefs.xml" />
     </cloud-backup>
 
     <!-- Device-to-device transfer configuration -->

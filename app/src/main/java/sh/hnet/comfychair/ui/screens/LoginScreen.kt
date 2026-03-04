@@ -9,12 +9,14 @@ import sh.hnet.comfychair.WebViewAuthActivity
 import sh.hnet.comfychair.connection.ConnectionFailure
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -114,6 +117,11 @@ fun LoginScreen() {
     }
     var connectionState by remember { mutableStateOf(ConnectionState.IDLE) }
     var warningMessage by remember { mutableStateOf<String?>(null) }
+    var showCertDialog by remember { mutableStateOf(false) }
+    var pendingCertIssue by remember { mutableStateOf(CertificateIssue.NONE) }
+    var pendingCertServer by remember { mutableStateOf<Server?>(null) }
+    var pendingCertClient by remember { mutableStateOf<ComfyUIClient?>(null) }
+    var pendingCertProtocol by remember { mutableStateOf<String?>(null) }
     var comfyUIClient by remember { mutableStateOf<ComfyUIClient?>(null) }
     var hasAutoConnected by remember { mutableStateOf(false) }
 
@@ -199,25 +207,22 @@ fun LoginScreen() {
             val (success, errorMessage, certIssue) = result
 
             if (success) {
-                connectionState = ConnectionState.CONNECTED
+                val detectedProtocol = client.getWorkingProtocol() ?: "http"
 
-                // Handle certificate warnings
-                val navigateDelay = when (certIssue) {
-                    CertificateIssue.SELF_SIGNED -> {
-                        warningMessage = warningSelfSigned
-                        1000L
-                    }
-                    CertificateIssue.UNKNOWN_CA -> {
-                        warningMessage = warningUnknownCa
-                        1000L
-                    }
-                    CertificateIssue.NONE -> 500L
+                // Handle certificate issues
+                if (certIssue != CertificateIssue.NONE && !server.trustCert) {
+                    // Cert issue and user hasn't trusted this server — ask
+                    connectionState = ConnectionState.CONNECTED
+                    pendingCertIssue = certIssue
+                    pendingCertServer = server
+                    pendingCertClient = client
+                    pendingCertProtocol = detectedProtocol
+                    showCertDialog = true
+                    return@launch
                 }
 
-                delay(navigateDelay)
-
-                // Establish connection via ConnectionManager
-                val detectedProtocol = client.getWorkingProtocol() ?: "http"
+                connectionState = ConnectionState.CONNECTED
+                delay(500L)
 
                 // Save selected server
                 serverStorage.setSelectedServerId(server.id)
@@ -476,6 +481,107 @@ fun LoginScreen() {
             dismissButton = {
                 OutlinedButton(onClick = { showOfflinePrompt = false }) {
                     Text(stringResource(R.string.button_offline_prompt_dismiss))
+                }
+            }
+        )
+    }
+
+    // Certificate warning dialog
+    if (showCertDialog && pendingCertServer != null) {
+        var rememberChoice by remember { mutableStateOf(false) }
+
+        val certTitle = when (pendingCertIssue) {
+            CertificateIssue.SELF_SIGNED -> "Self-Signed Certificate"
+            CertificateIssue.UNKNOWN_CA -> "Unknown Certificate Authority"
+            else -> "Certificate Warning"
+        }
+        val certMessage = when (pendingCertIssue) {
+            CertificateIssue.SELF_SIGNED ->
+                "The server is using a self-signed certificate. " +
+                "This is common for local servers but means the connection " +
+                "cannot be verified by a trusted authority.\n\n" +
+                "Do you want to continue connecting?"
+            CertificateIssue.UNKNOWN_CA ->
+                "The server's certificate was issued by an unrecognized " +
+                "certificate authority. This could mean the CA is not in " +
+                "your device's trust store.\n\n" +
+                "Do you want to continue connecting?"
+            else -> "There is a certificate issue. Continue?"
+        }
+
+        AlertDialog(
+            onDismissRequest = {
+                showCertDialog = false
+                connectionState = ConnectionState.IDLE
+                pendingCertServer = null
+                pendingCertClient = null
+                pendingCertProtocol = null
+            },
+            title = { Text(certTitle) },
+            text = {
+                Column {
+                    Text(certMessage)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { rememberChoice = !rememberChoice }
+                    ) {
+                        Checkbox(
+                            checked = rememberChoice,
+                            onCheckedChange = { rememberChoice = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Remember for this server",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCertDialog = false
+                        val server = pendingCertServer!!
+                        val protocol = pendingCertProtocol ?: "http"
+                        pendingCertServer = null
+                        pendingCertClient = null
+                        pendingCertProtocol = null
+
+                        scope.launch {
+                            // Save trust preference if checked
+                            if (rememberChoice) {
+                                serverStorage.updateServer(server.copy(trustCert = true))
+                            }
+
+                            serverStorage.setSelectedServerId(server.id)
+                            ConnectionManager.connect(
+                                context = context.applicationContext,
+                                serverId = server.id,
+                                hostname = server.hostname,
+                                port = server.port,
+                                protocol = protocol,
+                                authType = server.authType,
+                                credentials = credentialStorage.getCredentials(server.id, server.authType)
+                            )
+                            onConnected()
+                        }
+                    }
+                ) {
+                    Text("Connect Anyway")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showCertDialog = false
+                        connectionState = ConnectionState.IDLE
+                        pendingCertServer = null
+                        pendingCertClient = null
+                        pendingCertProtocol = null
+                    }
+                ) {
+                    Text("Cancel")
                 }
             }
         )

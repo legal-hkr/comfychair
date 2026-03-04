@@ -13,7 +13,8 @@ data class Server(
     val name: String,
     val hostname: String,
     val port: Int,
-    val authType: AuthType = AuthType.NONE
+    val authType: AuthType = AuthType.NONE,
+    val trustCert: Boolean = false // User accepted untrusted cert for this server
 ) {
     companion object {
         /**
@@ -44,7 +45,9 @@ data class Server(
                 AuthType.NONE
             }
 
-            return Server(id, name, hostname, port, authType)
+            val trustCert = json.optBoolean("trustCert", false)
+
+            return Server(id, name, hostname, port, authType, trustCert)
         }
     }
 
@@ -58,6 +61,7 @@ data class Server(
             put("hostname", hostname)
             put("port", port)
             put("authType", authType.name)
+            put("trustCert", trustCert)
         }
     }
 
