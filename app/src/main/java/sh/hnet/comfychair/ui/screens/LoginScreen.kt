@@ -561,10 +561,12 @@ fun LoginScreen() {
                                 hostname = server.hostname,
                                 port = server.port,
                                 protocol = protocol,
-                                authType = server.authType,
                                 credentials = credentialStorage.getCredentials(server.id, server.authType)
                             )
-                            onConnected()
+
+                            // Navigate to main activity
+                            val intent = Intent(context, MainContainerActivity::class.java)
+                            context.startActivity(intent)
                         }
                     }
                 ) {
