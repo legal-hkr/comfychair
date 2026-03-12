@@ -35,6 +35,9 @@
     <string name="msg_connection_lost">Unable to connect to the server after multiple attempts.</string>
     <string name="title_session_expired">Session Expired</string>
     <string name="msg_session_expired">Your session has expired. Please log in again.</string>
+    <string name="message_session_expired">Your browser authentication session has expired and automatic refresh failed. Please re-authenticate to continue.</string>
+    <string name="button_reauthenticate">Re-authenticate</string>
+    <string name="button_logout">Log Out</string>
     <string name="title_transfer_stalled">Transfer Stalled</string>
     <string name="msg_transfer_stalled">No data was transferred for 30 seconds. This may indicate a connection problem.</string>
     <string name="error_upload_stalled">Upload stalled</string>

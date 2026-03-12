@@ -107,6 +107,16 @@ fun ServerDialog(
             (existingCredentials as? AuthCredentials.Cookie)?.cookies ?: ""
         )
     }
+    var browserAuthDomain by remember {
+        mutableStateOf(
+            (existingCredentials as? AuthCredentials.Cookie)?.authDomain ?: ""
+        )
+    }
+    var browserAuthDomainCookies by remember {
+        mutableStateOf(
+            (existingCredentials as? AuthCredentials.Cookie)?.authDomainCookies ?: ""
+        )
+    }
     var passwordVisible by remember { mutableStateOf(false) }
     var tokenVisible by remember { mutableStateOf(false) }
 
@@ -126,6 +136,8 @@ fun ServerDialog(
         if (result.resultCode == Activity.RESULT_OK) {
             val cookies = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_COOKIES) ?: ""
             browserCookies = cookies
+            browserAuthDomain = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN) ?: ""
+            browserAuthDomainCookies = result.data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN_COOKIES) ?: ""
         }
     }
 
@@ -229,7 +241,11 @@ fun ServerDialog(
             AuthType.BASIC -> AuthCredentials.Basic(username.trim(), password)
             AuthType.BEARER -> AuthCredentials.Bearer(token.trim())
             AuthType.BROWSER -> if (browserCookies.isNotEmpty()) {
-                AuthCredentials.Cookie(browserCookies)
+                AuthCredentials.Cookie(
+                    cookies = browserCookies,
+                    authDomain = browserAuthDomain,
+                    authDomainCookies = browserAuthDomainCookies
+                )
             } else {
                 AuthCredentials.None
             }

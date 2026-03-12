@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.connection.ConnectionState
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
@@ -35,6 +36,20 @@ import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+
+/**
+ * Build a server URL with proper protocol detection.
+ * Port 443 → HTTPS, port 80 → HTTP, port 8188 → HTTP (ComfyUI default).
+ * Standard ports (80/443) omitted from URL. Others included.
+ */
+private fun buildServerUrl(hostname: String, port: Int): String {
+    return when (port) {
+        443 -> "https://$hostname"
+        80 -> "http://$hostname"
+        8188 -> "http://$hostname:8188"
+        else -> "https://$hostname:$port"
+    }
+}
 
 /**
  * Container activity that hosts the main navigation graph.
@@ -52,11 +67,7 @@ class MainContainerActivity : ComponentActivity() {
     private val imageToImageViewModel: ImageToImageViewModel by viewModels()
     private val imageToVideoViewModel: ImageToVideoViewModel by viewModels()
 
-    /**
-     * Handle manual re-auth result from WebView.
-     * The silent OkHttp refresh is now handled entirely in ConnectionManager —
-     * this callback is only for the fallback dialog-triggered manual re-auth.
-     */
+    /** Handle result from WebView re-auth (both silent-refresh-failed and manual). */
     private fun handleReAuthResult(resultCode: Int, data: Intent?) {
         val cookies = data?.getStringExtra(WebViewAuthActivity.EXTRA_COOKIES) ?: ""
         val authDomain = data?.getStringExtra(WebViewAuthActivity.EXTRA_AUTH_DOMAIN) ?: ""
@@ -307,6 +318,7 @@ class MainContainerActivity : ComponentActivity() {
         // Only attempt reconnection if generating (need the connection)
         // Otherwise, connection will be established on-demand when user taps Generate
         if (!AppSettings.isOfflineMode(this) && isGenerating) {
+            ConnectionManager.clearSessionExpired()
             ConnectionManager.attemptSilentReconnect()
         }
 
