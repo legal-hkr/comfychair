@@ -142,11 +142,14 @@ fun ImageToImageScreen(
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Image picker launcher for source image
+    // Image picker launcher for source image (system file picker - supports Downloads, file managers, gallery)
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
+            // Take persistable permission so we can read the file later
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
             imageToImageViewModel.onSourceImageChange(context, it)
             imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
         }
@@ -228,7 +231,7 @@ fun ImageToImageScreen(
             windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
                 // Upload image button
-                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                IconButton(onClick = { imagePickerLauncher.launch(arrayOf("image/*")) }) {
                     Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
                 }
                 // Edit mask button (only in inpainting mode when source image exists)
@@ -345,7 +348,7 @@ fun ImageToImageScreen(
                         // Placeholder - app logo
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
+                            modifier = Modifier.clickable { imagePickerLauncher.launch(arrayOf("image/*")) }
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.ic_comfychair_foreground),
