@@ -574,6 +574,7 @@
     <string name="metadata_unet" translatable="false">UNET</string>
     <string name="metadata_not_available">Metadata not available</string>
     <string name="metadata_loading">Loading metadata…</string>
+    <string name="metadata_save_prompt">Save prompt to library</string>
 
     <!-- About screen strings -->
     <string name="nav_about_settings">About</string>
@@ -630,6 +631,14 @@
     <string name="screen_type_text_to_video">Text to Video</string>
     <string name="screen_type_image_to_video">Image to Video</string>
 
-    <!-- Metadata actions -->
-    <string name="metadata_save_prompt">Save prompt to library</string>
+    <string name="notification_channel_foreground_name">Generation Progress</string>
+    <string name="notification_channel_foreground_desc">Shows ongoing generation status</string>
+    <string name="notification_channel_completion_name">Generation Complete</string>
+    <string name="notification_channel_completion_desc">Notifies when generation is complete with image preview</string>
+    <string name="notification_generating_image">Generating image…</string>
+    <string name="notification_generating_video">Generating video…</string>
+    <string name="notification_generating_progress">Please wait</string>
+    <string name="notification_image_ready">Image ready</string>
+    <string name="notification_video_ready">Video ready</string>
+    <string name="notification_tap_to_view">Tap to view</string>
 </resources>

@@ -99,6 +99,9 @@ dependencies {
     // Security (encrypted SharedPreferences)
     implementation(libs.androidx.security.crypto)
 
+    // WorkManager for background periodic checks
+    implementation(libs.work.runtime.ktx)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

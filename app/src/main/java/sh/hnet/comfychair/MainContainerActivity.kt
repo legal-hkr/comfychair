@@ -17,6 +17,9 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.navigation.MainRoute
+import sh.hnet.comfychair.notification.GenerationForegroundService
+import sh.hnet.comfychair.notification.NotificationHelper
+import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
@@ -117,6 +120,12 @@ class MainContainerActivity : ComponentActivity() {
             // Disk-first: just discover video promptIds (bytes read on-demand)
             DebugLogger.d("MainContainer", "discovering video promptIds (disk-first mode)")
             MediaStateHolder.discoverVideoPromptIds(applicationContext)
+        }
+
+        // Start foreground service for generation monitoring
+        if (NotificationHelper.hasPendingGeneration(applicationContext)) {
+            DebugLogger.d("MainContainer", "Starting foreground service for pending generation")
+            GenerationForegroundService.start(applicationContext)
         }
 
         // Determine start destination based on active generation owner

@@ -19,8 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.notification.NotificationHelper
 import sh.hnet.comfychair.ui.screens.MediaViewerScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
@@ -228,6 +231,11 @@ class MediaViewerActivity : ComponentActivity() {
     private fun initializeSingleMode() {
         val isVideo = intent.getBooleanExtra(EXTRA_IS_VIDEO, false)
 
+        // Check if this intent came from a notification (has EXTRA_MEDIA_OWNER_ID)
+        val notificationOwnerId = intent.getStringExtra(NotificationHelper.EXTRA_MEDIA_OWNER_ID)
+        val notificationPromptId = intent.getStringExtra(NotificationHelper.EXTRA_MEDIA_PROMPT_ID)
+        val isFromNotification = notificationOwnerId != null
+
         // Extract server and file info for metadata extraction
         val hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: ""
         val port = intent.getIntExtra(EXTRA_PORT, 0)
@@ -241,7 +249,7 @@ class MediaViewerActivity : ComponentActivity() {
 
             // Create a single item for the video with file info
             val item = MediaViewerItem(
-                promptId = "",
+                promptId = notificationPromptId ?: "",
                 filename = filename,
                 subfolder = subfolder,
                 type = type,
@@ -259,13 +267,22 @@ class MediaViewerActivity : ComponentActivity() {
                 singleVideoUri = videoUri
             )
         } else {
-            // Retrieve bitmap from memory cache (avoids file I/O)
-            val bitmap = BitmapCache.get()
+            // Try to get bitmap from cache first (normal flow: generation screen → viewer)
+            var bitmap = BitmapCache.get()
             BitmapCache.clear()
+
+            // If no cached bitmap and we have notification extras, retrieve from MediaStateHolder
+            if (bitmap == null && isFromNotification && notificationOwnerId != null) {
+                val mediaKey = ownerIdToMediaKey(notificationOwnerId)
+                if (mediaKey != null) {
+                    bitmap = MediaStateHolder.getBitmap(mediaKey, this)
+                    DebugLogger.d("MediaViewer", "Retrieved bitmap from MediaStateHolder for $notificationOwnerId: ${bitmap != null}")
+                }
+            }
 
             // Create a single item for the image with file info
             val item = MediaViewerItem(
-                promptId = "",
+                promptId = notificationPromptId ?: "",
                 filename = filename,
                 subfolder = subfolder,
                 type = type,
@@ -282,6 +299,19 @@ class MediaViewerActivity : ComponentActivity() {
                 initialIndex = 0,
                 singleBitmap = bitmap
             )
+        }
+    }
+
+    /**
+     * Map ownerId string (e.g. "TEXT_TO_IMAGE") to MediaStateHolder.MediaKey.
+     */
+    private fun ownerIdToMediaKey(ownerId: String): sh.hnet.comfychair.cache.MediaStateHolder.MediaKey? {
+        return when (ownerId) {
+            "TEXT_TO_IMAGE" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.TtiPreview
+            "IMAGE_TO_IMAGE" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.ItiPreview
+            "TEXT_TO_VIDEO" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.TtvPreview
+            "IMAGE_TO_VIDEO" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.ItvPreview
+            else -> null
         }
     }
 }
