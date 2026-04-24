@@ -82,7 +82,10 @@ sealed class ConnectionState {
 object ConnectionManager {
     private const val TAG = "Connection"
     private const val KEEPALIVE_INTERVAL_MS = 30000L
-    private const val MAX_RECONNECT_ATTEMPTS = 3
+    private const val MAX_RECONNECT_ATTEMPTS = 10
+    private const val INITIAL_RECONNECT_DELAY_MS = 2000L
+    private const val MAX_BACKOFF_DELAY_MS = 30000L
+    private const val BACKGROUND_RETRY_INTERVAL_MS = 30000L
 
     // Connection state
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
@@ -131,6 +134,7 @@ object ConnectionManager {
     // Reconnection coordination - prevents race conditions between multiple reconnection paths
     private var reconnectionSessionId = 0L
     private var pendingReconnectJob: Job? = null
+    private var backgroundRetryJob: Job? = null
 
     /**
      * Flag indicating that the user explicitly logged out.
@@ -284,6 +288,8 @@ object ConnectionManager {
         DebugLogger.i(TAG, "Disconnecting")
         pendingReconnectJob?.cancel()
         pendingReconnectJob = null
+        backgroundRetryJob?.cancel()
+        backgroundRetryJob = null
         closeWebSocketInternal()
         invalidateAll()
         _client?.shutdown()
@@ -313,6 +319,8 @@ object ConnectionManager {
         isUserInitiatedLogout = true
         pendingReconnectJob?.cancel()
         pendingReconnectJob = null
+        backgroundRetryJob?.cancel()
+        backgroundRetryJob = null
         reconnectAttempts = MAX_RECONNECT_ATTEMPTS  // Prevent reconnection attempts
         disconnect()
     }
@@ -324,6 +332,8 @@ object ConnectionManager {
     fun resetReconnectAttempts() {
         DebugLogger.i(TAG, "Resetting reconnect attempts")
         reconnectAttempts = 0
+        backgroundRetryJob?.cancel()
+        backgroundRetryJob = null
         _webSocketState.value = WebSocketState.Disconnected
     }
 
@@ -791,7 +801,8 @@ object ConnectionManager {
     }
 
     /**
-     * Schedule WebSocket reconnection with exponential backoff
+     * Schedule WebSocket reconnection with exponential backoff.
+     * After MAX_RECONNECT_ATTEMPTS, enters background retry mode (silent, no dialog).
      */
     private fun scheduleReconnect() {
         // Don't auto-reconnect if manual retry or ensureConnection is in progress
@@ -801,21 +812,21 @@ object ConnectionManager {
         }
 
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            DebugLogger.w(TAG, "Max reconnect attempts reached")
-            _webSocketState.value = WebSocketState.Failed(
-                reason = "Max reconnect attempts reached",
-                failureType = ConnectionFailure.NETWORK
-            )
+            // Enter background retry mode - keep trying silently every 30s
+            DebugLogger.i(TAG, "Max reconnect attempts reached, entering background retry mode")
+            _webSocketState.value = WebSocketState.Reconnecting(reconnectAttempts, null)
+            startBackgroundRetry()
             return
         }
 
         reconnectAttempts++
         _webSocketState.value = WebSocketState.Reconnecting(reconnectAttempts, MAX_RECONNECT_ATTEMPTS)
 
-        // Linear delay: 2s, 4s, 6s for attempts 1, 2, 3
-        val delayMs = (reconnectAttempts * 2000).toLong()
+        // Exponential backoff: 2s, 4s, 8s, 16s, 30s (cap)
+        val delayMs = minOf(INITIAL_RECONNECT_DELAY_MS * (1 shl (reconnectAttempts - 1)), MAX_BACKOFF_DELAY_MS)
         val sessionId = reconnectionSessionId  // Capture current session
 
+        DebugLogger.i(TAG, "Scheduling reconnect attempt $reconnectAttempts/$MAX_RECONNECT_ATTEMPTS in ${delayMs}ms")
         pendingReconnectJob = scope.launch {
             delay(delayMs)
             // Only proceed if session still valid (wasn't cancelled by manual retry)
@@ -828,10 +839,30 @@ object ConnectionManager {
     }
 
     /**
+     * Start periodic background retry when all initial attempts are exhausted.
+     * Keeps trying every BACKGROUND_RETRY_INTERVAL_MS without showing any dialog.
+     */
+    private fun startBackgroundRetry() {
+        backgroundRetryJob?.cancel()
+        val sessionId = reconnectionSessionId
+
+        backgroundRetryJob = scope.launch {
+            while (isActive && isSessionValid(sessionId)) {
+                delay(BACKGROUND_RETRY_INTERVAL_MS)
+                if (!isSessionValid(sessionId) || _webSocketState.value is WebSocketState.Connected) break
+
+                DebugLogger.i(TAG, "Background retry: attempting reconnection")
+                reconnectWebSocket(sessionId, isBackgroundRetry = true)
+            }
+        }
+    }
+
+    /**
      * Attempt to reconnect WebSocket
      * @param sessionId The reconnection session ID for stale callback detection
+     * @param isBackgroundRetry Whether this is a background retry (no state change on failure, keeps trying)
      */
-    private fun reconnectWebSocket(sessionId: Long) {
+    private fun reconnectWebSocket(sessionId: Long, isBackgroundRetry: Boolean = false) {
         val client = _client ?: return
 
         client.closeWebSocket()
@@ -844,6 +875,7 @@ object ConnectionManager {
             }
 
             if (success) {
+                reconnectAttempts = 0
                 openWebSocket()
             } else if (failureType == ConnectionFailure.AUTHENTICATION) {
                 // Auth failure - don't retry, notify UI immediately
@@ -854,8 +886,14 @@ object ConnectionManager {
                     failureType = ConnectionFailure.AUTHENTICATION
                 )
             } else {
-                // Network error - schedule retry
-                scheduleReconnect()
+                // Network error during background retry - just log and let background loop retry
+                if (isBackgroundRetry) {
+                    DebugLogger.w(TAG, "Background retry failed ($failureType), will retry in ${BACKGROUND_RETRY_INTERVAL_MS}ms")
+                    _webSocketState.value = WebSocketState.Reconnecting(reconnectAttempts, null)
+                } else {
+                    // Normal retry - schedule next attempt
+                    scheduleReconnect()
+                }
             }
         }
     }

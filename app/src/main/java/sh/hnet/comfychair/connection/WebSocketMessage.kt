@@ -27,7 +27,12 @@ sealed class WebSocketState {
     data object Disconnected : WebSocketState()
     data object Connecting : WebSocketState()
     data object Connected : WebSocketState()
-    data class Reconnecting(val attempt: Int, val maxAttempts: Int) : WebSocketState()
+    /**
+     * Reconnecting state.
+     * @param attempt Current attempt number (1-based)
+     * @param maxAttempts Max attempts before entering background retry mode. null = infinite background retry.
+     */
+    data class Reconnecting(val attempt: Int, val maxAttempts: Int?) : WebSocketState()
     data class Failed(
         val reason: String?,
         val failureType: ConnectionFailure = ConnectionFailure.NETWORK
