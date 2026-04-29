@@ -228,13 +228,8 @@ fun ImageToImageScreen(
 
     // PagerState for HorizontalPager — initial page 0 (source image 1)
     val pagerState = rememberPagerState(initialPage = 0) {
-        // Page count: source images (1-4, only if set) + preview
-        val sourcePages = listOfNotNull(
-            uiState.sourceImage,
-            uiState.sourceImage2,
-            uiState.sourceImage3,
-            uiState.sourceImage4
-        ).size.coerceAtMost(4)
+        // Page count: driven by workflow additionalImageSlotCount + preview tab
+        val sourcePages = 1 + uiState.additionalImageSlotCount.coerceIn(0, 3)
         sourcePages + 1 // +1 for preview tab
     }
 
@@ -250,14 +245,25 @@ fun ImageToImageScreen(
         }
     }
 
-    // Compute tab list — source images (only slots with actual images) + preview
-    // Preview is always the last tab
+    // Clamp pagerState to valid range when pageCount decreases (workflow with fewer slots)
+    LaunchedEffect(pagerState.pageCount) {
+        if (pagerState.currentPage >= pagerState.pageCount) {
+            pagerState.scrollToPage(maxOf(0, pagerState.pageCount - 1))
+        }
+    }
+
+    // Compute tab list — source images driven by workflow additionalImageSlotCount + preview
+    // Tabs reflect workflow capabilities (how many slots the workflow supports),
+    // not whether images are already set (which would break workflow switching UX)
     data class ImagePage(val slot: Int, val title: String) // slot 1-4 for sources, 0 for preview
     val imagePages = buildList {
-        if (uiState.sourceImage != null) add(ImagePage(1, "原图1"))
-        if (uiState.sourceImage2 != null) add(ImagePage(2, "原图2"))
-        if (uiState.sourceImage3 != null) add(ImagePage(3, "原图3"))
-        if (uiState.sourceImage4 != null) add(ImagePage(4, "原图4"))
+        // Slot 1 (primary source) is always available
+        add(ImagePage(1, "原图1"))
+        // Additional slots (2-4) depend on workflow additionalImageSlotCount
+        val maxAdditional = uiState.additionalImageSlotCount.coerceIn(0, 3)
+        if (maxAdditional >= 1) add(ImagePage(2, "原图2"))
+        if (maxAdditional >= 2) add(ImagePage(3, "原图3"))
+        if (maxAdditional >= 3) add(ImagePage(4, "原图4"))
     }
     val previewPageIndex = imagePages.size // preview is always last
     val isPreviewPage = pagerState.currentPage == previewPageIndex
