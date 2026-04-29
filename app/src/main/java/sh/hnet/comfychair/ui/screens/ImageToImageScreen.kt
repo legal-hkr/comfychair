@@ -1,22 +1,28 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
@@ -24,9 +30,11 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +58,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -114,6 +123,10 @@ fun ImageToImageScreen(
     val isConnecting by ConnectionManager.isConnecting.collectAsState()
     val presetUiState by presetViewModel.uiState.collectAsState()
 
+    // Error dialog state
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorDialogMessage by remember { mutableStateOf("") }
+
     // Initialize preset ViewModel (shared for both inpainting and editing modes)
     LaunchedEffect(Unit) {
         presetViewModel.initialize(context, ScreenType.IMAGE_TO_IMAGE)
@@ -152,6 +165,37 @@ fun ImageToImageScreen(
             context.contentResolver.takePersistableUriPermission(it, takeFlags)
             imageToImageViewModel.onSourceImageChange(context, it)
             imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
+        }
+    }
+
+    // Additional source image pickers (slots 2, 3, 4)
+    val imagePickerLauncher2 = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            imageToImageViewModel.onAdditionalSourceImageChange(context, 2, it)
+        }
+    }
+
+    val imagePickerLauncher3 = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            imageToImageViewModel.onAdditionalSourceImageChange(context, 3, it)
+        }
+    }
+
+    val imagePickerLauncher4 = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            imageToImageViewModel.onAdditionalSourceImageChange(context, 4, it)
         }
     }
 
@@ -408,6 +452,39 @@ fun ImageToImageScreen(
             }
         }
 
+        // Additional source image slots (2, 3, 4) displayed as a horizontal row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Slot 2
+            AdditionalImageSlot(
+                image = uiState.sourceImage2,
+                onPickImage = { imagePickerLauncher2.launch(arrayOf("image/*")) },
+                onClearImage = { imageToImageViewModel.clearAdditionalSourceImage(2) },
+                slotLabel = "2",
+                modifier = Modifier.weight(1f)
+            )
+            // Slot 3
+            AdditionalImageSlot(
+                image = uiState.sourceImage3,
+                onPickImage = { imagePickerLauncher3.launch(arrayOf("image/*")) },
+                onClearImage = { imageToImageViewModel.clearAdditionalSourceImage(3) },
+                slotLabel = "3",
+                modifier = Modifier.weight(1f)
+            )
+            // Slot 4
+            AdditionalImageSlot(
+                image = uiState.sourceImage4,
+                onPickImage = { imagePickerLauncher4.launch(arrayOf("image/*")) },
+                onClearImage = { imageToImageViewModel.clearAdditionalSourceImage(4) },
+                slotLabel = "4",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
         // Prompt Input
         OutlinedTextField(
             value = uiState.positivePrompt,
@@ -476,11 +553,8 @@ fun ImageToImageScreen(
                                 ImageToImageViewModel.OWNER_ID
                             ) { success, _, errorMessage ->
                                 if (!success) {
-                                    Toast.makeText(
-                                        context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                    errorDialogMessage = errorMessage ?: context.getString(R.string.error_generation_failed)
+                                    showErrorDialog = true
                                 }
                             }
                         } else {
@@ -721,5 +795,110 @@ fun ImageToImageScreen(
             onDismiss = { presetViewModel.dismissSaveDialog() },
             onSave = { name, prompt, tags -> presetViewModel.onSavePreset(name, prompt, tags) }
         )
+    }
+
+    // Error dialog with copy support
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            title = { Text(text = stringResource(R.string.title_workflow_error)) },
+            text = {
+                Text(
+                    text = errorDialogMessage,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showErrorDialog = false }) {
+                    Text(text = stringResource(R.string.button_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("error_message", errorDialogMessage))
+                        Toast.makeText(context, R.string.msg_error_copied, Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text(text = stringResource(R.string.button_copy_to_clipboard))
+                }
+            }
+        )
+    }
+}
+
+// Composable for additional source image slot (slots 2, 3, 4)
+// Shows a thumbnail if image is set, or a dashed placeholder if empty
+@Composable
+private fun AdditionalImageSlot(
+    image: android.graphics.Bitmap?,
+    onPickImage: () -> Unit,
+    onClearImage: () -> Unit,
+    slotLabel: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = if (image != null) MaterialTheme.colorScheme.outline
+                        else MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(enabled = true, onClick = onPickImage),
+        contentAlignment = Alignment.Center
+    ) {
+        if (image != null) {
+            // Show thumbnail with clear button overlay
+            Box(modifier = Modifier.fillMaxSize()) {
+                Image(
+                    bitmap = image.asImageBitmap(),
+                    contentDescription = stringResource(R.string.content_description_source_image),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                // Clear button (top-right)
+                IconButton(
+                    onClick = onClearImage,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(28.dp)
+                        .padding(2.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Clear,
+                        contentDescription = stringResource(R.string.button_clear_mask),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        } else {
+            // Empty placeholder with dashed border and + icon
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.AddPhotoAlternate,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = slotLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+        }
     }
 }

@@ -1774,6 +1774,9 @@ object WorkflowManager {
         scheduler: String = "simple",
         denoise: Float = 1.0f,
         sourceImageFilename: String,
+        sourceImage2Filename: String? = null,
+        sourceImage3Filename: String? = null,
+        sourceImage4Filename: String? = null,
         referenceImage1Filename: String? = null,
         referenceImage2Filename: String? = null
     ): String? {
@@ -1787,6 +1790,9 @@ object WorkflowManager {
         DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
         DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source: ${Obfuscator.filename(sourceImageFilename)}")
+        sourceImage2Filename?.let { DebugLogger.d(TAG, "Source2: ${Obfuscator.filename(it)}") }
+        sourceImage3Filename?.let { DebugLogger.d(TAG, "Source3: ${Obfuscator.filename(it)}") }
+        sourceImage4Filename?.let { DebugLogger.d(TAG, "Source4: ${Obfuscator.filename(it)}") }
         referenceImage1Filename?.let { DebugLogger.d(TAG, "Reference1: ${Obfuscator.filename(it)}") }
         referenceImage2Filename?.let { DebugLogger.d(TAG, "Reference2: ${Obfuscator.filename(it)}") }
 
@@ -1831,6 +1837,20 @@ object WorkflowManager {
         val escapedSourceFilename = escapeForJson(sourceImageFilename)
         processedJson = processedJson.replace("{{image_filename}}", "$escapedSourceFilename [input]")
         processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
+
+        // Additional source images (image 2/3/4)
+        if (sourceImage2Filename != null) {
+            val escaped2 = "${escapeForJson(sourceImage2Filename)} [input]"
+            processedJson = processedJson.replace("{{image_filename_2}}", escaped2)
+        }
+        if (sourceImage3Filename != null) {
+            val escaped3 = "${escapeForJson(sourceImage3Filename)} [input]"
+            processedJson = processedJson.replace("{{image_filename_3}}", escaped3)
+        }
+        if (sourceImage4Filename != null) {
+            val escaped4 = "${escapeForJson(sourceImage4Filename)} [input]"
+            processedJson = processedJson.replace("{{image_filename_4}}", escaped4)
+        }
 
         // Type-specific: reference images (both placeholder and magic filename formats)
         if (referenceImage1Filename != null) {

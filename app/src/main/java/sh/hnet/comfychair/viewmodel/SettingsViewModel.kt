@@ -516,12 +516,28 @@ class SettingsViewModel : ViewModel() {
                 _events.emit(SettingsEvent.RefreshNeeded)
             }
         } else {
-            // Disabling offline mode - check connectivity first
+            // Disabling offline mode - check connectivity first, then reconnect
             viewModelScope.launch {
-                val isConnected = checkConnectivity(context)
-                if (isConnected) {
+                val (isConnected, detectedProtocol) = checkConnectivity(context)
+                if (isConnected == true && detectedProtocol != null) {
                     AppSettings.setOfflineMode(context, false)
                     _isOfflineMode.value = false
+
+                    // Reconnect to the server via ConnectionManager
+                    val serverStorage = ServerStorage(context)
+                    val server = serverStorage.getSelectedServer()!!
+                    val credentialStorage = CredentialStorage(context)
+                    val credentials = credentialStorage.getCredentials(server.id, server.authType)
+
+                    ConnectionManager.connect(
+                        context = context.applicationContext,
+                        serverId = server.id,
+                        hostname = server.hostname,
+                        port = server.port,
+                        protocol = detectedProtocol,
+                        credentials = credentials
+                    )
+
                     _events.emit(SettingsEvent.RefreshNeeded)
                 } else {
                     // Server unreachable, keep offline mode enabled
@@ -534,26 +550,14 @@ class SettingsViewModel : ViewModel() {
     /**
      * Check connectivity to the current server.
      * Creates a temporary client if no existing client is available (e.g., in offline mode).
-     * @return true if server is reachable, false otherwise
+     * @return Pair of (isReachable, detectedProtocol). Both values are null/false when no server is selected or connection fails.
      */
-    private suspend fun checkConnectivity(context: Context): Boolean {
-        // Try to use existing client first
-        val existingClient = comfyUIClient
-        if (existingClient != null) {
-            return withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    existingClient.testConnection { success, _, _, _ ->
-                        continuation.resumeWith(Result.success(success))
-                    }
-                }
-            }
-        }
-
+    private suspend fun checkConnectivity(context: Context): Pair<Boolean?, String?> {
         // No existing client (offline mode) - create temporary client using selected server
         val serverStorage = ServerStorage(context)
-        val server = serverStorage.getSelectedServer() ?: return false
+        val server = serverStorage.getSelectedServer() ?: return Pair(null, null)
 
-        // Load credentials for the server (fixes offline->online transition bug)
+        // Load credentials for the server
         val credentialStorage = CredentialStorage(context)
         val credentials = credentialStorage.getCredentials(server.id, server.authType)
 
@@ -565,6 +569,9 @@ class SettingsViewModel : ViewModel() {
                         continuation.resumeWith(Result.success(success))
                     }
                 }
+            }.let { connected ->
+                val protocol = if (connected) tempClient.getWorkingProtocol() else null
+                Pair(connected, protocol)
             }
         } finally {
             tempClient.shutdown()

@@ -275,6 +275,9 @@ object FieldDisplayRegistry {
         // Image fields
         "image" to Pair(R.string.field_input_image, R.string.field_desc_image),
         "image_filename" to Pair(R.string.field_input_image, R.string.field_desc_image),
+        "image_filename_2" to Pair(R.string.label_image2, R.string.field_desc_image2),
+        "image_filename_3" to Pair(R.string.label_image3, R.string.field_desc_image3),
+        "image_filename_4" to Pair(R.string.label_image4, R.string.field_desc_image4),
         // Advanced generation fields
         "seed" to Pair(R.string.label_seed, R.string.field_desc_seed),
         "denoise" to Pair(R.string.label_denoise, R.string.field_desc_denoise),

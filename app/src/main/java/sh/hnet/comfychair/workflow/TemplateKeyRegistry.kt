@@ -38,6 +38,9 @@ object TemplateKeyRegistry {
         "length" to "length",
         "frame_rate" to "fps",
         "image_filename" to "image",
+        "image_filename_2" to "image",
+        "image_filename_3" to "image",
+        "image_filename_4" to "image",
         "seed" to "seed",
         "denoise" to "denoise",
         "batch_size" to "batch_size",
@@ -76,6 +79,9 @@ object TemplateKeyRegistry {
         "length" to "length",
         "fps" to "frame_rate",
         "image" to "image_filename",
+        "image_filename_2" to "image_filename_2",
+        "image_filename_3" to "image_filename_3",
+        "image_filename_4" to "image_filename_4",
         "seed" to "seed",
         "denoise" to "denoise",
         "batch_size" to "batch_size",
@@ -122,7 +128,8 @@ object TemplateKeyRegistry {
         "highnoise_lora_name", "lownoise_lora_name",
         "length", "fps",
         "seed", "denoise", "batch_size", "upscale_method", "scale_by", "stop_at_clip_layer",
-        "text_encoder_name", "latent_upscale_model"
+        "text_encoder_name", "latent_upscale_model",
+        "image_filename_2", "image_filename_3", "image_filename_4"
     )
 
     /**
@@ -313,10 +320,16 @@ object TemplateKeyRegistry {
     fun doesValueMatchPlaceholder(fieldKey: String, inputValue: Any?): Boolean {
         // For highnoise/lownoise variants, we need to check the specific placeholder
         // to distinguish between them (both map to the same JSON key like "unet_name")
+        // Similarly, image_filename_2/3/4 variants all map to "image" JSON key
         return when {
             fieldKey.startsWith("highnoise_") || fieldKey.startsWith("lownoise_") -> {
                 val placeholderPattern = "{{$fieldKey}}"
                 inputValue?.toString()?.contains(placeholderPattern) ?: false
+            }
+            fieldKey.startsWith("image_filename_") -> {
+                // For image_filename_N fields, accept any value (literal filename or {{placeholder}})
+                // This mirrors the behavior of plain "image" field which also accepts any value
+                true
             }
             // For all other fields, accept any node with the correct JSON input key
             else -> true

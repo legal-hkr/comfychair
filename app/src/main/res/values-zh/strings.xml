@@ -555,6 +555,9 @@
     <string name="field_desc_length">视频长度（帧数）</string>
     <string name="field_desc_frame_rate">视频每秒帧数</string>
     <string name="field_desc_image">用于生成的源图像</string>
+    <string name="field_desc_image2">第二个源图像</string>
+    <string name="field_desc_image3">第三个源图像</string>
+    <string name="field_desc_image4">第四个源图像</string>
     <string name="field_desc_seed">用于生成的随机种子</string>
     <string name="field_desc_denoise">降噪强度（0.0-1.0）</string>
     <string name="field_desc_batch_size">每批图像数量</string>

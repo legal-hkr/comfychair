@@ -198,6 +198,9 @@
     <string name="tab_preview">Preview</string>
     <string name="label_megapixels">Megapixels</string>
     <string name="button_upload_source_image">Upload Source Image</string>
+    <string name="button_add_image2">Add Image 2</string>
+    <string name="button_add_image3">Add Image 3</string>
+    <string name="button_add_image4">Add Image 4</string>
     <string name="button_edit_mask">Edit Mask</string>
     <string name="button_clear_mask">Clear Mask</string>
     <string name="msg_no_source_image">No source image selected</string>
@@ -221,6 +224,8 @@
     <string name="error_invalid_server_response">Invalid server response</string>
     <string name="error_failed_load_workflow">Failed to load workflow</string>
     <string name="error_generation_failed">Generation failed</string>
+    <string name="title_workflow_error">Workflow Execution Error</string>
+    <string name="msg_error_copied">Error message copied to clipboard</string>
     <string name="msg_connection_lost_generation_may_continue">Connection lost. Will check for completion when reconnected.</string>
     <string name="error_no_connection">No connection to server</string>
     <string name="error_workflow_not_found">Workflow not found</string>
@@ -285,6 +290,9 @@
     <string name="label_clip2" translatable="false">CLIP 2</string>
     <string name="label_clip3" translatable="false">CLIP 3</string>
     <string name="label_clip4" translatable="false">CLIP 4</string>
+    <string name="label_image2" translatable="false">Image 2</string>
+    <string name="label_image3" translatable="false">Image 3</string>
+    <string name="label_image4" translatable="false">Image 4</string>
     <string name="label_text_encoder" translatable="false">Text Encoder</string>
     <string name="label_latent_upscale_model" translatable="false">Latent Upscale Model</string>
     <string name="label_width">Width</string>
@@ -389,6 +397,9 @@
     <string name="field_desc_length">Video length in frames</string>
     <string name="field_desc_frame_rate">Video frames per second</string>
     <string name="field_desc_image">Source image for generation</string>
+    <string name="field_desc_image2">Second source image for generation</string>
+    <string name="field_desc_image3">Third source image for generation</string>
+    <string name="field_desc_image4">Fourth source image for generation</string>
     <string name="field_desc_seed">Random seed for generation</string>
     <string name="field_desc_denoise">Denoising strength (0.0-1.0)</string>
     <string name="field_desc_batch_size">Number of images per batch</string>
