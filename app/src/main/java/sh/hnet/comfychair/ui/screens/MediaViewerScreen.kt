@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -74,7 +75,8 @@ import sh.hnet.comfychair.viewmodel.ViewerMode
 @Composable
 fun MediaViewerScreen(
     viewModel: MediaViewerViewModel,
-    onClose: () -> Unit,
+    replaceSlot: Int? = null,
+    onClose: (replaceSlot: Int?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -100,7 +102,7 @@ fun MediaViewerScreen(
 
     // Handle system back button - ensures onClose() is called with proper result
     BackHandler {
-        onClose()
+        onClose(null)
     }
 
     // Handle events
@@ -114,7 +116,7 @@ fun MediaViewerScreen(
                     // Items list changed, pager will recompose with new key
                 }
                 is MediaViewerEvent.Close -> {
-                    onClose()
+                    onClose(null)
                 }
             }
         }
@@ -302,10 +304,12 @@ fun MediaViewerScreen(
         ) {
             MediaViewerFloatingToolbar(
                 isGalleryMode = uiState.mode == ViewerMode.GALLERY,
+                replaceSlot = replaceSlot,
                 onDelete = { viewModel.deleteCurrentItem() },
                 onSave = { viewModel.saveCurrentItem() },
                 onShare = { viewModel.shareCurrentItem() },
-                onInfo = { showMetadataSheet = true }
+                onInfo = { showMetadataSheet = true },
+                onReplace = { replaceSlot?.let { onClose(it) } }
             )
         }
 
@@ -320,7 +324,7 @@ fun MediaViewerScreen(
                 .padding(end = 16.dp, bottom = fabBottomPadding)
         ) {
             FloatingActionButton(
-                onClick = onClose,
+                onClick = { onClose(null) },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
@@ -346,10 +350,12 @@ fun MediaViewerScreen(
 @Composable
 private fun MediaViewerFloatingToolbar(
     isGalleryMode: Boolean,
-    onDelete: () -> Unit,
-    onSave: () -> Unit,
-    onShare: () -> Unit,
-    onInfo: () -> Unit,
+    replaceSlot: Int? = null,
+    onDelete: () -> Unit = {},
+    onSave: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onInfo: () -> Unit = {},
+    onReplace: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val toolbarColors = FloatingToolbarColors(
@@ -385,6 +391,16 @@ private fun MediaViewerFloatingToolbar(
                         Icons.Default.Save,
                         contentDescription = stringResource(R.string.media_viewer_save)
                     )
+                }
+
+                // Replace button (only shown when viewing a source image slot)
+                if (replaceSlot != null) {
+                    IconButton(onClick = onReplace) {
+                        Icon(
+                            Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.media_viewer_replace)
+                        )
+                    }
                 }
 
                 // Share button

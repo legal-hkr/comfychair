@@ -79,8 +79,13 @@ class MediaViewerActivity : ComponentActivity() {
         const val EXTRA_SUBFOLDER = "subfolder"
         const val EXTRA_TYPE = "type"
 
+        // Replace slot extra (source image replace feature)
+        const val EXTRA_REPLACE_SLOT = "replace_slot"
+
         // Result
         const val RESULT_ITEM_DELETED = "item_deleted"
+        const val RESULT_REPLACE = "replace"
+        const val RESULT_SLOT = "slot"
 
         /**
          * Create intent for gallery mode (swipe navigation between items)
@@ -117,7 +122,8 @@ class MediaViewerActivity : ComponentActivity() {
             port: Int? = null,
             filename: String? = null,
             subfolder: String? = null,
-            type: String? = null
+            type: String? = null,
+            replaceSlot: Int? = null
         ): Intent {
             // Store bitmap in memory cache (avoids expensive PNG compression/decompression)
             BitmapCache.put(bitmap)
@@ -131,6 +137,8 @@ class MediaViewerActivity : ComponentActivity() {
                 filename?.let { putExtra(EXTRA_FILENAME, it) }
                 subfolder?.let { putExtra(EXTRA_SUBFOLDER, it) }
                 type?.let { putExtra(EXTRA_TYPE, it) }
+                // Add replace slot if provided (enables replace button in viewer)
+                replaceSlot?.let { putExtra(EXTRA_REPLACE_SLOT, it) }
             }
         }
 
@@ -193,14 +201,25 @@ class MediaViewerActivity : ComponentActivity() {
 
             ComfyChairTheme(forceDarkStatusBar = true) {
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    val replaceSlot = intent.getIntExtra(EXTRA_REPLACE_SLOT, -1).takeIf { it > 0 }
                     MediaViewerScreen(
                         viewModel = viewModel,
-                        onClose = {
-                            // Set result only if items were actually deleted
+                        replaceSlot = replaceSlot,
+                        onClose = { replaceRequestedSlot: Int? ->
+                            // Set result based on what happened
+                            val resultIntent = Intent()
+                            var hasResult = false
                             if (hasDeletedItems) {
-                                setResult(Activity.RESULT_OK, Intent().apply {
-                                    putExtra(RESULT_ITEM_DELETED, true)
-                                })
+                                resultIntent.putExtra(RESULT_ITEM_DELETED, true)
+                                hasResult = true
+                            }
+                            if (replaceRequestedSlot != null) {
+                                resultIntent.putExtra(RESULT_REPLACE, true)
+                                resultIntent.putExtra(RESULT_SLOT, replaceRequestedSlot)
+                                hasResult = true
+                            }
+                            if (hasResult) {
+                                setResult(Activity.RESULT_OK, resultIntent)
                             }
                             finish()
                         }

@@ -1,72 +1,96 @@
 # Findings & Decisions
 
 ## Requirements
-- 图生图（Image-to-Image）功能支持多图选择
-- 用户 workflow 有两个 LoadImage 节点，目前只能映射一个
-- 参考现有 reference_image_1/2 的实现方式
-- 不修改 ComfyUI 服务器端
+- 为 ComfyChair 图生图（Editing 模式）添加多图片输入支持
+- 修复 Server Error 400（`{{upscale_method}}` 和 `{{ckpt_name}}` 未替换）
 
 ## Research Findings
 
-### 1. 根因：TemplateKeyRegistry 只有单一 image 映射
-`TemplateKeyRegistry.kt` 第 40 行：
+### 1. 图片上传链路（Editing 模式）
+`ImageToImageViewModel.prepareEditingWorkflow()` (line 2034-2068):
+- `sourceImage` → 上传为 `editing_source_*.png`
+- `sourceImage2/3/4` → 上传为 `editing_source_2/3/4_*.png`
+- `referenceImage1/2` → 上传为 `reference_1/2_*.png`
+
+上传后调用：
 ```kotlin
-"image_filename" to "image"
+WorkflowManager.prepareImageEditingWorkflowById(
+    workflowId = state.selectedEditingWorkflowId,
+    ...
+    sourceImageFilename = uploadedSource,
+    sourceImage2Filename = uploadedSource2,  // nullable
+    sourceImage3Filename = uploadedSource3,  // nullable
+    sourceImage4Filename = uploadedSource4,  // nullable
+    referenceImage1Filename = uploadedRef1,  // nullable
+    referenceImage2Filename = uploadedRef2   // nullable
+)
 ```
-`KEY_TO_PLACEHOLDER` 第 78 行：
+
+### 2. 占位符替换逻辑（Editing）
+`WorkflowManager.prepareImageEditingWorkflowById()` (line 1803-1951):
+
+替换代码覆盖：
+- `{{positive_prompt}}`, `{{negative_prompt}}`
+- `{{ckpt_name}}` — **有条件**：`if (checkpoint.isNotEmpty())`
+- `{{unet_name}}`, `{{lora_name}}`, `{{vae_name}}`, `{{clip_name}}`
+- `{{clip_name1/2/3/4}}` — nullable let 语法
+- `{{text_encoder_name}}`, `{{latent_upscale_model}}`
+- `{{highnoise_unet_name}}`, `{{lownoise_unet_name}}`
+- `{{highnoise_lora_name}}`, `{{lownoise_lora_name}}`
+- `{{image_filename}}`, `{{image_filename_2}}`, `{{image_filename_3}}`, `{{image_filename_4}}`
+- `{{reference_image_1}}`, `{{reference_image_2}}`
+- 通用参数通过 `replaceCommonPlaceholders()` 处理（seed, steps, cfg, sampler, scheduler, denoise, megapixels）
+
+**缺失的占位符替换：**
+- `{{upscale_method}}` — **完全没有替换逻辑**
+
+### 3. Server Error 400 根因
+错误信息：
+```
+upscale_method: '{{upscale_method}}' not in ['lanczos', 'bicubic', 'area']
+ckpt_name: '{{ckpt_name}}' not in ['Qwen-Rapid-AIO-NSFW-v23.safetensors', 'qwenImageEditRemix_aioV20.safetensors']
+```
+
+说明：
+- Editing workflow 中存在 `{{upscale_method}}` 占位符，但代码从未替换
+- `{{ckpt_name}}` 出现在 CheckpointLoaderSimple 节点，但 Editing 模式下 `selectedEditingCheckpoint` 可能为空或未正确传递
+
+### 4. prepareEditingWorkflow 的 ckpt_name 条件替换
 ```kotlin
-"image" to "image_filename"
+// line 1809-1811
+if (checkpoint.isNotEmpty()) {
+    processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
+}
 ```
-**问题**：当 workflow 有两个 LoadImage 时，FieldMappingAnalyzer 找到了两个 candidates，但系统只有一张"image"字段可以映射，自动选中第一个，第二个无处可去。
+Editing 模式传入的 `checkpoint` 参数来自 `state.selectedEditingCheckpoint`。如果为空字符串，`{{ckpt_name}}` 不会被替换。
 
-### 2. FieldMappingAnalyzer 候选节点检测逻辑
-`FieldMappingAnalyzer.kt:133-157`：
-- 策略1：直接匹配 — 遍历所有节点，找 input key 匹配 `image` 的节点，且值匹配 `{{image_filename}}`
-- 策略2（fallback）：对于 `image` 字段，找有 IMAGE output + ENUM inputs 的节点
-- 两个 LoadImage 都会被找到为 candidates，但 `selectedCandidateIndex` 只支持选一个
-
-### 3. reference_image_1/2 是占位符驱动的特例
-`WorkflowCapabilities.kt:113-114`：
+### 5. 额外发现的 Editing 模式 Bug
 ```kotlin
-"reference_image_1" in placeholders  →  hasReferenceImage1 = true
-"reference_image_2" in placeholders  →  hasReferenceImage2 = true
+// line 2149-2150
+val baseWorkflow = WorkflowManager.prepareImageToImageWorkflowById(
+    ...
+    latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
 ```
-占位符检测用正则 `\{\{(\w+)\}\}` 扫描整个 workflow JSON，与节点类型无关。这是硬编码的特例，不是通用字段映射系统。
-
-### 4. 字段映射保存机制
-`WorkflowManager.kt:638-669`：
-- `fieldMappings: Map<String, Pair<String, String>>` — fieldKey → (nodeId, inputKey)
-- 保存时 `applyFieldMappings()` 将真实值替换为 `{{placeholderName}}`
-- 如果 workflow 有两个 LoadImage，都映射到同一个 fieldKey `"image"`，保存时会互相覆盖
-
-### 5. WorkflowEditorScreen 映射行渲染
-`WorkflowEditorScreen.kt:1287-1330`：
-- `requiredFields` 和 `optionalFields` 来自 `mappingState.fieldMappings`
-- 每个 `FieldMappingState` 渲染为一行的 `FieldMappingRow`
-- 支持 `hasMultipleCandidates`（多个候选节点），但每次只选一个
-
-### 6. ImageToImageScreen 图片选择
-`ImageToImageScreen.kt`：
-- 使用 `OpenDocument()` 单选图片
-- `ImageToImageViewModel` 状态：`sourceImage: Bitmap?`（单张）
-- `referenceImage1/2` 是可选的参考图，独立于 source image
+在 Inpainting 模式（`prepareInpaintingWorkflow`）中调用 `prepareImageToImageWorkflowById` 时，`upscale_method` 和 `latent_upscale_model` 都会被传递，但这些字段在 Editing workflow 中可能使用不同的占位符。
 
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|
-| 添加 `image_filename_2/3/4` 字段 | 与 clip_name1/2/3/4 命名风格一致 |
-| 最大4张图片 | 与 CLIP 多槽位对齐，避免过度复杂 |
-| 使用 `{{image_filename_N}}` 占位符 | 复用现有 `image_filename` 映射逻辑 |
-| 多图预览用 LazyRow | 横向滚动，与 ComfyUI 习惯一致 |
+| 提交前预检验 + 用户确认对话框 | 在 ComfyUI 返回 400 之前拦截；用户能明确知道哪个参数未设置 |
+| 不在 `WorkflowManager` 中为每个占位符添加默认值 | 会掩盖配置不完整的问题，用户无法知情 |
+| 预检验逻辑放在 `prepareWorkflow()` 返回前 | 统一入口，所有模式（Editing/Inpainting）都能受益 |
 
-## Key Files
-| 文件 | 作用 | 关键行 |
-|------|------|--------|
-| `TemplateKeyRegistry.kt` | 字段映射注册表 | 40, 78 |
-| `FieldMappingAnalyzer.kt` | 候选节点检测 | 133-157, 159-185 |
-| `FieldMapping.kt` | 映射状态数据类 | 34-91 |
-| `WorkflowEditorScreen.kt` | 映射 UI | 1287-1330 |
-| `WorkflowCapabilities.kt` | 占位符检测 | 113-114 |
-| `ImageToImageScreen.kt` | 图生图 UI | OpenDocument() 单选 |
-| `ImageToImageViewModel.kt` | 图生图状态 | sourceImage: Bitmap? |
-| `WorkflowManager.kt` | 保存时替换占位符 | 638-669 |
+## Issues Encountered
+| Issue | Resolution |
+|-------|------------|
+| Server Error 400: `{{upscale_method}}` | 需要在 `prepareImageEditingWorkflowById()` 添加 `upscale_method` 替换 |
+| Server Error 400: `{{ckpt_name}}` | Editing 模式下 `selectedEditingCheckpoint` 传递检查，确认 workflow 类型 |
+
+## Resources
+- `/root/comfychair/app/src/main/java/sh/hnet/comfychair/WorkflowManager.kt` — 核心 workflow 替换逻辑
+- `/root/comfychair/app/src/main/java/sh/hnet/comfychair/viewmodel/ImageToImageViewModel.kt` — UI 状态和 prepareWorkflow
+- `/root/comfychair/app/src/main/java/sh/hnet/comfychair/ComfyUIClient.kt` — 图片上传到 ComfyUI
+
+## Visual/Browser Findings
+- 错误来自 ComfyUI 服务器端验证：workflow JSON 中的 `{{upscale_method}}` 被作为字面字符串发送到 `TextEncodeQwenImageEditPlusAdvance_lrzjason` 节点
+- ComfyUI 返回的 allowed values: `['lanczos', 'bicubic', 'area']`，说明这是一个 dropdown 类型的 input

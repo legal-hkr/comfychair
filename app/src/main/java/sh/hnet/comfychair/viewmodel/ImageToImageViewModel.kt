@@ -273,7 +273,10 @@ data class ImageToImageUiState(
 
     // Upload/fetch state
     val isUploading: Boolean = false,
-    val isFetching: Boolean = false
+    val isFetching: Boolean = false,
+
+    // Dynamic additional image slot count (based on workflow {{image_filename_N}} placeholders)
+    val additionalImageSlotCount: Int = 0
 ) : CommonGenerationState
 
 /**
@@ -282,6 +285,7 @@ data class ImageToImageUiState(
 sealed class ImageToImageEvent {
     data class ShowToast(val messageResId: Int) : ImageToImageEvent()
     data class ShowToastMessage(val message: String) : ImageToImageEvent()
+    data class UnresolvedPlaceholders(val placeholders: List<String>) : ImageToImageEvent()
 }
 
 /**
@@ -841,7 +845,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
             filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model"),
             // Workflow capabilities from placeholders
-            capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
+            capabilities = WorkflowCapabilities.fromPlaceholders(placeholders),
+            // Dynamic additional image slot count based on workflow placeholders
+            additionalImageSlotCount = listOf("image_filename_2", "image_filename_3", "image_filename_4")
+                .count { it in placeholders }
         )
     }
 
@@ -1868,7 +1875,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         DebugLogger.i(TAG, "Preparing workflow (mode: ${state.mode})")
 
         _uiState.update { it.copy(isUploading = true) }
-        return try {
+        val workflowJson: String? = try {
             when (state.mode) {
                 ImageToImageMode.EDITING -> prepareEditingWorkflow(
                 client,
@@ -1883,6 +1890,28 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         } finally {
             _uiState.update { it.copy(isUploading = false) }
         }
+
+        // Pre-submission validation: check for unresolved {{placeholder}} tokens
+        workflowJson?.let { json ->
+            val unresolved = findUnresolvedPlaceholders(json)
+            if (unresolved.isNotEmpty()) {
+                _events.emit(ImageToImageEvent.UnresolvedPlaceholders(unresolved))
+            }
+        }
+
+        return workflowJson
+    }
+
+    /**
+     * Scan workflow JSON for any unresolved {{placeholder}} tokens.
+     * Returns the list of placeholder names found in the JSON.
+     */
+    private fun findUnresolvedPlaceholders(workflowJson: String): List<String> {
+        val placeholderRegex = Regex("""\{\{(\w+)\}\}""")
+        return placeholderRegex.findAll(workflowJson)
+            .map { it.groupValues[1] }
+            .distinct()
+            .toList()
     }
 
     /**
