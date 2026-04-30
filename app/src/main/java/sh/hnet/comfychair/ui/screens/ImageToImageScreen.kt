@@ -55,6 +55,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.SecondaryTabRow
@@ -97,6 +98,9 @@ import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.ui.components.GalleryPickerBottomSheet
+import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
@@ -168,6 +172,11 @@ fun ImageToImageScreen(
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // Gallery picker state
+    var showGalleryPicker by remember { mutableStateOf(false) }
+    val galleryPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val galleryImages: List<GalleryItem> by GalleryRepository.getInstance().galleryItems.collectAsState()
+
     // Image picker launcher for source image (system file picker - supports Downloads, file managers, gallery)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -218,7 +227,6 @@ fun ImageToImageScreen(
     ) { result ->
         // Always clear callbacks when MediaViewer closes
         MediaViewerActivity.onBypassToggleCallback = null
-        MediaViewerActivity.onUseAsSourceCallback = null
         val data = result.data
         if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
             val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
@@ -480,10 +488,17 @@ fun ImageToImageScreen(
                         Image(
                             bitmap = uiState.previewImage!!.asImageBitmap(),
                             contentDescription = stringResource(R.string.content_description_preview),
-                            modifier = Modifier
+                                modifier = Modifier
                                 .fillMaxSize()
                                 .clickable {
                                     uiState.previewImage?.let { bitmap ->
+                                        // Set callbacks before launching MediaViewer
+                                        MediaViewerActivity.onBypassToggleCallback =
+                                            { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                        MediaViewerActivity.onUseAsSourceCallback =
+                                            { promptId, filename, subfolder, type, bmp ->
+                                                imageToImageViewModel.onSourceImageFromGallery(context, 1, bmp)
+                                            }
                                         val intent = MediaViewerActivity.createSingleImageIntent(
                                             context = context,
                                             bitmap = bitmap,
@@ -493,7 +508,13 @@ fun ImageToImageScreen(
                                             subfolder = uiState.previewImageSubfolder,
                                             type = uiState.previewImageType
                                         )
-                                        context.startActivity(intent)
+                                        // Prefer ActivityResultLauncher for proper result callback, fallback to direct start
+                                        if (mediaViewerReplaceLauncher != null) {
+                                            mediaViewerReplaceLauncher!!.launch(intent)
+                                        } else {
+                                            android.util.Log.w("ComfyChair", "mediaViewerReplaceLauncher was null, using direct startActivity")
+                                            context.startActivity(intent)
+                                        }
                                     }
                                 },
                             contentScale = ContentScale.Crop
@@ -531,15 +552,21 @@ fun ImageToImageScreen(
                                                 { promptId, filename, subfolder, type, bitmap ->
                                                     imageToImageViewModel.onSourceImageFromGallery(context, 1, bitmap)
                                                 }
-                                            android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
+                                        android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
                                             val intent = MediaViewerActivity.createSingleImageIntent(
-                                                context,
+                                                context = context,
                                                 sourceImage,
                                                 replaceSlot = sourceSlot,
                                                 bypassSlot = sourceSlot,
                                                 isSlotBypassed = uiState.bypassedSourceSlots.contains(sourceSlot)
                                             )
-                                            mediaViewerReplaceLauncher?.launch(intent)
+                                            // Prefer ActivityResultLauncher for proper result callback, fallback to direct start
+                                            if (mediaViewerReplaceLauncher != null) {
+                                                mediaViewerReplaceLauncher!!.launch(intent)
+                                            } else {
+                                                android.util.Log.w("ComfyChair", "mediaViewerReplaceLauncher was null (source), using direct startActivity")
+                                                context.startActivity(intent)
+                                            }
                                         },
                                     contentScale = ContentScale.Crop
                                 )
@@ -750,6 +777,19 @@ fun ImageToImageScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            // Gallery picker button - pick from history
+            OutlinedIconButton(
+                onClick = { showGalleryPicker = true },
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    Icons.Default.Collections,
+                    contentDescription = stringResource(R.string.button_pick_from_gallery)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             // Animate gear icon rotation when options sheet is shown
             val optionsIconRotation by animateFloatAsState(
                 targetValue = if (showOptionsSheet) 90f else 0f,
@@ -768,6 +808,27 @@ fun ImageToImageScreen(
             }
         }
     } // End of outer Column
+
+    // Gallery picker bottom sheet
+    if (showGalleryPicker) {
+        GalleryPickerBottomSheet(
+            galleryItems = galleryImages,
+            onSelect = { item ->
+                val cacheKey = item.toCacheKey()
+                val bitmap = MediaCache.getBitmap(cacheKey)
+                if (bitmap != null) {
+                    imageToImageViewModel.onSourceImageFromGallery(
+                        context = context,
+                        slot = 1,
+                        bitmap = bitmap
+                    )
+                }
+                showGalleryPicker = false
+            },
+            onDismiss = { showGalleryPicker = false },
+            sheetState = galleryPickerSheetState
+        )
+    }
 
     // Options bottom sheet
     if (showOptionsSheet) {

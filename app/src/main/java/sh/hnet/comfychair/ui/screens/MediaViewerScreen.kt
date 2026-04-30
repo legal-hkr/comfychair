@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.DoNotDisturb
-import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
@@ -320,23 +319,6 @@ fun MediaViewerScreen(
                 onBypassToggle = { slot ->
                     MediaViewerActivity.onBypassToggleCallback?.invoke(slot)
                     onClose(null)
-                },
-                onUseAsSource = {
-                    val item = uiState.currentItem
-                    if (item != null) {
-                        val cacheKey = MediaCacheKey(item.promptId, item.filename)
-                        val bitmap = MediaCache.getBitmap(cacheKey)
-                        if (bitmap != null) {
-                            MediaViewerActivity.onUseAsSourceCallback?.invoke(
-                                item.promptId,
-                                item.filename,
-                                item.subfolder,
-                                item.type,
-                                bitmap
-                            )
-                        }
-                        onClose(null)
-                    }
                 }
             )
         }
@@ -387,7 +369,6 @@ private fun MediaViewerFloatingToolbar(
     onInfo: () -> Unit = {},
     onReplace: () -> Unit = {},
     onBypassToggle: (slot: Int) -> Unit = {},
-    onUseAsSource: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val toolbarColors = FloatingToolbarColors(
@@ -456,14 +437,6 @@ private fun MediaViewerFloatingToolbar(
                     Icon(
                         Icons.Default.Share,
                         contentDescription = stringResource(R.string.media_viewer_share)
-                    )
-                }
-
-                // Use as source image button
-                IconButton(onClick = onUseAsSource) {
-                    Icon(
-                        Icons.Default.Collections,
-                        contentDescription = stringResource(R.string.button_use_as_source)
                     )
                 }
 

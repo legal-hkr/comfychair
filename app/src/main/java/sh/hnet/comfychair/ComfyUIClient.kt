@@ -805,6 +805,9 @@ class ComfyUIClient(
             }
         }
 
+        // Log full prompt JSON for debugging bypass/workflow issues
+        DebugLogger.d(TAG, "=== PROMPT JSON SUBMITTED ===\n${promptRequest.toString(2)}")
+
         val requestBody = promptRequest.toString()
             .toRequestBody("application/json".toMediaType())
 
