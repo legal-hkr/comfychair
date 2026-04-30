@@ -1842,8 +1842,7 @@ object WorkflowManager {
 
         // Additional source images (image 2/3/4)
         // Bypassed slots: replace placeholder with empty string so ComfyUI validation passes.
-        // The LoadImage node's mode=2 setting (applied via JSON object manipulation below)
-        // will skip execution, so the empty image path is never actually loaded.
+        // The LoadImage node's mode=4 setting (LiteGraph NODE_BYPASS) will skip execution.
         if (sourceImage2Filename != null) {
             val escaped2 = "${escapeForJson(sourceImage2Filename)} [input]"
             processedJson = processedJson.replace("{{image_filename_2}}", escaped2)
@@ -1954,7 +1953,7 @@ object WorkflowManager {
                 }
             }
 
-            // Bypass source image LoadImage nodes for disabled slots (mode=2 = ComfyUI bypass)
+            // Bypass source image LoadImage nodes for disabled slots (mode=4 = LiteGraph BYPASS)
             if (bypassedSlots.isNotEmpty()) {
                 val slotToPlaceholder = mapOf(
                     2 to "{{image_filename_2}}",
@@ -1980,11 +1979,11 @@ object WorkflowManager {
                         val escaped = slotToEscaped[slot] ?: continue
                         // Match either unresolved placeholder or already-escaped filename
                         if (imageName == placeholder || imageName == escaped) {
-                            // mode=2 is ComfyUI's proper "bypass" mode (Ctrl+B) — the node is
-                        // skipped and wires reconnect through it as if the node wasn't there.
-                        // Do NOT clear the image field — bypass mode handles it.
-                        node.put("mode", 2)
-                        DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=2)")
+                            // mode=4 is LiteGraph's NODE_BYPASS — the node is skipped entirely.
+                        // Clear the image field too so LoadImage doesn't try to open a file.
+                        inputs.put("image", "")
+                        node.put("mode", 4)
+                        DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=4)")
                             break
                         }
                     }
