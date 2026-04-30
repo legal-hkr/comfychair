@@ -1972,7 +1972,9 @@ object WorkflowManager {
                         // Match either unresolved placeholder or already-escaped filename
                         if (imageName == placeholder || imageName == escaped) {
                             node.put("mode", 4)
-                            DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, image=$imageName)")
+                            // Clear the image field so ComfyUI validation passes (empty + mode=4 = skip)
+                            inputs.put("image", "")
+                            DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, cleared image)")
                             break
                         }
                     }
