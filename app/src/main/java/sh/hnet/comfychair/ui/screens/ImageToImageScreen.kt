@@ -574,13 +574,15 @@ fun ImageToImageScreen(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .background(Color.Black.copy(alpha = 0.45f))
+                                            .clickable { imageToImageViewModel.toggleBypassSourceImage(sourceSlot) }
                                     )
                                     Icon(
                                         imageVector = Icons.Default.DoNotDisturb,
                                         contentDescription = stringResource(R.string.node_editor_bypass),
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(8.dp),
+                                            .padding(8.dp)
+                                            .clickable { imageToImageViewModel.toggleBypassSourceImage(sourceSlot) },
                                         tint = Color.White.copy(alpha = 0.85f)
                                     )
                                 }
