@@ -1889,7 +1889,10 @@ object WorkflowManager {
         // Second pass: remove unused reference image nodes and their connections
         try {
             val json = JSONObject(processedJson)
-            val nodes = json.optJSONObject("nodes") ?: return processedJson
+            // ComfyUI prompt format uses "prompt" key; workflow files may use "nodes" or raw format.
+            val nodes = json.optJSONObject("prompt")
+                ?: json.optJSONObject("nodes")
+                ?: return processedJson
 
             // Find and remove reference image nodes that weren't provided
             // Also remove connections to those nodes from other nodes

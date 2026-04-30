@@ -495,10 +495,6 @@ fun ImageToImageScreen(
                                         // Set callbacks before launching MediaViewer
                                         MediaViewerActivity.onBypassToggleCallback =
                                             { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
-                                        MediaViewerActivity.onUseAsSourceCallback =
-                                            { promptId, filename, subfolder, type, bmp ->
-                                                imageToImageViewModel.onSourceImageFromGallery(context, 1, bmp)
-                                            }
                                         val intent = MediaViewerActivity.createSingleImageIntent(
                                             context = context,
                                             bitmap = bitmap,
@@ -548,11 +544,7 @@ fun ImageToImageScreen(
                                             // Set callbacks before launching MediaViewer
                                             MediaViewerActivity.onBypassToggleCallback =
                                                 { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
-                                            MediaViewerActivity.onUseAsSourceCallback =
-                                                { promptId, filename, subfolder, type, bitmap ->
-                                                    imageToImageViewModel.onSourceImageFromGallery(context, 1, bitmap)
-                                                }
-                                        android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
+                                            android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
                                             val intent = MediaViewerActivity.createSingleImageIntent(
                                                 context = context,
                                                 sourceImage,
