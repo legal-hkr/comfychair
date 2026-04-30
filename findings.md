@@ -1,96 +1,99 @@
-# Findings & Decisions
+# ComfyChair Bypass Feature - Research Findings
 
-## Requirements
-- 为 ComfyChair 图生图（Editing 模式）添加多图片输入支持
-- 修复 Server Error 400（`{{upscale_method}}` 和 `{{ckpt_name}}` 未替换）
+## What is Bypass?
+ComfyUI has a `mode` field per node:
+- `mode: 0` = Active (normal execution)
+- `mode: 2` = Muted (skipped, outputs are empty)
+- `mode: 4` = Bypassed (completely skipped AND wires auto-reconnected)
 
-## Research Findings
+ComfyChair already has full bypass infrastructure in `BypassNodeResolver.applyBypassNodes()` (WorkflowManager.kt:1443) — when a node has `mode: 4`, it's removed from the JSON and all its input/output wires are auto-reconnected. This is the standard ComfyUI mechanism.
 
-### 1. 图片上传链路（Editing 模式）
-`ImageToImageViewModel.prepareEditingWorkflow()` (line 2034-2068):
-- `sourceImage` → 上传为 `editing_source_*.png`
-- `sourceImage2/3/4` → 上传为 `editing_source_2/3/4_*.png`
-- `referenceImage1/2` → 上传为 `reference_1/2_*.png`
+## Current Architecture
 
-上传后调用：
-```kotlin
-WorkflowManager.prepareImageEditingWorkflowById(
-    workflowId = state.selectedEditingWorkflowId,
-    ...
-    sourceImageFilename = uploadedSource,
-    sourceImage2Filename = uploadedSource2,  // nullable
-    sourceImage3Filename = uploadedSource3,  // nullable
-    sourceImage4Filename = uploadedSource4,  // nullable
-    referenceImage1Filename = uploadedRef1,  // nullable
-    referenceImage2Filename = uploadedRef2   // nullable
-)
+### Data Layer: Complete ✓
+- `WorkflowNode.mode` field (WorkflowGraphModel.kt)
+- `WorkflowParser` parses `mode` from JSON (line 85-115)
+- `BypassNodeResolver` removes bypassed nodes + reconnects wires (line ~1443)
+- `WorkflowEditorViewModel.toggleNodeBypass()` exists (line ~1769) — but UI entry is deep (Edit Mode → node → More menu)
+
+### UI Layer: Missing the right entry point
+The desired entry is the **MediaViewerActivity floating toolbar** when viewing a source image.
+
+## How Source Images Work
+
+### Slot → Placeholder Mapping
+```
+slot 1 (sourceImage)  → {{image_filename}}   → LoadImage node, inputs.images = "filename.png [input]"
+slot 2 (sourceImage2) → {{image_filename_2}}
+slot 3 (sourceImage3) → {{image_filename_3}}
+slot 4 (sourceImage4) → {{image_filename_4}}
 ```
 
-### 2. 占位符替换逻辑（Editing）
-`WorkflowManager.prepareImageEditingWorkflowById()` (line 1803-1951):
+### prepareEditingWorkflow Flow (ImageToImageViewModel.kt:1920-2098)
+1. Upload all source images to ComfyUI server → get filenames
+2. Call `WorkflowManager.prepareImageEditingWorkflowById(workflowId, sourceImageFilename=uploadedSource, ...)`
+3. `WorkflowManager` replaces placeholders in the workflow template JSON
+4. If `sourceImage2Filename == null`, `{{image_filename_2}}` stays in JSON → unresolved placeholder error
+5. Returns processed JSON (final step calls `applyBypassedNodes()` which handles `mode=4` nodes)
 
-替换代码覆盖：
-- `{{positive_prompt}}`, `{{negative_prompt}}`
-- `{{ckpt_name}}` — **有条件**：`if (checkpoint.isNotEmpty())`
-- `{{unet_name}}`, `{{lora_name}}`, `{{vae_name}}`, `{{clip_name}}`
-- `{{clip_name1/2/3/4}}` — nullable let 语法
-- `{{text_encoder_name}}`, `{{latent_upscale_model}}`
-- `{{highnoise_unet_name}}`, `{{lownoise_unet_name}}`
-- `{{highnoise_lora_name}}`, `{{lownoise_lora_name}}`
-- `{{image_filename}}`, `{{image_filename_2}}`, `{{image_filename_3}}`, `{{image_filename_4}}`
-- `{{reference_image_1}}`, `{{reference_image_2}}`
-- 通用参数通过 `replaceCommonPlaceholders()` 处理（seed, steps, cfg, sampler, scheduler, denoise, megapixels）
+### Key Problem
+The workflow JSON structure varies by workflow template — different LoadImage nodes have different node IDs. There is no fixed mapping from slot number to node ID. We must find the right LoadImage node by:
+1. Its `class_type == "LoadImage"`
+2. Its `inputs.images` field corresponds to the slot's placeholder
 
-**缺失的占位符替换：**
-- `{{upscale_method}}` — **完全没有替换逻辑**
+## Existing Replace Feature (Template for Implementation)
+When viewing a source image in `MediaViewerActivity`:
+1. `ImageToImageScreen` launches `MediaViewerActivity` with `replaceSlot` (1-4)
+2. `MediaViewerFloatingToolbar` shows a Replace button
+3. On click: `MediaViewerActivity.onClose(replaceSlot)` sets `RESULT_REPLACE=true, RESULT_SLOT=slot`
+4. `ImageToImageScreen.mediaViewerReplaceLauncher` receives result, launches image picker
+5. Picked image replaces the slot → new image is uploaded next run
 
-### 3. Server Error 400 根因
-错误信息：
-```
-upscale_method: '{{upscale_method}}' not in ['lanczos', 'bicubic', 'area']
-ckpt_name: '{{ckpt_name}}' not in ['Qwen-Rapid-AIO-NSFW-v23.safetensors', 'qwenImageEditRemix_aioV20.safetensors']
-```
+## Files to Modify
 
-说明：
-- Editing workflow 中存在 `{{upscale_method}}` 占位符，但代码从未替换
-- `{{ckpt_name}}` 出现在 CheckpointLoaderSimple 节点，但 Editing 模式下 `selectedEditingCheckpoint` 可能为空或未正确传递
+### UI Layer
+1. **`MediaViewerFloatingToolbar.kt`** — Add Bypass toggle button (VisibilityOff icon when bypassed, eye icon when active)
+2. **`MediaViewerScreen.kt`** — Accept `isSlotBypassed: Boolean` param, pass to toolbar, handle `onBypass` callback
+3. **`MediaViewerActivity.kt`** — Accept `isSlotBypassed: Boolean` in Intent, return `RESULT_BYPASS=true, RESULT_SLOT=slot` when bypass toggled
+4. **`ImageToImageScreen.kt`** — Handle `RESULT_BYPASS`, call `imageToImageViewModel.toggleBypassSourceImage(slot)`
 
-### 4. prepareEditingWorkflow 的 ckpt_name 条件替换
-```kotlin
-// line 1809-1811
-if (checkpoint.isNotEmpty()) {
-    processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
-}
-```
-Editing 模式传入的 `checkpoint` 参数来自 `state.selectedEditingCheckpoint`。如果为空字符串，`{{ckpt_name}}` 不会被替换。
+### ViewModel Layer
+5. **`ImageToImageViewModel.kt`** — Add `toggleBypassSourceImage(slot: Int)` method:
+   - Add `bypassedSourceSlots: Set<Int>` to `ImageToImageUiState` (default empty)
+   - Toggle slot in the set (add if absent, remove if present)
+   - Persist to `WorkflowValues.bypassedSourceSlots`
+   - Reload workflow values to update UI
 
-### 5. 额外发现的 Editing 模式 Bug
-```kotlin
-// line 2149-2150
-val baseWorkflow = WorkflowManager.prepareImageToImageWorkflowById(
-    ...
-    latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
-```
-在 Inpainting 模式（`prepareInpaintingWorkflow`）中调用 `prepareImageToImageWorkflowById` 时，`upscale_method` 和 `latent_upscale_model` 都会被传递，但这些字段在 Editing workflow 中可能使用不同的占位符。
+### Persistence Layer
+6. **`WorkflowValues.kt`** — Add `bypassedSourceSlots: Set<Int>? = null` field + JSON serialization
+7. **`WorkflowValuesStorage.kt`** — Already stores `WorkflowValues`, no changes needed
 
-## Technical Decisions
-| Decision | Rationale |
-|----------|-----------|
-| 提交前预检验 + 用户确认对话框 | 在 ComfyUI 返回 400 之前拦截；用户能明确知道哪个参数未设置 |
-| 不在 `WorkflowManager` 中为每个占位符添加默认值 | 会掩盖配置不完整的问题，用户无法知情 |
-| 预检验逻辑放在 `prepareWorkflow()` 返回前 | 统一入口，所有模式（Editing/Inpainting）都能受益 |
+### Workflow Manager Layer
+8. **`WorkflowManager.prepareImageEditingWorkflowById()`** — Add `bypassedSlots: Set<Int> = emptySet()` parameter:
+   - For bypassed slots: replace `{{image_filename_N}}` with `""` (empty string — valid for bypassed node)
+   - For non-bypassed slots with null image: keep placeholder → **unresolved placeholder error** (existing bug to fix)
 
-## Issues Encountered
-| Issue | Resolution |
-|-------|------------|
-| Server Error 400: `{{upscale_method}}` | 需要在 `prepareImageEditingWorkflowById()` 添加 `upscale_method` 替换 |
-| Server Error 400: `{{ckpt_name}}` | Editing 模式下 `selectedEditingCheckpoint` 传递检查，确认 workflow 类型 |
+### ImageToImageViewModel.prepareEditingWorkflow
+9. Skip uploading bypassed source images (don't call `client.uploadImage`)
+10. Pass `bypassedSlots` to `WorkflowManager.prepareImageEditingWorkflowById`
 
-## Resources
-- `/root/comfychair/app/src/main/java/sh/hnet/comfychair/WorkflowManager.kt` — 核心 workflow 替换逻辑
-- `/root/comfychair/app/src/main/java/sh/hnet/comfychair/viewmodel/ImageToImageViewModel.kt` — UI 状态和 prepareWorkflow
-- `/root/comfychair/app/src/main/java/sh/hnet/comfychair/ComfyUIClient.kt` — 图片上传到 ComfyUI
+## Bypass Button Behavior
+- **Toolbar position**: Next to the existing Replace button (icon: `Icons.Filled.VisibilityOff` when active, `Icons.Filled.Visibility` when bypassed)
+- **Visual state**: Button highlighted when bypassed (different tint/color)
+- **Tap action**: Toggle bypass state immediately (optimistic UI update)
+- **Persist**: Saved to `WorkflowValues.bypassedSourceSlots` per workflow
+- **Effect**: Next workflow run — bypassed slot's LoadImage node gets `mode=4`, removed from graph, wires auto-reconnected
 
-## Visual/Browser Findings
-- 错误来自 ComfyUI 服务器端验证：workflow JSON 中的 `{{upscale_method}}` 被作为字面字符串发送到 `TextEncodeQwenImageEditPlusAdvance_lrzjason` 节点
-- ComfyUI 返回的 allowed values: `['lanczos', 'bicubic', 'area']`，说明这是一个 dropdown 类型的 input
+## Edge Cases
+1. **Slot 1 (primary image) bypassed**: Workflow still runs with no primary input — depends on workflow if valid
+2. **All slots bypassed**: No images uploaded, workflow may have unresolved placeholders for all → ComfyUI error
+3. **Bypass state survives app restart**: Yes, persisted in `WorkflowValues`
+4. **Bypass in Inpainting mode**: Same mechanism applies (shares `prepareImageEditingWorkflowById`)
+5. **Replace after Bypass**: Replacing an image slot clears its bypass state (toggle off if was bypassed)
+
+## Unresolved Technical Question
+What if a non-bypassed slot has no image provided (`sourceImage2 == null`)? Currently the code doesn't handle this — the placeholder remains in the JSON causing an error. This is an existing bug that also needs fixing when implementing bypass (or we require ALL non-bypassed slots to have images).
+
+**Decision needed**: Should providing an image for a non-bypassed slot be required? Or should we treat "no image + not bypassed" as "bypass"? The safest approach: treat `null` (no image provided) as "slot not used" — bypass the node. This means: if user doesn't provide an image for slot 2, it's auto-bypassed (set `mode=4`).
+
+This is actually the CORRECT semantic: "I didn't provide an image for slot 2" = "I don't want to use slot 2" = bypass. The current code (which leaves `{{image_filename_2}}` in JSON) is wrong and should be fixed.

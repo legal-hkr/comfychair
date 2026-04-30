@@ -1778,7 +1778,9 @@ object WorkflowManager {
         sourceImage3Filename: String? = null,
         sourceImage4Filename: String? = null,
         referenceImage1Filename: String? = null,
-        referenceImage2Filename: String? = null
+        referenceImage2Filename: String? = null,
+        // Slots (2/3/4) whose source image nodes should be bypassed (mode=4)
+        bypassedSlots: Set<Int> = emptySet()
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
         DebugLogger.i(TAG, "Preparing ITE workflow: ${workflow.name} (id: $workflowId)")
@@ -1940,6 +1942,40 @@ object WorkflowManager {
                 // Remove the connections
                 for (inputKey in inputsToRemove) {
                     inputs.remove(inputKey)
+                }
+            }
+
+            // Bypass source image LoadImage nodes for disabled slots (mode=4)
+            if (bypassedSlots.isNotEmpty()) {
+                val slotToPlaceholder = mapOf(
+                    2 to "{{image_filename_2}}",
+                    3 to "{{image_filename_3}}",
+                    4 to "{{image_filename_4}}"
+                )
+                val slotToEscaped = mapOf(
+                    2 to "${escapeForJson(sourceImage2Filename ?: "")} [input]",
+                    3 to "${escapeForJson(sourceImage3Filename ?: "")} [input]",
+                    4 to "${escapeForJson(sourceImage4Filename ?: "")} [input]"
+                )
+                val nodeIds = nodes.keys()
+                while (nodeIds.hasNext()) {
+                    val nodeId = nodeIds.next()
+                    val node = nodes.optJSONObject(nodeId) ?: continue
+                    val inputs = node.optJSONObject("inputs") ?: continue
+                    val classType = node.optString("class_type")
+                    if (classType != "LoadImage") continue
+
+                    val imageName = inputs.optString("image", "")
+                    for (slot in bypassedSlots) {
+                        val placeholder = slotToPlaceholder[slot] ?: continue
+                        val escaped = slotToEscaped[slot] ?: continue
+                        // Match either unresolved placeholder or already-escaped filename
+                        if (imageName == placeholder || imageName == escaped) {
+                            node.put("mode", 4)
+                            DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, image=$imageName)")
+                            break
+                        }
+                    }
                 }
             }
 

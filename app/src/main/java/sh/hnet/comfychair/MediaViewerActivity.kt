@@ -82,10 +82,18 @@ class MediaViewerActivity : ComponentActivity() {
         // Replace slot extra (source image replace feature)
         const val EXTRA_REPLACE_SLOT = "replace_slot"
 
+        // Bypass slot extra — which source image slot is currently bypassed (so toolbar shows correct state)
+        const val EXTRA_BYPASS_SLOT = "bypass_slot"
+        const val EXTRA_IS_BYPASSED = "is_bypassed"
+
         // Result
         const val RESULT_ITEM_DELETED = "item_deleted"
         const val RESULT_REPLACE = "replace"
         const val RESULT_SLOT = "slot"
+
+        // Static callback for bypass toggle (avoids threading callback through Activity→Screen→Toolbar)
+        // Set by ImageToImageScreen before launching MediaViewer, cleared after result
+        var onBypassToggleCallback: ((slot: Int) -> Unit)? = null
 
         /**
          * Create intent for gallery mode (swipe navigation between items)
@@ -123,7 +131,9 @@ class MediaViewerActivity : ComponentActivity() {
             filename: String? = null,
             subfolder: String? = null,
             type: String? = null,
-            replaceSlot: Int? = null
+            replaceSlot: Int? = null,
+            bypassSlot: Int? = null,
+            isSlotBypassed: Boolean = false
         ): Intent {
             // Store bitmap in memory cache (avoids expensive PNG compression/decompression)
             BitmapCache.put(bitmap)
@@ -139,6 +149,9 @@ class MediaViewerActivity : ComponentActivity() {
                 type?.let { putExtra(EXTRA_TYPE, it) }
                 // Add replace slot if provided (enables replace button in viewer)
                 replaceSlot?.let { putExtra(EXTRA_REPLACE_SLOT, it) }
+                // Add bypass slot if provided (shows correct initial bypass state in toolbar)
+                bypassSlot?.let { putExtra(EXTRA_BYPASS_SLOT, it) }
+                putExtra(EXTRA_IS_BYPASSED, isSlotBypassed)
             }
         }
 
@@ -202,9 +215,14 @@ class MediaViewerActivity : ComponentActivity() {
             ComfyChairTheme(forceDarkStatusBar = true) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val replaceSlot = intent.getIntExtra(EXTRA_REPLACE_SLOT, -1).takeIf { it > 0 }
+                    val bypassSlot = intent.getIntExtra(EXTRA_BYPASS_SLOT, -1).takeIf { it > 0 }
+                    val isSlotBypassed = intent.getBooleanExtra(EXTRA_IS_BYPASSED, false)
+                    android.util.Log.d("ComfyChair", "MediaViewer bypassSlot=$bypassSlot isSlotBypassed=$isSlotBypassed")
                     MediaViewerScreen(
                         viewModel = viewModel,
                         replaceSlot = replaceSlot,
+                        bypassSlot = bypassSlot,
+                        isSlotBypassed = isSlotBypassed,
                         onClose = { replaceRequestedSlot: Int? ->
                             // Set result based on what happened
                             val resultIntent = Intent()

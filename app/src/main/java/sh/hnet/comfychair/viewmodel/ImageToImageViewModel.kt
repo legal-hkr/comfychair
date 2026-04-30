@@ -96,6 +96,8 @@ data class ImageToImageUiState(
     val sourceImage2: Bitmap? = null,
     val sourceImage3: Bitmap? = null,
     val sourceImage4: Bitmap? = null,
+    // Bypassed source image slots (for multi-image workflows). Slot 1 is never bypassed — enforced in UI.
+    val bypassedSourceSlots: Set<Int> = emptySet(),
     val previewImage: Bitmap? = null,
     val maskPaths: List<MaskPathData> = emptyList(),
     val brushSize: Float = 50f,
@@ -848,7 +850,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             capabilities = WorkflowCapabilities.fromPlaceholders(placeholders),
             // Dynamic additional image slot count based on workflow placeholders
             additionalImageSlotCount = listOf("image_filename_2", "image_filename_3", "image_filename_4")
-                .count { it in placeholders }
+                .count { it in placeholders },
+            // Bypassed source image slots (for multi-image workflows)
+            bypassedSourceSlots = savedValues?.bypassedSourceSlots ?: emptySet()
         )
     }
 
@@ -939,7 +943,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() },
             highnoiseLoraChain = LoraSelection.toJsonString(state.editingHighnoiseLoraChain).takeIf { state.editingHighnoiseLoraChain.isNotEmpty() },
             lownoiseLoraChain = LoraSelection.toJsonString(state.editingLownoiseLoraChain).takeIf { state.editingLownoiseLoraChain.isNotEmpty() },
-            nodeAttributeEdits = existingValues?.nodeAttributeEdits
+            nodeAttributeEdits = existingValues?.nodeAttributeEdits,
+            bypassedSourceSlots = state.bypassedSourceSlots.takeIf { it.isNotEmpty() }
         )
 
         storage.saveValues(serverId, workflowId, values)
@@ -1162,6 +1167,23 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             else -> return
         }
         _uiState.value = update
+    }
+
+    /**
+     * Toggle bypass state for a source image slot.
+     * Slot 1 (primary image) cannot be bypassed — this is enforced at the call site.
+     * @param slot 2, 3, or 4
+     */
+    fun toggleBypassSourceImage(slot: Int) {
+        if (slot == 1) return  // Primary image cannot be bypassed
+        val current = _uiState.value.bypassedSourceSlots
+        val updated = if (slot in current) current - slot else current + slot
+        _uiState.update { it.copy(bypassedSourceSlots = updated) }
+        // Persist the change
+        val workflowId = _uiState.value.selectedEditingWorkflowId
+        if (workflowId.isNotEmpty()) {
+            viewModelScope.launch { saveEditingWorkflowValues(workflowId) }
+        }
     }
 
     // Mask operations
@@ -2011,7 +2033,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         var uploadedSource3: String? = null
         var uploadedSource4: String? = null
 
-        if (sourceImage2 != null) {
+        if (sourceImage2 != null && 2 !in state.bypassedSourceSlots) {
             val bytes2 = withContext(Dispatchers.IO) {
                 val os = java.io.ByteArrayOutputStream()
                 sourceImage2.compress(Bitmap.CompressFormat.PNG, 100, os)
@@ -2027,7 +2049,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             uploadedSource2 = result2.filename
         }
 
-        if (sourceImage3 != null) {
+        if (sourceImage3 != null && 3 !in state.bypassedSourceSlots) {
             val bytes3 = withContext(Dispatchers.IO) {
                 val os = java.io.ByteArrayOutputStream()
                 sourceImage3.compress(Bitmap.CompressFormat.PNG, 100, os)
@@ -2043,7 +2065,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             uploadedSource3 = result3.filename
         }
 
-        if (sourceImage4 != null) {
+        if (sourceImage4 != null && 4 !in state.bypassedSourceSlots) {
             val bytes4 = withContext(Dispatchers.IO) {
                 val os = java.io.ByteArrayOutputStream()
                 sourceImage4.compress(Bitmap.CompressFormat.PNG, 100, os)
@@ -2089,6 +2111,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             sourceImage2Filename = uploadedSource2,
             sourceImage3Filename = uploadedSource3,
             sourceImage4Filename = uploadedSource4,
+            bypassedSlots = state.bypassedSourceSlots,
             referenceImage1Filename = uploadedRef1,
             referenceImage2Filename = uploadedRef2
         ) ?: return null

@@ -31,6 +31,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DoNotDisturb
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
@@ -66,6 +67,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -212,6 +214,8 @@ fun ImageToImageScreen(
     val mediaViewerReplaceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        // Always clear bypass toggle callback when MediaViewer closes
+        MediaViewerActivity.onBypassToggleCallback = null
         val data = result.data
         if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
             val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
@@ -506,21 +510,45 @@ fun ImageToImageScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            Image(
-                                bitmap = sourceImage.asImageBitmap(),
-                                contentDescription = stringResource(R.string.content_description_source_image),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable {
-                                        val intent = MediaViewerActivity.createSingleImageIntent(
-                                            context,
-                                            sourceImage,
-                                            replaceSlot = sourceSlot
-                                        )
-                                        mediaViewerReplaceLauncher?.launch(intent)
-                                    },
-                                contentScale = ContentScale.Crop
-                            )
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Image(
+                                    bitmap = sourceImage.asImageBitmap(),
+                                    contentDescription = stringResource(R.string.content_description_source_image),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable {
+                                            // Set bypass toggle callback before launching MediaViewer
+                                            MediaViewerActivity.onBypassToggleCallback =
+                                                { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                            android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
+                                            val intent = MediaViewerActivity.createSingleImageIntent(
+                                                context,
+                                                sourceImage,
+                                                replaceSlot = sourceSlot,
+                                                bypassSlot = sourceSlot,
+                                                isSlotBypassed = uiState.bypassedSourceSlots.contains(sourceSlot)
+                                            )
+                                            mediaViewerReplaceLauncher?.launch(intent)
+                                        },
+                                    contentScale = ContentScale.Crop
+                                )
+                                // Bypass overlay — dimmed + icon for slots 2/3/4 that are bypassed
+                                if (sourceSlot >= 2 && uiState.bypassedSourceSlots.contains(sourceSlot)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.45f))
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.DoNotDisturb,
+                                        contentDescription = stringResource(R.string.node_editor_bypass),
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(8.dp),
+                                        tint = Color.White.copy(alpha = 0.85f)
+                                    )
+                                }
+                            }
                         }
                     } else {
                         // Empty slot — placeholder with picker

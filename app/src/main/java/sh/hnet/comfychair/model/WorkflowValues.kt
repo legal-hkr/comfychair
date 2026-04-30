@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.model
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -58,7 +59,11 @@ data class WorkflowValues(
     val batchSize: Int? = null,
     val upscaleMethod: String? = null,
     val scaleBy: Float? = null,
-    val stopAtClipLayer: Int? = null
+    val stopAtClipLayer: Int? = null,
+
+    // Bypassed source image slots (for multi-image workflows), e.g. setOf(2, 4)
+    // Slot 1 (primary) is never bypassed — enforced in UI
+    val bypassedSourceSlots: Set<Int>? = null
 ) {
     companion object {
         fun fromJson(jsonString: String): WorkflowValues {
@@ -99,7 +104,11 @@ data class WorkflowValues(
                 batchSize = json.optInt("batchSize").takeIf { it > 0 },
                 upscaleMethod = json.optString("upscaleMethod").takeIf { it.isNotEmpty() },
                 scaleBy = json.optDouble("scaleBy").takeIf { !it.isNaN() }?.toFloat(),
-                stopAtClipLayer = json.optInt("stopAtClipLayer", 0).takeIf { it != 0 }
+                stopAtClipLayer = json.optInt("stopAtClipLayer", 0).takeIf { it != 0 },
+                bypassedSourceSlots = if (json.has("bypassedSourceSlots")) {
+                    val arr = json.getJSONArray("bypassedSourceSlots")
+                    (0 until arr.length()).map { arr.getInt(it) }.toSet()
+                } else null
             )
         }
 
@@ -141,6 +150,9 @@ data class WorkflowValues(
                 values.upscaleMethod?.let { put("upscaleMethod", it) }
                 values.scaleBy?.let { put("scaleBy", it.toDouble()) }
                 values.stopAtClipLayer?.let { put("stopAtClipLayer", it) }
+                values.bypassedSourceSlots?.let { slots ->
+                    put("bypassedSourceSlots", JSONArray().apply { slots.forEach { put(it) } })
+                }
             }.toString()
         }
     }
