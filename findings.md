@@ -9,83 +9,73 @@
 
 ## 代码库关键发现
 
-### 1. ImageToImageScreen.kt 底部工具条
+### 1. 当前实现状态
 
-**位置**: 行 632-758
+**GalleryPickerBottomSheet.kt** 已存在：
+- 位置: `ui/components/GalleryPickerBottomSheet.kt`
+- 布局: 3列 LazyVerticalGrid
+- 使用 `rememberLazyBitmap` 异步加载缩略图
+- 空状态显示友好提示
 
-```
-Row (fillMaxWidth, padding 16dp bottom)
-  ├── GenerationButton (weight=1f)
-  ├── Spacer(width=8.dp)
-  └── OutlinedIconButton (gear/settings icon) → toggle showOptionsSheet
-```
-
-按用户偏好，应该在 GenerationButton 和 Spacer 之间添加新按钮。
-
-### 2. HorizontalPager 结构
-
-**位置**: 行 434-576
-
-- Slot 1 = page 0 (sourceImage)
-- Slot 2 = page 1 (sourceImage2) — 如果 `additionalImageSlotCount >= 1`
-- Slot 3 = page 2 (sourceImage3) — 如果 `additionalImageSlotCount >= 2`
-- Slot 4 = page 3 (sourceImage4) — 如果 `additionalImageSlotCount >= 3`
-- Preview = page `previewPageIndex` (previewImage)
-
-`sourceSlot` 推导（行 451-457）:
+**ImageToImageViewModel.onSourceImageFromGallery** 已存在：
 ```kotlin
-val sourceSlot = when (sourcePageIndex) {
-    0 -> 1; 1 -> 2; 2 -> 3; 3 -> 4; else -> 0
+fun onSourceImageFromGallery(context: Context, slot: Int, bitmap: Bitmap)
+```
+- 将 Bitmap 存入 MediaStateHolder（ItiSource/ItiSource2/ItiSource3/ItiSource4）
+- 更新 _uiState.value 对应字段（sourceImage/sourceImage2/sourceImage3/sourceImage4）
+
+### 2. 错误的位置
+
+**底部工具条 GalleryPicker 按钮**（第 780-791 行）— 需要删除：
+```kotlin
+OutlinedIconButton(
+    onClick = { showGalleryPicker = true },
+    modifier = Modifier.size(56.dp)
+) {
+    Icon(Icons.Default.Collections, ...)
+}
+Spacer(modifier = Modifier.width(8.dp))
+```
+
+这个按钮是之前加在 GenerationButton 和 Settings 按钮之间的，Nick 不需要这个位置。
+
+### 3. 正确的入口：MediaViewer "Use as source" 按钮
+
+**MediaViewerFloatingToolbar**（MediaViewerScreen.kt 第 462-468 行）：
+```kotlin
+IconButton(onClick = onUseAsSource) {
+    Icon(Icons.Default.Collections, ...)
 }
 ```
 
-### 3. GalleryRepository
+**MediaViewerActivity.onUseAsSourceCallback** 设置后，返回 `ImageToImageScreen` 时会携带 `RESULT_SLOT`。
 
-**单例**: `GalleryRepository.getInstance()`
-**状态**: `galleryItems: StateFlow<List<GalleryItem>>`
+### 4. 需要修改的代码
 
-`GalleryItem`:
+**mediaViewerReplaceLauncher**（ImageToImageScreen.kt 第 224-243 行）：
 ```kotlin
-data class GalleryItem(
-    val promptId: String,
-    val filename: String,
-    val subfolder: String,
-    val type: String,
-    val isVideo: Boolean,
-    val index: Int = 0
-)
+// 当前行为：打开系统文件选择器
+when (replaceSlot) {
+    1 -> imagePickerLauncher.launch(arrayOf("image/*"))
+    2 -> imagePickerLauncher2.launch(arrayOf("image/*"))
+    ...
+}
+
+// 修改为：打开 GalleryPickerBottomSheet
+currentPickerSlot = replaceSlot
+showGalleryPicker = true
 ```
 
-获取 Bitmap: `MediaCache.getBitmap(item.toCacheKey())`
-
-### 4. ImageToImageViewModel 源图加载
-
-现有方法接收 `Uri`:
+**新增状态**:
 ```kotlin
-fun onSourceImageChange(context: Context, uri: Uri) // slot 1
-fun onAdditionalSourceImageChange(context: Context, index: Int, uri: Uri) // slot 2/3/4
+var currentPickerSlot by remember { mutableIntStateOf(1) }
 ```
 
-从 Uri 解码 Bitmap 后存入 `MediaStateHolder`。历史图片已存于 `MediaCache`，需要新增接收 `Bitmap` 的方法。
+### 5. GalleryRepository
 
-### 5. MediaCache
-
-- `getBitmap(key: MediaCacheKey): Bitmap?` — 同步查找缓存
-- `rememberLazyBitmap(cacheKey, isVideo, subfolder, type)` — Composable 异步加载
-
-### 6. MediaStateHolder
-
-`putBitmap(key: MediaKey, bitmap: Bitmap, context)` — 存储 Bitmap 到指定 key
-
-可用 key: `ItiSource`, `ItiSource2`, `ItiSource3`, `ItiSource4`
-
-### 7. 已有 ModalBottomSheet 模式
-
-`showOptionsSheet: Boolean` + `optionsSheetState: SheetState` 控制设置面板。
-
-### 8. 字符串资源
-
-`res/values/strings.xml` 中暂无相关字符串，需要新增。
+- 单例: `GalleryRepository.getInstance()`
+- 状态: `galleryItems: StateFlow<List<GalleryItem>>`
+- 获取 Bitmap: `MediaCache.getBitmap(item.toCacheKey())`
 
 ---
 

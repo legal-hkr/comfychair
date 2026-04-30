@@ -174,6 +174,7 @@ fun ImageToImageScreen(
 
     // Gallery picker state
     var showGalleryPicker by remember { mutableStateOf(false) }
+    var currentPickerSlot by remember { mutableStateOf(1) }
     val galleryPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val galleryImages: List<GalleryItem> by GalleryRepository.getInstance().galleryItems.collectAsState()
 
@@ -227,16 +228,14 @@ fun ImageToImageScreen(
     ) { result ->
         // Always clear callbacks when MediaViewer closes
         MediaViewerActivity.onBypassToggleCallback = null
+        MediaViewerActivity.onUseAsSourceCallback = null
         val data = result.data
         if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
             val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
             if (replaceSlot > 0) {
-                when (replaceSlot) {
-                    1 -> imagePickerLauncher.launch(arrayOf("image/*"))
-                    2 -> imagePickerLauncher2.launch(arrayOf("image/*"))
-                    3 -> imagePickerLauncher3.launch(arrayOf("image/*"))
-                    4 -> imagePickerLauncher4.launch(arrayOf("image/*"))
-                }
+                // Set current slot and open gallery picker instead of file picker
+                currentPickerSlot = replaceSlot
+                showGalleryPicker = true
             }
         }
     }
@@ -495,6 +494,8 @@ fun ImageToImageScreen(
                                         // Set callbacks before launching MediaViewer
                                         MediaViewerActivity.onBypassToggleCallback =
                                             { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                        MediaViewerActivity.onUseAsSourceCallback =
+                                            { _, _, _, _, bmp -> imageToImageViewModel.onSourceImageFromGallery(context, 1, bmp) }
                                         val intent = MediaViewerActivity.createSingleImageIntent(
                                             context = context,
                                             bitmap = bitmap,
@@ -502,7 +503,10 @@ fun ImageToImageScreen(
                                             port = generationViewModel.getPort(),
                                             filename = uiState.previewImageFilename,
                                             subfolder = uiState.previewImageSubfolder,
-                                            type = uiState.previewImageType
+                                            type = uiState.previewImageType,
+                                            replaceSlot = 1,
+                                            bypassSlot = 1,
+                                            isSlotBypassed = false
                                         )
                                         // Prefer ActivityResultLauncher for proper result callback, fallback to direct start
                                         if (mediaViewerReplaceLauncher != null) {
@@ -544,6 +548,8 @@ fun ImageToImageScreen(
                                             // Set callbacks before launching MediaViewer
                                             MediaViewerActivity.onBypassToggleCallback =
                                                 { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                            MediaViewerActivity.onUseAsSourceCallback =
+                                                { _, _, _, _, bmp -> imageToImageViewModel.onSourceImageFromGallery(context, 1, bmp) }
                                             android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
                                             val intent = MediaViewerActivity.createSingleImageIntent(
                                                 context = context,
@@ -769,19 +775,6 @@ fun ImageToImageScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Gallery picker button - pick from history
-            OutlinedIconButton(
-                onClick = { showGalleryPicker = true },
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(
-                    Icons.Default.Collections,
-                    contentDescription = stringResource(R.string.button_pick_from_gallery)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
             // Animate gear icon rotation when options sheet is shown
             val optionsIconRotation by animateFloatAsState(
                 targetValue = if (showOptionsSheet) 90f else 0f,
@@ -811,7 +804,7 @@ fun ImageToImageScreen(
                 if (bitmap != null) {
                     imageToImageViewModel.onSourceImageFromGallery(
                         context = context,
-                        slot = 1,
+                        slot = currentPickerSlot,
                         bitmap = bitmap
                     )
                 }

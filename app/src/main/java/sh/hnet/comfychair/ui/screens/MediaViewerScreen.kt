@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.DoNotDisturb
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Info
@@ -319,7 +320,32 @@ fun MediaViewerScreen(
                 onBypassToggle = { slot ->
                     MediaViewerActivity.onBypassToggleCallback?.invoke(slot)
                     onClose(null)
-                }
+                },
+                onUseAsSource = {
+                    // Use LocalContext (MediaViewerActivity) to set result before closing
+                    val activity = context as? android.app.Activity
+                    val item = uiState.currentItem
+                    val bitmap = MediaViewerActivity.singleModeBitmap
+                    if (item != null && bitmap != null) {
+                        MediaViewerActivity.onUseAsSourceCallback?.invoke(
+                            item.promptId,
+                            item.filename,
+                            item.subfolder,
+                            item.type,
+                            bitmap
+                        )
+                    } else {
+                        android.util.Log.w("ComfyChair", "onUseAsSource: item=$item bitmap=${bitmap != null}")
+                    }
+                    // Set RESULT_SLOT so ImageToImageScreen's result handler opens the picker
+                    // (replaceSlot is 1 for main image, 2/3/4 for additional slots)
+                    replaceSlot?.let { slot ->
+                        activity?.setResult(android.app.Activity.RESULT_OK, android.content.Intent().apply {
+                            putExtra(MediaViewerActivity.RESULT_SLOT, slot)
+                        })
+                    }
+                    onClose(null)
+                },
             )
         }
 
@@ -369,6 +395,7 @@ private fun MediaViewerFloatingToolbar(
     onInfo: () -> Unit = {},
     onReplace: () -> Unit = {},
     onBypassToggle: (slot: Int) -> Unit = {},
+    onUseAsSource: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val toolbarColors = FloatingToolbarColors(
@@ -430,6 +457,14 @@ private fun MediaViewerFloatingToolbar(
                             }
                         )
                     }
+                }
+
+                // Use as source image button — pick from gallery history
+                IconButton(onClick = onUseAsSource) {
+                    Icon(
+                        Icons.Default.Collections,
+                        contentDescription = stringResource(R.string.button_use_as_source)
+                    )
                 }
 
                 // Share button

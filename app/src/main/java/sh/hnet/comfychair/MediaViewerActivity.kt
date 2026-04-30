@@ -99,6 +99,13 @@ class MediaViewerActivity : ComponentActivity() {
         // Set by ImageToImageScreen before launching MediaViewer, cleared after result
         var onUseAsSourceCallback: ((promptId: String, filename: String, subfolder: String, type: String, bitmap: android.graphics.Bitmap) -> Unit)? = null
 
+        // SINGLE mode: bitmap stored here (not in BitmapCache which gets cleared during init)
+        // Cleared by MediaViewerActivity when done
+        var singleModeBitmap: android.graphics.Bitmap? = null
+        fun clearSingleModeBitmap() {
+            singleModeBitmap = null
+        }
+
         /**
          * Create intent for gallery mode (swipe navigation between items)
          */
@@ -139,8 +146,8 @@ class MediaViewerActivity : ComponentActivity() {
             bypassSlot: Int? = null,
             isSlotBypassed: Boolean = false
         ): Intent {
-            // Store bitmap in memory cache (avoids expensive PNG compression/decompression)
-            BitmapCache.put(bitmap)
+            // Store bitmap in companion object (survives activity init, unlike BitmapCache which gets cleared)
+            singleModeBitmap = bitmap
 
             return Intent(context, MediaViewerActivity::class.java).apply {
                 putExtra(EXTRA_MODE, MODE_SINGLE)
@@ -251,6 +258,12 @@ class MediaViewerActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // Always clear the SINGLE mode bitmap when activity finishes
+        clearSingleModeBitmap()
+    }
+
     private fun initializeGalleryMode() {
         val hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: ""
         val port = intent.getIntExtra(EXTRA_PORT, 8188)
@@ -308,9 +321,9 @@ class MediaViewerActivity : ComponentActivity() {
                 singleVideoUri = videoUri
             )
         } else {
-            // Try to get bitmap from cache first (normal flow: generation screen → viewer)
-            var bitmap = BitmapCache.get()
-            BitmapCache.clear()
+            // Get bitmap from companion object (not BitmapCache which gets cleared during SINGLE mode init)
+            var bitmap = singleModeBitmap
+            // Don't clear here - keep for onUseAsSource to use later; cleared by onClose/onDestroy
 
             // If no cached bitmap and we have notification extras, retrieve from MediaStateHolder
             if (bitmap == null && isFromNotification && notificationOwnerId != null) {

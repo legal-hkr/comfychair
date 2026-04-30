@@ -39,192 +39,175 @@
 
 ## Phase 2: 实现计划
 
-### 步骤 1: 创建 `GalleryPickerBottomSheet.kt` Composable
+### 概述
 
-**位置**: `ui/components/GalleryPickerBottomSheet.kt`
+**功能入口**: MediaViewerFloatingToolbar 中的 "Use as source" 按钮（Icons.Default.Collections）
 
-**功能**:
-- 接收 `galleryItems: List<GalleryItem>`, `onSelect: (GalleryItem) -> Unit`, `onDismiss: () -> Unit`
-- 使用 `LazyVerticalGrid`（2列）展示缩略图
-- 每项用 `rememberLazyBitmap` 加载缩略图
-- 点击项 → 调用 `onSelect(item)` → 自动 dismiss
+**当前流程**:
+1. 在 MediaViewer 中点击 "Use as source" 按钮
+2. 返回 ImageToImageScreen，触发 `mediaViewerReplaceLauncher`
+3. `mediaViewerReplaceLauncher` 打开系统文件选择器 `imagePickerLauncher`
 
-**UI 布局**:
-```
-ModalBottomSheet
-  ├── Header: "选择历史图片" + 关闭按钮
-  └── LazyVerticalGrid (2列)
-        ├── GalleryItemThumbnail (有图: Image; 无图: placeholder)
-        └── EmptyState (无历史图片时)
-```
-
-**样式**:
-- 参考 `GalleryScreen.kt` 的 `GalleryItemCard` 样式
-- 正方形 `aspectRatio(1f)` 缩略图，`RoundedCornerShape(8.dp)`
-- `8.dp` 间距
+**新流程**:
+1. 在 MediaViewer 中点击 "Use as source" 按钮
+2. 返回 ImageToImageScreen，触发 `mediaViewerReplaceLauncher`
+3. `mediaViewerReplaceLauncher` 打开 `GalleryPickerBottomSheet`（替换系统文件选择器）
+4. 选择历史图片 → Bitmap 直接存入对应槽位
 
 ---
 
-### 步骤 2: 修改 `ImageToImageScreen.kt` — 添加按钮
+### 步骤 1: 删除底部工具条中的 GalleryPicker 按钮
 
-**位置**: 底部工具条 Row 中（`GenerationButton` 和设置按钮之间）
+**位置**: `ImageToImageScreen.kt` 第 780-791 行
 
-**新增状态**:
+**删除内容**:
 ```kotlin
-var showGalleryPicker by remember { mutableStateOf(false) }
-val galleryPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-```
-
-**新增按钮**（在 Spacer 前）:
-```kotlin
+// Gallery picker button - pick from history
 OutlinedIconButton(
     onClick = { showGalleryPicker = true },
     modifier = Modifier.size(56.dp)
 ) {
     Icon(
-        Icons.Default.PhotoLibrary,  // 或 Icons.Default.Collections
+        Icons.Default.Collections,
         contentDescription = stringResource(R.string.button_pick_from_gallery)
     )
 }
-```
 
-**按钮位置**: GenerationButton 和 Spacer(8.dp) 之间（与现有 Spacer 并列）
-
-**字符串资源**（`res/values/strings.xml`）:
-```xml
-<string name="button_pick_from_gallery">从历史记录选择</string>
-<string name="title_gallery_picker">选择历史图片</string>
-<string name="msg_gallery_picker_empty">暂无历史图片</string>
+Spacer(modifier = Modifier.width(8.dp))
 ```
 
 ---
 
-### 步骤 3: 修改 `ImageToImageScreen.kt` — 集成 BottomSheet
+### 步骤 2: 修改 `mediaViewerReplaceLauncher` — 改为打开 GalleryPicker
 
-**位置**: `ImageToImageScreen` composable 函数末尾（`showOptionsSheet` 附近）
+**位置**: `ImageToImageScreen.kt` 第 224-243 行
 
-**新增逻辑**:
+**原代码**:
 ```kotlin
-// Gallery picker bottom sheet
-if (showGalleryPicker) {
-    GalleryPickerBottomSheet(
-        galleryItems = galleryRepository.galleryItems.value.filter { !it.isVideo },
-        onSelect = { item ->
-            // 从 MediaCache 获取 Bitmap
-            val bitmap = MediaCache.getBitmap(item.toCacheKey())
-            if (bitmap != null) {
-                // 根据当前查看的槽位设置对应源图
-                // sourceSlot 由 pagerState.currentPage 推导（见 ImageToImageScreen.kt 行 451-457）
-                when (currentSourceSlot) {
-                    1 -> imageToImageViewModel.onSourceImageChange(context, item, bitmap)
-                    else -> imageToImageViewModel.onAdditionalSourceImageChange(context, currentSourceSlot, bitmap)
-                }
+val mediaViewerReplaceLauncher = rememberLauncherForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result ->
+    // ...
+    if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+        val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
+        if (replaceSlot > 0) {
+            when (replaceSlot) {
+                1 -> imagePickerLauncher.launch(arrayOf("image/*"))
+                2 -> imagePickerLauncher2.launch(arrayOf("image/*"))
+                3 -> imagePickerLauncher3.launch(arrayOf("image/*"))
+                4 -> imagePickerLauncher4.launch(arrayOf("image/*"))
             }
-            showGalleryPicker = false
-        },
-        onDismiss = { showGalleryPicker = false },
-        sheetState = galleryPickerSheetState
-    )
-}
-```
-
-**⚠️ 问题**: `onSourceImageChange` 接收 `Uri`，但历史图片在 `MediaCache` 中而非 URI。需要新增方法或扩展现有方法接收 `Bitmap`。
-
-**解决方案**: 在 `ImageToImageViewModel` 中添加新方法:
-```kotlin
-fun onSourceImageFromGallery(context: Context, slot: Int, bitmap: Bitmap)
-```
-
-该方法将 `Bitmap` 直接存入 `MediaStateHolder` 并更新 `UiState`，无需经过 URI 解析。
-
----
-
-### 步骤 4: 修改 `ImageToImageViewModel.kt` — 添加 `Bitmap` 接收方法
-
-**新增方法**:
-```kotlin
-/**
- * Handle source image selection from gallery (already a Bitmap from MediaCache).
- * @param slot 1-4
- */
-fun onSourceImageFromGallery(context: Context, slot: Int, bitmap: Bitmap) {
-    viewModelScope.launch(Dispatchers.IO) {
-        val key = when (slot) {
-            1 -> MediaStateHolder.MediaKey.ItiSource
-            2 -> MediaStateHolder.MediaKey.ItiSource2
-            3 -> MediaStateHolder.MediaKey.ItiSource3
-            4 -> MediaStateHolder.MediaKey.ItiSource4
-            else -> return@launch
-        }
-        MediaStateHolder.putBitmap(key, bitmap, context)
-        withContext(Dispatchers.Main) {
-            val update = when (slot) {
-                1 -> _uiState.value.copy(sourceImage = bitmap)
-                2 -> _uiState.value.copy(sourceImage2 = bitmap)
-                3 -> _uiState.value.copy(sourceImage3 = bitmap)
-                4 -> _uiState.value.copy(sourceImage4 = bitmap)
-                else -> return@withContext
-            }
-            _uiState.value = update
         }
     }
 }
 ```
 
----
-
-### 步骤 5: 确认当前槽位 `currentSourceSlot` 的计算
-
-**代码位置**: HorizontalPager page → sourceSlot 推导（行 451-457）
-
+**改为**:
 ```kotlin
-val sourceSlot = when (sourcePageIndex) {
-    0 -> 1
-    1 -> 2
-    2 -> 3
-    3 -> 4
-    else -> 0  // preview page
+val mediaViewerReplaceLauncher = rememberLauncherForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result ->
+    // Always clear callbacks when MediaViewer closes
+    MediaViewerActivity.onBypassToggleCallback = null
+    MediaViewerActivity.onUseAsSourceCallback = null
+    val data = result.data
+    if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+        val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
+        if (replaceSlot > 0) {
+            // Set current slot and open gallery picker instead of file picker
+            currentPickerSlot = replaceSlot
+            showGalleryPicker = true
+        }
+    }
 }
 ```
 
-在 `ImageToImageScreen.kt` 中，`currentSourceSlot` 需要在 `ImageToImageScreen` composable 层计算，并传递给 BottomSheet。
-
-**计算逻辑**:
+**新增状态**:
 ```kotlin
-val sourcePageIndex = if (pagerState.currentPage < previewPageIndex) pagerState.currentPage else -1
-val currentSourceSlot = when (sourcePageIndex) {
-    0 -> 1
-    1 -> 2
-    2 -> 3
-    3 -> 4
-    else -> 1  // preview page → default to slot 1
-}
+var currentPickerSlot by remember { mutableIntStateOf(1) }
 ```
 
 ---
 
-### 步骤 6: 添加 `Icons.Default.PhotoLibrary` import
+### 步骤 3: 修改 `GalleryPickerBottomSheet` 调用 — 使用 `currentPickerSlot`
 
-**位置**: `ImageToImageScreen.kt` imports 区块
+**位置**: `ImageToImageScreen.kt` 第 814 行附近
 
+**原代码**:
 ```kotlin
-import androidx.compose.material.icons.filled.PhotoLibrary
+GalleryPickerBottomSheet(
+    galleryItems = galleryImages,
+    onSelect = { item ->
+        val cacheKey = item.toCacheKey()
+        val bitmap = MediaCache.getBitmap(cacheKey)
+        if (bitmap != null) {
+            // 根据当前查看的槽位设置对应源图
+            when (currentSourceSlot) {
+                1 -> imageToImageViewModel.onSourceImageChange(context, item, bitmap)
+                else -> imageToImageViewModel.onAdditionalSourceImageChange(context, currentSourceSlot, bitmap)
+            }
+        }
+        showGalleryPicker = false
+    },
+    onDismiss = { showGalleryPicker = false },
+    sheetState = galleryPickerSheetState
+)
 ```
 
-（需确认 Material Icons Extended 是否已在依赖中）
+**改为**:
+```kotlin
+GalleryPickerBottomSheet(
+    galleryItems = galleryImages,
+    onSelect = { item ->
+        val cacheKey = item.toCacheKey()
+        val bitmap = MediaCache.getBitmap(cacheKey)
+        if (bitmap != null) {
+            // 使用 currentPickerSlot 确定目标槽位
+            when (currentPickerSlot) {
+                1 -> imageToImageViewModel.onSourceImageFromGallery(context, 1, bitmap)
+                else -> imageToImageViewModel.onSourceImageFromGallery(context, currentPickerSlot, bitmap)
+            }
+        }
+        showGalleryPicker = false
+    },
+    onDismiss = { showGalleryPicker = false },
+    sheetState = galleryPickerSheetState
+)
+```
+
+---
+
+### 步骤 4: 确认 `onSourceImageFromGallery` 方法已存在
+
+**位置**: `ImageToImageViewModel.kt`
+
+检查是否已有方法:
+```kotlin
+fun onSourceImageFromGallery(context: Context, slot: Int, bitmap: Bitmap)
+```
+
+该方法应该：
+- 将 `Bitmap` 存入 `MediaStateHolder` 对应 key（ItiSource / ItiSource2 / ItiSource3 / ItiSource4）
+- 更新 `_uiState.value` 对应字段（sourceImage / sourceImage2 / sourceImage3 / sourceImage4）
+
+如已存在（根据调研结果应该已存在），则跳过此步骤。
+
+---
+
+### 步骤 5: 清理未使用的 file picker 状态（如有）
+
+当 `showGalleryPicker` 单独使用时（不从 MediaViewer 返回），需要确保 `currentPickerSlot` 有默认值 1。
 
 ---
 
 ## Phase 3: 验证清单
 
-- [ ] 底部工具条显示新按钮
-- [ ] 点击按钮打开 GalleryPickerBottomSheet
-- [ ] BottomSheet 展示历史图片缩略图（来自 GalleryRepository）
-- [ ] 点击缩略图 → 关闭 BottomSheet → 源图更新
-- [ ] 预览页 fallback 到 slot 1
-- [ ] source image 2/3/4 槽位正确路由
+- [ ] 删除底部工具条中的 GalleryPicker 按钮（第 780-791 行）
+- [ ] `mediaViewerReplaceLauncher` 改为设置 `showGalleryPicker = true`
+- [ ] MediaViewer 中点击 "Use as source" → 打开 GalleryPickerBottomSheet
+- [ ] 选择历史图片 → Bitmap 正确存入对应槽位（slot 1/2/3/4）
 - [ ] 空状态（无历史图片）显示友好提示
-- [ ] 字符串资源中英文都添加
+- [ ] 字符串资源已存在（中英文）
 
 ---
 
@@ -232,11 +215,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 
 | 文件 | 改动 |
 |------|------|
-| `ui/components/GalleryPickerBottomSheet.kt` | 新增 |
-| `viewmodel/ImageToImageViewModel.kt` | 新增 `onSourceImageFromGallery` 方法 |
-| `ui/screens/ImageToImageScreen.kt` | 添加按钮 + BottomSheet 集成 |
-| `res/values/strings.xml` | 添加字符串资源 |
-| `res/values-zh/strings.xml` | 添加中文字符串资源 |
+| `ui/screens/ImageToImageScreen.kt` | 1. 删除底部工具条 GalleryPicker 按钮<br>2. 修改 `mediaViewerReplaceLauncher` 打开 GalleryPicker<br>3. 修改 BottomSheet 调用使用 `currentPickerSlot` |
 
 ---
 
