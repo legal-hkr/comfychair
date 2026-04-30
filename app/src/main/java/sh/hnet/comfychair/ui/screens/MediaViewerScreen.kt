@@ -26,6 +26,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.DoNotDisturb
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -58,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
@@ -74,7 +78,10 @@ import sh.hnet.comfychair.viewmodel.ViewerMode
 @Composable
 fun MediaViewerScreen(
     viewModel: MediaViewerViewModel,
-    onClose: () -> Unit,
+    replaceSlot: Int? = null,
+    bypassSlot: Int? = null,
+    isSlotBypassed: Boolean = false,
+    onClose: (replaceSlot: Int?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -100,7 +107,7 @@ fun MediaViewerScreen(
 
     // Handle system back button - ensures onClose() is called with proper result
     BackHandler {
-        onClose()
+        onClose(null)
     }
 
     // Handle events
@@ -114,7 +121,7 @@ fun MediaViewerScreen(
                     // Items list changed, pager will recompose with new key
                 }
                 is MediaViewerEvent.Close -> {
-                    onClose()
+                    onClose(null)
                 }
             }
         }
@@ -302,10 +309,43 @@ fun MediaViewerScreen(
         ) {
             MediaViewerFloatingToolbar(
                 isGalleryMode = uiState.mode == ViewerMode.GALLERY,
+                replaceSlot = replaceSlot,
+                bypassSlot = bypassSlot,
+                isSlotBypassed = isSlotBypassed,
                 onDelete = { viewModel.deleteCurrentItem() },
                 onSave = { viewModel.saveCurrentItem() },
                 onShare = { viewModel.shareCurrentItem() },
-                onInfo = { showMetadataSheet = true }
+                onInfo = { showMetadataSheet = true },
+                onReplace = { replaceSlot?.let { onClose(it) } },
+                onBypassToggle = { slot ->
+                    MediaViewerActivity.onBypassToggleCallback?.invoke(slot)
+                    onClose(null)
+                },
+                onUseAsSource = {
+                    // Use LocalContext (MediaViewerActivity) to set result before closing
+                    val activity = context as? android.app.Activity
+                    val item = uiState.currentItem
+                    val bitmap = MediaViewerActivity.singleModeBitmap
+                    if (item != null && bitmap != null) {
+                        MediaViewerActivity.onUseAsSourceCallback?.invoke(
+                            item.promptId,
+                            item.filename,
+                            item.subfolder,
+                            item.type,
+                            bitmap
+                        )
+                    } else {
+                        android.util.Log.w("ComfyChair", "onUseAsSource: item=$item bitmap=${bitmap != null}")
+                    }
+                    // Set RESULT_SLOT so ImageToImageScreen's result handler opens the picker
+                    // (replaceSlot is 1 for main image, 2/3/4 for additional slots)
+                    replaceSlot?.let { slot ->
+                        activity?.setResult(android.app.Activity.RESULT_OK, android.content.Intent().apply {
+                            putExtra(MediaViewerActivity.RESULT_SLOT, slot)
+                        })
+                    }
+                    onClose(null)
+                },
             )
         }
 
@@ -320,7 +360,7 @@ fun MediaViewerScreen(
                 .padding(end = 16.dp, bottom = fabBottomPadding)
         ) {
             FloatingActionButton(
-                onClick = onClose,
+                onClick = { onClose(null) },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             ) {
@@ -346,10 +386,16 @@ fun MediaViewerScreen(
 @Composable
 private fun MediaViewerFloatingToolbar(
     isGalleryMode: Boolean,
-    onDelete: () -> Unit,
-    onSave: () -> Unit,
-    onShare: () -> Unit,
-    onInfo: () -> Unit,
+    replaceSlot: Int? = null,
+    bypassSlot: Int? = null,
+    isSlotBypassed: Boolean = false,
+    onDelete: () -> Unit = {},
+    onSave: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onInfo: () -> Unit = {},
+    onReplace: () -> Unit = {},
+    onBypassToggle: (slot: Int) -> Unit = {},
+    onUseAsSource: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val toolbarColors = FloatingToolbarColors(
@@ -384,6 +430,40 @@ private fun MediaViewerFloatingToolbar(
                     Icon(
                         Icons.Default.Save,
                         contentDescription = stringResource(R.string.media_viewer_save)
+                    )
+                }
+
+                // Replace button (only shown when viewing a source image slot)
+                if (replaceSlot != null) {
+                    IconButton(onClick = onReplace) {
+                        Icon(
+                            Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.media_viewer_replace)
+                        )
+                    }
+                }
+
+                // Bypass button (only shown for source image slots 2/3/4, not slot 1)
+                // Slot 1 (main image) cannot be bypassed — enforced in ImageToImageViewModel
+                if (bypassSlot != null && bypassSlot != 1) {
+                    IconButton(onClick = { onBypassToggle(bypassSlot) }) {
+                        Icon(
+                            Icons.Default.DoNotDisturb,
+                            contentDescription = stringResource(R.string.node_editor_bypass),
+                            tint = if (isSlotBypassed) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                }
+
+                // Use as source image button — pick from gallery history
+                IconButton(onClick = onUseAsSource) {
+                    Icon(
+                        Icons.Default.Collections,
+                        contentDescription = stringResource(R.string.button_use_as_source)
                     )
                 }
 

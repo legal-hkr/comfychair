@@ -156,9 +156,10 @@ object FieldMappingAnalyzer {
             }
         }
 
-        // Strategy 2 (fallback): For "image" field, find nodes with IMAGE output + ENUM inputs
+        // Strategy 2 (fallback): For "image" field (and image_filename_2/3/4), find nodes with IMAGE output + ENUM inputs
         // This works regardless of input key language (Chinese, etc.)
-        if (directCandidates.isEmpty() && fieldKey == "image") {
+        val isImageField = fieldKey == "image" || fieldKey.startsWith("image_filename_")
+        if (directCandidates.isEmpty() && isImageField) {
             for (node in graph.nodes) {
                 if (node.outputs.any { it.type == "IMAGE" }) {
                     val definition = nodeTypeRegistry.getNodeDefinition(node.classType)

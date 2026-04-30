@@ -1774,8 +1774,13 @@ object WorkflowManager {
         scheduler: String = "simple",
         denoise: Float = 1.0f,
         sourceImageFilename: String,
+        sourceImage2Filename: String? = null,
+        sourceImage3Filename: String? = null,
+        sourceImage4Filename: String? = null,
         referenceImage1Filename: String? = null,
-        referenceImage2Filename: String? = null
+        referenceImage2Filename: String? = null,
+        // Slots (2/3/4) whose source image nodes should be bypassed (mode=2 = ComfyUI bypass)
+        bypassedSlots: Set<Int> = emptySet()
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
         DebugLogger.i(TAG, "Preparing ITE workflow: ${workflow.name} (id: $workflowId)")
@@ -1787,6 +1792,9 @@ object WorkflowManager {
         DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
         DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source: ${Obfuscator.filename(sourceImageFilename)}")
+        sourceImage2Filename?.let { DebugLogger.d(TAG, "Source2: ${Obfuscator.filename(it)}") }
+        sourceImage3Filename?.let { DebugLogger.d(TAG, "Source3: ${Obfuscator.filename(it)}") }
+        sourceImage4Filename?.let { DebugLogger.d(TAG, "Source4: ${Obfuscator.filename(it)}") }
         referenceImage1Filename?.let { DebugLogger.d(TAG, "Reference1: ${Obfuscator.filename(it)}") }
         referenceImage2Filename?.let { DebugLogger.d(TAG, "Reference2: ${Obfuscator.filename(it)}") }
 
@@ -1832,6 +1840,28 @@ object WorkflowManager {
         processedJson = processedJson.replace("{{image_filename}}", "$escapedSourceFilename [input]")
         processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
 
+        // Additional source images (image 2/3/4)
+        // Bypassed slots: replace placeholder with empty string so ComfyUI validation passes.
+        // The LoadImage node's mode=4 setting (LiteGraph NODE_BYPASS) will skip execution.
+        if (sourceImage2Filename != null) {
+            val escaped2 = "${escapeForJson(sourceImage2Filename)} [input]"
+            processedJson = processedJson.replace("{{image_filename_2}}", escaped2)
+        } else if (2 in bypassedSlots) {
+            processedJson = processedJson.replace("{{image_filename_2}}", "")
+        }
+        if (sourceImage3Filename != null) {
+            val escaped3 = "${escapeForJson(sourceImage3Filename)} [input]"
+            processedJson = processedJson.replace("{{image_filename_3}}", escaped3)
+        } else if (3 in bypassedSlots) {
+            processedJson = processedJson.replace("{{image_filename_3}}", "")
+        }
+        if (sourceImage4Filename != null) {
+            val escaped4 = "${escapeForJson(sourceImage4Filename)} [input]"
+            processedJson = processedJson.replace("{{image_filename_4}}", escaped4)
+        } else if (4 in bypassedSlots) {
+            processedJson = processedJson.replace("{{image_filename_4}}", "")
+        }
+
         // Type-specific: reference images (both placeholder and magic filename formats)
         if (referenceImage1Filename != null) {
             val escaped1 = "${escapeForJson(referenceImage1Filename)} [input]"
@@ -1859,7 +1889,10 @@ object WorkflowManager {
         // Second pass: remove unused reference image nodes and their connections
         try {
             val json = JSONObject(processedJson)
-            val nodes = json.optJSONObject("nodes") ?: return processedJson
+            // ComfyUI prompt format uses "prompt" key; workflow files may use "nodes" or raw format.
+            val nodes = json.optJSONObject("prompt")
+                ?: json.optJSONObject("nodes")
+                ?: return processedJson
 
             // Find and remove reference image nodes that weren't provided
             // Also remove connections to those nodes from other nodes
@@ -1920,6 +1953,51 @@ object WorkflowManager {
                 // Remove the connections
                 for (inputKey in inputsToRemove) {
                     inputs.remove(inputKey)
+                }
+            }
+
+            // Bypass source image LoadImage nodes for disabled slots (mode=4 = LiteGraph BYPASS)
+            if (bypassedSlots.isNotEmpty()) {
+                val slotToPlaceholder = mapOf(
+                    2 to "{{image_filename_2}}",
+                    3 to "{{image_filename_3}}",
+                    4 to "{{image_filename_4}}"
+                )
+                val slotToEscaped = mapOf(
+                    2 to "${escapeForJson(sourceImage2Filename ?: "")} [input]",
+                    3 to "${escapeForJson(sourceImage3Filename ?: "")} [input]",
+                    4 to "${escapeForJson(sourceImage4Filename ?: "")} [input]"
+                )
+                val nodeIds = nodes.keys()
+                while (nodeIds.hasNext()) {
+                    val nodeId = nodeIds.next()
+                    val node = nodes.optJSONObject(nodeId) ?: continue
+                    val inputs = node.optJSONObject("inputs") ?: continue
+                    val classType = node.optString("class_type")
+                    if (classType != "LoadImage") continue
+
+                    val imageName = inputs.optString("image", "")
+                    for (slot in bypassedSlots) {
+                        val placeholder = slotToPlaceholder[slot] ?: continue
+                        val escaped = slotToEscaped[slot] ?: continue
+                        // Match: unresolved placeholder, already-escaped filename, OR empty string
+                        // (empty string = slot not uploaded, which happens when slot is bypassed)
+                        if (imageName == placeholder || imageName == escaped || imageName == "") {
+                            // mode=4 is LiteGraph's NODE_BYPASS — the node is skipped entirely.
+                            // Do NOT modify widgets_values — the original workflow JSON doesn't have this field,
+                            // and adding widgets_values[0]=""; causes ComfyUI to resolve "" as the input
+                            // directory path (/opt/ComfyUI/input/) and fail with "Is a directory".
+                            // Also do NOT leave inputs.image as "" — ComfyUI resolves "" to /opt/ComfyUI/input/
+                            // (the input dir itself). Instead fill with the main image filename so the path
+                            // is valid even if never used (mode=4 bypasses execution anyway).
+                            if (imageName == "") {
+                                inputs.put("image", sourceImageFilename + " [input]")
+                            }
+                            node.put("mode", 4)
+                            DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=4)")
+                            break
+                        }
+                    }
                 }
             }
 

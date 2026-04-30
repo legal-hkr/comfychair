@@ -198,6 +198,13 @@
     <string name="tab_preview">Preview</string>
     <string name="label_megapixels">Megapixels</string>
     <string name="button_upload_source_image">Upload Source Image</string>
+    <string name="button_pick_from_gallery">Pick from history</string>
+    <string name="title_gallery_picker">Select from History</string>
+    <string name="button_use_as_source">Use as source image</string>
+    <string name="msg_gallery_picker_empty">No images in history</string>
+    <string name="button_add_image2">Add Image 2</string>
+    <string name="button_add_image3">Add Image 3</string>
+    <string name="button_add_image4">Add Image 4</string>
     <string name="button_edit_mask">Edit Mask</string>
     <string name="button_clear_mask">Clear Mask</string>
     <string name="msg_no_source_image">No source image selected</string>
@@ -221,9 +228,13 @@
     <string name="error_invalid_server_response">Invalid server response</string>
     <string name="error_failed_load_workflow">Failed to load workflow</string>
     <string name="error_generation_failed">Generation failed</string>
+    <string name="title_workflow_error">Workflow Execution Error</string>
+    <string name="msg_error_copied">Error message copied to clipboard</string>
     <string name="msg_connection_lost_generation_may_continue">Connection lost. Will check for completion when reconnected.</string>
     <string name="error_no_connection">No connection to server</string>
     <string name="error_workflow_not_found">Workflow not found</string>
+    <string name="title_unresolved_placeholders">Unresolved Parameters</string>
+    <string name="msg_unresolved_placeholders">The following parameters have not been configured and will be sent as placeholders:\n\n%1$s\n\nDo you want to continue anyway?</string>
     <string name="error_no_workflow_specified">No workflow specified</string>
     <string name="error_client_not_initialized">Client not initialized</string>
 
@@ -250,6 +261,7 @@
     <!-- Gallery selection mode strings -->
     <string name="gallery_selected_count">%d selected</string>
     <string name="button_gallery_select">Select items</string>
+    <string name="button_select_all">Select all</string>
     <string name="button_cancel_selection">Cancel selection</string>
     <string name="label_item_selected">Selected</string>
     <string name="msg_items_saved_to_gallery">Items saved to gallery</string>
@@ -284,6 +296,9 @@
     <string name="label_clip2" translatable="false">CLIP 2</string>
     <string name="label_clip3" translatable="false">CLIP 3</string>
     <string name="label_clip4" translatable="false">CLIP 4</string>
+    <string name="label_image2" translatable="false">Image 2</string>
+    <string name="label_image3" translatable="false">Image 3</string>
+    <string name="label_image4" translatable="false">Image 4</string>
     <string name="label_text_encoder" translatable="false">Text Encoder</string>
     <string name="label_latent_upscale_model" translatable="false">Latent Upscale Model</string>
     <string name="label_width">Width</string>
@@ -388,6 +403,9 @@
     <string name="field_desc_length">Video length in frames</string>
     <string name="field_desc_frame_rate">Video frames per second</string>
     <string name="field_desc_image">Source image for generation</string>
+    <string name="field_desc_image2">Second source image for generation</string>
+    <string name="field_desc_image3">Third source image for generation</string>
+    <string name="field_desc_image4">Fourth source image for generation</string>
     <string name="field_desc_seed">Random seed for generation</string>
     <string name="field_desc_denoise">Denoising strength (0.0-1.0)</string>
     <string name="field_desc_batch_size">Number of images per batch</string>
@@ -473,6 +491,7 @@
     <!-- Media viewer action buttons -->
     <string name="media_viewer_delete">Delete</string>
     <string name="media_viewer_save">Save</string>
+    <string name="media_viewer_replace">Replace image</string>
     <string name="media_viewer_share">Share</string>
     <string name="media_viewer_previous">Previous</string>
     <string name="media_viewer_next">Next</string>
@@ -574,6 +593,7 @@
     <string name="metadata_unet" translatable="false">UNET</string>
     <string name="metadata_not_available">Metadata not available</string>
     <string name="metadata_loading">Loading metadata…</string>
+    <string name="metadata_save_prompt">Save prompt to library</string>
 
     <!-- About screen strings -->
     <string name="nav_about_settings">About</string>
@@ -630,6 +650,14 @@
     <string name="screen_type_text_to_video">Text to Video</string>
     <string name="screen_type_image_to_video">Image to Video</string>
 
-    <!-- Metadata actions -->
-    <string name="metadata_save_prompt">Save prompt to library</string>
+    <string name="notification_channel_foreground_name">Generation Progress</string>
+    <string name="notification_channel_foreground_desc">Shows ongoing generation status</string>
+    <string name="notification_channel_completion_name">Generation Complete</string>
+    <string name="notification_channel_completion_desc">Notifies when generation is complete with image preview</string>
+    <string name="notification_generating_image">Generating image…</string>
+    <string name="notification_generating_video">Generating video…</string>
+    <string name="notification_generating_progress">Please wait</string>
+    <string name="notification_image_ready">Image ready</string>
+    <string name="notification_video_ready">Video ready</string>
+    <string name="notification_tap_to_view">Tap to view</string>
 </resources>

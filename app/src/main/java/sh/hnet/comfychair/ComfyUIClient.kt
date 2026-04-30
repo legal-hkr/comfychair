@@ -791,19 +791,25 @@ class ComfyUIClient(
 
         val url = "$baseUrl/prompt"
 
-        // Parse the workflow JSON to extract just the nodes section
+        // Parse the workflow JSON — workflowJson is already in ComfyUI prompt format:
+        // {"prompt": {"1": {...}, "10": {...}}} (not "nodes" which is for workflow files)
         val workflowObject = JSONObject(workflowJson)
-        val nodesObject = workflowObject.optJSONObject("nodes")
+        val promptObject = workflowObject.optJSONObject("prompt")
+            ?: workflowObject.optJSONObject("nodes")
+            ?: workflowObject  // fallback: treat root as the nodes object
 
         // Create the prompt request
         // The client_id here must match the clientId used in the WebSocket connection
         val promptRequest = JSONObject().apply {
-            put("prompt", nodesObject)
+            put("prompt", promptObject)
             put("client_id", clientId)
             if (front) {
                 put("front", true)
             }
         }
+
+        // Log full prompt JSON for debugging bypass/workflow issues
+        DebugLogger.d(TAG, "=== PROMPT JSON SUBMITTED ===\n${promptRequest.toString(2)}")
 
         val requestBody = promptRequest.toString()
             .toRequestBody("application/json".toMediaType())

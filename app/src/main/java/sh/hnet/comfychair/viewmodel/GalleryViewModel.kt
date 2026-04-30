@@ -382,6 +382,15 @@ class GalleryViewModel : ViewModel() {
         _isSelectionMode.value = true
     }
 
+    /**
+     * Select all visible gallery items.
+     */
+    fun selectAll() {
+        val allKeys = _uiState.value.items.map { getItemKey(it) }.toSet()
+        _selectedItems.value = allKeys
+        _isSelectionMode.value = allKeys.isNotEmpty()
+    }
+
     fun deleteSelected() {
         val selectedItems = getSelectedItems()
         if (selectedItems.isEmpty()) return

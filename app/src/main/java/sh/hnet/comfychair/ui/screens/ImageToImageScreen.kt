@@ -1,44 +1,64 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.content.ClipData
+import android.graphics.Bitmap
+import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.ActivityResultLauncher
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DoNotDisturb
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,7 +69,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -66,6 +88,7 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.cache.MaskEditorStateHolder
+import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.queue.JobRegistry
@@ -75,6 +98,9 @@ import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.ui.components.GalleryPickerBottomSheet
+import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
@@ -90,7 +116,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetEvent
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ImageToImageScreen(
     generationViewModel: GenerationViewModel,
@@ -113,6 +139,10 @@ fun ImageToImageScreen(
     val queueState by JobRegistry.queueState.collectAsState()
     val isConnecting by ConnectionManager.isConnecting.collectAsState()
     val presetUiState by presetViewModel.uiState.collectAsState()
+
+    // Error dialog state
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorDialogMessage by remember { mutableStateOf("") }
 
     // Initialize preset ViewModel (shared for both inpainting and editing modes)
     LaunchedEffect(Unit) {
@@ -142,15 +172,115 @@ fun ImageToImageScreen(
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Image picker launcher for source image
+    // Gallery picker state
+    var showGalleryPicker by remember { mutableStateOf(false) }
+    var currentPickerSlot by remember { mutableStateOf(1) }
+    val galleryPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val galleryImages: List<GalleryItem> by GalleryRepository.getInstance().galleryItems.collectAsState()
+
+    // Image picker launcher for source image (system file picker - supports Downloads, file managers, gallery)
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
+            // Take persistable permission so we can read the file later
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
             imageToImageViewModel.onSourceImageChange(context, it)
             imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
         }
     }
+
+    // Additional source image pickers (slots 2, 3, 4)
+    val imagePickerLauncher2 = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            imageToImageViewModel.onAdditionalSourceImageChange(context, 2, it)
+        }
+    }
+
+    val imagePickerLauncher3 = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            imageToImageViewModel.onAdditionalSourceImageChange(context, 3, it)
+        }
+    }
+
+    val imagePickerLauncher4 = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            imageToImageViewModel.onAdditionalSourceImageChange(context, 4, it)
+        }
+    }
+
+    // ActivityResultLauncher for MediaViewer replace flow
+    val mediaViewerReplaceLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // Always clear callbacks when MediaViewer closes
+        MediaViewerActivity.onBypassToggleCallback = null
+        MediaViewerActivity.onUseAsSourceCallback = null
+        val data = result.data
+        if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+            val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
+            if (replaceSlot > 0) {
+                // Set current slot and open gallery picker instead of file picker
+                currentPickerSlot = replaceSlot
+                showGalleryPicker = true
+            }
+        }
+    }
+
+    // PagerState for HorizontalPager — initial page 0 (source image 1)
+    val pagerState = rememberPagerState(initialPage = 0) {
+        // Page count: driven by workflow additionalImageSlotCount + preview tab
+        val sourcePages = 1 + uiState.additionalImageSlotCount.coerceIn(0, 3)
+        sourcePages + 1 // +1 for preview tab
+    }
+
+    // Sync pagerState with viewMode when viewMode changes externally
+    LaunchedEffect(uiState.viewMode) {
+        when (uiState.viewMode) {
+            ImageToImageViewMode.PREVIEW -> {
+                pagerState.scrollToPage(pagerState.pageCount - 1)
+            }
+            ImageToImageViewMode.SOURCE -> {
+                // Stay on current source page (don't override user's scroll position)
+            }
+        }
+    }
+
+    // Clamp pagerState to valid range when pageCount decreases (workflow with fewer slots)
+    LaunchedEffect(pagerState.pageCount) {
+        if (pagerState.currentPage >= pagerState.pageCount) {
+            pagerState.scrollToPage(maxOf(0, pagerState.pageCount - 1))
+        }
+    }
+
+    // Compute tab list — source images driven by workflow additionalImageSlotCount + preview
+    // Tabs reflect workflow capabilities (how many slots the workflow supports),
+    // not whether images are already set (which would break workflow switching UX)
+    data class ImagePage(val slot: Int, val title: String) // slot 1-4 for sources, 0 for preview
+    val imagePages = buildList {
+        // Slot 1 (primary source) is always available
+        add(ImagePage(1, "原图1"))
+        // Additional slots (2-4) depend on workflow additionalImageSlotCount
+        val maxAdditional = uiState.additionalImageSlotCount.coerceIn(0, 3)
+        if (maxAdditional >= 1) add(ImagePage(2, "原图2"))
+        if (maxAdditional >= 2) add(ImagePage(3, "原图3"))
+        if (maxAdditional >= 3) add(ImagePage(4, "原图4"))
+    }
+    val previewPageIndex = imagePages.size // preview is always last
+    val isPreviewPage = pagerState.currentPage == previewPageIndex
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
@@ -167,6 +297,10 @@ fun ImageToImageScreen(
     }
 
     // Event handling
+    var pendingWorkflowJson by remember { mutableStateOf<String?>(null) }
+    var showPlaceholderDialog by remember { mutableStateOf(false) }
+    var pendingPlaceholders by remember { mutableStateOf(emptyList<String>()) }
+
     LaunchedEffect(Unit) {
         imageToImageViewModel.events.collect { event ->
             when (event) {
@@ -175,6 +309,15 @@ fun ImageToImageScreen(
                 }
                 is ImageToImageEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is ImageToImageEvent.UnresolvedPlaceholders -> {
+                    pendingPlaceholders = event.placeholders
+                    // pendingWorkflowJson was captured by the calling onGenerate callback
+                    showPlaceholderDialog = true
+                }
+                is ImageToImageEvent.DetailedError -> {
+                    errorDialogMessage = event.message
+                    showErrorDialog = true
                 }
             }
         }
@@ -227,8 +370,27 @@ fun ImageToImageScreen(
             title = { Text(stringResource(R.string.title_image_to_image)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
-                // Upload image button
-                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                // Upload image button — routes to the correct slot based on current Pager page
+                val currentSourceSlot = if (pagerState.currentPage < imagePages.size) {
+                    imagePages[pagerState.currentPage].slot
+                } else {
+                    1 // preview page → upload to slot 1
+                }
+                val currentPicker = when (currentSourceSlot) {
+                    1 -> imagePickerLauncher
+                    2 -> imagePickerLauncher2
+                    3 -> imagePickerLauncher3
+                    4 -> imagePickerLauncher4
+                    else -> imagePickerLauncher
+                }
+                IconButton(
+                    onClick = {
+                        when (currentSourceSlot) {
+                            1 -> currentPicker.launch(arrayOf("image/*"))
+                            else -> currentPicker.launch(arrayOf("image/*"))
+                        }
+                    }
+                ) {
                     Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
                 }
                 // Edit mask button (only in inpainting mode when source image exists)
@@ -282,70 +444,157 @@ fun ImageToImageScreen(
             )
         }
 
-        // Image Preview Area
-        // Only allow tapping final generated image or source image, not live previews during generation
-        Box(
+        // Image Preview Area — HorizontalPager
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .heightIn(min = 150.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable(
-                    enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting) ||
-                              (uiState.viewMode == ImageToImageViewMode.SOURCE && uiState.sourceImage != null),
-                    onClick = {
-                        when (uiState.viewMode) {
-                            ImageToImageViewMode.PREVIEW -> {
-                                // Launch MediaViewer for generated image
-                                uiState.previewImage?.let { bitmap ->
-                                    val intent = MediaViewerActivity.createSingleImageIntent(
-                                        context = context,
-                                        bitmap = bitmap,
-                                        hostname = generationViewModel.getHostname(),
-                                        port = generationViewModel.getPort(),
-                                        filename = uiState.previewImageFilename,
-                                        subfolder = uiState.previewImageSubfolder,
-                                        type = uiState.previewImageType
-                                    )
-                                    context.startActivity(intent)
-                                }
-                            }
-                            ImageToImageViewMode.SOURCE -> {
-                                // Launch MediaViewer for source image (without mask)
-                                uiState.sourceImage?.let { bitmap ->
-                                    val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
-                                    context.startActivity(intent)
-                                }
-                            }
-                        }
+        ) { page ->
+            val isThisPreviewPage = page == previewPageIndex
+            val sourcePageIndex = if (isThisPreviewPage) -1 else page
+            val sourceImage = when (sourcePageIndex) {
+                0 -> uiState.sourceImage
+                1 -> uiState.sourceImage2
+                2 -> uiState.sourceImage3
+                3 -> uiState.sourceImage4
+                else -> null
+            }
+            val sourceSlot = when (sourcePageIndex) {
+                0 -> 1
+                1 -> 2
+                2 -> 3
+                3 -> 4
+                else -> 0
+            }
+            val sourcePicker = when (sourceSlot) {
+                1 -> imagePickerLauncher
+                2 -> imagePickerLauncher2
+                3 -> imagePickerLauncher3
+                4 -> imagePickerLauncher4
+                else -> null
+            }
+
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isThisPreviewPage) {
+                    // Preview page
+                    if (uiState.previewImage != null && !isThisScreenExecuting) {
+                        Image(
+                            bitmap = uiState.previewImage!!.asImageBitmap(),
+                            contentDescription = stringResource(R.string.content_description_preview),
+                                modifier = Modifier
+                                .fillMaxSize()
+                                .clickable {
+                                    uiState.previewImage?.let { bitmap ->
+                                        // Set callbacks before launching MediaViewer
+                                        MediaViewerActivity.onBypassToggleCallback =
+                                            { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                        MediaViewerActivity.onUseAsSourceCallback =
+                                            { _, _, _, _, bmp -> imageToImageViewModel.onSourceImageFromGallery(context, 1, bmp) }
+                                        val intent = MediaViewerActivity.createSingleImageIntent(
+                                            context = context,
+                                            bitmap = bitmap,
+                                            hostname = generationViewModel.getHostname(),
+                                            port = generationViewModel.getPort(),
+                                            filename = uiState.previewImageFilename,
+                                            subfolder = uiState.previewImageSubfolder,
+                                            type = uiState.previewImageType,
+                                            replaceSlot = 1,
+                                            bypassSlot = 1,
+                                            isSlotBypassed = false
+                                        )
+                                        // Prefer ActivityResultLauncher for proper result callback, fallback to direct start
+                                        if (mediaViewerReplaceLauncher != null) {
+                                            mediaViewerReplaceLauncher!!.launch(intent)
+                                        } else {
+                                            android.util.Log.w("ComfyChair", "mediaViewerReplaceLauncher was null, using direct startActivity")
+                                            context.startActivity(intent)
+                                        }
+                                    }
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(R.drawable.ic_comfychair_foreground),
+                            contentDescription = null,
+                            modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
+                            contentScale = ContentScale.Fit
+                        )
                     }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            when (uiState.viewMode) {
-                ImageToImageViewMode.SOURCE -> {
-                    if (uiState.sourceImage != null) {
-                        if (uiState.mode == ImageToImageMode.INPAINTING) {
-                            // Read-only preview of source image with mask overlay
+                } else {
+                    // Source image page
+                    if (sourceImage != null) {
+                        if (uiState.mode == ImageToImageMode.INPAINTING && sourceSlot == 1) {
+                            // Inpainting: source image 1 shows mask overlay
                             MaskPreview(
-                                sourceImage = uiState.sourceImage,
+                                sourceImage = sourceImage,
                                 maskPaths = uiState.maskPaths,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            // Editing mode: show plain source image without mask
-                            Image(
-                                bitmap = uiState.sourceImage!!.asImageBitmap(),
-                                contentDescription = stringResource(R.string.content_description_source_image),
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Image(
+                                    bitmap = sourceImage.asImageBitmap(),
+                                    contentDescription = stringResource(R.string.content_description_source_image),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable {
+                                            // Set callbacks before launching MediaViewer
+                                            MediaViewerActivity.onBypassToggleCallback =
+                                                { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                            MediaViewerActivity.onUseAsSourceCallback =
+                                                { _, _, _, _, bmp -> imageToImageViewModel.onSourceImageFromGallery(context, 1, bmp) }
+                                            android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
+                                            val intent = MediaViewerActivity.createSingleImageIntent(
+                                                context = context,
+                                                sourceImage,
+                                                replaceSlot = sourceSlot,
+                                                bypassSlot = sourceSlot,
+                                                isSlotBypassed = uiState.bypassedSourceSlots.contains(sourceSlot)
+                                            )
+                                            // Prefer ActivityResultLauncher for proper result callback, fallback to direct start
+                                            if (mediaViewerReplaceLauncher != null) {
+                                                mediaViewerReplaceLauncher!!.launch(intent)
+                                            } else {
+                                                android.util.Log.w("ComfyChair", "mediaViewerReplaceLauncher was null (source), using direct startActivity")
+                                                context.startActivity(intent)
+                                            }
+                                        },
+                                    contentScale = ContentScale.Crop
+                                )
+                                // Bypass overlay — dimmed + icon for slots 2/3/4 that are bypassed
+                                if (sourceSlot >= 2 && uiState.bypassedSourceSlots.contains(sourceSlot)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.45f))
+                                            .clickable { imageToImageViewModel.toggleBypassSourceImage(sourceSlot) }
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.DoNotDisturb,
+                                        contentDescription = stringResource(R.string.node_editor_bypass),
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(8.dp)
+                                            .clickable { imageToImageViewModel.toggleBypassSourceImage(sourceSlot) },
+                                        tint = Color.White.copy(alpha = 0.85f)
+                                    )
+                                }
+                            }
                         }
                     } else {
-                        // Placeholder - app logo
+                        // Empty slot — placeholder with picker
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
+                            modifier = Modifier.clickable {
+                                sourcePicker?.launch(arrayOf("image/*"))
+                            }
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.ic_comfychair_foreground),
@@ -361,51 +610,30 @@ fun ImageToImageScreen(
                         }
                     }
                 }
-                ImageToImageViewMode.PREVIEW -> {
-                    if (uiState.previewImage != null) {
-                        Image(
-                            bitmap = uiState.previewImage!!.asImageBitmap(),
-                            contentDescription = stringResource(R.string.content_description_preview),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        // Placeholder - app logo
-                        Image(
-                            painter = painterResource(R.drawable.ic_comfychair_foreground),
-                            contentDescription = null,
-                            modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                }
             }
         }
 
-        // View mode toggle
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
+        // TabRow — one tab per image page + preview tab
+        val allTabs = buildList {
+            imagePages.forEach { add(it.title) }
+            add("预览")
+        }
+        TabRow(
+            selectedTabIndex = pagerState.currentPage,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            SegmentedButton(
-                selected = uiState.viewMode == ImageToImageViewMode.SOURCE,
-                onClick = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-            ) {
-                Text(stringResource(R.string.tab_source_image))
-            }
-            SegmentedButton(
-                selected = uiState.viewMode == ImageToImageViewMode.PREVIEW,
-                onClick = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-            ) {
-                Text(stringResource(R.string.tab_preview))
+            allTabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = {
+                        scope.launch { pagerState.scrollToPage(index) }
+                    },
+                    text = { Text(title) }
+                )
             }
         }
 
-        // Prompt Input
+        // Prompt Input        // Prompt Input
         OutlinedTextField(
             value = uiState.positivePrompt,
             onValueChange = {
@@ -438,6 +666,7 @@ fun ImageToImageScreen(
             }
         )
 
+
         // Generate and Options buttons
         Row(
             modifier = Modifier
@@ -467,17 +696,22 @@ fun ImageToImageScreen(
                             return@launch
                         }
                         val workflowJson = imageToImageViewModel.prepareWorkflow()
+                        // Capture for potential placeholder confirmation dialog
+                        pendingWorkflowJson = workflowJson
                         if (workflowJson != null) {
-                            generationViewModel.startGeneration(
-                                workflowJson,
-                                ImageToImageViewModel.OWNER_ID
-                            ) { success, _, errorMessage ->
-                                if (!success) {
-                                    Toast.makeText(
-                                        context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                            // If UnresolvedPlaceholders was emitted, dialog is now showing.
+                            // User clicks Confirm → startGeneration is called with captured workflowJson.
+                            // If no unresolved placeholders (pendingPlaceholders still empty),
+                            // dialog won't show and we proceed immediately.
+                            if (pendingPlaceholders.isEmpty()) {
+                                generationViewModel.startGeneration(
+                                    workflowJson,
+                                    ImageToImageViewModel.OWNER_ID
+                                ) { success, _, errorMessage ->
+                                    if (!success) {
+                                        errorDialogMessage = errorMessage ?: context.getString(R.string.error_generation_failed)
+                                        showErrorDialog = true
+                                    }
                                 }
                             }
                         } else {
@@ -502,18 +736,22 @@ fun ImageToImageScreen(
                             return@launch
                         }
                         val workflowJson = imageToImageViewModel.prepareWorkflow()
+                        // Capture for potential placeholder confirmation dialog
+                        pendingWorkflowJson = workflowJson
                         if (workflowJson != null) {
-                            generationViewModel.startGeneration(
-                                workflowJson,
-                                ImageToImageViewModel.OWNER_ID,
-                                front = true
-                            ) { success, _, errorMessage ->
-                                if (!success) {
-                                    Toast.makeText(
-                                        context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                            if (pendingPlaceholders.isEmpty()) {
+                                generationViewModel.startGeneration(
+                                    workflowJson,
+                                    ImageToImageViewModel.OWNER_ID,
+                                    front = true
+                                ) { success, _, errorMessage ->
+                                    if (!success) {
+                                        Toast.makeText(
+                                            context,
+                                            errorMessage ?: context.getString(R.string.error_generation_failed),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
                                 }
                             }
                         } else {
@@ -557,6 +795,27 @@ fun ImageToImageScreen(
             }
         }
     } // End of outer Column
+
+    // Gallery picker bottom sheet
+    if (showGalleryPicker) {
+        GalleryPickerBottomSheet(
+            galleryItems = galleryImages,
+            onSelect = { item ->
+                val cacheKey = item.toCacheKey()
+                val bitmap = MediaCache.getBitmap(cacheKey)
+                if (bitmap != null) {
+                    imageToImageViewModel.onSourceImageFromGallery(
+                        context = context,
+                        slot = currentPickerSlot,
+                        bitmap = bitmap
+                    )
+                }
+                showGalleryPicker = false
+            },
+            onDismiss = { showGalleryPicker = false },
+            sheetState = galleryPickerSheetState
+        )
+    }
 
     // Options bottom sheet
     if (showOptionsSheet) {
@@ -717,6 +976,88 @@ fun ImageToImageScreen(
             isNameTaken = { name, excludeId -> presetViewModel.isNameTaken(name, excludeId) },
             onDismiss = { presetViewModel.dismissSaveDialog() },
             onSave = { name, prompt, tags -> presetViewModel.onSavePreset(name, prompt, tags) }
+        )
+    }
+
+    // Error dialog with copy support
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            title = { Text(text = stringResource(R.string.title_workflow_error)) },
+            text = {
+                Text(
+                    text = errorDialogMessage,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showErrorDialog = false }) {
+                    Text(text = stringResource(R.string.button_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("error_message", errorDialogMessage))
+                        Toast.makeText(context, R.string.msg_error_copied, Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text(text = stringResource(R.string.button_copy_to_clipboard))
+                }
+            }
+        )
+    }
+
+    // Unresolved placeholders confirmation dialog
+    if (showPlaceholderDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPlaceholderDialog = false
+                pendingPlaceholders = emptyList()
+            },
+            title = { Text(text = stringResource(R.string.title_unresolved_placeholders)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.msg_unresolved_placeholders,
+                        pendingPlaceholders.joinToString(", ") { "{{${it}}}" }
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPlaceholderDialog = false
+                        pendingPlaceholders = emptyList()
+                        pendingWorkflowJson?.let { json ->
+                            scope.launch {
+                                generationViewModel.startGeneration(
+                                    json,
+                                    ImageToImageViewModel.OWNER_ID
+                                ) { success, _, errorMessage ->
+                                    if (!success) {
+                                        errorDialogMessage = errorMessage ?: context.getString(R.string.error_generation_failed)
+                                        showErrorDialog = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text(text = stringResource(R.string.button_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPlaceholderDialog = false
+                        pendingPlaceholders = emptyList()
+                    }
+                ) {
+                    Text(text = stringResource(R.string.button_cancel))
+                }
+            }
         )
     }
 }

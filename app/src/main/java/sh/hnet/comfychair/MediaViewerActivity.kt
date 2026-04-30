@@ -19,8 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.notification.NotificationHelper
 import sh.hnet.comfychair.ui.screens.MediaViewerScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
@@ -76,8 +79,32 @@ class MediaViewerActivity : ComponentActivity() {
         const val EXTRA_SUBFOLDER = "subfolder"
         const val EXTRA_TYPE = "type"
 
+        // Replace slot extra (source image replace feature)
+        const val EXTRA_REPLACE_SLOT = "replace_slot"
+
+        // Bypass slot extra — which source image slot is currently bypassed (so toolbar shows correct state)
+        const val EXTRA_BYPASS_SLOT = "bypass_slot"
+        const val EXTRA_IS_BYPASSED = "is_bypassed"
+
         // Result
         const val RESULT_ITEM_DELETED = "item_deleted"
+        const val RESULT_REPLACE = "replace"
+        const val RESULT_SLOT = "slot"
+
+        // Static callback for bypass toggle (avoids threading callback through Activity→Screen→Toolbar)
+        // Set by ImageToImageScreen before launching MediaViewer, cleared after result
+        var onBypassToggleCallback: ((slot: Int) -> Unit)? = null
+
+        // Static callback for "use as source" — passes (promptId, filename, subfolder, type, bitmap)
+        // Set by ImageToImageScreen before launching MediaViewer, cleared after result
+        var onUseAsSourceCallback: ((promptId: String, filename: String, subfolder: String, type: String, bitmap: android.graphics.Bitmap) -> Unit)? = null
+
+        // SINGLE mode: bitmap stored here (not in BitmapCache which gets cleared during init)
+        // Cleared by MediaViewerActivity when done
+        var singleModeBitmap: android.graphics.Bitmap? = null
+        fun clearSingleModeBitmap() {
+            singleModeBitmap = null
+        }
 
         /**
          * Create intent for gallery mode (swipe navigation between items)
@@ -114,10 +141,13 @@ class MediaViewerActivity : ComponentActivity() {
             port: Int? = null,
             filename: String? = null,
             subfolder: String? = null,
-            type: String? = null
+            type: String? = null,
+            replaceSlot: Int? = null,
+            bypassSlot: Int? = null,
+            isSlotBypassed: Boolean = false
         ): Intent {
-            // Store bitmap in memory cache (avoids expensive PNG compression/decompression)
-            BitmapCache.put(bitmap)
+            // Store bitmap in companion object (survives activity init, unlike BitmapCache which gets cleared)
+            singleModeBitmap = bitmap
 
             return Intent(context, MediaViewerActivity::class.java).apply {
                 putExtra(EXTRA_MODE, MODE_SINGLE)
@@ -128,6 +158,11 @@ class MediaViewerActivity : ComponentActivity() {
                 filename?.let { putExtra(EXTRA_FILENAME, it) }
                 subfolder?.let { putExtra(EXTRA_SUBFOLDER, it) }
                 type?.let { putExtra(EXTRA_TYPE, it) }
+                // Add replace slot if provided (enables replace button in viewer)
+                replaceSlot?.let { putExtra(EXTRA_REPLACE_SLOT, it) }
+                // Add bypass slot if provided (shows correct initial bypass state in toolbar)
+                bypassSlot?.let { putExtra(EXTRA_BYPASS_SLOT, it) }
+                putExtra(EXTRA_IS_BYPASSED, isSlotBypassed)
             }
         }
 
@@ -190,14 +225,30 @@ class MediaViewerActivity : ComponentActivity() {
 
             ComfyChairTheme(forceDarkStatusBar = true) {
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    val replaceSlot = intent.getIntExtra(EXTRA_REPLACE_SLOT, -1).takeIf { it > 0 }
+                    val bypassSlot = intent.getIntExtra(EXTRA_BYPASS_SLOT, -1).takeIf { it > 0 }
+                    val isSlotBypassed = intent.getBooleanExtra(EXTRA_IS_BYPASSED, false)
+                    android.util.Log.d("ComfyChair", "MediaViewer bypassSlot=$bypassSlot isSlotBypassed=$isSlotBypassed")
                     MediaViewerScreen(
                         viewModel = viewModel,
-                        onClose = {
-                            // Set result only if items were actually deleted
+                        replaceSlot = replaceSlot,
+                        bypassSlot = bypassSlot,
+                        isSlotBypassed = isSlotBypassed,
+                        onClose = { replaceRequestedSlot: Int? ->
+                            // Set result based on what happened
+                            val resultIntent = Intent()
+                            var hasResult = false
                             if (hasDeletedItems) {
-                                setResult(Activity.RESULT_OK, Intent().apply {
-                                    putExtra(RESULT_ITEM_DELETED, true)
-                                })
+                                resultIntent.putExtra(RESULT_ITEM_DELETED, true)
+                                hasResult = true
+                            }
+                            if (replaceRequestedSlot != null) {
+                                resultIntent.putExtra(RESULT_REPLACE, true)
+                                resultIntent.putExtra(RESULT_SLOT, replaceRequestedSlot)
+                                hasResult = true
+                            }
+                            if (hasResult) {
+                                setResult(Activity.RESULT_OK, resultIntent)
                             }
                             finish()
                         }
@@ -205,6 +256,12 @@ class MediaViewerActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Always clear the SINGLE mode bitmap when activity finishes
+        clearSingleModeBitmap()
     }
 
     private fun initializeGalleryMode() {
@@ -228,6 +285,11 @@ class MediaViewerActivity : ComponentActivity() {
     private fun initializeSingleMode() {
         val isVideo = intent.getBooleanExtra(EXTRA_IS_VIDEO, false)
 
+        // Check if this intent came from a notification (has EXTRA_MEDIA_OWNER_ID)
+        val notificationOwnerId = intent.getStringExtra(NotificationHelper.EXTRA_MEDIA_OWNER_ID)
+        val notificationPromptId = intent.getStringExtra(NotificationHelper.EXTRA_MEDIA_PROMPT_ID)
+        val isFromNotification = notificationOwnerId != null
+
         // Extract server and file info for metadata extraction
         val hostname = intent.getStringExtra(EXTRA_HOSTNAME) ?: ""
         val port = intent.getIntExtra(EXTRA_PORT, 0)
@@ -241,7 +303,7 @@ class MediaViewerActivity : ComponentActivity() {
 
             // Create a single item for the video with file info
             val item = MediaViewerItem(
-                promptId = "",
+                promptId = notificationPromptId ?: "",
                 filename = filename,
                 subfolder = subfolder,
                 type = type,
@@ -259,13 +321,22 @@ class MediaViewerActivity : ComponentActivity() {
                 singleVideoUri = videoUri
             )
         } else {
-            // Retrieve bitmap from memory cache (avoids file I/O)
-            val bitmap = BitmapCache.get()
-            BitmapCache.clear()
+            // Get bitmap from companion object (not BitmapCache which gets cleared during SINGLE mode init)
+            var bitmap = singleModeBitmap
+            // Don't clear here - keep for onUseAsSource to use later; cleared by onClose/onDestroy
+
+            // If no cached bitmap and we have notification extras, retrieve from MediaStateHolder
+            if (bitmap == null && isFromNotification && notificationOwnerId != null) {
+                val mediaKey = ownerIdToMediaKey(notificationOwnerId)
+                if (mediaKey != null) {
+                    bitmap = MediaStateHolder.getBitmap(mediaKey, this)
+                    DebugLogger.d("MediaViewer", "Retrieved bitmap from MediaStateHolder for $notificationOwnerId: ${bitmap != null}")
+                }
+            }
 
             // Create a single item for the image with file info
             val item = MediaViewerItem(
-                promptId = "",
+                promptId = notificationPromptId ?: "",
                 filename = filename,
                 subfolder = subfolder,
                 type = type,
@@ -282,6 +353,19 @@ class MediaViewerActivity : ComponentActivity() {
                 initialIndex = 0,
                 singleBitmap = bitmap
             )
+        }
+    }
+
+    /**
+     * Map ownerId string (e.g. "TEXT_TO_IMAGE") to MediaStateHolder.MediaKey.
+     */
+    private fun ownerIdToMediaKey(ownerId: String): sh.hnet.comfychair.cache.MediaStateHolder.MediaKey? {
+        return when (ownerId) {
+            "TEXT_TO_IMAGE" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.TtiPreview
+            "IMAGE_TO_IMAGE" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.ItiPreview
+            "TEXT_TO_VIDEO" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.TtvPreview
+            "IMAGE_TO_VIDEO" -> sh.hnet.comfychair.cache.MediaStateHolder.MediaKey.ItvPreview
+            else -> null
         }
     }
 }

@@ -47,6 +47,9 @@ object MediaStateHolder {
 
         // Source images (user-selected images for Image-to-X workflows)
         data object ItiSource : MediaKey("iti_last_source.png")
+        data object ItiSource2 : MediaKey("iti_last_source_2.png")
+        data object ItiSource3 : MediaKey("iti_last_source_3.png")
+        data object ItiSource4 : MediaKey("iti_last_source_4.png")
         data object ItvSource : MediaKey("itv_last_source.png")
 
         // Reference images for ITE (Image Editing) workflow
@@ -138,6 +141,9 @@ object MediaStateHolder {
             MediaKey.TtiPreview,
             MediaKey.ItiPreview,
             MediaKey.ItiSource,
+            MediaKey.ItiSource2,
+            MediaKey.ItiSource3,
+            MediaKey.ItiSource4,
             MediaKey.TtvPreview,
             MediaKey.ItvPreview,
             MediaKey.ItvSource,
@@ -439,6 +445,9 @@ object MediaStateHolder {
                 MediaKey.TtiPreview,
                 MediaKey.ItiPreview,
                 MediaKey.ItiSource,
+                MediaKey.ItiSource2,
+                MediaKey.ItiSource3,
+                MediaKey.ItiSource4,
                 MediaKey.TtvPreview,
                 MediaKey.ItvPreview,
                 MediaKey.ItvSource,

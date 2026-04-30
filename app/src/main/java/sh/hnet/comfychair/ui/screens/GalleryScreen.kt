@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -239,7 +240,10 @@ fun GalleryScreen(
             },
             actions = {
                 if (uiState.isSelectionMode) {
-                    // Selection mode actions: Delete, Save, and Share
+                    // Selection mode actions: Select All, Delete, Save, and Share
+                    IconButton(onClick = { galleryViewModel.selectAll() }) {
+                        Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.button_select_all))
+                    }
                     IconButton(onClick = { galleryViewModel.deleteSelected() }) {
                         Icon(
                             Icons.Default.Delete,

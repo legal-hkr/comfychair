@@ -93,6 +93,11 @@ data class ImageToImageUiState(
     // View state
     val viewMode: ImageToImageViewMode = ImageToImageViewMode.SOURCE,
     val sourceImage: Bitmap? = null,
+    val sourceImage2: Bitmap? = null,
+    val sourceImage3: Bitmap? = null,
+    val sourceImage4: Bitmap? = null,
+    // Bypassed source image slots (for multi-image workflows). Slot 1 is never bypassed — enforced in UI.
+    val bypassedSourceSlots: Set<Int> = emptySet(),
     val previewImage: Bitmap? = null,
     val maskPaths: List<MaskPathData> = emptyList(),
     val brushSize: Float = 50f,
@@ -270,7 +275,10 @@ data class ImageToImageUiState(
 
     // Upload/fetch state
     val isUploading: Boolean = false,
-    val isFetching: Boolean = false
+    val isFetching: Boolean = false,
+
+    // Dynamic additional image slot count (based on workflow {{image_filename_N}} placeholders)
+    val additionalImageSlotCount: Int = 0
 ) : CommonGenerationState
 
 /**
@@ -279,6 +287,9 @@ data class ImageToImageUiState(
 sealed class ImageToImageEvent {
     data class ShowToast(val messageResId: Int) : ImageToImageEvent()
     data class ShowToastMessage(val message: String) : ImageToImageEvent()
+    data class UnresolvedPlaceholders(val placeholders: List<String>) : ImageToImageEvent()
+    /** Detailed error from ComfyUI execution_error — shown as dialog, not toast */
+    data class DetailedError(val message: String) : ImageToImageEvent()
 }
 
 /**
@@ -838,7 +849,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
             filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model"),
             // Workflow capabilities from placeholders
-            capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
+            capabilities = WorkflowCapabilities.fromPlaceholders(placeholders),
+            // Dynamic additional image slot count based on workflow placeholders
+            additionalImageSlotCount = listOf("image_filename_2", "image_filename_3", "image_filename_4")
+                .count { it in placeholders },
+            // Bypassed source image slots (for multi-image workflows)
+            bypassedSourceSlots = savedValues?.bypassedSourceSlots ?: emptySet()
         )
     }
 
@@ -929,7 +945,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             loraChain = LoraSelection.toJsonString(state.editingLoraChain).takeIf { state.editingLoraChain.isNotEmpty() },
             highnoiseLoraChain = LoraSelection.toJsonString(state.editingHighnoiseLoraChain).takeIf { state.editingHighnoiseLoraChain.isNotEmpty() },
             lownoiseLoraChain = LoraSelection.toJsonString(state.editingLownoiseLoraChain).takeIf { state.editingLownoiseLoraChain.isNotEmpty() },
-            nodeAttributeEdits = existingValues?.nodeAttributeEdits
+            nodeAttributeEdits = existingValues?.nodeAttributeEdits,
+            bypassedSourceSlots = state.bypassedSourceSlots.takeIf { it.isNotEmpty() }
         )
 
         storage.saveValues(serverId, workflowId, values)
@@ -963,12 +980,18 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     private fun loadSavedImages() {
         // Restore from cache (memory in memory-first mode, disk in disk-first mode)
         val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource, applicationContext)
+        val sourceImage2 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource2, applicationContext)
+        val sourceImage3 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource3, applicationContext)
+        val sourceImage4 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource4, applicationContext)
         val previewImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiPreview, applicationContext)
         val referenceImage1 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, applicationContext)
         val referenceImage2 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, applicationContext)
 
         _uiState.value = _uiState.value.copy(
             sourceImage = sourceImage,
+            sourceImage2 = sourceImage2,
+            sourceImage3 = sourceImage3,
+            sourceImage4 = sourceImage4,
             previewImage = previewImage,
             referenceImage1 = referenceImage1,
             referenceImage2 = referenceImage2
@@ -1088,6 +1111,106 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             } catch (e: Exception) {
                 _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
             }
+        }
+    }
+
+    /**
+     * Handle additional source image (image 2/3/4) selection.
+     * @param index 2, 3, or 4
+     */
+    fun onAdditionalSourceImageChange(context: Context, index: Int, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                if (bitmap != null) {
+                    val key = when (index) {
+                        2 -> MediaStateHolder.MediaKey.ItiSource2
+                        3 -> MediaStateHolder.MediaKey.ItiSource3
+                        4 -> MediaStateHolder.MediaKey.ItiSource4
+                        else -> return@launch
+                    }
+                    MediaStateHolder.putBitmap(key, bitmap, context)
+
+                    val update = when (index) {
+                        2 -> _uiState.value.copy(sourceImage2 = bitmap)
+                        3 -> _uiState.value.copy(sourceImage3 = bitmap)
+                        4 -> _uiState.value.copy(sourceImage4 = bitmap)
+                        else -> return@launch
+                    }
+                    _uiState.value = update
+                }
+            } catch (e: Exception) {
+                _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
+            }
+        }
+    }
+
+    /**
+     * Handle source image selection from gallery history (already a Bitmap from MediaCache).
+     * Unlike onSourceImageChange which takes a Uri, this receives a pre-loaded Bitmap directly.
+     * @param slot 1-4
+     */
+    fun onSourceImageFromGallery(context: Context, slot: Int, bitmap: Bitmap) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val key = when (slot) {
+                1 -> MediaStateHolder.MediaKey.ItiSource
+                2 -> MediaStateHolder.MediaKey.ItiSource2
+                3 -> MediaStateHolder.MediaKey.ItiSource3
+                4 -> MediaStateHolder.MediaKey.ItiSource4
+                else -> return@launch
+            }
+            MediaStateHolder.putBitmap(key, bitmap, context)
+            val update = when (slot) {
+                1 -> _uiState.value.copy(sourceImage = bitmap)
+                2 -> _uiState.value.copy(sourceImage2 = bitmap)
+                3 -> _uiState.value.copy(sourceImage3 = bitmap)
+                4 -> _uiState.value.copy(sourceImage4 = bitmap)
+                else -> return@launch
+            }
+            _uiState.value = update
+        }
+    }
+
+    /**
+     * Clear an additional source image by index.
+     */
+    fun clearAdditionalSourceImage(index: Int) {
+        val key = when (index) {
+            2 -> MediaStateHolder.MediaKey.ItiSource2
+            3 -> MediaStateHolder.MediaKey.ItiSource3
+            4 -> MediaStateHolder.MediaKey.ItiSource4
+            else -> return
+        }
+        val ctx = applicationContext ?: return
+        viewModelScope.launch {
+            MediaStateHolder.evictAndDeleteFromDisk(ctx, key)
+        }
+        val update = when (index) {
+            2 -> _uiState.value.copy(sourceImage2 = null)
+            3 -> _uiState.value.copy(sourceImage3 = null)
+            4 -> _uiState.value.copy(sourceImage4 = null)
+            else -> return
+        }
+        _uiState.value = update
+    }
+
+    /**
+     * Toggle bypass state for a source image slot.
+     * Slot 1 (primary image) cannot be bypassed — this is enforced at the call site.
+     * @param slot 2, 3, or 4
+     */
+    fun toggleBypassSourceImage(slot: Int) {
+        if (slot == 1) return  // Primary image cannot be bypassed
+        val current = _uiState.value.bypassedSourceSlots
+        val updated = if (slot in current) current - slot else current + slot
+        _uiState.update { it.copy(bypassedSourceSlots = updated) }
+        // Persist the change
+        val workflowId = _uiState.value.selectedEditingWorkflowId
+        if (workflowId.isNotEmpty()) {
+            viewModelScope.launch { saveEditingWorkflowValues(workflowId) }
         }
     }
 
@@ -1802,14 +1925,43 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         DebugLogger.i(TAG, "Preparing workflow (mode: ${state.mode})")
 
         _uiState.update { it.copy(isUploading = true) }
-        return try {
+        val workflowJson: String? = try {
             when (state.mode) {
-                ImageToImageMode.EDITING -> prepareEditingWorkflow(client, sourceImage, state)
+                ImageToImageMode.EDITING -> prepareEditingWorkflow(
+                client,
+                sourceImage,
+                state.sourceImage2,
+                state.sourceImage3,
+                state.sourceImage4,
+                state
+            )
                 ImageToImageMode.INPAINTING -> prepareInpaintingWorkflow(client, sourceImage, state)
             }
         } finally {
             _uiState.update { it.copy(isUploading = false) }
         }
+
+        // Pre-submission validation: check for unresolved {{placeholder}} tokens
+        workflowJson?.let { json ->
+            val unresolved = findUnresolvedPlaceholders(json)
+            if (unresolved.isNotEmpty()) {
+                _events.emit(ImageToImageEvent.UnresolvedPlaceholders(unresolved))
+            }
+        }
+
+        return workflowJson
+    }
+
+    /**
+     * Scan workflow JSON for any unresolved {{placeholder}} tokens.
+     * Returns the list of placeholder names found in the JSON.
+     */
+    private fun findUnresolvedPlaceholders(workflowJson: String): List<String> {
+        val placeholderRegex = Regex("""\{\{(\w+)\}\}""")
+        return placeholderRegex.findAll(workflowJson)
+            .map { it.groupValues[1] }
+            .distinct()
+            .toList()
     }
 
     /**
@@ -1818,6 +1970,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     private suspend fun prepareEditingWorkflow(
         client: ComfyUIClient,
         sourceImage: Bitmap,
+        sourceImage2: Bitmap?,
+        sourceImage3: Bitmap?,
+        sourceImage4: Bitmap?,
         state: ImageToImageUiState
     ): String? {
         // Convert source image to PNG bytes
@@ -1901,6 +2056,59 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             uploadedRef2 = ref2Result.filename
         }
 
+        // Upload additional source images (image 2/3/4) if present
+        var uploadedSource2: String? = null
+        var uploadedSource3: String? = null
+        var uploadedSource4: String? = null
+
+        if (sourceImage2 != null && 2 !in state.bypassedSourceSlots) {
+            val bytes2 = withContext(Dispatchers.IO) {
+                val os = java.io.ByteArrayOutputStream()
+                sourceImage2.compress(Bitmap.CompressFormat.PNG, 100, os)
+                os.toByteArray()
+            }
+            val result2: UploadResult = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.uploadImage(bytes2, UuidUtils.generateUniqueUploadFilename("editing_source_2")) { success, filename, _, failureType ->
+                        continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
+                    }
+                }
+            }
+            uploadedSource2 = result2.filename
+        }
+
+        if (sourceImage3 != null && 3 !in state.bypassedSourceSlots) {
+            val bytes3 = withContext(Dispatchers.IO) {
+                val os = java.io.ByteArrayOutputStream()
+                sourceImage3.compress(Bitmap.CompressFormat.PNG, 100, os)
+                os.toByteArray()
+            }
+            val result3: UploadResult = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.uploadImage(bytes3, UuidUtils.generateUniqueUploadFilename("editing_source_3")) { success, filename, _, failureType ->
+                        continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
+                    }
+                }
+            }
+            uploadedSource3 = result3.filename
+        }
+
+        if (sourceImage4 != null && 4 !in state.bypassedSourceSlots) {
+            val bytes4 = withContext(Dispatchers.IO) {
+                val os = java.io.ByteArrayOutputStream()
+                sourceImage4.compress(Bitmap.CompressFormat.PNG, 100, os)
+                os.toByteArray()
+            }
+            val result4: UploadResult = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.uploadImage(bytes4, UuidUtils.generateUniqueUploadFilename("editing_source_4")) { success, filename, _, failureType ->
+                        continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
+                    }
+                }
+            }
+            uploadedSource4 = result4.filename
+        }
+
         // Prepare editing workflow JSON
         val baseWorkflow = WorkflowManager.prepareImageEditingWorkflowById(
             workflowId = state.selectedEditingWorkflowId,
@@ -1928,6 +2136,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             scheduler = state.editingScheduler,
             denoise = state.editingDenoise.toFloatOrNull() ?: 1.0f,
             sourceImageFilename = uploadedSource,
+            sourceImage2Filename = uploadedSource2,
+            sourceImage3Filename = uploadedSource3,
+            sourceImage4Filename = uploadedSource4,
+            bypassedSlots = state.bypassedSourceSlots,
             referenceImage1Filename = uploadedRef1,
             referenceImage2Filename = uploadedRef2
         ) ?: return null
@@ -2222,10 +2434,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
-                    _events.emit(ImageToImageEvent.ShowToastMessage(event.message))
+                    _events.emit(ImageToImageEvent.DetailedError(event.message))
                 }
-                // DON'T call completeGeneration() here - this may just be a connection error
-                // The server might still complete the generation
             }
             is GenerationEvent.ClearPreviewForResume -> {
                 // Don't clear - keep the preview visible during navigation

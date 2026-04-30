@@ -19,6 +19,8 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.notification.GenerationForegroundService
+import sh.hnet.comfychair.notification.NotificationHelper
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.VideoUtils
@@ -129,6 +131,15 @@ class GenerationViewModel : ViewModel() {
         private const val PREF_OWNER_ID = "ownerId"
         private const val PREF_CONTENT_TYPE = "contentType"
         private const val COMPLETION_POLLING_INTERVAL_MS = 3000L
+
+        /**
+         * Static reference to the active GenerationViewModel instance.
+         * Used by GenerationForegroundService to observe generation events.
+         * Set in initialize() and cleared in onCleared().
+         */
+        @Volatile
+        var activeInstance: GenerationViewModel? = null
+            private set
     }
 
     /**
@@ -143,6 +154,7 @@ class GenerationViewModel : ViewModel() {
         }
 
         DebugLogger.i(TAG, "Initializing")
+        activeInstance = this
         this.applicationContext = context.applicationContext
 
         // Restore JobRegistry state from persistence
@@ -265,8 +277,13 @@ class GenerationViewModel : ViewModel() {
                 if (message.promptId == currentState.promptId || message.promptId == null) {
                     // Dispatch error event BEFORE resetting state, so ownerId is still available
                     // for handler matching in dispatchEvent()
-                    val errorMessage = applicationContext?.getString(R.string.error_generation_failed)
-                        ?: "Generation failed"
+                    // Use ComfyUI's actual exception_message so we can show detailed error to user
+                    val errorMessage = if (message.message.isNotBlank()) {
+                        message.message
+                    } else {
+                        applicationContext?.getString(R.string.error_generation_failed)
+                            ?: "Generation failed"
+                    }
                     dispatchEvent(GenerationEvent.Error(errorMessage))
                     resetGenerationState()
                 }
@@ -313,6 +330,16 @@ class GenerationViewModel : ViewModel() {
                             ownerId = owner,
                             contentType = contentType
                         )
+
+                        // Notify the foreground service so it can monitor completion in background
+                        applicationContext?.let { ctx ->
+                            GenerationForegroundService.notifyGenerationStarted(
+                                context = ctx,
+                                ownerId = owner,
+                                contentType = contentType.name,
+                                promptId = promptId
+                            )
+                        }
 
                         // If handler doesn't match new owner, clear it so correct screen can register
                         if (activeEventHandlerOwnerId != null && activeEventHandlerOwnerId != owner) {
@@ -517,7 +544,7 @@ class GenerationViewModel : ViewModel() {
                     }
                 }
                 DebugLogger.i(TAG, "Fetching image immediately for $ownerId (promptId=${Obfuscator.promptId(event.promptId)})")
-                fetchAndStoreImage(client, context, event.promptId, mediaKey)
+                fetchAndStoreImage(client, context, event.promptId, ownerId, mediaKey)
             }
             is GenerationEvent.VideoGenerated -> {
                 val filePrefix = when (ownerId) {
@@ -532,6 +559,14 @@ class GenerationViewModel : ViewModel() {
                 VideoUtils.fetchVideoFromHistory(context, client, event.promptId, filePrefix) { uri ->
                     if (uri != null) {
                         DebugLogger.i(TAG, "Immediate video fetch successful for $ownerId")
+                        // Trigger completion notification
+                        NotificationHelper.onGenerationComplete(
+                            context = context,
+                            promptId = event.promptId,
+                            ownerId = ownerId,
+                            contentType = "VIDEO",
+                            isVideo = true
+                        )
                     } else {
                         DebugLogger.w(TAG, "Immediate video fetch failed for $ownerId")
                     }
@@ -548,6 +583,7 @@ class GenerationViewModel : ViewModel() {
         client: ComfyUIClient,
         context: Context,
         promptId: String,
+        ownerId: String,
         mediaKey: MediaStateHolder.MediaKey
     ) {
         client.fetchHistory(promptId) { historyJson ->
@@ -570,6 +606,14 @@ class GenerationViewModel : ViewModel() {
                                 if (bitmap != null) {
                                     MediaStateHolder.putBitmap(mediaKey, bitmap, context)
                                     DebugLogger.i(TAG, "Immediate image fetch successful, stored to ${mediaKey::class.simpleName}")
+                                    // Trigger completion notification
+                                    NotificationHelper.onGenerationComplete(
+                                        context = context,
+                                        promptId = promptId,
+                                        ownerId = ownerId,
+                                        contentType = "IMAGE",
+                                        isVideo = false
+                                    )
                                 } else if (failureType == ConnectionFailure.STALLED) {
                                     DebugLogger.w(TAG, "Immediate image fetch stalled")
                                     ConnectionManager.showConnectionAlert(context, failureType)
@@ -994,5 +1038,8 @@ class GenerationViewModel : ViewModel() {
         webSocketStateJob?.cancel()
         // WebSocket is managed by ConnectionManager, don't close it here
         // as other ViewModels may still need it
+        if (activeInstance == this) {
+            activeInstance = null
+        }
     }
 }

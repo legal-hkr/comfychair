@@ -12,8 +12,8 @@ android {
         applicationId = "sh.hnet.comfychair"
         minSdk = 33
         targetSdk = 36
-        versionCode = 38
-        versionName = "v0.8.11"
+        versionCode = 41
+        versionName = "v0.8.14"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.runtime)
     implementation(libs.compose.ui.text.google.fonts)
+    implementation(libs.compose.foundation)
     implementation(libs.androidx.activity.compose)
     debugImplementation(libs.compose.ui.tooling)
 
@@ -98,6 +99,9 @@ dependencies {
 
     // Security (encrypted SharedPreferences)
     implementation(libs.androidx.security.crypto)
+
+    // WorkManager for background periodic checks
+    implementation(libs.work.runtime.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -29,6 +29,7 @@ import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.DiscardAction
+import sh.hnet.comfychair.workflow.FieldCandidate
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.GroupManager
@@ -48,6 +49,7 @@ import sh.hnet.comfychair.workflow.WorkflowEditorUiState
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowNote
@@ -424,7 +426,23 @@ class WorkflowEditorViewModel : ViewModel() {
             fieldMapping.candidates.any { it.nodeId == nodeId }
         }
 
-        if (affectedMappings.isEmpty()) return
+        if (affectedMappings.isEmpty()) {
+            // No pre-detected candidates for this node.
+            // If a field is selected and has no candidates, try to bind this node to it.
+            val selectedFieldKey = state.selectedFieldKey
+            if (selectedFieldKey != null) {
+                val selectedField = mappingState.fieldMappings.find { it.field.fieldKey == selectedFieldKey }
+                if (selectedField != null && selectedField.candidates.isEmpty()) {
+                    val fieldKey = selectedField.field.fieldKey
+                    val inputKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(fieldKey)
+                    val node = state.graph?.nodes?.find { it.id == nodeId }
+                    if (node != null && node.inputs.containsKey(inputKey)) {
+                        addFieldBinding(fieldKey, nodeId, inputKey, node.title, node.classType)
+                    }
+                }
+            }
+            return
+        }
 
         // If there's a selected field and this node is a candidate for it, select it
         val selectedFieldKey = state.selectedFieldKey
@@ -502,6 +520,52 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             mappingState = newMappingState,
             canConfirmMapping = newMappingState.allRequiredFieldsMapped
+        )
+    }
+
+    /**
+     * Manually add a node as a candidate for a field and select it.
+     * Used when user selects a node that wasn't pre-detected as a candidate
+     * (e.g., LoadImage nodes for image_filename_2/3/4 fields with no placeholder in JSON).
+     */
+    fun addFieldBinding(
+        fieldKey: String,
+        nodeId: String,
+        inputKey: String,
+        nodeName: String,
+        classType: String
+    ) {
+        val state = _uiState.value
+        val mappingState = state.mappingState ?: return
+
+        val newCandidate = FieldCandidate(
+            nodeId = nodeId,
+            nodeName = nodeName,
+            classType = classType,
+            inputKey = inputKey,
+            currentValue = null
+        )
+
+        val updatedMappings = mappingState.fieldMappings.map { fieldMapping ->
+            if (fieldMapping.field.fieldKey == fieldKey) {
+                val newCandidates = fieldMapping.candidates + newCandidate
+                fieldMapping.copy(
+                    candidates = newCandidates,
+                    selectedCandidateIndex = newCandidates.lastIndex
+                )
+            } else {
+                fieldMapping
+            }
+        }
+
+        val newMappingState = mappingState.copy(fieldMappings = updatedMappings)
+
+        _uiState.value = _uiState.value.copy(
+            mappingState = newMappingState,
+            canConfirmMapping = newMappingState.allRequiredFieldsMapped,
+            // Exit field mapping mode after binding
+            isFieldMappingMode = false,
+            selectedFieldKey = null
         )
     }
 

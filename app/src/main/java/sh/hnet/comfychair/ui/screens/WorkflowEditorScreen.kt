@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -1386,16 +1387,35 @@ private fun FieldMappingRow(
                     )
                 }
                 fieldMapping.candidates.isEmpty() -> {
-                    // No candidates available
-                    Text(
-                        text = stringResource(R.string.msg_no_matching_nodes),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (fieldMapping.isRequiredField) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                    // No candidates available - show message and add button for optional fields
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.msg_no_matching_nodes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (fieldMapping.isRequiredField) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                        if (!fieldMapping.isRequiredField) {
+                            // Add button to enter field mapping mode for this empty optional field
+                            TextButton(
+                                onClick = onSelect,
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                                modifier = Modifier.height(20.dp)
+                            ) {
+                                Text(
+                                    text = "+ Bind node",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
-                    )
+                    }
                 }
                 fieldMapping.isRequiredField -> {
                     // Required field not mapped - "Select a node" with error color
