@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.DoNotDisturb
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,6 +82,7 @@ fun MediaViewerScreen(
     bypassSlot: Int? = null,
     isSlotBypassed: Boolean = false,
     onClose: (replaceSlot: Int?) -> Unit = {},
+    onUseAsSource: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -319,7 +321,8 @@ fun MediaViewerScreen(
                 onBypassToggle = { slot ->
                     MediaViewerActivity.onBypassToggleCallback?.invoke(slot)
                     onClose(null)
-                }
+                },
+                onUseAsSource = onUseAsSource
             )
         }
 
@@ -369,6 +372,7 @@ private fun MediaViewerFloatingToolbar(
     onInfo: () -> Unit = {},
     onReplace: () -> Unit = {},
     onBypassToggle: (slot: Int) -> Unit = {},
+    onUseAsSource: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val toolbarColors = FloatingToolbarColors(
@@ -437,6 +441,14 @@ private fun MediaViewerFloatingToolbar(
                     Icon(
                         Icons.Default.Share,
                         contentDescription = stringResource(R.string.media_viewer_share)
+                    )
+                }
+
+                // Use as source image button
+                IconButton(onClick = onUseAsSource) {
+                    Icon(
+                        Icons.Default.Collections,
+                        contentDescription = stringResource(R.string.button_use_as_source)
                     )
                 }
 

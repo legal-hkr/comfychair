@@ -1841,17 +1841,26 @@ object WorkflowManager {
         processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
 
         // Additional source images (image 2/3/4)
+        // Bypassed slots: replace placeholder with empty string so ComfyUI validation passes.
+        // The LoadImage node's mode=2 setting (applied via JSON object manipulation below)
+        // will skip execution, so the empty image path is never actually loaded.
         if (sourceImage2Filename != null) {
             val escaped2 = "${escapeForJson(sourceImage2Filename)} [input]"
             processedJson = processedJson.replace("{{image_filename_2}}", escaped2)
+        } else if (2 in bypassedSlots) {
+            processedJson = processedJson.replace("{{image_filename_2}}", "")
         }
         if (sourceImage3Filename != null) {
             val escaped3 = "${escapeForJson(sourceImage3Filename)} [input]"
             processedJson = processedJson.replace("{{image_filename_3}}", escaped3)
+        } else if (3 in bypassedSlots) {
+            processedJson = processedJson.replace("{{image_filename_3}}", "")
         }
         if (sourceImage4Filename != null) {
             val escaped4 = "${escapeForJson(sourceImage4Filename)} [input]"
             processedJson = processedJson.replace("{{image_filename_4}}", escaped4)
+        } else if (4 in bypassedSlots) {
+            processedJson = processedJson.replace("{{image_filename_4}}", "")
         }
 
         // Type-specific: reference images (both placeholder and magic filename formats)

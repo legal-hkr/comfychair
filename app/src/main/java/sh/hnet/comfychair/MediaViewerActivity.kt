@@ -95,6 +95,10 @@ class MediaViewerActivity : ComponentActivity() {
         // Set by ImageToImageScreen before launching MediaViewer, cleared after result
         var onBypassToggleCallback: ((slot: Int) -> Unit)? = null
 
+        // Static callback for "use as source" — passes (promptId, filename, subfolder, type, bitmap)
+        // Set by ImageToImageScreen before launching MediaViewer, cleared after result
+        var onUseAsSourceCallback: ((promptId: String, filename: String, subfolder: String, type: String, bitmap: android.graphics.Bitmap) -> Unit)? = null
+
         /**
          * Create intent for gallery mode (swipe navigation between items)
          */
