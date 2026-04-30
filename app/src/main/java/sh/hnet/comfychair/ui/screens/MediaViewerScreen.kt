@@ -82,7 +82,6 @@ fun MediaViewerScreen(
     bypassSlot: Int? = null,
     isSlotBypassed: Boolean = false,
     onClose: (replaceSlot: Int?) -> Unit = {},
-    onUseAsSource: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -322,7 +321,23 @@ fun MediaViewerScreen(
                     MediaViewerActivity.onBypassToggleCallback?.invoke(slot)
                     onClose(null)
                 },
-                onUseAsSource = onUseAsSource
+                onUseAsSource = {
+                    val item = uiState.currentItem
+                    if (item != null) {
+                        val cacheKey = MediaCacheKey(item.promptId, item.filename)
+                        val bitmap = MediaCache.getBitmap(cacheKey)
+                        if (bitmap != null) {
+                            MediaViewerActivity.onUseAsSourceCallback?.invoke(
+                                item.promptId,
+                                item.filename,
+                                item.subfolder,
+                                item.type,
+                                bitmap
+                            )
+                        }
+                        onClose(null)
+                    }
+                }
             )
         }
 

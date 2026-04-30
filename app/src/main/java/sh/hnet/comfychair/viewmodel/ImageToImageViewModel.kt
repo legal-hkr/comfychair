@@ -288,6 +288,8 @@ sealed class ImageToImageEvent {
     data class ShowToast(val messageResId: Int) : ImageToImageEvent()
     data class ShowToastMessage(val message: String) : ImageToImageEvent()
     data class UnresolvedPlaceholders(val placeholders: List<String>) : ImageToImageEvent()
+    /** Detailed error from ComfyUI execution_error — shown as dialog, not toast */
+    data class DetailedError(val message: String) : ImageToImageEvent()
 }
 
 /**
@@ -2432,10 +2434,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
-                    _events.emit(ImageToImageEvent.ShowToastMessage(event.message))
+                    _events.emit(ImageToImageEvent.DetailedError(event.message))
                 }
-                // DON'T call completeGeneration() here - this may just be a connection error
-                // The server might still complete the generation
             }
             is GenerationEvent.ClearPreviewForResume -> {
                 // Don't clear - keep the preview visible during navigation

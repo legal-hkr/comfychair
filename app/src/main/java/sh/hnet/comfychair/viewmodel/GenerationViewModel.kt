@@ -277,8 +277,13 @@ class GenerationViewModel : ViewModel() {
                 if (message.promptId == currentState.promptId || message.promptId == null) {
                     // Dispatch error event BEFORE resetting state, so ownerId is still available
                     // for handler matching in dispatchEvent()
-                    val errorMessage = applicationContext?.getString(R.string.error_generation_failed)
-                        ?: "Generation failed"
+                    // Use ComfyUI's actual exception_message so we can show detailed error to user
+                    val errorMessage = if (message.message.isNotBlank()) {
+                        message.message
+                    } else {
+                        applicationContext?.getString(R.string.error_generation_failed)
+                            ?: "Generation failed"
+                    }
                     dispatchEvent(GenerationEvent.Error(errorMessage))
                     resetGenerationState()
                 }

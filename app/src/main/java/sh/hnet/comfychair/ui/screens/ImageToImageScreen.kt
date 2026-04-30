@@ -216,8 +216,9 @@ fun ImageToImageScreen(
     val mediaViewerReplaceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        // Always clear bypass toggle callback when MediaViewer closes
+        // Always clear callbacks when MediaViewer closes
         MediaViewerActivity.onBypassToggleCallback = null
+        MediaViewerActivity.onUseAsSourceCallback = null
         val data = result.data
         if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
             val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
@@ -306,6 +307,10 @@ fun ImageToImageScreen(
                     pendingPlaceholders = event.placeholders
                     // pendingWorkflowJson was captured by the calling onGenerate callback
                     showPlaceholderDialog = true
+                }
+                is ImageToImageEvent.DetailedError -> {
+                    errorDialogMessage = event.message
+                    showErrorDialog = true
                 }
             }
         }
@@ -519,9 +524,13 @@ fun ImageToImageScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clickable {
-                                            // Set bypass toggle callback before launching MediaViewer
+                                            // Set callbacks before launching MediaViewer
                                             MediaViewerActivity.onBypassToggleCallback =
                                                 { slot -> imageToImageViewModel.toggleBypassSourceImage(slot) }
+                                            MediaViewerActivity.onUseAsSourceCallback =
+                                                { promptId, filename, subfolder, type, bitmap ->
+                                                    imageToImageViewModel.onSourceImageFromGallery(context, 1, bitmap)
+                                                }
                                             android.util.Log.d("ComfyChair", "Launch MediaViewer sourceSlot=$sourceSlot")
                                             val intent = MediaViewerActivity.createSingleImageIntent(
                                                 context,
