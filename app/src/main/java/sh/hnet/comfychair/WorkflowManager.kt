@@ -1980,10 +1980,14 @@ object WorkflowManager {
                         // Match either unresolved placeholder or already-escaped filename
                         if (imageName == placeholder || imageName == escaped) {
                             // mode=4 is LiteGraph's NODE_BYPASS — the node is skipped entirely.
-                        // Clear the image field too so LoadImage doesn't try to open a file.
-                        inputs.put("image", "")
-                        node.put("mode", 4)
-                        DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=4)")
+                            // Also clear widgets_values so ComfyUI doesn't try to read image metadata.
+                            // Nick confirmed mode=4 works on ComfyUI page — bypassed node is skipped.
+                            node.put("mode", 4)
+                            val widgetsValues = node.optJSONArray("widgets_values")
+                            if (widgetsValues != null && widgetsValues.length() > 0) {
+                                widgetsValues.put(0, "")
+                            }
+                            DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=4)")
                             break
                         }
                     }
