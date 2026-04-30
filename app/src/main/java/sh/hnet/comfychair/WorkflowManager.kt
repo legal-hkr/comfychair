@@ -1779,7 +1779,7 @@ object WorkflowManager {
         sourceImage4Filename: String? = null,
         referenceImage1Filename: String? = null,
         referenceImage2Filename: String? = null,
-        // Slots (2/3/4) whose source image nodes should be bypassed (mode=4)
+        // Slots (2/3/4) whose source image nodes should be bypassed (mode=2 = ComfyUI bypass)
         bypassedSlots: Set<Int> = emptySet()
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
@@ -1945,7 +1945,7 @@ object WorkflowManager {
                 }
             }
 
-            // Bypass source image LoadImage nodes for disabled slots (mode=4)
+            // Bypass source image LoadImage nodes for disabled slots (mode=2 = ComfyUI bypass)
             if (bypassedSlots.isNotEmpty()) {
                 val slotToPlaceholder = mapOf(
                     2 to "{{image_filename_2}}",
@@ -1971,10 +1971,11 @@ object WorkflowManager {
                         val escaped = slotToEscaped[slot] ?: continue
                         // Match either unresolved placeholder or already-escaped filename
                         if (imageName == placeholder || imageName == escaped) {
-                            node.put("mode", 4)
-                            // Clear the image field so ComfyUI validation passes (empty + mode=4 = skip)
-                            inputs.put("image", "")
-                            DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, cleared image)")
+                            // mode=2 is ComfyUI's proper "bypass" mode (Ctrl+B) — the node is
+                        // skipped and wires reconnect through it as if the node wasn't there.
+                        // Do NOT clear the image field — bypass mode handles it.
+                        node.put("mode", 2)
+                        DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=2)")
                             break
                         }
                     }

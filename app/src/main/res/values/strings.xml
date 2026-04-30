@@ -198,6 +198,9 @@
     <string name="tab_preview">Preview</string>
     <string name="label_megapixels">Megapixels</string>
     <string name="button_upload_source_image">Upload Source Image</string>
+    <string name="button_pick_from_gallery">Pick from history</string>
+    <string name="title_gallery_picker">Select from History</string>
+    <string name="msg_gallery_picker_empty">No images in history</string>
     <string name="button_add_image2">Add Image 2</string>
     <string name="button_add_image3">Add Image 3</string>
     <string name="button_add_image4">Add Image 4</string>

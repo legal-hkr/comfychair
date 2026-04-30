@@ -1147,6 +1147,32 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     }
 
     /**
+     * Handle source image selection from gallery history (already a Bitmap from MediaCache).
+     * Unlike onSourceImageChange which takes a Uri, this receives a pre-loaded Bitmap directly.
+     * @param slot 1-4
+     */
+    fun onSourceImageFromGallery(context: Context, slot: Int, bitmap: Bitmap) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val key = when (slot) {
+                1 -> MediaStateHolder.MediaKey.ItiSource
+                2 -> MediaStateHolder.MediaKey.ItiSource2
+                3 -> MediaStateHolder.MediaKey.ItiSource3
+                4 -> MediaStateHolder.MediaKey.ItiSource4
+                else -> return@launch
+            }
+            MediaStateHolder.putBitmap(key, bitmap, context)
+            val update = when (slot) {
+                1 -> _uiState.value.copy(sourceImage = bitmap)
+                2 -> _uiState.value.copy(sourceImage2 = bitmap)
+                3 -> _uiState.value.copy(sourceImage3 = bitmap)
+                4 -> _uiState.value.copy(sourceImage4 = bitmap)
+                else -> return@launch
+            }
+            _uiState.value = update
+        }
+    }
+
+    /**
      * Clear an additional source image by index.
      */
     fun clearAdditionalSourceImage(index: Int) {

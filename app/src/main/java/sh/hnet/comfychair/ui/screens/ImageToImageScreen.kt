@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DoNotDisturb
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.res.painterResource
@@ -86,10 +87,13 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.cache.MaskEditorStateHolder
+import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.components.GalleryPickerBottomSheet
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
@@ -165,6 +169,10 @@ fun ImageToImageScreen(
     var showOptionsSheet by remember { mutableStateOf(false) }
 
     val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var showGalleryPicker by remember { mutableStateOf(false) }
+    val galleryPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val galleryImages by GalleryRepository.getInstance().galleryItems.collectAsState()
 
     // Image picker launcher for source image (system file picker - supports Downloads, file managers, gallery)
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -271,6 +279,13 @@ fun ImageToImageScreen(
     }
     val previewPageIndex = imagePages.size // preview is always last
     val isPreviewPage = pagerState.currentPage == previewPageIndex
+
+    // Current source slot derived from pager position (preview page → fallback to slot 1)
+    val currentSourceSlot = if (pagerState.currentPage < previewPageIndex) {
+        pagerState.currentPage + 1
+    } else {
+        1
+    }
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
@@ -739,6 +754,16 @@ fun ImageToImageScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            OutlinedIconButton(
+                onClick = { showGalleryPicker = true },
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    Icons.Default.Collections,
+                    contentDescription = stringResource(R.string.button_pick_from_gallery)
+                )
+            }
+
             // Animate gear icon rotation when options sheet is shown
             val optionsIconRotation by animateFloatAsState(
                 targetValue = if (showOptionsSheet) 90f else 0f,
@@ -885,6 +910,27 @@ fun ImageToImageScreen(
                     uiState.selectedEditingWorkflow else uiState.selectedWorkflow
             )
         }
+    }
+
+    // Gallery picker bottom sheet
+    if (showGalleryPicker) {
+        GalleryPickerBottomSheet(
+            galleryItems = galleryImages,
+            onSelect = { item ->
+                val cacheKey = item.toCacheKey()
+                val bitmap = MediaCache.getBitmap(cacheKey)
+                if (bitmap != null) {
+                    imageToImageViewModel.onSourceImageFromGallery(
+                        context = context,
+                        slot = currentSourceSlot,
+                        bitmap = bitmap
+                    )
+                }
+                showGalleryPicker = false
+            },
+            onDismiss = { showGalleryPicker = false },
+            sheetState = galleryPickerSheetState
+        )
     }
 
     // Prompt Library Dialog

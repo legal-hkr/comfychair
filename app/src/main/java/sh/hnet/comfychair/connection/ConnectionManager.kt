@@ -715,7 +715,7 @@ object ConnectionManager {
                     val data = message.optJSONObject("data")
                     val promptId = data?.optString("prompt_id")
                     val errorMsg = data?.optString("exception_message", "Unknown error") ?: "Unknown error"
-                    DebugLogger.e(TAG, "WS: execution_error (promptId: ${Obfuscator.promptId(promptId)})")
+                    DebugLogger.e(TAG, "WS: execution_error (promptId: ${Obfuscator.promptId(promptId)}, error: $errorMsg)")
                     // Notify JobRegistry of the failure
                     if (!promptId.isNullOrEmpty()) {
                         JobRegistry.markFailed(promptId)

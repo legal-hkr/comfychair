@@ -1,19 +1,28 @@
-# 进度记录
+# Progress: 图片历史选择器功能
 
 ## 2026-04-30
 
-### 调研阶段
+### Phase 1: 调研 ✅
+- [x] 分析 ImageToImageScreen.kt 底部工具条结构
+- [x] 分析 GalleryRepository 和 GalleryItem 数据模型
+- [x] 分析 MediaCache 和 rememberLazyBitmap
+- [x] 分析 ImageToImageViewModel 源图加载方法
+- [x] 确认 HorizontalPager 槽位推导逻辑
+- [x] 创建 task_plan.md
+- [x] 创建 findings.md
 
-**完成的工作**：
-- 读取 `WorkflowGraphModel.kt` — 确认 `WorkflowNode.mode` 已支持 bypass(4)/mute(2)/active(0)
-- 读取 `WorkflowParser.kt` — 确认 `mode` 从 JSON 解析
-- 读取 `WorkflowSerializer.kt` — 确认 `mode` 写入 JSON
-- 读取 `BypassNodeResolver.kt` — 确认执行时自动删除 bypass 节点并重连
-- 读取 `WorkflowEditorViewModel.kt` — 确认 `toggleNodeBypass()` 方法存在
-- 读取 `WorkflowEditorScreen.kt` — 确认现有 bypass 入口在 More Menu（需 Edit Mode）
-- 读取 `NodeAttributeSideSheet.kt` — 确认侧边栏 Header 只有标题，待添加 bypass 开关
-- 读取 `WorkflowGraphCanvas.kt` — 确认 bypassed 节点视觉样式已实现
+### Phase 2: 实现（待开始）
+- [ ] 创建 GalleryPickerBottomSheet.kt
+- [ ] 修改 ImageToImageViewModel — 新增 onSourceImageFromGallery
+- [ ] 修改 ImageToImageScreen — 添加按钮和 BottomSheet
+- [ ] 添加字符串资源（中英文）
 
-**结论**：功能已完整存在，UX 不足。需要给 NodeAttributeSideSheet 增加 Bypass 开关。
+### Phase 3: 验证（待开始）
+- [ ] 构建 APK 验证编译
+- [ ] 功能测试
 
-**计划**：写入 task_plan.md 和 findings.md。
+---
+
+## 错误记录
+
+（暂无）

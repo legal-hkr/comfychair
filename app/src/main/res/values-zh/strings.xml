@@ -183,6 +183,9 @@
     <string name="tab_preview">预览</string>
     <string name="label_megapixels">百万像素</string>
     <string name="button_upload_source_image">上传原图</string>
+    <string name="button_pick_from_gallery">从历史选择</string>
+    <string name="title_gallery_picker">选择历史图片</string>
+    <string name="msg_gallery_picker_empty">暂无历史图片</string>
     <string name="button_edit_mask">编辑蒙版</string>
     <string name="button_clear_mask">清除蒙版</string>
     <string name="msg_no_source_image">未选择原图</string>
