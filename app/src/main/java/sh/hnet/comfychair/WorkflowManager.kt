@@ -1984,13 +1984,16 @@ object WorkflowManager {
                         // (empty string = slot not uploaded, which happens when slot is bypassed)
                         if (imageName == placeholder || imageName == escaped || imageName == "") {
                             // mode=4 is LiteGraph's NODE_BYPASS — the node is skipped entirely.
-                            // Also clear widgets_values so ComfyUI doesn't try to read image metadata.
-                            // Nick confirmed mode=4 works on ComfyUI page — bypassed node is skipped.
-                            node.put("mode", 4)
-                            val widgetsValues = node.optJSONArray("widgets_values")
-                            if (widgetsValues != null && widgetsValues.length() > 0) {
-                                widgetsValues.put(0, "")
+                            // Do NOT modify widgets_values — the original workflow JSON doesn't have this field,
+                            // and adding widgets_values[0]=""; causes ComfyUI to resolve "" as the input
+                            // directory path (/opt/ComfyUI/input/) and fail with "Is a directory".
+                            // Also do NOT leave inputs.image as "" — ComfyUI resolves "" to /opt/ComfyUI/input/
+                            // (the input dir itself). Instead fill with the main image filename so the path
+                            // is valid even if never used (mode=4 bypasses execution anyway).
+                            if (imageName == "") {
+                                inputs.put("image", sourceImageFilename + " [input]")
                             }
+                            node.put("mode", 4)
                             DebugLogger.d(TAG, "Bypassing LoadImage node $nodeId (slot $slot, mode=4)")
                             break
                         }
