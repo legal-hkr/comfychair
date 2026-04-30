@@ -233,9 +233,13 @@ fun ImageToImageScreen(
         if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
             val replaceSlot = data.getIntExtra(MediaViewerActivity.RESULT_SLOT, -1)
             if (replaceSlot > 0) {
-                // Set current slot and open gallery picker instead of file picker
-                currentPickerSlot = replaceSlot
-                showGalleryPicker = true
+                // Restore original behavior: Replace button opens system file picker
+                when (replaceSlot) {
+                    1 -> imagePickerLauncher.launch(arrayOf("image/*"))
+                    2 -> imagePickerLauncher2.launch(arrayOf("image/*"))
+                    3 -> imagePickerLauncher3.launch(arrayOf("image/*"))
+                    4 -> imagePickerLauncher4.launch(arrayOf("image/*"))
+                }
             }
         }
     }
