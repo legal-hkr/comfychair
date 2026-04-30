@@ -1980,8 +1980,9 @@ object WorkflowManager {
                     for (slot in bypassedSlots) {
                         val placeholder = slotToPlaceholder[slot] ?: continue
                         val escaped = slotToEscaped[slot] ?: continue
-                        // Match either unresolved placeholder or already-escaped filename
-                        if (imageName == placeholder || imageName == escaped) {
+                        // Match: unresolved placeholder, already-escaped filename, OR empty string
+                        // (empty string = slot not uploaded, which happens when slot is bypassed)
+                        if (imageName == placeholder || imageName == escaped || imageName == "") {
                             // mode=4 is LiteGraph's NODE_BYPASS — the node is skipped entirely.
                             // Also clear widgets_values so ComfyUI doesn't try to read image metadata.
                             // Nick confirmed mode=4 works on ComfyUI page — bypassed node is skipped.
