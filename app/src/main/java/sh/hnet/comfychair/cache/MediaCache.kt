@@ -16,6 +16,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.storage.LocalGalleryStorage
 import sh.hnet.comfychair.util.DebugLogger
 import java.io.File
 import java.io.FileOutputStream
@@ -484,6 +485,19 @@ object MediaCache {
                 return it
             }
 
+            // Check local gallery storage (persistent, survives server restarts)
+            if (!isVideo && context != null) {
+                val localBytes = LocalGalleryStorage.loadImageBytes(context, key.filename)
+                if (localBytes != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(localBytes, 0, localBytes.size)
+                    if (bitmap != null) {
+                        DebugLogger.d(TAG, "fetchBitmap: $keyStr from local gallery -> HIT")
+                        bitmapCache.put(keyStr, bitmap, priority)
+                        return bitmap
+                    }
+                }
+            }
+
             // No client in offline mode - can't fetch from server
             if (client == null) {
                 DebugLogger.d(TAG, "fetchBitmap: $keyStr -> no client (offline), cache MISS")
@@ -518,9 +532,21 @@ object MediaCache {
                     }
                 }
 
+                // Check local gallery storage (persistent, survives server restarts)
+                if (!isVideo) {
+                    val localBytes = LocalGalleryStorage.loadImageBytes(context, key.filename)
+                    if (localBytes != null) {
+                        val bitmap = BitmapFactory.decodeByteArray(localBytes, 0, localBytes.size)
+                        if (bitmap != null) {
+                            DebugLogger.d(TAG, "fetchBitmap: $keyStr from local gallery -> HIT")
+                            return@withContext bitmap
+                        }
+                    }
+                }
+
                 // No client in offline mode - can't fetch from server
                 if (client == null) {
-                    DebugLogger.d(TAG, "fetchBitmap: $keyStr -> no client (offline), disk cache MISS")
+                    DebugLogger.d(TAG, "fetchBitmap: $keyStr -> no client (offline), cache MISS")
                     return@withContext null
                 }
 
@@ -666,6 +692,19 @@ object MediaCache {
                 return it
             }
 
+            // Check local gallery storage (persistent, survives server restarts)
+            if (context != null) {
+                val localBytes = LocalGalleryStorage.loadImageBytes(context, key.filename)
+                if (localBytes != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(localBytes, 0, localBytes.size)
+                    if (bitmap != null) {
+                        DebugLogger.d(TAG, "fetchImage: ${key.keyString} from local gallery -> HIT")
+                        bitmapCache.put(key.keyString, bitmap, priority)
+                        return bitmap
+                    }
+                }
+            }
+
             // No client in offline mode - can't fetch from server
             if (client == null) {
                 DebugLogger.d(TAG, "fetchImage: ${key.keyString} -> no client (offline), cache MISS")
@@ -679,6 +718,13 @@ object MediaCache {
                     }
                 }
 
+                // Save to local gallery storage for future offline use
+                if (bitmap != null && context != null) {
+                    val stream = java.io.ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    LocalGalleryStorage.saveImage(context, key.filename, stream.toByteArray())
+                }
+
                 bitmap?.let { bitmapCache.put(key.keyString, it, priority) }
                 bitmap
             }
@@ -688,6 +734,16 @@ object MediaCache {
                 readBitmapFromDisk(context, key)?.let {
                     DebugLogger.d(TAG, "fetchImage: ${key.keyString} from disk cache -> HIT")
                     return@withContext it
+                }
+
+                // Check local gallery storage (persistent, survives server restarts)
+                val localBytes = LocalGalleryStorage.loadImageBytes(context, key.filename)
+                if (localBytes != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(localBytes, 0, localBytes.size)
+                    if (bitmap != null) {
+                        DebugLogger.d(TAG, "fetchImage: ${key.keyString} from local gallery -> HIT")
+                        return@withContext bitmap
+                    }
                 }
 
                 // No client in offline mode - can't fetch from server
@@ -703,7 +759,13 @@ object MediaCache {
                     }
                 }
 
-                bitmap?.let { writeBitmapToDisk(context, key, it) }
+                // Save to local gallery storage for future offline use
+                if (bitmap != null) {
+                    writeBitmapToDisk(context, key, bitmap)
+                    val stream = java.io.ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    LocalGalleryStorage.saveImage(context, key.filename, stream.toByteArray())
+                }
                 bitmap
             }
         }
@@ -738,6 +800,16 @@ object MediaCache {
                 return it
             }
 
+            // Check local gallery storage (persistent, survives server restarts)
+            if (context != null) {
+                val localBytes = LocalGalleryStorage.loadImageBytes(context, key.filename)
+                if (localBytes != null) {
+                    DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} from local gallery -> HIT")
+                    videoCache.put(key.keyString, localBytes, PriorityLruCache.PRIORITY_DEFAULT)
+                    return localBytes
+                }
+            }
+
             // No client in offline mode - can't fetch from server
             if (client == null) {
                 DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} -> no client (offline), cache MISS")
@@ -751,6 +823,11 @@ object MediaCache {
                     }
                 }
 
+                // Save to local gallery storage for future offline use
+                if (bytes != null && context != null) {
+                    LocalGalleryStorage.saveImage(context, key.filename, bytes)
+                }
+
                 bytes?.let { videoCache.put(key.keyString, it, PriorityLruCache.PRIORITY_DEFAULT) }
                 bytes
             }
@@ -760,6 +837,13 @@ object MediaCache {
                 readVideoBytesFromDisk(context, key)?.let {
                     DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} from disk cache -> HIT")
                     return@withContext it
+                }
+
+                // Check local gallery storage (persistent, survives server restarts)
+                val localBytes = LocalGalleryStorage.loadImageBytes(context, key.filename)
+                if (localBytes != null) {
+                    DebugLogger.d(TAG, "fetchVideoBytes: ${key.keyString} from local gallery -> HIT")
+                    return@withContext localBytes
                 }
 
                 // No client in offline mode - can't fetch from server
@@ -775,7 +859,11 @@ object MediaCache {
                     }
                 }
 
-                bytes?.let { writeVideoToDisk(context, key, it) }
+                // Save to local gallery storage for future offline use
+                if (bytes != null) {
+                    writeVideoToDisk(context, key, bytes)
+                    LocalGalleryStorage.saveImage(context, key.filename, bytes)
+                }
                 bytes
             }
         }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.cache.MediaCache
@@ -18,6 +19,7 @@ import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.GalleryMetadataCache
+import sh.hnet.comfychair.storage.LocalGalleryStorage
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
@@ -87,6 +89,7 @@ class GalleryRepository private constructor() {
                 instance ?: GalleryRepository().also { instance = it }
             }
         }
+
     }
 
     /**
@@ -188,21 +191,21 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Load gallery data in background.
+     * Load gallery data in background with incremental sync.
+     *
+     * Sync strategy:
+     * 1. Always load local index first (fast, works offline)
+     * 2. If online, fetch /history from server and identify new items
+     * 3. For new server items: fetch full history + download images, save locally
+     * 4. For server-deleted items (not server restart): remove locally
+     * 5. If server returns empty (restart scenario): preserve all local data
+     * 6. Merge: local items + newly synced items
+     *
      * @return true if load succeeded, false otherwise
      */
     private suspend fun loadGalleryInternal(isRefresh: Boolean): Boolean {
         val context = applicationContext
         val serverId = ConnectionManager.currentServerId
-
-        // Check if in offline mode - load from cache instead
-        if (context != null && AppSettings.isOfflineMode(context)) {
-            return loadFromOfflineCache()
-        }
-
-        val client = comfyUIClient ?: run {
-            return false
-        }
 
         if (isRefresh) {
             _isRefreshing.value = true
@@ -211,18 +214,13 @@ class GalleryRepository private constructor() {
         }
 
         try {
-            val historyJson = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.fetchAllHistory { history ->
-                        continuation.resumeWith(Result.success(history))
-                    }
+            // Step 1: Always load local data first (works in both online and offline modes)
+            val localItems = if (context != null) {
+                withContext(Dispatchers.IO) {
+                    LocalGalleryStorage.loadIndex(context)
                 }
-            }
-
-            if (historyJson == null) {
-                _isLoading.value = false
-                _isRefreshing.value = false
-                return false
+            } else {
+                emptyList()
             }
 
             // Get pending deletions snapshot
@@ -231,23 +229,164 @@ class GalleryRepository private constructor() {
                 deletionsSnapshot = pendingDeletions.toSet()
             }
 
-            var items = parseHistoryToGalleryItems(historyJson)
+            // Start with local items as the base
+            val mergedItems = mutableListOf<GalleryItem>()
+            val localPromptIds = mutableSetOf<String>()
 
-            // Filter out pending deletions to prevent reappearing
-            if (deletionsSnapshot.isNotEmpty()) {
-                items = items.filter { it.promptId !in deletionsSnapshot }
+            // Add local items, filtering out pending deletions
+            for (item in localItems) {
+                if (item.promptId !in deletionsSnapshot) {
+                    mergedItems.add(item)
+                    localPromptIds.add(item.promptId)
+                }
             }
 
+            // Check if in offline mode - just use local data
+            if (context != null && AppSettings.isOfflineMode(context)) {
+                _galleryItems.value = mergedItems
+                _lastRefreshTime.value = System.currentTimeMillis()
+                hasLoadedOnce = true
+                DebugLogger.d(TAG, "Gallery loaded from local storage: ${mergedItems.size} items (offline mode)")
+                return true
+            }
+
+            val client = comfyUIClient
+            if (client == null) {
+                // No client available - use local data if we have it
+                if (mergedItems.isNotEmpty()) {
+                    _galleryItems.value = mergedItems
+                    _lastRefreshTime.value = System.currentTimeMillis()
+                    hasLoadedOnce = true
+                    DebugLogger.d(TAG, "Gallery loaded from local storage: ${mergedItems.size} items (no server)")
+                    return true
+                }
+                return false
+            }
+
+            // Step 2: Fetch all server prompt IDs from /history
+            val allServerHistory = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.fetchAllHistory { history ->
+                        continuation.resumeWith(Result.success(history))
+                    }
+                }
+            }
+
+            if (allServerHistory == null) {
+                // Server error - use local data if available
+                if (mergedItems.isNotEmpty()) {
+                    _galleryItems.value = mergedItems
+                    _lastRefreshTime.value = System.currentTimeMillis()
+                    hasLoadedOnce = true
+                    DebugLogger.d(TAG, "Gallery loaded from local storage: ${mergedItems.size} items (server error)")
+                    return true
+                }
+                return false
+            }
+
+            // Step 3: Parse server history to get all items and prompt IDs
+            val serverItems = parseHistoryToGalleryItems(allServerHistory)
+            val serverPromptIds = serverItems.map { it.promptId }.toSet()
+
+            // Step 4: Determine which server items are new (not in local storage)
+            val newPromptIds = serverPromptIds - localPromptIds
+            val newItemsFromServer = serverItems.filter { it.promptId in newPromptIds }
+
+            // Step 5: For new items, fetch full history JSON and download images
+            if (newItemsFromServer.isNotEmpty() && context != null) {
+                DebugLogger.i(TAG, "Found ${newItemsFromServer.size} new items to sync from server")
+
+                // Collect unique filenames per prompt to download
+                val newItemsToSync = newItemsFromServer
+                    .filter { !LocalGalleryStorage.checkImageExists(context, it.filename) }
+
+                if (newItemsToSync.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        // Download images for new items
+                        for (item in newItemsToSync) {
+                            try {
+                                if (item.isVideo) {
+                                    kotlin.coroutines.suspendCoroutine { continuation ->
+                                        client.fetchVideo(item.filename, item.subfolder, item.type) { bytes, _ ->
+                                            if (bytes != null) {
+                                                LocalGalleryStorage.saveImage(context, item.filename, bytes)
+                                            }
+                                            continuation.resumeWith(kotlin.Result.success(Unit))
+                                        }
+                                    }
+                                } else {
+                                    kotlin.coroutines.suspendCoroutine { continuation ->
+                                        client.fetchRawBytes(item.filename, item.subfolder, item.type) { bytes, _ ->
+                                            if (bytes != null) {
+                                                LocalGalleryStorage.saveImage(context, item.filename, bytes)
+                                            }
+                                            continuation.resumeWith(kotlin.Result.success(Unit))
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                DebugLogger.w(TAG, "Failed to download image for ${item.promptId}/${item.filename}: ${e.message}")
+                            }
+                        }
+                    }
+                }
+
+                // Save full history JSON for each new prompt
+                val singleHistoryPrompts = newPromptIds.filter { promptId ->
+                    allServerHistory.has(promptId)
+                }
+                for (promptId in singleHistoryPrompts) {
+                    withContext(Dispatchers.IO) {
+                        val historyEntry = allServerHistory.optJSONObject(promptId)
+                        if (historyEntry != null && context != null) {
+                            LocalGalleryStorage.saveHistory(context, promptId, historyEntry)
+                        }
+                    }
+                }
+
+                // Add new items to merged list, setting localCacheExists=true for successfully downloaded ones
+                for (newItem in newItemsFromServer) {
+                    val hasLocalImage = context != null && LocalGalleryStorage.checkImageExists(context, newItem.filename)
+                    mergedItems.add(newItem.copy(localCacheExists = hasLocalImage))
+                }
+            } else {
+                // No new items - just add server items with their local cache status
+                for (serverItem in serverItems) {
+                    if (serverItem.promptId !in localPromptIds) {
+                        // Should not happen since we checked newPromptIds, but handle defensively
+                        val hasLocalImage = context != null && LocalGalleryStorage.checkImageExists(context, serverItem.filename)
+                        mergedItems.add(serverItem.copy(localCacheExists = hasLocalImage))
+                    }
+                }
+            }
+
+            // Step 6: Update local cache status for existing items
+            if (context != null) {
+                mergedItems.replaceAll { item ->
+                    if (item.promptId in localPromptIds) {
+                        item.copy(localCacheExists = LocalGalleryStorage.checkImageExists(context, item.filename))
+                    } else {
+                        item
+                    }
+                }
+            }
+
+            // Step 7: Sort merged list (newest first by timestamp, then by index)
+            val sortedItems = mergedItems.sortedWith(
+                compareByDescending<GalleryItem> { it.timestamp }
+                    .thenByDescending { it.index }
+            )
+
             val previousCount = _galleryItems.value.size
-            _galleryItems.value = items
+            _galleryItems.value = sortedItems
             _lastRefreshTime.value = System.currentTimeMillis()
             hasLoadedOnce = true
-            DebugLogger.d(TAG, "Gallery refresh complete: ${items.size} items (was $previousCount)")
+            DebugLogger.d(TAG, "Gallery sync complete: ${sortedItems.size} items (was $previousCount, ${newPromptIds.size} new from server)")
 
-            // Cache gallery metadata for offline mode
-            if (context != null && serverId != null) {
+            // Save updated index to local storage
+            if (context != null) {
                 withContext(Dispatchers.IO) {
-                    GalleryMetadataCache.saveMetadata(context, serverId, items)
+                    LocalGalleryStorage.saveIndex(context, sortedItems)
                 }
             }
 
@@ -262,19 +401,31 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Load gallery data from offline cache.
+     * Load gallery data from offline cache (LocalGalleryStorage).
+     * Falls back to legacy GalleryMetadataCache if LocalGalleryStorage is empty.
      * @return true if cache was loaded successfully, false otherwise
      */
     private fun loadFromOfflineCache(): Boolean {
         val context = applicationContext ?: return false
         val serverId = ConnectionManager.currentServerId ?: return false
 
+        // First try new LocalGalleryStorage (persistent gallery on external storage)
+        val localItems = LocalGalleryStorage.loadIndex(context)
+        if (localItems.isNotEmpty()) {
+            _galleryItems.value = localItems
+            _lastRefreshTime.value = System.currentTimeMillis()
+            hasLoadedOnce = true
+            DebugLogger.d(TAG, "Gallery loaded from local storage: ${localItems.size} items")
+            return true
+        }
+
+        // Fallback to legacy GalleryMetadataCache for backward compatibility
         val cachedItems = GalleryMetadataCache.loadMetadata(context, serverId)
         if (cachedItems != null) {
             _galleryItems.value = cachedItems
             _lastRefreshTime.value = GalleryMetadataCache.getCacheTimestamp(context, serverId)
             hasLoadedOnce = true
-            DebugLogger.d(TAG, "Gallery loaded from offline cache: ${cachedItems.size} items")
+            DebugLogger.d(TAG, "Gallery loaded from legacy cache: ${cachedItems.size} items")
             return true
         }
 
@@ -288,22 +439,40 @@ class GalleryRepository private constructor() {
     fun hasData(): Boolean = hasLoadedOnce && _galleryItems.value.isNotEmpty()
 
     /**
-     * Remove an item from the local gallery list only (server deletion already done).
-     * Used by MediaViewerViewModel to sync after it deletes on server.
+     * Remove an item from the local gallery list and local storage.
+     * Called by MediaViewerViewModel after it deletes from server.
      *
      * @param promptId The prompt ID of the item to remove
+     * @param filename Optional filename to also delete from local image storage
      */
-    fun removeItemLocally(promptId: String) {
+    fun removeItemLocally(promptId: String, filename: String? = null) {
+        // Remove from in-memory list
         val currentItems = _galleryItems.value.toMutableList()
         currentItems.removeAll { it.promptId == promptId }
         _galleryItems.value = currentItems
+
+        // Clean local storage
+        val context = applicationContext
+        if (context != null) {
+            LocalGalleryStorage.deleteHistory(context, promptId)
+            if (filename != null) {
+                LocalGalleryStorage.deleteImage(context, filename)
+            }
+            // Update index
+            val updatedIndex = LocalGalleryStorage.loadIndex(context)
+                .filter { it.promptId != promptId }
+            if (updatedIndex.size < LocalGalleryStorage.loadIndex(context).size) {
+                LocalGalleryStorage.saveIndex(context, updatedIndex)
+            }
+        }
     }
 
     /**
-     * Delete an item from the gallery
+     * Delete an item from the gallery and local storage.
      */
     suspend fun deleteItem(item: GalleryItem): Boolean {
-        val client = comfyUIClient ?: return false
+        val client = comfyUIClient
+        val context = applicationContext
 
         // Add to pending deletions to prevent reappearing during concurrent refresh
         synchronized(pendingDeletions) {
@@ -316,20 +485,34 @@ class GalleryRepository private constructor() {
         _galleryItems.value = currentItems
 
         try {
-            val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.deleteHistoryItem(item.promptId) { success ->
-                        continuation.resumeWith(Result.success(success))
+            // Delete from server if connected
+            var serverSuccess = true
+            if (client != null) {
+                serverSuccess = withContext(Dispatchers.IO) {
+                    kotlin.coroutines.suspendCoroutine { continuation ->
+                        client.deleteHistoryItem(item.promptId) { success ->
+                            continuation.resumeWith(Result.success(success))
+                        }
                     }
                 }
             }
 
-            if (success) {
-                // Evict from media cache
-                MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+            // Always delete from local storage
+            if (context != null) {
+                withContext(Dispatchers.IO) {
+                    LocalGalleryStorage.deleteHistory(context, item.promptId)
+                    LocalGalleryStorage.deleteImage(context, item.filename)
+                    // Update index after deletion
+                    val updatedIndex = LocalGalleryStorage.loadIndex(context)
+                        .filter { it.promptId != item.promptId }
+                    LocalGalleryStorage.saveIndex(context, updatedIndex)
+                }
             }
 
-            return success
+            // Evict from media cache
+            MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+
+            return serverSuccess && context != null // Consider success if we at least cleaned local storage
         } finally {
             // Always remove from pending deletions to prevent memory leak
             synchronized(pendingDeletions) {
@@ -339,10 +522,12 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Delete multiple items by prompt IDs
+     * Delete multiple items by prompt IDs.
+     * Removes from server, local storage, and media cache.
      */
     suspend fun deleteItems(promptIds: Set<String>): Int {
-        val client = comfyUIClient ?: return 0
+        val client = comfyUIClient
+        val context = applicationContext
 
         // Find items to be deleted for cache eviction
         val itemsToDelete = _galleryItems.value.filter { it.promptId in promptIds }
@@ -360,19 +545,43 @@ class GalleryRepository private constructor() {
         try {
             var successCount = 0
             for (promptId in promptIds) {
-                val success = withContext(Dispatchers.IO) {
-                    kotlin.coroutines.suspendCoroutine { continuation ->
-                        client.deleteHistoryItem(promptId) { success ->
-                            continuation.resumeWith(Result.success(success))
+                var serverSuccess = true
+                if (client != null) {
+                    serverSuccess = withContext(Dispatchers.IO) {
+                        kotlin.coroutines.suspendCoroutine { continuation ->
+                            client.deleteHistoryItem(promptId) { success ->
+                                continuation.resumeWith(Result.success(success))
+                            }
                         }
                     }
                 }
-                if (success) {
-                    successCount++
-                    // Evict from media cache
-                    itemsToDelete.filter { it.promptId == promptId }.forEach { item ->
-                        MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+
+                // Delete from local storage regardless of server result
+                if (context != null) {
+                    withContext(Dispatchers.IO) {
+                        LocalGalleryStorage.deleteHistory(context, promptId)
                     }
+                }
+
+                // Evict from media cache
+                itemsToDelete.filter { it.promptId == promptId }.forEach { item ->
+                    if (context != null) {
+                        LocalGalleryStorage.deleteImage(context, item.filename)
+                    }
+                    MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+                }
+
+                if (serverSuccess || context != null) {
+                    successCount++
+                }
+            }
+
+            // Update local index after deletions
+            if (context != null) {
+                withContext(Dispatchers.IO) {
+                    val updatedIndex = LocalGalleryStorage.loadIndex(context)
+                        .filter { it.promptId !in promptIds }
+                    LocalGalleryStorage.saveIndex(context, updatedIndex)
                 }
             }
 
@@ -386,9 +595,10 @@ class GalleryRepository private constructor() {
     }
 
     /**
-     * Clear cached data (for logout/disconnect)
-     * Note: Uses MediaCache.reset() to preserve disk cache for offline mode.
-     * User can still clear disk cache manually via Settings → Clear Cache.
+     * Clear cached data (for logout/disconnect).
+     * Clears in-memory state and MediaCache.
+     * Does NOT clear LocalGalleryStorage persistent data (images/metadata survive).
+     * Call [clearLocalStorage] to also remove persistent gallery data.
      */
     fun clearCache() {
         DebugLogger.i(TAG, "Clearing cache")
@@ -406,6 +616,7 @@ class GalleryRepository private constructor() {
     /**
      * Reset repository state (for logout/disconnect).
      * Called by ConnectionManager when disconnecting.
+     * Does NOT clear LocalGalleryStorage persistent data.
      */
     fun reset() {
         DebugLogger.i(TAG, "Resetting repository")
@@ -413,7 +624,26 @@ class GalleryRepository private constructor() {
     }
 
     /**
+     * Clear both in-memory state AND persistent local gallery storage.
+     * This removes all locally cached metadata and images from
+     * /sdcard/Android/data/<package>/gallery/
+     * Use with caution - this cannot be undone without re-downloading from server.
+     */
+    fun clearLocalStorage() {
+        clearCache()
+        val context = applicationContext ?: return
+        LocalGalleryStorage.clearAll(context)
+        // Also clear legacy cache
+        val serverId = ConnectionManager.currentServerId
+        if (serverId != null) {
+            GalleryMetadataCache.clearCache(context, serverId)
+        }
+        DebugLogger.i(TAG, "Local gallery storage cleared")
+    }
+
+    /**
      * Parse history JSON to gallery items.
+     * Extracts timestamp from history entry for sorting.
      * Does NOT fetch bitmaps - those are loaded lazily via MediaCache.
      */
     private fun parseHistoryToGalleryItems(historyJson: JSONObject): List<GalleryItem> {
@@ -425,6 +655,39 @@ class GalleryRepository private constructor() {
             val promptId = promptIds.next()
             val promptHistory = historyJson.optJSONObject(promptId) ?: continue
             val outputs = promptHistory.optJSONObject("outputs") ?: continue
+
+            // Extract timestamp from history entry.
+            // ComfyUI does NOT put a timestamp directly on the status object.
+            // Instead, timestamps are inside status.messages array, e.g.:
+            //   "messages": [["execution_start", {..., "timestamp": 1780716272859}],
+            //                ["execution_success", {..., "timestamp": 1780716371499}]]
+            // These timestamps are already in milliseconds.
+            val status = promptHistory.optJSONObject("status")
+            val messages = status?.optJSONArray("messages")
+            val timestamp = if (messages != null && messages.length() > 0) {
+                // Look for execution_success message, fallback to last message's timestamp
+                var extractedTimestamp = 0L
+                for (i in 0 until messages.length()) {
+                    val msg = messages.optJSONArray(i) ?: continue
+                    if (msg.length() >= 2) {
+                        val msgType = msg.optString(0, "")
+                        val msgData = msg.optJSONObject(1)
+                        if (msgData != null) {
+                            val t = msgData.optLong("timestamp", 0L)
+                            if (t > 0L) {
+                                extractedTimestamp = t
+                                // Prefer execution_success as it's the completion time
+                                if (msgType == "execution_success") {
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
+                extractedTimestamp
+            } else {
+                0L
+            }
 
             val nodeIds = outputs.keys()
             while (nodeIds.hasNext()) {
@@ -450,7 +713,8 @@ class GalleryRepository private constructor() {
                             subfolder = subfolder,
                             type = type,
                             isVideo = true,
-                            index = index++
+                            index = index++,
+                            timestamp = timestamp
                         ))
                     }
                 }
@@ -474,7 +738,8 @@ class GalleryRepository private constructor() {
                                 subfolder = subfolder,
                                 type = type,
                                 isVideo = true,
-                                index = index++
+                                index = index++,
+                                timestamp = timestamp
                             ))
                             continue
                         }
@@ -488,14 +753,18 @@ class GalleryRepository private constructor() {
                             subfolder = subfolder,
                             type = type,
                             isVideo = false,
-                            index = index++
+                            index = index++,
+                            timestamp = timestamp
                         ))
                     }
                 }
             }
         }
 
-        // Sort by index descending (newest first)
-        return items.sortedByDescending { it.index }
+        // Sort by timestamp descending (newest first), fallback to index
+        return items.sortedWith(
+            compareByDescending<GalleryItem> { it.timestamp }
+                .thenByDescending { it.index }
+        )
     }
 }

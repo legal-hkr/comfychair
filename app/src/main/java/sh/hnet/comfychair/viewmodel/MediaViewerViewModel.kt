@@ -499,7 +499,8 @@ class MediaViewerViewModel : ViewModel() {
                 MediaCache.evict(item.toCacheKey())
 
                 // Sync deletion to GalleryRepository so Gallery UI updates immediately
-                GalleryRepository.getInstance().removeItemLocally(item.promptId)
+                // Also pass filename to clean local storage
+                GalleryRepository.getInstance().removeItemLocally(item.promptId, item.filename)
 
                 // Get fresh state after async operation
                 val currentState = _uiState.value

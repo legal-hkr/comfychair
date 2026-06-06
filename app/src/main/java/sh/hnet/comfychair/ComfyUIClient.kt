@@ -961,6 +961,85 @@ class ComfyUIClient(
     }
 
     /**
+     * Fetch execution history for specific prompt IDs (batch).
+     * Used for incremental sync: after identifying which prompt IDs are new on the server,
+     * this method fetches their full history data.
+     *
+     * Fetches prompts sequentially to avoid overwhelming the server.
+     *
+     * @param promptIds Set of prompt IDs to fetch history for
+     * @param onComplete Called with a map of promptId -> historyJson for successfully fetched items,
+     *                   or null if all requests failed
+     */
+    fun fetchSpecificHistory(
+        promptIds: Set<String>,
+        onComplete: (historyMap: Map<String, JSONObject>?) -> Unit
+    ) {
+        if (promptIds.isEmpty()) {
+            onComplete(emptyMap())
+            return
+        }
+
+        val baseUrl = getBaseUrl() ?: run {
+            onComplete(null)
+            return
+        }
+
+        val results = mutableMapOf<String, JSONObject>()
+        val iterator = promptIds.iterator()
+        var hasFailed = false
+
+        val totalCount = promptIds.size
+        val completed = java.util.concurrent.atomic.AtomicInteger(0)
+
+        // Fetch sequentially to avoid overwhelming the server
+        fun fetchNext() {
+            synchronized(this) {
+                if (!iterator.hasNext()) {
+                    onComplete(if (hasFailed && results.isEmpty()) null else results.toMap())
+                    return
+                }
+
+                val promptId = iterator.next()
+                val url = "$baseUrl/history/$promptId"
+
+                val request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .build()
+
+                httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+                    override fun onFailure(call: okhttp3.Call, e: IOException) {
+                        hasFailed = true
+                        DebugLogger.w(TAG, "Failed to fetch history for $promptId: ${e.message}")
+                        fetchNext()
+                    }
+
+                    override fun onResponse(call: okhttp3.Call, response: Response) {
+                        response.use {
+                            if (response.isSuccessful) {
+                                try {
+                                    val historyJson = JSONObject(response.body?.string() ?: "{}")
+                                    results[promptId] = historyJson
+                                } catch (e: Exception) {
+                                    hasFailed = true
+                                    DebugLogger.w(TAG, "Failed to parse history for $promptId: ${e.message}")
+                                }
+                            } else {
+                                hasFailed = true
+                                DebugLogger.w(TAG, "History fetch for $promptId returned ${response.code}")
+                            }
+                            fetchNext()
+                        }
+                    }
+                })
+            }
+        }
+
+        fetchNext()
+    }
+
+    /**
      * Fetch the current queue status from the ComfyUI server
      * Returns both pending and running queue entries
      *

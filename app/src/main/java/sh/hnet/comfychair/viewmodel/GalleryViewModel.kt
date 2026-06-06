@@ -29,6 +29,9 @@ import java.io.File
 /**
  * Represents a gallery item (image or video).
  * Bitmaps are stored in MediaCache, not in this data class.
+ *
+ * @property timestamp Unix epoch milliseconds of the generation (from server history), 0 if unknown.
+ * @property localCacheExists Whether the corresponding image/video file exists in local gallery storage.
  */
 data class GalleryItem(
     val promptId: String,
@@ -36,7 +39,9 @@ data class GalleryItem(
     val subfolder: String,
     val type: String,
     val isVideo: Boolean,
-    val index: Int = 0 // For sorting
+    val index: Int = 0, // For sorting
+    val timestamp: Long = 0, // Unix epoch millis for sorting, 0 = unknown
+    val localCacheExists: Boolean = false // Whether image/video is cached locally
 ) {
     /** Create a cache key for this item */
     fun toCacheKey() = MediaCacheKey(promptId, filename)
