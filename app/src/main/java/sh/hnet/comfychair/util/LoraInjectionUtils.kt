@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.model.LoraSelection
+import sh.hnet.comfychair.workflow.NodeTypeRegistry
 
 /**
  * Utilities for injecting LoRA nodes into workflow JSON.
@@ -21,12 +22,14 @@ internal object LoraInjectionUtils {
      * @param workflowJson The prepared workflow JSON string
      * @param loraChain List of LoRA selections to inject (can be empty)
      * @param workflowType The type of workflow (determines model source node type)
+     * @param nodeTypeRegistry Registry of node type information for output type lookup
      * @return Modified workflow JSON with LoRA nodes injected, or original if chain is empty
      */
     fun injectLoraChain(
         workflowJson: String,
         loraChain: List<LoraSelection>,
-        workflowType: WorkflowType
+        workflowType: WorkflowType,
+        nodeTypeRegistry: NodeTypeRegistry
     ): String {
         if (loraChain.isEmpty()) return workflowJson
 
@@ -34,8 +37,8 @@ internal object LoraInjectionUtils {
             val json = JSONObject(workflowJson)
             val nodes = json.optJSONObject("nodes") ?: return workflowJson
 
-            // Find the model source node
-            val modelSourceId = findModelSourceNode(nodes, workflowType) ?: return workflowJson
+            // Find the model source node by its input keys and verify MODEL output type
+            val modelSourceId = findModelSourceNode(nodes, workflowType, nodeTypeRegistry) ?: return workflowJson
 
             // Find all nodes that consume the model output
             val modelConsumers = findModelConsumers(nodes, modelSourceId)
@@ -134,22 +137,32 @@ internal object LoraInjectionUtils {
 
     /**
      * Find the model source node in a workflow.
-     * Searches for CheckpointLoaderSimple first, then UNETLoader.
+     * Looks for nodes with model input keys (ckpt_name, unet_name) that match the UI's
+     * "Checkpoint" or "UNET" selection, then verifies the node outputs MODEL type.
      */
-    @Suppress("UNUSED_PARAMETER")
-    private fun findModelSourceNode(nodes: JSONObject, workflowType: WorkflowType): String? {
-        // Search for both loader types - prioritize CheckpointLoaderSimple, then UNETLoader
-        val loaderTypes = listOf("CheckpointLoaderSimple", "UNETLoader")
+    private fun findModelSourceNode(
+        nodes: JSONObject,
+        workflowType: WorkflowType,
+        nodeTypeRegistry: NodeTypeRegistry
+    ): String? {
+        // UI options "Checkpoint" and "UNET" correspond to these input keys
+        val modelSourceInputKeys = listOf("ckpt_name", "unet_name")
 
-        for (targetClassType in loaderTypes) {
-            val nodeIds = nodes.keys()
-            while (nodeIds.hasNext()) {
-                val nodeId = nodeIds.next()
-                val node = nodes.optJSONObject(nodeId) ?: continue
-                val classType = node.optString("class_type", "")
-                if (classType == targetClassType) {
-                    return nodeId
-                }
+        val nodeIds = nodes.keys()
+        while (nodeIds.hasNext()) {
+            val nodeId = nodeIds.next()
+            val node = nodes.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            // Check if this node contains a model input key used by the UI
+            val hasModelInputKey = modelSourceInputKeys.any { inputs.has(it) }
+            if (!hasModelInputKey) continue
+
+            // Verify the node's output type is MODEL via NodeTypeRegistry
+            val classType = node.optString("class_type", "")
+            val outputType = nodeTypeRegistry.getOutputType(classType, 0)
+            if (outputType == "MODEL") {
+                return nodeId
             }
         }
         return null

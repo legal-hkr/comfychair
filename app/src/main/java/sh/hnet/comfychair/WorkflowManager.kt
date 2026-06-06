@@ -1487,7 +1487,9 @@ object WorkflowManager {
         workflowJson: String,
         loraChain: List<sh.hnet.comfychair.model.LoraSelection>,
         workflowType: WorkflowType
-    ): String = LoraInjectionUtils.injectLoraChain(workflowJson, loraChain, workflowType)
+    ): String = LoraInjectionUtils.injectLoraChain(
+        workflowJson, loraChain, workflowType, ConnectionManager.nodeTypeRegistry
+    )
 
     /**
      * Inject additional LoRAs into a video workflow.
