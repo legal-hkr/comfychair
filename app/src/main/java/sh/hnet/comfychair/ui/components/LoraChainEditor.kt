@@ -38,6 +38,8 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems
 import sh.hnet.comfychair.ui.components.shared.ModelPathText
+import sh.hnet.comfychair.ui.components.shared.NumericStepperField
+import sh.hnet.comfychair.ui.components.shared.NumericStepperFieldFloat
 import sh.hnet.comfychair.ui.components.shared.buildModelTree
 import sh.hnet.comfychair.ui.components.shared.folderPathOf
 import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
@@ -209,23 +211,15 @@ private fun LoraEntryItem(
                 .padding(start = 24.dp, end = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = stringResource(R.string.label_lora_strength),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(64.dp)
-            )
-
-            Slider(
+            NumericStepperFieldFloat(
                 value = lora.strength,
                 onValueChange = onStrengthChange,
-                valueRange = LoraSelection.MIN_STRENGTH..LoraSelection.MAX_STRENGTH,
+                label = stringResource(R.string.label_lora_strength),
+                min = LoraSelection.MIN_STRENGTH,
+                max = LoraSelection.MAX_STRENGTH,
+                step = 0.1f,
+                decimalPlaces = 1,
                 modifier = Modifier.weight(1f)
-            )
-
-            Text(
-                text = String.format(Locale.US, "%.1f", lora.strength),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(32.dp)
             )
         }
     }

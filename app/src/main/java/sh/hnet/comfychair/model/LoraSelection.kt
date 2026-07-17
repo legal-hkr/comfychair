@@ -14,8 +14,8 @@ data class LoraSelection(
     val strength: Float = DEFAULT_STRENGTH
 ) {
     companion object {
-        const val MIN_STRENGTH = 0.0f
-        const val MAX_STRENGTH = 2.0f
+        const val MIN_STRENGTH = -99.0f
+        const val MAX_STRENGTH = 99.0f
         const val DEFAULT_STRENGTH = 1.0f
         const val MAX_CHAIN_LENGTH = 5
 
