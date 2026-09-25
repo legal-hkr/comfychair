@@ -32,8 +32,8 @@ import sh.hnet.comfychair.R
  * When the user taps "Done", the session cookies for [serverUrl] are captured
  * and returned via [onAuthComplete].
  *
- * SSL errors are treated the same as in the OkHttp configuration — they are
- * accepted so that self-signed certificate servers work correctly.
+ * SSL errors cancel the affected WebView request rather than bypassing
+ * certificate validation.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,15 +87,13 @@ fun BrowserAuthScreen(
                             request: WebResourceRequest
                         ): Boolean = false  // Let WebView handle all navigation
 
-                        @SuppressLint("WebViewClientOnReceivedSslError")
                         override fun onReceivedSslError(
                             view: WebView,
                             handler: SslErrorHandler,
                             error: SslError
                         ) {
-                            // Accept self-signed and unknown CA certificates so that
-                            // servers already trusted via OkHttp continue to work in WebView.
-                            handler.proceed()
+                            // Do not bypass certificate validation in the WebView.
+                            handler.cancel()
                         }
                     }
 
