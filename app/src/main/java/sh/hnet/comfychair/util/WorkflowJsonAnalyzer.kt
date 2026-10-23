@@ -22,7 +22,8 @@ internal object WorkflowJsonAnalyzer {
         WorkflowType.ITI_INPAINTING to listOf("{{positive_prompt}}"),
         WorkflowType.ITI_EDITING to listOf("{{positive_prompt}}"),
         WorkflowType.TTV to listOf("{{positive_prompt}}"),
-        WorkflowType.ITV to listOf("{{positive_prompt}}")
+        WorkflowType.ITV to listOf("{{positive_prompt}}"),
+        WorkflowType.V2V to listOf("{{positive_prompt}}")
     )
 
     // Required patterns (not placeholders but literal strings that must exist)
@@ -37,7 +38,8 @@ internal object WorkflowJsonAnalyzer {
         "iti_inpainting_" to WorkflowType.ITI_INPAINTING,
         "iti_editing_" to WorkflowType.ITI_EDITING,
         "ttv_" to WorkflowType.TTV,
-        "itv_" to WorkflowType.ITV
+        "itv_" to WorkflowType.ITV,
+        "v2v_" to WorkflowType.V2V
     )
 
     /**
@@ -119,6 +121,13 @@ internal object WorkflowJsonAnalyzer {
             classType.equals("LoadImage", ignoreCase = true)
         }
 
+        // Check for a video loader node (input video for video-to-video workflows)
+        // Covers LoadVideo, VHS_LoadVideo, VHS_LoadVideoPath, LoadVideoFromFile, etc.
+        val hasVideoLoader = classTypes.any { classType ->
+            classType.contains("LoadVideo", ignoreCase = true) ||
+            classType.contains("VideoLoader", ignoreCase = true)
+        }
+
         // Check for Image-to-image inpainting indicators (mask nodes in ComfyUI)
         val hasInpaintingNodes = classTypes.any { classType ->
             classType.contains("SetLatentNoiseMask", ignoreCase = true) ||
@@ -144,6 +153,9 @@ internal object WorkflowJsonAnalyzer {
 
         // Detection rules (order matters - most specific first):
         return when {
+            // Video-to-video: has a video loader node feeding the generation
+            hasVideoLoader -> WorkflowType.V2V
+
             // Image-to-video: has both LoadImage and video nodes
             hasLoadImage && hasVideoNodes -> WorkflowType.ITV
 
@@ -182,6 +194,10 @@ internal object WorkflowJsonAnalyzer {
         }
 
         val hasLoadImage = classTypes.any { it.equals("LoadImage", ignoreCase = true) }
+        val hasVideoLoader = classTypes.any {
+            it.contains("LoadVideo", ignoreCase = true) ||
+            it.contains("VideoLoader", ignoreCase = true)
+        }
         val hasInpaintingNodes = classTypes.any {
             it.contains("SetLatentNoiseMask", ignoreCase = true) ||
             it.contains("Inpaint", ignoreCase = true)
@@ -193,6 +209,9 @@ internal object WorkflowJsonAnalyzer {
         val hasUNETLoader = classTypes.any { it.equals("UNETLoader", ignoreCase = true) }
 
         return when {
+            // Video-to-video: has a video loader node feeding the generation
+            hasVideoLoader -> WorkflowType.V2V
+
             // Image-to-video: has both LoadImage and video nodes
             hasLoadImage && hasVideoNodes -> WorkflowType.ITV
 
@@ -284,8 +303,9 @@ internal object WorkflowJsonAnalyzer {
         // 1. The actual JSON key is present (mapped via PLACEHOLDER_TO_KEY), or
         // 2. The placeholder is present in values (for specific placeholders like highnoise_unet_name)
         val missingKeys = requiredKeys.filter { requiredKey ->
-            val jsonKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(requiredKey)
-            val hasJsonKey = jsonKey in presentKeys
+            // Alias-aware match: a required field may be served by any of its accepted
+            // input key names (e.g. "video" also matches LoadVideo's "file" input)
+            val hasJsonKey = presentKeys.any { key -> TemplateKeyRegistry.doesInputKeyMatchField(requiredKey, key) }
             val hasPlaceholder = requiredKey in presentPlaceholders
             !hasJsonKey && !hasPlaceholder
         }

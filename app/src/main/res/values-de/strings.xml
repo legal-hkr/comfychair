@@ -198,6 +198,22 @@
     <!-- Image to Video fragment strings -->
     <string name="title_image_to_video">Bild zu Video</string>
     <string name="nav_image_to_video">Bild zu Video</string>
+
+    <!-- Video to Video -->
+    <string name="title_video_to_video">Video zu Video</string>
+    <string name="nav_video_to_video">Video zu Video</string>
+    <string name="tab_source">Quelle</string>
+    <string name="tab_driving_video">Ausgangsvideo</string>
+    <string name="tab_reference_image">Referenzbild</string>
+    <string name="button_upload_driving_video">Ausgangsvideo hochladen</string>
+    <string name="button_upload_reference_image">Referenzbild hochladen</string>
+    <string name="msg_no_driving_video">Kein Ausgangsvideo ausgewählt</string>
+    <string name="msg_no_reference_image">Kein Referenzbild ausgewählt</string>
+    <string name="msg_no_v2v_workflows">Keine Video-zu-Video-Workflows – in den Einstellungen importieren</string>
+    <string name="field_input_video">Eingabevideo</string>
+    <string name="field_desc_video">Ausgangsvideo für die Generierung</string>
+    <string name="workflow_section_v2v">Video zu Video</string>
+    <string name="screen_type_video_to_video">Video zu Video</string>
     <string name="label_highnoise_unet">High Noise UNET</string>
     <string name="label_lownoise_unet">Low Noise UNET</string>
     <string name="label_highnoise_lora">High Noise LoRA</string>
@@ -313,7 +329,7 @@
     <string name="error_steps_range">Muss 1–255 sein</string>
     <string name="error_cfg_range">Muss 0,0–100,0 sein</string>
     <string name="error_megapixels_range">Muss 0,1–8,3 sein</string>
-    <string name="error_length_range">Muss 1–129 sein</string>
+    <string name="error_length_range">Muss 1–999 sein</string>
     <string name="error_length_step">Muss 1, 5, 9, 13… sein (4er-Schritte)</string>
     <string name="error_fps_range">Muss 1–120 sein</string>
     <string name="error_invalid_number">Ungültige Zahl</string>

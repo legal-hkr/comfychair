@@ -38,6 +38,7 @@ object TemplateKeyRegistry {
         "length" to "length",
         "frame_rate" to "fps",
         "image_filename" to "image",
+        "video_filename" to "video",
         "seed" to "seed",
         "denoise" to "denoise",
         "batch_size" to "batch_size",
@@ -76,6 +77,7 @@ object TemplateKeyRegistry {
         "length" to "length",
         "fps" to "frame_rate",
         "image" to "image_filename",
+        "video" to "video_filename",
         "seed" to "seed",
         "denoise" to "denoise",
         "batch_size" to "batch_size",
@@ -106,7 +108,10 @@ object TemplateKeyRegistry {
         WorkflowType.ITI_INPAINTING to setOf("positive_text", "image"),
         WorkflowType.ITI_EDITING to setOf("positive_text", "image"),
         WorkflowType.TTV to setOf("positive_text"),
-        WorkflowType.ITV to setOf("positive_text", "image")
+        WorkflowType.ITV to setOf("positive_text", "image"),
+        // Video-to-video needs the driving video; the reference image is only required
+        // by workflows that actually expose an image input (see optional keys below)
+        WorkflowType.V2V to setOf("positive_text", "video")
     )
 
     /**
@@ -122,7 +127,9 @@ object TemplateKeyRegistry {
         "highnoise_lora_name", "lownoise_lora_name",
         "length", "fps",
         "seed", "denoise", "batch_size", "upscale_method", "scale_by", "stop_at_clip_layer",
-        "text_encoder_name", "latent_upscale_model"
+        "text_encoder_name", "latent_upscale_model",
+        // Video-to-Video specific
+        "video"
     )
 
     /**
@@ -134,7 +141,8 @@ object TemplateKeyRegistry {
         WorkflowType.ITI_INPAINTING to UNIVERSAL_OPTIONAL_KEYS,
         WorkflowType.ITI_EDITING to UNIVERSAL_OPTIONAL_KEYS,
         WorkflowType.TTV to UNIVERSAL_OPTIONAL_KEYS,
-        WorkflowType.ITV to UNIVERSAL_OPTIONAL_KEYS
+        WorkflowType.ITV to UNIVERSAL_OPTIONAL_KEYS,
+        WorkflowType.V2V to UNIVERSAL_OPTIONAL_KEYS + "image"
     )
 
     /**
@@ -281,25 +289,86 @@ object TemplateKeyRegistry {
      * This supports nodes like RandomNoise that use "noise_seed" instead of "seed".
      */
     private val ALTERNATIVE_INPUT_KEYS: Map<String, Set<String>> = mapOf(
-        "seed" to setOf("seed", "noise_seed")
+        "seed" to setOf("seed", "noise_seed"),
+        // Video loaders rarely name their input "video": ComfyUI's LoadVideo uses "file",
+        // other packs use "video_path", "input_video", "filename"...
+        "video" to setOf("video", "file", "filename", "video_file", "video_path", "input_video", "video_filename"),
+        "image" to setOf("image", "input_image", "image_path", "image_file")
     )
+
+    /**
+     * Fields whose value is a file that was uploaded into ComfyUI's input directory.
+     * Such inputs always hold a filename (or a ComfyChair placeholder), never a link
+     * to another node - which is what distinguishes a loader (LoadImage / LoadVideo)
+     * from a node that merely consumes that media (SaveVideo, GetVideoComponents,
+     * CLIPVisionEncode, CreateVideo...).
+     */
+    private val FILE_BASED_KEYS = setOf("image", "video")
+
+    /**
+     * All node input keys that can serve [fieldKey]: the canonical JSON key first,
+     * then accepted aliases. Accepts both field keys ("video") and placeholder names
+     * ("video_filename").
+     */
+    fun getInputKeysForField(fieldKey: String): List<String> {
+        val canonicalKey = getJsonKeyForPlaceholder(fieldKey)
+        val alternatives = ALTERNATIVE_INPUT_KEYS[canonicalKey] ?: ALTERNATIVE_INPUT_KEYS[fieldKey]
+            ?: return listOf(canonicalKey)
+        return (listOf(canonicalKey) + alternatives).distinct()
+    }
 
     /**
      * Check if an input key matches a field key.
      * Handles key translation (e.g., "highnoise_unet_name" → "unet_name")
-     * and alternative keys (e.g., "seed" matches both "seed" and "noise_seed").
+     * and alternative keys (e.g., "seed" matches both "seed" and "noise_seed",
+     * "video" matches LoadVideo's "file").
      *
      * @param fieldKey The template field key (e.g., "highnoise_unet_name")
      * @param inputKey The actual input key from the node (e.g., "unet_name")
      * @return true if the input key corresponds to this field
      */
     fun doesInputKeyMatchField(fieldKey: String, inputKey: String): Boolean {
-        val expectedJsonKey = getJsonKeyForPlaceholder(fieldKey)
-        // Check primary key match
-        if (inputKey == expectedJsonKey) return true
-        // Check alternative keys
-        val alternatives = ALTERNATIVE_INPUT_KEYS[fieldKey]
-        return alternatives?.contains(inputKey) == true
+        return getInputKeysForField(fieldKey).contains(inputKey)
+    }
+
+    /**
+     * True if [fieldKey] refers to a file uploaded to the server (image / video input).
+     */
+    fun isFileBasedField(fieldKey: String): Boolean {
+        return getJsonKeyForPlaceholder(fieldKey) in FILE_BASED_KEYS
+    }
+
+    /**
+     * Heuristic: does this input value look like a file in ComfyUI's input directory
+     * (a name with a short extension) or an already-inserted ComfyChair placeholder?
+     * Used to keep non-file combo values ("auto", "none", "sRGB") out of file candidates.
+     */
+    fun looksLikeInputFileName(value: Any?): Boolean {
+        val text = value?.toString()?.trim()?.trim('"') ?: return false
+        if (text.isEmpty()) return false
+        if (text.startsWith("{{")) return true
+        val name = text.substringAfterLast('/').substringAfterLast('\\')
+        val dot = name.lastIndexOf('.')
+        if (dot <= 0) return false
+        val extension = name.substring(dot + 1)
+        return extension.length in 2..5 && extension.all { it.isLetterOrDigit() }
+    }
+
+    /**
+     * Ordering score for file-field candidates (higher = better).
+     * Loaders and values that already look like a file/placeholder win over nodes that
+     * just happen to have an input with a matching key name.
+     */
+    fun fileCandidateScore(classType: String, currentValue: Any?): Int {
+        var score = 0
+        val lowerType = classType.lowercase()
+        if (lowerType.contains("load") || lowerType.contains("upload")) score += 4
+        when {
+            currentValue == null -> Unit                       // connected / unknown value
+            currentValue.toString().trim().startsWith("{{") -> score += 3
+            looksLikeInputFileName(currentValue) -> score += 2
+        }
+        return score
     }
 
     /**

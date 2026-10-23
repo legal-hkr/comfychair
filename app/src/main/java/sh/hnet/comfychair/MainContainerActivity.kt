@@ -37,6 +37,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 
 /**
  * Container activity that hosts the main navigation graph.
@@ -157,6 +158,7 @@ class MainContainerActivity : ComponentActivity() {
             ImageToImageViewModel.OWNER_ID -> MainRoute.ImageToImage.route
             TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo.route
             ImageToVideoViewModel.OWNER_ID -> MainRoute.ImageToVideo.route
+            VideoToVideoViewModel.OWNER_ID -> MainRoute.VideoToVideo.route
             else -> MainRoute.TextToImage.route
         }
 

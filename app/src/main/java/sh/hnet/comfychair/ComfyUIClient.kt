@@ -1526,6 +1526,105 @@ class ComfyUIClient(
     }
 
     /**
+     * Upload a video file to ComfyUI server.
+     * Uses the /upload/image endpoint (ComfyUI's only upload endpoint) which accepts
+     * arbitrary binary files; the filename extension is preserved for workflow nodes.
+     */
+    fun uploadVideo(
+        videoData: ByteArray,
+        filename: String,
+        subfolder: String = "",
+        overwrite: Boolean = true,
+        mimeType: String = "video/mp4",
+        callback: (success: Boolean, filename: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
+    ) {
+        DebugLogger.i(TAG, "Uploading video: ${Obfuscator.filename(filename)} (${videoData.size} bytes)")
+        val baseUrl = getBaseUrl() ?: run {
+            DebugLogger.w(TAG, "Upload failed: no connection")
+            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server", ConnectionFailure.NETWORK)
+            return
+        }
+
+        val url = "$baseUrl/upload/image"
+
+        // Build multipart form data request
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "image",
+                filename,
+                videoData.toRequestBody(mimeType.toMediaType())
+            )
+            .addFormDataPart("subfolder", subfolder)
+            .addFormDataPart("overwrite", overwrite.toString())
+            .build()
+
+        // Wrap with progress tracking for stall detection
+        val progressBody = ProgressTrackingRequestBody(requestBody)
+
+        val request = Request.Builder()
+            .url(url)
+            .post(progressBody)
+            .build()
+
+        val call = transferClient.newCall(request)
+
+        // Watchdog coroutine to detect stalls
+        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(STALL_CHECK_INTERVAL_MS)
+                if (System.currentTimeMillis() - progressBody.lastProgressTime > STALL_TIMEOUT_MS) {
+                    DebugLogger.w(TAG, "Upload stalled - cancelling")
+                    call.cancel()
+                    break
+                }
+            }
+        }
+
+        call.enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                watchdogJob.cancel()
+                if (call.isCanceled()) {
+                    // Stall detected - watchdog cancelled the call
+                    DebugLogger.w(TAG, "Upload stalled")
+                    callback(false, null, context?.getString(R.string.error_upload_stalled)
+                        ?: "Upload stalled", ConnectionFailure.STALLED)
+                } else {
+                    DebugLogger.e(TAG, "Upload failed: ${e.message}")
+                    callback(false, null, "Upload failed: ${e.message}", ConnectionFailure.NETWORK)
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                watchdogJob.cancel()
+                response.use {
+                    if (response.isSuccessful) {
+                        try {
+                            val json = JSONObject(response.body?.string() ?: "{}")
+                            val savedFilename = json.optString("name", filename)
+                            DebugLogger.i(TAG, "Upload successful")
+                            callback(true, savedFilename, null, ConnectionFailure.NONE)
+                        } catch (e: Exception) {
+                            DebugLogger.e(TAG, "Failed to parse upload response: ${e.message}")
+                            callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK)
+                        }
+                    } else {
+                        // Handle authentication errors with clean messages
+                        if (response.code == 401 || response.code == 403) {
+                            DebugLogger.e(TAG, "Upload auth error: ${response.code}")
+                            callback(false, null, context?.getString(R.string.error_auth_unauthorized)
+                                ?: "Authentication failed", ConnectionFailure.AUTHENTICATION)
+                        } else {
+                            DebugLogger.e(TAG, "Upload error: ${response.code}")
+                            callback(false, null, "Server error: ${response.code}", ConnectionFailure.NETWORK)
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    /**
      * Clean up resources
      * Should be called when done with the client
      */

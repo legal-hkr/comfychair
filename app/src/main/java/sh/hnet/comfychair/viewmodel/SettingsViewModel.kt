@@ -359,7 +359,8 @@ class SettingsViewModel : ViewModel() {
                     "TextToImageFragmentPrefs",
                     "ImageToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
-                    "ImageToVideoFragmentPrefs"
+                    "ImageToVideoFragmentPrefs",
+                    "VideoToVideoFragmentPrefs"
                 )
 
                 prefsToDelete.forEach { prefsName ->
@@ -392,7 +393,8 @@ class SettingsViewModel : ViewModel() {
                     "TextToImageFragmentPrefs",
                     "ImageToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
-                    "ImageToVideoFragmentPrefs"
+                    "ImageToVideoFragmentPrefs",
+                    "VideoToVideoFragmentPrefs"
                 )
 
                 for (prefName in prefNames) {

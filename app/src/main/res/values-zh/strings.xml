@@ -181,6 +181,22 @@
     <!-- Image to Video fragment strings -->
     <string name="title_image_to_video">图生视频</string>
     <string name="nav_image_to_video">图生视频</string>
+
+    <!-- Video to Video -->
+    <string name="title_video_to_video">视频生视频</string>
+    <string name="nav_video_to_video">视频生视频</string>
+    <string name="tab_source">源素材</string>
+    <string name="tab_driving_video">源视频</string>
+    <string name="tab_reference_image">参考图像</string>
+    <string name="button_upload_driving_video">上传源视频</string>
+    <string name="button_upload_reference_image">上传参考图像</string>
+    <string name="msg_no_driving_video">未选择源视频</string>
+    <string name="msg_no_reference_image">未选择参考图像</string>
+    <string name="msg_no_v2v_workflows">没有视频生视频工作流，请在设置中导入</string>
+    <string name="field_input_video">输入视频</string>
+    <string name="field_desc_video">用于生成的源视频</string>
+    <string name="workflow_section_v2v">视频生视频</string>
+    <string name="screen_type_video_to_video">视频生视频</string>
     <string name="label_highnoise_unet">高噪声 UNET</string>
     <string name="label_lownoise_unet">低噪声 UNET</string>
     <string name="label_highnoise_lora">高噪声 LoRA</string>
@@ -298,7 +314,7 @@
     <string name="error_steps_range">必须在 1–255 之间</string>
     <string name="error_cfg_range">必须在 0.0–100.0 之间</string>
     <string name="error_megapixels_range">必须在 0.1–8.3 之间</string>
-    <string name="error_length_range">必须在 1–129 之间</string>
+    <string name="error_length_range">必须在 1–999 之间</string>
     <string name="error_length_step">必须为 1、5、9、13…（间隔为 4）</string>
     <string name="error_fps_range">必须在 1–120 之间</string>
     <string name="error_invalid_number">无效的数字</string>

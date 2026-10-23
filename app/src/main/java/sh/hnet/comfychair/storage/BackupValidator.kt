@@ -43,7 +43,7 @@ class BackupValidator {
         const val MIN_MEGAPIXELS = 0.1f
         const val MAX_MEGAPIXELS = 8.3f
         const val MIN_LENGTH = 1
-        const val MAX_LENGTH = 129
+        const val MAX_LENGTH = 999
         const val MIN_FRAME_RATE = 1
         const val MAX_FRAME_RATE = 120
 

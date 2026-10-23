@@ -35,7 +35,7 @@ sealed class RestoreResult {
  * - servers: Array of server objects with id, name, hostname, port
  * - selectedServerId: Currently selected server ID
  * - appSettings: App-wide settings
- * - screenPreferences: { serverId: { textToImage: {...}, imageToImage: {...}, ... } }
+ * - screenPreferences: { serverId: { textToImage: {...}, imageToImage: {...}, textToVideo: {...}, imageToVideo: {...}, videoToVideo: {...} } }
  * - workflowValues: { serverId: { workflowId: {...}, ... } }
  * - userWorkflows: Array of user-uploaded workflows
  */
@@ -52,6 +52,7 @@ class BackupManager(private val context: Context) {
         private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
         private const val PREFS_TEXT_TO_VIDEO = "TextToVideoFragmentPrefs"
         private const val PREFS_IMAGE_TO_VIDEO = "ImageToVideoFragmentPrefs"
+        private const val PREFS_VIDEO_TO_VIDEO = "VideoToVideoFragmentPrefs"
         private const val PREFS_WORKFLOW_VALUES = "WorkflowValuesPrefs"
         private const val PREFS_USER_WORKFLOWS = "UserWorkflowsPrefs"
         private const val PREFS_PROMPT_PRESETS = "PromptPresetPrefs"
@@ -226,6 +227,7 @@ class BackupManager(private val context: Context) {
                 put("imageToImage", readImageToImagePrefs(server.id))
                 put("textToVideo", readTextToVideoPrefs(server.id))
                 put("imageToVideo", readImageToVideoPrefs(server.id))
+                put("videoToVideo", readVideoToVideoPrefs(server.id))
             })
         }
         return result
@@ -259,6 +261,14 @@ class BackupManager(private val context: Context) {
 
     private fun readImageToVideoPrefs(serverId: String): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_VIDEO, Context.MODE_PRIVATE)
+        return JSONObject().apply {
+            put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
+            put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
+        }
+    }
+
+    private fun readVideoToVideoPrefs(serverId: String): JSONObject {
+        val prefs = context.getSharedPreferences(PREFS_VIDEO_TO_VIDEO, Context.MODE_PRIVATE)
         return JSONObject().apply {
             put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
             put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
@@ -390,6 +400,9 @@ class BackupManager(private val context: Context) {
             serverPrefs.optJSONObject("imageToVideo")?.let {
                 restoreImageToVideoPrefs(it, actualServerId)
             }
+            serverPrefs.optJSONObject("videoToVideo")?.let {
+                restoreVideoToVideoPrefs(it, actualServerId)
+            }
         }
     }
 
@@ -446,6 +459,21 @@ class BackupManager(private val context: Context) {
 
     private fun restoreImageToVideoPrefs(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_IMAGE_TO_VIDEO, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
+            }
+            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_positivePrompt", it)
+                }
+            }
+            apply()
+        }
+    }
+
+    private fun restoreVideoToVideoPrefs(json: JSONObject, serverId: String) {
+        val prefs = context.getSharedPreferences(PREFS_VIDEO_TO_VIDEO, Context.MODE_PRIVATE)
         prefs.edit().apply {
             json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
                 putString("${serverId}_selectedWorkflowId", it)

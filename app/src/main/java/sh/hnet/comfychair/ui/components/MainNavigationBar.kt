@@ -31,11 +31,12 @@ import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 
 /**
- * Main navigation bar for the app with 4 destinations:
+ * Main navigation bar for the app with 5 destinations:
  * - Text-to-Image (icon button)
  * - Image-to-Image (icon button)
  * - Text-to-Video (icon button)
  * - Image-to-Video (icon button)
+ * - Video-to-Video (icon button)
  *
  * FAB launches Gallery activity.
  *
@@ -178,6 +179,35 @@ fun MainNavigationBar(
                     Icon(
                         painter = painterResource(R.drawable.image_to_video_24px),
                         contentDescription = stringResource(R.string.nav_image_to_video),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            // Video to Video
+            if (currentRoute == MainRoute.VideoToVideo.route) {
+                FilledIconButton(
+                    onClick = { },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.video_to_video_24px),
+                        contentDescription = stringResource(R.string.nav_video_to_video)
+                    )
+                }
+            } else {
+                IconButton(onClick = {
+                    navController.navigate(MainRoute.VideoToVideo.route) {
+                        popUpTo(MainRoute.TextToImage.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.video_to_video_24px),
+                        contentDescription = stringResource(R.string.nav_video_to_video),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

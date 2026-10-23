@@ -181,6 +181,22 @@
     <!-- Image to Video fragment strings -->
     <string name="title_image_to_video">Obraz na wideo</string>
     <string name="nav_image_to_video">Obraz na wideo</string>
+
+    <!-- Video to Video -->
+    <string name="title_video_to_video">Wideo na wideo</string>
+    <string name="nav_video_to_video">Wideo na wideo</string>
+    <string name="tab_source">Źródło</string>
+    <string name="tab_driving_video">Wideo źródłowe</string>
+    <string name="tab_reference_image">Obraz referencyjny</string>
+    <string name="button_upload_driving_video">Wgraj wideo źródłowe</string>
+    <string name="button_upload_reference_image">Wgraj obraz referencyjny</string>
+    <string name="msg_no_driving_video">Nie wybrano wideo źródłowego</string>
+    <string name="msg_no_reference_image">Nie wybrano obrazu referencyjnego</string>
+    <string name="msg_no_v2v_workflows">Brak obiegów wideo na wideo – zaimportuj obieg w Ustawieniach</string>
+    <string name="field_input_video">Wideo wejściowe</string>
+    <string name="field_desc_video">Wideo źródłowe do generowania</string>
+    <string name="workflow_section_v2v">Wideo na wideo</string>
+    <string name="screen_type_video_to_video">Wideo na wideo</string>
     <string name="label_highnoise_unet">UNET wysokiego szumu</string>
     <string name="label_lownoise_unet">UNET niskiego szumu</string>
     <string name="label_highnoise_lora">LoRA wysokiego szumu</string>
@@ -298,7 +314,7 @@
     <string name="error_steps_range">Musi być 1–255</string>
     <string name="error_cfg_range">Musi być 0,0–100,0</string>
     <string name="error_megapixels_range">Musi być 0,1–8,3</string>
-    <string name="error_length_range">Musi być 1–129</string>
+    <string name="error_length_range">Musi być 1–999</string>
     <string name="error_length_step">Musi być 1, 5, 9, 13… (co 4)</string>
     <string name="error_fps_range">Musi być 1–120</string>
     <string name="error_invalid_number">Nieprawidłowa liczba</string>

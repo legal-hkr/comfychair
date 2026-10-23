@@ -295,6 +295,20 @@ fun WorkflowsSettingsScreen(
                     )
                 }
 
+                // Video-to-Video
+                item {
+                    WorkflowSection(
+                        title = stringResource(R.string.workflow_section_v2v),
+                        workflows = uiState.v2vWorkflows,
+                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
+                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+                        onRename = { viewModel.onEditWorkflow(it) },
+                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
+                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                    )
+                }
+
                 // Bottom padding
                 item {
                     Spacer(modifier = Modifier.height(16.dp))

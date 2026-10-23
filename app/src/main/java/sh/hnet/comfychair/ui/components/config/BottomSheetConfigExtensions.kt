@@ -7,6 +7,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageUiState
 import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 import sh.hnet.comfychair.viewmodel.TextToVideoUiState
+import sh.hnet.comfychair.viewmodel.VideoToVideoUiState
 
 /**
  * Extension functions to convert UiState classes to BottomSheetConfig.
@@ -201,6 +202,137 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomS
  * Very similar to TextToVideoUiState - shares dual-model patterns.
  */
 fun ImageToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomSheetConfig {
+    // Start with common model config and add video-specific fields
+    val commonModels = buildCommonModelConfig(this, callbacks)
+
+    return BottomSheetConfig(
+        workflow = WorkflowConfig(
+            selectedWorkflow = selectedWorkflow,
+            availableWorkflows = availableWorkflows,
+            onWorkflowChange = callbacks.onWorkflowChange,
+            onViewWorkflow = callbacks.onViewWorkflow
+        ),
+        prompts = PromptConfig(
+            negativePrompt = negativePrompt,
+            onNegativePromptChange = callbacks.onNegativePromptChange,
+            hasNegativePrompt = capabilities.hasNegativePrompt
+        ),
+        itiConfig = null,
+        models = commonModels.copy(
+            // Add dual-model patterns (e.g., Wan 2.2)
+            highnoiseUnet = if (capabilities.hasHighnoiseUnetName) ModelField(
+                label = R.string.label_highnoise_unet,
+                selectedValue = selectedHighnoiseUnet,
+                options = availableUnets,
+                filteredOptions = filteredUnets,
+                onValueChange = callbacks.onHighnoiseUnetChange ?: noOpString,
+                isVisible = true
+            ) else null,
+            lownoiseUnet = if (capabilities.hasLownoiseUnetName) ModelField(
+                label = R.string.label_lownoise_unet,
+                selectedValue = selectedLownoiseUnet,
+                options = availableUnets,
+                filteredOptions = filteredUnets,
+                onValueChange = callbacks.onLownoiseUnetChange ?: noOpString,
+                isVisible = true
+            ) else null,
+            highnoiseLora = if (capabilities.hasHighnoiseLoraName) ModelField(
+                label = R.string.label_highnoise_lora,
+                selectedValue = selectedHighnoiseLora,
+                options = availableLoras,
+                filteredOptions = filteredLoras,
+                onValueChange = callbacks.onHighnoiseLoraChange ?: noOpString,
+                isVisible = true
+            ) else null,
+            lownoiseLora = if (capabilities.hasLownoiseLoraName) ModelField(
+                label = R.string.label_lownoise_lora,
+                selectedValue = selectedLownoiseLora,
+                options = availableLoras,
+                filteredOptions = filteredLoras,
+                onValueChange = callbacks.onLownoiseLoraChange ?: noOpString,
+                isVisible = true
+            ) else null
+        ),
+        parameters = buildCommonParameterConfig(
+            state = this,
+            callbacks = callbacks,
+            widthField = NumericField(
+                value = width,
+                onValueChange = callbacks.onWidthChange ?: noOpString,
+                error = widthError,
+                isVisible = capabilities.hasWidth
+            ),
+            heightField = NumericField(
+                value = height,
+                onValueChange = callbacks.onHeightChange ?: noOpString,
+                error = heightError,
+                isVisible = capabilities.hasHeight
+            ),
+            megapixelsField = NumericField(
+                value = megapixels,
+                onValueChange = callbacks.onMegapixelsChange ?: noOpString,
+                error = megapixelsError,
+                isVisible = capabilities.hasMegapixels
+            ),
+            lengthField = NumericField(
+                value = length,
+                onValueChange = callbacks.onLengthChange ?: noOpString,
+                error = lengthError,
+                isVisible = capabilities.hasLength
+            ),
+            fpsField = NumericField(
+                value = fps,
+                onValueChange = callbacks.onFpsChange ?: noOpString,
+                error = fpsError,
+                isVisible = capabilities.hasFrameRate
+            )
+        ),
+        lora = LoraConfig(
+            loraName = if (capabilities.hasLoraName) ModelField(
+                label = R.string.label_lora,
+                selectedValue = selectedLoraName,
+                options = availableLoras,
+                filteredOptions = filteredLoras,
+                onValueChange = callbacks.onMandatoryLoraChange ?: noOpString,
+                isVisible = true
+            ) else null,
+            // Primary LoRA chain for single-model workflows (e.g., LTX 2.0)
+            primaryChain = if (capabilities.hasLora) LoraChainField(
+                title = R.string.title_lora_chain,
+                chain = loraChain,
+                availableLoras = availableLoras,
+                onAdd = callbacks.onAddLora ?: {},
+                onRemove = callbacks.onRemoveLora ?: {},
+                onNameChange = callbacks.onLoraNameChange ?: { _, _ -> },
+                onStrengthChange = callbacks.onLoraStrengthChange ?: { _, _ -> },
+                isVisible = true
+            ) else null,
+            // Dual-model LoRA chains (for Wan 2.2 style workflows)
+            highnoiseChain = buildVideoLoraChain(
+                titleResId = R.string.title_highnoise_lora_chain,
+                chain = highnoiseLoraChain,
+                availableLoras = availableLoras,
+                isVisible = capabilities.hasHighnoiseLora,
+                onAdd = callbacks.onAddHighnoiseLora,
+                onRemove = callbacks.onRemoveHighnoiseLora,
+                onNameChange = callbacks.onHighnoiseLoraNameChange,
+                onStrengthChange = callbacks.onHighnoiseLoraStrengthChange
+            ),
+            lownoiseChain = buildVideoLoraChain(
+                titleResId = R.string.title_lownoise_lora_chain,
+                chain = lownoiseLoraChain,
+                availableLoras = availableLoras,
+                isVisible = capabilities.hasLownoiseLora,
+                onAdd = callbacks.onAddLownoiseLora,
+                onRemove = callbacks.onRemoveLownoiseLora,
+                onNameChange = callbacks.onLownoiseLoraNameChange,
+                onStrengthChange = callbacks.onLownoiseLoraStrengthChange
+            )
+        )
+    )
+}
+
+fun VideoToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomSheetConfig {
     // Start with common model config and add video-specific fields
     val commonModels = buildCommonModelConfig(this, callbacks)
 

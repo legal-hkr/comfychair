@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 
 /**
  * Single source of truth for ALL generation parameters.
- * Used by all generation modes (TTI, ITI, TTV, ITV).
+ * Used by all generation modes (TTI, ITI, TTV, ITV, V2V).
  *
  * Field visibility in the UI is controlled by WorkflowCapabilities,
  * which is derived from workflow placeholders.

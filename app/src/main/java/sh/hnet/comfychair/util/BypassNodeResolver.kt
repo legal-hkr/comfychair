@@ -118,6 +118,7 @@ internal object BypassNodeResolver {
             lowerName == "vae" -> "VAE"
             lowerName in listOf("positive", "negative", "conditioning", "cond") -> "CONDITIONING"
             lowerName in listOf("image", "images", "pixels") -> "IMAGE"
+            lowerName in listOf("video", "videos") -> "VIDEO"
             lowerName == "mask" -> "MASK"
             lowerName == "noise" -> "NOISE"
             else -> null

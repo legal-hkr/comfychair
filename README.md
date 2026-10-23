@@ -36,7 +36,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **LoRA chain support**:
   - Add up to 5 LoRAs per chain with individual strength control (0.0-2.0)
   - Text to Image and Image to Image: Separate LoRA chains for Checkpoint and UNET modes
-  - Text to Video and Image to Video: Separate High Noise and Low Noise LoRA chains
+  - Text to Video, Image to Video and Video to Video: Separate High Noise and Low Noise LoRA chains
   - LoRAs are dynamically injected into workflows at generation time
 - **Prompt Library**:
   - Save prompts as reusable presets with custom names and tags
@@ -61,6 +61,10 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Live preview during generation
 - **Image to Video**:
   - Animate still images into videos with adjustable length and frame rate
+  - High Noise / Low Noise UNET and LoRA model selection
+  - Live preview during generation
+- **Video to Video**:
+  - Reinterpret an existing video with a driving video plus an optional reference image
   - High Noise / Low Noise UNET and LoRA model selection
   - Live preview during generation
 
@@ -131,7 +135,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
     - ComfyChair JSON (import/export) - preserves field mappings and app settings
   - Dynamic workflow thumbnails showing mini graph previews
   - Context menus for edit, rename, duplicate, export, and delete
-  - Flexible field mapping: only Positive Prompt required (plus source image for image workflows)
+  - Flexible field mapping: only Positive Prompt required (plus source image for image workflows, plus driving video for video-to-video workflows)
   - Dynamic parameter constraints based on workflow node definitions
   - Per-workflow generation settings persistence
   - Workflow Editor returns to view mode after saving for continued editing

@@ -148,6 +148,21 @@ object SeasonalPrompts {
 
     // endregion
 
+    // region Video to Video Prompts
+
+    private val videoToVideoPrompts = mapOf(
+        SeasonalEvent.SPRING to "Transform the scene with a gentle spring atmosphere, fresh colors and soft natural light",
+        SeasonalEvent.EASTER to "Transform the scene with a calm Easter morning atmosphere, soft light and pastel tones",
+        SeasonalEvent.APRIL_FOOLS to "Transform the scene in a playful, whimsical style with unexpected visual twists",
+        SeasonalEvent.SUMMER to "Transform the scene with warm summer sunlight, vibrant colors and a relaxed mood",
+        SeasonalEvent.AUTUMN to "Transform the scene with cozy autumn tones, warm light and falling leaves atmosphere",
+        SeasonalEvent.HALLOWEEN to "Transform the scene with a moody Halloween atmosphere, soft candlelight and dark shadows",
+        SeasonalEvent.WINTER to "Transform the scene with a quiet winter mood, cool tones and gentle snow atmosphere",
+        SeasonalEvent.CHRISTMAS to "Transform the scene with festive Christmas lights and a warm holiday mood"
+    )
+
+    // endregion
+
     // region Public Getters
 
     fun getTextToImagePrompt(): String =
@@ -161,6 +176,9 @@ object SeasonalPrompts {
 
     fun getImageToVideoPrompt(): String =
         imageToVideoPrompts[getCurrentEvent()] ?: imageToVideoPrompts[SeasonalEvent.WINTER]!!
+
+    fun getVideoToVideoPrompt(): String =
+        videoToVideoPrompts[getCurrentEvent()] ?: videoToVideoPrompts[SeasonalEvent.WINTER]!!
 
     // endregion
 }

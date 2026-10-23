@@ -54,7 +54,7 @@ data class WorkflowCapabilities(
     val hasHighnoiseLora: Boolean = false,  // Triggered by highnoise_unet_name
     val hasLownoiseLora: Boolean = false,   // Triggered by lownoise_unet_name
 
-    // Reference images (ITI/ITV specific)
+    // Reference images (ITI/ITV/V2V specific)
     val hasReferenceImage1: Boolean = false,
     val hasReferenceImage2: Boolean = false
 ) {

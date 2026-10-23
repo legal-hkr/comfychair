@@ -931,8 +931,8 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 ?: "Required"
             num == null -> applicationContext?.getString(R.string.error_invalid_number)
                 ?: "Invalid number"
-            num !in 1..129 -> applicationContext?.getString(R.string.error_length_range)
-                ?: "Must be 1-129"
+            num !in 1..999 -> applicationContext?.getString(R.string.error_length_range)
+                ?: "Must be 1-999"
             (num - 1) % 4 != 0 -> applicationContext?.getString(R.string.error_length_step)
                 ?: "Must be 1, 5, 9, 13... (steps of 4)"
             else -> null

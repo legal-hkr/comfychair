@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
@@ -50,6 +51,7 @@ data class WorkflowManagementUiState(
     val itiEditingWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val ttvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val v2vWorkflows: List<WorkflowManager.Workflow> = emptyList(),
 
     // Import dialog state
     val showImportDialog: Boolean = false,
@@ -159,6 +161,8 @@ class WorkflowManagementViewModel : ViewModel() {
             ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV)
                 .filter { showBuiltIn || !it.isBuiltIn },
             itvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
+                .filter { showBuiltIn || !it.isBuiltIn },
+            v2vWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.V2V)
                 .filter { showBuiltIn || !it.isBuiltIn }
         )
     }
@@ -438,33 +442,45 @@ class WorkflowManagementViewModel : ViewModel() {
             } else {
                 val candidates = mutableListOf<FieldCandidate>()
 
-                // Get the actual JSON input key for this placeholder
-                // e.g., "highnoise_unet_name" -> "unet_name", "lownoise_lora_name" -> "lora_name"
-                val jsonInputKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(fieldKey)
+                // Accepted JSON input keys for this placeholder (canonical + aliases).
+                // e.g. "video" -> [video, file, filename, video_file, video_path, input_video, ...]
+                // so that ComfyUI's LoadVideo ("file") is offered for the driving video field.
+                val acceptedInputKeys = TemplateKeyRegistry.getInputKeysForField(fieldKey)
+                val isFileField = TemplateKeyRegistry.isFileBasedField(fieldKey)
 
-                // Find all nodes that have this input key
+                // Find all nodes that have one of these inputs
                 for (nodeId in nodesJson.keys()) {
                     val node = nodesJson.optJSONObject(nodeId) ?: continue
                     val inputs = node.optJSONObject("inputs") ?: continue
 
-                    if (inputs.has(jsonInputKey)) {
-                        val currentValue = inputs.opt(jsonInputKey)
+                    val inputKey = acceptedInputKeys.firstOrNull { inputs.has(it) } ?: continue
+                    val currentValue = inputs.opt(inputKey)
 
-                        if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
-                            val classType = node.optString("class_type", "Unknown")
-                            val meta = node.optJSONObject("_meta")
-                            val title = meta?.optString("title") ?: classType
+                    // File inputs (LoadImage / LoadVideo) hold a filename, never a link.
+                    // Skip nodes that only pass the media through (SaveVideo, GetVideoComponents,...).
+                    if (isFileField && currentValue is JSONArray) continue
 
-                            candidates.add(
-                                FieldCandidate(
-                                    nodeId = nodeId,
-                                    nodeName = title,
-                                    classType = classType,
-                                    inputKey = jsonInputKey,
-                                    currentValue = currentValue
-                                )
+                    if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
+                        val classType = node.optString("class_type", "Unknown")
+                        val meta = node.optJSONObject("_meta")
+                        val title = meta?.optString("title") ?: classType
+
+                        candidates.add(
+                            FieldCandidate(
+                                nodeId = nodeId,
+                                nodeName = title,
+                                classType = classType,
+                                inputKey = inputKey,
+                                currentValue = currentValue
                             )
-                        }
+                        )
+                    }
+                }
+
+                // Prefer real loaders for file fields regardless of node order
+                if (isFileField) {
+                    candidates.sortByDescending {
+                        TemplateKeyRegistry.fileCandidateScore(it.classType, it.currentValue)
                     }
                 }
 

@@ -16,11 +16,13 @@ import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
+import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 
 /**
  * Main navigation host that contains all the generation screens.
@@ -85,6 +87,16 @@ fun MainNavHost(
                 ImageToVideoScreen(
                     generationViewModel = generationViewModel,
                     imageToVideoViewModel = imageToVideoViewModel,
+                    onNavigateToSettings = onNavigateToSettings,
+                    onLogout = onLogout
+                )
+            }
+
+            composable(MainRoute.VideoToVideo.route) {
+                val videoToVideoViewModel: VideoToVideoViewModel = viewModel()
+                VideoToVideoScreen(
+                    generationViewModel = generationViewModel,
+                    videoToVideoViewModel = videoToVideoViewModel,
                     onNavigateToSettings = onNavigateToSettings,
                     onLogout = onLogout
                 )

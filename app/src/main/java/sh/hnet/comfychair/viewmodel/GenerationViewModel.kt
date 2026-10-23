@@ -523,6 +523,7 @@ class GenerationViewModel : ViewModel() {
                 val filePrefix = when (ownerId) {
                     "TEXT_TO_VIDEO" -> VideoUtils.FilePrefix.TEXT_TO_VIDEO
                     "IMAGE_TO_VIDEO" -> VideoUtils.FilePrefix.IMAGE_TO_VIDEO
+                    "VIDEO_TO_VIDEO" -> VideoUtils.FilePrefix.VIDEO_TO_VIDEO
                     else -> {
                         DebugLogger.w(TAG, "Unknown video owner: $ownerId")
                         return

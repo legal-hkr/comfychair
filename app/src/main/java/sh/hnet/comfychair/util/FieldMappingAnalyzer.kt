@@ -128,10 +128,17 @@ object FieldMappingAnalyzer {
 
         // Strategy 1: Find nodes that have matching input key names
         val directCandidates = mutableListOf<FieldCandidate>()
+        val isFileField = TemplateKeyRegistry.isFileBasedField(fieldKey)
 
         for (node in graph.nodes) {
             node.inputs.forEach { (inputName, inputValue) ->
                 if (TemplateKeyRegistry.doesInputKeyMatchField(fieldKey, inputName)) {
+                    // A file field is served by a loader (LoadImage / LoadVideo) whose input holds a
+                    // filename. Nodes that merely *consume* the media (SaveVideo, GetVideoComponents,
+                    // CLIPVisionEncode...) have that same input wired to another node - never a valid
+                    // source for an uploaded file, so skip them.
+                    if (isFileField && inputValue !is InputValue.Literal) return@forEach
+
                     val currentValue = when (inputValue) {
                         is InputValue.Literal -> inputValue.value
                         else -> null
@@ -152,35 +159,78 @@ object FieldMappingAnalyzer {
             }
         }
 
-        // Strategy 2 (fallback): For "image" field, find nodes with IMAGE output + ENUM inputs
-        // This works regardless of input key language (Chinese, etc.)
-        if (directCandidates.isEmpty() && fieldKey == "image") {
-            for (node in graph.nodes) {
-                if (node.outputs.any { it.type == "IMAGE" }) {
-                    val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
-                    definition?.inputs
-                        ?.filter { it.type == "ENUM" && node.inputs.containsKey(it.name) }
-                        ?.forEach { inputDef ->
-                            val inputValue = node.inputs[inputDef.name]
-                            val currentValue = when (inputValue) {
-                                is InputValue.Literal -> inputValue.value
-                                else -> null
-                            }
-                            directCandidates.add(
-                                FieldCandidate(
-                                    nodeId = node.id,
-                                    nodeName = node.title,
-                                    classType = node.classType,
-                                    inputKey = inputDef.name,
-                                    currentValue = currentValue
-                                )
-                            )
-                        }
-                }
+        // For file fields, prefer actual loaders (loader class name + filename-looking value)
+        if (isFileField) {
+            directCandidates.sortByDescending {
+                TemplateKeyRegistry.fileCandidateScore(it.classType, it.currentValue)
             }
         }
 
+        // Strategy 2 (fallback): For "image" field, find nodes with IMAGE output + ENUM inputs
+        // This works regardless of input key language (Chinese, etc.)
+        if (directCandidates.isEmpty() && fieldKey == "image") {
+            directCandidates += findMediaOutputCandidates(graph, nodeTypeRegistry, outputType = "IMAGE")
+        }
+
+        // Strategy 2 (fallback): For "video" field, find nodes with VIDEO output + ENUM inputs
+        // This works regardless of input key language (Chinese, etc.)
+        if (directCandidates.isEmpty() && fieldKey == "video") {
+            directCandidates += findMediaOutputCandidates(graph, nodeTypeRegistry, outputType = "VIDEO")
+        }
+
         return directCandidates
+    }
+
+    /**
+     * Find candidate nodes for media file fields (image/video) based on output type.
+     * Looks for nodes that produce the given output type (e.g., IMAGE or VIDEO)
+     * and have ENUM inputs (typically a filename selector like LoadVideoFromFile).
+     * This works regardless of input key language (Chinese, etc.).
+     *
+     * The ENUM input must currently hold something that looks like a file name (or a
+     * placeholder): otherwise nodes that output the media type but offer unrelated combo
+     * values (SaveVideo: format/codec, CreateVideo: codec/color_space) would be offered
+     * as file sources.
+     *
+     * @param graph The workflow graph to search
+     * @param nodeTypeRegistry Registry for looking up node definitions
+     * @param outputType The output type to look for (e.g., "IMAGE", "VIDEO")
+     * @return List of candidates matching the media field
+     */
+    private fun findMediaOutputCandidates(
+        graph: WorkflowGraph,
+        nodeTypeRegistry: NodeTypeRegistry,
+        outputType: String
+    ): List<FieldCandidate> {
+        val candidates = mutableListOf<FieldCandidate>()
+        for (node in graph.nodes) {
+            if (node.outputs.any { it.type == outputType }) {
+                val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
+                definition?.inputs
+                    ?.filter { it.type == "ENUM" && node.inputs.containsKey(it.name) }
+                    ?.forEach { inputDef ->
+                        val inputValue = node.inputs[inputDef.name]
+                        val currentValue = when (inputValue) {
+                            is InputValue.Literal -> inputValue.value
+                            else -> null
+                        }
+                        if (!TemplateKeyRegistry.looksLikeInputFileName(currentValue)) return@forEach
+                        candidates.add(
+                            FieldCandidate(
+                                nodeId = node.id,
+                                nodeName = node.title,
+                                classType = node.classType,
+                                inputKey = inputDef.name,
+                                currentValue = currentValue
+                            )
+                        )
+                    }
+            }
+        }
+        candidates.sortByDescending {
+            TemplateKeyRegistry.fileCandidateScore(it.classType, it.currentValue)
+        }
+        return candidates
     }
 
     /**

@@ -29,7 +29,8 @@ enum class WorkflowType {
     ITI_INPAINTING,   // Image-to-Image Inpainting
     ITI_EDITING,      // Image-to-Image Editing
     TTV,              // Text-to-Video
-    ITV               // Image-to-Video
+    ITV,              // Image-to-Video
+    V2V               // Video-to-Video
 }
 
 /**
@@ -46,7 +47,8 @@ object WorkflowTypeDisplay {
         WorkflowType.ITI_INPAINTING to R.string.workflow_section_iti_inpainting,
         WorkflowType.ITI_EDITING to R.string.workflow_section_iti_editing,
         WorkflowType.TTV to R.string.workflow_section_ttv,
-        WorkflowType.ITV to R.string.workflow_section_itv
+        WorkflowType.ITV to R.string.workflow_section_itv,
+        WorkflowType.V2V to R.string.workflow_section_v2v
     )
 
     /**
@@ -2144,6 +2146,112 @@ object WorkflowManager {
         latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
 
         // Type-specific: source image placeholder
+        processedJson = processedJson.replace("{{image_filename}}", escapeForJson(imageFilename))
+
+        // Common parameter placeholders (unified handling)
+        processedJson = replaceCommonPlaceholders(
+            json = processedJson,
+            seed = randomSeed,
+            steps = steps,
+            cfg = cfg,
+            samplerName = samplerName,
+            scheduler = scheduler,
+            denoise = denoise,
+            width = width,
+            height = height,
+            length = length,
+            frameRate = fps,
+            batchSize = 1
+        )
+
+        // Apply node attribute edits from the Workflow Editor
+        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
+    }
+
+    /**
+     * Prepare video-to-video workflow JSON with actual parameter values (by workflow ID)
+     */
+    fun prepareVideoToVideoWorkflowById(
+        workflowId: String,
+        positivePrompt: String,
+        negativePrompt: String = "",
+        // Single-model patterns (e.g., LTX 2.0)
+        checkpoint: String = "",
+        unet: String = "",
+        lora: String? = null,
+        // Dual-model patterns (e.g., Wan 2.2)
+        highnoiseUnet: String = "",
+        lownoiseUnet: String = "",
+        highnoiseLora: String = "",
+        lownoiseLora: String = "",
+        // Common models
+        vae: String = "",
+        clip: String = "",
+        clip1: String? = null,
+        clip2: String? = null,
+        clip3: String? = null,
+        clip4: String? = null,
+        textEncoder: String? = null,
+        latentUpscaleModel: String? = null,
+        width: Int,
+        height: Int,
+        length: Int,
+        fps: Int = 16,
+        videoFilename: String,
+        imageFilename: String,
+        // Generation parameters (optional - workflow may have defaults)
+        steps: Int? = null,
+        cfg: Float? = null,
+        samplerName: String? = null,
+        scheduler: String? = null,
+        denoise: Float? = null
+    ): String? {
+        val workflow = getWorkflowById(workflowId) ?: return null
+        DebugLogger.i(TAG, "Preparing V2V workflow: ${workflow.name} (id: $workflowId)")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
+        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
+        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
+        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
+        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
+        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
+        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
+        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
+        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
+        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
+        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
+        DebugLogger.d(TAG, "Driving video: ${Obfuscator.filename(videoFilename)}")
+        DebugLogger.d(TAG, "Reference image: ${Obfuscator.filename(imageFilename)}")
+
+        val randomSeed = (0..999999999999).random()
+        val escapedPositivePrompt = escapeForJson(positivePrompt)
+        val escapedNegativePrompt = escapeForJson(negativePrompt)
+
+        var processedJson = workflow.jsonContent
+
+        // Type-specific placeholders: prompts and models
+        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
+        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
+        // Single-model placeholders
+        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
+        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
+        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
+        // Dual-model placeholders
+        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
+        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
+        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
+        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
+        // Common model placeholders
+        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
+        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
+        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
+        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
+        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
+        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
+        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
+        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
+
+        // Type-specific: driving video and reference image placeholders
+        processedJson = processedJson.replace("{{video_filename}}", escapeForJson(videoFilename))
         processedJson = processedJson.replace("{{image_filename}}", escapeForJson(imageFilename))
 
         // Common parameter placeholders (unified handling)

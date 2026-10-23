@@ -20,6 +20,7 @@ object PreferencesMaintenance {
     private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
     private const val PREFS_TEXT_TO_VIDEO = "TextToVideoFragmentPrefs"
     private const val PREFS_IMAGE_TO_VIDEO = "ImageToVideoFragmentPrefs"
+    private const val PREFS_VIDEO_TO_VIDEO = "VideoToVideoFragmentPrefs"
 
     // Credential key prefixes
     private const val KEY_USERNAME_PREFIX = "username_"
@@ -175,7 +176,7 @@ object PreferencesMaintenance {
     }
 
     /**
-     * Clean screen preferences (TTI, ITI, TTV, ITV): remove entries for deleted servers.
+     * Clean screen preferences (TTI, ITI, TTV, ITV, V2V): remove entries for deleted servers.
      * Key format: {serverId}_{field}
      *
      * Also validates selectedWorkflowId values to ensure they reference existing workflows.
@@ -191,7 +192,8 @@ object PreferencesMaintenance {
             PREFS_TEXT_TO_IMAGE,
             PREFS_IMAGE_TO_IMAGE,
             PREFS_TEXT_TO_VIDEO,
-            PREFS_IMAGE_TO_VIDEO
+            PREFS_IMAGE_TO_VIDEO,
+            PREFS_VIDEO_TO_VIDEO
         )
 
         var totalRemoved = 0

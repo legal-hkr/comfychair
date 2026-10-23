@@ -181,6 +181,22 @@
     <!-- Image to Video fragment strings -->
     <string name="title_image_to_video">Image vers vidéo</string>
     <string name="nav_image_to_video">Image vers vidéo</string>
+
+    <!-- Video to Video -->
+    <string name="title_video_to_video">Vidéo vers vidéo</string>
+    <string name="nav_video_to_video">Vidéo vers vidéo</string>
+    <string name="tab_source">Source</string>
+    <string name="tab_driving_video">Vidéo source</string>
+    <string name="tab_reference_image">Image de référence</string>
+    <string name="button_upload_driving_video">Télécharger la vidéo source</string>
+    <string name="button_upload_reference_image">Télécharger l\'image de référence</string>
+    <string name="msg_no_driving_video">Aucune vidéo source sélectionnée</string>
+    <string name="msg_no_reference_image">Aucune image de référence sélectionnée</string>
+    <string name="msg_no_v2v_workflows">Aucun workflow vidéo vers vidéo – importez-en un dans les paramètres</string>
+    <string name="field_input_video">Vidéo d\'entrée</string>
+    <string name="field_desc_video">Vidéo source pour la génération</string>
+    <string name="workflow_section_v2v">Vidéo vers vidéo</string>
+    <string name="screen_type_video_to_video">Vidéo vers vidéo</string>
     <string name="label_highnoise_unet">UNET bruit haut</string>
     <string name="label_lownoise_unet">UNET bruit bas</string>
     <string name="label_highnoise_lora">LoRA bruit haut</string>
@@ -298,7 +314,7 @@
     <string name="error_steps_range">Doit être entre 1 et 255</string>
     <string name="error_cfg_range">Doit être entre 0,0 et 100,0</string>
     <string name="error_megapixels_range">Doit être entre 0,1 et 8,3</string>
-    <string name="error_length_range">Doit être entre 1 et 129</string>
+    <string name="error_length_range">Doit être entre 1 et 999</string>
     <string name="error_length_step">Doit être 1, 5, 9, 13… (pas de 4)</string>
     <string name="error_fps_range">Doit être entre 1 et 120</string>
     <string name="error_invalid_number">Nombre invalide</string>
