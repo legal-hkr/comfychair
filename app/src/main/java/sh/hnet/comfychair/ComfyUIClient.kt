@@ -3,6 +3,7 @@ package sh.hnet.comfychair
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.JsonReader
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -20,6 +21,7 @@ import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ProgressTrackingRequestBody
 import sh.hnet.comfychair.util.ProgressTrackingResponseBody
 import java.io.IOException
+import java.io.InputStream
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
@@ -387,28 +389,36 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Failed to fetch node types: ${e.message}")
                 callback(null)
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful) {
-                        try {
-                            val responseBody = response.body?.string() ?: "{}"
-                            val json = JSONObject(responseBody)
-                            // The keys of the object are the available node class_types
-                            val nodeTypes = mutableSetOf<String>()
-                            val keys = json.keys()
-                            while (keys.hasNext()) {
-                                nodeTypes.add(keys.next())
-                            }
-                            callback(nodeTypes)
-                        } catch (e: Exception) {
-                            callback(null)
-                        }
-                    } else {
+                    val body = response.body
+                    if (!response.isSuccessful || body == null) {
+                        DebugLogger.w(TAG, "Node types request failed: ${response.code}")
                         callback(null)
+                        return
                     }
+                    // The keys of the object are the available node class_types; read only those
+                    // and skip the definitions, which can amount to tens of MB
+                    val nodeTypes = try {
+                        val result = mutableSetOf<String>()
+                        val reader = JsonReader(body.charStream())
+                        reader.isLenient = true
+                        reader.beginObject()
+                        while (reader.hasNext()) {
+                            result.add(reader.nextName())
+                            reader.skipValue()
+                        }
+                        reader.endObject()
+                        result
+                    } catch (e: Exception) {
+                        DebugLogger.w(TAG, "Failed to parse node types: ${e.message}")
+                        null
+                    }
+                    callback(nodeTypes)
                 }
             }
         })
@@ -419,10 +429,13 @@ class ComfyUIClient(
      * Returns the complete node type information including inputs/outputs.
      * Used for resolving slot types for edge coloring in workflow editor.
      *
-     * @param callback Called with the result:
-     *                 - objectInfo: The full JSON object, or null on error
+     * The body is handed over as a stream because it can reach tens of MB; it must be consumed
+     * synchronously inside the callback, as the response is closed when the callback returns.
+     *
+     * @param callback Called on the OkHttp dispatcher thread with the result:
+     *                 - objectInfo: The response body stream, or null on error
      */
-    fun fetchFullObjectInfo(callback: (objectInfo: JSONObject?) -> Unit) {
+    fun fetchFullObjectInfo(callback: (objectInfo: InputStream?) -> Unit) {
         val baseUrl = getBaseUrl() ?: run {
             callback(null)
             return
@@ -443,15 +456,9 @@ class ComfyUIClient(
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful) {
-                        try {
-                            val responseBody = response.body?.string() ?: "{}"
-                            val json = JSONObject(responseBody)
-                            callback(json)
-                        } catch (e: Exception) {
-                            DebugLogger.w(TAG, "Failed to parse object_info: ${e.message}")
-                            callback(null)
-                        }
+                    val body = response.body
+                    if (response.isSuccessful && body != null) {
+                        callback(body.byteStream())
                     } else {
                         DebugLogger.w(TAG, "object_info request failed: ${response.code}")
                         callback(null)

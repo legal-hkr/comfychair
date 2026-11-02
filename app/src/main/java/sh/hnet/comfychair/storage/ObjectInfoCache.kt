@@ -1,17 +1,20 @@
 package sh.hnet.comfychair.storage
 
 import android.content.Context
-import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.Reader
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 /**
  * Singleton for caching /object_info responses to disk per server.
- * Uses GZIP compression since object_info can be 500KB-1MB+.
+ * Uses GZIP compression since object_info ranges from about 1MB to tens of MB on servers
+ * with many custom nodes or model files; it is always streamed, never held in memory as a whole.
  * Files are stored in context.filesDir for persistence across app restarts.
  */
 object ObjectInfoCache {
@@ -19,60 +22,84 @@ object ObjectInfoCache {
     private const val CACHE_PREFIX = "object_info_"
     private const val CACHE_SUFFIX = ".json.gz"
     private const val TIMESTAMP_SUFFIX = ".timestamp"
+    private const val TEMP_SUFFIX = ".json.gz.tmp"
 
     /**
-     * Save object_info JSON to disk cache for the specified server.
+     * Stream an /object_info response into the disk cache for the specified server and parse it.
+     *
+     * The response is compressed into a temporary file without being held in memory, then read
+     * back through [parse]. The existing cache is replaced only if [parse] succeeds, so an
+     * interrupted download or a malformed response never leaves a broken cache behind.
+     *
      * @param context Application context
      * @param serverId Unique server identifier
-     * @param json The object_info JSON response
+     * @param source The object_info response body
+     * @param parse Consumer of the cached JSON, e.g. NodeTypeRegistry.parseObjectInfo
+     * @return true if the response was cached and parsed successfully
      */
-    fun saveObjectInfo(context: Context, serverId: String, json: JSONObject) {
-        try {
-            val cacheFile = getCacheFile(context, serverId)
-            val timestampFile = getTimestampFile(context, serverId)
+    fun saveObjectInfo(
+        context: Context,
+        serverId: String,
+        source: InputStream,
+        parse: (Reader) -> Unit
+    ): Boolean {
+        val cacheFile = getCacheFile(context, serverId)
+        val tempFile = File(context.filesDir, "$CACHE_PREFIX$serverId$TEMP_SUFFIX")
 
-            // Write compressed JSON
-            FileOutputStream(cacheFile).use { fos ->
-                GZIPOutputStream(fos).use { gzip ->
-                    gzip.write(json.toString().toByteArray(Charsets.UTF_8))
-                }
+        return try {
+            GZIPOutputStream(FileOutputStream(tempFile).buffered()).use { gzip ->
+                source.copyTo(gzip)
             }
+            readGzipped(tempFile, parse)
 
-            // Write timestamp
-            timestampFile.writeText(System.currentTimeMillis().toString())
+            if (!tempFile.renameTo(cacheFile)) {
+                throw IOException("Failed to move ${tempFile.name} to ${cacheFile.name}")
+            }
+            getTimestampFile(context, serverId).writeText(System.currentTimeMillis().toString())
 
             DebugLogger.i(TAG, "Object info cached for server $serverId, size: ${cacheFile.length()} bytes")
+            true
         } catch (e: Exception) {
             DebugLogger.e(TAG, "Failed to save object info cache: ${e.message}")
+            false
+        } catch (e: OutOfMemoryError) {
+            // Fail this fetch instead of crashing on every connection attempt to the same server
+            DebugLogger.e(TAG, "Out of memory while processing object info for server $serverId")
+            false
+        } finally {
+            tempFile.delete()
         }
     }
 
     /**
-     * Load object_info JSON from disk cache for the specified server.
+     * Read the object_info disk cache for the specified server through [parse].
      * @param context Application context
      * @param serverId Unique server identifier
-     * @return The cached JSON object, or null if not found or corrupted
+     * @param parse Consumer of the cached JSON, e.g. NodeTypeRegistry.parseObjectInfo
+     * @return true if the cache exists and was parsed successfully
      */
-    fun loadObjectInfo(context: Context, serverId: String): JSONObject? {
+    fun loadObjectInfo(context: Context, serverId: String, parse: (Reader) -> Unit): Boolean {
         val cacheFile = getCacheFile(context, serverId)
         if (!cacheFile.exists()) {
             DebugLogger.d(TAG, "No cache file found for server $serverId")
-            return null
+            return false
         }
 
         return try {
-            val jsonString = FileInputStream(cacheFile).use { fis ->
-                GZIPInputStream(fis).use { gzip ->
-                    gzip.bufferedReader(Charsets.UTF_8).readText()
-                }
-            }
-            val json = JSONObject(jsonString)
+            readGzipped(cacheFile, parse)
             DebugLogger.i(TAG, "Object info loaded from cache for server $serverId")
-            json
+            true
         } catch (e: Exception) {
             DebugLogger.e(TAG, "Failed to load object info cache: ${e.message}")
-            null
+            false
+        } catch (e: OutOfMemoryError) {
+            DebugLogger.e(TAG, "Out of memory while loading object info cache for server $serverId")
+            false
         }
+    }
+
+    private fun readGzipped(file: File, parse: (Reader) -> Unit) {
+        GZIPInputStream(FileInputStream(file).buffered()).bufferedReader(Charsets.UTF_8).use(parse)
     }
 
     /**

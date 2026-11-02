@@ -1,10 +1,13 @@
 package sh.hnet.comfychair.workflow
 
+import android.util.JsonReader
+import android.util.JsonToken
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
+import java.io.Reader
 
 /**
  * Full definition of a node input from /object_info
@@ -82,83 +85,151 @@ data class NodeTypeInfo(
  * Used to resolve slot types for edge coloring and input definitions for editing.
  */
 class NodeTypeRegistry {
-    private val nodeTypes = mutableMapOf<String, NodeTypeInfo>()
-    private val nodeDefinitions = mutableMapOf<String, NodeTypeDefinition>()
+    // Replaced as a whole after a successful parse, so readers never see a partially populated registry
+    @Volatile
+    private var nodeTypes: Map<String, NodeTypeInfo> = emptyMap()
+    @Volatile
+    private var nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap()
 
     companion object {
         private const val TAG = "NodeTypeRegistry"
     }
 
     /**
-     * Parse /object_info response and populate the registry.
+     * Parse a streamed /object_info response and populate the registry.
+     *
+     * The response can reach tens of MB on servers with many custom nodes or model files, so it is
+     * never materialized as a whole: only one node definition at a time is turned into a JSONObject.
+     * The registry is replaced only if the entire stream parses successfully; otherwise the
+     * exception propagates and the previous contents are kept.
      */
-    fun parseObjectInfo(objectInfoJson: JSONObject) {
-        nodeTypes.clear()
-        nodeDefinitions.clear()
+    fun parseObjectInfo(objectInfoReader: Reader) {
+        val newNodeTypes = mutableMapOf<String, NodeTypeInfo>()
+        val newNodeDefinitions = mutableMapOf<String, NodeTypeDefinition>()
+        // Model dropdowns repeat the same file list in every loader node (e.g. a LoRA list appears
+        // ~150 times), so identical option lists are shared instead of being kept once per input
+        val optionListPool = HashMap<List<String>, List<String>>()
 
-        val keys = objectInfoJson.keys()
-        while (keys.hasNext()) {
-            val classType = keys.next()
-            val nodeInfo = objectInfoJson.optJSONObject(classType) ?: continue
+        val reader = JsonReader(objectInfoReader)
+        // Python's json module emits NaN/Infinity literals, which org.json used to tolerate
+        reader.isLenient = true
+        reader.beginObject()
+        while (reader.hasNext()) {
+            val classType = reader.nextName()
+            val nodeInfo = readJsonValue(reader) as? JSONObject ?: continue
+            parseNode(classType, nodeInfo, newNodeTypes, newNodeDefinitions, optionListPool)
+        }
+        reader.endObject()
 
-            // Parse input types (for edge coloring)
-            val inputTypes = mutableMapOf<String, String>()
-            val inputJson = nodeInfo.optJSONObject("input")
+        nodeTypes = newNodeTypes
+        nodeDefinitions = newNodeDefinitions
 
-            // Parse required inputs
-            val requiredJson = inputJson?.optJSONObject("required")
-            parseInputTypes(requiredJson, inputTypes)
+        DebugLogger.i(TAG, "NodeTypeRegistry populated: ${newNodeDefinitions.size} node types parsed")
+    }
 
-            // Parse optional inputs
-            val optionalJson = inputJson?.optJSONObject("optional")
-            parseInputTypes(optionalJson, inputTypes)
-
-            // Parse output types and names
-            val outputArray = nodeInfo.optJSONArray("output")
-            val outputNameArray = nodeInfo.optJSONArray("output_name")
-            val outputTypes = mutableListOf<String>()
-            val outputSlots = mutableListOf<OutputSlot>()
-            if (outputArray != null) {
-                for (i in 0 until outputArray.length()) {
-                    val type = outputArray.optString(i, "UNKNOWN")
-                    val name = outputNameArray?.optString(i)?.takeIf { it.isNotEmpty() } ?: type
-                    outputTypes.add(type)
-                    outputSlots.add(OutputSlot(type = type, name = name))
-                }
+    /**
+     * Read the next value from [reader] into the same representation org.json would produce.
+     */
+    private fun readJsonValue(reader: JsonReader): Any = when (reader.peek()) {
+        JsonToken.BEGIN_OBJECT -> JSONObject().also { obj ->
+            reader.beginObject()
+            while (reader.hasNext()) {
+                obj.put(reader.nextName(), readJsonValue(reader))
             }
+            reader.endObject()
+        }
+        JsonToken.BEGIN_ARRAY -> JSONArray().also { array ->
+            reader.beginArray()
+            while (reader.hasNext()) {
+                array.put(readJsonValue(reader))
+            }
+            reader.endArray()
+        }
+        JsonToken.BOOLEAN -> reader.nextBoolean()
+        JsonToken.NULL -> {
+            reader.nextNull()
+            JSONObject.NULL
+        }
+        JsonToken.NUMBER -> {
+            // Same narrowing as org.json: Int, then Long, then Double; non-finite values stay strings
+            val literal = reader.nextString()
+            literal.toIntOrNull()
+                ?: literal.toLongOrNull()
+                ?: literal.toDoubleOrNull()?.takeIf { it.isFinite() }
+                ?: literal
+        }
+        else -> reader.nextString()
+    }
 
-            nodeTypes[classType] = NodeTypeInfo(
-                classType = classType,
-                inputTypes = inputTypes,
-                outputTypes = outputTypes,
-                outputSlots = outputSlots
-            )
+    /**
+     * Parse a single node entry of /object_info into the given maps.
+     */
+    private fun parseNode(
+        classType: String,
+        nodeInfo: JSONObject,
+        nodeTypes: MutableMap<String, NodeTypeInfo>,
+        nodeDefinitions: MutableMap<String, NodeTypeDefinition>,
+        optionListPool: MutableMap<List<String>, List<String>>
+    ) {
+        // Parse input types (for edge coloring)
+        val inputTypes = mutableMapOf<String, String>()
+        val inputJson = nodeInfo.optJSONObject("input")
 
-            // Parse full input definitions (for attribute editing)
-            val inputDefinitions = mutableListOf<InputDefinition>()
-            parseFullInputDefinitions(requiredJson, isRequired = true, inputDefinitions)
-            parseFullInputDefinitions(optionalJson, isRequired = false, inputDefinitions)
+        // Parse required inputs
+        val requiredJson = inputJson?.optJSONObject("required")
+        parseInputTypes(requiredJson, inputTypes)
 
-            // Parse node-level metadata
-            val category = nodeInfo.optString("category", "")
-            val displayName = (nodeInfo.opt("display_name") as? String)?.takeIf { it.isNotEmpty() }
-            val description = (nodeInfo.opt("description") as? String)?.takeIf { it.isNotEmpty() }
-            val deprecated = nodeInfo.optBoolean("deprecated", false)
-            val experimental = nodeInfo.optBoolean("experimental", false)
+        // Parse optional inputs
+        val optionalJson = inputJson?.optJSONObject("optional")
+        parseInputTypes(optionalJson, inputTypes)
 
-            nodeDefinitions[classType] = NodeTypeDefinition(
-                classType = classType,
-                category = category,
-                inputs = inputDefinitions,
-                outputs = outputSlots,
-                displayName = displayName,
-                description = description,
-                deprecated = deprecated,
-                experimental = experimental
-            )
+        // Parse output types and names
+        val outputArray = nodeInfo.optJSONArray("output")
+        val outputNameArray = nodeInfo.optJSONArray("output_name")
+        val outputTypes = mutableListOf<String>()
+        val outputSlots = mutableListOf<OutputSlot>()
+        if (outputArray != null) {
+            for (i in 0 until outputArray.length()) {
+                val type = outputArray.optString(i, "UNKNOWN")
+                val name = outputNameArray?.optString(i)?.takeIf { it.isNotEmpty() } ?: type
+                outputTypes.add(type)
+                outputSlots.add(OutputSlot(type = type, name = name))
+            }
         }
 
-        DebugLogger.i(TAG, "NodeTypeRegistry populated: ${nodeDefinitions.size} node types parsed")
+        nodeTypes[classType] = NodeTypeInfo(
+            classType = classType,
+            inputTypes = inputTypes,
+            outputTypes = outputTypes,
+            outputSlots = outputSlots
+        )
+
+        // Parse full input definitions (for attribute editing)
+        val inputDefinitions = mutableListOf<InputDefinition>()
+        parseFullInputDefinitions(requiredJson, isRequired = true, inputDefinitions)
+        parseFullInputDefinitions(optionalJson, isRequired = false, inputDefinitions)
+        val sharedInputDefinitions = inputDefinitions.map { definition ->
+            val options = definition.options ?: return@map definition
+            definition.copy(options = optionListPool.getOrPut(options) { options })
+        }
+
+        // Parse node-level metadata
+        val category = nodeInfo.optString("category", "")
+        val displayName = (nodeInfo.opt("display_name") as? String)?.takeIf { it.isNotEmpty() }
+        val description = (nodeInfo.opt("description") as? String)?.takeIf { it.isNotEmpty() }
+        val deprecated = nodeInfo.optBoolean("deprecated", false)
+        val experimental = nodeInfo.optBoolean("experimental", false)
+
+        nodeDefinitions[classType] = NodeTypeDefinition(
+            classType = classType,
+            category = category,
+            inputs = sharedInputDefinitions,
+            outputs = outputSlots,
+            displayName = displayName,
+            description = description,
+            deprecated = deprecated,
+            experimental = experimental
+        )
     }
 
     private fun parseInputTypes(inputsJson: JSONObject?, result: MutableMap<String, String>) {
@@ -413,7 +484,7 @@ class NodeTypeRegistry {
      * Clear the registry.
      */
     fun clear() {
-        nodeTypes.clear()
-        nodeDefinitions.clear()
+        nodeTypes = emptyMap()
+        nodeDefinitions = emptyMap()
     }
 }

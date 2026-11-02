@@ -925,17 +925,14 @@ object ConnectionManager {
         _modelCache.value = _modelCache.value.copy(isLoading = true, lastError = null)
 
         client.fetchFullObjectInfo { objectInfo ->
-            if (objectInfo != null) {
-                // Parse node definitions for workflow editor
-                nodeTypeRegistry.parseObjectInfo(objectInfo)
+            val ctx = _applicationContext
+            val serverId = currentServerId
+            // Cache object_info to disk for offline mode, then parse node definitions for the
+            // workflow editor from that copy, so the response is never held in memory as a whole
+            val loaded = objectInfo != null && ctx != null && serverId != null &&
+                    ObjectInfoCache.saveObjectInfo(ctx, serverId, objectInfo, nodeTypeRegistry::parseObjectInfo)
 
-                // Cache object_info to disk for offline mode
-                val ctx = _applicationContext
-                val serverId = currentServerId
-                if (ctx != null && serverId != null) {
-                    ObjectInfoCache.saveObjectInfo(ctx, serverId, objectInfo)
-                }
-
+            if (loaded) {
                 // Extract model lists for generation screens (field-name-based discovery)
                 val models = extractModelLists()
                 _modelCache.value = models.copy(isLoaded = true, isLoading = false)
@@ -981,8 +978,8 @@ object ConnectionManager {
             return false
         }
 
-        val objectInfo = ObjectInfoCache.loadObjectInfo(context, serverId)
-        if (objectInfo == null) {
+        // Parse node definitions for workflow editor
+        if (!ObjectInfoCache.loadObjectInfo(context, serverId, nodeTypeRegistry::parseObjectInfo)) {
             DebugLogger.e(TAG, "Failed to load offline cache for server: $serverId")
             return false
         }
@@ -992,9 +989,6 @@ object ConnectionManager {
 
         // Set offline connected state so currentServerId is available
         _connectionState.value = ConnectionState.OfflineConnected(serverId = serverId)
-
-        // Parse node definitions for workflow editor
-        nodeTypeRegistry.parseObjectInfo(objectInfo)
 
         // Extract model lists for generation screens
         val models = extractModelLists()
