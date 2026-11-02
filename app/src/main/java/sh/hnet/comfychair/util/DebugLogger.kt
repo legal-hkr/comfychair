@@ -4,7 +4,6 @@ import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Log severity levels
@@ -34,12 +33,12 @@ data class LogEntry(
 /**
  * In-memory debug logger singleton.
  * Logs are session-only and cleared when the app closes.
- * Thread-safe implementation using CopyOnWriteArrayList.
+ * Thread-safe ring buffer: the oldest entries are dropped once MAX_ENTRIES is reached.
  */
 object DebugLogger {
-    private val entries = CopyOnWriteArrayList<LogEntry>()
+    private val entries = ArrayDeque<LogEntry>()
     private var enabled = false
-    private const val MAX_ENTRIES = 1000
+    private const val MAX_ENTRIES = 5000
 
     private const val LOGCAT_ENABLED = false
     private const val LOGCAT_TAG = "ComfyChair"
@@ -53,7 +52,7 @@ object DebugLogger {
         this.enabled = enabled
         // Only clear and log when transitioning from disabled to enabled
         if (enabled && !wasEnabled) {
-            entries.clear()
+            clear()
             log(LogLevel.INFO, "DebugLogger", "Logging started")
         }
     }
@@ -77,11 +76,9 @@ object DebugLogger {
             message = message
         )
 
-        entries.add(entry)
-
-        // Trim old entries if over limit
-        while (entries.size > MAX_ENTRIES) {
-            entries.removeAt(0)
+        synchronized(entries) {
+            entries.addLast(entry)
+            if (entries.size > MAX_ENTRIES) entries.removeFirst()
         }
 
         // Temporary: Also output to LogCat for real-time debugging
@@ -119,27 +116,28 @@ object DebugLogger {
     /**
      * Get a copy of all log entries.
      */
-    fun getEntries(): List<LogEntry> = entries.toList()
+    fun getEntries(): List<LogEntry> = synchronized(entries) { entries.toList() }
 
     /**
      * Clear all log entries.
      */
     fun clear() {
-        entries.clear()
+        synchronized(entries) { entries.clear() }
     }
 
     /**
      * Export all logs to a formatted string suitable for saving to a file.
      */
     fun exportToString(): String {
+        val snapshot = getEntries()
         val header = buildString {
             appendLine("=== ComfyChair Debug Log ===")
             appendLine("Exported: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
-            appendLine("Entries: ${entries.size}")
+            appendLine("Entries: ${snapshot.size}")
             appendLine("===========================")
             appendLine()
         }
-        return header + entries.joinToString("\n") { it.format() }
+        return header + snapshot.joinToString("\n") { it.format() }
     }
 }
 

@@ -180,7 +180,7 @@ fun WorkflowThumbnail(
  */
 private fun computeThumbnailData(jsonContent: String, isDarkTheme: Boolean): ThumbnailData? {
     return try {
-        val parser = WorkflowParser()
+        val parser = WorkflowParser(logDetails = false)
         val layoutEngine = WorkflowLayoutEngine()
 
         // Parse the workflow

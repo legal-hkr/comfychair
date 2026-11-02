@@ -83,13 +83,16 @@ fun LogViewerDialog(
     LaunchedEffect(Unit) {
         while (true) {
             val newEntries = DebugLogger.getEntries()
-            val hadEntries = entries.size
-            entries.clear()
-            entries.addAll(newEntries)
+            // Compare the last entry, not the size: a full ring buffer keeps its size while
+            // new entries keep arriving
+            if (newEntries.size != entries.size || newEntries.lastOrNull() != entries.lastOrNull()) {
+                entries.clear()
+                entries.addAll(newEntries)
 
-            // Scroll to bottom if following and we have new entries
-            if (isFollowing && entries.isNotEmpty() && entries.size > hadEntries) {
-                listState.scrollToItem(entries.size - 1)
+                // Scroll to bottom if following
+                if (isFollowing && entries.isNotEmpty()) {
+                    listState.scrollToItem(entries.size - 1)
+                }
             }
 
             delay(500)

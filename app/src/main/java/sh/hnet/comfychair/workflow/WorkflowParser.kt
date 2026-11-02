@@ -6,18 +6,30 @@ import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * Parses ComfyUI workflow JSON into a WorkflowGraph
+ *
+ * @param logDetails Log parsing details; disabled for thumbnails, which parse every workflow in
+ *        the list on each refresh and would otherwise push everything else out of the debug log.
+ *        Warnings are always logged.
  */
-class WorkflowParser {
+class WorkflowParser(private val logDetails: Boolean = true) {
 
     companion object {
         private const val TAG = "WorkflowParser"
+    }
+
+    private fun logD(message: String) {
+        if (logDetails) DebugLogger.d(TAG, message)
+    }
+
+    private fun logI(message: String) {
+        if (logDetails) DebugLogger.i(TAG, message)
     }
 
     /**
      * Parse workflow JSON content into a WorkflowGraph
      */
     fun parse(jsonContent: String, workflowName: String = "", workflowDescription: String = ""): WorkflowGraph {
-        DebugLogger.d(TAG, "Parsing workflow: name=$workflowName")
+        logD("Parsing workflow: name=$workflowName")
         val json = JSONObject(jsonContent)
 
         val nodes = mutableListOf<WorkflowNode>()
@@ -28,16 +40,16 @@ class WorkflowParser {
 
         // Parse groups if present (at root level)
         if (json.has("groups")) {
-            DebugLogger.d(TAG, "Found 'groups' key in JSON at root level")
+            logD("Found 'groups' key in JSON at root level")
             val groupsArray = json.optJSONArray("groups")
             if (groupsArray != null) {
-                DebugLogger.d(TAG, "Groups array has ${groupsArray.length()} entries")
+                logD("Groups array has ${groupsArray.length()} entries")
                 groups.addAll(parseGroups(groupsArray))
             } else {
                 DebugLogger.w(TAG, "'groups' key exists but is not a JSON array")
             }
         } else {
-            DebugLogger.d(TAG, "No 'groups' key found in JSON root")
+            logD("No 'groups' key found in JSON root")
         }
 
         // Determine the structure: our custom format has "nodes" object, ComfyUI API format has nodes at top level
@@ -94,7 +106,7 @@ class WorkflowParser {
             // Parse node mode (0=active, 2=muted, 4=bypassed)
             val mode = nodeJson.optInt("mode", 0)
             if (mode != 0) {
-                DebugLogger.d(TAG, "Parsed node $nodeId with mode=$mode (${if (mode == 4) "bypassed" else if (mode == 2) "muted" else "unknown"})")
+                logD("Parsed node $nodeId with mode=$mode (${if (mode == 4) "bypassed" else if (mode == 2) "muted" else "unknown"})")
             }
 
             // Parse manual position from _meta.position array [x, y]
@@ -103,7 +115,7 @@ class WorkflowParser {
             val manualX = if (hasManualPosition) positionArray!!.optDouble(0, 0.0).toFloat() else 0f
             val manualY = if (hasManualPosition) positionArray!!.optDouble(1, 0.0).toFloat() else 0f
             if (hasManualPosition) {
-                DebugLogger.d(TAG, "Parsed node $nodeId with manual position: ($manualX, $manualY)")
+                logD("Parsed node $nodeId with manual position: ($manualX, $manualY)")
             }
 
             nodes.add(
@@ -138,27 +150,27 @@ class WorkflowParser {
 
         // Parse notes if present (at root level)
         val notes = if (json.has("notes")) {
-            DebugLogger.d(TAG, "Found 'notes' key in JSON at root level")
+            logD("Found 'notes' key in JSON at root level")
             val notesArray = json.optJSONArray("notes")
             if (notesArray != null) {
-                DebugLogger.d(TAG, "Notes array has ${notesArray.length()} entries")
+                logD("Notes array has ${notesArray.length()} entries")
                 parseNotes(notesArray)
             } else {
                 DebugLogger.w(TAG, "'notes' key exists but is not a JSON array")
                 emptyList()
             }
         } else {
-            DebugLogger.d(TAG, "No 'notes' key found in JSON root")
+            logD("No 'notes' key found in JSON root")
             emptyList()
         }
 
         // Parse manual placement mode flag from root level
         val isManualPlacementMode = json.optBoolean("manual_placement", false)
         if (isManualPlacementMode) {
-            DebugLogger.d(TAG, "Workflow has manual_placement mode enabled")
+            logD("Workflow has manual_placement mode enabled")
         }
 
-        DebugLogger.d(TAG, "Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${groups.size} groups, ${notes.size} notes, ${allTemplateVars.size} template vars, ${mappedFields.size} mapped fields")
+        logD("Parsed workflow: ${nodes.size} nodes, ${edges.size} edges, ${groups.size} groups, ${notes.size} notes, ${allTemplateVars.size} template vars, ${mappedFields.size} mapped fields")
 
         return WorkflowGraph(
             name = workflowName,
@@ -182,7 +194,7 @@ class WorkflowParser {
      * Groups with no members are skipped.
      */
     private fun parseGroups(groupsArray: JSONArray): List<WorkflowGroup> {
-        DebugLogger.d(TAG, "parseGroups: parsing ${groupsArray.length()} group entries")
+        logD("parseGroups: parsing ${groupsArray.length()} group entries")
         val result = mutableListOf<WorkflowGroup>()
 
         for (i in 0 until groupsArray.length()) {
@@ -202,15 +214,15 @@ class WorkflowParser {
             val hasMemberNodes = groupJson.has("member_nodes")
             val hasBounding = groupJson.has("bounding")
 
-            DebugLogger.d(TAG, "parseGroups: entry $i - id=$id, title='$title', has member_nodes=$hasMemberNodes, has bounding=$hasBounding")
+            logD("parseGroups: entry $i - id=$id, title='$title', has member_nodes=$hasMemberNodes, has bounding=$hasBounding")
 
             // Parse member node IDs (required for new format)
             val memberNodeIds = groupJson.optJSONArray("member_nodes")?.let { arr ->
                 val ids = (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }.toSet()
-                DebugLogger.d(TAG, "parseGroups: group $id member_nodes array has ${arr.length()} entries, parsed ${ids.size} valid IDs: $ids")
+                logD("parseGroups: group $id member_nodes array has ${arr.length()} entries, parsed ${ids.size} valid IDs: $ids")
                 ids
             } ?: run {
-                DebugLogger.d(TAG, "parseGroups: group $id has no member_nodes array (legacy format?)")
+                logD("parseGroups: group $id has no member_nodes array (legacy format?)")
                 emptySet()
             }
 
@@ -227,10 +239,10 @@ class WorkflowParser {
                     memberNodeIds = memberNodeIds
                 )
             )
-            DebugLogger.i(TAG, "parseGroups: successfully parsed group $id '$title' with ${memberNodeIds.size} members")
+            logI("parseGroups: successfully parsed group $id '$title' with ${memberNodeIds.size} members")
         }
 
-        DebugLogger.i(TAG, "parseGroups: parsed ${result.size} valid groups out of ${groupsArray.length()} entries")
+        logI("parseGroups: parsed ${result.size} valid groups out of ${groupsArray.length()} entries")
         return result
     }
 
@@ -240,7 +252,7 @@ class WorkflowParser {
      * Format: { id, title, content }
      */
     private fun parseNotes(notesArray: JSONArray): List<WorkflowNote> {
-        DebugLogger.d(TAG, "parseNotes: parsing ${notesArray.length()} note entries")
+        logD("parseNotes: parsing ${notesArray.length()} note entries")
         val result = mutableListOf<WorkflowNote>()
 
         for (i in 0 until notesArray.length()) {
@@ -276,13 +288,13 @@ class WorkflowParser {
                 )
             )
             if (hasManualPosition) {
-                DebugLogger.d(TAG, "parseNotes: parsed note id=$id title='$title' with manual position: ($manualX, $manualY)")
+                logD("parseNotes: parsed note id=$id title='$title' with manual position: ($manualX, $manualY)")
             } else {
-                DebugLogger.d(TAG, "parseNotes: parsed note id=$id title='$title' (${content.length} chars)")
+                logD("parseNotes: parsed note id=$id title='$title' (${content.length} chars)")
             }
         }
 
-        DebugLogger.i(TAG, "parseNotes: parsed ${result.size} notes out of ${notesArray.length()} entries")
+        logI("parseNotes: parsed ${result.size} notes out of ${notesArray.length()} entries")
         return result
     }
 
