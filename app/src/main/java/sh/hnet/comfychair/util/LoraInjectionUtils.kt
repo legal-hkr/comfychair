@@ -132,27 +132,51 @@ internal object LoraInjectionUtils {
         }
     }
 
+    // Core loaders, in order of preference when a workflow contains several model loaders
+    private val PREFERRED_MODEL_LOADERS = listOf("CheckpointLoaderSimple", "UNETLoader")
+
+    // Input keys of loader nodes the UI binds to its "Checkpoint" and "UNET" model selection
+    private val MODEL_LOADER_INPUT_KEYS = listOf("ckpt_name", "unet_name")
+
     /**
      * Find the model source node in a workflow.
-     * Searches for CheckpointLoaderSimple first, then UNETLoader.
+     *
+     * Any loader with a ckpt_name or unet_name input qualifies (e.g. UnetLoaderGGUF from ComfyUI-GGUF),
+     * provided its first output is wired into a "model" input. This is decided from the workflow graph
+     * alone, so it does not depend on /object_info having been fetched, and it skips nodes that share
+     * these input names but produce something else (audio VAE, text encoder, frame interpolation).
+     * Core loaders keep priority; if no loader is wired that way, the previous class-based lookup applies.
      */
     @Suppress("UNUSED_PARAMETER")
     private fun findModelSourceNode(nodes: JSONObject, workflowType: WorkflowType): String? {
-        // Search for both loader types - prioritize CheckpointLoaderSimple, then UNETLoader
-        val loaderTypes = listOf("CheckpointLoaderSimple", "UNETLoader")
+        val loaders = mutableListOf<Pair<String, String>>()  // (nodeId, classType)
+        val modelInputSources = mutableSetOf<String>()
 
-        for (targetClassType in loaderTypes) {
-            val nodeIds = nodes.keys()
-            while (nodeIds.hasNext()) {
-                val nodeId = nodeIds.next()
-                val node = nodes.optJSONObject(nodeId) ?: continue
-                val classType = node.optString("class_type", "")
-                if (classType == targetClassType) {
-                    return nodeId
-                }
+        val nodeIds = nodes.keys()
+        while (nodeIds.hasNext()) {
+            val nodeId = nodeIds.next()
+            val node = nodes.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+
+            if (MODEL_LOADER_INPUT_KEYS.any { inputs.has(it) }) {
+                loaders.add(nodeId to node.optString("class_type", ""))
+            }
+
+            // Model output is always index 0 (see findModelConsumers)
+            val modelInput = inputs.opt("model")
+            if (modelInput is JSONArray && modelInput.length() >= 2 && modelInput.optInt(1, -1) == 0) {
+                modelInputSources.add(modelInput.optString(0, ""))
             }
         }
-        return null
+
+        fun preference(classType: String): Int =
+            PREFERRED_MODEL_LOADERS.indexOf(classType).takeIf { it >= 0 } ?: PREFERRED_MODEL_LOADERS.size
+
+        return loaders.filter { (nodeId, _) -> nodeId in modelInputSources }
+            .minByOrNull { (_, classType) -> preference(classType) }?.first
+            ?: PREFERRED_MODEL_LOADERS.firstNotNullOfOrNull { preferred ->
+                loaders.firstOrNull { (_, classType) -> classType == preferred }?.first
+            }
     }
 
     /**
