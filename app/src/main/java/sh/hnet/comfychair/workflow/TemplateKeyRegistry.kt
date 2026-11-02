@@ -189,6 +189,26 @@ object TemplateKeyRegistry {
     }
 
     /**
+     * Literal input values the app replaces at generation time, just like {{placeholders}}.
+     * Built-in inpainting and editing workflows use these instead of {{image_filename}}.
+     */
+    private val GENERATION_MARKERS = setOf(
+        "uploaded_image.png [input]",
+        "reference_image_1.png [input]",
+        "reference_image_2.png [input]"
+    )
+
+    /**
+     * Check if an input value is filled in by the app at generation time ({{placeholder}} or image
+     * marker). Such inputs must not be editable in the Workflow Editor, and saved node attribute
+     * edits must not override them, or e.g. a stale filename would replace every freshly uploaded image.
+     */
+    fun isAppManagedValue(value: Any?): Boolean {
+        val str = value as? String ?: return false
+        return (str.contains("{{") && str.contains("}}")) || str in GENERATION_MARKERS
+    }
+
+    /**
      * Check if an input key is a known template key
      */
     fun isTemplateKey(key: String): Boolean {

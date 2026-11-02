@@ -79,6 +79,7 @@ import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowNode
 
 /**
@@ -192,11 +193,8 @@ private fun buildEditableInputs(
             // Skip if it's a connection in the workflow
             if (nodeValue is InputValue.Connection) return@forEach
 
-            // Skip template variables
-            if (nodeValue is InputValue.Literal) {
-                val strValue = nodeValue.value.toString()
-                if (strValue.contains("{{") && strValue.contains("}}")) return@forEach
-            }
+            // Skip template variables and other values filled in at generation time
+            if (nodeValue is InputValue.Literal && TemplateKeyRegistry.isAppManagedValue(nodeValue.value)) return@forEach
 
             // Get value: edit > node value > default (normalize empty to default)
             val rawValue = when (nodeValue) {
@@ -225,11 +223,8 @@ private fun buildEditableInputs(
             // Skip connections
             if (value is InputValue.Connection) return@forEach
 
-            // Skip template variables
-            if (value is InputValue.Literal) {
-                val strValue = value.value.toString()
-                if (strValue.contains("{{") && strValue.contains("}}")) return@forEach
-            }
+            // Skip template variables and other values filled in at generation time
+            if (value is InputValue.Literal && TemplateKeyRegistry.isAppManagedValue(value.value)) return@forEach
 
             // Get original value from workflow
             val originalValue = when (value) {

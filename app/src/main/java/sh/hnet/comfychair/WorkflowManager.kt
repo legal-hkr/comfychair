@@ -1541,6 +1541,16 @@ object WorkflowManager {
             json
         }
 
+        // Template inputs, to skip edits of values the app fills in at generation time. The editor
+        // no longer offers these, but older versions saved such edits (e.g. a stale image filename).
+        val templateNodes = getWorkflowById(workflowId)?.jsonContent?.let { content ->
+            try {
+                JSONObject(content).let { it.optJSONObject("nodes") ?: it }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
         // Apply edits to each node
         var modified = false
         edits.edits.forEach { (nodeId, nodeEdits) ->
@@ -1548,7 +1558,12 @@ object WorkflowManager {
             if (node != null) {
                 val inputs = node.optJSONObject("inputs")
                 if (inputs != null) {
+                    val templateInputs = templateNodes?.optJSONObject(nodeId)?.optJSONObject("inputs")
                     nodeEdits.forEach { (inputName, value) ->
+                        if (TemplateKeyRegistry.isAppManagedValue(templateInputs?.opt(inputName))) {
+                            DebugLogger.d(TAG, "Skipped edit of app-managed input: node $nodeId, $inputName")
+                            return@forEach
+                        }
                         // Only apply if input exists (don't add new inputs)
                         if (inputs.has(inputName)) {
                             when (value) {

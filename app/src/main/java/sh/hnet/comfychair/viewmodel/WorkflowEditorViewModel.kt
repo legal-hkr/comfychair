@@ -43,6 +43,7 @@ import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
 import sh.hnet.comfychair.workflow.WorkflowGraph
@@ -1432,11 +1433,8 @@ class WorkflowEditorViewModel : ViewModel() {
             // Skip connections
             if (value is InputValue.Connection) return@filter false
 
-            // Skip template variables
-            if (value is InputValue.Literal) {
-                val strValue = value.value.toString()
-                if (strValue.contains("{{") && strValue.contains("}}")) return@filter false
-            }
+            // Skip template variables and other values filled in at generation time
+            if (value is InputValue.Literal && TemplateKeyRegistry.isAppManagedValue(value.value)) return@filter false
 
             // Skip force-input fields
             val definition = nodeDefinition?.inputs?.find { it.name == name }
