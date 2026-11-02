@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
@@ -513,42 +514,79 @@ class WorkflowManagementViewModel : ViewModel() {
             }
         }
 
+        // Primitive String nodes (node ID -> text input key), e.g. one "String (Multiline)" node
+        // feeding the same prompt to several text encoders
+        val primitiveTextNodes = mutableMapOf<String, String>()
+        for (nodeId in nodesJson.keys()) {
+            val node = nodesJson.optJSONObject(nodeId) ?: continue
+            val inputs = node.optJSONObject("inputs") ?: continue
+            val inputMap = inputs.keys().asSequence().associateWith { inputs.opt(it) }
+            TemplateKeyRegistry.primitiveTextKey(node.optString("class_type", ""), inputMap) { it is JSONArray }
+                ?.let { primitiveTextNodes[nodeId] = it }
+        }
+
+        fun candidateFor(nodeId: String, inputKey: String): FieldCandidate? {
+            val node = nodesJson.optJSONObject(nodeId) ?: return null
+            val classType = node.optString("class_type", "Unknown")
+            return FieldCandidate(
+                nodeId = nodeId,
+                nodeName = node.optJSONObject("_meta")?.optString("title") ?: classType,
+                classType = classType,
+                inputKey = inputKey,
+                currentValue = node.optJSONObject("inputs")?.opt(inputKey)
+            )
+        }
+
+        fun MutableList<FieldCandidate>.addUnique(candidate: FieldCandidate, first: Boolean = false) {
+            if (any { it.nodeId == candidate.nodeId && it.inputKey == candidate.inputKey }) return
+            if (first) add(0, candidate) else add(candidate)
+        }
+
         // For each text encoder, trace its output to find if it connects to positive or negative
         for ((nodeId, node, inputKey) in textEncoderNodes) {
             val inputs = node.optJSONObject("inputs") ?: continue
-            val meta = node.optJSONObject("_meta")
-            val classType = node.optString("class_type", "Unknown")
-            val title = meta?.optString("title") ?: classType
-            val currentValue = inputs.opt(inputKey)
+
+            // Text linked from a primitive String node: offer that node, so the prompt reaches
+            // every encoder it feeds instead of replacing this encoder's link
+            val sourceId = (inputs.opt(inputKey) as? JSONArray)?.optString(0, "")
+            val sourceKey = sourceId?.let { primitiveTextNodes[it] }
+            val candidate = (if (sourceId != null && sourceKey != null) {
+                candidateFor(sourceId, sourceKey)
+            } else {
+                candidateFor(nodeId, inputKey)
+            }) ?: continue
 
             // Determine if this node connects to positive or negative input
             val connectionType = traceClipTextEncodeConnection(nodesJson, nodeId)
 
-            val candidate = FieldCandidate(
-                nodeId = nodeId,
-                nodeName = title,
-                classType = classType,
-                inputKey = inputKey,
-                currentValue = currentValue
-            )
-
             when (connectionType) {
-                "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
-                "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
+                "positive" -> positiveTextCandidates.addUnique(candidate, first = true) // Traced match first
+                "negative" -> negativeTextCandidates.addUnique(candidate, first = true) // Traced match first
                 else -> {
                     // Unknown connection - use title-based classification
-                    val titleLower = title.lowercase()
+                    val titleLower = candidate.nodeName.lowercase()
                     when {
-                        titleLower.contains("positive") -> positiveTextCandidates.add(candidate)
-                        titleLower.contains("negative") -> negativeTextCandidates.add(candidate)
+                        titleLower.contains("positive") -> positiveTextCandidates.addUnique(candidate)
+                        titleLower.contains("negative") -> negativeTextCandidates.addUnique(candidate)
                         else -> {
                             // Add to both as fallback candidates
-                            positiveTextCandidates.add(candidate)
-                            negativeTextCandidates.add(candidate)
+                            positiveTextCandidates.addUnique(candidate)
+                            negativeTextCandidates.addUnique(candidate)
                         }
                     }
                 }
             }
+        }
+
+        // Primitive String nodes not feeding a text encoder (e.g. prompts of API nodes without
+        // CLIP encoding) as fallback candidates
+        for ((nodeId, inputKey) in primitiveTextNodes) {
+            val candidate = candidateFor(nodeId, inputKey) ?: continue
+            val alreadyOffered = (positiveTextCandidates + negativeTextCandidates).any { it.nodeId == nodeId }
+            if (alreadyOffered) continue
+            val titleLower = candidate.nodeName.lowercase()
+            if (!titleLower.contains("negative")) positiveTextCandidates.addUnique(candidate)
+            if (!titleLower.contains("positive")) negativeTextCandidates.addUnique(candidate)
         }
 
         return mapOf(

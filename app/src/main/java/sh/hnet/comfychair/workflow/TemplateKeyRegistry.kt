@@ -208,6 +208,25 @@ object TemplateKeyRegistry {
         return (str.contains("{{") && str.contains("}}")) || str in GENERATION_MARKERS
     }
 
+    // Input keys holding the text of primitive String nodes (e.g. PrimitiveStringMultiline "value")
+    private val PRIMITIVE_TEXT_KEYS = listOf("value", "string", "text")
+
+    /**
+     * Returns the input key holding the text if the node is a primitive String node, e.g.
+     * "String (Multiline)" feeding one prompt to several text encoders. A prompt mapped to it
+     * reaches all of them, instead of replacing the link of a single encoder.
+     *
+     * @param classType Node class type
+     * @param inputs Input values of the node; links are represented by [isLink]
+     * @param isLink Whether an input value is a link to another node
+     */
+    fun primitiveTextKey(classType: String, inputs: Map<String, Any?>, isLink: (Any?) -> Boolean): String? {
+        if (!classType.contains("String", ignoreCase = true)) return null
+        // A primitive only holds literals; nodes processing strings (concatenate, replace) have links
+        if (inputs.values.any(isLink)) return null
+        return PRIMITIVE_TEXT_KEYS.firstOrNull { inputs[it] is String }
+    }
+
     /**
      * Check if an input key is a known template key
      */

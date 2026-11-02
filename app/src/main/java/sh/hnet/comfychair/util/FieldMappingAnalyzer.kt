@@ -231,42 +231,72 @@ object FieldMappingAnalyzer {
         // Combine both strategies
         val allTextEncoderNodes = textEncoderNodes + outputBasedNodes
 
+        // Primitive String nodes (node ID -> text input key), e.g. one "String (Multiline)" node
+        // feeding the same prompt to several text encoders
+        val nodesById = graph.nodes.associateBy { it.id }
+        val primitiveTextNodes = graph.nodes.mapNotNull { node ->
+            val inputMap = node.inputs.mapValues { (_, value) -> (value as? InputValue.Literal)?.value ?: value }
+            TemplateKeyRegistry.primitiveTextKey(node.classType, inputMap) { it is InputValue.Connection }
+                ?.let { node.id to it }
+        }.toMap()
+
+        fun candidateFor(node: WorkflowNode, inputKey: String) = FieldCandidate(
+            nodeId = node.id,
+            nodeName = node.title,
+            classType = node.classType,
+            inputKey = inputKey,
+            currentValue = (node.inputs[inputKey] as? InputValue.Literal)?.value
+        )
+
+        fun MutableList<FieldCandidate>.addUnique(candidate: FieldCandidate, first: Boolean = false) {
+            if (any { it.nodeId == candidate.nodeId && it.inputKey == candidate.inputKey }) return
+            if (first) add(0, candidate) else add(candidate)
+        }
+
         // For each text encoder, trace its output to find if it connects to positive or negative
         for ((node, inputKey) in allTextEncoderNodes) {
-            val textInput = node.inputs[inputKey]
-            val currentValue = when (textInput) {
-                is InputValue.Literal -> textInput.value
-                else -> null
+            // Text linked from a primitive String node: offer that node, so the prompt reaches
+            // every encoder it feeds instead of replacing this encoder's link
+            val sourceNode = (node.inputs[inputKey] as? InputValue.Connection)?.let { nodesById[it.sourceNodeId] }
+            val sourceKey = sourceNode?.let { primitiveTextNodes[it.id] }
+            val candidate = if (sourceNode != null && sourceKey != null) {
+                candidateFor(sourceNode, sourceKey)
+            } else {
+                candidateFor(node, inputKey)
             }
-
-            val candidate = FieldCandidate(
-                nodeId = node.id,
-                nodeName = node.title,
-                classType = node.classType,
-                inputKey = inputKey,
-                currentValue = currentValue
-            )
 
             // Determine if this node connects to positive or negative input
             val connectionType = traceConditioningConnection(graph, node.id)
 
             when (connectionType) {
-                "positive" -> positiveTextCandidates.add(0, candidate) // Add traced match first
-                "negative" -> negativeTextCandidates.add(0, candidate) // Add traced match first
+                "positive" -> positiveTextCandidates.addUnique(candidate, first = true) // Traced match first
+                "negative" -> negativeTextCandidates.addUnique(candidate, first = true) // Traced match first
                 else -> {
                     // Unknown connection - use title-based classification
-                    val titleLower = node.title.lowercase()
+                    val titleLower = candidate.nodeName.lowercase()
                     when {
-                        titleLower.contains("positive") -> positiveTextCandidates.add(candidate)
-                        titleLower.contains("negative") -> negativeTextCandidates.add(candidate)
+                        titleLower.contains("positive") -> positiveTextCandidates.addUnique(candidate)
+                        titleLower.contains("negative") -> negativeTextCandidates.addUnique(candidate)
                         else -> {
                             // Add to both as fallback candidates
-                            positiveTextCandidates.add(candidate)
-                            negativeTextCandidates.add(candidate)
+                            positiveTextCandidates.addUnique(candidate)
+                            negativeTextCandidates.addUnique(candidate)
                         }
                     }
                 }
             }
+        }
+
+        // Primitive String nodes not feeding a text encoder (e.g. prompts of API nodes without
+        // CLIP encoding) as fallback candidates
+        for ((nodeId, inputKey) in primitiveTextNodes) {
+            val node = nodesById[nodeId] ?: continue
+            val alreadyOffered = (positiveTextCandidates + negativeTextCandidates).any { it.nodeId == nodeId }
+            if (alreadyOffered) continue
+            val candidate = candidateFor(node, inputKey)
+            val titleLower = node.title.lowercase()
+            if (!titleLower.contains("negative")) positiveTextCandidates.addUnique(candidate)
+            if (!titleLower.contains("positive")) negativeTextCandidates.addUnique(candidate)
         }
 
         return mapOf(
