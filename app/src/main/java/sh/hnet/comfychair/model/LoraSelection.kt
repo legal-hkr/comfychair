@@ -14,8 +14,9 @@ data class LoraSelection(
     val strength: Float = DEFAULT_STRENGTH
 ) {
     companion object {
-        const val MIN_STRENGTH = 0.0f
-        const val MAX_STRENGTH = 2.0f
+        // Same range as strength_model of ComfyUI's LoraLoaderModelOnly
+        const val MIN_STRENGTH = -100.0f
+        const val MAX_STRENGTH = 100.0f
         const val DEFAULT_STRENGTH = 1.0f
         const val MAX_CHAIN_LENGTH = 5
 

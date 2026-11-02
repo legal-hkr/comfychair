@@ -462,9 +462,13 @@
     <string name="title_highnoise_lora_chain">High-Noise LoRAs (optional)</string>
     <string name="title_lownoise_lora_chain">Low-Noise LoRAs (optional)</string>
     <string name="button_add_lora">LoRA hinzufügen</string>
-    <string name="label_lora_strength">Stärke:</string>
+    <string name="label_lora_strength">Stärke</string>
     <string name="msg_lora_empty">Keine LoRAs hinzugefügt</string>
     <string name="button_remove_lora">LoRA entfernen</string>
+    <string name="content_description_lora_strength_decrease">Stärke um %1$d verringern</string>
+    <string name="content_description_lora_strength_increase">Stärke um %1$d erhöhen</string>
+    <string name="content_description_lora_strength_slider">Stärke, Feineinstellung von %1$s bis %2$s</string>
+    <string name="error_lora_strength_range">%1$s bis %2$s</string>
 
     <!-- About screen strings -->
     <string name="nav_about_settings">Über</string>

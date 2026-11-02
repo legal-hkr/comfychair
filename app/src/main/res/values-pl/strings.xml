@@ -447,9 +447,13 @@
     <string name="title_highnoise_lora_chain">LoRA wysokiego szumu (opcjonalnie)</string>
     <string name="title_lownoise_lora_chain">LoRA niskiego szumu (opcjonalnie)</string>
     <string name="button_add_lora">Dodaj LoRA</string>
-    <string name="label_lora_strength">Siła:</string>
+    <string name="label_lora_strength">Siła</string>
     <string name="msg_lora_empty">Brak dodanych LoRA</string>
     <string name="button_remove_lora">Usuń LoRA</string>
+    <string name="content_description_lora_strength_decrease">Zmniejsz siłę o %1$d</string>
+    <string name="content_description_lora_strength_increase">Zwiększ siłę o %1$d</string>
+    <string name="content_description_lora_strength_slider">Siła, dokładna regulacja w zakresie od %1$s do %2$s</string>
+    <string name="error_lora_strength_range">Od %1$s do %2$s</string>
 
     <!-- Backup and restore strings -->
     <string name="title_backup_restore">Kopia zapasowa i przywracanie</string>

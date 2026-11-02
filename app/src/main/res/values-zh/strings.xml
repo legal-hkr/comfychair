@@ -447,9 +447,13 @@
     <string name="title_highnoise_lora_chain">高噪声 LoRA（可选）</string>
     <string name="title_lownoise_lora_chain">低噪声 LoRA（可选）</string>
     <string name="button_add_lora">添加 LoRA</string>
-    <string name="label_lora_strength">强度：</string>
+    <string name="label_lora_strength">强度</string>
     <string name="msg_lora_empty">未添加 LoRA</string>
     <string name="button_remove_lora">移除 LoRA</string>
+    <string name="content_description_lora_strength_decrease">强度减少 %1$d</string>
+    <string name="content_description_lora_strength_increase">强度增加 %1$d</string>
+    <string name="content_description_lora_strength_slider">强度，微调范围 %1$s 至 %2$s</string>
+    <string name="error_lora_strength_range">%1$s 至 %2$s</string>
 
     <!-- Backup and restore strings -->
     <string name="title_backup_restore">备份与恢复</string>

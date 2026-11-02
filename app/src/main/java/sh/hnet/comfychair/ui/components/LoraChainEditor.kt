@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -21,7 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,7 +42,6 @@ import sh.hnet.comfychair.ui.components.shared.ModelPathText
 import sh.hnet.comfychair.ui.components.shared.buildModelTree
 import sh.hnet.comfychair.ui.components.shared.folderPathOf
 import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
-import java.util.Locale
 
 /**
  * Reusable component for editing a LoRA chain (0-5 LoRAs with per-LoRA strength)
@@ -92,22 +92,35 @@ fun LoraChainEditor(
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         } else {
-            // LoRA entries
-            loraChain.forEachIndexed { index, lora ->
-                key(lora.name, index) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LoraEntryItem(
-                        index = index,
-                        lora = lora,
-                        availableLoras = availableLoras,
-                        onNameChange = { name -> onLoraNameChange(index, name) },
-                        onStrengthChange = { strength -> onLoraStrengthChange(index, strength) },
-                        onRemove = { onRemoveLora(index) }
-                    )
+            // LoRA entries as a segmented list
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                loraChain.forEachIndexed { index, lora ->
+                    key(lora.name, index) {
+                        LoraEntryItem(
+                            index = index,
+                            lora = lora,
+                            shape = entryShape(index, loraChain.size),
+                            availableLoras = availableLoras,
+                            onNameChange = { name -> onLoraNameChange(index, name) },
+                            onStrengthChange = { strength -> onLoraStrengthChange(index, strength) },
+                            onRemove = { onRemoveLora(index) }
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * Corner shape of an entry by its position, so the chain reads as one segmented group.
+ */
+private fun entryShape(index: Int, count: Int): RoundedCornerShape = when {
+    count == 1 -> RoundedCornerShape(16.dp)
+    index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+    index == count - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+    else -> RoundedCornerShape(4.dp)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,6 +128,7 @@ fun LoraChainEditor(
 private fun LoraEntryItem(
     index: Int,
     lora: LoraSelection,
+    shape: RoundedCornerShape,
     availableLoras: List<String>,
     onNameChange: (String) -> Unit,
     onStrengthChange: (Float) -> Unit,
@@ -126,106 +140,97 @@ private fun LoraEntryItem(
     val hasFolders = remember(tree) { modelTreeHasFolders(tree) }
     var expandedPath by remember(lora.name) { mutableStateOf(folderPathOf(lora.name)) }
 
-    Column(
+    // Label carries the position and folder, the field shows only the file name
+    val folder = folderPathOf(lora.name)
+    val entryLabel = if (folder.isEmpty()) {
+        stringResource(R.string.label_lora_entry, index + 1)
+    } else {
+        stringResource(R.string.label_lora_entry_folder, index + 1, folder)
+    }
+    val fileName = lora.name.replace('\\', '/').substringAfterLast('/').removeSuffix(".safetensors")
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = shape,
         modifier = Modifier.fillMaxWidth()
     ) {
-        // LoRA selection row with dropdown and remove button
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Index indicator
-            Text(
-                text = "${index + 1}.",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.width(24.dp)
-            )
-
-            // LoRA dropdown
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = {
-                    expanded = it
-                    if (it) expandedPath = folderPathOf(lora.name)
-                },
-                modifier = Modifier.weight(1f)
+            // LoRA selection row with dropdown and remove button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedTextField(
-                    value = lora.name,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.label_lora)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth(),
-                    singleLine = true
-                )
-
-                ExposedDropdownMenu(
+                // LoRA dropdown
+                ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onExpandedChange = {
+                        expanded = it
+                        if (it) expandedPath = folderPathOf(lora.name)
+                    },
+                    modifier = Modifier.weight(1f)
                 ) {
-                    if (!hasFolders) {
-                        availableLoras.forEach { option ->
-                            DropdownMenuItem(
-                                text = { ModelPathText(option) },
-                                onClick = {
-                                    onNameChange(option)
+                    OutlinedTextField(
+                        value = fileName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(entryLabel) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        if (!hasFolders) {
+                            availableLoras.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { ModelPathText(option) },
+                                    onClick = {
+                                        onNameChange(option)
+                                        expanded = false
+                                    },
+                                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                )
+                            }
+                        } else {
+                            HierarchicalTreeItems(
+                                nodes = tree,
+                                expandedPath = expandedPath,
+                                selectedValue = lora.name,
+                                depth = 0,
+                                onExpandFolder = { expandedPath = it },
+                                onSelectModel = {
+                                    onNameChange(it)
                                     expanded = false
-                                },
-                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                }
                             )
                         }
-                    } else {
-                        HierarchicalTreeItems(
-                            nodes = tree,
-                            expandedPath = expandedPath,
-                            selectedValue = lora.name,
-                            depth = 0,
-                            onExpandFolder = { expandedPath = it },
-                            onSelectModel = {
-                                onNameChange(it)
-                                expanded = false
-                            }
-                        )
                     }
+                }
+
+                // Remove button
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.button_remove_lora)
+                    )
                 }
             }
 
-            // Remove button
-            IconButton(onClick = onRemove) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.button_remove_lora)
-                )
-            }
-        }
-
-        // Strength slider
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, end = 48.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.label_lora_strength),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(64.dp)
-            )
-
-            Slider(
-                value = lora.strength,
-                onValueChange = onStrengthChange,
-                valueRange = LoraSelection.MIN_STRENGTH..LoraSelection.MAX_STRENGTH,
-                modifier = Modifier.weight(1f)
-            )
-
-            Text(
-                text = String.format(Locale.US, "%.1f", lora.strength),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(32.dp)
+            // Strength rows end where the dropdown ends (4dp spacing + 48dp remove button)
+            LoraStrengthControl(
+                entryKey = "$index:${lora.name}",
+                strength = lora.strength,
+                onStrengthChange = onStrengthChange,
+                modifier = Modifier.padding(end = 52.dp)
             )
         }
     }

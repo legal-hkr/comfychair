@@ -447,9 +447,13 @@
     <string name="title_highnoise_lora_chain">LoRAs de alto ruido (opcional)</string>
     <string name="title_lownoise_lora_chain">LoRAs de bajo ruido (opcional)</string>
     <string name="button_add_lora">Añadir LoRA</string>
-    <string name="label_lora_strength">Fuerza:</string>
+    <string name="label_lora_strength">Fuerza</string>
     <string name="msg_lora_empty">Sin LoRAs añadidos</string>
     <string name="button_remove_lora">Eliminar LoRA</string>
+    <string name="content_description_lora_strength_decrease">Reducir la fuerza en %1$d</string>
+    <string name="content_description_lora_strength_increase">Aumentar la fuerza en %1$d</string>
+    <string name="content_description_lora_strength_slider">Fuerza, ajuste fino de %1$s a %2$s</string>
+    <string name="error_lora_strength_range">De %1$s a %2$s</string>
 
     <!-- Backup and restore strings -->
     <string name="title_backup_restore">Copia de seguridad y restauración</string>

@@ -338,9 +338,15 @@
     <string name="title_lownoise_lora_chain">Low Noise LoRAs (optional)</string>
     <string name="button_add_lora">Add LoRA</string>
     <string name="label_lora" translatable="false">LoRA</string>
-    <string name="label_lora_strength">Strength:</string>
+    <string name="label_lora_strength">Strength</string>
     <string name="msg_lora_empty">No LoRAs added</string>
     <string name="button_remove_lora">Remove LoRA</string>
+    <string name="label_lora_entry" translatable="false">LoRA %1$d</string>
+    <string name="label_lora_entry_folder" translatable="false">LoRA %1$d – %2$s/</string>
+    <string name="content_description_lora_strength_decrease">Decrease strength by %1$d</string>
+    <string name="content_description_lora_strength_increase">Increase strength by %1$d</string>
+    <string name="content_description_lora_strength_slider">Strength, fine adjustment from %1$s to %2$s</string>
+    <string name="error_lora_strength_range">%1$s to %2$s</string>
 
     <!-- Validation error messages -->
     <string name="error_dimension_range">Must be 1–4096</string>
