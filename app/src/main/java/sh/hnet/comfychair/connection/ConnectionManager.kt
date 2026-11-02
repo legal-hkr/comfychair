@@ -260,14 +260,20 @@ object ConnectionManager {
         DebugLogger.i(TAG, "Connecting to ${Obfuscator.hostname(hostname)} (protocol: $protocol, serverId: $serverId)")
         val current = connectionState.value
 
-        // Check if already connected to the same server
+        // Check if already connected to the same server with unchanged settings. An edited server
+        // entry keeps its ID, so the connection parameters must match as well; otherwise the old
+        // client would keep sending requests to the previous host.
         if (current is ConnectionState.Connected &&
-            current.serverId == serverId) {
+            current.serverId == serverId &&
+            current.hostname == hostname &&
+            current.port == port &&
+            current.protocol == protocol &&
+            _client?.getCredentials() == credentials) {
             DebugLogger.d(TAG, "Already connected to same server, skipping")
             return
         }
 
-        // Disconnect from previous server if any
+        // Disconnect from previous server (or previous settings of the same server) if any
         if (current is ConnectionState.Connected) {
             DebugLogger.d(TAG, "Disconnecting from previous server")
             closeWebSocketInternal()
