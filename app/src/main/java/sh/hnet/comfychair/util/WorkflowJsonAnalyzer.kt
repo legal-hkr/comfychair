@@ -15,15 +15,8 @@ import sh.hnet.comfychair.workflow.WorkflowGraph
  */
 internal object WorkflowJsonAnalyzer {
 
-    // Required placeholders per workflow type - only positive_prompt is required now
-    // All other fields are optional and handled by WorkflowDefaults capability flags
-    val REQUIRED_PLACEHOLDERS = mapOf(
-        WorkflowType.TTI to listOf("{{positive_prompt}}"),
-        WorkflowType.ITI_INPAINTING to listOf("{{positive_prompt}}"),
-        WorkflowType.ITI_EDITING to listOf("{{positive_prompt}}"),
-        WorkflowType.TTV to listOf("{{positive_prompt}}"),
-        WorkflowType.ITV to listOf("{{positive_prompt}}")
-    )
+    // No placeholder is required: even the positive prompt is optional (e.g. upscaler workflows have
+    // none), and field visibility is handled by WorkflowCapabilities flags
 
     // Required patterns (not placeholders but literal strings that must exist)
     val REQUIRED_PATTERNS = mapOf(
@@ -225,24 +218,16 @@ internal object WorkflowJsonAnalyzer {
             return WorkflowValidationResult.InvalidJson(e.message ?: "Invalid JSON")
         }
 
-        // Check for required placeholders
-        val requiredPlaceholders = REQUIRED_PLACEHOLDERS[type] ?: emptyList()
-        val missingPlaceholders = requiredPlaceholders.filter { placeholder ->
-            !jsonContent.contains(placeholder)
-        }
-
         // Check for required patterns
         val requiredPatterns = REQUIRED_PATTERNS[type] ?: emptyList()
         val missingPatterns = requiredPatterns.filter { pattern ->
             !jsonContent.contains(pattern)
         }
 
-        val allMissing = missingPlaceholders + missingPatterns
-
-        return if (allMissing.isEmpty()) {
+        return if (missingPatterns.isEmpty()) {
             WorkflowValidationResult.Success
         } else {
-            WorkflowValidationResult.MissingPlaceholders(allMissing)
+            WorkflowValidationResult.MissingPlaceholders(missingPatterns)
         }
     }
 

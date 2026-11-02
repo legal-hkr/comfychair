@@ -1105,7 +1105,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             return false
         }
 
-        if (state.positivePrompt.isBlank()) {
+        // Workflows without a positive prompt placeholder (e.g. upscalers) don't need one
+        if (state.capabilities.hasPositivePrompt && state.positivePrompt.isBlank()) {
             return false
         }
 

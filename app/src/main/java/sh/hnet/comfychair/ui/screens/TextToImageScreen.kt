@@ -316,42 +316,45 @@ fun TextToImageScreen(
             }
         }
 
-        // Prompt Input — expands to fill screen above keyboard when focused
-        OutlinedTextField(
-            value = uiState.positivePrompt,
-            onValueChange = {
-                textToImageViewModel.onPositivePromptChange(it)
-                presetViewModel.clearActivePreset()
-            },
-            label = { Text(stringResource(R.string.hint_prompt)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (expandPrompt) Modifier.weight(1f) else Modifier)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .onFocusChanged { promptFocused = it.isFocused },
-            minLines = 2,
-            maxLines = if (expandPrompt) Int.MAX_VALUE else 4,
-            keyboardOptions = KeyboardOptions(autoCorrectEnabled = spellCheckEnabled),
-            visualTransformation = positivePromptTransformation,
-            leadingIcon = {
-                PromptPresetDropdown(
-                    favorites = presetUiState.favorites,
-                    activePresetId = presetUiState.activePresetId,
-                    currentPromptIsEmpty = uiState.positivePrompt.isEmpty(),
-                    onPresetSelected = { presetViewModel.onPresetSelected(it) },
-                    onOpenLibrary = { presetViewModel.showLibrary() },
-                    onSaveCurrentPrompt = { presetViewModel.showSaveDialog(uiState.positivePrompt) },
-                    onResetPrompt = { presetViewModel.resetPrompt() }
-                )
-            },
-            trailingIcon = {
-                if (uiState.positivePrompt.isNotEmpty()) {
-                    IconButton(onClick = { textToImageViewModel.onPositivePromptChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.content_description_clear))
+        // Prompt Input — expands to fill screen above keyboard when focused.
+        // Hidden for workflows without a positive prompt placeholder (e.g. upscalers).
+        if (uiState.capabilities.hasPositivePrompt) {
+            OutlinedTextField(
+                value = uiState.positivePrompt,
+                onValueChange = {
+                    textToImageViewModel.onPositivePromptChange(it)
+                    presetViewModel.clearActivePreset()
+                },
+                label = { Text(stringResource(R.string.hint_prompt)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (expandPrompt) Modifier.weight(1f) else Modifier)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .onFocusChanged { promptFocused = it.isFocused },
+                minLines = 2,
+                maxLines = if (expandPrompt) Int.MAX_VALUE else 4,
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = spellCheckEnabled),
+                visualTransformation = positivePromptTransformation,
+                leadingIcon = {
+                    PromptPresetDropdown(
+                        favorites = presetUiState.favorites,
+                        activePresetId = presetUiState.activePresetId,
+                        currentPromptIsEmpty = uiState.positivePrompt.isEmpty(),
+                        onPresetSelected = { presetViewModel.onPresetSelected(it) },
+                        onOpenLibrary = { presetViewModel.showLibrary() },
+                        onSaveCurrentPrompt = { presetViewModel.showSaveDialog(uiState.positivePrompt) },
+                        onResetPrompt = { presetViewModel.resetPrompt() }
+                    )
+                },
+                trailingIcon = {
+                    if (uiState.positivePrompt.isNotEmpty()) {
+                        IconButton(onClick = { textToImageViewModel.onPositivePromptChange("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.content_description_clear))
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
 
         // Generate and Options buttons
         Row(
@@ -363,7 +366,7 @@ fun TextToImageScreen(
             GenerationButton(
                 queueSize = queueState.totalQueueSize,
                 isExecuting = queueState.isExecuting,
-                isEnabled = uiState.positivePrompt.isNotBlank(),
+                isEnabled = !uiState.capabilities.hasPositivePrompt || uiState.positivePrompt.isNotBlank(),
                 isOfflineMode = isOfflineMode,
                 isFetching = uiState.isFetching,
                 isConnecting = isConnecting,

@@ -12,6 +12,8 @@ package sh.hnet.comfychair.model
  */
 data class WorkflowCapabilities(
     // Parameter flags
+    // Defaults to true so the prompt field stays visible until a workflow is loaded
+    val hasPositivePrompt: Boolean = true,
     val hasNegativePrompt: Boolean = false,
     val hasCfg: Boolean = false,
     val hasWidth: Boolean = false,
@@ -68,6 +70,7 @@ data class WorkflowCapabilities(
         fun fromPlaceholders(placeholders: Set<String>): WorkflowCapabilities {
             return WorkflowCapabilities(
                 // Parameters
+                hasPositivePrompt = "positive_prompt" in placeholders,
                 hasNegativePrompt = "negative_prompt" in placeholders,
                 hasCfg = "cfg" in placeholders,
                 hasWidth = "width" in placeholders,

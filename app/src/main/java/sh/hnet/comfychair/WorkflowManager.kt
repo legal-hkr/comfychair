@@ -124,7 +124,6 @@ object WorkflowManager {
     }
 
     // Constants - delegate to WorkflowJsonAnalyzer
-    val REQUIRED_PLACEHOLDERS get() = WorkflowJsonAnalyzer.REQUIRED_PLACEHOLDERS
     val REQUIRED_PATTERNS get() = WorkflowJsonAnalyzer.REQUIRED_PATTERNS
     val PREFIX_TO_TYPE get() = WorkflowJsonAnalyzer.PREFIX_TO_TYPE
 

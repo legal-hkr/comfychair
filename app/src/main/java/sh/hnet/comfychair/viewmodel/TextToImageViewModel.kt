@@ -705,7 +705,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     override fun hasValidConfiguration(): Boolean {
         val state = _uiState.value
 
-        if (state.positivePrompt.isBlank()) {
+        // Workflows without a positive prompt placeholder (e.g. upscalers) don't need one
+        if (state.capabilities.hasPositivePrompt && state.positivePrompt.isBlank()) {
             return false
         }
 

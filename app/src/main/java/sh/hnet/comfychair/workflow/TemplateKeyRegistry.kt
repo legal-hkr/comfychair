@@ -102,11 +102,11 @@ object TemplateKeyRegistry {
      * These are the minimum fields needed for a workflow to function.
      */
     private val REQUIRED_KEYS_BY_TYPE: Map<WorkflowType, Set<String>> = mapOf(
-        WorkflowType.TTI to setOf("positive_text"),
-        WorkflowType.ITI_INPAINTING to setOf("positive_text", "image"),
-        WorkflowType.ITI_EDITING to setOf("positive_text", "image"),
-        WorkflowType.TTV to setOf("positive_text"),
-        WorkflowType.ITV to setOf("positive_text", "image")
+        WorkflowType.TTI to emptySet(),
+        WorkflowType.ITI_INPAINTING to setOf("image"),
+        WorkflowType.ITI_EDITING to setOf("image"),
+        WorkflowType.TTV to emptySet(),
+        WorkflowType.ITV to setOf("image")
     )
 
     /**
@@ -114,7 +114,7 @@ object TemplateKeyRegistry {
      * Field visibility is determined by WorkflowDefaults capability flags at runtime.
      */
     private val UNIVERSAL_OPTIONAL_KEYS: Set<String> = setOf(
-        "negative_text", "ckpt_name", "unet_name", "vae_name",
+        "positive_text", "negative_text", "ckpt_name", "unet_name", "vae_name",
         "clip_name", "clip_name1", "clip_name2", "clip_name3", "clip_name4",
         "width", "height", "steps", "cfg", "sampler_name", "scheduler",
         "megapixels", "lora_name",
