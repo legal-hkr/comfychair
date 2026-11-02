@@ -1931,6 +1931,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             samplerName = state.editingSampler,
             scheduler = state.editingScheduler,
             denoise = state.editingDenoise.toFloatOrNull() ?: 1.0f,
+            seed = state.editingSeed.toLongOrNull(),
+            randomSeed = state.editingRandomSeed,
+            batchSize = state.editingBatchSize.toIntOrNull(),
+            upscaleMethod = state.editingUpscaleMethod.takeIf { it.isNotEmpty() },
+            scaleBy = state.editingScaleBy.toFloatOrNull(),
+            stopAtClipLayer = state.editingStopAtClipLayer.toIntOrNull(),
             sourceImageFilename = uploadedSource,
             referenceImage1Filename = uploadedRef1,
             referenceImage2Filename = uploadedRef2
@@ -2015,6 +2021,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             samplerName = state.sampler,
             scheduler = state.scheduler,
             denoise = state.denoise.toFloatOrNull() ?: 1.0f,
+            seed = state.seed.toLongOrNull(),
+            randomSeed = state.randomSeed,
+            batchSize = state.batchSize.toIntOrNull(),
+            upscaleMethod = state.upscaleMethod.takeIf { it.isNotEmpty() },
+            scaleBy = state.scaleBy.toFloatOrNull(),
+            stopAtClipLayer = state.stopAtClipLayer.toIntOrNull(),
             imageFilename = uploadedFilename
         ) ?: return null
 

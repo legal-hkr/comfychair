@@ -1067,7 +1067,13 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                 cfg = state.cfg.toFloatOrNull(),
                 samplerName = state.sampler,
                 scheduler = state.scheduler,
-                denoise = state.denoise.toFloatOrNull()
+                denoise = state.denoise.toFloatOrNull(),
+                megapixels = state.megapixels.toFloatOrNull(),
+                seed = state.seed.toLongOrNull(),
+                randomSeed = state.randomSeed,
+                upscaleMethod = state.upscaleMethod.takeIf { it.isNotEmpty() },
+                scaleBy = state.scaleBy.toFloatOrNull(),
+                stopAtClipLayer = state.stopAtClipLayer.toIntOrNull()
             ) ?: return null
 
             // Inject LoRAs if configured

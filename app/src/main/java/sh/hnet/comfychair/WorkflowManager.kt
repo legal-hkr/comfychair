@@ -1710,6 +1710,12 @@ object WorkflowManager {
         samplerName: String = "euler",
         scheduler: String = "normal",
         denoise: Float = 1.0f,
+        seed: Long? = null,
+        randomSeed: Boolean = true,
+        batchSize: Int? = null,
+        upscaleMethod: String? = null,
+        scaleBy: Float? = null,
+        stopAtClipLayer: Int? = null,
         imageFilename: String
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
@@ -1728,7 +1734,7 @@ object WorkflowManager {
         if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
 
-        val randomSeed = (0..999999999999).random()
+        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
         val escapedPositivePrompt = escapeForJson(positivePrompt)
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
@@ -1764,13 +1770,17 @@ object WorkflowManager {
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(
             json = processedJson,
-            seed = randomSeed,
+            seed = actualSeed,
             steps = steps,
             cfg = cfg,
             samplerName = samplerName,
             scheduler = scheduler,
             denoise = denoise,
-            megapixels = megapixels
+            batchSize = batchSize,
+            megapixels = megapixels,
+            upscaleMethod = upscaleMethod,
+            scaleBy = scaleBy,
+            stopAtClipLayer = stopAtClipLayer
         )
 
         // Apply node attribute edits from the Workflow Editor
@@ -1807,6 +1817,12 @@ object WorkflowManager {
         samplerName: String = "euler",
         scheduler: String = "simple",
         denoise: Float = 1.0f,
+        seed: Long? = null,
+        randomSeed: Boolean = true,
+        batchSize: Int? = null,
+        upscaleMethod: String? = null,
+        scaleBy: Float? = null,
+        stopAtClipLayer: Int? = null,
         sourceImageFilename: String,
         referenceImage1Filename: String? = null,
         referenceImage2Filename: String? = null
@@ -1824,7 +1840,7 @@ object WorkflowManager {
         referenceImage1Filename?.let { DebugLogger.d(TAG, "Reference1: ${Obfuscator.filename(it)}") }
         referenceImage2Filename?.let { DebugLogger.d(TAG, "Reference2: ${Obfuscator.filename(it)}") }
 
-        val randomSeed = (0..999999999999).random()
+        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
         val escapedPositivePrompt = escapeForJson(positivePrompt)
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
@@ -1881,13 +1897,17 @@ object WorkflowManager {
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(
             json = processedJson,
-            seed = randomSeed,
+            seed = actualSeed,
             steps = steps,
             cfg = cfg,
             samplerName = samplerName,
             scheduler = scheduler,
             denoise = denoise,
-            megapixels = megapixels
+            batchSize = batchSize,
+            megapixels = megapixels,
+            upscaleMethod = upscaleMethod,
+            scaleBy = scaleBy,
+            stopAtClipLayer = stopAtClipLayer
         )
 
         // Second pass: remove unused reference image nodes and their connections
@@ -1999,7 +2019,13 @@ object WorkflowManager {
         cfg: Float? = null,
         samplerName: String? = null,
         scheduler: String? = null,
-        denoise: Float? = null
+        denoise: Float? = null,
+        megapixels: Float? = null,
+        seed: Long? = null,
+        randomSeed: Boolean = true,
+        upscaleMethod: String? = null,
+        scaleBy: Float? = null,
+        stopAtClipLayer: Int? = null
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
         DebugLogger.i(TAG, "Preparing TTV workflow: ${workflow.name} (id: $workflowId)")
@@ -2015,7 +2041,7 @@ object WorkflowManager {
         if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
         if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
 
-        val randomSeed = (0..999999999999).random()
+        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
         val escapedPositivePrompt = escapeForJson(positivePrompt)
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
@@ -2046,7 +2072,7 @@ object WorkflowManager {
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(
             json = processedJson,
-            seed = randomSeed,
+            seed = actualSeed,
             steps = steps,
             cfg = cfg,
             samplerName = samplerName,
@@ -2054,9 +2080,13 @@ object WorkflowManager {
             denoise = denoise,
             width = width,
             height = height,
+            megapixels = megapixels,
             length = length,
             frameRate = fps,
-            batchSize = 1
+            batchSize = 1,
+            upscaleMethod = upscaleMethod,
+            scaleBy = scaleBy,
+            stopAtClipLayer = stopAtClipLayer
         )
 
         // Apply node attribute edits from the Workflow Editor
@@ -2098,7 +2128,13 @@ object WorkflowManager {
         cfg: Float? = null,
         samplerName: String? = null,
         scheduler: String? = null,
-        denoise: Float? = null
+        denoise: Float? = null,
+        megapixels: Float? = null,
+        seed: Long? = null,
+        randomSeed: Boolean = true,
+        upscaleMethod: String? = null,
+        scaleBy: Float? = null,
+        stopAtClipLayer: Int? = null
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
         DebugLogger.i(TAG, "Preparing ITV workflow: ${workflow.name} (id: $workflowId)")
@@ -2115,7 +2151,7 @@ object WorkflowManager {
         if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
         DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
 
-        val randomSeed = (0..999999999999).random()
+        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
         val escapedPositivePrompt = escapeForJson(positivePrompt)
         val escapedNegativePrompt = escapeForJson(negativePrompt)
 
@@ -2149,7 +2185,7 @@ object WorkflowManager {
         // Common parameter placeholders (unified handling)
         processedJson = replaceCommonPlaceholders(
             json = processedJson,
-            seed = randomSeed,
+            seed = actualSeed,
             steps = steps,
             cfg = cfg,
             samplerName = samplerName,
@@ -2157,9 +2193,13 @@ object WorkflowManager {
             denoise = denoise,
             width = width,
             height = height,
+            megapixels = megapixels,
             length = length,
             frameRate = fps,
-            batchSize = 1
+            batchSize = 1,
+            upscaleMethod = upscaleMethod,
+            scaleBy = scaleBy,
+            stopAtClipLayer = stopAtClipLayer
         )
 
         // Apply node attribute edits from the Workflow Editor
