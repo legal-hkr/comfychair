@@ -619,6 +619,7 @@
     <string name="title_prompt_library">提示词库</string>
     <string name="placeholder_prompt_library_search">搜索提示词…</string>
     <string name="msg_prompt_library_empty">暂无保存的提示词</string>
+    <string name="prompt_library_filter_favorites">仅显示收藏</string>
     <string name="prompt_preset_toggle_favorite">切换收藏</string>
     <string name="prompt_preset_edit">编辑</string>
     <string name="prompt_preset_duplicate">复制</string>

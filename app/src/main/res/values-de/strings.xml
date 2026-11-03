@@ -619,6 +619,7 @@
     <string name="title_prompt_library">Prompt-Bibliothek</string>
     <string name="placeholder_prompt_library_search">Prompts suchen…</string>
     <string name="msg_prompt_library_empty">Keine gespeicherten Prompts</string>
+    <string name="prompt_library_filter_favorites">Nur Favoriten anzeigen</string>
     <string name="prompt_preset_toggle_favorite">Favorit umschalten</string>
     <string name="prompt_preset_edit">Bearbeiten</string>
     <string name="prompt_preset_duplicate">Duplizieren</string>

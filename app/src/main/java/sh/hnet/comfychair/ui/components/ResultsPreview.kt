@@ -160,8 +160,9 @@ fun ResultsPreview(
             pagerState.scrollToPage(currentIndex)
         }
     }
+    val currentOnIndexChange by rememberUpdatedState(onCurrentIndexChange)
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect(onCurrentIndexChange)
+        snapshotFlow { pagerState.settledPage }.collect { currentOnIndexChange(it) }
     }
 
     BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainer)) {

@@ -45,23 +45,26 @@ object ResultThumbnails {
     private fun cacheSizeBytes(): Int =
         minOf(16L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 16).toInt()
 
-    /** Returns a cached thumbnail without loading. */
-    fun get(output: GenerationOutput): ImageBitmap? = cache.get(output.id)
+    // Filenames repeat across servers (e.g. ComfyChair_00001_.png), so the job ID is part of the key
+    private val GenerationOutput.cacheKey: String get() = "$promptId/$id"
 
-    fun isFailed(output: GenerationOutput): Boolean = output.id in failed
+    /** Returns a cached thumbnail without loading. */
+    fun get(output: GenerationOutput): ImageBitmap? = cache.get(output.cacheKey)
+
+    fun isFailed(output: GenerationOutput): Boolean = output.cacheKey in failed
 
     /** Video duration from the server metadata or, once the thumbnail is loaded, from the file. */
-    fun durationMs(output: GenerationOutput): Long? = output.durationMs ?: durations[output.id]
+    fun durationMs(output: GenerationOutput): Long? = output.durationMs ?: durations[output.cacheKey]
 
     /**
      * Returns the thumbnail of [output], loading it if needed. [sizePx] is the edge length the
      * thumbnail is shown at; it's decoded at least that large. Returns null if loading failed.
      */
     suspend fun load(output: GenerationOutput, sizePx: Int): ImageBitmap? {
-        cache.get(output.id)?.let { return it }
+        cache.get(output.cacheKey)?.let { return it }
         return downloads.withPermit {
             // Another caller may have loaded it while this one waited
-            cache.get(output.id)?.let { return@withPermit it }
+            cache.get(output.cacheKey)?.let { return@withPermit it }
             val bitmap = withContext(Dispatchers.IO) {
                 try {
                     if (output.isVideo) loadVideoFrame(output, sizePx) else loadImage(output, sizePx)
@@ -72,11 +75,11 @@ object ResultThumbnails {
             }
             if (bitmap != null) {
                 val thumbnail = bitmap.asImageBitmap()
-                cache.put(output.id, thumbnail)
-                failed.remove(output.id)
+                cache.put(output.cacheKey, thumbnail)
+                failed.remove(output.cacheKey)
                 thumbnail
             } else {
-                failed.add(output.id)
+                failed.add(output.cacheKey)
                 null
             }
         }
@@ -120,7 +123,7 @@ object ResultThumbnails {
             if (output.durationMs == null) {
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                     ?.toLongOrNull()
-                    ?.let { durations[output.id] = it }
+                    ?.let { durations[output.cacheKey] = it }
             }
             // Scale so the shorter edge is sizePx (the frame is fitted into the given box)
             val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0

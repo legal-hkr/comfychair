@@ -357,6 +357,24 @@ object MediaStateHolder {
             else -> { }
         }
 
+        // Each screen shows only its latest video; earlier ones would otherwise pile up in RAM
+        // for the whole session, or on the device for good
+        val prefix = when (key) {
+            is MediaKey.TtvVideo -> VideoUtils.FilePrefix.TEXT_TO_VIDEO
+            is MediaKey.ItvVideo -> VideoUtils.FilePrefix.IMAGE_TO_VIDEO
+            else -> null
+        }
+        if (prefix != null) {
+            videoBytes.keys.filter { it::class == key::class && it != key }.forEach {
+                videoBytes.remove(it)
+                dirtyVideos.remove(it)
+            }
+            val ownFile = key.filename(serverId)
+            context?.filesDir?.listFiles()?.forEach { file ->
+                if (file.name.startsWith("${serverId}_$prefix") && file.name != ownFile) file.delete()
+            }
+        }
+
         if (isMemoryFirstMode) {
             // Memory-first: store in memory, mark as dirty for later persistence
             videoBytes[key] = bytes

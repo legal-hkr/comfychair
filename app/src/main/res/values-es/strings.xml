@@ -623,6 +623,7 @@
     <string name="title_prompt_library">Biblioteca de prompts</string>
     <string name="placeholder_prompt_library_search">Buscar prompts…</string>
     <string name="msg_prompt_library_empty">Sin prompts guardados</string>
+    <string name="prompt_library_filter_favorites">Mostrar solo favoritos</string>
     <string name="prompt_preset_toggle_favorite">Alternar favorito</string>
     <string name="prompt_preset_edit">Editar</string>
     <string name="prompt_preset_duplicate">Duplicar</string>
