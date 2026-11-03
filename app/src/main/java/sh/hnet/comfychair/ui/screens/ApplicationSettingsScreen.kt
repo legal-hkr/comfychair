@@ -1,5 +1,10 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.storage.MediaStorageMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
 import android.app.LocaleManager
 import android.net.Uri
 import android.os.LocaleList
@@ -64,8 +69,10 @@ fun ApplicationSettingsScreen(
 ) {
     val context = LocalContext.current
     val isLivePreviewEnabled by viewModel.isLivePreviewEnabled.collectAsState()
-    val isMemoryFirstCache by viewModel.isMemoryFirstCache.collectAsState()
-    val isMediaCacheDisabled by viewModel.isMediaCacheDisabled.collectAsState()
+    val mediaStorageMode by viewModel.mediaStorageMode.collectAsState()
+    // Offline mode browses the gallery cache, which only exists with storage on the device
+    val isOfflineModeAvailable = mediaStorageMode == MediaStorageMode.DEVICE
+    var showMemoryOnlyConfirm by remember { mutableStateOf(false) }
     val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
     val isAutoConnectEnabled by viewModel.isAutoConnectEnabled.collectAsState()
     val isShowBuiltInWorkflows by viewModel.isShowBuiltInWorkflows.collectAsState()
@@ -131,6 +138,30 @@ fun ApplicationSettingsScreen(
                 }
             }
         }
+    }
+
+    // Switching to memory-only storage deletes the media stored on the device
+    if (showMemoryOnlyConfirm) {
+        AlertDialog(
+            onDismissRequest = { showMemoryOnlyConfirm = false },
+            title = { Text(stringResource(R.string.title_media_storage_memory_only_confirm)) },
+            text = { Text(stringResource(R.string.msg_media_storage_memory_only_confirm)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMemoryOnlyConfirm = false
+                        viewModel.setMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY)
+                    }
+                ) {
+                    Text(stringResource(R.string.button_delete))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showMemoryOnlyConfirm = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            }
+        )
     }
 
     // Restore confirmation dialog
@@ -322,18 +353,18 @@ fun ApplicationSettingsScreen(
                         Text(
                             text = stringResource(R.string.label_offline_mode),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (!isMemoryFirstCache)
+                            color = if (isOfflineModeAvailable)
                                 MaterialTheme.colorScheme.onSurface
                             else
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
                         Text(
                             text = stringResource(
-                                if (isMemoryFirstCache) R.string.msg_offline_mode_requires_disk_cache
+                                if (!isOfflineModeAvailable) R.string.msg_offline_mode_requires_disk_cache
                                 else R.string.desc_offline_mode
                             ),
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (!isMemoryFirstCache)
+                            color = if (isOfflineModeAvailable)
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             else
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
@@ -342,7 +373,7 @@ fun ApplicationSettingsScreen(
                     Switch(
                         checked = isOfflineMode,
                         onCheckedChange = { viewModel.setOfflineMode(context, it) },
-                        enabled = !isMemoryFirstCache
+                        enabled = isOfflineModeAvailable
                     )
                 }
             }
@@ -541,66 +572,32 @@ fun ApplicationSettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // In-memory first cache toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.label_memory_first_cache),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = stringResource(R.string.desc_memory_first_cache),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (isMemoryFirstCache) {
-                            Text(
-                                text = stringResource(R.string.desc_memory_first_cache_warning),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                // Media storage: one choice, with the consequences of each option spelled out
+                Column(modifier = Modifier.selectableGroup()) {
+                    MediaStorageOption(
+                        selected = mediaStorageMode == MediaStorageMode.MEMORY_ONLY,
+                        label = stringResource(R.string.label_media_storage_memory_only),
+                        description = stringResource(R.string.desc_media_storage_memory_only),
+                        onSelect = {
+                            // Stored media gets deleted, so ask first if there is any
+                            if (viewModel.hasStoredMedia(context)) {
+                                showMemoryOnlyConfirm = true
+                            } else {
+                                viewModel.setMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY)
+                            }
                         }
-                    }
-                    Switch(
-                        checked = isMemoryFirstCache,
-                        onCheckedChange = { viewModel.setMemoryFirstCache(context, it) }
                     )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Disable media cache toggle (disabled when disk-first mode)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.label_disable_media_cache),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isMemoryFirstCache)
-                                MaterialTheme.colorScheme.onSurface
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                        Text(
-                            text = stringResource(R.string.desc_disable_media_cache),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isMemoryFirstCache)
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                        )
-                    }
-                    Switch(
-                        checked = isMediaCacheDisabled,
-                        onCheckedChange = { viewModel.setMediaCacheDisabled(context, it) },
-                        enabled = isMemoryFirstCache
+                    MediaStorageOption(
+                        selected = mediaStorageMode == MediaStorageMode.MEMORY_PERSISTED,
+                        label = stringResource(R.string.label_media_storage_memory_persisted),
+                        description = stringResource(R.string.desc_media_storage_memory_persisted),
+                        onSelect = { viewModel.setMediaStorageMode(context, MediaStorageMode.MEMORY_PERSISTED) }
+                    )
+                    MediaStorageOption(
+                        selected = mediaStorageMode == MediaStorageMode.DEVICE,
+                        label = stringResource(R.string.label_media_storage_device),
+                        description = stringResource(R.string.desc_media_storage_device),
+                        onSelect = { viewModel.setMediaStorageMode(context, MediaStorageMode.DEVICE) }
                     )
                 }
 
@@ -800,5 +797,36 @@ fun ApplicationSettingsScreen(
                 logSaveLauncher.launch("comfychair_log_$timestamp.txt")
             }
         )
+    }
+}
+
+/**
+ * One option of the media storage choice: radio button, label and what the option means.
+ */
+@Composable
+private fun MediaStorageOption(
+    selected: Boolean,
+    label: String,
+    description: String,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        // The row handles the click, so the radio button itself stays passive
+        RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(top = 2.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

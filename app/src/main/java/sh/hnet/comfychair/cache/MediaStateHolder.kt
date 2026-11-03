@@ -133,6 +133,43 @@ object MediaStateHolder {
     }
 
     /**
+     * Memory-only storage (the default): media must never be written to the device. Set from the
+     * user's MediaStorageMode together with [setMemoryFirstMode].
+     */
+    @Volatile
+    var isMemoryOnly: Boolean = true
+
+    /** Media files of all servers in filesDir: previews, videos and result lists. */
+    private fun diskMediaFiles(context: Context): List<File> =
+        context.filesDir.listFiles()?.filter { file ->
+            val name = file.name
+            val serverId = name.substringBefore('_', missingDelimiterValue = "")
+            // Server-scoped files start with the server UUID
+            serverId.length == 36 && serverId.count { it == '-' } == 4 &&
+                    (name.endsWith(".png") || name.endsWith(".mp4") || name.endsWith(OUTPUTS_FILE_SUFFIX))
+        }.orEmpty()
+
+    /** Whether any generated media of any server is stored on the device. */
+    fun hasDiskMedia(context: Context): Boolean = diskMediaFiles(context).isNotEmpty()
+
+    /**
+     * Enforce memory-only storage: load the current server's stored media into RAM, so the
+     * results on screen stay available, then delete all media files of all servers. Also removes
+     * files left by other modes or by older versions that kept disk copies.
+     */
+    suspend fun enforceMemoryOnly(context: Context) {
+        isMemoryOnly = true
+        setMemoryFirstMode(true, context)
+        val files = diskMediaFiles(context)
+        if (files.isEmpty()) return
+        loadFromDisk(context)
+        withContext(Dispatchers.IO) {
+            files.forEach { it.delete() }
+        }
+        DebugLogger.i(TAG, "Memory-only storage: deleted ${files.size} media files from the device")
+    }
+
+    /**
      * File with the result list of a screen's last job: filenames only, no media.
      */
     private fun outputsFile(context: Context, serverId: String, owner: String): File =
@@ -140,8 +177,8 @@ object MediaStateHolder {
 
     /**
      * Keep the result list of a screen's last job, so the results strip survives process death.
-     * Like the previews, it's written to disk only in disk-first mode; in memory-first mode any
-     * file left from disk-first mode is removed, so an outdated list can't come back later.
+     * Like the previews, it's written to the device unless storage is memory-only; then any file
+     * left from another mode is removed, so an outdated list can't come back later.
      *
      * @param owner Screen owner ID, e.g. TextToImageViewModel.OWNER_ID
      */
@@ -150,7 +187,7 @@ object MediaStateHolder {
         val serverId = currentServerId ?: return
         val file = outputsFile(ctx, serverId, owner)
         try {
-            if (isMemoryFirstMode || outputs.isEmpty()) {
+            if (isMemoryOnly || outputs.isEmpty()) {
                 file.delete()
                 return
             }
@@ -166,11 +203,11 @@ object MediaStateHolder {
     }
 
     /**
-     * Read the result list kept by [saveGenerationOutputs] (disk-first mode only).
+     * Read the result list kept by [saveGenerationOutputs] (not in memory-only storage).
      * @return The results and the current index, or null if nothing is stored
      */
     fun loadGenerationOutputs(context: Context?, owner: String): Pair<List<GenerationOutput>, Int>? {
-        if (isMemoryFirstMode) return null
+        if (isMemoryOnly) return null
         val ctx = context ?: return null
         val serverId = currentServerId ?: return null
         val file = outputsFile(ctx, serverId, owner)

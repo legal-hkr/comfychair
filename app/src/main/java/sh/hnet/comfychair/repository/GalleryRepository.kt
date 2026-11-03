@@ -18,6 +18,7 @@ import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.GalleryMetadataCache
+import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.viewmodel.GalleryItem
@@ -244,8 +245,10 @@ class GalleryRepository private constructor() {
             hasLoadedOnce = true
             DebugLogger.d(TAG, "Gallery refresh complete: ${items.size} items (was $previousCount)")
 
-            // Cache gallery metadata for offline mode
-            if (context != null && serverId != null) {
+            // Cache gallery metadata for offline mode, which needs storage on the device; the
+            // memory modes leave no trace of the generation history on the device
+            if (context != null && serverId != null &&
+                AppSettings.getMediaStorageMode(context) == MediaStorageMode.DEVICE) {
                 withContext(Dispatchers.IO) {
                     GalleryMetadataCache.saveMetadata(context, serverId, items)
                 }

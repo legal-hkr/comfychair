@@ -144,21 +144,24 @@
     <string name="option_edge_router_bezier">Bezier Curve</string>
     <string name="option_edge_router_hermite">Hermite Spline</string>
     <string name="title_settings_cache">Cache and storage</string>
-    <string name="desc_settings_cache">Media caching settings</string>
+    <string name="desc_settings_cache">Where generated images and videos are kept</string>
     <string name="title_settings_reset">Reset</string>
     <string name="desc_settings_reset">Reset app data and settings</string>
 
     <!-- App settings strings -->
     <string name="label_live_preview">Show live preview</string>
     <string name="desc_live_preview">Display intermediate images during generation</string>
-    <string name="label_memory_first_cache">In-memory first cache</string>
-    <string name="desc_memory_first_cache">Fast access, higher memory usage. Disable for slow networks or low-memory devices.</string>
-    <string name="desc_memory_first_cache_warning">Previews may be lost if the app is closed unexpectedly.</string>
-    <string name="label_disable_media_cache">Disable media cache</string>
-    <string name="desc_disable_media_cache">Do not save preview images and videos to disk</string>
+    <string name="label_media_storage_memory_only">Memory only</string>
+    <string name="desc_media_storage_memory_only">Nothing is written to the device. Results are gone when the app is closed.</string>
+    <string name="label_media_storage_memory_persisted">Memory, saved on exit</string>
+    <string name="desc_media_storage_memory_persisted">Fast access. When the app goes to the background, results are saved on the device so they survive it being closed.</string>
+    <string name="label_media_storage_device">On the device</string>
+    <string name="desc_media_storage_device">Lower memory use. Required for offline mode.</string>
+    <string name="title_media_storage_memory_only_confirm">Delete saved media?</string>
+    <string name="msg_media_storage_memory_only_confirm">Images and videos saved on the device will be deleted. Current results stay available until the app is closed.</string>
     <string name="label_offline_mode">Offline mode</string>
     <string name="desc_offline_mode">Browse cached data without network connection</string>
-    <string name="msg_offline_mode_requires_disk_cache">Disable \"In-memory first cache\" to enable offline mode</string>
+    <string name="msg_offline_mode_requires_disk_cache">Choose \"On the device\" storage to enable offline mode</string>
     <string name="msg_cannot_go_online">Cannot go online - server unreachable</string>
     <string name="label_auto_connect">Auto-connect</string>
     <string name="desc_auto_connect">Automatically connect to the last server on app launch</string>

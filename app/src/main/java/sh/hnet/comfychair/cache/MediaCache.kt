@@ -167,6 +167,22 @@ object MediaCache {
      */
     fun isMemoryFirstMode(): Boolean = isMemoryFirstMode
 
+    /** Whether the gallery/viewer disk cache holds any files. */
+    fun hasDiskCache(context: Context): Boolean =
+        File(context.cacheDir, DISK_CACHE_DIR).listFiles()?.isNotEmpty() == true
+
+    /**
+     * Delete the gallery/viewer disk cache, for memory-only storage. Unlike switching modes, this
+     * also removes files left when the app starts in memory mode.
+     */
+    fun deleteDiskCache(context: Context) {
+        try {
+            File(context.cacheDir, DISK_CACHE_DIR).deleteRecursively()
+        } catch (_: Exception) {
+            // Ignore deletion failures
+        }
+    }
+
     /**
      * Get the disk cache directory.
      */

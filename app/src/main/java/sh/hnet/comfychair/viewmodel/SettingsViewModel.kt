@@ -26,6 +26,8 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.GalleryMetadataCache
+import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.storage.BackupManager
 import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.CredentialStorage
@@ -103,11 +105,9 @@ class SettingsViewModel : ViewModel() {
     private val _isLivePreviewEnabled = MutableStateFlow(true)
     val isLivePreviewEnabled: StateFlow<Boolean> = _isLivePreviewEnabled.asStateFlow()
 
-    private val _isMemoryFirstCache = MutableStateFlow(true)
-    val isMemoryFirstCache: StateFlow<Boolean> = _isMemoryFirstCache.asStateFlow()
+    private val _mediaStorageMode = MutableStateFlow(MediaStorageMode.MEMORY_ONLY)
+    val mediaStorageMode: StateFlow<MediaStorageMode> = _mediaStorageMode.asStateFlow()
 
-    private val _isMediaCacheDisabled = MutableStateFlow(false)
-    val isMediaCacheDisabled: StateFlow<Boolean> = _isMediaCacheDisabled.asStateFlow()
 
     private val _isDebugLoggingEnabled = MutableStateFlow(false)
     val isDebugLoggingEnabled: StateFlow<Boolean> = _isDebugLoggingEnabled.asStateFlow()
@@ -140,8 +140,7 @@ class SettingsViewModel : ViewModel() {
         )
         // Load settings
         _isLivePreviewEnabled.value = AppSettings.isLivePreviewEnabled(context)
-        _isMemoryFirstCache.value = AppSettings.isMemoryFirstCache(context)
-        _isMediaCacheDisabled.value = AppSettings.isMediaCacheDisabled(context)
+        _mediaStorageMode.value = AppSettings.getMediaStorageMode(context)
         _isDebugLoggingEnabled.value = AppSettings.isDebugLoggingEnabled(context)
         _isAutoConnectEnabled.value = AppSettings.isAutoConnectEnabled(context)
         _isShowBuiltInWorkflows.value = AppSettings.isShowBuiltInWorkflows(context)
@@ -430,44 +429,42 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * Set whether memory-first caching should be enabled.
-     * When disabled, switches to disk-first mode and forces media cache to be enabled.
+     * Whether generated media is stored on the device, so switching to memory-only storage needs
+     * a confirmation (the files will be deleted).
      */
-    fun setMemoryFirstCache(context: Context, enabled: Boolean) {
+    fun hasStoredMedia(context: Context): Boolean =
+        MediaStateHolder.hasDiskMedia(context) || MediaCache.hasDiskCache(context)
+
+    /**
+     * Set where generated media is kept. Switching to memory-only storage moves the current
+     * results to RAM and deletes all stored media from the device right away.
+     */
+    fun setMediaStorageMode(context: Context, mode: MediaStorageMode) {
         viewModelScope.launch {
-            // Persist current state before changing mode
-            // This is critical because activity restart may skip onStop()
-            if (MediaStateHolder.isMemoryFirstMode() && !enabled) {
-                // Switching FROM memory-first: persist before clearing
+            val previous = AppSettings.getMediaStorageMode(context)
+            if (previous == mode) return@launch
+
+            // Keep the current results when they start being stored on the device; the
+            // activity restart may skip onStop()
+            if (previous != MediaStorageMode.DEVICE && mode == MediaStorageMode.DEVICE) {
                 MediaStateHolder.persistToDisk(context)
             }
 
-            AppSettings.setMemoryFirstCache(context, enabled)
-            _isMemoryFirstCache.value = enabled
+            AppSettings.setMediaStorageMode(context, mode)
+            _mediaStorageMode.value = mode
 
-            if (!enabled) {
-                // When switching to disk-first, disable media cache must be OFF
-                AppSettings.setMediaCacheDisabled(context, false)
-                _isMediaCacheDisabled.value = false
+            // The gallery list is kept only for offline mode, i.e. with storage on the device
+            if (mode != MediaStorageMode.DEVICE) GalleryMetadataCache.clearAllCaches(context)
+
+            if (mode == MediaStorageMode.MEMORY_ONLY) {
+                MediaStateHolder.enforceMemoryOnly(context)
+                MediaCache.setMemoryFirstMode(true)
+                MediaCache.deleteDiskCache(context)
+            } else {
+                MediaStateHolder.isMemoryOnly = false
             }
 
             _events.emit(SettingsEvent.RefreshNeeded)
-        }
-    }
-
-    /**
-     * Set whether media cache should be disabled.
-     * When enabled, clears the cache first and prevents future disk persistence.
-     * Only applicable in memory-first mode.
-     */
-    fun setMediaCacheDisabled(context: Context, disabled: Boolean) {
-        viewModelScope.launch {
-            if (disabled) {
-                // Clear cache first when disabling media cache
-                clearCache(context)
-            }
-            AppSettings.setMediaCacheDisabled(context, disabled)
-            _isMediaCacheDisabled.value = disabled
         }
     }
 
@@ -712,8 +709,7 @@ class SettingsViewModel : ViewModel() {
      */
     private fun reloadAppSettings(context: Context, preserveDebugLogging: Boolean = false) {
         val newLivePreview = AppSettings.isLivePreviewEnabled(context)
-        val newMemoryFirst = AppSettings.isMemoryFirstCache(context)
-        val newMediaCacheDisabled = AppSettings.isMediaCacheDisabled(context)
+        val newMediaStorageMode = AppSettings.getMediaStorageMode(context)
         val restoredDebugLogging = AppSettings.isDebugLoggingEnabled(context)
         val newAutoConnect = AppSettings.isAutoConnectEnabled(context)
         val newShowBuiltInWorkflows = AppSettings.isShowBuiltInWorkflows(context)
@@ -732,11 +728,10 @@ class SettingsViewModel : ViewModel() {
             restoredDebugLogging
         }
 
-        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, memoryFirst: $newMemoryFirst, mediaCacheDisabled: $newMediaCacheDisabled, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect, showBuiltInWorkflows: $newShowBuiltInWorkflows")
+        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, mediaStorage: $newMediaStorageMode, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect, showBuiltInWorkflows: $newShowBuiltInWorkflows")
 
         _isLivePreviewEnabled.value = newLivePreview
-        _isMemoryFirstCache.value = newMemoryFirst
-        _isMediaCacheDisabled.value = newMediaCacheDisabled
+        _mediaStorageMode.value = newMediaStorageMode
         _isDebugLoggingEnabled.value = finalDebugLogging
         _isAutoConnectEnabled.value = newAutoConnect
         _isShowBuiltInWorkflows.value = newShowBuiltInWorkflows

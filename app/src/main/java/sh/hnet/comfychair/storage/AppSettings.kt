@@ -8,6 +8,8 @@ import android.content.Context
  */
 object AppSettings {
     private const val PREFS_NAME = "AppSettings"
+    private const val KEY_MEDIA_STORAGE_MODE = "media_storage_mode"
+    // Former switches, read only to migrate to KEY_MEDIA_STORAGE_MODE
     private const val KEY_MEDIA_CACHE_DISABLED = "media_cache_disabled"
     private const val KEY_MEMORY_FIRST_CACHE = "memory_first_cache"
     private const val KEY_LIVE_PREVIEW_ENABLED = "live_preview_enabled"
@@ -40,44 +42,38 @@ object AppSettings {
     }
 
     /**
-     * Check if memory-first caching is enabled.
-     * When enabled (default), media is kept in RAM and persisted to disk on app background.
-     * When disabled, media is written directly to disk (disk-first mode for low-end devices).
+     * Where generated images and videos are kept. Defaults to [MediaStorageMode.MEMORY_ONLY]:
+     * nothing is written to the device unless the user chooses otherwise.
      */
-    fun isMemoryFirstCache(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_MEMORY_FIRST_CACHE, true)  // Default: true (memory-first)
+    fun getMediaStorageMode(context: Context): MediaStorageMode {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        MediaStorageMode.fromKey(prefs.getString(KEY_MEDIA_STORAGE_MODE, null))?.let { return it }
+        return MediaStorageMode.migrate(prefs.getBoolean(KEY_MEMORY_FIRST_CACHE, true))
     }
 
     /**
-     * Set whether memory-first caching should be enabled.
+     * Set where generated images and videos are kept. Replaces the former two switches.
      */
-    fun setMemoryFirstCache(context: Context, enabled: Boolean) {
+    fun setMediaStorageMode(context: Context, mode: MediaStorageMode) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putBoolean(KEY_MEMORY_FIRST_CACHE, enabled)
+            .putString(KEY_MEDIA_STORAGE_MODE, mode.key)
+            .remove(KEY_MEMORY_FIRST_CACHE)
+            .remove(KEY_MEDIA_CACHE_DISABLED)
             .apply()
     }
 
     /**
-     * Check if media cache is disabled.
-     * When disabled, the app does not persist preview images and videos to disk.
-     * Only applicable in memory-first mode.
+     * Whether media is kept in RAM (both memory modes) rather than written directly to disk.
      */
-    fun isMediaCacheDisabled(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_MEDIA_CACHE_DISABLED, false)
-    }
+    fun isMemoryFirstCache(context: Context): Boolean =
+        getMediaStorageMode(context) != MediaStorageMode.DEVICE
 
     /**
-     * Set whether media cache should be disabled.
+     * Whether media must never be written to the device ([MediaStorageMode.MEMORY_ONLY]).
      */
-    fun setMediaCacheDisabled(context: Context, disabled: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_MEDIA_CACHE_DISABLED, disabled)
-            .apply()
-    }
+    fun isMediaCacheDisabled(context: Context): Boolean =
+        getMediaStorageMode(context) == MediaStorageMode.MEMORY_ONLY
 
     /**
      * Check if debug logging is enabled.
@@ -210,4 +206,30 @@ object AppSettings {
             .apply()
     }
 
+}
+
+/**
+ * Where generated images and videos are kept.
+ */
+enum class MediaStorageMode(val key: String) {
+    /** RAM only: nothing is written to the device; results are gone when the app is closed. */
+    MEMORY_ONLY("memory_only"),
+
+    /** RAM, saved on the device when the app goes to the background, to survive process death. */
+    MEMORY_PERSISTED("memory_persisted"),
+
+    /** Written to the device directly; lower memory use, required for offline mode. */
+    DEVICE("device");
+
+    companion object {
+        fun fromKey(key: String?): MediaStorageMode? = entries.firstOrNull { it.key == key }
+
+        /**
+         * Mode for settings from before this setting existed. Disk-first stays on the device;
+         * memory-first becomes memory only, the privacy default, even where it used to save media
+         * on exit (that was the former default, so it can't be told apart from a deliberate choice).
+         */
+        fun migrate(memoryFirstCache: Boolean): MediaStorageMode =
+            if (memoryFirstCache) MEMORY_ONLY else DEVICE
+    }
 }

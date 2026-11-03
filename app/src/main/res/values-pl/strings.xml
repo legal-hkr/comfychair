@@ -72,7 +72,7 @@
     <string name="content_description_not_cached">Niedostępne offline</string>
     <string name="label_offline_mode">Tryb offline</string>
     <string name="desc_offline_mode">Przeglądaj dane z pamięci podręcznej bez połączenia sieciowego</string>
-    <string name="msg_offline_mode_requires_disk_cache">Wyłącz \"Pamięć podręczna w pamięci RAM\" aby włączyć tryb offline</string>
+    <string name="msg_offline_mode_requires_disk_cache">Tryb offline wymaga przechowywania „Na urządzeniu”</string>
     <string name="msg_cannot_go_online">Nie można przejść online - serwer nieosiągalny</string>
 
     <!-- Settings section titles -->
@@ -86,7 +86,7 @@
     <string name="option_edge_router_bezier">Krzywa Béziera</string>
     <string name="option_edge_router_hermite">Splajn Hermite\'a</string>
     <string name="title_settings_cache">Pamięć podręczna i przechowywanie</string>
-    <string name="desc_settings_cache">Ustawienia pamięci podręcznej mediów</string>
+    <string name="desc_settings_cache">Gdzie aplikacja przechowuje wygenerowane obrazy i wideo</string>
     <string name="title_settings_reset">Resetowanie</string>
     <string name="desc_settings_reset">Zresetuj dane i ustawienia aplikacji</string>
 
@@ -152,11 +152,14 @@
     <!-- App management strings -->
     <string name="label_live_preview">Pokaż podgląd na żywo</string>
     <string name="desc_live_preview">Wyświetlaj obrazy pośrednie podczas generowania</string>
-    <string name="label_memory_first_cache">Pamięć podręczna w pamięci RAM</string>
-    <string name="desc_memory_first_cache">Szybki dostęp, większe zużycie pamięci. Wyłącz dla wolnych sieci lub urządzeń z małą ilością pamięci.</string>
-    <string name="desc_memory_first_cache_warning">Podglądy mogą zostać utracone, jeśli aplikacja zostanie nieoczekiwanie zamknięta.</string>
-    <string name="label_disable_media_cache">Wyłącz pamięć podręczną mediów</string>
-    <string name="desc_disable_media_cache">Nie zapisuj podglądów obrazów i filmów na dysku</string>
+    <string name="label_media_storage_memory_only">Tylko w pamięci</string>
+    <string name="desc_media_storage_memory_only">Nic nie trafia na dysk urządzenia. Wyniki znikają po zamknięciu aplikacji.</string>
+    <string name="label_media_storage_memory_persisted">W pamięci, z zapisem przy wyjściu</string>
+    <string name="desc_media_storage_memory_persisted">Szybki dostęp. Po przejściu aplikacji w tło wyniki są zapisywane na urządzeniu, żeby przetrwały jej zamknięcie.</string>
+    <string name="label_media_storage_device">Na urządzeniu</string>
+    <string name="desc_media_storage_device">Mniejsze zużycie pamięci. Wymagane do trybu offline.</string>
+    <string name="title_media_storage_memory_only_confirm">Usunąć zapisane media?</string>
+    <string name="msg_media_storage_memory_only_confirm">Obrazy i wideo zapisane na urządzeniu zostaną usunięte. Bieżące wyniki pozostaną dostępne do zamknięcia aplikacji.</string>
     <string name="label_auto_connect">Automatyczne łączenie</string>
     <string name="desc_auto_connect">Automatyczne łączenie z ostatnim serwerem przy uruchomieniu aplikacji</string>
     <string name="label_show_built_in_workflows">Pokaż wbudowane przepływy pracy</string>

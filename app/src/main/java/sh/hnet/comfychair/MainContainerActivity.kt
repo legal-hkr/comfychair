@@ -26,6 +26,8 @@ import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.GalleryMetadataCache
+import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
 import sh.hnet.comfychair.ui.navigation.MainNavHost
@@ -129,11 +131,22 @@ class MainContainerActivity : ComponentActivity() {
         DebugLogger.d("MainContainer", "setCurrentServerId: ${serverId?.take(8) ?: "NULL"}...")
         MediaStateHolder.setCurrentServerId(serverId)
 
-        // Set caching mode based on user preference
-        val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
-        DebugLogger.d("MainContainer", "caching mode: ${if (isMemoryFirst) "memory-first" else "disk-first"}")
-        MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
-        MediaCache.setMemoryFirstMode(isMemoryFirst)
+        // Set media storage based on user preference
+        val storageMode = AppSettings.getMediaStorageMode(this)
+        val isMemoryFirst = storageMode != MediaStorageMode.DEVICE
+        DebugLogger.d("MainContainer", "media storage: $storageMode")
+        // The gallery list is kept only for offline mode, i.e. with storage on the device
+        if (isMemoryFirst) GalleryMetadataCache.clearAllCaches(applicationContext)
+        if (storageMode == MediaStorageMode.MEMORY_ONLY) {
+            // Nothing may stay on the device, including files left by other modes or older versions
+            runBlocking { MediaStateHolder.enforceMemoryOnly(applicationContext) }
+            MediaCache.setMemoryFirstMode(true)
+            MediaCache.deleteDiskCache(applicationContext)
+        } else {
+            MediaStateHolder.isMemoryOnly = false
+            MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
+            MediaCache.setMemoryFirstMode(isMemoryFirst)
+        }
 
         // Initialize MediaCache with context for image/video fetching
         MediaCache.ensureInitialized(applicationContext)

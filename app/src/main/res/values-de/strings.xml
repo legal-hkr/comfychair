@@ -72,7 +72,7 @@
     <string name="content_description_not_cached">Offline nicht verfügbar</string>
     <string name="label_offline_mode">Offline-Modus</string>
     <string name="desc_offline_mode">Zwischengespeicherte Daten ohne Netzwerkverbindung durchsuchen</string>
-    <string name="msg_offline_mode_requires_disk_cache">Deaktivieren Sie \"Speicher-First-Cache\" um den Offline-Modus zu aktivieren</string>
+    <string name="msg_offline_mode_requires_disk_cache">Wähle die Speicherung \"Auf dem Gerät\", um den Offline-Modus zu aktivieren</string>
     <string name="msg_cannot_go_online">Kann nicht online gehen - Server nicht erreichbar</string>
 
     <!-- Settings section titles -->
@@ -86,7 +86,7 @@
     <string name="option_edge_router_bezier">Bézierkurve</string>
     <string name="option_edge_router_hermite">Hermite-Spline</string>
     <string name="title_settings_cache">Cache und Speicher</string>
-    <string name="desc_settings_cache">Einstellungen für den Medien-Cache</string>
+    <string name="desc_settings_cache">Wo generierte Bilder und Videos gespeichert werden</string>
     <string name="title_settings_reset">Zurücksetzen</string>
     <string name="desc_settings_reset">App-Daten und Einstellungen zurücksetzen</string>
 
@@ -152,11 +152,14 @@
     <!-- App settings strings -->
     <string name="label_live_preview">Live-Vorschau anzeigen</string>
     <string name="desc_live_preview">Zwischenbilder während der Generierung anzeigen</string>
-    <string name="label_memory_first_cache">Speicher-First-Cache</string>
-    <string name="desc_memory_first_cache">Schneller Zugriff, höhere Speichernutzung. Deaktivieren für langsame Netzwerke oder Geräte mit wenig Speicher.</string>
-    <string name="desc_memory_first_cache_warning">Vorschauen können verloren gehen, wenn die App unerwartet geschlossen wird.</string>
-    <string name="label_disable_media_cache">Medien-Cache deaktivieren</string>
-    <string name="desc_disable_media_cache">Vorschaubilder und Videos nicht auf Festplatte speichern</string>
+    <string name="label_media_storage_memory_only">Nur im Arbeitsspeicher</string>
+    <string name="desc_media_storage_memory_only">Auf dem Gerät wird nichts gespeichert. Ergebnisse gehen beim Schließen der App verloren.</string>
+    <string name="label_media_storage_memory_persisted">Im Arbeitsspeicher, beim Verlassen gespeichert</string>
+    <string name="desc_media_storage_memory_persisted">Schneller Zugriff. Wechselt die App in den Hintergrund, werden die Ergebnisse auf dem Gerät gespeichert, damit sie das Schließen überstehen.</string>
+    <string name="label_media_storage_device">Auf dem Gerät</string>
+    <string name="desc_media_storage_device">Geringerer Speicherverbrauch. Erforderlich für den Offline-Modus.</string>
+    <string name="title_media_storage_memory_only_confirm">Gespeicherte Medien löschen?</string>
+    <string name="msg_media_storage_memory_only_confirm">Auf dem Gerät gespeicherte Bilder und Videos werden gelöscht. Aktuelle Ergebnisse bleiben bis zum Schließen der App verfügbar.</string>
     <string name="label_auto_connect">Automatisch verbinden</string>
     <string name="desc_auto_connect">Beim App-Start automatisch mit dem letzten Server verbinden</string>
     <string name="label_show_built_in_workflows">Integrierte Workflows anzeigen</string>

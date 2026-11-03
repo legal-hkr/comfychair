@@ -72,7 +72,7 @@
     <string name="content_description_not_cached">Non disponible hors ligne</string>
     <string name="label_offline_mode">Mode hors ligne</string>
     <string name="desc_offline_mode">Parcourir les données mises en cache sans connexion réseau</string>
-    <string name="msg_offline_mode_requires_disk_cache">Désactiver \"Cache mémoire prioritaire\" pour activer le mode hors ligne</string>
+    <string name="msg_offline_mode_requires_disk_cache">Choisissez le stockage \"Sur l\'appareil\" pour activer le mode hors ligne</string>
     <string name="msg_cannot_go_online">Impossible de se connecter - serveur inaccessible</string>
 
     <!-- Settings section titles -->
@@ -86,7 +86,7 @@
     <string name="option_edge_router_bezier">Courbe de Bézier</string>
     <string name="option_edge_router_hermite">Spline de Hermite</string>
     <string name="title_settings_cache">Cache et stockage</string>
-    <string name="desc_settings_cache">Paramètres du cache média</string>
+    <string name="desc_settings_cache">Où sont conservées les images et vidéos générées</string>
     <string name="title_settings_reset">Réinitialiser</string>
     <string name="desc_settings_reset">Réinitialiser les données et paramètres de l\'application</string>
 
@@ -152,11 +152,14 @@
     <!-- App settings strings -->
     <string name="label_live_preview">Afficher l\'aperçu en direct</string>
     <string name="desc_live_preview">Afficher les images intermédiaires pendant la génération</string>
-    <string name="label_memory_first_cache">Cache mémoire prioritaire</string>
-    <string name="desc_memory_first_cache">Accès rapide, utilisation mémoire plus élevée. Désactiver pour les réseaux lents ou les appareils à faible mémoire.</string>
-    <string name="desc_memory_first_cache_warning">Les aperçus peuvent être perdus si l\'app est fermée de manière inattendue.</string>
-    <string name="label_disable_media_cache">Désactiver le cache média</string>
-    <string name="desc_disable_media_cache">Ne pas enregistrer les images d\'aperçu et les vidéos sur le disque</string>
+    <string name="label_media_storage_memory_only">En mémoire uniquement</string>
+    <string name="desc_media_storage_memory_only">Rien n\'est écrit sur l\'appareil. Les résultats disparaissent à la fermeture de l\'application.</string>
+    <string name="label_media_storage_memory_persisted">En mémoire, enregistré à la sortie</string>
+    <string name="desc_media_storage_memory_persisted">Accès rapide. Quand l\'application passe en arrière-plan, les résultats sont enregistrés sur l\'appareil pour survivre à sa fermeture.</string>
+    <string name="label_media_storage_device">Sur l\'appareil</string>
+    <string name="desc_media_storage_device">Consommation de mémoire réduite. Requis pour le mode hors ligne.</string>
+    <string name="title_media_storage_memory_only_confirm">Supprimer les médias enregistrés ?</string>
+    <string name="msg_media_storage_memory_only_confirm">Les images et vidéos enregistrées sur l\'appareil seront supprimées. Les résultats actuels restent disponibles jusqu\'à la fermeture de l\'application.</string>
     <string name="label_auto_connect">Connexion automatique</string>
     <string name="desc_auto_connect">Se connecter automatiquement au dernier serveur au lancement de l\'app</string>
     <string name="label_show_built_in_workflows">Afficher les workflows intégrés</string>

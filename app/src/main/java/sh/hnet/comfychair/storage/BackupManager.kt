@@ -209,8 +209,11 @@ class BackupManager(private val context: Context) {
         return JSONObject().apply {
             put("autoConnectEnabled", prefs.getBoolean("autoConnect", true))
             put("livePreviewEnabled", prefs.getBoolean("live_preview_enabled", true))
-            put("memoryFirstCache", prefs.getBoolean("memory_first_cache", true))
-            put("mediaCacheDisabled", prefs.getBoolean("media_cache_disabled", false))
+            val storageMode = AppSettings.getMediaStorageMode(context)
+            put("mediaStorageMode", storageMode.key)
+            // Equivalent former switches, so older app versions restore the same behaviour
+            put("memoryFirstCache", storageMode != MediaStorageMode.DEVICE)
+            put("mediaCacheDisabled", storageMode == MediaStorageMode.MEMORY_ONLY)
             put("debugLoggingEnabled", prefs.getBoolean("debug_logging_enabled", false))
             put("showBuiltInWorkflows", prefs.getBoolean("show_built_in_workflows", true))
             put("promptSpellCheckEnabled", prefs.getBoolean("prompt_spell_check", false))
@@ -349,11 +352,13 @@ class BackupManager(private val context: Context) {
         if (json.has("livePreviewEnabled")) {
             editor.putBoolean("live_preview_enabled", json.optBoolean("livePreviewEnabled", true))
         }
-        if (json.has("memoryFirstCache")) {
-            editor.putBoolean("memory_first_cache", json.optBoolean("memoryFirstCache", true))
-        }
-        if (json.has("mediaCacheDisabled")) {
-            editor.putBoolean("media_cache_disabled", json.optBoolean("mediaCacheDisabled", false))
+        // Media storage: the current setting, or migrated from the former switches of older backups
+        val storageMode = MediaStorageMode.fromKey(json.optString("mediaStorageMode").ifEmpty { null })
+            ?: if (json.has("memoryFirstCache")) MediaStorageMode.migrate(json.optBoolean("memoryFirstCache", true)) else null
+        if (storageMode != null) {
+            editor.putString("media_storage_mode", storageMode.key)
+            editor.remove("memory_first_cache")
+            editor.remove("media_cache_disabled")
         }
         if (json.has("debugLoggingEnabled")) {
             editor.putBoolean("debug_logging_enabled", json.optBoolean("debugLoggingEnabled", false))

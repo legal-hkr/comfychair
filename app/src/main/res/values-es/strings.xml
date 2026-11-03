@@ -72,7 +72,7 @@
     <string name="content_description_not_cached">No disponible sin conexión</string>
     <string name="label_offline_mode">Modo sin conexión</string>
     <string name="desc_offline_mode">Explorar datos en caché sin conexión de red</string>
-    <string name="msg_offline_mode_requires_disk_cache">Desactivar \"Caché en memoria primero\" para habilitar el modo sin conexión</string>
+    <string name="msg_offline_mode_requires_disk_cache">Elige el almacenamiento \"En el dispositivo\" para activar el modo sin conexión</string>
     <string name="msg_cannot_go_online">No se puede conectar - servidor inalcanzable</string>
 
     <!-- Settings section titles -->
@@ -86,7 +86,7 @@
     <string name="option_edge_router_bezier">Curva de Bézier</string>
     <string name="option_edge_router_hermite">Spline de Hermite</string>
     <string name="title_settings_cache">Caché y almacenamiento</string>
-    <string name="desc_settings_cache">Configuración del caché de medios</string>
+    <string name="desc_settings_cache">Dónde se guardan las imágenes y vídeos generados</string>
     <string name="title_settings_reset">Restablecer</string>
     <string name="desc_settings_reset">Restablecer datos y configuración de la aplicación</string>
 
@@ -152,11 +152,14 @@
     <!-- App settings strings -->
     <string name="label_live_preview">Mostrar vista previa en vivo</string>
     <string name="desc_live_preview">Mostrar imágenes intermedias durante la generación</string>
-    <string name="label_memory_first_cache">Caché en memoria primero</string>
-    <string name="desc_memory_first_cache">Acceso rápido, mayor uso de memoria. Desactivar para redes lentas o dispositivos con poca memoria.</string>
-    <string name="desc_memory_first_cache_warning">Las vistas previas pueden perderse si la app se cierra inesperadamente.</string>
-    <string name="label_disable_media_cache">Desactivar caché de medios</string>
-    <string name="desc_disable_media_cache">No guardar imágenes de vista previa ni videos en disco</string>
+    <string name="label_media_storage_memory_only">Solo en memoria</string>
+    <string name="desc_media_storage_memory_only">No se escribe nada en el dispositivo. Los resultados desaparecen al cerrar la aplicación.</string>
+    <string name="label_media_storage_memory_persisted">En memoria, guardado al salir</string>
+    <string name="desc_media_storage_memory_persisted">Acceso rápido. Cuando la aplicación pasa a segundo plano, los resultados se guardan en el dispositivo para que sobrevivan a su cierre.</string>
+    <string name="label_media_storage_device">En el dispositivo</string>
+    <string name="desc_media_storage_device">Menor uso de memoria. Necesario para el modo sin conexión.</string>
+    <string name="title_media_storage_memory_only_confirm">¿Eliminar los medios guardados?</string>
+    <string name="msg_media_storage_memory_only_confirm">Se eliminarán las imágenes y vídeos guardados en el dispositivo. Los resultados actuales seguirán disponibles hasta cerrar la aplicación.</string>
     <string name="label_auto_connect">Conexión automática</string>
     <string name="desc_auto_connect">Conectar automáticamente al último servidor al iniciar la app</string>
     <string name="label_show_built_in_workflows">Mostrar workflows integrados</string>

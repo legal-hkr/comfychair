@@ -72,7 +72,7 @@
     <string name="content_description_not_cached">离线不可用</string>
     <string name="label_offline_mode">离线模式</string>
     <string name="desc_offline_mode">无需网络连接即可浏览缓存数据</string>
-    <string name="msg_offline_mode_requires_disk_cache">禁用"内存优先缓存"以启用离线模式</string>
+    <string name="msg_offline_mode_requires_disk_cache">选择“设备存储”以启用离线模式</string>
     <string name="msg_cannot_go_online">无法上线 - 服务器无法访问</string>
 
     <!-- Settings section titles -->
@@ -86,7 +86,7 @@
     <string name="option_edge_router_bezier">贝塞尔曲线</string>
     <string name="option_edge_router_hermite">埃尔米特样条</string>
     <string name="title_settings_cache">缓存和存储</string>
-    <string name="desc_settings_cache">媒体缓存设置</string>
+    <string name="desc_settings_cache">生成的图片和视频的存储位置</string>
     <string name="title_settings_reset">重置</string>
     <string name="desc_settings_reset">重置应用数据和设置</string>
 
@@ -152,11 +152,14 @@
     <!-- App management strings -->
     <string name="label_live_preview">显示实时预览</string>
     <string name="desc_live_preview">在生成过程中显示中间图像</string>
-    <string name="label_memory_first_cache">内存优先缓存</string>
-    <string name="desc_memory_first_cache">快速访问，内存占用较高。对于慢速网络或低内存设备请禁用。</string>
-    <string name="desc_memory_first_cache_warning">如果应用意外关闭，预览可能会丢失。</string>
-    <string name="label_disable_media_cache">禁用媒体缓存</string>
-    <string name="desc_disable_media_cache">不将预览图像和视频保存到磁盘</string>
+    <string name="label_media_storage_memory_only">仅内存</string>
+    <string name="desc_media_storage_memory_only">不会向设备写入任何内容。关闭应用后结果将消失。</string>
+    <string name="label_media_storage_memory_persisted">内存，退出时保存</string>
+    <string name="desc_media_storage_memory_persisted">访问速度快。应用转入后台时，结果会保存到设备上，以便在关闭后保留。</string>
+    <string name="label_media_storage_device">设备存储</string>
+    <string name="desc_media_storage_device">内存占用更少。离线模式需要此选项。</string>
+    <string name="title_media_storage_memory_only_confirm">删除已保存的媒体？</string>
+    <string name="msg_media_storage_memory_only_confirm">设备上保存的图片和视频将被删除。当前结果在关闭应用前仍可查看。</string>
     <string name="label_auto_connect">自动连接</string>
     <string name="desc_auto_connect">启动应用时自动连接到上次使用的服务器</string>
     <string name="label_show_built_in_workflows">显示内置工作流</string>
