@@ -367,6 +367,24 @@
     <string name="content_description_video">Vidéo</string>
     <string name="content_description_clear">Effacer</string>
     <string name="content_description_generated_image">Image générée</string>
+    <string name="content_description_result_image">Résultat %1$d sur %2$d, image</string>
+    <string name="content_description_result_video">Résultat %1$d sur %2$d, vidéo</string>
+    <string name="content_description_result_video_duration">Résultat %1$d sur %2$d, vidéo, %3$s</string>
+    <string name="content_description_open_in_viewer">Ouvrir dans la visionneuse</string>
+    <string name="content_description_next_result">Résultat suivant</string>
+    <string name="content_description_previous_result">Résultat précédent</string>
+    <string name="content_description_scroll_results_forward">Faire défiler les résultats vers l\'avant</string>
+    <string name="content_description_scroll_results_back">Faire défiler les résultats vers l\'arrière</string>
+    <plurals name="label_duration_seconds">
+        <item quantity="one">%d seconde</item>
+        <item quantity="many">%d secondes</item>
+        <item quantity="other">%d secondes</item>
+    </plurals>
+    <plurals name="msg_results_done">
+        <item quantity="one">Terminé, %d résultat</item>
+        <item quantity="many">Terminé, %d résultats</item>
+        <item quantity="other">Terminé, %d résultats</item>
+    </plurals>
     <string name="content_description_preview">Aperçu</string>
     <string name="content_description_reference_image_1">Image de référence 1</string>
     <string name="content_description_reference_image_2">Image de référence 2</string>

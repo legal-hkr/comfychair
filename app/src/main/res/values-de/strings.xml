@@ -382,6 +382,22 @@
     <string name="content_description_video">Video</string>
     <string name="content_description_clear">Leeren</string>
     <string name="content_description_generated_image">Generiertes Bild</string>
+    <string name="content_description_result_image">Ergebnis %1$d von %2$d, Bild</string>
+    <string name="content_description_result_video">Ergebnis %1$d von %2$d, Video</string>
+    <string name="content_description_result_video_duration">Ergebnis %1$d von %2$d, Video, %3$s</string>
+    <string name="content_description_open_in_viewer">Im Viewer öffnen</string>
+    <string name="content_description_next_result">Nächstes Ergebnis</string>
+    <string name="content_description_previous_result">Vorheriges Ergebnis</string>
+    <string name="content_description_scroll_results_forward">Ergebnisse vorwärts blättern</string>
+    <string name="content_description_scroll_results_back">Ergebnisse zurück blättern</string>
+    <plurals name="label_duration_seconds">
+        <item quantity="one">%d Sekunde</item>
+        <item quantity="other">%d Sekunden</item>
+    </plurals>
+    <plurals name="msg_results_done">
+        <item quantity="one">Fertig, %d Ergebnis</item>
+        <item quantity="other">Fertig, %d Ergebnisse</item>
+    </plurals>
     <string name="content_description_preview">Vorschau</string>
     <string name="content_description_reference_image_1">Referenzbild 1</string>
     <string name="content_description_reference_image_2">Referenzbild 2</string>

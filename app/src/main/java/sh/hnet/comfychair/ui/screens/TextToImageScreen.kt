@@ -69,6 +69,9 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.components.ResultHeroImage
+import sh.hnet.comfychair.ui.components.ResultsPreview
+import sh.hnet.comfychair.viewmodel.MediaViewerItem
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
@@ -137,6 +140,10 @@ fun TextToImageScreen(
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == TextToImageViewModel.OWNER_ID
+    // Several results of the last job are shown as a pager with a thumbnail strip
+    val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
+    val isThisScreenQueued = !isThisScreenExecuting &&
+            queueState.ownJobs.values.any { it.ownerId == TextToImageViewModel.OWNER_ID }
 
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -280,7 +287,7 @@ fun TextToImageScreen(
                     .fillMaxSize()
                     .heightIn(min = 150.dp)
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .clickable(enabled = uiState.previewBitmap != null && !isThisScreenExecuting) {
+                    .clickable(enabled = uiState.previewBitmap != null && !isThisScreenExecuting && !showResults) {
                         // Launch MediaViewer for single image
                         uiState.previewBitmap?.let { bitmap ->
                             val intent = MediaViewerActivity.createSingleImageIntent(
@@ -297,7 +304,35 @@ fun TextToImageScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.previewBitmap != null) {
+                if (showResults) {
+                    val results = uiState.generationOutputs
+                    ResultsPreview(
+                        results = results,
+                        currentIndex = uiState.currentResultIndex,
+                        onCurrentIndexChange = textToImageViewModel::onCurrentResultChange,
+                        onOpenViewer = { index ->
+                            val items = results.mapIndexed { i, output ->
+                                MediaViewerItem(output.promptId, output.filename, output.subfolder, output.type, output.isVideo, i)
+                            }
+                            context.startActivity(
+                                MediaViewerActivity.createGalleryIntent(
+                                    context = context,
+                                    hostname = generationViewModel.getHostname(),
+                                    port = generationViewModel.getPort(),
+                                    items = items,
+                                    initialIndex = index
+                                )
+                            )
+                        },
+                        stripEnabled = !isThisScreenQueued
+                    ) { output, _ ->
+                        // The image already shown on the screen doesn't need loading again
+                        ResultHeroImage(
+                            output = output,
+                            preloaded = uiState.previewBitmap.takeIf { output.filename == uiState.currentImageFilename }
+                        )
+                    }
+                } else if (uiState.previewBitmap != null) {
                     Image(
                         bitmap = uiState.previewBitmap!!.asImageBitmap(),
                         contentDescription = stringResource(R.string.content_description_generated_image),
