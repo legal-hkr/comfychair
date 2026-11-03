@@ -1,0 +1,233 @@
+{
+  "name": "Krea-2 Edit",
+  "description": "Instruction-based image editing with the Krea-2 Edit model, no LoRA needed (requires the comfyui-krea2edit nodes)",
+  "defaults": {
+    "megapixels": 1.0,
+    "steps": 10,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["1", "note:1"]
+    },
+    {
+      "id": 3,
+      "title": "CLIP Configuration",
+      "member_nodes": ["3", "note:3"]
+    },
+    {
+      "id": 4,
+      "title": "VAE Configuration",
+      "member_nodes": ["4", "note:4"]
+    },
+    {
+      "id": 5,
+      "title": "Edit Configuration",
+      "member_nodes": [
+        "10",
+        "11",
+        "note:5"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Sampling Configuration",
+      "member_nodes": ["13", "note:6"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **Krea-2 Edit** (krea2_edit_v1.0_int8 or krea2_edit_v1.5_bf16), a Krea-2 model trained for editing, so no edit LoRA is needed. The Krea-2 Turbo text-to-image model doesn't follow edit instructions here; for Turbo with the Identity Edit LoRA use the **Krea-2 Edit (Identity Edit LoRA)** workflow.\n\nThis workflow needs the **comfyui-krea2edit** custom nodes (github.com/lbouaraba/comfyui-krea2edit)."
+    },
+    {
+      "id": 3,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Model\n\nUse **Qwen 3 VL 4B FP8 scaled**. It also sees the source image while reading the instruction."
+    },
+    {
+      "id": 4,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Krea-2."
+    },
+    {
+      "id": 5,
+      "title": "Edit Settings",
+      "content": "### Edit Settings\n\n- **ref_boost** (Edit Model Patch): how closely the result follows the source. 4 = strong likeness (default), 1 = classic behaviour, above 10 removals start failing.\n- **grounding_px** (Edit Instruction): how large the model sees the source while reading the instruction. Lower it if compositions come out doubled.\n\nWrite the edit as a plain instruction, e.g. *Change her outfit to a red raincoat.*"
+    },
+    {
+      "id": 6,
+      "title": "Sampler Settings",
+      "content": "### Recommended Settings\n\n- **Steps:** 10 (8 for stronger instruction adherence, 12 for more face detail)\n- **CFG:** 1.0\n- **Megapixels:** 1.0; stay at or below 2\n\n---\n\n*The output keeps the aspect ratio of the source image.*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "3": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "krea2",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "4": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "5": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "_meta": {
+        "title": "Source Image"
+      }
+    },
+    "6": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "lanczos",
+        "megapixels": "{{megapixels}}",
+        "resolution_steps": 16,
+        "image": ["5", 0]
+      },
+      "_meta": {
+        "title": "Scale to Megapixels"
+      }
+    },
+    "7": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": ["6", 0]
+      },
+      "_meta": {
+        "title": "Get Image Size"
+      }
+    },
+    "8": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": ["7", 0],
+        "height": ["7", 1],
+        "batch_size": "{{batch_size}}"
+      },
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "9": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": ["6", 0],
+        "vae": ["4", 0]
+      },
+      "_meta": {
+        "title": "VAE Encode Source"
+      }
+    },
+    "10": {
+      "class_type": "Krea2EditModelPatch",
+      "inputs": {
+        "ref_boost": 4.0,
+        "ref_boost_a": 1.0,
+        "fit_mode": "fit",
+        "model": ["1", 0],
+        "source_latent": ["9", 0],
+        "vae": ["4", 0],
+        "source_image": ["6", 0],
+        "target_latent": ["8", 0]
+      },
+      "_meta": {
+        "title": "Edit Model Patch"
+      }
+    },
+    "11": {
+      "class_type": "Krea2EditGroundedEncode",
+      "inputs": {
+        "prompt": "{{positive_prompt}}",
+        "grounding_px": 768,
+        "system_prompt": "",
+        "clip": ["3", 0],
+        "image": ["6", 0]
+      },
+      "_meta": {
+        "title": "Edit Instruction"
+      }
+    },
+    "12": {
+      "class_type": "Krea2EditGroundedEncode",
+      "inputs": {
+        "prompt": "",
+        "grounding_px": 768,
+        "system_prompt": "",
+        "clip": ["3", 0],
+        "image": ["6", 0]
+      },
+      "_meta": {
+        "title": "Empty Negative"
+      }
+    },
+    "13": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": "{{denoise}}",
+        "model": ["10", 0],
+        "positive": ["11", 0],
+        "negative": ["12", 0],
+        "latent_image": ["8", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "14": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["4", 0]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "15": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["14", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "name": "Krea-2 Turbo Inpainting (LanPaint)",
+  "description": "Inpainting with Krea-2 Turbo and the LanPaint sampler (requires the LanPaint custom nodes)",
+  "defaults": {
+    "megapixels": 1.0,
+    "steps": 8,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["1", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "CLIP Configuration",
+      "member_nodes": ["2", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "VAE Configuration",
+      "member_nodes": ["3", "note:3"]
+    },
+    {
+      "id": 4,
+      "title": "Sampling Configuration",
+      "member_nodes": [
+        "12",
+        "13",
+        "note:4"
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **Krea-2 Turbo FP8 scaled**.\n\nThis workflow needs the **LanPaint** custom nodes (github.com/scraed/LanPaint). LanPaint lets the model *think* several times per step, so the masked area blends with its surroundings without a dedicated inpainting model."
+    },
+    {
+      "id": 2,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Model\n\nUse **Qwen 3 VL 4B FP8 scaled** for optimal text understanding with Krea-2."
+    },
+    {
+      "id": 3,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Krea-2."
+    },
+    {
+      "id": 4,
+      "title": "Sampler Settings",
+      "content": "### Recommended Settings\n\n- **Steps:** 8\n- **CFG:** 1.0\n- **Megapixels:** 1.0\n- **LanPaint_NumSteps** (LanPaint KSampler): 5 thinking turns per step; more is slower and usually blends better\n- **blend_overlap** (Mask Blend): width of the seam blend in pixels\n\n---\n\n*Describe what should appear in the masked area, not the whole image.*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "krea2",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "_meta": {
+        "title": "Load Image"
+      }
+    },
+    "5": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "area",
+        "megapixels": "{{megapixels}}",
+        "resolution_steps": 16,
+        "image": ["4", 0]
+      },
+      "_meta": {
+        "title": "Scale Image"
+      }
+    },
+    "6": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": ["4", 1]
+      },
+      "_meta": {
+        "title": "Mask to Image"
+      }
+    },
+    "7": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "nearest-exact",
+        "megapixels": "{{megapixels}}",
+        "resolution_steps": 16,
+        "image": ["6", 0]
+      },
+      "_meta": {
+        "title": "Scale Mask"
+      }
+    },
+    "8": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "channel": "red",
+        "image": ["7", 0]
+      },
+      "_meta": {
+        "title": "Image to Mask"
+      }
+    },
+    "9": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "Positive Prompt"
+      }
+    },
+    "10": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": ["9", 0]
+      },
+      "_meta": {
+        "title": "Empty Negative"
+      }
+    },
+    "11": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": ["5", 0],
+        "vae": ["3", 0]
+      },
+      "_meta": {
+        "title": "VAE Encode"
+      }
+    },
+    "12": {
+      "class_type": "SetLatentNoiseMask",
+      "inputs": {
+        "samples": ["11", 0],
+        "mask": ["8", 0]
+      },
+      "_meta": {
+        "title": "Set Latent Noise Mask"
+      }
+    },
+    "13": {
+      "class_type": "LanPaint_KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": "{{denoise}}",
+        "LanPaint_NumSteps": 5,
+        "LanPaint_PromptMode": "Image First",
+        "LanPaint_Info": "LanPaint KSampler.",
+        "Inpainting_mode": "🖼️ Image Inpainting",
+        "model": ["1", 0],
+        "positive": ["9", 0],
+        "negative": ["10", 0],
+        "latent_image": ["12", 0]
+      },
+      "_meta": {
+        "title": "LanPaint KSampler"
+      }
+    },
+    "14": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["3", 0]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "15": {
+      "class_type": "LanPaint_MaskBlend",
+      "inputs": {
+        "blend_overlap": 9,
+        "image1": ["5", 0],
+        "image2": ["14", 0],
+        "mask": ["8", 0]
+      },
+      "_meta": {
+        "title": "Mask Blend"
+      }
+    },
+    "16": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["15", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}
