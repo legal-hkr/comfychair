@@ -381,8 +381,6 @@
     <string name="content_description_scroll_results_forward">向后滚动结果</string>
     <string name="content_description_scroll_results_back">向前滚动结果</string>
     <string name="button_use_as_source">用作源图片</string>
-    <string name="msg_source_image_replaced">已替换源图片</string>
-    <string name="button_undo">撤销</string>
     <plurals name="label_duration_seconds">
         <item quantity="other">%d 秒</item>
     </plurals>

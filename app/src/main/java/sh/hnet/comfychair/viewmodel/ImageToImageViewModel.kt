@@ -1159,12 +1159,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         }
     }
 
-    // Source image (and mask) replaced by the last "use as source", kept for Undo
-    private var replacedSource: Pair<Bitmap?, List<MaskPathData>>? = null
-
     /**
-     * Use a generated image as the source image and switch to the Source tab. The previous
-     * source and mask are kept for [undoUseAsSource].
+     * Use a generated image as the source image (clearing the mask) and switch to the Source tab.
      *
      * May run before the screen was first opened, i.e. before [initialize]: the context is then
      * passed in so the image is stored where [loadSavedImages] will read it, otherwise the
@@ -1172,34 +1168,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
      */
     fun useAsSource(context: Context, bitmap: Bitmap) {
         val appContext = applicationContext ?: context.applicationContext
-        val state = _uiState.value
-        val previousSource = if (isInitialized()) state.sourceImage
-            else MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource, appContext)
-        replacedSource = previousSource to state.maskPaths
         MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, appContext)
         _uiState.update {
             it.copy(sourceImage = bitmap, maskPaths = emptyList(), viewMode = ImageToImageViewMode.SOURCE)
         }
-    }
-
-    /**
-     * Restore the source image and mask replaced by the last [useAsSource].
-     */
-    fun undoUseAsSource() {
-        val (bitmap, maskPaths) = replacedSource ?: return
-        replacedSource = null
-        if (bitmap != null) {
-            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, applicationContext)
-        } else {
-            // Also removes the stored copy, which would otherwise come back after a restart
-            val context = applicationContext
-            if (context != null) {
-                viewModelScope.launch { MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItiSource) }
-            } else {
-                MediaStateHolder.evict(MediaStateHolder.MediaKey.ItiSource)
-            }
-        }
-        _uiState.update { it.copy(sourceImage = bitmap, maskPaths = maskPaths) }
     }
 
     // Source image

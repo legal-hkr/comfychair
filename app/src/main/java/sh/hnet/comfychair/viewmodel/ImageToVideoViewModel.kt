@@ -642,13 +642,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         _uiState.value = _uiState.value.copy(viewMode = mode)
     }
 
-    // Source image replaced by the last "use as source", kept for Undo
-    private var replacedSource: Bitmap? = null
-    private var canUndoUseAsSource = false
-
     /**
-     * Use a generated image as the source image and switch to the Source tab. The previous
-     * source is kept for [undoUseAsSource].
+     * Use a generated image as the source image and switch to the Source tab.
      *
      * May run before the screen was first opened, i.e. before [initialize]: the context is then
      * passed in so the image is stored where the initialization will read it, otherwise it would
@@ -656,33 +651,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
      */
     fun useAsSource(context: Context, bitmap: Bitmap) {
         val appContext = applicationContext ?: context.applicationContext
-        replacedSource = if (isInitialized()) _uiState.value.sourceImage
-            else MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItvSource, appContext)
-        canUndoUseAsSource = true
         MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, appContext)
         _uiState.update { it.copy(sourceImage = bitmap, viewMode = ImageToVideoViewMode.SOURCE) }
-    }
-
-    /**
-     * Restore the source image replaced by the last [useAsSource].
-     */
-    fun undoUseAsSource() {
-        if (!canUndoUseAsSource) return
-        val bitmap = replacedSource
-        replacedSource = null
-        canUndoUseAsSource = false
-        if (bitmap != null) {
-            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, applicationContext)
-        } else {
-            // Also removes the stored copy, which would otherwise come back after a restart
-            val context = applicationContext
-            if (context != null) {
-                viewModelScope.launch { MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItvSource) }
-            } else {
-                MediaStateHolder.evict(MediaStateHolder.MediaKey.ItvSource)
-            }
-        }
-        _uiState.update { it.copy(sourceImage = bitmap) }
     }
 
     // Source image

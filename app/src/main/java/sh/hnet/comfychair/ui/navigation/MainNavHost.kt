@@ -4,23 +4,16 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
-import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.components.MainNavigationBar
 import sh.hnet.comfychair.ui.components.SourceTarget
@@ -50,30 +43,22 @@ fun MainNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
-    // Shared by the generation screens, e.g. for "Source image replaced" with Undo
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val sourceReplacedMessage = stringResource(R.string.msg_source_image_replaced)
-    val undoLabel = stringResource(R.string.button_undo)
 
-    // Sends a generated image to Image to Image or Image to Video as its source, switches to that
-    // screen the way the navigation bar does and offers Undo
+    // Sends a generated image to Image to Image or Image to Video as its source and switches to
+    // that screen the way the navigation bar does
     val useAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit = { target, loadBitmap ->
         scope.launch {
             val bitmap = loadBitmap() ?: return@launch
-            val route: String
-            val undo: () -> Unit
-            when (target) {
+            val route = when (target) {
                 SourceTarget.IMAGE_TO_IMAGE -> {
                     imageToImageViewModel.useAsSource(context, bitmap)
-                    route = MainRoute.ImageToImage.route
-                    undo = imageToImageViewModel::undoUseAsSource
+                    MainRoute.ImageToImage.route
                 }
                 SourceTarget.IMAGE_TO_VIDEO -> {
                     imageToVideoViewModel.useAsSource(context, bitmap)
-                    route = MainRoute.ImageToVideo.route
-                    undo = imageToVideoViewModel::undoUseAsSource
+                    MainRoute.ImageToVideo.route
                 }
             }
             navController.navigate(route) {
@@ -81,13 +66,10 @@ fun MainNavHost(
                 launchSingleTop = true
                 restoreState = true
             }
-            val result = snackbarHostState.showSnackbar(sourceReplacedMessage, undoLabel, duration = SnackbarDuration.Short)
-            if (result == SnackbarResult.ActionPerformed) undo()
         }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             MainNavigationBar(
                 navController = navController,

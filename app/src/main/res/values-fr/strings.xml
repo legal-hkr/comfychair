@@ -381,8 +381,6 @@
     <string name="content_description_scroll_results_forward">Faire défiler les résultats vers l\'avant</string>
     <string name="content_description_scroll_results_back">Faire défiler les résultats vers l\'arrière</string>
     <string name="button_use_as_source">Utiliser comme source</string>
-    <string name="msg_source_image_replaced">Image source remplacée</string>
-    <string name="button_undo">Annuler</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d seconde</item>
         <item quantity="many">%d secondes</item>

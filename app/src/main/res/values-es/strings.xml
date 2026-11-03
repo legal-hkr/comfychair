@@ -381,8 +381,6 @@
     <string name="content_description_scroll_results_forward">Desplazar resultados hacia delante</string>
     <string name="content_description_scroll_results_back">Desplazar resultados hacia atrás</string>
     <string name="button_use_as_source">Usar como origen</string>
-    <string name="msg_source_image_replaced">Imagen de origen reemplazada</string>
-    <string name="button_undo">Deshacer</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d segundo</item>
         <item quantity="many">%d segundos</item>
