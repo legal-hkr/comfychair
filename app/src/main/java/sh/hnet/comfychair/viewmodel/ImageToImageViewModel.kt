@@ -47,16 +47,6 @@ data class MaskPathData(
 )
 
 /**
- * Represents a workflow item in the unified workflow dropdown for Image-to-Image
- */
-data class ItiWorkflowItem(
-    val id: String,             // Workflow ID for editor
-    override val name: String,           // User-friendly workflow name
-    override val displayName: String,    // Display name with type prefix
-    val type: WorkflowType      // Workflow type for mode detection
-) : WorkflowItemBase
-
-/**
  * UI state for the view mode toggle
  */
 enum class ImageToImageViewMode {
@@ -71,16 +61,6 @@ enum class ImageToImageMode {
     INPAINTING,  // Existing: requires mask
     EDITING      // New: no mask, optional reference images
 }
-
-/**
- * Represents a workflow item for Image Editing
- */
-data class IteWorkflowItem(
-    val id: String,             // Workflow ID for editor
-    override val name: String,           // User-friendly workflow name
-    override val displayName: String,    // Display name for dropdown
-    val type: WorkflowType      // ITI_EDITING
-) : WorkflowItemBase
 
 /**
  * Fallback values of the Editing mode; a workflow's saved values and template defaults come first.
@@ -119,8 +99,8 @@ data class ImageToImageUiState(
     val previewImageType: String? = null,
 
     // Workflows offered in each mode
-    val availableWorkflows: List<ItiWorkflowItem> = emptyList(),
-    val editingWorkflows: List<IteWorkflowItem> = emptyList(),
+    val availableWorkflows: List<WorkflowItem> = emptyList(),
+    val editingWorkflows: List<WorkflowItem> = emptyList(),
 
     // Reference images (Editing mode)
     val referenceImage1: Bitmap? = null,
@@ -131,22 +111,14 @@ data class ImageToImageUiState(
 ) : CommonGenerationState by (if (mode == ImageToImageMode.EDITING) editingParams else inpaintingParams) {
 
     /** Workflows offered in the current mode. */
-    val currentModeWorkflows: List<WorkflowItemBase>
+    val currentModeWorkflows: List<WorkflowItem>
         get() = if (mode == ImageToImageMode.EDITING) editingWorkflows else availableWorkflows
-}
-
-/**
- * Events emitted by the Image-to-image screen
- */
-sealed class ImageToImageEvent {
-    data class ShowToast(val messageResId: Int) : ImageToImageEvent()
-    data class ShowToastMessage(val message: String) : ImageToImageEvent()
 }
 
 /**
  * ViewModel for the Image-to-image screen
  */
-class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, ImageToImageEvent>() {
+class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
 
     override val initialState = ImageToImageUiState()
 
@@ -212,11 +184,11 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     private fun loadWorkflows() {
         // Load inpainting workflows (ITI_INPAINTING)
         val inpaintingWorkflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.ITI_INPAINTING)
-            .map { ItiWorkflowItem(id = it.id, name = it.name, displayName = it.name, type = WorkflowType.ITI_INPAINTING) }
+            .map { WorkflowItem(id = it.id, name = it.name) }
             .sortedBy { it.displayName }
         // Load editing workflows (ITI_EDITING)
         val editingWorkflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.ITI_EDITING)
-            .map { IteWorkflowItem(id = it.id, name = it.name, displayName = it.name, type = WorkflowType.ITI_EDITING) }
+            .map { WorkflowItem(id = it.id, name = it.name) }
             .sortedBy { it.displayName }
 
         val state = _uiState.value
@@ -233,7 +205,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     }
 
     /** Load each mode's workflow values (or clear the selection when the mode has no workflow). */
-    private fun loadModeWorkflows(inpaintingItem: ItiWorkflowItem?, editingItem: IteWorkflowItem?) {
+    private fun loadModeWorkflows(inpaintingItem: WorkflowItem?, editingItem: WorkflowItem?) {
         _uiState.update { state ->
             state.copy(
                 inpaintingParams = inpaintingItem
@@ -364,7 +336,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     _uiState.value = _uiState.value.copy(referenceImage1 = bitmap)
                 }
             } catch (e: Exception) {
-                _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
             }
         }
     }
@@ -382,7 +354,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     _uiState.value = _uiState.value.copy(referenceImage2 = bitmap)
                 }
             } catch (e: Exception) {
-                _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
             }
         }
     }
@@ -436,7 +408,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     )
                 }
             } catch (e: Exception) {
-                _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
             }
         }
     }
@@ -595,13 +567,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
      */
     fun onWorkflowChange(workflowName: String) {
         val workflowItem = _uiState.value.currentModeWorkflows.find { it.name == workflowName } ?: return
-        val workflowId = when (workflowItem) {
-            is ItiWorkflowItem -> workflowItem.id
-            is IteWorkflowItem -> workflowItem.id
-            else -> return
-        }
         DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
-        switchWorkflow(workflowId, workflowItem.name)
+        switchWorkflow(workflowItem.id, workflowItem.name)
     }
 
     /**
@@ -624,7 +591,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             updateParams(save = false) { it.copy(positivePrompt = defaultPrompt) }
 
             // Emit toast event
-            _events.emit(ImageToImageEvent.ShowToast(R.string.msg_prompt_preset_reset_success))
+            _events.emit(GenerationScreenEvent.ShowToast(R.string.msg_prompt_preset_reset_success))
         }
     }
 
@@ -700,7 +667,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     ConnectionManager.showConnectionAlert(ctx, sourceResult.failureType)
                 }
             } else {
-                _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
             }
             return null
         }
@@ -813,7 +780,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         // Generate mask
         val maskBitmap = generateMaskBitmap()
         if (maskBitmap == null) {
-            _events.emit(ImageToImageEvent.ShowToast(R.string.hint_paint_mask))
+            _events.emit(GenerationScreenEvent.ShowToast(R.string.hint_paint_mask))
             return null
         }
 
@@ -848,7 +815,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                     ConnectionManager.showConnectionAlert(ctx, uploadResult.failureType)
                 }
             } else {
-                _events.emit(ImageToImageEvent.ShowToast(R.string.error_save_image))
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
             }
             return null
         }
@@ -1095,13 +1062,13 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 viewModelScope.launch {
                     val message = applicationContext?.getString(R.string.msg_connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
-                    _events.emit(ImageToImageEvent.ShowToastMessage(message))
+                    _events.emit(GenerationScreenEvent.ShowToastMessage(message))
                 }
                 // DON'T clear state - generation may still be running on server
             }
             is GenerationEvent.Error -> {
                 viewModelScope.launch {
-                    _events.emit(ImageToImageEvent.ShowToastMessage(event.message))
+                    _events.emit(GenerationScreenEvent.ShowToastMessage(event.message))
                 }
                 // DON'T call completeGeneration() here - this may just be a connection error
                 // The server might still complete the generation

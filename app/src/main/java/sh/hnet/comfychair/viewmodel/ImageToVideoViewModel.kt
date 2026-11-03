@@ -5,31 +5,26 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
-import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.suspendCoroutine
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
-import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.GenerationOutput
-import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.UuidUtils
-import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.VideoUtils
+import sh.hnet.comfychair.viewmodel.base.BaseVideoGenerationViewModel
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.ui.components.config.CommonGenerationState
-import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
+import sh.hnet.comfychair.viewmodel.base.VideoResult
+import sh.hnet.comfychair.viewmodel.base.VideoResultState
+import sh.hnet.comfychair.viewmodel.base.videoScreenDefaults
 
 /**
  * UI state for the view mode toggle
@@ -40,210 +35,77 @@ enum class ImageToVideoViewMode {
 }
 
 /**
- * Represents a workflow item with display name
- */
-data class ItvWorkflowItem(
-    val id: String,             // Workflow ID for editor
-    override val name: String,           // User-friendly workflow name
-    override val displayName: String,    // Display name
-    val type: WorkflowType      // ITV
-) : WorkflowItemBase
-
-/** Fallback values of the video screens; a workflow's saved values and template defaults come first. */
-private val imageToVideoDefaults = GenerationParams(width = "848", height = "480")
-
-/**
- * UI state for the Image-to-Video screen
+ * UI state for the Image-to-Video screen.
+ *
+ * Generation parameters and the video result are exposed directly through delegation
+ * (`state.steps`, `state.currentVideoUri` etc.).
  */
 data class ImageToVideoUiState(
-    val params: GenerationParams = imageToVideoDefaults,
+    val params: GenerationParams = videoScreenDefaults,
+    val video: VideoResult = VideoResult(),
+    val availableWorkflows: List<WorkflowItem> = emptyList(),
     val viewMode: ImageToVideoViewMode = ImageToVideoViewMode.SOURCE,
     val sourceImage: Bitmap? = null,
-    val previewBitmap: Bitmap? = null,
-    val currentVideoUri: android.net.Uri? = null,
-    val generationOutputs: List<GenerationOutput> = emptyList(),
-    val currentResultIndex: Int = 0,
-    val availableWorkflows: List<ItvWorkflowItem> = emptyList(),
-    val isUploading: Boolean = false,
-    val isFetching: Boolean = false
-) : CommonGenerationState by params
-
-/**
- * Events emitted by the image-to-video screen
- */
-sealed class ImageToVideoEvent {
-    data class ShowToast(val messageResId: Int) : ImageToVideoEvent()
-    data class ShowToastMessage(val message: String) : ImageToVideoEvent()
-}
+    val isUploading: Boolean = false
+) : CommonGenerationState by params, VideoResultState by video
 
 /**
  * ViewModel for the Image-to-Video screen
  */
-class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, ImageToVideoEvent>() {
+class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>() {
+
+    companion object {
+        const val OWNER_ID = "IMAGE_TO_VIDEO"
+    }
 
     override val initialState = ImageToVideoUiState()
 
+    override val tag = "ImageToVideo"
+    override val ownerId = OWNER_ID
+    override val workflowType = WorkflowType.ITV
+    override val prefsName = "ImageToVideoFragmentPrefs"
+    override val videoFilePrefix = VideoUtils.FilePrefix.IMAGE_TO_VIDEO
+    override val previewKey = MediaStateHolder.MediaKey.ItvPreview
+    override fun videoKey(promptId: String) = MediaStateHolder.MediaKey.ItvVideo(promptId)
+    override fun currentVideoPromptId() = MediaStateHolder.getCurrentItvPromptId()
+    override fun clearCurrentVideoPromptId() = MediaStateHolder.clearCurrentItvPromptId()
+    override fun defaultPositivePrompt() = SeasonalPrompts.getImageToVideoPrompt()
+
     override fun ImageToVideoUiState.params() = params
     override fun ImageToVideoUiState.withParams(params: GenerationParams) = copy(params = params)
-    override val fallbackParams get() = imageToVideoDefaults
-
-    override fun validateLength(length: String) = ValidationUtils.validateVideoLength(length, applicationContext)
-
-    // Constants
-    companion object {
-        private const val TAG = "ImageToVideo"
-        const val OWNER_ID = "IMAGE_TO_VIDEO"
-        private const val PREFS_NAME = "ImageToVideoFragmentPrefs"
-
-        // Global preferences (camelCase keys for BackupManager compatibility)
-        private const val KEY_SELECTED_WORKFLOW_ID = "selectedWorkflowId"
-        private const val KEY_POSITIVE_PROMPT = "positivePrompt"
-    }
-
-    init {
-        // Keep the result list for process death (disk-first mode only, see MediaStateHolder)
-        viewModelScope.launch {
-            _uiState
-                .map { it.generationOutputs to it.currentResultIndex }
-                .distinctUntilChanged()
-                .drop(1)
-                .collect { (outputs, index) ->
-                    MediaStateHolder.saveGenerationOutputs(applicationContext, OWNER_ID, outputs, index)
-                }
-        }
-        // Observe workflow changes to refresh list when workflows are added/updated/deleted
-        viewModelScope.launch {
-            WorkflowManager.workflowsVersion.collect {
-                loadWorkflows()
-            }
-        }
-    }
+    override fun ImageToVideoUiState.video() = video
+    override fun ImageToVideoUiState.withVideo(video: VideoResult) = copy(video = video)
+    override fun ImageToVideoUiState.workflows() = availableWorkflows
+    override fun ImageToVideoUiState.withWorkflows(workflows: List<WorkflowItem>) = copy(availableWorkflows = workflows)
 
     override fun onInitialize() {
-        DebugLogger.i(TAG, "Initializing")
-
-        loadWorkflows()
-        restorePreferences()
+        super.onInitialize()
         loadSavedSourceImage()
-        restoreLastPreviewImage()
-        loadLastGeneratedVideo()
-        // Models are now loaded automatically via ConnectionManager
     }
 
-    /**
-     * Load the last generated video from cache.
-     * This restores the video preview when the screen is recreated.
-     * The video URI is prepared off the main thread and applied when ready.
-     */
-    private fun loadLastGeneratedVideo() {
-        val context = applicationContext ?: return
-        // Results strip of the last job (disk-first mode only)
-        if (_uiState.value.generationOutputs.isEmpty()) {
-            MediaStateHolder.loadGenerationOutputs(applicationContext, OWNER_ID)?.let { (outputs, index) ->
-                _uiState.update { it.copy(generationOutputs = outputs, currentResultIndex = index) }
-            }
-        }
-        val promptId = MediaStateHolder.getCurrentItvPromptId() ?: return
-
-        val key = MediaStateHolder.MediaKey.ItvVideo(promptId)
-        if (MediaStateHolder.hasVideoBytes(key, context)) {
-            viewModelScope.launch {
-                val uri = MediaStateHolder.getVideoUri(context, key) ?: return@launch
-                // Don't replace a video that arrived while the URI was being prepared
-                _uiState.update { if (it.currentVideoUri == null) it.copy(currentVideoUri = uri) else it }
-            }
-        }
-    }
-
-    private fun loadWorkflows() {
-        val ctx = applicationContext ?: return
-
-        val workflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.ITV)
-
-        val unifiedWorkflows = workflows.map { workflow ->
-            ItvWorkflowItem(
-                id = workflow.id,
-                name = workflow.name,
-                displayName = workflow.name,
-                type = WorkflowType.ITV
-            )
-        }
-
-        val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
-        val currentSelection = _uiState.value.selectedWorkflow
-        val selectedWorkflowItem = if (currentSelection.isEmpty())
-            sortedWorkflows.firstOrNull()
-        else
-            sortedWorkflows.find { it.name == currentSelection } ?: sortedWorkflows.firstOrNull()
-
-        _uiState.update { it.copy(availableWorkflows = sortedWorkflows) }
-
-        // Reload workflow values to refresh capability flags from WorkflowDefaults
-        // This is important after backup restore when workflowsVersion triggers this function
-        if (selectedWorkflowItem != null) {
-            loadWorkflowValues(selectedWorkflowItem.id, selectedWorkflowItem.name)
-        } else {
-            updateParams(save = false) { it.copy(selectedWorkflow = "", selectedWorkflowId = "") }
-        }
-    }
-
-    private fun restorePreferences() {
-        val context = applicationContext ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-        // Load global preferences with serverId prefix
-        val savedWorkflowId = prefs.getString("${serverId}_$KEY_SELECTED_WORKFLOW_ID", "") ?: ""
-        val defaultPositivePrompt = SeasonalPrompts.getImageToVideoPrompt()
-        val savedPositivePrompt = prefs.getString("${serverId}_$KEY_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
-
-        // Update positive prompt first
-        updateParams(save = false) { it.copy(positivePrompt = savedPositivePrompt) }
-
-        // Find workflow by ID
-        val workflowItem = if (savedWorkflowId.isNotEmpty()) {
-            _uiState.value.availableWorkflows.find { it.id == savedWorkflowId }
-        } else {
-            _uiState.value.availableWorkflows.find { it.name == _uiState.value.selectedWorkflow }
-                ?: _uiState.value.availableWorkflows.firstOrNull()
-        }
-
-        // Load workflow values (single source of truth)
-        if (workflowItem != null) {
-            loadWorkflowValues(workflowItem.id, workflowItem.name)
-        }
-    }
-
-    override fun saveConfiguration() {
-        val context = applicationContext ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
-        val state = _uiState.value
-
-        // Save global preferences with serverId prefix
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString("${serverId}_$KEY_SELECTED_WORKFLOW_ID", state.selectedWorkflowId)
-            .putString("${serverId}_$KEY_POSITIVE_PROMPT", state.positivePrompt)
-            .apply()
-
-        // Save per-workflow values of the selected workflow
-        saveWorkflowValues()
-    }
+    override fun hasValidConfiguration(): Boolean =
+        _uiState.value.sourceImage != null && isReadyToGenerate(_uiState.value.params)
 
     private fun loadSavedSourceImage() {
         // Restore from cache (memory in memory-first mode, disk in disk-first mode)
         val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItvSource, applicationContext)
         if (sourceImage != null) {
-            _uiState.value = _uiState.value.copy(sourceImage = sourceImage)
+            _uiState.update { it.copy(sourceImage = sourceImage) }
         }
     }
 
-
     // View mode
     fun onViewModeChange(mode: ImageToVideoViewMode) {
-        _uiState.value = _uiState.value.copy(viewMode = mode)
+        _uiState.update { it.copy(viewMode = mode) }
     }
 
+    /**
+     * Use a generated image as the source image and switch to the Source tab.
+     *
+     * May run before the screen was first opened, i.e. before [initialize]: the context is then
+     * passed in so the image is stored where the initialization will read it, otherwise it would
+     * bring back the previous source.
+     */
     /**
      * Use a generated image as the source image and switch to the Source tab.
      *
@@ -269,44 +131,13 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                     // Store in cache (memory or disk based on mode)
                     MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, context)
 
-                    _uiState.value = _uiState.value.copy(sourceImage = bitmap)
+                    _uiState.update { it.copy(sourceImage = bitmap) }
                 }
             } catch (e: Exception) {
-                _events.emit(ImageToVideoEvent.ShowToast(R.string.error_save_image))
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
             }
         }
     }
-
-    fun onWorkflowChange(workflow: String) {
-        val workflowItem = _uiState.value.availableWorkflows.find { it.name == workflow } ?: return
-        DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflow)}")
-        switchWorkflow(workflowItem.id, workflowItem.name)
-    }
-
-    /**
-     * Reset prompt to seasonal default.
-     * Clears saved positive prompt and reloads with seasonal default.
-     */
-    fun resetPromptToDefault() {
-        val ctx = applicationContext ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
-
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                // Clear saved positive prompt
-                val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit().remove("${serverId}_$KEY_POSITIVE_PROMPT").apply()
-            }
-
-            // Set prompt to seasonal default
-            val defaultPrompt = SeasonalPrompts.getImageToVideoPrompt()
-            updateParams(save = false) { it.copy(positivePrompt = defaultPrompt) }
-
-            // Emit toast event
-            _events.emit(ImageToVideoEvent.ShowToast(R.string.msg_prompt_preset_reset_success))
-        }
-    }
-
 
     /**
      * Upload source image to ComfyUI and prepare workflow
@@ -324,23 +155,20 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         if (!connected) return null  // Dialog already shown by ensureConnection
 
         val state = _uiState.value
+        val p = state.params
 
         val sourceImage = state.sourceImage
         if (sourceImage == null) {
-            _events.emit(ImageToVideoEvent.ShowToast(R.string.msg_no_source_image))
+            _events.emit(GenerationScreenEvent.ShowToast(R.string.msg_no_source_image))
             return null
         }
 
-        // Validate all fields
-        if (state.widthError != null || state.heightError != null ||
-            state.lengthError != null || state.fpsError != null) {
-            return null
-        }
+        if (p.hasErrors) return null
 
-        val width = state.width.toIntOrNull() ?: return null
-        val height = state.height.toIntOrNull() ?: return null
-        val length = state.length.toIntOrNull() ?: return null
-        val fps = state.fps.toIntOrNull() ?: return null
+        val width = p.width.toIntOrNull() ?: return null
+        val height = p.height.toIntOrNull() ?: return null
+        val length = p.length.toIntOrNull() ?: return null
+        val fps = p.fps.toIntOrNull() ?: return null
 
         _uiState.update { it.copy(isUploading = true) }
         return try {
@@ -378,235 +206,56 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
                         ConnectionManager.showConnectionAlert(ctx, uploadResult.failureType)
                     }
                 } else {
-                    _events.emit(ImageToVideoEvent.ShowToast(R.string.error_save_image))
+                    _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
                 }
                 return null
             }
             val uploadedFilename = uploadResult.filename
 
             val baseWorkflow = WorkflowManager.prepareImageToVideoWorkflowById(
-                workflowId = state.selectedWorkflowId,
-                positivePrompt = state.positivePrompt,
-                negativePrompt = state.negativePrompt,
+                workflowId = p.selectedWorkflowId,
+                positivePrompt = p.positivePrompt,
+                negativePrompt = p.negativePrompt,
                 // Single-model patterns (e.g., LTX 2.0)
-                checkpoint = state.selectedCheckpoint,
-                unet = state.selectedUnet,
-                lora = state.selectedLoraName.takeIf { it.isNotEmpty() },
+                checkpoint = p.selectedCheckpoint,
+                unet = p.selectedUnet,
+                lora = p.selectedLoraName.takeIf { it.isNotEmpty() },
                 // Dual-model patterns (e.g., Wan 2.2)
-                highnoiseUnet = state.selectedHighnoiseUnet,
-                lownoiseUnet = state.selectedLownoiseUnet,
-                highnoiseLora = state.selectedHighnoiseLora,
-                lownoiseLora = state.selectedLownoiseLora,
+                highnoiseUnet = p.selectedHighnoiseUnet,
+                lownoiseUnet = p.selectedLownoiseUnet,
+                highnoiseLora = p.selectedHighnoiseLora,
+                lownoiseLora = p.selectedLownoiseLora,
                 // Common models
-                vae = state.selectedVae,
-                clip = state.selectedClip,
-                clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
-                clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
-                clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
-                clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
-                textEncoder = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
-                latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
+                vae = p.selectedVae,
+                clip = p.selectedClip,
+                clip1 = p.selectedClip1.takeIf { it.isNotEmpty() },
+                clip2 = p.selectedClip2.takeIf { it.isNotEmpty() },
+                clip3 = p.selectedClip3.takeIf { it.isNotEmpty() },
+                clip4 = p.selectedClip4.takeIf { it.isNotEmpty() },
+                textEncoder = p.selectedTextEncoder.takeIf { it.isNotEmpty() },
+                latentUpscaleModel = p.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
                 width = width,
                 height = height,
                 length = length,
                 fps = fps,
                 imageFilename = uploadedFilename,
                 // Generation parameters
-                steps = state.steps.toIntOrNull(),
-                cfg = state.cfg.toFloatOrNull(),
-                samplerName = state.sampler,
-                scheduler = state.scheduler,
-                denoise = state.denoise.toFloatOrNull(),
-                megapixels = state.megapixels.toFloatOrNull(),
-                seed = state.seed.toLongOrNull(),
-                randomSeed = state.randomSeed,
-                upscaleMethod = state.upscaleMethod.takeIf { it.isNotEmpty() },
-                scaleBy = state.scaleBy.toFloatOrNull(),
-                stopAtClipLayer = state.stopAtClipLayer.toIntOrNull()
+                steps = p.steps.toIntOrNull(),
+                cfg = p.cfg.toFloatOrNull(),
+                samplerName = p.sampler,
+                scheduler = p.scheduler,
+                denoise = p.denoise.toFloatOrNull(),
+                megapixels = p.megapixels.toFloatOrNull(),
+                seed = p.seed.toLongOrNull(),
+                randomSeed = p.randomSeed,
+                upscaleMethod = p.upscaleMethod.takeIf { it.isNotEmpty() },
+                scaleBy = p.scaleBy.toFloatOrNull(),
+                stopAtClipLayer = p.stopAtClipLayer.toIntOrNull()
             ) ?: return null
 
-            // Inject LoRAs if configured
-            var workflow = baseWorkflow
-
-            // Primary LoRA chain for single-model workflows (e.g., LTX 2.0)
-            if (state.loraChain.isNotEmpty()) {
-                workflow = WorkflowManager.injectLoraChain(workflow, state.loraChain, sh.hnet.comfychair.WorkflowType.ITV)
-            }
-
-            // Dual-model LoRA chains for workflows like Wan 2.2
-            if (state.highnoiseLoraChain.isNotEmpty()) {
-                workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.highnoiseLoraChain, isHighNoise = true)
-            }
-            if (state.lownoiseLoraChain.isNotEmpty()) {
-                workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, state.lownoiseLoraChain, isHighNoise = false)
-            }
-            workflow
+            injectVideoLoraChains(baseWorkflow, p)
         } finally {
             _uiState.update { it.copy(isUploading = false) }
-        }
-    }
-
-    override fun hasValidConfiguration(): Boolean =
-        _uiState.value.sourceImage != null && isReadyToGenerate(_uiState.value.params)
-
-    fun onPreviewBitmapChange(bitmap: Bitmap) {
-        _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
-        saveLastPreviewImage(bitmap)
-    }
-
-    /**
-     * Select the result shown in the preview when a job produced several files.
-     */
-    fun onCurrentResultChange(index: Int) {
-        _uiState.update { it.copy(currentResultIndex = index.coerceIn(0, (it.generationOutputs.size - 1).coerceAtLeast(0))) }
-    }
-
-    /**
-     * Clear preview for a specific execution. Only clears if this is a new promptId
-     * to prevent duplicate clears when navigating back to the screen.
-     */
-    fun clearPreviewForExecution(promptId: String) {
-        if (promptId == lastClearedForPromptId) return
-        lastClearedForPromptId = promptId
-        // Evict preview from cache so restoreLastPreviewImage() won't restore the old preview
-        // when navigating back to this screen during generation
-        MediaStateHolder.evict(MediaStateHolder.MediaKey.ItvPreview)
-        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList(), currentResultIndex = 0)
-        // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
-        MediaStateHolder.clearCurrentItvPromptId()
-    }
-
-    fun clearPreview() {
-        lastClearedForPromptId = null // Reset tracking when manually clearing
-        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList(), currentResultIndex = 0)
-        // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
-        MediaStateHolder.clearCurrentItvPromptId()
-    }
-
-    // Event listener management
-
-    /**
-     * Start listening for generation events from the GenerationViewModel.
-     * This registers this ViewModel as the active event handler.
-     * @param generationViewModel The shared GenerationViewModel
-     */
-    fun startListening(generationViewModel: GenerationViewModel) {
-        generationViewModelRef = generationViewModel
-
-        // If generation is running for this screen, switch to preview mode
-        val state = generationViewModel.generationState.value
-        if (state.isGenerating && state.ownerId == OWNER_ID) {
-            _uiState.value = _uiState.value.copy(viewMode = ImageToVideoViewMode.PREVIEW)
-        }
-
-        // Retry loading video if not loaded during initialize()
-        // This handles the race condition where MediaStateHolder.loadFromDisk()
-        // completes after initialize() but before startListening()
-        if (_uiState.value.currentVideoUri == null) {
-            loadLastGeneratedVideo()
-        }
-
-        generationViewModel.registerEventHandler(OWNER_ID) { event ->
-            handleGenerationEvent(event)
-        }
-    }
-
-    /**
-     * Stop listening for generation events.
-     * Note: We keep the refs if generation is still running,
-     * as the handler may still be called for completion events.
-     */
-    fun stopListening(generationViewModel: GenerationViewModel) {
-        generationViewModel.unregisterEventHandler(OWNER_ID)
-        // Only clear refs if no generation is active (handler was actually unregistered)
-        // If generation is running, the handler is kept and needs the refs
-        if (!generationViewModel.generationState.value.isGenerating) {
-            if (generationViewModelRef == generationViewModel) {
-                generationViewModelRef = null
-            }
-        }
-    }
-
-    /**
-     * Handle generation events from the GenerationViewModel.
-     */
-    private fun handleGenerationEvent(event: GenerationEvent) {
-        when (event) {
-            is GenerationEvent.PreviewImage -> {
-                onPreviewBitmapChange(event.bitmap)
-            }
-            is GenerationEvent.VideoGenerated -> {
-                DebugLogger.i(TAG, "VideoGenerated: ${Obfuscator.promptId(event.promptId)}")
-                fetchGeneratedVideo(event.promptId)
-            }
-            is GenerationEvent.ConnectionLostDuringGeneration -> {
-                viewModelScope.launch {
-                    val message = applicationContext?.getString(R.string.msg_connection_lost_generation_may_continue)
-                        ?: "Connection lost. Will check for completion when reconnected."
-                    _events.emit(ImageToVideoEvent.ShowToastMessage(message))
-                }
-                // DON'T clear state - generation may still be running on server
-            }
-            is GenerationEvent.Error -> {
-                viewModelScope.launch {
-                    _events.emit(ImageToVideoEvent.ShowToastMessage(event.message))
-                }
-                // DON'T call completeGeneration() here - this may just be a connection error
-                // The server might still complete the generation
-            }
-            is GenerationEvent.ClearPreviewForResume -> {
-                // Don't clear - we want to keep the restored preview visible until video loads
-            }
-            else -> {}
-        }
-    }
-
-    /**
-     * Fetch the generated video from the server and update the UI state.
-     * Called when VideoGenerated event is received.
-     */
-    private fun fetchGeneratedVideo(promptId: String) {
-        val context = applicationContext ?: return
-        val client = comfyUIClient ?: return
-
-        _uiState.update { it.copy(isFetching = true) }
-
-        VideoUtils.fetchVideoFromHistory(
-            context = context,
-            client = client,
-            promptId = promptId,
-            filePrefix = VideoUtils.FilePrefix.IMAGE_TO_VIDEO
-        ) { uri, outputs ->
-            _uiState.update { it.copy(isFetching = false) }
-            if (uri != null) {
-                // Clear preview bitmap so video player takes display precedence
-                _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null, generationOutputs = outputs, currentResultIndex = 0)
-                deleteLastPreviewImage()
-                generationViewModelRef?.completeGeneration(promptId)
-            }
-            // If uri is null, don't complete generation - will retry on next return
-        }
-    }
-
-    private fun saveLastPreviewImage(bitmap: Bitmap) {
-        // Store in cache (memory or disk based on mode)
-        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvPreview, bitmap, applicationContext)
-    }
-
-    private fun restoreLastPreviewImage() {
-        // Restore from cache (memory in memory-first mode, disk in disk-first mode)
-        val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItvPreview, applicationContext)
-        if (bitmap != null) {
-            _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
-        }
-    }
-
-    private fun deleteLastPreviewImage() {
-        // Remove from in-memory cache AND delete from disk
-        // This prevents stale preview from being restored on app restart
-        val context = applicationContext ?: return
-        viewModelScope.launch {
-            MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItvPreview)
         }
     }
 }

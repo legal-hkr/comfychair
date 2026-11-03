@@ -102,7 +102,7 @@ import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
+import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewMode
 import sh.hnet.comfychair.viewmodel.PromptPresetEvent
@@ -225,10 +225,10 @@ fun ImageToVideoScreen(
     LaunchedEffect(Unit) {
         imageToVideoViewModel.events.collect { event ->
             when (event) {
-                is ImageToVideoEvent.ShowToast -> {
+                is GenerationScreenEvent.ShowToast -> {
                     Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                 }
-                is ImageToVideoEvent.ShowToastMessage -> {
+                is GenerationScreenEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }

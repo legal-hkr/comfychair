@@ -103,7 +103,7 @@ import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.ImageToImageEvent
+import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.ImageToImageViewMode
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
@@ -218,10 +218,10 @@ fun ImageToImageScreen(
     LaunchedEffect(Unit) {
         imageToImageViewModel.events.collect { event ->
             when (event) {
-                is ImageToImageEvent.ShowToast -> {
+                is GenerationScreenEvent.ShowToast -> {
                     Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                 }
-                is ImageToImageEvent.ShowToastMessage -> {
+                is GenerationScreenEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }

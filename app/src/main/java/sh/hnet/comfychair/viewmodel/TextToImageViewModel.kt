@@ -34,16 +34,6 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Represents a workflow item in the unified workflow dropdown
- */
-data class WorkflowItem(
-    val id: String,             // Workflow ID for editor (e.g., "tti_checkpoint_sdxl")
-    override val name: String,           // User-friendly workflow name (e.g., "SDXL")
-    override val displayName: String,    // Display name with type prefix (e.g., "[Checkpoint] SDXL")
-    val type: WorkflowType      // Workflow type for mode detection
-) : WorkflowItemBase
-
-/**
  * UI state for the Text-to-Image screen.
  *
  * Generation parameters live in [params] (shared with the other screens, see [GenerationParams]); the state
@@ -71,18 +61,10 @@ data class TextToImageUiState(
 ) : CommonGenerationState by params
 
 /**
- * One-time events for Text-to-Image screen
- */
-sealed class TextToImageEvent {
-    data class ShowToast(val messageResId: Int) : TextToImageEvent()
-    data class ShowToastMessage(val message: String) : TextToImageEvent()
-}
-
-/**
  * ViewModel for the Text-to-Image screen.
  * Manages configuration state, model selection, and image generation.
  */
-class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToImageEvent>() {
+class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
 
     override val initialState = TextToImageUiState()
 
@@ -148,12 +130,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
         // Create workflow list
         val unifiedWorkflows = workflows.map { workflow ->
-            WorkflowItem(
-                id = workflow.id,
-                name = workflow.name,
-                displayName = workflow.name,
-                type = WorkflowType.TTI
-            )
+            WorkflowItem(id = workflow.id, name = workflow.name)
         }
 
         val sortedWorkflows = unifiedWorkflows.sortedBy { it.displayName }
@@ -205,7 +182,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             updateParams(save = false) { it.copy(positivePrompt = defaultPrompt) }
 
             // Emit toast event
-            _events.emit(TextToImageEvent.ShowToast(R.string.msg_prompt_preset_reset_success))
+            _events.emit(GenerationScreenEvent.ShowToast(R.string.msg_prompt_preset_reset_success))
         }
     }
 
@@ -330,13 +307,13 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 viewModelScope.launch {
                     val message = applicationContext?.getString(R.string.msg_connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
-                    _events.emit(TextToImageEvent.ShowToastMessage(message))
+                    _events.emit(GenerationScreenEvent.ShowToastMessage(message))
                 }
             }
             is GenerationEvent.Error -> {
                 DebugLogger.e(TAG, "Generation error")
                 viewModelScope.launch {
-                    _events.emit(TextToImageEvent.ShowToastMessage(event.message))
+                    _events.emit(GenerationScreenEvent.ShowToastMessage(event.message))
                 }
             }
             is GenerationEvent.ClearPreviewForResume -> {

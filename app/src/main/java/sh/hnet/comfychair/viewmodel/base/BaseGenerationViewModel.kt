@@ -19,6 +19,7 @@ import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 
 /**
@@ -30,9 +31,8 @@ import sh.hnet.comfychair.viewmodel.GenerationViewModel
  * ([saveConfiguration]).
  *
  * @param UiState The UI state type for this ViewModel
- * @param Event The event type for this ViewModel
  */
-abstract class BaseGenerationViewModel<UiState, Event> : ViewModel() {
+abstract class BaseGenerationViewModel<UiState> : ViewModel() {
 
     // State management - subclasses must provide initial state
     protected abstract val initialState: UiState
@@ -44,8 +44,8 @@ abstract class BaseGenerationViewModel<UiState, Event> : ViewModel() {
         _uiState.asStateFlow()
     }
 
-    protected val _events = MutableSharedFlow<Event>()
-    val events: SharedFlow<Event> = _events.asSharedFlow()
+    protected val _events = MutableSharedFlow<GenerationScreenEvent>()
+    val events: SharedFlow<GenerationScreenEvent> = _events.asSharedFlow()
 
     // Common dependencies
     protected var applicationContext: Context? = null

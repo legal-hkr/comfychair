@@ -92,7 +92,7 @@ import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetEvent
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
-import sh.hnet.comfychair.viewmodel.TextToImageEvent
+import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 
 /**
@@ -206,10 +206,10 @@ fun TextToImageScreen(
     LaunchedEffect(Unit) {
         textToImageViewModel.events.collect { event ->
             when (event) {
-                is TextToImageEvent.ShowToast -> {
+                is GenerationScreenEvent.ShowToast -> {
                     Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
                 }
-                is TextToImageEvent.ShowToastMessage -> {
+                is GenerationScreenEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }
