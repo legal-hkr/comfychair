@@ -163,6 +163,11 @@ data class ImageToImageUiState(
     val positivePrompt: String = "",
     val negativePrompt: String = "",
     val megapixels: String = "1.0",
+    // Shown only for workflows using these placeholders
+    val width: String = "1024",
+    val height: String = "1024",
+    val length: String = "33",
+    val fps: String = "16",
     override val steps: String = "20",
     override val cfg: String = "7.0",
     override val sampler: String = "euler",
@@ -180,6 +185,10 @@ data class ImageToImageUiState(
 
     // Validation errors (shared between modes)
     val megapixelsError: String? = null,
+    val widthError: String? = null,
+    val heightError: String? = null,
+    val lengthError: String? = null,
+    val fpsError: String? = null,
     override val cfgError: String? = null,
     override val stepsError: String? = null,
     override val seedError: String? = null,
@@ -238,6 +247,10 @@ data class ImageToImageUiState(
 
     // Editing parameters
     val editingMegapixels: String = "2.0",
+    val editingWidth: String = "1024",
+    val editingHeight: String = "1024",
+    val editingLength: String = "33",
+    val editingFps: String = "16",
     val editingSteps: String = "4",
     val editingCfg: String = "1.0",
     val editingSampler: String = "euler",
@@ -659,6 +672,14 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             // Unified generation parameters
             megapixels = savedValues?.megapixels?.toString()
                 ?: defaults?.megapixels?.toString() ?: "1.0",
+            width = savedValues?.width?.toString()
+                ?: defaults?.width?.toString() ?: "1024",
+            height = savedValues?.height?.toString()
+                ?: defaults?.height?.toString() ?: "1024",
+            length = savedValues?.length?.toString()
+                ?: defaults?.length?.toString() ?: "33",
+            fps = savedValues?.frameRate?.toString()
+                ?: defaults?.frameRate?.toString() ?: "16",
             steps = savedValues?.steps?.toString()
                 ?: defaults?.steps?.toString() ?: "20",
             cfg = savedValues?.cfg?.toString()
@@ -776,6 +797,14 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             workflowPlaceholders = placeholders,
             editingMegapixels = savedValues?.megapixels?.toString()
                 ?: defaults?.megapixels?.toString() ?: "2.0",
+            editingWidth = savedValues?.width?.toString()
+                ?: defaults?.width?.toString() ?: "1024",
+            editingHeight = savedValues?.height?.toString()
+                ?: defaults?.height?.toString() ?: "1024",
+            editingLength = savedValues?.length?.toString()
+                ?: defaults?.length?.toString() ?: "33",
+            editingFps = savedValues?.frameRate?.toString()
+                ?: defaults?.frameRate?.toString() ?: "16",
             editingSteps = savedValues?.steps?.toString()
                 ?: defaults?.steps?.toString() ?: "4",
             editingCfg = savedValues?.cfg?.toString()
@@ -869,6 +898,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         // Save unified field values
         val values = WorkflowValues(
             megapixels = state.megapixels.toFloatOrNull(),
+            width = state.width.toIntOrNull(),
+            height = state.height.toIntOrNull(),
+            length = state.length.toIntOrNull(),
+            frameRate = state.fps.toIntOrNull(),
             steps = state.steps.toIntOrNull(),
             cfg = state.cfg.toFloatOrNull(),
             samplerName = state.sampler,
@@ -915,6 +948,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
 
         val values = WorkflowValues(
             megapixels = state.editingMegapixels.toFloatOrNull(),
+            width = state.editingWidth.toIntOrNull(),
+            height = state.editingHeight.toIntOrNull(),
+            length = state.editingLength.toIntOrNull(),
+            frameRate = state.editingFps.toIntOrNull(),
             steps = state.editingSteps.toIntOrNull(),
             cfg = state.editingCfg.toFloatOrNull(),
             samplerName = state.editingSampler,
@@ -1338,6 +1375,30 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         savePreferences()
     }
 
+    fun onWidthChange(width: String) {
+        val error = ValidationUtils.validateDimension(width, applicationContext)
+        _uiState.value = _uiState.value.copy(width = width, widthError = error)
+        savePreferences()
+    }
+
+    fun onHeightChange(height: String) {
+        val error = ValidationUtils.validateDimension(height, applicationContext)
+        _uiState.value = _uiState.value.copy(height = height, heightError = error)
+        savePreferences()
+    }
+
+    fun onLengthChange(length: String) {
+        val error = ValidationUtils.validateLength(length, applicationContext)
+        _uiState.value = _uiState.value.copy(length = length, lengthError = error)
+        savePreferences()
+    }
+
+    fun onFpsChange(fps: String) {
+        val error = ValidationUtils.validateFrameRate(fps, applicationContext)
+        _uiState.value = _uiState.value.copy(fps = fps, fpsError = error)
+        savePreferences()
+    }
+
     // Unified parameter callbacks for inpainting mode
 
     fun onNegativePromptChange(negativePrompt: String) {
@@ -1582,6 +1643,30 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         savePreferences()
     }
 
+    fun onEditingWidthChange(width: String) {
+        val error = ValidationUtils.validateDimension(width, applicationContext)
+        _uiState.value = _uiState.value.copy(editingWidth = width, widthError = error)
+        savePreferences()
+    }
+
+    fun onEditingHeightChange(height: String) {
+        val error = ValidationUtils.validateDimension(height, applicationContext)
+        _uiState.value = _uiState.value.copy(editingHeight = height, heightError = error)
+        savePreferences()
+    }
+
+    fun onEditingLengthChange(length: String) {
+        val error = ValidationUtils.validateLength(length, applicationContext)
+        _uiState.value = _uiState.value.copy(editingLength = length, lengthError = error)
+        savePreferences()
+    }
+
+    fun onEditingFpsChange(fps: String) {
+        val error = ValidationUtils.validateFrameRate(fps, applicationContext)
+        _uiState.value = _uiState.value.copy(editingFps = fps, fpsError = error)
+        savePreferences()
+    }
+
     fun onEditingStepsChange(steps: String) {
         _uiState.value = _uiState.value.copy(editingSteps = steps)
         savePreferences()
@@ -1781,12 +1866,20 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 // Editing mode: only check for validation errors
                 state.stepsError == null &&
                 state.megapixelsError == null &&
+                state.widthError == null &&
+                state.heightError == null &&
+                state.lengthError == null &&
+                state.fpsError == null &&
                 state.cfgError == null
             }
             ImageToImageMode.INPAINTING -> {
                 // Inpainting mode: source image with mask required, plus validation errors
                 state.sourceImage != null &&
                 state.megapixelsError == null &&
+                state.widthError == null &&
+                state.heightError == null &&
+                state.lengthError == null &&
+                state.fpsError == null &&
                 state.stepsError == null &&
                 state.cfgError == null
             }
@@ -1934,6 +2027,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             highnoiseLora = state.selectedEditingHighnoiseLora,
             lownoiseLora = state.selectedEditingLownoiseLora,
             megapixels = state.editingMegapixels.toFloatOrNull() ?: 2.0f,
+            width = state.editingWidth.toIntOrNull(),
+            height = state.editingHeight.toIntOrNull(),
+            length = state.editingLength.toIntOrNull(),
+            frameRate = state.editingFps.toIntOrNull(),
             steps = state.editingSteps.toIntOrNull() ?: 4,
             cfg = state.editingCfg.toFloatOrNull() ?: 1.0f,
             samplerName = state.editingSampler,
@@ -2024,6 +2121,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             // Unified parameters
             megapixels = state.megapixels.toFloatOrNull() ?: 1.0f,
+            width = state.width.toIntOrNull(),
+            height = state.height.toIntOrNull(),
+            length = state.length.toIntOrNull(),
+            frameRate = state.fps.toIntOrNull(),
             steps = state.steps.toIntOrNull() ?: 20,
             cfg = state.cfg.toFloatOrNull() ?: 7.0f,
             samplerName = state.sampler,

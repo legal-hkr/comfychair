@@ -113,6 +113,10 @@ data class UnifiedCallbacks(
 
     // === ITI-Specific: Editing Mode Parameters ===
     val onEditingMegapixelsChange: ((String) -> Unit)? = null,
+    val onEditingWidthChange: ((String) -> Unit)? = null,
+    val onEditingHeightChange: ((String) -> Unit)? = null,
+    val onEditingLengthChange: ((String) -> Unit)? = null,
+    val onEditingFpsChange: ((String) -> Unit)? = null,
     val onEditingStepsChange: ((String) -> Unit)? = null,
     val onEditingCfgChange: ((String) -> Unit)? = null,
     val onEditingSamplerChange: ((String) -> Unit)? = null,

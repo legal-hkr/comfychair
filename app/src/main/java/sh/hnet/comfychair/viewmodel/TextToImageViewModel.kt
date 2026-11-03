@@ -87,6 +87,10 @@ data class TextToImageUiState(
     // Unified generation parameters - single set, visibility controlled by capabilities
     val width: String = "1024",
     val height: String = "1024",
+    // Shown only for workflows using these placeholders (e.g. one also saving a video)
+    val megapixels: String = "1.0",
+    val length: String = "33",
+    val fps: String = "16",
     override val steps: String = "20",
     override val cfg: String = "7.0",
     override val sampler: String = "euler",
@@ -164,6 +168,9 @@ data class TextToImageUiState(
     // Validation errors
     val widthError: String? = null,
     val heightError: String? = null,
+    val megapixelsError: String? = null,
+    val lengthError: String? = null,
+    val fpsError: String? = null,
     override val stepsError: String? = null,
     override val cfgError: String? = null,
     override val seedError: String? = null,
@@ -479,6 +486,24 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         saveConfiguration()
     }
 
+    fun onMegapixelsChange(megapixels: String) {
+        val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
+        _uiState.value = _uiState.value.copy(megapixels = megapixels, megapixelsError = error)
+        saveConfiguration()
+    }
+
+    fun onLengthChange(length: String) {
+        val error = ValidationUtils.validateLength(length, applicationContext)
+        _uiState.value = _uiState.value.copy(length = length, lengthError = error)
+        saveConfiguration()
+    }
+
+    fun onFpsChange(fps: String) {
+        val error = ValidationUtils.validateFrameRate(fps, applicationContext)
+        _uiState.value = _uiState.value.copy(fps = fps, fpsError = error)
+        saveConfiguration()
+    }
+
     fun onStepsChange(steps: String) {
         val error = ValidationUtils.validateSteps(steps, applicationContext)
         _uiState.value = _uiState.value.copy(steps = steps, stepsError = error)
@@ -731,6 +756,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         // Only check for validation errors in numeric fields
         return state.widthError == null &&
                state.heightError == null &&
+               state.megapixelsError == null &&
+               state.lengthError == null &&
+               state.fpsError == null &&
                state.stepsError == null &&
                state.cfgError == null &&
                state.seedError == null &&
@@ -773,6 +801,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             // Unified generation parameters
             width = state.width.toIntOrNull() ?: 1024,
             height = state.height.toIntOrNull() ?: 1024,
+            megapixels = state.megapixels.toFloatOrNull(),
+            length = state.length.toIntOrNull(),
+            frameRate = state.fps.toIntOrNull(),
             steps = state.steps.toIntOrNull() ?: 20,
             cfg = state.cfg.toFloatOrNull() ?: 7.0f,
             samplerName = state.sampler,
@@ -867,6 +898,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val values = WorkflowValues(
             width = state.width.toIntOrNull(),
             height = state.height.toIntOrNull(),
+            megapixels = state.megapixels.toFloatOrNull(),
+            length = state.length.toIntOrNull(),
+            frameRate = state.fps.toIntOrNull(),
             steps = state.steps.toIntOrNull(),
             cfg = state.cfg.toFloatOrNull(),
             samplerName = state.sampler,
@@ -1017,6 +1051,12 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                 ?: defaults?.width?.toString() ?: "1024",
             height = savedValues?.height?.toString()
                 ?: defaults?.height?.toString() ?: "1024",
+            megapixels = savedValues?.megapixels?.toString()
+                ?: defaults?.megapixels?.toString() ?: "1.0",
+            length = savedValues?.length?.toString()
+                ?: defaults?.length?.toString() ?: "33",
+            fps = savedValues?.frameRate?.toString()
+                ?: defaults?.frameRate?.toString() ?: "16",
             steps = savedValues?.steps?.toString()
                 ?: defaults?.steps?.toString() ?: "20",
             cfg = savedValues?.cfg?.toString()

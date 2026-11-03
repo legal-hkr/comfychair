@@ -53,6 +53,24 @@ fun TextToImageUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomS
                 onValueChange = callbacks.onHeightChange ?: noOpString,
                 error = heightError,
                 isVisible = capabilities.hasHeight
+            ),
+            megapixelsField = NumericField(
+                value = megapixels,
+                onValueChange = callbacks.onMegapixelsChange ?: noOpString,
+                error = megapixelsError,
+                isVisible = capabilities.hasMegapixels
+            ),
+            lengthField = NumericField(
+                value = length,
+                onValueChange = callbacks.onLengthChange ?: noOpString,
+                error = lengthError,
+                isVisible = capabilities.hasLength
+            ),
+            fpsField = NumericField(
+                value = fps,
+                onValueChange = callbacks.onFpsChange ?: noOpString,
+                error = fpsError,
+                isVisible = capabilities.hasFrameRate
             )
         ),
         lora = buildCommonLoraConfig(this, callbacks)
@@ -383,11 +401,35 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): Bottom
             buildCommonParameterConfig(
                 state = this,
                 callbacks = callbacks,
+                widthField = NumericField(
+                    value = width,
+                    onValueChange = callbacks.onWidthChange ?: noOpString,
+                    error = widthError,
+                    isVisible = capabilities.hasWidth
+                ),
+                heightField = NumericField(
+                    value = height,
+                    onValueChange = callbacks.onHeightChange ?: noOpString,
+                    error = heightError,
+                    isVisible = capabilities.hasHeight
+                ),
                 megapixelsField = NumericField(
                     value = megapixels,
                     onValueChange = callbacks.onMegapixelsChange ?: noOpString,
                     error = megapixelsError,
                     isVisible = capabilities.hasMegapixels
+                ),
+                lengthField = NumericField(
+                    value = length,
+                    onValueChange = callbacks.onLengthChange ?: noOpString,
+                    error = lengthError,
+                    isVisible = capabilities.hasLength
+                ),
+                fpsField = NumericField(
+                    value = fps,
+                    onValueChange = callbacks.onFpsChange ?: noOpString,
+                    error = fpsError,
+                    isVisible = capabilities.hasFrameRate
                 )
             )
         },
@@ -537,11 +579,35 @@ private fun buildEditingModeParameterConfig(
     callbacks: UnifiedCallbacks
 ): ParameterConfig {
     return ParameterConfig(
+        width = NumericField(
+            value = state.editingWidth,
+            onValueChange = callbacks.onEditingWidthChange ?: noOpString,
+            error = state.widthError,
+            isVisible = caps.hasWidth
+        ),
+        height = NumericField(
+            value = state.editingHeight,
+            onValueChange = callbacks.onEditingHeightChange ?: noOpString,
+            error = state.heightError,
+            isVisible = caps.hasHeight
+        ),
         megapixels = NumericField(
             value = state.editingMegapixels,
             onValueChange = callbacks.onEditingMegapixelsChange ?: noOpString,
             error = state.megapixelsError,
             isVisible = caps.hasMegapixels
+        ),
+        length = NumericField(
+            value = state.editingLength,
+            onValueChange = callbacks.onEditingLengthChange ?: noOpString,
+            error = state.lengthError,
+            isVisible = caps.hasLength
+        ),
+        fps = NumericField(
+            value = state.editingFps,
+            onValueChange = callbacks.onEditingFpsChange ?: noOpString,
+            error = state.fpsError,
+            isVisible = caps.hasFrameRate
         ),
         steps = NumericField(
             value = state.editingSteps,

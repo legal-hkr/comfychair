@@ -668,6 +668,10 @@ fun ImageToImageScreen(
                     onEditingLatentUpscaleModelChange = imageToImageViewModel::onEditingLatentUpscaleModelChange,
                     // Inpainting parameter callbacks
                     onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
+                    onWidthChange = imageToImageViewModel::onWidthChange,
+                    onHeightChange = imageToImageViewModel::onHeightChange,
+                    onLengthChange = imageToImageViewModel::onLengthChange,
+                    onFpsChange = imageToImageViewModel::onFpsChange,
                     onStepsChange = imageToImageViewModel::onStepsChange,
                     onCfgChange = imageToImageViewModel::onCfgChange,
                     onSamplerChange = imageToImageViewModel::onSamplerChange,
@@ -682,6 +686,10 @@ fun ImageToImageScreen(
                     onStopAtClipLayerChange = imageToImageViewModel::onStopAtClipLayerChange,
                     // Editing parameter callbacks
                     onEditingMegapixelsChange = imageToImageViewModel::onEditingMegapixelsChange,
+                    onEditingWidthChange = imageToImageViewModel::onEditingWidthChange,
+                    onEditingHeightChange = imageToImageViewModel::onEditingHeightChange,
+                    onEditingLengthChange = imageToImageViewModel::onEditingLengthChange,
+                    onEditingFpsChange = imageToImageViewModel::onEditingFpsChange,
                     onEditingStepsChange = imageToImageViewModel::onEditingStepsChange,
                     onEditingCfgChange = imageToImageViewModel::onEditingCfgChange,
                     onEditingSamplerChange = imageToImageViewModel::onEditingSamplerChange,
