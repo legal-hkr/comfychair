@@ -29,6 +29,8 @@ import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.GenerationOutput
+import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
@@ -97,6 +99,9 @@ data class ImageToImageUiState(
     val maskPaths: List<MaskPathData> = emptyList(),
     val brushSize: Float = 50f,
     val isEraserMode: Boolean = false,
+
+    // All result files of the last job, in server order (the first image is the one shown)
+    val generationOutputs: List<GenerationOutput> = emptyList(),
 
     // Preview image file info (for metadata extraction)
     val previewImageFilename: String? = null,
@@ -2087,51 +2092,36 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 return@fetchHistory
             }
 
-            val promptHistory = historyJson.optJSONObject(promptId)
-            val outputs = promptHistory?.optJSONObject("outputs")
+            val outputs = GenerationOutputs.fromHistory(historyJson, promptId)
+            val image = outputs.firstOrNull { !it.isVideo }
+            if (image != null) {
+                val filename = image.filename
+                val subfolder = image.subfolder
+                val type = image.type
 
-            if (outputs == null) {
-                _uiState.update { it.copy(isFetching = false) }
-                onComplete(false)
-                return@fetchHistory
-            }
+                client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
+                    _uiState.update { it.copy(isFetching = false) }
+                    if (bitmap != null) {
+                        // Store in cache (memory or disk based on mode)
+                        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap, context)
 
-            // Find image in outputs
-            val outputKeys = outputs.keys()
-            while (outputKeys.hasNext()) {
-                val nodeId = outputKeys.next()
-                val nodeOutput = outputs.optJSONObject(nodeId)
-                val images = nodeOutput?.optJSONArray("images")
-
-                if (images != null && images.length() > 0) {
-                    val imageInfo = images.optJSONObject(0)
-                    val filename = imageInfo?.optString("filename") ?: continue
-                    val subfolder = imageInfo.optString("subfolder", "")
-                    val type = imageInfo.optString("type", "output")
-
-                    client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
-                        _uiState.update { it.copy(isFetching = false) }
-                        if (bitmap != null) {
-                            // Store in cache (memory or disk based on mode)
-                            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiPreview, bitmap, context)
-
-                            _uiState.value = _uiState.value.copy(
-                                previewImage = bitmap,
-                                previewImageFilename = filename,
-                                previewImageSubfolder = subfolder,
-                                previewImageType = type,
-                                viewMode = ImageToImageViewMode.PREVIEW
-                            )
-                            onComplete(true)
-                        } else if (failureType == ConnectionFailure.STALLED) {
-                            ConnectionManager.showConnectionAlert(context, failureType)
-                            onComplete(false)
-                        } else {
-                            onComplete(false)
-                        }
+                        _uiState.value = _uiState.value.copy(
+                            previewImage = bitmap,
+                            generationOutputs = outputs,
+                            previewImageFilename = filename,
+                            previewImageSubfolder = subfolder,
+                            previewImageType = type,
+                            viewMode = ImageToImageViewMode.PREVIEW
+                        )
+                        onComplete(true)
+                    } else if (failureType == ConnectionFailure.STALLED) {
+                        ConnectionManager.showConnectionAlert(context, failureType)
+                        onComplete(false)
+                    } else {
+                        onComplete(false)
                     }
-                    return@fetchHistory
                 }
+                return@fetchHistory
             }
 
             _uiState.update { it.copy(isFetching = false) }
@@ -2158,6 +2148,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         MediaStateHolder.evict(MediaStateHolder.MediaKey.ItiPreview)
         _uiState.value = _uiState.value.copy(
             previewImage = null,
+            generationOutputs = emptyList(),
             previewImageFilename = null,
             previewImageSubfolder = null,
             previewImageType = null
@@ -2168,6 +2159,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         lastClearedForPromptId = null // Reset tracking when manually clearing
         _uiState.value = _uiState.value.copy(
             previewImage = null,
+            generationOutputs = emptyList(),
             previewImageFilename = null,
             previewImageSubfolder = null,
             previewImageType = null

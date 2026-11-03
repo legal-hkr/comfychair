@@ -20,6 +20,7 @@ import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
@@ -44,6 +45,8 @@ data class TextToVideoUiState(
     // Preview state
     val previewBitmap: android.graphics.Bitmap? = null,
     val currentVideoUri: android.net.Uri? = null,
+    // All result files of the last job, in server order (the first video is the one shown)
+    val generationOutputs: List<GenerationOutput> = emptyList(),
 
     // Workflow selection
     val selectedWorkflow: String = "",
@@ -908,14 +911,14 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
         // Evict preview from cache so restoreLastPreviewImage() won't restore the old preview
         // when navigating back to this screen during generation
         MediaStateHolder.evict(MediaStateHolder.MediaKey.TtvPreview)
-        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
+        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList())
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
         MediaStateHolder.clearCurrentTtvPromptId()
     }
 
     fun clearPreview() {
         lastClearedForPromptId = null // Reset tracking when manually clearing
-        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null)
+        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList())
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
         MediaStateHolder.clearCurrentTtvPromptId()
     }
@@ -1113,12 +1116,12 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             client = client,
             promptId = promptId,
             filePrefix = VideoUtils.FilePrefix.TEXT_TO_VIDEO
-        ) { uri ->
+        ) { uri, outputs ->
             _uiState.update { it.copy(isFetching = false) }
             if (uri != null) {
                 DebugLogger.i(TAG, "Video fetch successful")
                 // Clear preview bitmap so video player takes display precedence
-                _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null)
+                _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null, generationOutputs = outputs)
                 deleteLastPreviewImage()
                 generationViewModelRef?.completeGeneration(promptId)
             } else {

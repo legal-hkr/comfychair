@@ -27,6 +27,7 @@ import sh.hnet.comfychair.connection.WebSocketState
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.Obfuscator
 
 /**
@@ -529,7 +530,7 @@ class GenerationViewModel : ViewModel() {
                     }
                 }
                 DebugLogger.i(TAG, "Fetching video immediately for $ownerId (promptId=${Obfuscator.promptId(event.promptId)})")
-                VideoUtils.fetchVideoFromHistory(context, client, event.promptId, filePrefix) { uri ->
+                VideoUtils.fetchVideoFromHistory(context, client, event.promptId, filePrefix) { uri, _ ->
                     if (uri != null) {
                         DebugLogger.i(TAG, "Immediate video fetch successful for $ownerId")
                     } else {
@@ -553,32 +554,23 @@ class GenerationViewModel : ViewModel() {
         client.fetchHistory(promptId) { historyJson ->
             if (historyJson != null) {
                 try {
-                    val promptData = historyJson.optJSONObject(promptId)
-                    val outputs = promptData?.optJSONObject("outputs")
+                    GenerationOutputs.fromHistory(historyJson, promptId).firstOrNull { !it.isVideo }?.let { image ->
+                        val filename = image.filename
+                        val subfolder = image.subfolder
+                        val type = image.type
 
-                    outputs?.keys()?.forEach { nodeId ->
-                        val nodeOutput = outputs.getJSONObject(nodeId)
-                        val images = nodeOutput.optJSONArray("images")
-
-                        if (images != null && images.length() > 0) {
-                            val imageInfo = images.getJSONObject(0)
-                            val filename = imageInfo.optString("filename")
-                            val subfolder = imageInfo.optString("subfolder", "")
-                            val type = imageInfo.optString("type", "output")
-
-                            client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
-                                if (bitmap != null) {
-                                    MediaStateHolder.putBitmap(mediaKey, bitmap, context)
-                                    DebugLogger.i(TAG, "Immediate image fetch successful, stored to ${mediaKey::class.simpleName}")
-                                } else if (failureType == ConnectionFailure.STALLED) {
-                                    DebugLogger.w(TAG, "Immediate image fetch stalled")
-                                    ConnectionManager.showConnectionAlert(context, failureType)
-                                } else {
-                                    DebugLogger.w(TAG, "Immediate image fetch failed: bitmap is null")
-                                }
+                        client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
+                            if (bitmap != null) {
+                                MediaStateHolder.putBitmap(mediaKey, bitmap, context)
+                                DebugLogger.i(TAG, "Immediate image fetch successful, stored to ${mediaKey::class.simpleName}")
+                            } else if (failureType == ConnectionFailure.STALLED) {
+                                DebugLogger.w(TAG, "Immediate image fetch stalled")
+                                ConnectionManager.showConnectionAlert(context, failureType)
+                            } else {
+                                DebugLogger.w(TAG, "Immediate image fetch failed: bitmap is null")
                             }
-                            return@fetchHistory
                         }
+                        return@fetchHistory
                     }
                     DebugLogger.w(TAG, "Immediate image fetch: no images in history output")
                 } catch (e: Exception) {

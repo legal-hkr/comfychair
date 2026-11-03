@@ -25,6 +25,8 @@ import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.GenerationOutput
+import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
@@ -143,6 +145,9 @@ data class TextToImageUiState(
 
     // Generated image (preview)
     val previewBitmap: Bitmap? = null,
+
+    // All result files of the last job, in server order (the first image is the one shown)
+    val generationOutputs: List<GenerationOutput> = emptyList(),
 
     // Current image file info (for metadata extraction)
     val currentImageFilename: String? = null,
@@ -604,6 +609,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         MediaStateHolder.evict(MediaStateHolder.MediaKey.TtiPreview)
         _uiState.value = _uiState.value.copy(
             previewBitmap = null,
+            generationOutputs = emptyList(),
             currentImageFilename = null,
             currentImageSubfolder = null,
             currentImageType = null
@@ -614,6 +620,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         lastClearedForPromptId = null // Reset tracking when manually clearing
         _uiState.value = _uiState.value.copy(
             previewBitmap = null,
+            generationOutputs = emptyList(),
             currentImageFilename = null,
             currentImageSubfolder = null,
             currentImageType = null
@@ -788,37 +795,30 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         client.fetchHistory(promptId) { historyJson ->
             if (historyJson != null) {
                 try {
-                    val promptData = historyJson.optJSONObject(promptId)
-                    val outputs = promptData?.optJSONObject("outputs")
+                    val outputs = GenerationOutputs.fromHistory(historyJson, promptId)
+                    outputs.firstOrNull { !it.isVideo }?.let { image ->
+                        val filename = image.filename
+                        val subfolder = image.subfolder
+                        val type = image.type
 
-                    outputs?.keys()?.forEach { nodeId ->
-                        val nodeOutput = outputs.getJSONObject(nodeId)
-                        val images = nodeOutput.optJSONArray("images")
-
-                        if (images != null && images.length() > 0) {
-                            val imageInfo = images.getJSONObject(0)
-                            val filename = imageInfo.optString("filename")
-                            val subfolder = imageInfo.optString("subfolder", "")
-                            val type = imageInfo.optString("type", "output")
-
-                            client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
-                                viewModelScope.launch {
-                                    _uiState.update { it.copy(isFetching = false) }
-                                    if (bitmap != null) {
-                                        setCurrentImage(bitmap, filename, subfolder, type)
-                                        onComplete(true)
-                                    } else if (failureType == ConnectionFailure.STALLED) {
-                                        applicationContext?.let { ctx ->
-                                            ConnectionManager.showConnectionAlert(ctx, failureType)
-                                        }
-                                        onComplete(false)
-                                    } else {
-                                        onComplete(false)
+                        client.fetchImage(filename, subfolder, type) { bitmap, failureType ->
+                            viewModelScope.launch {
+                                _uiState.update { it.copy(isFetching = false) }
+                                if (bitmap != null) {
+                                    setCurrentImage(bitmap, filename, subfolder, type)
+                                    _uiState.update { it.copy(generationOutputs = outputs) }
+                                    onComplete(true)
+                                } else if (failureType == ConnectionFailure.STALLED) {
+                                    applicationContext?.let { ctx ->
+                                        ConnectionManager.showConnectionAlert(ctx, failureType)
                                     }
+                                    onComplete(false)
+                                } else {
+                                    onComplete(false)
                                 }
                             }
-                            return@fetchHistory
                         }
+                        return@fetchHistory
                     }
                     _uiState.update { it.copy(isFetching = false) }
                     onComplete(false)

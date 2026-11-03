@@ -19,6 +19,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
 /**
@@ -79,7 +80,6 @@ class GalleryRepository private constructor() {
         @Volatile
         private var instance: GalleryRepository? = null
 
-        private val VIDEO_EXTENSIONS = listOf(".mp4", ".webm", ".gif", ".avi", ".mov")
         private const val PERIODIC_REFRESH_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes
 
         fun getInstance(): GalleryRepository {
@@ -426,72 +426,16 @@ class GalleryRepository private constructor() {
             val promptHistory = historyJson.optJSONObject(promptId) ?: continue
             val outputs = promptHistory.optJSONObject("outputs") ?: continue
 
-            val nodeIds = outputs.keys()
-            while (nodeIds.hasNext()) {
-                val nodeId = nodeIds.next()
-                val nodeOutput = outputs.optJSONObject(nodeId) ?: continue
-
-                // Check for videos first
-                val videos = nodeOutput.optJSONArray("videos")
-                    ?: nodeOutput.optJSONArray("gifs")
-
-                if (videos != null && videos.length() > 0) {
-                    for (i in 0 until videos.length()) {
-                        val videoInfo = videos.optJSONObject(i) ?: continue
-                        val filename = videoInfo.optString("filename", "")
-                        if (filename.isEmpty()) continue
-
-                        val subfolder = videoInfo.optString("subfolder", "")
-                        val type = videoInfo.optString("type", "output")
-
-                        items.add(GalleryItem(
-                            promptId = promptId,
-                            filename = filename,
-                            subfolder = subfolder,
-                            type = type,
-                            isVideo = true,
-                            index = index++
-                        ))
-                    }
-                }
-
-                // Check for images
-                val images = nodeOutput.optJSONArray("images")
-                if (images != null && images.length() > 0) {
-                    for (i in 0 until images.length()) {
-                        val imageInfo = images.optJSONObject(i) ?: continue
-                        val filename = imageInfo.optString("filename", "")
-                        if (filename.isEmpty()) continue
-
-                        // Skip if it's actually a video
-                        if (VIDEO_EXTENSIONS.any { filename.lowercase().endsWith(it) }) {
-                            val subfolder = imageInfo.optString("subfolder", "")
-                            val type = imageInfo.optString("type", "output")
-
-                            items.add(GalleryItem(
-                                promptId = promptId,
-                                filename = filename,
-                                subfolder = subfolder,
-                                type = type,
-                                isVideo = true,
-                                index = index++
-                            ))
-                            continue
-                        }
-
-                        val subfolder = imageInfo.optString("subfolder", "")
-                        val type = imageInfo.optString("type", "output")
-
-                        items.add(GalleryItem(
-                            promptId = promptId,
-                            filename = filename,
-                            subfolder = subfolder,
-                            type = type,
-                            isVideo = false,
-                            index = index++
-                        ))
-                    }
-                }
+            // The gallery lists every file, temporary previews included
+            for (output in GenerationOutputs.parse(outputs, preferSaved = false)) {
+                items.add(GalleryItem(
+                    promptId = promptId,
+                    filename = output.filename,
+                    subfolder = output.subfolder,
+                    type = output.type,
+                    isVideo = output.isVideo,
+                    index = index++
+                ))
             }
         }
 

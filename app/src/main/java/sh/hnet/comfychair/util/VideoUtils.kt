@@ -32,91 +32,58 @@ object VideoUtils {
      * @param client ComfyUI API client
      * @param promptId The prompt ID to fetch history for
      * @param filePrefix Prefix for the local video file (e.g., "last_generated_video_" or "image_to_video_last_generated_")
-     * @param onComplete Callback with the video URI, or null if failed
+     * @param onComplete Callback with the video URI (null if failed) and all result files of the job
      */
     fun fetchVideoFromHistory(
         context: Context,
         client: ComfyUIClient,
         promptId: String,
         filePrefix: String,
-        onComplete: (Uri?) -> Unit
+        onComplete: (Uri?, List<GenerationOutput>) -> Unit
     ) {
         val mainHandler = Handler(Looper.getMainLooper())
 
         client.fetchHistory(promptId) { historyJson ->
-            if (historyJson == null) {
-                mainHandler.post { onComplete(null) }
+            // The first video file of the job; still frames saved next to it are skipped
+            val outputs = GenerationOutputs.fromHistory(historyJson, promptId)
+            val video = outputs.firstOrNull { it.isVideo } ?: run {
+                mainHandler.post { onComplete(null, outputs) }
                 return@fetchHistory
             }
 
-            // Parse video info from history
-            val promptHistory = historyJson.optJSONObject(promptId)
-            val outputs = promptHistory?.optJSONObject("outputs")
-
-            if (outputs == null) {
-                mainHandler.post { onComplete(null) }
-                return@fetchHistory
-            }
-
-            // Find video in outputs
-            // Note: ComfyUI may return videos in "videos", "gifs", or even "images" arrays
-            // We check file extension to identify video files
-            val outputKeys = outputs.keys()
-            while (outputKeys.hasNext()) {
-                val nodeId = outputKeys.next()
-                val nodeOutput = outputs.optJSONObject(nodeId)
-
-                // Check videos, gifs, and images arrays for video files
-                val videos = nodeOutput?.optJSONArray("videos")
-                    ?: nodeOutput?.optJSONArray("gifs")
-                    ?: nodeOutput?.optJSONArray("images")
-
-                if (videos != null && videos.length() > 0) {
-                    val videoInfo = videos.optJSONObject(0)
-                    val filename = videoInfo?.optString("filename") ?: continue
-                    val subfolder = videoInfo.optString("subfolder", "")
-                    val type = videoInfo.optString("type", "output")
-
-                    // Fetch video bytes
-                    client.fetchVideo(filename, subfolder, type) { videoBytes, failureType ->
-                        if (videoBytes == null) {
-                            if (failureType == ConnectionFailure.STALLED) {
-                                mainHandler.post {
-                                    ConnectionManager.showConnectionAlert(context, failureType)
-                                    onComplete(null)
-                                }
-                            } else {
-                                mainHandler.post { onComplete(null) }
-                            }
-                            return@fetchVideo
+            // Fetch video bytes
+            client.fetchVideo(video.filename, video.subfolder, video.type) { videoBytes, failureType ->
+                if (videoBytes == null) {
+                    mainHandler.post {
+                        if (failureType == ConnectionFailure.STALLED) {
+                            ConnectionManager.showConnectionAlert(context, failureType)
                         }
-
-                        // Store in memory/disk based on caching mode
-                        val mediaKey = when (filePrefix) {
-                            FilePrefix.TEXT_TO_VIDEO -> MediaStateHolder.MediaKey.TtvVideo(promptId)
-                            FilePrefix.IMAGE_TO_VIDEO -> MediaStateHolder.MediaKey.ItvVideo(promptId)
-                            else -> null
-                        }
-
-                        if (mediaKey == null) {
-                            mainHandler.post { onComplete(null) }
-                            return@fetchVideo
-                        }
-
-                        // Pass context for disk-first mode support
-                        MediaStateHolder.putVideoBytes(mediaKey, videoBytes, context)
-
-                        // Get URI for playback (in RAM in memory-first mode, the stored file otherwise)
-                        CoroutineScope(Dispatchers.Main).launch {
-                            val uri = MediaStateHolder.getVideoUri(context, mediaKey)
-                            onComplete(uri)
-                        }
+                        onComplete(null, outputs)
                     }
-                    return@fetchHistory
+                    return@fetchVideo
+                }
+
+                // Store in memory/disk based on caching mode
+                val mediaKey = when (filePrefix) {
+                    FilePrefix.TEXT_TO_VIDEO -> MediaStateHolder.MediaKey.TtvVideo(promptId)
+                    FilePrefix.IMAGE_TO_VIDEO -> MediaStateHolder.MediaKey.ItvVideo(promptId)
+                    else -> null
+                }
+
+                if (mediaKey == null) {
+                    mainHandler.post { onComplete(null, outputs) }
+                    return@fetchVideo
+                }
+
+                // Pass context for disk-first mode support
+                MediaStateHolder.putVideoBytes(mediaKey, videoBytes, context)
+
+                // Get URI for playback (in RAM in memory-first mode, the stored file otherwise)
+                CoroutineScope(Dispatchers.Main).launch {
+                    val uri = MediaStateHolder.getVideoUri(context, mediaKey)
+                    onComplete(uri, outputs)
                 }
             }
-
-            mainHandler.post { onComplete(null) }
         }
     }
 
