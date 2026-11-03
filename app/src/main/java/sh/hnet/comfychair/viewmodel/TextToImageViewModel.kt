@@ -28,8 +28,8 @@ import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.viewmodel.base.GenerationParamsState
-import sh.hnet.comfychair.viewmodel.base.ParamsGenerationViewModel
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 import java.io.File
 import java.io.IOException
 
@@ -68,7 +68,7 @@ data class TextToImageUiState(
     val currentImageType: String? = null,
 
     val isFetching: Boolean = false
-) : GenerationParamsState by params
+) : CommonGenerationState by params
 
 /**
  * One-time events for Text-to-Image screen
@@ -82,7 +82,7 @@ sealed class TextToImageEvent {
  * ViewModel for the Text-to-Image screen.
  * Manages configuration state, model selection, and image generation.
  */
-class TextToImageViewModel : ParamsGenerationViewModel<TextToImageUiState, TextToImageEvent>() {
+class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToImageEvent>() {
 
     override val initialState = TextToImageUiState()
 

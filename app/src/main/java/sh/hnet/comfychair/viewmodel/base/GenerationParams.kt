@@ -37,37 +37,6 @@ enum class ModelSlot(
     LOWNOISE_LORA("lownoise_lora_name", { it.loras }, { it.lownoiseLoraModel })
 }
 
-/**
- * All generation parameters a screen reads. Extends [CommonGenerationState] (what the options sheet
- * builders need) with the fields that were so far declared by each screen's UiState on its own.
- * Screens move to it one at a time; once all have, the two interfaces merge.
- */
-interface GenerationParamsState : CommonGenerationState {
-    val selectedWorkflow: String
-    val selectedWorkflowId: String
-    val workflowPlaceholders: Set<String>
-    val positivePrompt: String
-    val negativePrompt: String
-    val selectedHighnoiseUnet: String
-    val selectedLownoiseUnet: String
-    val selectedHighnoiseLora: String
-    val selectedLownoiseLora: String
-    val isLoadingModels: Boolean
-    val modelsLoaded: Boolean
-    val width: String
-    val height: String
-    val megapixels: String
-    val length: String
-    val fps: String
-    val widthError: String?
-    val heightError: String?
-    val megapixelsError: String?
-    val lengthError: String?
-    val fpsError: String?
-    val highnoiseLoraChain: List<LoraSelection>
-    val lownoiseLoraChain: List<LoraSelection>
-}
-
 /** The three LoRA chains a workflow can use. */
 enum class LoraChainKind { MAIN, HIGHNOISE, LOWNOISE }
 
@@ -133,7 +102,7 @@ data class GenerationParams(
     override val batchSizeError: String? = null,
     override val scaleByError: String? = null,
     override val stopAtClipLayerError: String? = null
-) : GenerationParamsState {
+) : CommonGenerationState {
 
     fun selection(slot: ModelSlot): String = selections[slot].orEmpty()
 

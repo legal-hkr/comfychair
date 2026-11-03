@@ -28,8 +28,8 @@ import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.viewmodel.base.GenerationParamsState
-import sh.hnet.comfychair.viewmodel.base.ParamsGenerationViewModel
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
 /**
  * UI state for the view mode toggle
@@ -66,7 +66,7 @@ data class ImageToVideoUiState(
     val availableWorkflows: List<ItvWorkflowItem> = emptyList(),
     val isUploading: Boolean = false,
     val isFetching: Boolean = false
-) : GenerationParamsState by params
+) : CommonGenerationState by params
 
 /**
  * Events emitted by the image-to-video screen
@@ -79,7 +79,7 @@ sealed class ImageToVideoEvent {
 /**
  * ViewModel for the Image-to-Video screen
  */
-class ImageToVideoViewModel : ParamsGenerationViewModel<ImageToVideoUiState, ImageToVideoEvent>() {
+class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, ImageToVideoEvent>() {
 
     override val initialState = ImageToVideoUiState()
 

@@ -34,8 +34,8 @@ import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.viewmodel.base.GenerationParamsState
-import sh.hnet.comfychair.viewmodel.base.ParamsGenerationViewModel
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
 /**
  * Data class representing a path drawn on the mask canvas
@@ -128,7 +128,7 @@ data class ImageToImageUiState(
 
     val isUploading: Boolean = false,
     val isFetching: Boolean = false
-) : GenerationParamsState by (if (mode == ImageToImageMode.EDITING) editingParams else inpaintingParams) {
+) : CommonGenerationState by (if (mode == ImageToImageMode.EDITING) editingParams else inpaintingParams) {
 
     /** Workflows offered in the current mode. */
     val currentModeWorkflows: List<WorkflowItemBase>
@@ -146,7 +146,7 @@ sealed class ImageToImageEvent {
 /**
  * ViewModel for the Image-to-image screen
  */
-class ImageToImageViewModel : ParamsGenerationViewModel<ImageToImageUiState, ImageToImageEvent>() {
+class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, ImageToImageEvent>() {
 
     override val initialState = ImageToImageUiState()
 

@@ -23,8 +23,8 @@ import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.viewmodel.base.GenerationParamsState
-import sh.hnet.comfychair.viewmodel.base.ParamsGenerationViewModel
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
+import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 
 /**
  * Represents a workflow item with display name
@@ -56,7 +56,7 @@ data class TextToVideoUiState(
 
     // Fetch state
     val isFetching: Boolean = false
-) : GenerationParamsState by params
+) : CommonGenerationState by params
 
 /**
  * One-time events for Text-to-Video screen
@@ -69,7 +69,7 @@ sealed class TextToVideoEvent {
 /**
  * ViewModel for the Text-to-Video screen
  */
-class TextToVideoViewModel : ParamsGenerationViewModel<TextToVideoUiState, TextToVideoEvent>() {
+class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToVideoEvent>() {
 
     override val initialState = TextToVideoUiState()
 

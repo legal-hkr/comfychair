@@ -6,7 +6,6 @@ import sh.hnet.comfychair.viewmodel.ImageToImageUiState
 import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 import sh.hnet.comfychair.viewmodel.TextToVideoUiState
-import sh.hnet.comfychair.viewmodel.base.GenerationParamsState
 
 /**
  * Options sheet configuration from a screen's generation parameters.
@@ -24,7 +23,7 @@ private val noOpString: (String) -> Unit = {}
  * @param availableWorkflows Workflows offered in the workflow dropdown
  * @param itiConfig Image to Image mode and reference images; null on the other screens
  */
-fun GenerationParamsState.toBottomSheetConfig(
+fun CommonGenerationState.toBottomSheetConfig(
     availableWorkflows: List<WorkflowItemBase>,
     callbacks: UnifiedCallbacks,
     itiConfig: ItiConfig? = null
