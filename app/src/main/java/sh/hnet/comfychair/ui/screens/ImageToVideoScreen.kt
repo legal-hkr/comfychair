@@ -473,12 +473,12 @@ fun ImageToVideoScreen(
             )
         }
 
-        // Generate and Options buttons
+        // Generate and Options buttons; without the prompt field, keep the gap it used to provide
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
+                .padding(top = if (uiState.capabilities.hasPositivePrompt) 0.dp else 16.dp, bottom = 16.dp)
         ) {
             GenerationButton(
                 queueSize = queueState.totalQueueSize,
