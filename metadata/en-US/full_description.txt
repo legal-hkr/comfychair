@@ -6,7 +6,7 @@ What you can do:
 - Create AI videos from text or animate still images
 - Manage your generation queue, cancel jobs, or prioritize requests
 - Browse and organize all your creations in a unified gallery
-- Work offline with cached data when your server is unavailable
+- Work offline with cached data when your server is unavailable (with media stored on the device)
 
 Flexible workflow support:
 - Works with both traditional Checkpoint and modern UNET workflows (Flux, Z-Image, and more)
@@ -18,7 +18,8 @@ Flexible workflow support:
 Built for mobile:
 - Smooth, responsive interface built with Jetpack Compose
 - Manage multiple servers with per-server settings
-- HTTP Basic Auth and API key authentication for secured servers
+- HTTP Basic Auth, API key and browser SSO sign-in for secured servers
+- Private by default: generated media stays in memory, no analytics, no cloud backup
 - Pinch-to-zoom media viewer with swipe navigation
 - Batch operations for saving, sharing, or deleting multiple items
 - Backup and restore your configuration across devices

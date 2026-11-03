@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date**: December 28, 2025
+**Effective Date**: November 3, 2026
 **App**: ComfyChair
 **Developer**: Legal HKr
 
@@ -16,10 +16,12 @@ ComfyChair is an open-source Android application that provides a mobile interfac
 
 The app stores the following data locally on your device:
 
-- **Connection Settings**: Server hostname and port for your ComfyUI server
-- **App Preferences**: UI settings such as live preview toggle, cache settings, and debug logging
+- **Connection Settings**: Server names, hostnames and ports, and the protocol and certificate fingerprint you accepted for each server
+- **Credentials**: Passwords, tokens and sign-in cookies for your servers, encrypted with a key kept in the Android Keystore
+- **App Preferences**: UI settings such as live preview, media storage, and debug logging
 - **Generation Parameters**: Your workflow selections, prompts, and generation settings (dimensions, steps, CFG, etc.)
-- **Generated Media**: Images and videos generated through the app are cached locally
+- **Generated Media**: Controlled by the "Media storage" setting. By default ("Memory only") generated images and videos are kept only in the phone's RAM and are never written to its storage; switching to this mode deletes any media stored earlier. The other options keep the latest results on the device when the app goes to the background ("Memory, saved on exit") or store them as they arrive ("On the device"). When you share a result, a copy is written to the app's private cache for the receiving app and deleted the next time ComfyChair starts. Media you save to the gallery is managed by you
+- **Debug Log**: Kept in memory only while debug logging is enabled. Prompts, file names, job IDs, server addresses and workflow names are recorded as placeholders, so an exported log does not reveal them
 - **Custom Workflows**: Any workflows you import into the app
 
 All of this data remains on your device and is never transmitted to the developer or any third party.
@@ -47,8 +49,10 @@ ComfyChair does not integrate any third-party services such as:
 ## Data Security
 
 - All local data is stored using Android's private storage mechanisms
-- Network communication supports both HTTP and HTTPS protocols
-- Self-signed certificates are supported for local server deployments (with user notification)
+- Network communication supports both HTTP and HTTPS; HTTPS is tried first, and a server that used HTTPS is never switched to unencrypted HTTP without your consent
+- Certificates not trusted by Android (self-signed or issued by a private CA) are accepted only after you confirm their SHA-256 fingerprint, and from then on only that certificate is accepted for the server
+- Copied generation metadata is marked as sensitive, so Android does not show it in the clipboard preview
+- In "Memory only" mode the app is hidden from the recents screen preview, so the system does not store a screenshot of generated media
 
 ## Data Backup
 
