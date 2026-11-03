@@ -239,6 +239,8 @@
     <string name="error_invalid_server_response">Invalid server response</string>
     <string name="error_failed_load_workflow">Failed to load workflow</string>
     <string name="error_generation_failed">Generation failed</string>
+    <string name="msg_outputs_skipped">The server skipped part of the workflow: %1$s</string>
+    <string name="msg_outputs_skipped_more">The server skipped part of the workflow: %1$s (and %2$d more)</string>
     <string name="msg_connection_lost_generation_may_continue">Connection lost. Will check for completion when reconnected.</string>
     <string name="error_no_connection">No connection to server</string>
     <string name="error_workflow_not_found">Workflow not found</string>

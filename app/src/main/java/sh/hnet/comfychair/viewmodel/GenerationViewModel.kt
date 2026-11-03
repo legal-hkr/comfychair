@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -641,9 +642,24 @@ class GenerationViewModel : ViewModel() {
 
         DebugLogger.d(TAG, "Submitting workflow to server")
         val mainHandler = Handler(Looper.getMainLooper())
-        client.submitPrompt(workflowJson, front) { success, promptId, errorMessage, failureType ->
+        client.submitPrompt(workflowJson, front) { success, promptId, errorMessage, failureType, skippedOutputs ->
             if (success && promptId != null) {
                 DebugLogger.i(TAG, "Workflow submitted successfully (promptId: ${Obfuscator.promptId(promptId)})")
+
+                // ComfyUI queued the job but dropped outputs that failed validation; tell the user
+                // instead of silently delivering an incomplete result (full list in the debug log)
+                if (skippedOutputs.isNotEmpty()) {
+                    mainHandler.post {
+                        applicationContext?.let { ctx ->
+                            val message = if (skippedOutputs.size == 1) {
+                                ctx.getString(R.string.msg_outputs_skipped, skippedOutputs.first())
+                            } else {
+                                ctx.getString(R.string.msg_outputs_skipped_more, skippedOutputs.first(), skippedOutputs.size - 1)
+                            }
+                            Toast.makeText(ctx, message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
 
                 // Register job with JobRegistry for queue tracking
                 generationOwnerId?.let { ownerId ->

@@ -223,6 +223,8 @@
     <string name="error_invalid_server_response">Réponse du serveur invalide</string>
     <string name="error_failed_load_workflow">Échec du chargement du workflow</string>
     <string name="error_generation_failed">Échec de la génération</string>
+    <string name="msg_outputs_skipped">Le serveur a ignoré une partie du workflow : %1$s</string>
+    <string name="msg_outputs_skipped_more">Le serveur a ignoré une partie du workflow : %1$s (et %2$d de plus)</string>
     <string name="msg_connection_lost_generation_may_continue">Connexion perdue. Vérification de l\'achèvement après reconnexion.</string>
     <string name="error_no_connection">Pas de connexion au serveur</string>
     <string name="error_workflow_not_found">Workflow introuvable</string>

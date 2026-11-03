@@ -17,6 +17,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.NodeErrors
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ProgressTrackingRequestBody
 import sh.hnet.comfychair.util.ProgressTrackingResponseBody
@@ -798,16 +799,18 @@ class ComfyUIClient(
      *                 - promptId: The prompt ID assigned by the server (for tracking)
      *                 - errorMessage: error message if failed
      *                 - failureType: type of failure (NONE for success, AUTHENTICATION for 401/403, NETWORK for other errors)
+     *                 - skippedOutputs: on success, descriptions of nodes that failed validation; ComfyUI
+     *                   still queues the job and runs the outputs that don't depend on them
      */
     fun submitPrompt(
         workflowJson: String,
         front: Boolean = false,
-        callback: (success: Boolean, promptId: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
+        callback: (success: Boolean, promptId: String?, errorMessage: String?, failureType: ConnectionFailure, skippedOutputs: List<String>) -> Unit
     ) {
         DebugLogger.i(TAG, "Submitting prompt${if (front) " (front of queue)" else ""}")
         val baseUrl = getBaseUrl() ?: run {
             DebugLogger.w(TAG, "Submit failed: no connection")
-            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server", ConnectionFailure.NETWORK)
+            callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server", ConnectionFailure.NETWORK, emptyList())
             return
         }
 
@@ -838,7 +841,7 @@ class ComfyUIClient(
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 DebugLogger.e(TAG, "Submit failed: ${e.message}")
-                callback(false, null, "Failed to submit prompt: ${e.message}", ConnectionFailure.NETWORK)
+                callback(false, null, "Failed to submit prompt: ${e.message}", ConnectionFailure.NETWORK, emptyList())
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
@@ -849,28 +852,33 @@ class ComfyUIClient(
                             val json = JSONObject(responseBody)
                             val promptId = json.optString("prompt_id")
                             DebugLogger.i(TAG, "Prompt submitted (promptId: ${Obfuscator.promptId(promptId)})")
-                            callback(true, promptId, null, ConnectionFailure.NONE)
+                            val skippedOutputs = NodeErrors.describe(json.optJSONObject("node_errors"))
+                            skippedOutputs.forEach { DebugLogger.w(TAG, "Skipped by validation: $it") }
+                            callback(true, promptId, null, ConnectionFailure.NONE, skippedOutputs)
                         } catch (e: Exception) {
                             DebugLogger.e(TAG, "Failed to parse submit response: ${e.message}")
-                            callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK)
+                            callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK, emptyList())
                         }
                     } else {
                         // Handle authentication errors with clean messages (avoid raw HTML)
                         if (response.code == 401 || response.code == 403) {
                             DebugLogger.e(TAG, "Authentication error ${response.code}")
                             callback(false, null, context?.getString(R.string.error_auth_unauthorized)
-                                ?: "Authentication failed", ConnectionFailure.AUTHENTICATION)
+                                ?: "Authentication failed", ConnectionFailure.AUTHENTICATION, emptyList())
                         } else {
                             // Try to extract error details from response body
                             val errorDetail = try {
                                 val errorJson = JSONObject(responseBody)
-                                errorJson.optString("error", "") +
-                                    (errorJson.optJSONObject("node_errors")?.toString() ?: "")
+                                val message = errorJson.optJSONObject("error")?.optString("message")
+                                    ?: errorJson.optString("error", "")
+                                val nodes = NodeErrors.describe(errorJson.optJSONObject("node_errors"))
+                                DebugLogger.e(TAG, "Validation errors: $responseBody")
+                                listOf(message).plus(nodes).filter { it.isNotEmpty() }.joinToString("\n")
                             } catch (e: Exception) {
                                 responseBody.take(500) // Truncate long responses
                             }
                             DebugLogger.e(TAG, "Server error ${response.code}")
-                            callback(false, null, "Server error ${response.code}: $errorDetail", ConnectionFailure.NETWORK)
+                            callback(false, null, "Server error ${response.code}: $errorDetail", ConnectionFailure.NETWORK, emptyList())
                         }
                     }
                 }
