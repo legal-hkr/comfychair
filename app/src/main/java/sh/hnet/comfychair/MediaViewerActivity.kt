@@ -78,6 +78,8 @@ class MediaViewerActivity : ComponentActivity() {
 
         // Result
         const val RESULT_ITEM_DELETED = "item_deleted"
+        /** Filename of the item shown when the viewer was closed, so a caller can follow it. */
+        const val RESULT_CURRENT_FILENAME = "current_filename"
 
         /**
          * Create intent for gallery mode (swipe navigation between items)
@@ -179,6 +181,15 @@ class MediaViewerActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsState()
             val hasDeletedItems by viewModel.hasDeletedItems.collectAsState()
 
+            // Keep the result current, so it's returned however the viewer is closed (button or
+            // system back): the shown item, and whether items were deleted
+            LaunchedEffect(uiState.currentItem?.filename, hasDeletedItems) {
+                setResult(Activity.RESULT_OK, Intent().apply {
+                    putExtra(RESULT_ITEM_DELETED, hasDeletedItems)
+                    uiState.currentItem?.filename?.let { putExtra(RESULT_CURRENT_FILENAME, it) }
+                })
+            }
+
             // Control system bars based on UI visibility
             LaunchedEffect(uiState.isUiVisible) {
                 if (uiState.isUiVisible) {
@@ -192,15 +203,8 @@ class MediaViewerActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MediaViewerScreen(
                         viewModel = viewModel,
-                        onClose = {
-                            // Set result only if items were actually deleted
-                            if (hasDeletedItems) {
-                                setResult(Activity.RESULT_OK, Intent().apply {
-                                    putExtra(RESULT_ITEM_DELETED, true)
-                                })
-                            }
-                            finish()
-                        }
+                        // The result is already set (see above)
+                        onClose = { finish() }
                     )
                 }
             }

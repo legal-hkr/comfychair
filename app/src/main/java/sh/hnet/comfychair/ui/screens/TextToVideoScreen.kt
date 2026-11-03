@@ -90,7 +90,7 @@ import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.UseAsSourceButton
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.VideoPlayer
-import sh.hnet.comfychair.ui.components.openResultsViewer
+import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -323,15 +323,16 @@ fun TextToVideoScreen(
                 when {
                     showResults -> {
                         val results = uiState.generationOutputs
+                        val openViewer = rememberResultsViewer(
+                            generationViewModel.getHostname(), generationViewModel.getPort(), results, textToVideoViewModel::onCurrentResultChange
+                        )
                         // The screen already plays the job's first video
                         val firstVideo = results.firstOrNull { it.isVideo }
                         ResultsPreview(
                             results = results,
                             currentIndex = uiState.currentResultIndex,
                             onCurrentIndexChange = textToVideoViewModel::onCurrentResultChange,
-                            onOpenViewer = { index ->
-                                openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
-                            },
+                            onOpenViewer = openViewer,
                             stripEnabled = !isThisScreenQueued,
                             heroOverlay = { current ->
                                 if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }

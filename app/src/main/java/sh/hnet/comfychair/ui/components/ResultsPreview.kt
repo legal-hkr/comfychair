@@ -1,9 +1,10 @@
 package sh.hnet.comfychair.ui.components
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
@@ -44,8 +45,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Close
@@ -69,6 +68,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -108,6 +108,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.cache.ResultThumbnails
+import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 
@@ -450,31 +451,18 @@ private fun BoxScope.ScrollChevron(visible: Boolean, forward: Boolean, onClick: 
                 ),
             contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart
         ) {
-            // Surface(onClick) enforces a 48 dp touch target around the 40 dp button
-            Surface(
+            CircleArrowButton(
+                forward = forward,
                 onClick = onClick,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shadowElevation = 1.dp,
+                contentDescription = stringResource(
+                    if (forward) R.string.content_description_scroll_results_forward
+                    else R.string.content_description_scroll_results_back
+                ),
                 modifier = Modifier
                     // Only the button scales in and out
                     .animateEnterExit(enter = scaleIn(initialScale = 0.8f), exit = scaleOut(targetScale = 0.8f))
                     .padding(horizontal = 4.dp)
-                    .size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (forward) Icons.AutoMirrored.Rounded.KeyboardArrowRight
-                        else Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                        contentDescription = stringResource(
-                            if (forward) R.string.content_description_scroll_results_forward
-                            else R.string.content_description_scroll_results_back
-                        ),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
+            )
         }
     }
 }
@@ -531,13 +519,31 @@ fun ResultHeroVideo(output: GenerationOutput, isCurrent: Boolean, isActive: Bool
 }
 
 /**
- * Opens the full-screen viewer in gallery mode over all results of the job, at [index].
+ * Returns a function that opens the full-screen viewer in gallery mode over all [results], at the
+ * given index. When the viewer is closed, [onReturn] gets the index of the result it showed last,
+ * matched by filename (the viewer's own list shrinks if items are deleted there).
  */
-fun openResultsViewer(context: Context, hostname: String, port: Int, results: List<GenerationOutput>, index: Int) {
-    val items = results.mapIndexed { i, output ->
-        MediaViewerItem(output.promptId, output.filename, output.subfolder, output.type, output.isVideo, i)
+@Composable
+fun rememberResultsViewer(
+    hostname: String,
+    port: Int,
+    results: List<GenerationOutput>,
+    onReturn: (Int) -> Unit
+): (Int) -> Unit {
+    val context = LocalContext.current
+    val currentResults by rememberUpdatedState(results)
+    val currentOnReturn by rememberUpdatedState(onReturn)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val filename = result.data?.getStringExtra(MediaViewerActivity.RESULT_CURRENT_FILENAME) ?: return@rememberLauncherForActivityResult
+        val index = currentResults.indexOfFirst { it.filename == filename }
+        if (index >= 0) currentOnReturn(index)
     }
-    context.startActivity(MediaViewerActivity.createGalleryIntent(context, hostname, port, items, index))
+    return { index ->
+        val items = currentResults.mapIndexed { i, output ->
+            MediaViewerItem(output.promptId, output.filename, output.subfolder, output.type, output.isVideo, i)
+        }
+        launcher.launch(MediaViewerActivity.createGalleryIntent(context, hostname, port, items, index))
+    }
 }
 
 /** Screens a generated image can be sent to as their source image. */

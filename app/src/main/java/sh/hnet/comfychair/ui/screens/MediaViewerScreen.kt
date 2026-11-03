@@ -21,15 +21,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingToolbarColors
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -59,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.ui.components.ImageViewer
@@ -209,20 +207,17 @@ fun MediaViewerScreen(
                                     .align(Alignment.CenterStart)
                                     .padding(start = 16.dp)
                             ) {
-                                FilledTonalIconButton(
+                                CircleArrowButton(
+                                    forward = false,
                                     onClick = {
                                         scope.launch {
                                             pagerState.animateScrollToPage(pagerState.currentPage - 1)
                                         }
                                     },
-                                    modifier = Modifier.size(48.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                        contentDescription = stringResource(R.string.media_viewer_previous),
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
+                                    contentDescription = stringResource(R.string.media_viewer_previous),
+                                    size = 48.dp,
+                                    iconSize = 32.dp
+                                )
                             }
 
                             // Right navigation arrow
@@ -234,20 +229,17 @@ fun MediaViewerScreen(
                                     .align(Alignment.CenterEnd)
                                     .padding(end = 16.dp)
                             ) {
-                                FilledTonalIconButton(
+                                CircleArrowButton(
+                                    forward = true,
                                     onClick = {
                                         scope.launch {
                                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                                         }
                                     },
-                                    modifier = Modifier.size(48.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = stringResource(R.string.media_viewer_next),
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
+                                    contentDescription = stringResource(R.string.media_viewer_next),
+                                    size = 48.dp,
+                                    iconSize = 32.dp
+                                )
                             }
                         }
                     }

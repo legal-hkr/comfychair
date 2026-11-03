@@ -84,7 +84,7 @@ import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.UseAsSourceButton
 import sh.hnet.comfychair.ui.components.loadResultBitmap
-import sh.hnet.comfychair.ui.components.openResultsViewer
+import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
@@ -391,15 +391,16 @@ fun ImageToVideoScreen(
                             when {
                                 showResults -> {
                                     val results = uiState.generationOutputs
+                                    val openViewer = rememberResultsViewer(
+                                        generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToVideoViewModel::onCurrentResultChange
+                                    )
                                     // The screen already plays the job's first video
                                     val firstVideo = results.firstOrNull { it.isVideo }
                                     ResultsPreview(
                                         results = results,
                                         currentIndex = uiState.currentResultIndex,
                                         onCurrentIndexChange = imageToVideoViewModel::onCurrentResultChange,
-                                        onOpenViewer = { index ->
-                                            openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
-                                        },
+                                        onOpenViewer = openViewer,
                                         stripEnabled = !isThisScreenQueued,
                                         heroOverlay = { current ->
                                             // The source of Image to Video is an image

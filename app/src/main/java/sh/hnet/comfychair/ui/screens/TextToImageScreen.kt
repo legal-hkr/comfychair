@@ -75,7 +75,7 @@ import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.UseAsSourceButton
 import sh.hnet.comfychair.ui.components.loadResultBitmap
-import sh.hnet.comfychair.ui.components.openResultsViewer
+import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
@@ -311,13 +311,14 @@ fun TextToImageScreen(
             ) {
                 if (showResults) {
                     val results = uiState.generationOutputs
+                    val openViewer = rememberResultsViewer(
+                        generationViewModel.getHostname(), generationViewModel.getPort(), results, textToImageViewModel::onCurrentResultChange
+                    )
                     ResultsPreview(
                         results = results,
                         currentIndex = uiState.currentResultIndex,
                         onCurrentIndexChange = textToImageViewModel::onCurrentResultChange,
-                        onOpenViewer = { index ->
-                            openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
-                        },
+                        onOpenViewer = openViewer,
                         stripEnabled = !isThisScreenQueued,
                         heroOverlay = { current ->
                             if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
