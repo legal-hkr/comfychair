@@ -1201,6 +1201,9 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     }
 
     override fun hasValidConfiguration(): Boolean {
+        // Until the server's model lists arrive the saved model selections can't be applied, so
+        // the workflow would be sent with empty model fields and rejected by ComfyUI
+        if (!ConnectionManager.modelCache.value.isLoaded) return false
         val state = _uiState.value
 
         // Source image is required for Image-to-Video

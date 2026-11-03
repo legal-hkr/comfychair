@@ -404,7 +404,8 @@ fun TextToImageScreen(
             GenerationButton(
                 queueSize = queueState.totalQueueSize,
                 isExecuting = queueState.isExecuting,
-                isEnabled = !uiState.capabilities.hasPositivePrompt || uiState.positivePrompt.isNotBlank(),
+                isEnabled = textToImageViewModel.hasValidConfiguration() &&
+                    (!uiState.capabilities.hasPositivePrompt || uiState.positivePrompt.isNotBlank()),
                 isOfflineMode = isOfflineMode,
                 isFetching = uiState.isFetching,
                 isConnecting = isConnecting,

@@ -760,6 +760,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * Only checks for validation errors - model selections are optional.
      */
     override fun hasValidConfiguration(): Boolean {
+        // Until the server's model lists arrive the saved model selections can't be applied, so
+        // the workflow would be sent with empty model fields and rejected by ComfyUI
+        if (!ConnectionManager.modelCache.value.isLoaded) return false
         val state = _uiState.value
 
         // Workflows without a positive prompt placeholder (e.g. upscalers) don't need one
