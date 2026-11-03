@@ -15,6 +15,7 @@ captures/
 .kotlin/
 *.aab
 *.apk
+*.idsig
 output-metadata.json
 
 # IntelliJ
@@ -46,3 +47,5 @@ CLAUDE.md
 
 # VSCodium
 .vscode/
+# Local release tooling (signing), not published
+tools/
