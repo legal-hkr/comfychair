@@ -377,6 +377,9 @@
     <string name="content_description_previous_result">Poprzedni wynik</string>
     <string name="content_description_scroll_results_forward">Przewiń wyniki dalej</string>
     <string name="content_description_scroll_results_back">Przewiń wyniki wstecz</string>
+    <string name="button_use_as_source">Użyj jako źródła</string>
+    <string name="msg_source_image_replaced">Zastąpiono obraz źródłowy</string>
+    <string name="button_undo">Cofnij</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d sekunda</item>
         <item quantity="few">%d sekundy</item>

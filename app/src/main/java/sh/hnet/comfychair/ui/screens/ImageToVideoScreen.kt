@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -77,6 +78,13 @@ import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.components.ResultHeroImage
+import sh.hnet.comfychair.ui.components.ResultHeroVideo
+import sh.hnet.comfychair.ui.components.ResultsPreview
+import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSourceButton
+import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.openResultsViewer
 import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.GenerationButton
@@ -91,6 +99,7 @@ import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
+import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoEvent
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
@@ -103,6 +112,7 @@ import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 fun ImageToVideoScreen(
     generationViewModel: GenerationViewModel,
     imageToVideoViewModel: ImageToVideoViewModel,
+    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
@@ -121,6 +131,11 @@ fun ImageToVideoScreen(
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == ImageToVideoViewModel.OWNER_ID
+    // Several results of the last job are shown as a pager with a thumbnail strip
+    val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
+    val isThisScreenQueued = !isThisScreenExecuting &&
+            queueState.ownJobs.values.any { it.ownerId == ImageToVideoViewModel.OWNER_ID }
+
 
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -316,7 +331,7 @@ fun ImageToVideoScreen(
                         .heightIn(min = 150.dp)
                         .background(MaterialTheme.colorScheme.surfaceContainer)
                         .clickable(
-                            enabled = (uiState.viewMode == ImageToVideoViewMode.PREVIEW && videoUri != null) ||
+                            enabled = (uiState.viewMode == ImageToVideoViewMode.PREVIEW && videoUri != null && !showResults) ||
                                       (uiState.viewMode == ImageToVideoViewMode.SOURCE && uiState.sourceImage != null),
                             onClick = {
                                 when (uiState.viewMode) {
@@ -374,6 +389,35 @@ fun ImageToVideoScreen(
                         }
                         ImageToVideoViewMode.PREVIEW -> {
                             when {
+                                showResults -> {
+                                    val results = uiState.generationOutputs
+                                    // The screen already plays the job's first video
+                                    val firstVideo = results.firstOrNull { it.isVideo }
+                                    ResultsPreview(
+                                        results = results,
+                                        currentIndex = uiState.currentResultIndex,
+                                        onCurrentIndexChange = imageToVideoViewModel::onCurrentResultChange,
+                                        onOpenViewer = { index ->
+                                            openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
+                                        },
+                                        stripEnabled = !isThisScreenQueued,
+                                        heroOverlay = { current ->
+                                            // The source of Image to Video is an image
+                                            if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                                        }
+                                    ) { output, isCurrent ->
+                                        if (output.isVideo) {
+                                            ResultHeroVideo(
+                                                output = output,
+                                                isCurrent = isCurrent,
+                                                isActive = isScreenVisible,
+                                                preloadedUri = videoUri.takeIf { output == firstVideo }
+                                            )
+                                        } else {
+                                            ResultHeroImage(output)
+                                        }
+                                    }
+                                }
                                 // Show preview bitmap during generation
                                 uiState.previewBitmap != null -> {
                                     Image(
@@ -405,12 +449,13 @@ fun ImageToVideoScreen(
                     }
                 }
 
-                // View mode toggle
+                // View mode toggle, on the preview area's background like the results strip
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 16.dp)
+                        .padding(top = 8.dp, bottom = 16.dp)
                 ) {
                     SegmentedButton(
                         selected = uiState.viewMode == ImageToVideoViewMode.SOURCE,

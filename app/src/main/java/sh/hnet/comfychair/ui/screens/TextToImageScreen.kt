@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
@@ -71,7 +72,10 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultsPreview
-import sh.hnet.comfychair.viewmodel.MediaViewerItem
+import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSourceButton
+import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.openResultsViewer
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
@@ -98,6 +102,7 @@ import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 fun TextToImageScreen(
     generationViewModel: GenerationViewModel,
     textToImageViewModel: TextToImageViewModel,
+    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -311,20 +316,12 @@ fun TextToImageScreen(
                         currentIndex = uiState.currentResultIndex,
                         onCurrentIndexChange = textToImageViewModel::onCurrentResultChange,
                         onOpenViewer = { index ->
-                            val items = results.mapIndexed { i, output ->
-                                MediaViewerItem(output.promptId, output.filename, output.subfolder, output.type, output.isVideo, i)
-                            }
-                            context.startActivity(
-                                MediaViewerActivity.createGalleryIntent(
-                                    context = context,
-                                    hostname = generationViewModel.getHostname(),
-                                    port = generationViewModel.getPort(),
-                                    items = items,
-                                    initialIndex = index
-                                )
-                            )
+                            openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
                         },
-                        stripEnabled = !isThisScreenQueued
+                        stripEnabled = !isThisScreenQueued,
+                        heroOverlay = { current ->
+                            if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                        }
                     ) { output, _ ->
                         // The image already shown on the screen doesn't need loading again
                         ResultHeroImage(
@@ -339,6 +336,11 @@ fun TextToImageScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                    // While generating, the area shows live previews instead of a result
+                    if (!isThisScreenExecuting) {
+                        val result = uiState.previewBitmap
+                        UseAsSourceButton { target -> onUseAsSource(target) { result } }
+                    }
                 } else {
                     // Placeholder - app logo
                     Image(

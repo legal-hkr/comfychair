@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
@@ -82,7 +83,14 @@ import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransform
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
+import sh.hnet.comfychair.ui.components.ResultHeroImage
+import sh.hnet.comfychair.ui.components.ResultHeroVideo
+import sh.hnet.comfychair.ui.components.ResultsPreview
+import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSourceButton
+import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.VideoPlayer
+import sh.hnet.comfychair.ui.components.openResultsViewer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -96,6 +104,7 @@ import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 fun TextToVideoScreen(
     generationViewModel: GenerationViewModel,
     textToVideoViewModel: TextToVideoViewModel,
+    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
@@ -114,6 +123,10 @@ fun TextToVideoScreen(
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == TextToVideoViewModel.OWNER_ID
+    // Several results of the last job are shown as a pager with a thumbnail strip
+    val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
+    val isThisScreenQueued = !isThisScreenExecuting &&
+            queueState.ownJobs.values.any { it.ownerId == TextToVideoViewModel.OWNER_ID }
 
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -293,7 +306,7 @@ fun TextToVideoScreen(
                     .fillMaxSize()
                     .heightIn(min = 150.dp)
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .clickable(enabled = videoUri != null) {
+                    .clickable(enabled = videoUri != null && !showResults) {
                     // Launch MediaViewer for single video
                         videoUri?.let { uri ->
                             val intent = MediaViewerActivity.createSingleVideoIntent(
@@ -308,6 +321,34 @@ fun TextToVideoScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when {
+                    showResults -> {
+                        val results = uiState.generationOutputs
+                        // The screen already plays the job's first video
+                        val firstVideo = results.firstOrNull { it.isVideo }
+                        ResultsPreview(
+                            results = results,
+                            currentIndex = uiState.currentResultIndex,
+                            onCurrentIndexChange = textToVideoViewModel::onCurrentResultChange,
+                            onOpenViewer = { index ->
+                                openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
+                            },
+                            stripEnabled = !isThisScreenQueued,
+                            heroOverlay = { current ->
+                                if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                            }
+                        ) { output, isCurrent ->
+                            if (output.isVideo) {
+                                ResultHeroVideo(
+                                    output = output,
+                                    isCurrent = isCurrent,
+                                    isActive = isScreenVisible,
+                                    preloadedUri = videoUri.takeIf { output == firstVideo }
+                                )
+                            } else {
+                                ResultHeroImage(output)
+                            }
+                        }
+                    }
                     // Show preview bitmap during generation
                     uiState.previewBitmap != null -> {
                         Image(

@@ -1116,6 +1116,36 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         }
     }
 
+    // Source image (and mask) replaced by the last "use as source", kept for Undo
+    private var replacedSource: Pair<Bitmap?, List<MaskPathData>>? = null
+
+    /**
+     * Use a generated image as the source image and switch to the Source tab. The previous
+     * source and mask are kept for [undoUseAsSource].
+     */
+    fun useAsSource(bitmap: Bitmap) {
+        val state = _uiState.value
+        replacedSource = state.sourceImage to state.maskPaths
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, applicationContext)
+        _uiState.update {
+            it.copy(sourceImage = bitmap, maskPaths = emptyList(), viewMode = ImageToImageViewMode.SOURCE)
+        }
+    }
+
+    /**
+     * Restore the source image and mask replaced by the last [useAsSource].
+     */
+    fun undoUseAsSource() {
+        val (bitmap, maskPaths) = replacedSource ?: return
+        replacedSource = null
+        if (bitmap != null) {
+            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, applicationContext)
+        } else {
+            MediaStateHolder.evict(MediaStateHolder.MediaKey.ItiSource)
+        }
+        _uiState.update { it.copy(sourceImage = bitmap, maskPaths = maskPaths) }
+    }
+
     // Source image
     fun onSourceImageChange(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {

@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
@@ -79,6 +80,13 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
+import sh.hnet.comfychair.ui.components.ResultHeroImage
+import sh.hnet.comfychair.ui.components.ResultHeroVideo
+import sh.hnet.comfychair.ui.components.ResultsPreview
+import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSourceButton
+import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.openResultsViewer
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
@@ -92,6 +100,7 @@ import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
+import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageEvent
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
@@ -105,6 +114,7 @@ import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 fun ImageToImageScreen(
     generationViewModel: GenerationViewModel,
     imageToImageViewModel: ImageToImageViewModel,
+    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
     onNavigateToSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -144,6 +154,11 @@ fun ImageToImageScreen(
 
     // Check if THIS screen owns the currently executing job (for progress bar)
     val isThisScreenExecuting = queueState.executingOwnerId == ImageToImageViewModel.OWNER_ID
+    // Several results of the last job are shown as a pager with a thumbnail strip
+    val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
+    val isThisScreenQueued = !isThisScreenExecuting &&
+            queueState.ownJobs.values.any { it.ownerId == ImageToImageViewModel.OWNER_ID }
+
 
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -328,7 +343,7 @@ fun ImageToImageScreen(
                         .heightIn(min = 150.dp)
                         .background(MaterialTheme.colorScheme.surfaceContainer)
                         .clickable(
-                            enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting) ||
+                            enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting && !showResults) ||
                                       (uiState.viewMode == ImageToImageViewMode.SOURCE && uiState.sourceImage != null),
                             onClick = {
                                 when (uiState.viewMode) {
@@ -399,13 +414,42 @@ fun ImageToImageScreen(
                             }
                         }
                         ImageToImageViewMode.PREVIEW -> {
-                            if (uiState.previewImage != null) {
+                            if (showResults) {
+                                val results = uiState.generationOutputs
+                                ResultsPreview(
+                                    results = results,
+                                    currentIndex = uiState.currentResultIndex,
+                                    onCurrentIndexChange = imageToImageViewModel::onCurrentResultChange,
+                                    onOpenViewer = { index ->
+                                        openResultsViewer(context, generationViewModel.getHostname(), generationViewModel.getPort(), results, index)
+                                    },
+                                    stripEnabled = !isThisScreenQueued,
+                                    heroOverlay = { current ->
+                                        if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                                    }
+                                ) { output, isCurrent ->
+                                    if (output.isVideo) {
+                                        ResultHeroVideo(output = output, isCurrent = isCurrent, isActive = true)
+                                    } else {
+                                        // The image already shown on the screen doesn't need loading again
+                                        ResultHeroImage(
+                                            output = output,
+                                            preloaded = uiState.previewImage.takeIf { output.filename == uiState.previewImageFilename }
+                                        )
+                                    }
+                                }
+                            } else if (uiState.previewImage != null) {
                                 Image(
                                     bitmap = uiState.previewImage!!.asImageBitmap(),
                                     contentDescription = stringResource(R.string.content_description_preview),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
+                                // While generating, the area shows live previews instead of a result
+                                if (!isThisScreenExecuting) {
+                                    val result = uiState.previewImage
+                                    UseAsSourceButton { target -> onUseAsSource(target) { result } }
+                                }
                             } else {
                         // Placeholder - app logo
                                 Image(
@@ -419,12 +463,13 @@ fun ImageToImageScreen(
                     }
                 }
 
-                // View mode toggle
+                // View mode toggle, on the preview area's background like the results strip
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 16.dp)
+                        .padding(top = 8.dp, bottom = 16.dp)
                 ) {
                     SegmentedButton(
                         selected = uiState.viewMode == ImageToImageViewMode.SOURCE,

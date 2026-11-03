@@ -392,6 +392,9 @@
     <string name="content_description_previous_result">Vorheriges Ergebnis</string>
     <string name="content_description_scroll_results_forward">Ergebnisse vorwärts blättern</string>
     <string name="content_description_scroll_results_back">Ergebnisse zurück blättern</string>
+    <string name="button_use_as_source">Als Quelle verwenden</string>
+    <string name="msg_source_image_replaced">Quellbild ersetzt</string>
+    <string name="button_undo">Rückgängig</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d Sekunde</item>
         <item quantity="other">%d Sekunden</item>

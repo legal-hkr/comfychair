@@ -1,6 +1,9 @@
 package sh.hnet.comfychair.ui.components
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
@@ -43,15 +46,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -60,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -76,8 +86,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -87,13 +100,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.cache.ResultThumbnails
 import sh.hnet.comfychair.util.GenerationOutput
+import sh.hnet.comfychair.viewmodel.MediaViewerItem
 
 private val StripHeight = 80.dp
 private val ThumbSize = 56.dp
@@ -103,6 +119,8 @@ private val ThumbCorner = 12.dp
 private val ThumbShape = RoundedCornerShape(ThumbCorner)
 private val MinHeightForStrip = 232.dp
 private val ChevronFade = 64.dp
+// Half of the largest FAB size, so the container stays a circle while it shrinks when expanded
+private val FabCornerRadius = 48.dp
 private const val THUMB_STAGGER_MS = 30
 private const val THUMB_STAGGER_MAX_ITEMS = 8
 
@@ -396,13 +414,17 @@ private fun ThumbnailPlaceholder(isVideo: Boolean, failed: Boolean) {
     }
 }
 
+/**
+ * Play badge marking video thumbnails: white play icon on a translucent black circle, placed in
+ * a corner by the caller.
+ */
 @Composable
-private fun PlayBadge(modifier: Modifier) {
+fun PlayBadge(modifier: Modifier = Modifier, size: Dp = 20.dp, iconSize: Dp = 14.dp) {
     Box(
-        modifier.size(20.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape),
+        modifier.size(size).background(Color.Black.copy(alpha = 0.6f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(iconSize))
     }
 }
 
@@ -413,9 +435,11 @@ private fun BoxScope.ScrollChevron(visible: Boolean, forward: Boolean, onClick: 
     AnimatedVisibility(
         visible = visible,
         modifier = Modifier.align(if (forward) Alignment.CenterEnd else Alignment.CenterStart),
-        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) + scaleIn(initialScale = 0.8f),
-        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + scaleOut(targetScale = 0.8f)
+        // The fade only fades in, at its full size, so no gap opens between it and the strip edge
+        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec())
     ) {
+        // Fade over the thumbnails under the button
         Box(
             Modifier
                 .width(ChevronFade)
@@ -433,7 +457,11 @@ private fun BoxScope.ScrollChevron(visible: Boolean, forward: Boolean, onClick: 
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 shadowElevation = 1.dp,
-                modifier = Modifier.padding(horizontal = 4.dp).size(40.dp)
+                modifier = Modifier
+                    // Only the button scales in and out
+                    .animateEnterExit(enter = scaleIn(initialScale = 0.8f), exit = scaleOut(targetScale = 0.8f))
+                    .padding(horizontal = 4.dp)
+                    .size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -472,6 +500,110 @@ fun ResultHeroImage(output: GenerationOutput, preloaded: Bitmap? = null) {
             ThumbnailPlaceholder(isVideo = output.isVideo, failed = false)
         }
     }
+}
+
+/**
+ * Hero page of a video result: the inline looping player for the current page, the first frame
+ * otherwise. The video is read from RAM in memory-first mode (MediaCache, InMemoryVideo).
+ *
+ * @param preloadedUri URI of the video the screen already plays, to avoid loading it again
+ */
+@Composable
+fun ResultHeroVideo(output: GenerationOutput, isCurrent: Boolean, isActive: Boolean, preloadedUri: Uri? = null) {
+    val context = LocalContext.current
+    val key = MediaCacheKey(output.promptId, output.filename)
+    val uri by produceState(preloadedUri, output.id, preloadedUri, isCurrent) {
+        if (value == null && isCurrent) value = MediaCache.fetchVideoUri(key, output.subfolder, output.type, context)
+    }
+    Box(Modifier.fillMaxSize()) {
+        // First frame underneath, so loading and non-current pages aren't empty
+        ResultHeroImage(output)
+        val videoUri = uri
+        if (isCurrent && videoUri != null) {
+            VideoPlayer(
+                videoUri = videoUri,
+                modifier = Modifier.fillMaxSize(),
+                isActive = isActive,
+                cacheKey = key
+            )
+        }
+    }
+}
+
+/**
+ * Opens the full-screen viewer in gallery mode over all results of the job, at [index].
+ */
+fun openResultsViewer(context: Context, hostname: String, port: Int, results: List<GenerationOutput>, index: Int) {
+    val items = results.mapIndexed { i, output ->
+        MediaViewerItem(output.promptId, output.filename, output.subfolder, output.type, output.isVideo, i)
+    }
+    context.startActivity(MediaViewerActivity.createGalleryIntent(context, hostname, port, items, index))
+}
+
+/** Screens a generated image can be sent to as their source image. */
+enum class SourceTarget { IMAGE_TO_IMAGE, IMAGE_TO_VIDEO }
+
+/**
+ * "Use as source" over a result image: an Expressive FAB menu in the bottom-end corner that sends
+ * the image to Image to Image or Image to Video, which then shows it as its source. The icon is
+ * the one of the screens' own "add source image" button.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun BoxScope.UseAsSourceButton(onUse: (SourceTarget) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = expanded) { expanded = false }
+    val description = stringResource(R.string.button_use_as_source)
+
+    FloatingActionButtonMenu(
+        expanded = expanded,
+        modifier = Modifier.align(Alignment.BottomEnd),
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { expanded = it },
+                // Round in both states, unlike the square gallery FAB in the navigation bar
+                containerCornerRadius = { FabCornerRadius },
+                // A toggle: TalkBack announces its expanded state itself
+                modifier = Modifier.semantics { contentDescription = description }
+            ) {
+                val icon by remember {
+                    derivedStateOf { if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.AddPhotoAlternate }
+                }
+                Icon(
+                    painter = rememberVectorPainter(icon),
+                    contentDescription = null,
+                    modifier = Modifier.animateIcon({ checkedProgress })
+                )
+            }
+        }
+    ) {
+        FloatingActionButtonMenuItem(
+            onClick = {
+                expanded = false
+                onUse(SourceTarget.IMAGE_TO_IMAGE)
+            },
+            icon = { Icon(painterResource(R.drawable.image_to_image_24px), contentDescription = null) },
+            text = { Text(stringResource(R.string.nav_image_to_image)) }
+        )
+        FloatingActionButtonMenuItem(
+            onClick = {
+                expanded = false
+                onUse(SourceTarget.IMAGE_TO_VIDEO)
+            },
+            icon = { Icon(painterResource(R.drawable.image_to_video_24px), contentDescription = null) },
+            text = { Text(stringResource(R.string.nav_image_to_video)) }
+        )
+    }
+}
+
+/**
+ * Full-size image of a result, from MediaCache (RAM only in memory-first mode).
+ */
+suspend fun loadResultBitmap(output: GenerationOutput): Bitmap? {
+    if (output.isVideo) return null
+    val key = MediaCacheKey(output.promptId, output.filename)
+    return MediaCache.getBitmap(key) ?: MediaCache.fetchImage(key, output.subfolder, output.type)
 }
 
 @Composable

@@ -587,6 +587,37 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         _uiState.value = _uiState.value.copy(viewMode = mode)
     }
 
+    // Source image replaced by the last "use as source", kept for Undo
+    private var replacedSource: Bitmap? = null
+    private var canUndoUseAsSource = false
+
+    /**
+     * Use a generated image as the source image and switch to the Source tab. The previous
+     * source is kept for [undoUseAsSource].
+     */
+    fun useAsSource(bitmap: Bitmap) {
+        replacedSource = _uiState.value.sourceImage
+        canUndoUseAsSource = true
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, applicationContext)
+        _uiState.update { it.copy(sourceImage = bitmap, viewMode = ImageToVideoViewMode.SOURCE) }
+    }
+
+    /**
+     * Restore the source image replaced by the last [useAsSource].
+     */
+    fun undoUseAsSource() {
+        if (!canUndoUseAsSource) return
+        val bitmap = replacedSource
+        replacedSource = null
+        canUndoUseAsSource = false
+        if (bitmap != null) {
+            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, applicationContext)
+        } else {
+            MediaStateHolder.evict(MediaStateHolder.MediaKey.ItvSource)
+        }
+        _uiState.update { it.copy(sourceImage = bitmap) }
+    }
+
     // Source image
     fun onSourceImageChange(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
