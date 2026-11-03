@@ -162,8 +162,6 @@
     <string name="msg_media_storage_memory_only_confirm">Les images et vidéos enregistrées sur l\'appareil seront supprimées. Les résultats actuels restent disponibles jusqu\'à la fermeture de l\'application.</string>
     <string name="label_auto_connect">Connexion automatique</string>
     <string name="desc_auto_connect">Se connecter automatiquement au dernier serveur au lancement de l\'app</string>
-    <string name="label_show_built_in_workflows">Afficher les workflows intégrés</string>
-    <string name="desc_show_built_in_workflows">Afficher les workflows par défaut fournis avec l\'app</string>
     <string name="label_prompt_spell_check">Vérification orthographique &amp; autocorrection</string>
     <string name="desc_prompt_spell_check">Activer la vérification orthographique et l\'autocorrection dans les champs de prompt. Les termes spécifiques à l\'IA peuvent être signalés comme des erreurs.</string>
     <string name="label_prompt_expand">Agrandir le champ de prompt lors de la saisie</string>
@@ -335,6 +333,8 @@
     <string name="workflow_section_itv">Image vers vidéo</string>
     <string name="workflow_section_empty">Aucun workflow</string>
     <string name="label_workflow_built_in">Intégré</string>
+    <string name="label_workflows_enabled_count">Activés : %1$d sur %2$d</string>
+    <string name="content_description_workflow_enabled">Activer %1$s</string>
     <string name="label_workflow_name">Nom</string>
     <string name="label_workflow_description">Description</string>
     <string name="title_import_workflow">Importer un workflow</string>

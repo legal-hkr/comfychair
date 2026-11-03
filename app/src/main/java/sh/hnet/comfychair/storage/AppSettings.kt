@@ -15,6 +15,8 @@ object AppSettings {
     private const val KEY_LIVE_PREVIEW_ENABLED = "live_preview_enabled"
     private const val KEY_DEBUG_LOGGING_ENABLED = "debug_logging_enabled"
     private const val KEY_AUTO_CONNECT = "autoConnect"
+    private const val KEY_DISABLED_WORKFLOWS = "disabled_workflows"
+    // Former switch hiding all built-in workflows, read only to migrate to KEY_DISABLED_WORKFLOWS
     private const val KEY_SHOW_BUILT_IN_WORKFLOWS = "show_built_in_workflows"
     private const val KEY_OFFLINE_MODE = "offline_mode"
     private const val KEY_EDGE_ROUTER = "edge_router"
@@ -115,22 +117,29 @@ object AppSettings {
     }
 
     /**
-     * Check if built-in workflows should be shown.
-     * When enabled (default), built-in workflows are displayed alongside user workflows.
-     * When disabled, only user-created workflows are shown.
+     * IDs of the workflows the user switched off; they are not offered on the generation screens.
+     * Storing the disabled ones keeps every new workflow enabled by default.
+     *
+     * The former "show built-in workflows" switch is migrated on first read: if it was off, all
+     * built-in workflows ([builtInIds]) start disabled.
      */
-    fun isShowBuiltInWorkflows(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_SHOW_BUILT_IN_WORKFLOWS, true)  // Default: true (show built-in)
+    fun getDisabledWorkflowIds(context: Context, builtInIds: Collection<String>): Set<String> {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val disabled = prefs.getStringSet(KEY_DISABLED_WORKFLOWS, null).orEmpty().toMutableSet()
+        if (prefs.contains(KEY_SHOW_BUILT_IN_WORKFLOWS)) {
+            if (!prefs.getBoolean(KEY_SHOW_BUILT_IN_WORKFLOWS, true)) disabled += builtInIds
+            prefs.edit()
+                .putStringSet(KEY_DISABLED_WORKFLOWS, disabled.toSet())
+                .remove(KEY_SHOW_BUILT_IN_WORKFLOWS)
+                .apply()
+        }
+        return disabled
     }
 
-    /**
-     * Set whether built-in workflows should be shown.
-     */
-    fun setShowBuiltInWorkflows(context: Context, show: Boolean) {
+    fun setDisabledWorkflowIds(context: Context, ids: Set<String>) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putBoolean(KEY_SHOW_BUILT_IN_WORKFLOWS, show)
+            .putStringSet(KEY_DISABLED_WORKFLOWS, ids.toSet())
             .apply()
     }
 

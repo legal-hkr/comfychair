@@ -24,7 +24,6 @@ import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.model.WorkflowValues
-import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
@@ -371,9 +370,7 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     private fun loadWorkflows() {
         val ctx = applicationContext ?: return
 
-        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
-        val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
-            .filter { showBuiltIn || !it.isBuiltIn }
+        val workflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.ITV)
 
         val unifiedWorkflows = workflows.map { workflow ->
             ItvWorkflowItem(
@@ -1175,6 +1172,8 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         // the workflow would be sent with empty model fields and rejected by ComfyUI
         if (!ConnectionManager.modelCache.value.isLoaded) return false
         val state = _uiState.value
+        // No workflow when all of the screen's workflows are switched off
+        if (state.selectedWorkflowId.isEmpty()) return false
 
         // Source image is required for Image-to-Video
         if (state.sourceImage == null) {

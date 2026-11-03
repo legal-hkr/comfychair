@@ -25,7 +25,6 @@ import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.model.WorkflowValues
-import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
@@ -326,9 +325,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             return
         }
 
-        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
-        val workflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI)
-            .filter { showBuiltIn || !it.isBuiltIn }
+        val workflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.TTI)
 
         // Create workflow list
         val unifiedWorkflows = workflows.map { workflow ->
@@ -764,6 +761,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         // the workflow would be sent with empty model fields and rejected by ComfyUI
         if (!ConnectionManager.modelCache.value.isLoaded) return false
         val state = _uiState.value
+        // No workflow when all of the screen's workflows are switched off
+        if (state.selectedWorkflowId.isEmpty()) return false
 
         // Workflows without a positive prompt placeholder (e.g. upscalers) don't need one
         if (state.capabilities.hasPositivePrompt && state.positivePrompt.isBlank()) {

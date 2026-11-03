@@ -27,7 +27,6 @@ import sh.hnet.comfychair.workflow.PendingWorkflowUpload
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LiteGraphConverter
 import sh.hnet.comfychair.util.ValidationUtils
@@ -51,6 +50,8 @@ data class WorkflowManagementUiState(
     val itiEditingWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val ttvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    // Workflows switched off by the user (not offered on the generation screens)
+    val disabledWorkflowIds: Set<String> = emptySet(),
 
     // Import dialog state
     val showImportDialog: Boolean = false,
@@ -147,21 +148,25 @@ class WorkflowManagementViewModel : ViewModel() {
      * Load all workflows and organize by type
      */
     fun loadWorkflows() {
-        val ctx = applicationContext ?: return
-        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
+        if (applicationContext == null) return
 
         _uiState.value = _uiState.value.copy(
-            ttiWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI)
-                .filter { showBuiltIn || !it.isBuiltIn },
-            itiInpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING)
-                .filter { showBuiltIn || !it.isBuiltIn },
-            itiEditingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING)
-                .filter { showBuiltIn || !it.isBuiltIn },
-            ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV)
-                .filter { showBuiltIn || !it.isBuiltIn },
+            disabledWorkflowIds = WorkflowManager.getDisabledWorkflowIds(),
+            ttiWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTI),
+            itiInpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING),
+            itiEditingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING),
+            ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV),
             itvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
-                .filter { showBuiltIn || !it.isBuiltIn }
         )
+    }
+
+    /**
+     * Switch a workflow on or off; switched-off workflows stay in this list but are not offered
+     * on the generation screens.
+     */
+    fun onWorkflowEnabledChange(workflow: WorkflowManager.Workflow, enabled: Boolean) {
+        WorkflowManager.setWorkflowEnabled(workflow.id, enabled)
+        _uiState.value = _uiState.value.copy(disabledWorkflowIds = WorkflowManager.getDisabledWorkflowIds())
     }
 
     /**

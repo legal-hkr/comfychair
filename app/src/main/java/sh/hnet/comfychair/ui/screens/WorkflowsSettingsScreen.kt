@@ -38,6 +38,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -59,6 +60,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.alpha
+import androidx.compose.material3.Switch
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -235,7 +241,9 @@ fun WorkflowsSettingsScreen(
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
                         onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                        onDelete = { viewModel.onDeleteWorkflow(it) },
+                        disabledWorkflowIds = uiState.disabledWorkflowIds,
+                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
                     )
                 }
 
@@ -249,7 +257,9 @@ fun WorkflowsSettingsScreen(
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
                         onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                        onDelete = { viewModel.onDeleteWorkflow(it) },
+                        disabledWorkflowIds = uiState.disabledWorkflowIds,
+                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
                     )
                 }
 
@@ -263,7 +273,9 @@ fun WorkflowsSettingsScreen(
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
                         onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                        onDelete = { viewModel.onDeleteWorkflow(it) },
+                        disabledWorkflowIds = uiState.disabledWorkflowIds,
+                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
                     )
                 }
 
@@ -277,7 +289,9 @@ fun WorkflowsSettingsScreen(
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
                         onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                        onDelete = { viewModel.onDeleteWorkflow(it) },
+                        disabledWorkflowIds = uiState.disabledWorkflowIds,
+                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
                     )
                 }
 
@@ -291,7 +305,9 @@ fun WorkflowsSettingsScreen(
                         onRename = { viewModel.onEditWorkflow(it) },
                         onDuplicate = { viewModel.onDuplicateWorkflow(it) },
                         onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) }
+                        onDelete = { viewModel.onDeleteWorkflow(it) },
+                        disabledWorkflowIds = uiState.disabledWorkflowIds,
+                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
                     )
                 }
 
@@ -416,16 +432,34 @@ private fun WorkflowSection(
     onRename: (WorkflowManager.Workflow) -> Unit,
     onDuplicate: (WorkflowManager.Workflow) -> Unit,
     onExport: (WorkflowManager.Workflow, ExportFormat) -> Unit,
-    onDelete: (WorkflowManager.Workflow) -> Unit
+    onDelete: (WorkflowManager.Workflow) -> Unit,
+    disabledWorkflowIds: Set<String>,
+    onEnabledChange: (WorkflowManager.Workflow, Boolean) -> Unit
 ) {
     Column {
-        // Section header
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-        )
+        // Section header, with how many of the section's workflows the generation screens offer
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            if (workflows.isNotEmpty()) {
+                Text(
+                    text = stringResource(
+                        R.string.label_workflows_enabled_count,
+                        workflows.count { it.id !in disabledWorkflowIds },
+                        workflows.size
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
         if (workflows.isEmpty()) {
             // Empty state
@@ -445,6 +479,8 @@ private fun WorkflowSection(
                         key(workflow.id) {
                             WorkflowListItemContent(
                                 workflow = workflow,
+                                enabled = workflow.id !in disabledWorkflowIds,
+                                onEnabledChange = { onEnabledChange(workflow, it) },
                                 onClick = { onWorkflowClick(workflow) },
                                 onEditStructure = { onEditStructure(workflow) },
                                 onRename = { onRename(workflow) },
@@ -469,9 +505,12 @@ private fun WorkflowSection(
 /**
  * Content for a single workflow item (without Card wrapper).
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun WorkflowListItemContent(
     workflow: WorkflowManager.Workflow,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
     onClick: () -> Unit,
     onEditStructure: () -> Unit,
     onRename: () -> Unit,
@@ -480,6 +519,13 @@ private fun WorkflowListItemContent(
     onDelete: () -> Unit
 ) {
     var showContextMenu by remember { mutableStateOf(false) }
+    // A switched-off workflow is dimmed; the switch and the menu stay fully opaque
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (enabled) 1f else 0.45f,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "workflow content alpha"
+    )
+    val switchDescription = stringResource(R.string.content_description_workflow_enabled, workflow.name)
 
     Row(
         modifier = Modifier
@@ -491,12 +537,12 @@ private fun WorkflowListItemContent(
         // Workflow graph thumbnail
         WorkflowThumbnail(
             jsonContent = workflow.jsonContent,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(48.dp).alpha(contentAlpha)
         )
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).alpha(contentAlpha)) {
             Text(
                 text = workflow.name,
                 style = MaterialTheme.typography.titleSmall
@@ -516,6 +562,17 @@ private fun WorkflowListItemContent(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Whether the generation screens offer this workflow; takes effect immediately
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            modifier = Modifier.semantics { contentDescription = switchDescription }
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
 
         // Context menu
         Box {

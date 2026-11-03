@@ -75,7 +75,6 @@ fun ApplicationSettingsScreen(
     var showMemoryOnlyConfirm by remember { mutableStateOf(false) }
     val isDebugLoggingEnabled by viewModel.isDebugLoggingEnabled.collectAsState()
     val isAutoConnectEnabled by viewModel.isAutoConnectEnabled.collectAsState()
-    val isShowBuiltInWorkflows by viewModel.isShowBuiltInWorkflows.collectAsState()
     val isOfflineMode by viewModel.isOfflineMode.collectAsState()
     val edgeRouterId by viewModel.edgeRouterId.collectAsState()
     val isPromptSpellCheckEnabled by viewModel.isPromptSpellCheckEnabled.collectAsState()
@@ -425,31 +424,6 @@ fun ApplicationSettingsScreen(
                     Switch(
                         checked = isLivePreviewEnabled,
                         onCheckedChange = { viewModel.setLivePreviewEnabled(context, it) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Show built-in workflows toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.label_show_built_in_workflows),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = stringResource(R.string.desc_show_built_in_workflows),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = isShowBuiltInWorkflows,
-                        onCheckedChange = { viewModel.setShowBuiltInWorkflows(context, it) }
                     )
                 }
 

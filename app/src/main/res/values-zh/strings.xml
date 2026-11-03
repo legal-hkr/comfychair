@@ -162,8 +162,6 @@
     <string name="msg_media_storage_memory_only_confirm">设备上保存的图片和视频将被删除。当前结果在关闭应用前仍可查看。</string>
     <string name="label_auto_connect">自动连接</string>
     <string name="desc_auto_connect">启动应用时自动连接到上次使用的服务器</string>
-    <string name="label_show_built_in_workflows">显示内置工作流</string>
-    <string name="desc_show_built_in_workflows">显示应用程序自带的默认工作流</string>
     <string name="label_prompt_spell_check">拼写检查与自动更正</string>
     <string name="desc_prompt_spell_check">在提示词输入框中启用拼写检查和自动更正。AI专用术语可能被标记为错误。</string>
     <string name="label_prompt_expand">输入时展开提示词输入框</string>
@@ -335,6 +333,8 @@
     <string name="workflow_section_itv">图生视频</string>
     <string name="workflow_section_empty">暂无工作流</string>
     <string name="label_workflow_built_in">内置</string>
+    <string name="label_workflows_enabled_count">已启用 %1$d/%2$d</string>
+    <string name="content_description_workflow_enabled">启用 %1$s</string>
     <string name="label_workflow_name">名称</string>
     <string name="label_workflow_description">描述</string>
     <string name="title_import_workflow">导入工作流</string>

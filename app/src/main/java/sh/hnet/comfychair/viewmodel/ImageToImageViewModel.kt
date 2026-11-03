@@ -29,7 +29,6 @@ import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.model.WorkflowCapabilities
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.model.WorkflowValues
-import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
@@ -487,13 +486,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     private fun loadWorkflows() {
         val ctx = applicationContext ?: return
 
-        val showBuiltIn = AppSettings.isShowBuiltInWorkflows(ctx)
         // Load inpainting workflows (ITI_INPAINTING)
-        val inpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING)
-            .filter { showBuiltIn || !it.isBuiltIn }
+        val inpaintingWorkflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.ITI_INPAINTING)
         // Load editing workflows (ITI_EDITING)
-        val editingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING)
-            .filter { showBuiltIn || !it.isBuiltIn }
+        val editingWorkflows = WorkflowManager.getEnabledWorkflowsByType(WorkflowType.ITI_EDITING)
 
         // Create inpainting workflow list
         val unifiedWorkflows = inpaintingWorkflows.map { workflow ->
@@ -1916,6 +1912,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         // the workflow would be sent with empty model fields and rejected by ComfyUI
         if (!ConnectionManager.modelCache.value.isLoaded) return false
         val state = _uiState.value
+        // No workflow when all of the mode's workflows are switched off
+        val workflowId = if (state.mode == ImageToImageMode.EDITING) state.selectedEditingWorkflowId else state.selectedWorkflowId
+        if (workflowId.isEmpty()) return false
 
         // Workflows without a positive prompt placeholder (e.g. upscalers) don't need one
         if (state.capabilities.hasPositivePrompt && state.positivePrompt.isBlank()) {

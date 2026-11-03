@@ -162,8 +162,6 @@
     <string name="msg_media_storage_memory_only_confirm">Auf dem Gerät gespeicherte Bilder und Videos werden gelöscht. Aktuelle Ergebnisse bleiben bis zum Schließen der App verfügbar.</string>
     <string name="label_auto_connect">Automatisch verbinden</string>
     <string name="desc_auto_connect">Beim App-Start automatisch mit dem letzten Server verbinden</string>
-    <string name="label_show_built_in_workflows">Integrierte Workflows anzeigen</string>
-    <string name="desc_show_built_in_workflows">Die mit der App gebündelten Standard-Workflows anzeigen</string>
     <string name="label_prompt_spell_check">Rechtschreibprüfung &amp; Autokorrektur</string>
     <string name="desc_prompt_spell_check">Rechtschreibprüfung und Autokorrektur in Prompt-Feldern aktivieren. KI-spezifische Begriffe können als Fehler markiert werden.</string>
     <string name="label_prompt_expand">Prompt-Feld beim Tippen erweitern</string>
@@ -350,6 +348,8 @@
     <string name="workflow_section_itv">Bild zu Video</string>
     <string name="workflow_section_empty">Keine Workflows</string>
     <string name="label_workflow_built_in">Eingebaut</string>
+    <string name="label_workflows_enabled_count">%1$d von %2$d aktiviert</string>
+    <string name="content_description_workflow_enabled">%1$s aktivieren</string>
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Beschreibung</string>
     <string name="title_import_workflow">Workflow importieren</string>

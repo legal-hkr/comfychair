@@ -165,8 +165,6 @@
     <string name="msg_cannot_go_online">Cannot go online - server unreachable</string>
     <string name="label_auto_connect">Auto-connect</string>
     <string name="desc_auto_connect">Automatically connect to the last server on app launch</string>
-    <string name="label_show_built_in_workflows">Show built-in workflows</string>
-    <string name="desc_show_built_in_workflows">Display the default workflows bundled with the app</string>
     <string name="label_prompt_spell_check">Spell check &amp; autocorrect</string>
     <string name="desc_prompt_spell_check">Enable spell checking and autocorrect in prompt fields. May flag AI-specific terms as errors.</string>
     <string name="label_prompt_expand">Expand prompt field when typing</string>
@@ -445,6 +443,8 @@
     <string name="workflow_section_itv">Image to Video</string>
     <string name="workflow_section_empty">No workflows</string>
     <string name="label_workflow_built_in">Built-in</string>
+    <string name="label_workflows_enabled_count">%1$d of %2$d enabled</string>
+    <string name="content_description_workflow_enabled">Enable %1$s</string>
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Description</string>
     <string name="title_import_workflow">Import Workflow</string>

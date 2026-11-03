@@ -115,9 +115,6 @@ class SettingsViewModel : ViewModel() {
     private val _isAutoConnectEnabled = MutableStateFlow(true)
     val isAutoConnectEnabled: StateFlow<Boolean> = _isAutoConnectEnabled.asStateFlow()
 
-    private val _isShowBuiltInWorkflows = MutableStateFlow(true)
-    val isShowBuiltInWorkflows: StateFlow<Boolean> = _isShowBuiltInWorkflows.asStateFlow()
-
     private val _isOfflineMode = MutableStateFlow(false)
     val isOfflineMode: StateFlow<Boolean> = _isOfflineMode.asStateFlow()
 
@@ -143,7 +140,6 @@ class SettingsViewModel : ViewModel() {
         _mediaStorageMode.value = AppSettings.getMediaStorageMode(context)
         _isDebugLoggingEnabled.value = AppSettings.isDebugLoggingEnabled(context)
         _isAutoConnectEnabled.value = AppSettings.isAutoConnectEnabled(context)
-        _isShowBuiltInWorkflows.value = AppSettings.isShowBuiltInWorkflows(context)
         _isOfflineMode.value = AppSettings.isOfflineMode(context)
         _edgeRouterId.value = AppSettings.getEdgeRouterId(context)
         _isPromptSpellCheckEnabled.value = AppSettings.isPromptSpellCheckEnabled(context)
@@ -487,15 +483,6 @@ class SettingsViewModel : ViewModel() {
         _isAutoConnectEnabled.value = enabled
     }
 
-    fun setShowBuiltInWorkflows(context: Context, show: Boolean) {
-        AppSettings.setShowBuiltInWorkflows(context, show)
-        _isShowBuiltInWorkflows.value = show
-        // Notify that workflows need to be reloaded
-        viewModelScope.launch {
-            _events.emit(SettingsEvent.RefreshNeeded)
-        }
-    }
-
     /**
      * Set the edge router for the workflow editor.
      */
@@ -712,7 +699,6 @@ class SettingsViewModel : ViewModel() {
         val newMediaStorageMode = AppSettings.getMediaStorageMode(context)
         val restoredDebugLogging = AppSettings.isDebugLoggingEnabled(context)
         val newAutoConnect = AppSettings.isAutoConnectEnabled(context)
-        val newShowBuiltInWorkflows = AppSettings.isShowBuiltInWorkflows(context)
         val newOfflineMode = AppSettings.isOfflineMode(context)
         val newEdgeRouterId = AppSettings.getEdgeRouterId(context)
         val newPromptSpellCheck = AppSettings.isPromptSpellCheckEnabled(context)
@@ -728,13 +714,12 @@ class SettingsViewModel : ViewModel() {
             restoredDebugLogging
         }
 
-        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, mediaStorage: $newMediaStorageMode, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect, showBuiltInWorkflows: $newShowBuiltInWorkflows")
+        DebugLogger.d(TAG, "Reloaded AppSettings - livePreview: $newLivePreview, mediaStorage: $newMediaStorageMode, debugLogging: $finalDebugLogging, autoConnect: $newAutoConnect")
 
         _isLivePreviewEnabled.value = newLivePreview
         _mediaStorageMode.value = newMediaStorageMode
         _isDebugLoggingEnabled.value = finalDebugLogging
         _isAutoConnectEnabled.value = newAutoConnect
-        _isShowBuiltInWorkflows.value = newShowBuiltInWorkflows
         _isOfflineMode.value = newOfflineMode
         _edgeRouterId.value = newEdgeRouterId
         _isPromptSpellCheckEnabled.value = newPromptSpellCheck

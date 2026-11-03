@@ -215,7 +215,7 @@ class BackupManager(private val context: Context) {
             put("memoryFirstCache", storageMode != MediaStorageMode.DEVICE)
             put("mediaCacheDisabled", storageMode == MediaStorageMode.MEMORY_ONLY)
             put("debugLoggingEnabled", prefs.getBoolean("debug_logging_enabled", false))
-            put("showBuiltInWorkflows", prefs.getBoolean("show_built_in_workflows", true))
+            put("disabledWorkflows", JSONArray(prefs.getStringSet("disabled_workflows", null).orEmpty().sorted()))
             put("promptSpellCheckEnabled", prefs.getBoolean("prompt_spell_check", false))
             put("promptExpandEnabled", prefs.getBoolean("prompt_expand", false))
         }
@@ -363,7 +363,14 @@ class BackupManager(private val context: Context) {
         if (json.has("debugLoggingEnabled")) {
             editor.putBoolean("debug_logging_enabled", json.optBoolean("debugLoggingEnabled", false))
         }
-        if (json.has("showBuiltInWorkflows")) {
+        // Workflows switched off one by one, or the former switch for all built-in workflows of
+        // older backups, which AppSettings migrates when the workflows are reloaded
+        val disabledWorkflows = json.optJSONArray("disabledWorkflows")
+        if (disabledWorkflows != null) {
+            editor.putStringSet("disabled_workflows", (0 until disabledWorkflows.length()).map { disabledWorkflows.optString(it) }.filter { it.isNotEmpty() }.toSet())
+            editor.remove("show_built_in_workflows")
+        } else if (json.has("showBuiltInWorkflows")) {
+            editor.remove("disabled_workflows")
             editor.putBoolean("show_built_in_workflows", json.optBoolean("showBuiltInWorkflows", true))
         }
         if (json.has("promptSpellCheckEnabled")) {
