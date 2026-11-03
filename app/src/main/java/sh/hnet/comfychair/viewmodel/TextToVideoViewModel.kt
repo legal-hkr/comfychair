@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
@@ -327,7 +326,7 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
     /**
      * Load the last generated video from cache.
      * This restores the video preview when the screen is recreated.
-     * Uses runBlocking to ensure synchronous restoration like TTI/ITI.
+     * The video URI is prepared off the main thread and applied when ready.
      */
     private fun loadLastGeneratedVideo() {
         val context = applicationContext ?: return
@@ -341,11 +340,10 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
 
         val key = MediaStateHolder.MediaKey.TtvVideo(promptId)
         if (MediaStateHolder.hasVideoBytes(key, context)) {
-            val uri = runBlocking {
-                MediaStateHolder.getVideoUri(context, key)
-            }
-            if (uri != null) {
-                _uiState.value = _uiState.value.copy(currentVideoUri = uri)
+            viewModelScope.launch {
+                val uri = MediaStateHolder.getVideoUri(context, key) ?: return@launch
+                // Don't replace a video that arrived while the URI was being prepared
+                _uiState.update { if (it.currentVideoUri == null) it.copy(currentVideoUri = uri) else it }
             }
         }
     }

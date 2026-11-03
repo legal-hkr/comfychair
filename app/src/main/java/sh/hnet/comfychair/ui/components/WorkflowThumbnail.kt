@@ -8,7 +8,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -17,6 +18,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import android.util.LruCache
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.SlotColors
 import sh.hnet.comfychair.workflow.WorkflowGraph
@@ -68,6 +72,12 @@ private data class ThumbnailData(
 )
 
 /**
+ * Computed thumbnails shared by all list rows, so scrolling back does not parse and lay out the graph again.
+ * Keyed by the JSON itself (rows already hold that string) and the theme.
+ */
+private val thumbnailCache = LruCache<Pair<String, Boolean>, ThumbnailData>(64)
+
+/**
  * Displays a mini preview of a workflow graph as a thumbnail.
  * Shows simplified colored rectangles representing nodes.
  *
@@ -84,10 +94,16 @@ fun WorkflowThumbnail(
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = MaterialTheme.colorScheme.surfaceContainerLow
 
-    // Parse and layout the graph, cache based on content hash and theme
-    val thumbnailData = remember(jsonContent.hashCode(), isDarkTheme) {
-        computeThumbnailData(jsonContent, isDarkTheme)
+    // Parse and lay out the graph off the main thread; the row shows an empty frame until it is ready
+    val cacheKey = jsonContent to isDarkTheme
+    val thumbnailState by produceState(thumbnailCache.get(cacheKey), cacheKey) {
+        if (value == null) {
+            value = withContext(Dispatchers.Default) {
+                computeThumbnailData(jsonContent, isDarkTheme)
+            }?.also { thumbnailCache.put(cacheKey, it) }
+        }
     }
+    val thumbnailData = thumbnailState
 
     Box(
         modifier = modifier

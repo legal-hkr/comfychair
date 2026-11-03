@@ -139,27 +139,32 @@ class MainContainerActivity : ComponentActivity() {
         // The gallery list is kept only for offline mode, i.e. with storage on the device
         if (isMemoryFirst) GalleryMetadataCache.clearAllCaches(applicationContext)
         if (storageMode == MediaStorageMode.MEMORY_ONLY) {
-            // Nothing may stay on the device, including files left by other modes or older versions
-            runBlocking { MediaStateHolder.enforceMemoryOnly(applicationContext) }
             MediaCache.setMemoryFirstMode(true)
             MediaCache.deleteDiskCache(applicationContext)
         } else {
             MediaStateHolder.isMemoryOnly = false
-            MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
             MediaCache.setMemoryFirstMode(isMemoryFirst)
         }
 
         // Initialize MediaCache with context for image/video fetching
         MediaCache.ensureInitialized(applicationContext)
 
-        // Load saved media state before screens initialize
-        if (isMemoryFirst) {
-            // Memory-first: load everything from disk into memory
-            DebugLogger.d("MainContainer", "loading media from disk (memory-first mode)")
-            runBlocking {
+        // Media state must be ready before the screens restore their previews, so this one step blocks.
+        // It is the only blocking disk access left: the save on exit (onStop) runs in the background.
+        runBlocking {
+            if (storageMode == MediaStorageMode.MEMORY_ONLY) {
+                // Nothing may stay on the device, including files left by other modes or older versions
+                MediaStateHolder.enforceMemoryOnly(applicationContext)
+            } else {
+                MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
+            }
+            // Memory-only already moved the stored media into RAM during its cleanup
+            if (storageMode == MediaStorageMode.MEMORY_PERSISTED) {
+                DebugLogger.d("MainContainer", "loading media from disk (memory-first mode)")
                 MediaStateHolder.loadFromDisk(applicationContext)
             }
-        } else {
+        }
+        if (!isMemoryFirst) {
             // Disk-first: just discover video promptIds (bytes read on-demand)
             DebugLogger.d("MainContainer", "discovering video promptIds (disk-first mode)")
             MediaStateHolder.discoverVideoPromptIds(applicationContext)
@@ -284,17 +289,13 @@ class MainContainerActivity : ComponentActivity() {
         // Save generation state when going to background
         generationViewModel.saveGenerationState(this)
 
-        // Persist all dirty media to disk synchronously to ensure completion before process death
-        // Only persist in memory-first mode (disk-first writes immediately, no persistence needed)
-        // Also skip if media cache is disabled
-        val isMemoryFirst = AppSettings.isMemoryFirstCache(this)
-        val isCacheDisabled = AppSettings.isMediaCacheDisabled(this)
-        DebugLogger.d("MainContainer", "onStop - memoryFirst=$isMemoryFirst, cacheDisabled=$isCacheDisabled")
-        if (isMemoryFirst && !isCacheDisabled) {
+        // "Memory, saved on exit": write dirty media in the background (atomic writes, serialized with
+        // loads and cleanups). Memory-only never writes; device storage writes when media arrives.
+        val storageMode = AppSettings.getMediaStorageMode(this)
+        DebugLogger.d("MainContainer", "onStop - media storage: $storageMode")
+        if (storageMode == MediaStorageMode.MEMORY_PERSISTED) {
             DebugLogger.d("MainContainer", "onStop - persisting media to disk")
-            runBlocking {
-                MediaStateHolder.persistToDisk(applicationContext)
-            }
+            MediaStateHolder.persistToDiskInBackground(applicationContext)
         }
     }
 
