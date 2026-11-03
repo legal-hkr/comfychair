@@ -64,9 +64,11 @@ fun LoraChainEditor(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // The title wraps if needed; the button keeps its one-line width, so every chain's header looks the same
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f)
             )
 
             TextButton(
@@ -79,7 +81,7 @@ fun LoraChainEditor(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(R.string.button_add_lora))
+                Text(stringResource(R.string.button_add_lora), maxLines = 1, softWrap = false)
             }
         }
 

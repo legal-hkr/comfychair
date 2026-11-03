@@ -152,8 +152,11 @@ abstract class ParamsGenerationViewModel<UiState, Event> : BaseGenerationViewMod
         updateParams(save = error == null) { it.copy(megapixels = megapixels, megapixelsError = error) }
     }
 
+    /** Length rule of the screen; video screens require the frame counts video latents accept. */
+    protected open fun validateLength(length: String): String? = ValidationUtils.validateLength(length, applicationContext)
+
     fun onLengthChange(length: String) {
-        val error = ValidationUtils.validateLength(length, applicationContext)
+        val error = validateLength(length)
         updateParams(save = error == null) { it.copy(length = length, lengthError = error) }
     }
 

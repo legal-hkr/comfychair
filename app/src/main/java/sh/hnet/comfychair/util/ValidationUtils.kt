@@ -115,6 +115,20 @@ object ValidationUtils {
     }
 
     /**
+     * Validate video length in frames: 1-129 in steps of 4 (1, 5, 9, 13...), as video latents require.
+     */
+    fun validateVideoLength(value: String, context: Context? = null): String? {
+        val num = value.toIntOrNull()
+        return when {
+            value.isEmpty() -> context?.getString(R.string.error_required) ?: "Required"
+            num == null -> context?.getString(R.string.error_invalid_number) ?: "Invalid number"
+            num !in 1..129 -> context?.getString(R.string.error_length_range) ?: "Must be 1-129"
+            (num - 1) % 4 != 0 -> context?.getString(R.string.error_length_step) ?: "Must be 1, 5, 9, 13... (steps of 4)"
+            else -> null
+        }
+    }
+
+    /**
      * Validate frame rate value.
      * @param value The frame rate value as string
      * @param context Optional context for localized error message
