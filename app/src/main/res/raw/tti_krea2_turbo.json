@@ -1,0 +1,156 @@
+{
+  "name": "Krea-2 Turbo",
+  "description": "Workflow using the Krea-2 Turbo model",
+  "defaults": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 8,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["1", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "CLIP Configuration",
+      "member_nodes": ["2", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "VAE Configuration",
+      "member_nodes": ["3", "note:3"]
+    },
+    {
+      "id": 4,
+      "title": "Sampling Configuration",
+      "member_nodes": ["7", "note:4"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **Krea-2 Turbo FP8 scaled** for fast text-to-image generation.\n\nStyle LoRAs from Comfy-Org/Krea-2 work with the LoRA chain; add their trigger word to the prompt (e.g. *monochrome ink wash style* for **krea2_darkbrush**)."
+    },
+    {
+      "id": 2,
+      "title": "CLIP Model Selection",
+      "content": "### Recommended CLIP Model\n\nUse **Qwen 3 VL 4B FP8 scaled** for optimal text understanding with Krea-2."
+    },
+    {
+      "id": 3,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Krea-2."
+    },
+    {
+      "id": 4,
+      "title": "Sampler Settings",
+      "content": "### Recommended Settings\n\n- **Steps:** 8\n- **CFG:** 1.0\n- **Sampler:** euler\n- **Scheduler:** simple\n\n---\n\n*Krea-2 Turbo is distilled for fast inference without negative conditioning.*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "2": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "krea2",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load CLIP"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "4": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": "{{width}}",
+        "height": "{{height}}",
+        "batch_size": "{{batch_size}}"
+      },
+      "_meta": {
+        "title": "Empty Latent Image"
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{positive_prompt}}",
+        "clip": ["2", 0]
+      },
+      "_meta": {
+        "title": "Positive Prompt"
+      }
+    },
+    "6": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": ["5", 0]
+      },
+      "_meta": {
+        "title": "Empty Negative"
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": "{{steps}}",
+        "cfg": "{{cfg}}",
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": 1.0,
+        "model": ["1", 0],
+        "positive": ["5", 0],
+        "negative": ["6", 0],
+        "latent_image": ["4", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["7", 0],
+        "vae": ["3", 0]
+      },
+      "_meta": {
+        "title": "VAE Decode"
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["8", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}

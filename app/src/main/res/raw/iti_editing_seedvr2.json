@@ -1,0 +1,183 @@
+{
+  "name": "SeedVR2 Upscale",
+  "description": "Image restoration and upscaling with SeedVR2 7B, no prompt needed",
+  "defaults": {
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0,
+    "scale_by": 2.0,
+    "upscale_method": "lanczos"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["5", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "VAE Configuration",
+      "member_nodes": ["6", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "Upscale Configuration",
+      "member_nodes": ["3", "note:3"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **SeedVR2 7B Int8** for restoration and upscaling in a single step."
+    },
+    {
+      "id": 2,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse the **SeedVR2 EMA** VAE (fp16). It encodes and decodes in tiles, so large outputs fit in memory."
+    },
+    {
+      "id": 3,
+      "title": "Upscale Settings",
+      "content": "### Recommended Settings\n\n- **Scale by:** 2 (up to 4 for small images; the output grows with the square of the factor)\n- **Upscale method:** lanczos\n- **Denoise:** 1.0\n\n---\n\n*SeedVR2 works in one sampling step and doesn't use a prompt.*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "uploaded_image.png [input]"
+      },
+      "_meta": {
+        "title": "Source Image"
+      }
+    },
+    "2": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": ["1", 0],
+        "alpha": ["1", 1]
+      },
+      "_meta": {
+        "title": "Keep Alpha"
+      }
+    },
+    "3": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": ["2", 0],
+        "resize_type": "scale by multiplier",
+        "resize_type.multiplier": "{{scale_by}}",
+        "scale_method": "{{upscale_method}}"
+      },
+      "_meta": {
+        "title": "Upscale Input"
+      }
+    },
+    "4": {
+      "class_type": "SeedVR2Preprocess",
+      "inputs": {
+        "resized_images": ["3", 0]
+      },
+      "_meta": {
+        "title": "Preprocess"
+      }
+    },
+    "5": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "6": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "7": {
+      "class_type": "VAEEncodeTiled",
+      "inputs": {
+        "pixels": ["4", 0],
+        "vae": ["6", 0],
+        "tile_size": 512,
+        "overlap": 128,
+        "temporal_size": 4096,
+        "temporal_overlap": 8
+      },
+      "_meta": {
+        "title": "VAE Encode (Tiled)"
+      }
+    },
+    "8": {
+      "class_type": "SeedVR2Conditioning",
+      "inputs": {
+        "model": ["5", 0],
+        "vae_conditioning": ["7", 0]
+      },
+      "_meta": {
+        "title": "Conditioning"
+      }
+    },
+    "9": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": 1,
+        "cfg": 1.0,
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": "{{denoise}}",
+        "model": ["5", 0],
+        "positive": ["8", 0],
+        "negative": ["8", 1],
+        "latent_image": ["7", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "10": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": ["9", 0],
+        "vae": ["6", 0],
+        "tile_size": 512,
+        "overlap": 128,
+        "temporal_size": 4096,
+        "temporal_overlap": 8
+      },
+      "_meta": {
+        "title": "VAE Decode (Tiled)"
+      }
+    },
+    "11": {
+      "class_type": "SeedVR2PostProcessing",
+      "inputs": {
+        "images": ["10", 0],
+        "original_resized_images": ["3", 0],
+        "color_correction_method": "none"
+      },
+      "_meta": {
+        "title": "Post-Process"
+      }
+    },
+    "12": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["11", 0]
+      },
+      "_meta": {
+        "title": "Save Image"
+      }
+    }
+  }
+}
