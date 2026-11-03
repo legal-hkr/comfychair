@@ -11,6 +11,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.storage.PreferencesMaintenance
 import sh.hnet.comfychair.ui.screens.LoginScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
@@ -28,9 +29,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Run preferences maintenance in background to clean up stale entries
+        // Run preferences maintenance in background to clean up stale entries, and remove
+        // media files left in the cache directory (share files, pre-in-memory playback files)
         lifecycleScope.launch(Dispatchers.IO) {
             PreferencesMaintenance.performMaintenance(applicationContext)
+            InMemoryVideo.deleteShareFiles(applicationContext)
         }
 
         setContent {

@@ -59,6 +59,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 
@@ -159,7 +160,7 @@ fun VideoPlayer(
                 withContext(Dispatchers.IO) {
                     try {
                         val retriever = MediaMetadataRetriever()
-                        retriever.setDataSource(context, videoUri)
+                        InMemoryVideo.setDataSource(retriever, context, videoUri)
                         val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                         val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: frame?.width ?: 0
                         val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: frame?.height ?: 0
@@ -569,7 +570,7 @@ fun FullscreenVideoPlayer(
             withContext(Dispatchers.IO) {
                 try {
                     val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(context, videoUri)
+                    InMemoryVideo.setDataSource(retriever, context, videoUri)
                     val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
                     val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                     retriever.release()

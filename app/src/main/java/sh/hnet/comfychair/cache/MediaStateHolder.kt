@@ -304,7 +304,7 @@ object MediaStateHolder {
 
     /**
      * Get a video URI for ExoPlayer playback.
-     * In memory-first mode, creates a temp file from in-memory bytes.
+     * In memory-first mode, returns an in-memory URI (see InMemoryVideo), nothing is written to disk.
      * In disk-first mode, returns URI directly to the stored file.
      */
     suspend fun getVideoUri(context: Context, key: MediaKey): Uri? {
@@ -313,15 +313,9 @@ object MediaStateHolder {
         return withContext(Dispatchers.IO) {
             try {
                 if (isMemoryFirstMode) {
-                    // Memory-first: create temp file from in-memory bytes
-                    val bytes = videoBytes[key] ?: return@withContext null
-                    val tempFile = File(context.cacheDir, "playback_${key.baseFilename.hashCode()}.mp4")
-                    tempFile.writeBytes(bytes)
-                    FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        tempFile
-                    )
+                    // Memory-first: play straight from RAM
+                    if (!videoBytes.containsKey(key)) return@withContext null
+                    InMemoryVideo.uriFor("state_${key.filename(serverId)}") { videoBytes[key] }
                 } else {
                     // Disk-first: return URI to the stored file directly
                     val file = File(context.filesDir, key.filename(serverId))

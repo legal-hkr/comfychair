@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -408,7 +409,7 @@ class MediaViewerViewModel : ViewModel() {
                 // For SINGLE mode videos, try to read from local file first
                 state.mode == ViewerMode.SINGLE && item.isVideo && state.currentVideoUri != null -> {
                     try {
-                        context.contentResolver.openInputStream(state.currentVideoUri)?.use {
+                        InMemoryVideo.openInputStream(context, state.currentVideoUri)?.use {
                             it.readBytes()
                         }
                     } catch (e: Exception) {
@@ -604,7 +605,7 @@ class MediaViewerViewModel : ViewModel() {
 
         withContext(Dispatchers.IO) {
             try {
-                val videoBytes = context.contentResolver.openInputStream(videoUri)?.use {
+                val videoBytes = InMemoryVideo.openInputStream(context, videoUri)?.use {
                     it.readBytes()
                 } ?: run {
                     _events.emit(MediaViewerEvent.ShowToast(R.string.error_save_video))
@@ -771,11 +772,23 @@ class MediaViewerViewModel : ViewModel() {
             return
         }
 
+        // In-memory videos are written to a share file only now, at the user's request
+        val shareUri = withContext(Dispatchers.IO) {
+            try {
+                InMemoryVideo.shareableUri(context, videoUri)
+            } catch (e: Exception) {
+                null
+            }
+        } ?: run {
+            _events.emit(MediaViewerEvent.ShowToast(R.string.error_share_video))
+            return
+        }
+
         withContext(Dispatchers.Main) {
             try {
                 val shareIntent = Intent().apply {
                     action = Intent.ACTION_SEND
-                    putExtra(Intent.EXTRA_STREAM, videoUri)
+                    putExtra(Intent.EXTRA_STREAM, shareUri)
                     type = "video/mp4"
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }

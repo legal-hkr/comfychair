@@ -4,9 +4,13 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import sh.hnet.comfychair.cache.InMemoryVideo
 
 /**
  * Singleton manager for a shared ExoPlayer instance.
@@ -38,9 +42,13 @@ object SharedVideoPlayer {
      * Get or create the shared ExoPlayer instance.
      * Must be called from a context that has access to Application context.
      */
+    @OptIn(UnstableApi::class)
     fun getPlayer(context: Context): ExoPlayer {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
+            // In-memory videos (memory-first mode) are read straight from RAM, see InMemoryVideo
+            exoPlayer = ExoPlayer.Builder(context.applicationContext)
+                .setMediaSourceFactory(DefaultMediaSourceFactory(InMemoryVideo.dataSourceFactory(context)))
+                .build().apply {
                 repeatMode = Player.REPEAT_MODE_ALL
                 playWhenReady = false
             }

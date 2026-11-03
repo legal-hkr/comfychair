@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -105,7 +106,7 @@ object VideoUtils {
                         // Pass context for disk-first mode support
                         MediaStateHolder.putVideoBytes(mediaKey, videoBytes, context)
 
-                        // Get URI for playback (creates temp file in cacheDir)
+                        // Get URI for playback (in RAM in memory-first mode, the stored file otherwise)
                         CoroutineScope(Dispatchers.Main).launch {
                             val uri = MediaStateHolder.getVideoUri(context, mediaKey)
                             onComplete(uri)
@@ -146,7 +147,7 @@ object VideoUtils {
 
                 uri?.let { outputUri ->
                     resolver.openOutputStream(outputUri)?.use { outputStream ->
-                        resolver.openInputStream(videoUri)?.use { inputStream ->
+                        InMemoryVideo.openInputStream(context, videoUri)?.use { inputStream ->
                             inputStream.copyTo(outputStream)
                         }
                     }
@@ -177,13 +178,16 @@ object VideoUtils {
      * @param context Application context
      * @param videoUri The video URI to share
      */
-    fun shareVideo(context: Context, videoUri: Uri?) {
+    suspend fun shareVideo(context: Context, videoUri: Uri?) {
         if (videoUri == null) return
 
         try {
+            // In-memory videos are written to a share file only now, at the user's request
+            val shareUri = withContext(Dispatchers.IO) { InMemoryVideo.shareableUri(context, videoUri) }
+                ?: throw IllegalStateException("Video is no longer available")
             val shareIntent = Intent().apply {
                 action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_STREAM, videoUri)
+                putExtra(Intent.EXTRA_STREAM, shareUri)
                 type = "video/mp4"
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }

@@ -259,7 +259,7 @@ fun TextToVideoScreen(
                     }
                     // Share button
                     IconButton(onClick = {
-                        VideoUtils.shareVideo(context, videoUri)
+                        scope.launch { VideoUtils.shareVideo(context, videoUri) }
                     }) {
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
                     }
