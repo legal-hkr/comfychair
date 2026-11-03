@@ -384,6 +384,10 @@ class TextToImageViewModel : ParamsGenerationViewModel<TextToImageUiState, TextT
             textEncoder = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
             latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
             lora = state.selectedLoraName.takeIf { it.isNotEmpty() },
+            highnoiseUnet = state.selectedHighnoiseUnet,
+            lownoiseUnet = state.selectedLownoiseUnet,
+            highnoiseLora = state.selectedHighnoiseLora,
+            lownoiseLora = state.selectedLownoiseLora,
             // Unified generation parameters
             width = state.width.toIntOrNull() ?: 1024,
             height = state.height.toIntOrNull() ?: 1024,

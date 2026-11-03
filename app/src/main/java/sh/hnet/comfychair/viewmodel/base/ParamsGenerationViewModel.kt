@@ -73,25 +73,33 @@ abstract class ParamsGenerationViewModel<UiState, Event> : BaseGenerationViewMod
 
     // Workflow values
 
+    /**
+     * [params] with a workflow's saved values (or template defaults, else [fallback]) loaded; unchanged
+     * if there is no storage or server yet.
+     */
+    protected fun paramsForWorkflow(
+        params: GenerationParams,
+        workflowId: String,
+        workflowName: String,
+        fallback: GenerationParams = fallbackParams
+    ): GenerationParams {
+        val storage = workflowValuesStorage ?: return params
+        val serverId = ConnectionManager.currentServerId ?: return params
+        return params.copy(models = ConnectionManager.modelCache.value).withWorkflow(
+            workflowId = workflowId,
+            workflowName = workflowName,
+            placeholders = WorkflowManager.getWorkflowPlaceholders(workflowId),
+            saved = storage.loadValues(serverId, workflowId),
+            defaults = WorkflowManager.getWorkflowDefaultsById(workflowId),
+            options = { fieldKey -> WorkflowManager.getNodeSpecificOptionsForField(workflowId, fieldKey) },
+            fallback = fallback
+        )
+    }
+
     /** Load a workflow's saved values (or template defaults) into the edited params, without saving. */
     protected fun loadWorkflowValues(workflowId: String, workflowName: String) {
-        val storage = workflowValuesStorage ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
-        val saved = storage.loadValues(serverId, workflowId)
-        val defaults = WorkflowManager.getWorkflowDefaultsById(workflowId)
-        val placeholders = WorkflowManager.getWorkflowPlaceholders(workflowId)
         val fallback = fallbackParams
-        updateParams(save = false) { params ->
-            params.copy(models = ConnectionManager.modelCache.value).withWorkflow(
-                workflowId = workflowId,
-                workflowName = workflowName,
-                placeholders = placeholders,
-                saved = saved,
-                defaults = defaults,
-                options = { fieldKey -> WorkflowManager.getNodeSpecificOptionsForField(workflowId, fieldKey) },
-                fallback = fallback
-            )
-        }
+        updateParams(save = false) { paramsForWorkflow(it, workflowId, workflowName, fallback) }
     }
 
     /** Store the values of the workflow the params belong to, keeping node edits from the Workflow Editor. */

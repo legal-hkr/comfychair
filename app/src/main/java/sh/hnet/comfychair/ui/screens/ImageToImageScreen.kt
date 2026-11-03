@@ -659,6 +659,7 @@ fun ImageToImageScreen(
             sheetState = optionsSheetState,
             contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
         ) {
+            // The ViewModel applies every change to the current mode's workflow and parameters
             val callbacks = remember(imageToImageViewModel) {
                 UnifiedCallbacks(
                     // Mode selection
@@ -668,23 +669,10 @@ fun ImageToImageScreen(
                     onClearReferenceImage1 = imageToImageViewModel::onClearReferenceImage1,
                     onReferenceImage2Change = { uri -> imageToImageViewModel.onReferenceImage2Change(context, uri) },
                     onClearReferenceImage2 = imageToImageViewModel::onClearReferenceImage2,
-                    // Inpainting workflow callback
+                    // Workflow
                     onWorkflowChange = imageToImageViewModel::onWorkflowChange,
                     onViewWorkflow = {
-                        val workflowId = uiState.availableWorkflows
-                            .find { it.name == uiState.selectedWorkflow }?.id
-                        if (workflowId != null) {
-                            context.startActivity(
-                                WorkflowEditorActivity.createIntent(context, workflowId)
-                            )
-                        }
-                    },
-                    // Editing workflow callback
-                    onEditingWorkflowChange = imageToImageViewModel::onEditingWorkflowChange,
-                    onViewEditingWorkflow = {
-                        val workflowId = uiState.editingWorkflows
-                            .find { it.name == uiState.selectedEditingWorkflow }?.id
-                        if (workflowId != null) {
+                        uiState.selectedWorkflowId.takeIf { it.isNotEmpty() }?.let { workflowId ->
                             context.startActivity(
                                 WorkflowEditorActivity.createIntent(context, workflowId)
                             )
@@ -692,7 +680,7 @@ fun ImageToImageScreen(
                     },
                     // Negative prompt
                     onNegativePromptChange = imageToImageViewModel::onNegativePromptChange,
-                    // Inpainting model selection callbacks
+                    // Models
                     onCheckpointChange = imageToImageViewModel::onCheckpointChange,
                     onUnetChange = imageToImageViewModel::onUnetChange,
                     onVaeChange = imageToImageViewModel::onVaeChange,
@@ -703,18 +691,12 @@ fun ImageToImageScreen(
                     onClip4Change = imageToImageViewModel::onClip4Change,
                     onTextEncoderChange = imageToImageViewModel::onTextEncoderChange,
                     onLatentUpscaleModelChange = imageToImageViewModel::onLatentUpscaleModelChange,
-                    // Editing model selection callbacks
-                    onEditingUnetChange = imageToImageViewModel::onEditingUnetChange,
-                    onEditingLoraChange = imageToImageViewModel::onEditingLoraChange,
-                    onEditingVaeChange = imageToImageViewModel::onEditingVaeChange,
-                    onEditingClipChange = imageToImageViewModel::onEditingClipChange,
-                    onEditingClip1Change = imageToImageViewModel::onEditingClip1Change,
-                    onEditingClip2Change = imageToImageViewModel::onEditingClip2Change,
-                    onEditingClip3Change = imageToImageViewModel::onEditingClip3Change,
-                    onEditingClip4Change = imageToImageViewModel::onEditingClip4Change,
-                    onEditingTextEncoderChange = imageToImageViewModel::onEditingTextEncoderChange,
-                    onEditingLatentUpscaleModelChange = imageToImageViewModel::onEditingLatentUpscaleModelChange,
-                    // Inpainting parameter callbacks
+                    onMandatoryLoraChange = imageToImageViewModel::onMandatoryLoraChange,
+                    onHighnoiseUnetChange = imageToImageViewModel::onHighnoiseUnetChange,
+                    onLownoiseUnetChange = imageToImageViewModel::onLownoiseUnetChange,
+                    onHighnoiseLoraChange = imageToImageViewModel::onHighnoiseLoraChange,
+                    onLownoiseLoraChange = imageToImageViewModel::onLownoiseLoraChange,
+                    // Parameters
                     onMegapixelsChange = imageToImageViewModel::onMegapixelsChange,
                     onWidthChange = imageToImageViewModel::onWidthChange,
                     onHeightChange = imageToImageViewModel::onHeightChange,
@@ -732,50 +714,19 @@ fun ImageToImageScreen(
                     onUpscaleMethodChange = imageToImageViewModel::onUpscaleMethodChange,
                     onScaleByChange = imageToImageViewModel::onScaleByChange,
                     onStopAtClipLayerChange = imageToImageViewModel::onStopAtClipLayerChange,
-                    // Editing parameter callbacks
-                    onEditingMegapixelsChange = imageToImageViewModel::onEditingMegapixelsChange,
-                    onEditingWidthChange = imageToImageViewModel::onEditingWidthChange,
-                    onEditingHeightChange = imageToImageViewModel::onEditingHeightChange,
-                    onEditingLengthChange = imageToImageViewModel::onEditingLengthChange,
-                    onEditingFpsChange = imageToImageViewModel::onEditingFpsChange,
-                    onEditingStepsChange = imageToImageViewModel::onEditingStepsChange,
-                    onEditingCfgChange = imageToImageViewModel::onEditingCfgChange,
-                    onEditingSamplerChange = imageToImageViewModel::onEditingSamplerChange,
-                    onEditingSchedulerChange = imageToImageViewModel::onEditingSchedulerChange,
-                    onEditingRandomSeedToggle = imageToImageViewModel::onEditingRandomSeedToggle,
-                    onEditingSeedChange = imageToImageViewModel::onEditingSeedChange,
-                    onEditingRandomizeSeed = imageToImageViewModel::onEditingRandomizeSeed,
-                    onEditingDenoiseChange = imageToImageViewModel::onEditingDenoiseChange,
-                    onEditingBatchSizeChange = imageToImageViewModel::onEditingBatchSizeChange,
-                    onEditingUpscaleMethodChange = imageToImageViewModel::onEditingUpscaleMethodChange,
-                    onEditingScaleByChange = imageToImageViewModel::onEditingScaleByChange,
-                    onEditingStopAtClipLayerChange = imageToImageViewModel::onEditingStopAtClipLayerChange,
-                    // Inpainting LoRA chain callbacks
+                    // LoRA chains
                     onAddLora = imageToImageViewModel::onAddLora,
                     onRemoveLora = imageToImageViewModel::onRemoveLora,
                     onLoraNameChange = imageToImageViewModel::onLoraNameChange,
                     onLoraStrengthChange = imageToImageViewModel::onLoraStrengthChange,
-                    // Editing LoRA chain callbacks
-                    onAddEditingLora = imageToImageViewModel::onAddEditingLora,
-                    onRemoveEditingLora = imageToImageViewModel::onRemoveEditingLora,
-                    onEditingLoraNameChange = imageToImageViewModel::onEditingLoraNameChange,
-                    onEditingLoraStrengthChange = imageToImageViewModel::onEditingLoraStrengthChange,
-                    // Editing mode checkpoint (for checkpoint-based workflows)
-                    onEditingCheckpointChange = imageToImageViewModel::onEditingCheckpointChange,
-                    // Editing mode dual-model patterns (for video-style workflows)
-                    onEditingHighnoiseUnetChange = imageToImageViewModel::onEditingHighnoiseUnetChange,
-                    onEditingLownoiseUnetChange = imageToImageViewModel::onEditingLownoiseUnetChange,
-                    onEditingHighnoiseLoraChange = imageToImageViewModel::onEditingHighnoiseLoraChange,
-                    onEditingLownoiseLoraChange = imageToImageViewModel::onEditingLownoiseLoraChange,
-                    // Editing mode dual LoRA chain callbacks
-                    onAddEditingHighnoiseLora = imageToImageViewModel::onAddEditingHighnoiseLora,
-                    onRemoveEditingHighnoiseLora = imageToImageViewModel::onRemoveEditingHighnoiseLora,
-                    onEditingHighnoiseLoraNameChange = imageToImageViewModel::onEditingHighnoiseLoraNameChange,
-                    onEditingHighnoiseLoraStrengthChange = imageToImageViewModel::onEditingHighnoiseLoraStrengthChange,
-                    onAddEditingLownoiseLora = imageToImageViewModel::onAddEditingLownoiseLora,
-                    onRemoveEditingLownoiseLora = imageToImageViewModel::onRemoveEditingLownoiseLora,
-                    onEditingLownoiseLoraNameChange = imageToImageViewModel::onEditingLownoiseLoraNameChange,
-                    onEditingLownoiseLoraStrengthChange = imageToImageViewModel::onEditingLownoiseLoraStrengthChange
+                    onAddHighnoiseLora = imageToImageViewModel::onAddHighnoiseLora,
+                    onRemoveHighnoiseLora = imageToImageViewModel::onRemoveHighnoiseLora,
+                    onHighnoiseLoraNameChange = imageToImageViewModel::onHighnoiseLoraChainNameChange,
+                    onHighnoiseLoraStrengthChange = imageToImageViewModel::onHighnoiseLoraChainStrengthChange,
+                    onAddLownoiseLora = imageToImageViewModel::onAddLownoiseLora,
+                    onRemoveLownoiseLora = imageToImageViewModel::onRemoveLownoiseLora,
+                    onLownoiseLoraNameChange = imageToImageViewModel::onLownoiseLoraChainNameChange,
+                    onLownoiseLoraStrengthChange = imageToImageViewModel::onLownoiseLoraChainStrengthChange
                 )
             }
             val bottomSheetConfig = remember(uiState, callbacks) {
@@ -783,8 +734,7 @@ fun ImageToImageScreen(
             }
             ConfigBottomSheetContent(
                 config = bottomSheetConfig,
-                workflowName = if (uiState.mode == ImageToImageMode.EDITING)
-                    uiState.selectedEditingWorkflow else uiState.selectedWorkflow,
+                workflowName = uiState.selectedWorkflow,
                 spellCheckEnabled = spellCheckEnabled
             )
         }
