@@ -1,0 +1,19 @@
+v0.8.13
+
+Privacy and security:
+- Media kept in memory only by default
+- Fingerprint check for untrusted certificates
+- No silent fallback from HTTPS to HTTP
+- Android cloud backup disabled
+
+New features:
+- Preview of all results of a job
+- "Use as source" for generated images
+- Krea-2 and SeedVR2 templates
+- On/off switch for each workflow
+- LoRA strength from -100 to 100 (#35)
+
+Bug fixes:
+- Crash loop on large servers (#44)
+- LoRA with GGUF loaders (#29, #48)
+- Prompts in String nodes (#36)
