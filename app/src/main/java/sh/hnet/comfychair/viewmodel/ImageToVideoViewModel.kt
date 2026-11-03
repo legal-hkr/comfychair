@@ -62,6 +62,8 @@ data class ImageToVideoUiState(
     val currentVideoUri: android.net.Uri? = null,
     // All result files of the last job, in server order (the first video is the one shown)
     val generationOutputs: List<GenerationOutput> = emptyList(),
+    // Result shown in the preview (index into generationOutputs)
+    val currentResultIndex: Int = 0,
 
     // Workflow selection
     val selectedWorkflow: String = "",
@@ -1126,6 +1128,13 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     }
 
     /**
+     * Select the result shown in the preview when a job produced several files.
+     */
+    fun onCurrentResultChange(index: Int) {
+        _uiState.update { it.copy(currentResultIndex = index.coerceIn(0, (it.generationOutputs.size - 1).coerceAtLeast(0))) }
+    }
+
+    /**
      * Clear preview for a specific execution. Only clears if this is a new promptId
      * to prevent duplicate clears when navigating back to the screen.
      */
@@ -1135,14 +1144,14 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
         // Evict preview from cache so restoreLastPreviewImage() won't restore the old preview
         // when navigating back to this screen during generation
         MediaStateHolder.evict(MediaStateHolder.MediaKey.ItvPreview)
-        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList())
+        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList(), currentResultIndex = 0)
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
         MediaStateHolder.clearCurrentItvPromptId()
     }
 
     fun clearPreview() {
         lastClearedForPromptId = null // Reset tracking when manually clearing
-        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList())
+        _uiState.value = _uiState.value.copy(previewBitmap = null, currentVideoUri = null, generationOutputs = emptyList(), currentResultIndex = 0)
         // Clear prompt ID tracking to prevent restoration on subsequent screen navigations
         MediaStateHolder.clearCurrentItvPromptId()
     }
@@ -1244,7 +1253,7 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
             _uiState.update { it.copy(isFetching = false) }
             if (uri != null) {
                 // Clear preview bitmap so video player takes display precedence
-                _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null, generationOutputs = outputs)
+                _uiState.value = _uiState.value.copy(currentVideoUri = uri, previewBitmap = null, generationOutputs = outputs, currentResultIndex = 0)
                 deleteLastPreviewImage()
                 generationViewModelRef?.completeGeneration(promptId)
             }

@@ -29,6 +29,7 @@ import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.cache.ResultThumbnails
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.repository.GalleryRepository
@@ -603,6 +604,7 @@ object ConnectionManager {
         GalleryRepository.getInstance().reset()
         MediaStateHolder.clearAll()
         MediaCache.reset()
+        ResultThumbnails.clear()
         JobRegistry.clear()
         // Clear model cache and node registry
         _modelCache.value = ModelCache()

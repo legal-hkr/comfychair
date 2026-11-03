@@ -427,7 +427,7 @@ class GalleryRepository private constructor() {
             val outputs = promptHistory.optJSONObject("outputs") ?: continue
 
             // The gallery lists every file, temporary previews included
-            for (output in GenerationOutputs.parse(outputs, preferSaved = false)) {
+            for (output in GenerationOutputs.parse(outputs, promptId, preferSaved = false)) {
                 items.add(GalleryItem(
                     promptId = promptId,
                     filename = output.filename,

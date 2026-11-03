@@ -148,6 +148,8 @@ data class TextToImageUiState(
 
     // All result files of the last job, in server order (the first image is the one shown)
     val generationOutputs: List<GenerationOutput> = emptyList(),
+    // Result shown in the preview (index into generationOutputs)
+    val currentResultIndex: Int = 0,
 
     // Current image file info (for metadata extraction)
     val currentImageFilename: String? = null,
@@ -596,6 +598,13 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * Clear the preview image when starting a new generation.
      */
     /**
+     * Select the result shown in the preview when a job produced several files.
+     */
+    fun onCurrentResultChange(index: Int) {
+        _uiState.update { it.copy(currentResultIndex = index.coerceIn(0, (it.generationOutputs.size - 1).coerceAtLeast(0))) }
+    }
+
+    /**
      * Clear preview for a specific execution. Only clears if this is a new promptId
      * to prevent duplicate clears when navigating back to the screen.
      */
@@ -610,6 +619,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         _uiState.value = _uiState.value.copy(
             previewBitmap = null,
             generationOutputs = emptyList(),
+            currentResultIndex = 0,
             currentImageFilename = null,
             currentImageSubfolder = null,
             currentImageType = null
@@ -621,6 +631,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         _uiState.value = _uiState.value.copy(
             previewBitmap = null,
             generationOutputs = emptyList(),
+            currentResultIndex = 0,
             currentImageFilename = null,
             currentImageSubfolder = null,
             currentImageType = null
@@ -806,7 +817,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                                 _uiState.update { it.copy(isFetching = false) }
                                 if (bitmap != null) {
                                     setCurrentImage(bitmap, filename, subfolder, type)
-                                    _uiState.update { it.copy(generationOutputs = outputs) }
+                                    _uiState.update { it.copy(generationOutputs = outputs, currentResultIndex = 0) }
                                     onComplete(true)
                                 } else if (failureType == ConnectionFailure.STALLED) {
                                     applicationContext?.let { ctx ->
