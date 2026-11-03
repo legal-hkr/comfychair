@@ -266,7 +266,9 @@
     <string name="button_save_image">保存</string>
 
     <!-- Gallery selection mode strings -->
-    <string name="gallery_selected_count">已选择 %d 项</string>
+    <plurals name="gallery_selected_count">
+        <item quantity="other">已选择 %d 项</item>
+    </plurals>
     <string name="button_gallery_select">选择项目</string>
     <string name="button_cancel_selection">取消选择</string>
     <string name="label_item_selected">已选择</string>
@@ -374,7 +376,9 @@
     <string name="title_duplicate_workflow">复制工作流</string>
     <string name="msg_workflow_export_success">工作流已导出</string>
     <string name="error_workflow_export">导出工作流失败</string>
-    <string name="msg_litegraph_conversion_notes">转换完成，有 %d 条备注</string>
+    <plurals name="msg_litegraph_conversion_notes">
+        <item quantity="other">转换完成，有 %d 条备注</item>
+    </plurals>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">菜单</string>
@@ -545,7 +549,13 @@
     <string name="node_browser_title">添加节点</string>
     <string name="placeholder_node_browser_search">搜索节点…</string>
     <string name="node_browser_no_results">未找到匹配的节点</string>
-    <string name="node_browser_io_info">%1$d 个输入，%2$d 个输出</string>
+    <string name="node_browser_io_info">%1$s，%2$s</string>
+    <plurals name="node_browser_inputs_count">
+        <item quantity="other">%d 个输入</item>
+    </plurals>
+    <plurals name="node_browser_outputs_count">
+        <item quantity="other">%d 个输出</item>
+    </plurals>
     <string name="node_browser_deprecated">已弃用</string>
     <string name="node_browser_experimental">实验性</string>
     <string name="node_browser_filter_category">类别</string>
@@ -609,7 +619,7 @@
     <string name="field_desc_frame_rate">视频每秒帧数</string>
     <string name="field_desc_image">用于生成的源图像</string>
     <string name="field_desc_seed">用于生成的随机种子</string>
-    <string name="field_desc_denoise">降噪强度（0.0-1.0）</string>
+    <string name="field_desc_denoise">降噪强度（0.0–1.0）</string>
     <string name="field_desc_batch_size">每批图像数量</string>
     <string name="field_desc_upscale_method">放大的插值方法</string>
     <string name="field_desc_scale_by">放大的缩放因子</string>

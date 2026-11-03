@@ -280,7 +280,10 @@
     <string name="button_save_image">Save</string>
 
     <!-- Gallery selection mode strings -->
-    <string name="gallery_selected_count">%d selected</string>
+    <plurals name="gallery_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
     <string name="button_gallery_select">Select items</string>
     <string name="button_cancel_selection">Cancel selection</string>
     <string name="label_item_selected">Selected</string>
@@ -427,7 +430,7 @@
     <string name="field_desc_frame_rate">Video frames per second</string>
     <string name="field_desc_image">Source image for generation</string>
     <string name="field_desc_seed">Random seed for generation</string>
-    <string name="field_desc_denoise">Denoising strength (0.0-1.0)</string>
+    <string name="field_desc_denoise">Denoising strength (0.0–1.0)</string>
     <string name="field_desc_batch_size">Number of images per batch</string>
     <string name="field_desc_upscale_method">Interpolation method for upscaling</string>
     <string name="field_desc_scale_by">Scale factor for upscaling</string>
@@ -487,7 +490,10 @@
     <string name="title_duplicate_workflow">Duplicate Workflow</string>
     <string name="msg_workflow_export_success">Workflow exported</string>
     <string name="error_workflow_export">Failed to export workflow</string>
-    <string name="msg_litegraph_conversion_notes">Conversion completed with %d note(s)</string>
+    <plurals name="msg_litegraph_conversion_notes">
+        <item quantity="one">Conversion completed with %d note</item>
+        <item quantity="other">Conversion completed with %d notes</item>
+    </plurals>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menu</string>
@@ -570,7 +576,15 @@
     <string name="node_browser_title">Add node</string>
     <string name="placeholder_node_browser_search">Search nodes…</string>
     <string name="node_browser_no_results">No nodes match your search</string>
-    <string name="node_browser_io_info">%1$d inputs, %2$d outputs</string>
+    <string name="node_browser_io_info">%1$s, %2$s</string>
+    <plurals name="node_browser_inputs_count">
+        <item quantity="one">%d input</item>
+        <item quantity="other">%d inputs</item>
+    </plurals>
+    <plurals name="node_browser_outputs_count">
+        <item quantity="one">%d output</item>
+        <item quantity="other">%d outputs</item>
+    </plurals>
     <string name="node_browser_deprecated">Deprecated</string>
     <string name="node_browser_experimental">Experimental</string>
     <string name="node_browser_filter_category">Category</string>

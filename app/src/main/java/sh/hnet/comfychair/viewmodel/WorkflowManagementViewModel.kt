@@ -788,8 +788,9 @@ class WorkflowManagementViewModel : ViewModel() {
                 _events.emit(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_import_success))
                 // Show conversion warnings if any
                 if (warnings.isNotEmpty()) {
-                    val warningMessage = applicationContext?.getString(
-                        R.string.msg_litegraph_conversion_notes,
+                    val warningMessage = applicationContext?.resources?.getQuantityString(
+                        R.plurals.msg_litegraph_conversion_notes,
+                        warnings.size,
                         warnings.size
                     ) ?: "Conversion completed with ${warnings.size} note(s)"
                     _events.emit(WorkflowManagementEvent.ShowToastMessage(warningMessage))

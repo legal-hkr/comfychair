@@ -63,6 +63,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -119,6 +120,7 @@ fun ImageToImageScreen(
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
 
     // Prompt preset ViewModel
@@ -234,10 +236,10 @@ fun ImageToImageScreen(
                     imageToImageViewModel.onPositivePromptChange(event.prompt)
                 }
                 is PromptPresetEvent.ShowToast -> {
-                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
                 }
                 is PromptPresetEvent.MaxFavoritesReached -> {
-                    Toast.makeText(context, context.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
                 }
                 is PromptPresetEvent.ResetPrompt -> {
                     imageToImageViewModel.resetPromptToDefault()
@@ -553,7 +555,7 @@ fun ImageToImageScreen(
                         if (uiState.mode == ImageToImageMode.INPAINTING && !imageToImageViewModel.hasMask()) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.hint_paint_mask),
+                                resources.getString(R.string.hint_paint_mask),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@launch
@@ -567,7 +569,7 @@ fun ImageToImageScreen(
                                 if (!success) {
                                     Toast.makeText(
                                         context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        errorMessage ?: resources.getString(R.string.error_generation_failed),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
@@ -575,7 +577,7 @@ fun ImageToImageScreen(
                         } else {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.error_generation_failed),
+                                resources.getString(R.string.error_generation_failed),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -588,7 +590,7 @@ fun ImageToImageScreen(
                         if (uiState.mode == ImageToImageMode.INPAINTING && !imageToImageViewModel.hasMask()) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.hint_paint_mask),
+                                resources.getString(R.string.hint_paint_mask),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@launch
@@ -603,7 +605,7 @@ fun ImageToImageScreen(
                                 if (!success) {
                                     Toast.makeText(
                                         context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        errorMessage ?: resources.getString(R.string.error_generation_failed),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
@@ -611,7 +613,7 @@ fun ImageToImageScreen(
                         } else {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.error_generation_failed),
+                                resources.getString(R.string.error_generation_failed),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -622,7 +624,7 @@ fun ImageToImageScreen(
                         val messageRes = if (success) R.string.msg_queue_cleared_success
                                        else R.string.error_queue_clear
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
                         }
                     }
                 },

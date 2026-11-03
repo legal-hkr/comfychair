@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -110,6 +111,7 @@ fun TextToVideoScreen(
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -225,7 +227,7 @@ fun TextToVideoScreen(
         textToVideoViewModel.events.collect { event ->
             when (event) {
                 is TextToVideoEvent.ShowToast -> {
-                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
                 }
                 is TextToVideoEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
@@ -242,10 +244,10 @@ fun TextToVideoScreen(
                     textToVideoViewModel.onPositivePromptChange(event.prompt)
                 }
                 is PromptPresetEvent.ShowToast -> {
-                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
                 }
                 is PromptPresetEvent.MaxFavoritesReached -> {
-                    Toast.makeText(context, context.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
                 }
                 is PromptPresetEvent.ResetPrompt -> {
                     textToVideoViewModel.resetPromptToDefault()
@@ -449,7 +451,7 @@ fun TextToVideoScreen(
                             if (!success) {
                                 Toast.makeText(
                                     context,
-                                    errorMessage ?: context.getString(R.string.error_generation_failed),
+                                    errorMessage ?: resources.getString(R.string.error_generation_failed),
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -457,7 +459,7 @@ fun TextToVideoScreen(
                     } else {
                         Toast.makeText(
                             context,
-                            context.getString(R.string.error_failed_load_workflow),
+                            resources.getString(R.string.error_failed_load_workflow),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -475,7 +477,7 @@ fun TextToVideoScreen(
                             if (!success) {
                                 Toast.makeText(
                                     context,
-                                    errorMessage ?: context.getString(R.string.error_generation_failed),
+                                    errorMessage ?: resources.getString(R.string.error_generation_failed),
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -483,7 +485,7 @@ fun TextToVideoScreen(
                     } else {
                         Toast.makeText(
                             context,
-                            context.getString(R.string.error_failed_load_workflow),
+                            resources.getString(R.string.error_failed_load_workflow),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -493,7 +495,7 @@ fun TextToVideoScreen(
                         val messageRes = if (success) R.string.msg_queue_cleared_success
                                        else R.string.error_queue_clear
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
                         }
                     }
                 },

@@ -553,41 +553,49 @@ object WorkflowManager {
      */
     fun getNodeSpecificOptionsForField(workflowId: String, fieldKey: String): List<String>? {
         val workflow = getWorkflowById(workflowId) ?: return null
-        val json = try {
-            JSONObject(workflow.jsonContent)
-        } catch (e: Exception) {
-            return null
-        }
-        val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
-
-        // Find the placeholder pattern for this field
-        val placeholderName = TemplateKeyRegistry.getPlaceholderForKey(fieldKey)
-        val placeholder = "{{$placeholderName}}"
-
-        // Search nodes for the one containing this placeholder
-        val nodeIds = nodesJson.keys()
-        while (nodeIds.hasNext()) {
-            val nodeId = nodeIds.next()
-            val node = nodesJson.optJSONObject(nodeId) ?: continue
-            val inputs = node.optJSONObject("inputs") ?: continue
-            val classType = node.optString("class_type")
-
-            // Check if any input has our placeholder
-            val inputKeys = inputs.keys()
-            while (inputKeys.hasNext()) {
-                val inputKey = inputKeys.next()
-                val value = inputs.optString(inputKey, "")
-                if (value == placeholder) {
-                    // Found the node! Get its options from NodeTypeRegistry
-                    val nodeDefinition = ConnectionManager.nodeTypeRegistry.getNodeDefinition(classType)
-                    return nodeDefinition?.inputs
-                        ?.find { it.name == inputKey }
-                        ?.options
-                }
-            }
-        }
-        return null
+        val placeholder = "{{${TemplateKeyRegistry.getPlaceholderForKey(fieldKey)}}}"
+        val (classType, inputKey) = placeholderInputIndex(workflow.jsonContent)[placeholder] ?: return null
+        // Node definitions are looked up on each call: the registry may be loaded after the index was built
+        return ConnectionManager.nodeTypeRegistry.getNodeDefinition(classType)
+            ?.inputs
+            ?.find { it.name == inputKey }
+            ?.options
     }
+
+    /** Placeholder index per workflow JSON; screens query it for many fields right after loading a workflow. */
+    private val placeholderIndexCache = java.util.Collections.synchronizedMap(
+        object : LinkedHashMap<String, Map<String, Pair<String, String>>>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Map<String, Pair<String, String>>>?) =
+                size > 16
+        }
+    )
+
+    /**
+     * Map each placeholder ("{{name}}") to the first node input holding it, as (class_type, input name).
+     * Parsed once per workflow JSON instead of once per queried field.
+     */
+    private fun placeholderInputIndex(jsonContent: String): Map<String, Pair<String, String>> =
+        placeholderIndexCache.getOrPut(jsonContent) {
+            val index = mutableMapOf<String, Pair<String, String>>()
+            try {
+                val json = JSONObject(jsonContent)
+                val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
+                for (nodeId in nodesJson.keys()) {
+                    val node = nodesJson.optJSONObject(nodeId) ?: continue
+                    val inputs = node.optJSONObject("inputs") ?: continue
+                    val classType = node.optString("class_type")
+                    for (inputKey in inputs.keys()) {
+                        val value = inputs.optString(inputKey, "")
+                        if (value.startsWith("{{") && value.endsWith("}}")) {
+                            index.putIfAbsent(value, classType to inputKey)
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Invalid JSON: no node-specific options
+            }
+            index
+        }
 
     /**
      * Generate a sanitized filename for export (without type prefix).

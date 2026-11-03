@@ -266,7 +266,12 @@
     <string name="button_save_image">Zapisz</string>
 
     <!-- Gallery selection mode strings -->
-    <string name="gallery_selected_count">Zaznaczono: %d</string>
+    <plurals name="gallery_selected_count">
+        <item quantity="one">Zaznaczono: %d</item>
+        <item quantity="few">Zaznaczono: %d</item>
+        <item quantity="many">Zaznaczono: %d</item>
+        <item quantity="other">Zaznaczono: %d</item>
+    </plurals>
     <string name="button_gallery_select">Zaznacz elementy</string>
     <string name="button_cancel_selection">Anuluj zaznaczenie</string>
     <string name="label_item_selected">Zaznaczono</string>
@@ -374,7 +379,12 @@
     <string name="title_duplicate_workflow">Duplikuj przepływ pracy</string>
     <string name="msg_workflow_export_success">Przepływ pracy wyeksportowany</string>
     <string name="error_workflow_export">Nie udało się wyeksportować przepływu pracy</string>
-    <string name="msg_litegraph_conversion_notes">Konwersja zakończona z %d uwagą/uwagami</string>
+    <plurals name="msg_litegraph_conversion_notes">
+        <item quantity="one">Konwersja zakończona – %d uwaga</item>
+        <item quantity="few">Konwersja zakończona – %d uwagi</item>
+        <item quantity="many">Konwersja zakończona – %d uwag</item>
+        <item quantity="other">Konwersja zakończona – %d uwagi</item>
+    </plurals>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menu</string>
@@ -551,7 +561,19 @@
     <string name="node_browser_title">Dodaj węzeł</string>
     <string name="placeholder_node_browser_search">Szukaj węzłów…</string>
     <string name="node_browser_no_results">Nie znaleziono pasujących węzłów</string>
-    <string name="node_browser_io_info">%1$d wejść, %2$d wyjść</string>
+    <string name="node_browser_io_info">%1$s, %2$s</string>
+    <plurals name="node_browser_inputs_count">
+        <item quantity="one">%d wejście</item>
+        <item quantity="few">%d wejścia</item>
+        <item quantity="many">%d wejść</item>
+        <item quantity="other">%d wejścia</item>
+    </plurals>
+    <plurals name="node_browser_outputs_count">
+        <item quantity="one">%d wyjście</item>
+        <item quantity="few">%d wyjścia</item>
+        <item quantity="many">%d wyjść</item>
+        <item quantity="other">%d wyjścia</item>
+    </plurals>
     <string name="node_browser_deprecated">Przestarzały</string>
     <string name="node_browser_experimental">Eksperymentalny</string>
     <string name="node_browser_filter_category">Kategoria</string>
@@ -615,7 +637,7 @@
     <string name="field_desc_frame_rate">Klatki na sekundę wideo</string>
     <string name="field_desc_image">Obraz źródłowy do generowania</string>
     <string name="field_desc_seed">Losowy seed do generowania</string>
-    <string name="field_desc_denoise">Siła odszumiania (0,0-1,0)</string>
+    <string name="field_desc_denoise">Siła odszumiania (0,0–1,0)</string>
     <string name="field_desc_batch_size">Liczba obrazów w partii</string>
     <string name="field_desc_upscale_method">Metoda interpolacji do powiększania</string>
     <string name="field_desc_scale_by">Współczynnik skalowania do powiększania</string>

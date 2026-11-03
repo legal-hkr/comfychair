@@ -53,6 +53,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import androidx.compose.ui.res.pluralStringResource
 
 /** Split category into hierarchy levels (handles both "/" and "\" separators) */
 private fun parseCategoryLevels(category: String): List<String> {
@@ -464,8 +465,8 @@ private fun NodeTypeRow(
                 Text(
                     text = stringResource(
                         R.string.node_browser_io_info,
-                        nodeType.inputs.size,
-                        nodeType.outputs.size
+                        pluralStringResource(R.plurals.node_browser_inputs_count, nodeType.inputs.size, nodeType.inputs.size),
+                        pluralStringResource(R.plurals.node_browser_outputs_count, nodeType.outputs.size, nodeType.outputs.size)
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

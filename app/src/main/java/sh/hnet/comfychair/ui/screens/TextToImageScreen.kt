@@ -56,6 +56,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -107,6 +108,7 @@ fun TextToImageScreen(
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     // Prompt preset ViewModel
     val presetViewModel: PromptPresetViewModel = viewModel()
@@ -205,7 +207,7 @@ fun TextToImageScreen(
         textToImageViewModel.events.collect { event ->
             when (event) {
                 is TextToImageEvent.ShowToast -> {
-                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
                 }
                 is TextToImageEvent.ShowToastMessage -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
@@ -222,10 +224,10 @@ fun TextToImageScreen(
                     textToImageViewModel.onPositivePromptChange(event.prompt)
                 }
                 is PromptPresetEvent.ShowToast -> {
-                    Toast.makeText(context, context.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
                 }
                 is PromptPresetEvent.MaxFavoritesReached -> {
-                    Toast.makeText(context, context.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
                 }
                 is PromptPresetEvent.ResetPrompt -> {
                     textToImageViewModel.resetPromptToDefault()
@@ -249,7 +251,7 @@ fun TextToImageScreen(
                     IconButton(onClick = {
                         textToImageViewModel.saveToGallery { success ->
                             val messageRes = if (success) R.string.msg_image_saved_to_gallery else R.string.error_save_image
-                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
                         }
                     }) {
                         Icon(Icons.Default.Save, contentDescription = stringResource(R.string.button_save_to_gallery))
@@ -257,7 +259,7 @@ fun TextToImageScreen(
                     // Share button
                     IconButton(onClick = {
                         textToImageViewModel.getShareIntent()?.let { intent ->
-                            context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.share_image)))
+                            context.startActivity(android.content.Intent.createChooser(intent, resources.getString(R.string.share_image)))
                         }
                     }) {
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
@@ -420,7 +422,7 @@ fun TextToImageScreen(
                                 if (!success) {
                                     Toast.makeText(
                                         context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        errorMessage ?: resources.getString(R.string.error_generation_failed),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
@@ -428,7 +430,7 @@ fun TextToImageScreen(
                         } else {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.error_failed_load_workflow),
+                                resources.getString(R.string.error_failed_load_workflow),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -447,7 +449,7 @@ fun TextToImageScreen(
                                 if (!success) {
                                     Toast.makeText(
                                         context,
-                                        errorMessage ?: context.getString(R.string.error_generation_failed),
+                                        errorMessage ?: resources.getString(R.string.error_generation_failed),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
@@ -455,7 +457,7 @@ fun TextToImageScreen(
                         } else {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.error_failed_load_workflow),
+                                resources.getString(R.string.error_failed_load_workflow),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -466,7 +468,7 @@ fun TextToImageScreen(
                         val messageRes = if (success) R.string.msg_queue_cleared_success
                                        else R.string.error_queue_clear
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
                         }
                     }
                 },

@@ -100,6 +100,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -134,6 +135,7 @@ fun WorkflowEditorScreen(
     val uiState by viewModel.uiState.collectAsState()
     val density = LocalDensity.current
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     // Show hint Toast when entering edit mode
     val wasEditMode = remember { mutableStateOf(false) }
@@ -141,7 +143,7 @@ fun WorkflowEditorScreen(
         if (uiState.isEditMode && !wasEditMode.value) {
             Toast.makeText(
                 context,
-                context.getString(R.string.workflow_editor_edit_mode_hint),
+                resources.getString(R.string.workflow_editor_edit_mode_hint),
                 Toast.LENGTH_SHORT
             ).show()
         }

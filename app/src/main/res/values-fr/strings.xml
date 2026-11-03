@@ -266,7 +266,11 @@
     <string name="button_save_image">Enregistrer</string>
 
     <!-- Gallery selection mode strings -->
-    <string name="gallery_selected_count">%d sélectionné(s)</string>
+    <plurals name="gallery_selected_count">
+        <item quantity="one">%d sélectionné</item>
+        <item quantity="many">%d sélectionnés</item>
+        <item quantity="other">%d sélectionnés</item>
+    </plurals>
     <string name="button_gallery_select">Sélectionner des éléments</string>
     <string name="button_cancel_selection">Annuler la sélection</string>
     <string name="label_item_selected">Sélectionné</string>
@@ -374,7 +378,11 @@
     <string name="title_duplicate_workflow">Dupliquer le workflow</string>
     <string name="msg_workflow_export_success">Workflow exporté</string>
     <string name="error_workflow_export">Échec de l\'exportation du workflow</string>
-    <string name="msg_litegraph_conversion_notes">Conversion terminée avec %d remarque(s)</string>
+    <plurals name="msg_litegraph_conversion_notes">
+        <item quantity="one">Conversion terminée avec %d remarque</item>
+        <item quantity="many">Conversion terminée avec %d remarques</item>
+        <item quantity="other">Conversion terminée avec %d remarques</item>
+    </plurals>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menu</string>
@@ -549,7 +557,17 @@
     <string name="node_browser_title">Ajouter un nœud</string>
     <string name="placeholder_node_browser_search">Rechercher des nœuds…</string>
     <string name="node_browser_no_results">Aucun nœud correspondant trouvé</string>
-    <string name="node_browser_io_info">%1$d entrées, %2$d sorties</string>
+    <string name="node_browser_io_info">%1$s, %2$s</string>
+    <plurals name="node_browser_inputs_count">
+        <item quantity="one">%d entrée</item>
+        <item quantity="many">%d entrées</item>
+        <item quantity="other">%d entrées</item>
+    </plurals>
+    <plurals name="node_browser_outputs_count">
+        <item quantity="one">%d sortie</item>
+        <item quantity="many">%d sorties</item>
+        <item quantity="other">%d sorties</item>
+    </plurals>
     <string name="node_browser_deprecated">Obsolète</string>
     <string name="node_browser_experimental">Expérimental</string>
     <string name="node_browser_filter_category">Catégorie</string>
@@ -613,7 +631,7 @@
     <string name="field_desc_frame_rate">Images par seconde de la vidéo</string>
     <string name="field_desc_image">Image source pour la génération</string>
     <string name="field_desc_seed">Seed aléatoire pour la génération</string>
-    <string name="field_desc_denoise">Force de débruitage (0,0-1,0)</string>
+    <string name="field_desc_denoise">Force de débruitage (0,0–1,0)</string>
     <string name="field_desc_batch_size">Nombre d\'images par lot</string>
     <string name="field_desc_upscale_method">Méthode d\'interpolation pour l\'upscale</string>
     <string name="field_desc_scale_by">Facteur d\'échelle pour l\'upscale</string>

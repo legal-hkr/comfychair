@@ -44,6 +44,7 @@ import sh.hnet.comfychair.model.PromptPreset
 import sh.hnet.comfychair.storage.PromptPresetStorage
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.PrivacyUtils
+import java.util.Locale
 
 /**
  * Bottom sheet displaying generation metadata from ComfyUI.
@@ -270,7 +271,7 @@ private fun buildMetadataItems(metadata: GenerationMetadata, context: Context): 
     }
 
     metadata.loras.forEach { lora ->
-        val loraValue = "${lora.name} (${String.format("%.2f", lora.strength)})"
+        val loraValue = "${lora.name} (${String.format(Locale.getDefault(), "%.2f", lora.strength)})"
         items.add(MetadataItem(context.getString(R.string.metadata_lora), loraValue))
     }
 
@@ -283,7 +284,7 @@ private fun buildMetadataItems(metadata: GenerationMetadata, context: Context): 
     }
 
     metadata.cfg?.let {
-        items.add(MetadataItem(context.getString(R.string.metadata_cfg), String.format("%.1f", it)))
+        items.add(MetadataItem(context.getString(R.string.metadata_cfg), String.format(Locale.getDefault(), "%.1f", it)))
     }
 
     metadata.sampler?.let {

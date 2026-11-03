@@ -2,7 +2,6 @@ package sh.hnet.comfychair.storage
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
@@ -799,15 +798,10 @@ class BackupManager(private val context: Context) {
 
     private fun getAppVersionName(): String {
         return try {
-            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.packageManager.getPackageInfo(
-                    context.packageName,
-                    PackageManager.PackageInfoFlags.of(0)
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                context.packageManager.getPackageInfo(context.packageName, 0)
-            }
+            val packageInfo = context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.PackageInfoFlags.of(0)
+            )
             packageInfo.versionName ?: "unknown"
         } catch (e: PackageManager.NameNotFoundException) {
             "unknown"

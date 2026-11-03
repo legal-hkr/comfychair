@@ -78,6 +78,7 @@ import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
+import androidx.compose.ui.res.pluralStringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -228,7 +229,7 @@ fun GalleryScreen(
         TopAppBar(
             title = {
                 if (uiState.isSelectionMode) {
-                    Text(stringResource(R.string.gallery_selected_count, uiState.selectedItems.size))
+                    Text(pluralStringResource(R.plurals.gallery_selected_count, uiState.selectedItems.size, uiState.selectedItems.size))
                 } else {
                     Text(stringResource(R.string.title_gallery))
                 }

@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
@@ -24,6 +25,9 @@ import sh.hnet.comfychair.connection.ConnectionManager
  * Utility functions for video operations shared across video generation screens.
  */
 object VideoUtils {
+
+    // Delivers fetch results on the main thread; one shared scope instead of a new one per video
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     /**
      * Fetches a generated video from ComfyUI history and saves it to internal storage.
@@ -79,7 +83,7 @@ object VideoUtils {
                 MediaStateHolder.putVideoBytes(mediaKey, videoBytes, context)
 
                 // Get URI for playback (in RAM in memory-first mode, the stored file otherwise)
-                CoroutineScope(Dispatchers.Main).launch {
+                mainScope.launch {
                     val uri = MediaStateHolder.getVideoUri(context, mediaKey)
                     onComplete(uri, outputs)
                 }

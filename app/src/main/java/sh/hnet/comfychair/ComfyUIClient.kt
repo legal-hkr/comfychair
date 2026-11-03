@@ -29,10 +29,13 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -67,6 +70,9 @@ class ComfyUIClient(
 
     // Trust decisions for this endpoint (accepted certificate fingerprint, last working protocol)
     private val trustStore = context?.let { ServerTrustStore(it) }
+
+    // Owns background jobs of this client (transfer stall watchdogs); cancelled in shutdown()
+    private val clientScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // TLS trust shared by all three OkHttp clients
     private val serverTrust = ServerTrust(hostname, port, trustStore)
@@ -1122,14 +1128,14 @@ class ComfyUIClient(
         logTag: String
     ): DownloadResult {
         val trackedBody = ProgressTrackingResponseBody(body)
-        var wasStalled = false
+        val wasStalled = AtomicBoolean(false)
 
-        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+        val watchdogJob = clientScope.launch {
             while (isActive) {
                 delay(STALL_CHECK_INTERVAL_MS)
                 if (System.currentTimeMillis() - trackedBody.lastProgressTime > STALL_TIMEOUT_MS) {
                     DebugLogger.w(TAG, "$logTag download stalled - cancelling")
-                    wasStalled = true
+                    wasStalled.set(true)
                     call.cancel()
                     break
                 }
@@ -1147,7 +1153,7 @@ class ComfyUIClient(
 
         val failureType = when {
             bytes != null -> ConnectionFailure.NONE
-            wasStalled -> ConnectionFailure.STALLED
+            wasStalled.get() -> ConnectionFailure.STALLED
             else -> ConnectionFailure.NETWORK
         }
 
@@ -1566,7 +1572,7 @@ class ComfyUIClient(
         val call = transferClient.newCall(request)
 
         // Watchdog coroutine to detect stalls
-        val watchdogJob = CoroutineScope(Dispatchers.IO).launch {
+        val watchdogJob = clientScope.launch {
             while (isActive) {
                 delay(STALL_CHECK_INTERVAL_MS)
                 if (System.currentTimeMillis() - progressBody.lastProgressTime > STALL_TIMEOUT_MS) {
@@ -1626,6 +1632,7 @@ class ComfyUIClient(
      */
     fun shutdown() {
         closeWebSocket()
+        clientScope.cancel()
         // Note: We don't shutdown the httpClient here as it might be reused
         // In a real app, you might want to manage the client lifecycle differently
     }

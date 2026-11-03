@@ -281,7 +281,10 @@
     <string name="button_save_image">Speichern</string>
 
     <!-- Gallery selection mode strings -->
-    <string name="gallery_selected_count">%d ausgewählt</string>
+    <plurals name="gallery_selected_count">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
     <string name="button_gallery_select">Elemente auswählen</string>
     <string name="button_cancel_selection">Auswahl aufheben</string>
     <string name="label_item_selected">Ausgewählt</string>
@@ -389,7 +392,10 @@
     <string name="title_duplicate_workflow">Workflow duplizieren</string>
     <string name="msg_workflow_export_success">Workflow exportiert</string>
     <string name="error_workflow_export">Workflow konnte nicht exportiert werden</string>
-    <string name="msg_litegraph_conversion_notes">Konvertierung abgeschlossen mit %d Hinweis(en)</string>
+    <plurals name="msg_litegraph_conversion_notes">
+        <item quantity="one">Konvertierung abgeschlossen mit %d Hinweis</item>
+        <item quantity="other">Konvertierung abgeschlossen mit %d Hinweisen</item>
+    </plurals>
 
     <!-- Content descriptions for accessibility -->
     <string name="content_description_menu">Menü</string>
@@ -545,7 +551,15 @@
     <string name="node_browser_title">Knoten hinzufügen</string>
     <string name="placeholder_node_browser_search">Knoten suchen…</string>
     <string name="node_browser_no_results">Keine passenden Knoten gefunden</string>
-    <string name="node_browser_io_info">%1$d Eingänge, %2$d Ausgänge</string>
+    <string name="node_browser_io_info">%1$s, %2$s</string>
+    <plurals name="node_browser_inputs_count">
+        <item quantity="one">%d Eingang</item>
+        <item quantity="other">%d Eingänge</item>
+    </plurals>
+    <plurals name="node_browser_outputs_count">
+        <item quantity="one">%d Ausgang</item>
+        <item quantity="other">%d Ausgänge</item>
+    </plurals>
     <string name="node_browser_deprecated">Veraltet</string>
     <string name="node_browser_experimental">Experimentell</string>
     <string name="node_browser_filter_category">Kategorie</string>
@@ -609,7 +623,7 @@
     <string name="field_desc_frame_rate">Video-Frames pro Sekunde</string>
     <string name="field_desc_image">Quellbild für die Generierung</string>
     <string name="field_desc_seed">Zufälliger Seed für die Generierung</string>
-    <string name="field_desc_denoise">Entrauschungsstärke (0,0-1,0)</string>
+    <string name="field_desc_denoise">Entrauschungsstärke (0,0–1,0)</string>
     <string name="field_desc_batch_size">Anzahl der Bilder pro Stapel</string>
     <string name="field_desc_upscale_method">Interpolationsmethode für Hochskalierung</string>
     <string name="field_desc_scale_by">Skalierungsfaktor für Hochskalierung</string>

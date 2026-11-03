@@ -79,7 +79,7 @@ class ServerTrustStore(context: Context) {
         fun fingerprint(certificate: X509Certificate): String =
             MessageDigest.getInstance("SHA-256")
                 .digest(certificate.encoded)
-                .joinToString(":") { "%02X".format(it) }
+                .joinToString(":") { "%02X".format(java.util.Locale.ROOT, it) }
     }
 }
 
