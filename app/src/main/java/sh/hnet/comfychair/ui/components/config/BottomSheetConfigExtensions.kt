@@ -656,7 +656,7 @@ private fun buildEditingModeParameterConfig(
         ),
         upscaleMethod = DropdownField(
             selectedValue = state.editingUpscaleMethod,
-            options = state.availableUpscaleMethods,
+            options = state.filteredUpscaleMethods ?: state.availableUpscaleMethods,
             onValueChange = callbacks.onEditingUpscaleMethodChange ?: noOpString,
             isVisible = caps.hasUpscaleMethod
         ),

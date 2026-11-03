@@ -54,6 +54,8 @@ interface CommonGenerationState {
     val filteredTextEncoders: List<String>?
     val filteredLatentUpscaleModels: List<String>?
     val filteredLoras: List<String>?
+    /** Options of the node that holds {{upscale_method}}; the server-wide list mixes in custom nodes' values */
+    val filteredUpscaleMethods: List<String>?
 
     // Generation parameters
     val steps: String

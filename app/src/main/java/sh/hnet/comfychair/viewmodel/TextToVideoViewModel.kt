@@ -96,6 +96,7 @@ data class TextToVideoUiState(
     override val filteredCheckpoints: List<String>? = null,
     override val filteredUnets: List<String>? = null,
     override val filteredLoras: List<String>? = null,  // For mandatory LoRA dropdown
+    override val filteredUpscaleMethods: List<String>? = null,
     override val filteredVaes: List<String>? = null,
     override val filteredClips: List<String>? = null,
     override val filteredClips1: List<String>? = null,
@@ -261,6 +262,7 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                         availableClips = cache.clips,
                         availableTextEncoders = cache.textEncoders,
                         availableLatentUpscaleModels = cache.latentUpscaleModels,
+                        availableUpscaleMethods = cache.upscaleMethods,
                         availableSamplers = cache.samplers,
                         availableSchedulers = cache.schedulers,
                         // Single-model selections
@@ -416,6 +418,28 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
                 ?: defaults?.length?.toString() ?: "33",
             fps = savedValues?.frameRate?.toString()
                 ?: defaults?.frameRate?.toString() ?: "16",
+            // Unified generation parameters
+            steps = savedValues?.steps?.toString()
+                ?: defaults?.steps?.toString() ?: "20",
+            cfg = savedValues?.cfg?.toString()
+                ?: defaults?.cfg?.toString() ?: "7.0",
+            sampler = savedValues?.samplerName
+                ?: defaults?.samplerName ?: "euler",
+            scheduler = savedValues?.scheduler
+                ?: defaults?.scheduler ?: "normal",
+            randomSeed = savedValues?.randomSeed ?: true,
+            seed = savedValues?.seed?.toString()
+                ?: defaults?.seed?.toString() ?: "0",
+            denoise = savedValues?.denoise?.toString()
+                ?: defaults?.denoise?.toString() ?: "1.0",
+            batchSize = savedValues?.batchSize?.toString()
+                ?: defaults?.batchSize?.toString() ?: "1",
+            upscaleMethod = savedValues?.upscaleMethod
+                ?: defaults?.upscaleMethod ?: "nearest-exact",
+            scaleBy = savedValues?.scaleBy?.toString()
+                ?: defaults?.scaleBy?.toString() ?: "1.5",
+            stopAtClipLayer = savedValues?.stopAtClipLayer?.toString()
+                ?: defaults?.stopAtClipLayer?.toString() ?: "-1",
             // Apply single-model selections with deferred mechanism
             selectedCheckpoint = savedValues?.model?.takeIf { it in cache.checkpoints }
                 ?: state.selectedCheckpoint,
@@ -474,6 +498,7 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "unet_name")
                 ?: WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "highnoise_unet_name"),
             filteredLoras = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "lora_name"),
+            filteredUpscaleMethods = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "upscale_method"),
             filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "vae_name"),
             filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name"),
             filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflowItem.id, "clip_name1"),
@@ -532,6 +557,17 @@ class TextToVideoViewModel : BaseGenerationViewModel<TextToVideoUiState, TextToV
             length = state.length.toIntOrNull(),
             frameRate = state.fps.toIntOrNull(),
             negativePrompt = state.negativePrompt.takeIf { it.isNotEmpty() },
+            steps = state.steps.toIntOrNull(),
+            cfg = state.cfg.toFloatOrNull(),
+            samplerName = state.sampler,
+            scheduler = state.scheduler,
+            seed = state.seed.toLongOrNull(),
+            randomSeed = state.randomSeed,
+            denoise = state.denoise.toFloatOrNull(),
+            batchSize = state.batchSize.toIntOrNull(),
+            upscaleMethod = state.upscaleMethod.takeIf { it.isNotEmpty() },
+            scaleBy = state.scaleBy.toFloatOrNull(),
+            stopAtClipLayer = state.stopAtClipLayer.toIntOrNull(),
             // Single-model patterns
             model = state.selectedCheckpoint.takeIf { it.isNotEmpty() },
             unetModel = state.selectedUnet.takeIf { it.isNotEmpty() },

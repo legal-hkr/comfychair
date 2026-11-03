@@ -204,7 +204,7 @@ internal fun buildCommonParameterConfig(
 
         upscaleMethod = DropdownField(
             selectedValue = state.upscaleMethod,
-            options = state.availableUpscaleMethods,
+            options = state.filteredUpscaleMethods ?: state.availableUpscaleMethods,
             onValueChange = callbacks.onUpscaleMethodChange ?: noOpString,
             isVisible = caps.hasUpscaleMethod
         ),

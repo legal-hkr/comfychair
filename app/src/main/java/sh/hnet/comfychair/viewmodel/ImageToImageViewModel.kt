@@ -161,6 +161,7 @@ data class ImageToImageUiState(
     override val filteredTextEncoders: List<String>? = null,
     override val filteredLatentUpscaleModels: List<String>? = null,
     override val filteredLoras: List<String>? = null,
+    override val filteredUpscaleMethods: List<String>? = null,
 
     // Inpainting mode - unified generation parameters
     val positivePrompt: String = "",
@@ -403,6 +404,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                         availableLoras = cache.loras,
                         availableTextEncoders = cache.textEncoders,
                         availableLatentUpscaleModels = cache.latentUpscaleModels,
+                        availableUpscaleMethods = cache.upscaleMethods,
                         availableSamplers = cache.samplers,
                         availableSchedulers = cache.schedulers,
                         // Apply validated model selections
@@ -756,6 +758,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
 
             // Workflow-specific filtered options (query for ALL possible fields)
             filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
+            filteredUpscaleMethods = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "upscale_method"),
             filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),
             filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "vae_name"),
             filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name"),
@@ -828,6 +831,19 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
                 ?: defaults?.scheduler ?: "simple",
             editingNegativePrompt = savedValues?.negativePrompt
                 ?: defaults?.negativePrompt ?: "",
+            editingRandomSeed = savedValues?.randomSeed ?: true,
+            editingSeed = savedValues?.seed?.toString()
+                ?: defaults?.seed?.toString() ?: "0",
+            editingDenoise = savedValues?.denoise?.toString()
+                ?: defaults?.denoise?.toString() ?: "1.0",
+            editingBatchSize = savedValues?.batchSize?.toString()
+                ?: defaults?.batchSize?.toString() ?: "1",
+            editingUpscaleMethod = savedValues?.upscaleMethod
+                ?: defaults?.upscaleMethod ?: "nearest-exact",
+            editingScaleBy = savedValues?.scaleBy?.toString()
+                ?: defaults?.scaleBy?.toString() ?: "1.5",
+            editingStopAtClipLayer = savedValues?.stopAtClipLayer?.toString()
+                ?: defaults?.stopAtClipLayer?.toString() ?: "-1",
             // Apply model selections immediately if models are loaded, otherwise use validated empty
             selectedEditingUnet = savedEditingUnet?.takeIf { it in cache.unets }
                 ?: validateModelSelection(state.selectedEditingUnet, cache.unets),
@@ -881,6 +897,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             editingLownoiseLoraChain = savedValues?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             // Workflow-specific filtered options
             filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
+            filteredUpscaleMethods = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "upscale_method"),
             filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),
             filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "vae_name"),
             filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name"),
@@ -970,6 +987,13 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
             samplerName = state.editingSampler,
             scheduler = state.editingScheduler,
             negativePrompt = state.editingNegativePrompt.takeIf { it.isNotEmpty() },
+            seed = state.editingSeed.toLongOrNull(),
+            randomSeed = state.editingRandomSeed,
+            denoise = state.editingDenoise.toFloatOrNull(),
+            batchSize = state.editingBatchSize.toIntOrNull(),
+            upscaleMethod = state.editingUpscaleMethod.takeIf { it.isNotEmpty() },
+            scaleBy = state.editingScaleBy.toFloatOrNull(),
+            stopAtClipLayer = state.editingStopAtClipLayer.toIntOrNull(),
             // model field stores checkpoint or UNET (whichever is set)
             model = state.selectedEditingCheckpoint.takeIf { it.isNotEmpty() }
                 ?: state.selectedEditingUnet.takeIf { it.isNotEmpty() },
@@ -1141,11 +1165,18 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
     /**
      * Use a generated image as the source image and switch to the Source tab. The previous
      * source and mask are kept for [undoUseAsSource].
+     *
+     * May run before the screen was first opened, i.e. before [initialize]: the context is then
+     * passed in so the image is stored where [loadSavedImages] will read it, otherwise the
+     * initialization would bring back the previous source.
      */
-    fun useAsSource(bitmap: Bitmap) {
+    fun useAsSource(context: Context, bitmap: Bitmap) {
+        val appContext = applicationContext ?: context.applicationContext
         val state = _uiState.value
-        replacedSource = state.sourceImage to state.maskPaths
-        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, applicationContext)
+        val previousSource = if (isInitialized()) state.sourceImage
+            else MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItiSource, appContext)
+        replacedSource = previousSource to state.maskPaths
+        MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, appContext)
         _uiState.update {
             it.copy(sourceImage = bitmap, maskPaths = emptyList(), viewMode = ImageToImageViewMode.SOURCE)
         }
@@ -1160,7 +1191,13 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState, Image
         if (bitmap != null) {
             MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItiSource, bitmap, applicationContext)
         } else {
-            MediaStateHolder.evict(MediaStateHolder.MediaKey.ItiSource)
+            // Also removes the stored copy, which would otherwise come back after a restart
+            val context = applicationContext
+            if (context != null) {
+                viewModelScope.launch { MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItiSource) }
+            } else {
+                MediaStateHolder.evict(MediaStateHolder.MediaKey.ItiSource)
+            }
         }
         _uiState.update { it.copy(sourceImage = bitmap, maskPaths = maskPaths) }
     }

@@ -113,6 +113,7 @@ data class TextToImageUiState(
     override val selectedLoraName: String = "",
     val deferredLoraName: String? = null,
     override val filteredLoras: List<String>? = null,
+    override val filteredUpscaleMethods: List<String>? = null,
 
     // Deferred model selections (for restoring after models load)
     val deferredCheckpoint: String? = null,
@@ -1145,6 +1146,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
             filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
             filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model"),
+            filteredUpscaleMethods = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "upscale_method"),
             filteredLoras = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "lora_name")
         )
     }

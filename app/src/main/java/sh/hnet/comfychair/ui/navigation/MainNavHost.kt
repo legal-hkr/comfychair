@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -52,6 +53,7 @@ fun MainNavHost(
     // Shared by the generation screens, e.g. for "Source image replaced" with Undo
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val sourceReplacedMessage = stringResource(R.string.msg_source_image_replaced)
     val undoLabel = stringResource(R.string.button_undo)
 
@@ -64,12 +66,12 @@ fun MainNavHost(
             val undo: () -> Unit
             when (target) {
                 SourceTarget.IMAGE_TO_IMAGE -> {
-                    imageToImageViewModel.useAsSource(bitmap)
+                    imageToImageViewModel.useAsSource(context, bitmap)
                     route = MainRoute.ImageToImage.route
                     undo = imageToImageViewModel::undoUseAsSource
                 }
                 SourceTarget.IMAGE_TO_VIDEO -> {
-                    imageToVideoViewModel.useAsSource(bitmap)
+                    imageToVideoViewModel.useAsSource(context, bitmap)
                     route = MainRoute.ImageToVideo.route
                     undo = imageToVideoViewModel::undoUseAsSource
                 }
