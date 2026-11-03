@@ -18,7 +18,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import kotlinx.coroutines.runBlocking
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -142,33 +141,15 @@ class MainContainerActivity : ComponentActivity() {
             MediaCache.setMemoryFirstMode(true)
             MediaCache.deleteDiskCache(applicationContext)
         } else {
-            MediaStateHolder.isMemoryOnly = false
             MediaCache.setMemoryFirstMode(isMemoryFirst)
         }
 
         // Initialize MediaCache with context for image/video fetching
         MediaCache.ensureInitialized(applicationContext)
 
-        // Media state must be ready before the screens restore their previews, so this one step blocks.
-        // It is the only blocking disk access left: the save on exit (onStop) runs in the background.
-        runBlocking {
-            if (storageMode == MediaStorageMode.MEMORY_ONLY) {
-                // Nothing may stay on the device, including files left by other modes or older versions
-                MediaStateHolder.enforceMemoryOnly(applicationContext)
-            } else {
-                MediaStateHolder.setMemoryFirstMode(isMemoryFirst, applicationContext)
-            }
-            // Memory-only already moved the stored media into RAM during its cleanup
-            if (storageMode == MediaStorageMode.MEMORY_PERSISTED) {
-                DebugLogger.d("MainContainer", "loading media from disk (memory-first mode)")
-                MediaStateHolder.loadFromDisk(applicationContext)
-            }
-        }
-        if (!isMemoryFirst) {
-            // Disk-first: just discover video promptIds (bytes read on-demand)
-            DebugLogger.d("MainContainer", "discovering video promptIds (disk-first mode)")
-            MediaStateHolder.discoverVideoPromptIds(applicationContext)
-        }
+        // Cleanup and loading of stored media run in the background; the screens restore their
+        // previews once MediaStateHolder announces the media are ready
+        MediaStateHolder.prepareForStorageMode(applicationContext, storageMode)
 
         // Determine start destination based on active generation owner
         val startDestination = when (generationViewModel.generationState.value.ownerId) {

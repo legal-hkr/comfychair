@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.LoraSelection
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
@@ -64,11 +65,25 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
     // Initialization flag
     private var isInitialized = false
 
+    // Version of the stored media (MediaStateHolder.storedMediaVersion) the screen has read
+    private var mediaVersionShown = 0L
+
     init {
         // Dispatched (not immediate): the subclass's initialState doesn't exist until its constructor has run
         viewModelScope.launch(Dispatchers.Main) {
             ConnectionManager.modelCache.collect { cache ->
                 _uiState.update { state -> state.mapAllParams { it.withModelCache(cache) } }
+            }
+        }
+        viewModelScope.launch(Dispatchers.Main) {
+            // Media stored on the device become available in the background after start. Any version
+            // newer than the one initialize() read from counts, whenever this collector subscribes:
+            // the background work may finish before it does (on-device storage takes a moment only)
+            MediaStateHolder.storedMediaVersion.collect { version ->
+                if (isInitialized() && version > mediaVersionShown) {
+                    mediaVersionShown = version
+                    onStoredMediaAvailable()
+                }
             }
         }
     }
@@ -85,6 +100,8 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
         WorkflowManager.ensureInitialized(context)
         workflowValuesStorage = WorkflowValuesStorage(context)
 
+        // Read before onInitialize() reads the media, so a version arriving meanwhile isn't missed
+        mediaVersionShown = MediaStateHolder.storedMediaVersion.value
         onInitialize()
         isInitialized = true
     }
@@ -95,6 +112,12 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
      * (e.g., loading workflows, restoring preferences, restoring last generated media).
      */
     protected abstract fun onInitialize()
+
+    /**
+     * Stored media (previews, source images, videos) became available after initialization.
+     * Screens fill in what they don't show yet; they never replace a newer result.
+     */
+    protected open fun onStoredMediaAvailable() {}
 
     /**
      * Check if the current configuration is valid for generation.

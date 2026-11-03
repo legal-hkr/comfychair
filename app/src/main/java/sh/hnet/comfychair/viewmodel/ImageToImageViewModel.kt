@@ -291,13 +291,18 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
         val referenceImage1 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, applicationContext)
         val referenceImage2 = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, applicationContext)
 
-        _uiState.value = _uiState.value.copy(
-            sourceImage = sourceImage,
-            previewImage = previewImage,
-            referenceImage1 = referenceImage1,
-            referenceImage2 = referenceImage2
-        )
+        // Fill in only what isn't shown yet: an image chosen or generated meanwhile wins
+        _uiState.update {
+            it.copy(
+                sourceImage = it.sourceImage ?: sourceImage,
+                previewImage = it.previewImage ?: previewImage,
+                referenceImage1 = it.referenceImage1 ?: referenceImage1,
+                referenceImage2 = it.referenceImage2 ?: referenceImage2
+            )
+        }
     }
+
+    override fun onStoredMediaAvailable() = loadSavedImages()
 
     /**
      * Fetch models from the server.

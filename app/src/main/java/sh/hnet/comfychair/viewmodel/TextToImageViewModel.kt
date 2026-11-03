@@ -510,9 +510,12 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
         // Restore from cache (memory in memory-first mode, disk in disk-first mode)
         val bitmap = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.TtiPreview, applicationContext)
         if (bitmap != null) {
-            _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
+            // Never over an image already shown
+            _uiState.update { if (it.previewBitmap == null) it.copy(previewBitmap = bitmap) else it }
         }
     }
+
+    override fun onStoredMediaAvailable() = restoreLastGeneratedImage()
 
     // Image operations
 

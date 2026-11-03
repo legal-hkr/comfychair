@@ -83,6 +83,11 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
         loadSavedSourceImage()
     }
 
+    override fun onStoredMediaAvailable() {
+        super.onStoredMediaAvailable()
+        loadSavedSourceImage()
+    }
+
     override fun hasValidConfiguration(): Boolean =
         _uiState.value.sourceImage != null && isReadyToGenerate(_uiState.value.params)
 
@@ -90,7 +95,8 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
         // Restore from cache (memory in memory-first mode, disk in disk-first mode)
         val sourceImage = MediaStateHolder.getBitmap(MediaStateHolder.MediaKey.ItvSource, applicationContext)
         if (sourceImage != null) {
-            _uiState.update { it.copy(sourceImage = sourceImage) }
+            // A source chosen meanwhile wins
+            _uiState.update { if (it.sourceImage == null) it.copy(sourceImage = sourceImage) else it }
         }
     }
 

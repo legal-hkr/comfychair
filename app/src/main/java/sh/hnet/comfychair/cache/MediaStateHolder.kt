@@ -11,11 +11,16 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.GenerationOutput
@@ -42,6 +47,7 @@ object MediaStateHolder {
     private const val TEMP_FILE_SUFFIX = ".tmp"
 
     // Current server ID for per-server file scoping
+    @Volatile
     private var currentServerId: String? = null
 
     /**
@@ -98,6 +104,7 @@ object MediaStateHolder {
     fun getCurrentServerId(): String? = currentServerId
 
     // Caching mode - true for memory-first (default), false for disk-first
+    @Volatile
     private var isMemoryFirstMode = true
 
     // In-memory storage (used in memory-first mode)
@@ -109,7 +116,9 @@ object MediaStateHolder {
     private val dirtyVideos = ConcurrentHashMap.newKeySet<MediaKey>()
 
     // Track current video prompt IDs for persistence
+    @Volatile
     private var currentTtvPromptId: String? = null
+    @Volatile
     private var currentItvPromptId: String? = null
 
     // Serializes everything that reads, writes or deletes media files, so a background persist
@@ -118,6 +127,43 @@ object MediaStateHolder {
 
     // Outlives activities: persisting on onStop must not block the main thread or be cancelled with the activity
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val _storedMediaVersion = MutableStateFlow(0L)
+
+    /**
+     * Increases each time media stored on the device has been brought into reach for the current
+     * server (loaded into RAM, or found on disk). Screens restore their previews when it changes,
+     * filling only what they don't show yet.
+     */
+    val storedMediaVersion: StateFlow<Long> = _storedMediaVersion.asStateFlow()
+
+    /**
+     * Apply the media storage mode at startup without blocking the caller: the flags take effect now,
+     * the disk work (memory-only cleanup, loading saved media, mode migration) runs in the background,
+     * and [storedMediaVersion] announces when it is done.
+     */
+    fun prepareForStorageMode(context: Context, mode: MediaStorageMode) {
+        val appContext = context.applicationContext
+        isMemoryOnly = mode == MediaStorageMode.MEMORY_ONLY
+        backgroundScope.launch {
+            when (mode) {
+                // Nothing may stay on the device, including files left by other modes or older versions;
+                // the cleanup moves the stored media into RAM first
+                MediaStorageMode.MEMORY_ONLY -> enforceMemoryOnly(appContext)
+                MediaStorageMode.MEMORY_PERSISTED -> {
+                    setMemoryFirstMode(true, appContext)
+                    loadFromDisk(appContext)
+                }
+                MediaStorageMode.DEVICE -> {
+                    setMemoryFirstMode(false, appContext)
+                    // Disk-first: just discover video promptIds (bytes read on demand)
+                    discoverVideoPromptIds(appContext)
+                }
+            }
+            DebugLogger.d(TAG, "Stored media ready ($mode)")
+            _storedMediaVersion.update { it + 1 }
+        }
+    }
 
     /**
      * Set the caching mode.

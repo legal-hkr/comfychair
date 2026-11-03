@@ -87,6 +87,11 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
         loadLastGeneratedVideo()
     }
 
+    override fun onStoredMediaAvailable() {
+        restoreLastPreviewImage()
+        loadLastGeneratedVideo()
+    }
+
     // Workflows and preferences
 
     private fun loadWorkflows() {
@@ -228,7 +233,8 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
     private fun restoreLastPreviewImage() {
         // Restore from cache (memory in memory-first mode, disk in disk-first mode)
         val bitmap = MediaStateHolder.getBitmap(previewKey, applicationContext) ?: return
-        updateVideo { it.copy(previewBitmap = bitmap) }
+        // Never over a preview or video already shown
+        updateVideo { if (it.previewBitmap == null && it.currentVideoUri == null) it.copy(previewBitmap = bitmap) else it }
     }
 
     /**
