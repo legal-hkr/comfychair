@@ -11,7 +11,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.GenerationOutput
+import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.VideoUtils
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -30,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
 object MediaStateHolder {
 
     private const val TAG = "MediaState"
+    private const val OUTPUTS_FILE_SUFFIX = "_last_outputs.json"
 
     // Current server ID for per-server file scoping
     private var currentServerId: String? = null
@@ -129,6 +133,60 @@ object MediaStateHolder {
     }
 
     /**
+     * File with the result list of a screen's last job: filenames only, no media.
+     */
+    private fun outputsFile(context: Context, serverId: String, owner: String): File =
+        File(context.filesDir, "${serverId}_${owner.lowercase()}$OUTPUTS_FILE_SUFFIX")
+
+    /**
+     * Keep the result list of a screen's last job, so the results strip survives process death.
+     * Like the previews, it's written to disk only in disk-first mode; in memory-first mode any
+     * file left from disk-first mode is removed, so an outdated list can't come back later.
+     *
+     * @param owner Screen owner ID, e.g. TextToImageViewModel.OWNER_ID
+     */
+    fun saveGenerationOutputs(context: Context?, owner: String, outputs: List<GenerationOutput>, currentIndex: Int) {
+        val ctx = context ?: return
+        val serverId = currentServerId ?: return
+        val file = outputsFile(ctx, serverId, owner)
+        try {
+            if (isMemoryFirstMode || outputs.isEmpty()) {
+                file.delete()
+                return
+            }
+            file.writeText(
+                JSONObject()
+                    .put("currentIndex", currentIndex)
+                    .put("outputs", GenerationOutputs.toJson(outputs))
+                    .toString()
+            )
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "Failed to save result list: ${e.message}")
+        }
+    }
+
+    /**
+     * Read the result list kept by [saveGenerationOutputs] (disk-first mode only).
+     * @return The results and the current index, or null if nothing is stored
+     */
+    fun loadGenerationOutputs(context: Context?, owner: String): Pair<List<GenerationOutput>, Int>? {
+        if (isMemoryFirstMode) return null
+        val ctx = context ?: return null
+        val serverId = currentServerId ?: return null
+        val file = outputsFile(ctx, serverId, owner)
+        if (!file.exists()) return null
+        return try {
+            val json = JSONObject(file.readText())
+            val outputs = GenerationOutputs.fromJson(json.optJSONArray("outputs"))
+            if (outputs.isEmpty()) null
+            else outputs to json.optInt("currentIndex").coerceIn(0, outputs.size - 1)
+        } catch (e: Exception) {
+            DebugLogger.w(TAG, "Failed to load result list: ${e.message}")
+            null
+        }
+    }
+
+    /**
      * Clear all disk cache files for the current server.
      */
     fun clearDiskCache(context: Context) {
@@ -162,7 +220,8 @@ object MediaStateHolder {
             context.filesDir.listFiles()?.filter { file ->
                 file.name.startsWith(prefix) && (
                     file.name.contains(VideoUtils.FilePrefix.TEXT_TO_VIDEO) ||
-                    file.name.contains(VideoUtils.FilePrefix.IMAGE_TO_VIDEO)
+                    file.name.contains(VideoUtils.FilePrefix.IMAGE_TO_VIDEO) ||
+                    file.name.endsWith(OUTPUTS_FILE_SUFFIX)
                 )
             }?.forEach { file ->
                 file.delete()

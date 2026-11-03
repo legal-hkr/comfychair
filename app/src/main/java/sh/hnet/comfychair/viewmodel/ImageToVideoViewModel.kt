@@ -7,6 +7,9 @@ import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -217,6 +220,16 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
     }
 
     init {
+        // Keep the result list for process death (disk-first mode only, see MediaStateHolder)
+        viewModelScope.launch {
+            _uiState
+                .map { it.generationOutputs to it.currentResultIndex }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { (outputs, index) ->
+                    MediaStateHolder.saveGenerationOutputs(applicationContext, OWNER_ID, outputs, index)
+                }
+        }
         // Observe model cache from ConnectionManager
         viewModelScope.launch {
             ConnectionManager.modelCache.collect { cache ->
@@ -334,6 +347,12 @@ class ImageToVideoViewModel : BaseGenerationViewModel<ImageToVideoUiState, Image
      */
     private fun loadLastGeneratedVideo() {
         val context = applicationContext ?: return
+        // Results strip of the last job (disk-first mode only)
+        if (_uiState.value.generationOutputs.isEmpty()) {
+            MediaStateHolder.loadGenerationOutputs(applicationContext, OWNER_ID)?.let { (outputs, index) ->
+                _uiState.update { it.copy(generationOutputs = outputs, currentResultIndex = index) }
+            }
+        }
         val promptId = MediaStateHolder.getCurrentItvPromptId() ?: return
 
         val key = MediaStateHolder.MediaKey.ItvVideo(promptId)

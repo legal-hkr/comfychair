@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.util
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -75,6 +76,39 @@ object GenerationOutputs {
             return files.filter { it.type == "output" }
         }
         return files
+    }
+
+    /** Serializes a result list (filenames only, no media). */
+    fun toJson(outputs: List<GenerationOutput>): JSONArray = JSONArray().apply {
+        outputs.forEach { output ->
+            put(JSONObject().apply {
+                put("promptId", output.promptId)
+                put("nodeId", output.nodeId)
+                put("filename", output.filename)
+                put("subfolder", output.subfolder)
+                put("type", output.type)
+                put("isVideo", output.isVideo)
+                output.durationMs?.let { put("durationMs", it) }
+            })
+        }
+    }
+
+    /** Reads a result list written by [toJson]; malformed entries are skipped. */
+    fun fromJson(array: JSONArray?): List<GenerationOutput> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).mapNotNull { i ->
+            val json = array.optJSONObject(i) ?: return@mapNotNull null
+            val filename = json.optString("filename").ifEmpty { return@mapNotNull null }
+            GenerationOutput(
+                promptId = json.optString("promptId"),
+                nodeId = json.optString("nodeId"),
+                filename = filename,
+                subfolder = json.optString("subfolder"),
+                type = json.optString("type", "output"),
+                isVideo = json.optBoolean("isVideo"),
+                durationMs = if (json.has("durationMs")) json.optLong("durationMs") else null
+            )
+        }
     }
 
     /**
