@@ -24,6 +24,7 @@ import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
+import sh.hnet.comfychair.util.PrivacyUtils
 /**
  * Simple in-memory cache for passing bitmaps between activities.
  * Avoids expensive PNG compression/decompression when launching MediaViewer.
@@ -165,6 +166,7 @@ class MediaViewerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        PrivacyUtils.applyRecentsScreenshotPolicy(this)
 
         // Setup system bars control for hide/show behavior
         insetsController = WindowCompat.getInsetsController(window, window.decorView)

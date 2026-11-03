@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import sh.hnet.comfychair.ui.screens.WorkflowEditorScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.viewmodel.WorkflowEditorEvent
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.WorkflowMappingState
@@ -128,7 +129,7 @@ class WorkflowEditorActivity : ComponentActivity() {
                 viewModel.initializeForCreation(this)
             }
             isMappingMode && workflowJson != null && mappingStateJson != null -> {
-                DebugLogger.i(TAG, "Initializing for mapping mode: name=$workflowName")
+                DebugLogger.i(TAG, "Initializing for mapping mode: name=${Obfuscator.workflowName(workflowName)}")
                 val mappingState = WorkflowMappingState.fromJson(mappingStateJson)
                 if (mappingState != null) {
                     viewModel.initializeForMapping(

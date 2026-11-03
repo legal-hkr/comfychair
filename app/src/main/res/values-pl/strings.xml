@@ -73,7 +73,7 @@
     <string name="label_offline_mode">Tryb offline</string>
     <string name="desc_offline_mode">Przeglądaj dane z pamięci podręcznej bez połączenia sieciowego</string>
     <string name="msg_offline_mode_requires_disk_cache">Tryb offline wymaga przechowywania „Na urządzeniu”</string>
-    <string name="msg_cannot_go_online">Nie można przejść online - serwer nieosiągalny</string>
+    <string name="msg_cannot_go_online">Nie można przejść do trybu online – serwer nie odpowiada</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Połączenie</string>

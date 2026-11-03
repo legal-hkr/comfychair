@@ -73,7 +73,7 @@
     <string name="label_offline_mode">Modo sin conexión</string>
     <string name="desc_offline_mode">Explorar datos en caché sin conexión de red</string>
     <string name="msg_offline_mode_requires_disk_cache">Elige el almacenamiento \"En el dispositivo\" para activar el modo sin conexión</string>
-    <string name="msg_cannot_go_online">No se puede conectar - servidor inalcanzable</string>
+    <string name="msg_cannot_go_online">No se puede conectar – servidor inalcanzable</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Conexión</string>

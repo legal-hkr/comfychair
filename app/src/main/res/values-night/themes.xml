@@ -3,6 +3,9 @@
     <style name="Base.Theme.ComfyChair" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <!-- Colors the system uses for the recents placeholder when the screenshot is disabled (memory-only mode); at runtime the bars are drawn edge-to-edge by Compose. -->
+        <item name="android:statusBarColor">?android:colorBackground</item>
+        <item name="android:navigationBarColor">?android:colorBackground</item>
     </style>
 
     <!-- Splash screen theme (dark) -->

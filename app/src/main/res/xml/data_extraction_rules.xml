@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Data extraction rules for Android 12+ (API 31+)
-    See: https://developer.android.com/about/versions/12/backup-restore#xml-changes
+    Data extraction rules (API 31+).
+    Cloud backup is disabled by android:allowBackup="false" in the manifest: prompts, server addresses and workflow values must not leave the device without the user's explicit action (the in-app backup export).
+    Device-to-device transfer stays user-initiated and local, so preferences are carried over, except credentials: they are encrypted with a Keystore key that never leaves the old device, so on the new one they would be unreadable.
+    Media and other files are never transferred.
 -->
 <data-extraction-rules>
-    <!-- Cloud backup configuration (Google Drive backup) -->
     <cloud-backup>
-        <!-- Include shared preferences for backup -->
-        <include domain="sharedpref" path="." />
-
-        <!-- Exclude connection settings (hostname/port) for security -->
-        <exclude domain="sharedpref" path="ComfyChairPrefs.xml" />
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
     </cloud-backup>
 
-    <!-- Device-to-device transfer configuration -->
     <device-transfer>
-        <!-- Include all preferences for device transfer (more trusted) -->
         <include domain="sharedpref" path="." />
+        <exclude domain="sharedpref" path="CredentialPrefs.xml" />
     </device-transfer>
 </data-extraction-rules>

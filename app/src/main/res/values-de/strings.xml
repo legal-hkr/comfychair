@@ -73,7 +73,7 @@
     <string name="label_offline_mode">Offline-Modus</string>
     <string name="desc_offline_mode">Zwischengespeicherte Daten ohne Netzwerkverbindung durchsuchen</string>
     <string name="msg_offline_mode_requires_disk_cache">Wähle die Speicherung \"Auf dem Gerät\", um den Offline-Modus zu aktivieren</string>
-    <string name="msg_cannot_go_online">Kann nicht online gehen - Server nicht erreichbar</string>
+    <string name="msg_cannot_go_online">Kann nicht online gehen – Server nicht erreichbar</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Verbindung</string>

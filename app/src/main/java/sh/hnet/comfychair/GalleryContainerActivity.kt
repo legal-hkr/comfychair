@@ -27,6 +27,7 @@ import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.util.PrivacyUtils
 
 /**
  * Container activity that hosts the Gallery screen.
@@ -42,6 +43,7 @@ class GalleryContainerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        PrivacyUtils.applyRecentsScreenshotPolicy(this)
 
         // Guard check - redirect to login if not connected (unless in offline mode)
         val isOfflineMode = AppSettings.isOfflineMode(this)

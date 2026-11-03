@@ -162,7 +162,7 @@
     <string name="label_offline_mode">Offline mode</string>
     <string name="desc_offline_mode">Browse cached data without network connection</string>
     <string name="msg_offline_mode_requires_disk_cache">Choose \"On the device\" storage to enable offline mode</string>
-    <string name="msg_cannot_go_online">Cannot go online - server unreachable</string>
+    <string name="msg_cannot_go_online">Cannot go online – server unreachable</string>
     <string name="label_auto_connect">Auto-connect</string>
     <string name="desc_auto_connect">Automatically connect to the last server on app launch</string>
     <string name="label_prompt_spell_check">Spell check &amp; autocorrect</string>

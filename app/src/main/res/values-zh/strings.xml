@@ -73,7 +73,7 @@
     <string name="label_offline_mode">离线模式</string>
     <string name="desc_offline_mode">无需网络连接即可浏览缓存数据</string>
     <string name="msg_offline_mode_requires_disk_cache">选择“设备存储”以启用离线模式</string>
-    <string name="msg_cannot_go_online">无法上线 - 服务器无法访问</string>
+    <string name="msg_cannot_go_online">无法上线：服务器无法访问</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">连接</string>

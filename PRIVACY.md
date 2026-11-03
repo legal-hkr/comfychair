@@ -52,7 +52,7 @@ ComfyChair does not integrate any third-party services such as:
 
 ## Data Backup
 
-If you use Android's backup feature, your app settings may be included in device backups. You can disable this in your device settings if desired.
+ComfyChair opts out of Android's cloud backup, so none of its data (prompts, server addresses, settings, credentials or media) is uploaded to your Google account. When you move to a new phone with Android's device-to-device transfer, app settings are copied directly between the two devices; saved credentials and media are not, and you will need to sign in to your servers again. To move everything deliberately, use the backup export in the app's settings.
 
 ## Children's Privacy
 

@@ -39,6 +39,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.util.PrivacyUtils
 
 /**
  * Container activity that hosts the main navigation graph.
@@ -299,6 +300,7 @@ class MainContainerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        PrivacyUtils.applyRecentsScreenshotPolicy(this)
         val isGenerating = generationViewModel.generationState.value.isGenerating
 
         // Only attempt reconnection if generating (need the connection)

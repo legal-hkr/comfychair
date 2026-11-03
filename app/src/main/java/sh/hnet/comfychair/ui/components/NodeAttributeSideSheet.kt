@@ -74,6 +74,7 @@ import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.ui.components.shared.TooltipLabel
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
@@ -847,7 +848,7 @@ private fun ImagePreview(
     // Fetch image using ComfyUIClient
     LaunchedEffect(filename) {
         loadState = ImageLoadState.Loading
-        DebugLogger.d(TAG, "ImagePreview: Fetching image filename=$filename")
+        DebugLogger.d(TAG, "ImagePreview: Fetching image filename=${Obfuscator.filename(filename)}")
 
         val client = ConnectionManager.clientOrNull
         if (client == null) {

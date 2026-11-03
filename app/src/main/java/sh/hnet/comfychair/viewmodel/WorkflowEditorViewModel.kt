@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.viewmodel
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -22,6 +20,8 @@ import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.util.PrivacyUtils
 import sh.hnet.comfychair.util.FieldMappingAnalyzer
 import sh.hnet.comfychair.util.GraphMutationUtils
 import sh.hnet.comfychair.util.GraphViewportCalculator
@@ -840,7 +840,7 @@ class WorkflowEditorViewModel : ViewModel() {
         val name = state.saveDialogName.trim()
         val description = state.saveDialogDescription.trim()
 
-        DebugLogger.d(TAG, "proceedWithSave: name='$name', type=$selectedType, nodes=${graph.nodes.size}")
+        DebugLogger.d(TAG, "proceedWithSave: name=${Obfuscator.workflowName(name)}, type=$selectedType, nodes=${graph.nodes.size}")
 
         // Validate name format
         val nameError = WorkflowManager.validateWorkflowName(name)
@@ -3055,9 +3055,7 @@ class WorkflowEditorViewModel : ViewModel() {
         val json = exportToJson() ?: return false
 
         try {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("Workflow JSON", json)
-            clipboard.setPrimaryClip(clip)
+            PrivacyUtils.copySensitiveText(context, "Workflow JSON", json)
             return true
         } catch (e: Exception) {
             return false

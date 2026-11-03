@@ -6,6 +6,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Provides numeric constraints for workflow fields by looking up the actual
@@ -73,7 +74,7 @@ object WorkflowConstraintsProvider {
         val decimalPlaces = DECIMAL_PLACES[fieldKey] ?: 0
         val fallbackWithDecimals = fallback.copy(decimalPlaces = decimalPlaces)
 
-        DebugLogger.d(TAG, "Looking up constraints: field='$fieldKey', workflow='$workflowName'")
+        DebugLogger.d(TAG, "Looking up constraints: field='$fieldKey', workflow=${Obfuscator.workflowName(workflowName)}")
 
         // Get workflow JSON
         val workflow = WorkflowManager.getWorkflowByName(workflowName)

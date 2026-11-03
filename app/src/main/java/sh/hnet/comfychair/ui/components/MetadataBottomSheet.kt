@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.ui.components
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +43,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.PromptPreset
 import sh.hnet.comfychair.storage.PromptPresetStorage
 import sh.hnet.comfychair.util.GenerationMetadata
+import sh.hnet.comfychair.util.PrivacyUtils
 
 /**
  * Bottom sheet displaying generation metadata from ComfyUI.
@@ -313,8 +312,6 @@ private fun buildMetadataItems(metadata: GenerationMetadata, context: Context): 
  * Copy text to clipboard and show toast.
  */
 private fun copyToClipboard(context: Context, text: String) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText("metadata", text)
-    clipboard.setPrimaryClip(clip)
+    PrivacyUtils.copySensitiveText(context, "metadata", text)
     Toast.makeText(context, R.string.msg_copied_to_clipboard, Toast.LENGTH_SHORT).show()
 }

@@ -73,7 +73,7 @@
     <string name="label_offline_mode">Mode hors ligne</string>
     <string name="desc_offline_mode">Parcourir les données mises en cache sans connexion réseau</string>
     <string name="msg_offline_mode_requires_disk_cache">Choisissez le stockage \"Sur l\'appareil\" pour activer le mode hors ligne</string>
-    <string name="msg_cannot_go_online">Impossible de se connecter - serveur inaccessible</string>
+    <string name="msg_cannot_go_online">Impossible de se connecter – serveur inaccessible</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Connexion</string>

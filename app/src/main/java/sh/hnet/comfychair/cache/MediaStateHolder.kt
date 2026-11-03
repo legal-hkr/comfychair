@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.VideoUtils
@@ -65,6 +66,14 @@ object MediaStateHolder {
          * Get the full filename including server ID prefix.
          */
         fun filename(serverId: String): String = "${serverId}_$baseFilename"
+
+        /** Name for the debug log: video keys carry a prompt ID, which is shortened. */
+        val logName: String
+            get() = when (this) {
+                is TtvVideo -> "${VideoUtils.FilePrefix.TEXT_TO_VIDEO}${Obfuscator.promptId(promptId)}"
+                is ItvVideo -> "${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}${Obfuscator.promptId(promptId)}"
+                else -> baseFilename
+            }
     }
 
     /**
@@ -280,11 +289,11 @@ object MediaStateHolder {
     fun putBitmap(key: MediaKey, bitmap: Bitmap, context: Context? = null) {
         val serverId = currentServerId
         if (serverId == null) {
-            DebugLogger.w(TAG, "putBitmap SKIPPED - currentServerId is null (key: ${key.baseFilename})")
+            DebugLogger.w(TAG, "putBitmap SKIPPED - currentServerId is null (key: ${key.logName})")
             return
         }
 
-        DebugLogger.d(TAG, "putBitmap: ${key.baseFilename} (server: ${serverId.take(8)}..., mode: ${if (isMemoryFirstMode) "memory" else "disk"})")
+        DebugLogger.d(TAG, "putBitmap: ${key.logName} (server: ${serverId.take(8)}..., mode: ${if (isMemoryFirstMode) "memory" else "disk"})")
 
         if (isMemoryFirstMode) {
             // Memory-first: store in memory, mark as dirty for later persistence
@@ -313,14 +322,14 @@ object MediaStateHolder {
     fun getBitmap(key: MediaKey, context: Context? = null): Bitmap? {
         val serverId = currentServerId
         if (serverId == null) {
-            DebugLogger.w(TAG, "getBitmap SKIPPED - currentServerId is null (key: ${key.baseFilename})")
+            DebugLogger.w(TAG, "getBitmap SKIPPED - currentServerId is null (key: ${key.logName})")
             return null
         }
 
         return if (isMemoryFirstMode) {
             // Memory-first: return from RAM
             val bitmap = bitmaps[key]
-            DebugLogger.d(TAG, "getBitmap: ${key.baseFilename} from memory -> ${if (bitmap != null) "FOUND" else "NOT FOUND"}")
+            DebugLogger.d(TAG, "getBitmap: ${key.logName} from memory -> ${if (bitmap != null) "FOUND" else "NOT FOUND"}")
             bitmap
         } else {
             // Disk-first: read from disk each time
@@ -329,14 +338,14 @@ object MediaStateHolder {
                     val file = ctx.getFileStreamPath(key.filename(serverId))
                     if (file.exists()) {
                         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                        DebugLogger.d(TAG, "getBitmap: ${key.baseFilename} from disk -> ${if (bitmap != null) "FOUND" else "DECODE FAILED"}")
+                        DebugLogger.d(TAG, "getBitmap: ${key.logName} from disk -> ${if (bitmap != null) "FOUND" else "DECODE FAILED"}")
                         bitmap
                     } else {
-                        DebugLogger.d(TAG, "getBitmap: ${key.baseFilename} from disk -> FILE NOT FOUND")
+                        DebugLogger.d(TAG, "getBitmap: ${key.logName} from disk -> FILE NOT FOUND")
                         null
                     }
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "getBitmap: ${key.baseFilename} disk read FAILED - ${e.message}")
+                    DebugLogger.e(TAG, "getBitmap: ${key.logName} disk read FAILED - ${e.message}")
                     null
                 }
             }
@@ -477,7 +486,7 @@ object MediaStateHolder {
                 async {
                     val bitmap = bitmaps[key]
                     if (bitmap == null) {
-                        DebugLogger.w(TAG, "persistToDisk: bitmap ${key.baseFilename} is dirty but not in memory!")
+                        DebugLogger.w(TAG, "persistToDisk: bitmap ${key.logName} is dirty but not in memory!")
                         dirtyBitmaps.remove(key)
                         return@async false
                     }
@@ -486,10 +495,10 @@ object MediaStateHolder {
                             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                         }
                         dirtyBitmaps.remove(key)
-                        DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
+                        DebugLogger.d(TAG, "persistToDisk: ${key.logName} -> OK")
                         true
                     } catch (e: Exception) {
-                        DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
+                        DebugLogger.e(TAG, "persistToDisk: ${key.logName} -> FAILED: ${e.message}")
                         false
                     }
                 }
@@ -499,17 +508,17 @@ object MediaStateHolder {
                 async {
                     val bytes = videoBytes[key]
                     if (bytes == null) {
-                        DebugLogger.w(TAG, "persistToDisk: video ${key.baseFilename} is dirty but not in memory!")
+                        DebugLogger.w(TAG, "persistToDisk: video ${key.logName} is dirty but not in memory!")
                         dirtyVideos.remove(key)
                         return@async false
                     }
                     try {
                         File(context.filesDir, key.filename(serverId)).writeBytes(bytes)
                         dirtyVideos.remove(key)
-                        DebugLogger.d(TAG, "persistToDisk: ${key.baseFilename} -> OK")
+                        DebugLogger.d(TAG, "persistToDisk: ${key.logName} -> OK")
                         true
                     } catch (e: Exception) {
-                        DebugLogger.e(TAG, "persistToDisk: ${key.baseFilename} -> FAILED: ${e.message}")
+                        DebugLogger.e(TAG, "persistToDisk: ${key.logName} -> FAILED: ${e.message}")
                         false
                     }
                 }
@@ -564,16 +573,16 @@ object MediaStateHolder {
                         if (bitmap != null) {
                             bitmaps[key] = bitmap
                             bitmapsLoaded++
-                            DebugLogger.d(TAG, "loadFromDisk: ${key.baseFilename} -> LOADED")
+                            DebugLogger.d(TAG, "loadFromDisk: ${key.logName} -> LOADED")
                             // NOT dirty - already on disk
                         } else {
-                            DebugLogger.w(TAG, "loadFromDisk: ${key.baseFilename} -> DECODE FAILED")
+                            DebugLogger.w(TAG, "loadFromDisk: ${key.logName} -> DECODE FAILED")
                         }
                     } else {
                         bitmapsNotFound++
                     }
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "loadFromDisk: ${key.baseFilename} -> ERROR: ${e.message}")
+                    DebugLogger.e(TAG, "loadFromDisk: ${key.logName} -> ERROR: ${e.message}")
                 }
             }
 
@@ -796,7 +805,7 @@ object MediaStateHolder {
                     // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars)
                     if (potentialServerId.length == 36 && potentialServerId.contains('-')) {
                         if (potentialServerId !in validServerIds) {
-                            DebugLogger.d(TAG, "Deleting orphaned file: $name")
+                            DebugLogger.d(TAG, "Deleting orphaned file: ${Obfuscator.filename(name)}")
                             file.delete()
                         }
                     }

@@ -268,7 +268,7 @@ object WorkflowManager {
                 } catch (e: Exception) {
                     // Old-format workflow types (TTI_CHECKPOINT, TTI_UNET, ITI_CHECKPOINT, ITI_UNET, ITE_UNET, TTV_UNET, ITV_UNET)
                     // are no longer supported. These workflows will be silently skipped.
-                    DebugLogger.w(TAG, "Skipping workflow '$name': unsupported type '$typeStr' (old format)")
+                    DebugLogger.w(TAG, "Skipping workflow ${Obfuscator.workflowName(name)}: unsupported type '$typeStr' (old format)")
                     continue
                 }
 
@@ -1489,7 +1489,7 @@ object WorkflowManager {
                             when (value) {
                                 is String -> inputs.put(inputName, value)
                                 is Int -> inputs.put(inputName, value)
-                                is Long -> inputs.put(inputName, value.toInt())
+                                is Long -> inputs.put(inputName, value)
                                 is Float -> inputs.put(inputName, value.toDouble())
                                 is Double -> inputs.put(inputName, value)
                                 is Boolean -> inputs.put(inputName, value)
@@ -1607,14 +1607,14 @@ object WorkflowManager {
                             when (value) {
                                 is String -> inputs.put(inputName, value)
                                 is Int -> inputs.put(inputName, value)
-                                is Long -> inputs.put(inputName, value.toInt())
+                                is Long -> inputs.put(inputName, value)
                                 is Float -> inputs.put(inputName, value.toDouble())
                                 is Double -> inputs.put(inputName, value)
                                 is Boolean -> inputs.put(inputName, value)
                                 else -> inputs.put(inputName, value.toString())
                             }
                             modified = true
-                            DebugLogger.d(TAG, "Applied edit: node $nodeId, $inputName = $value")
+                            DebugLogger.d(TAG, "Applied edit: node $nodeId, $inputName (${value::class.simpleName})")
                         }
                     }
                 }
