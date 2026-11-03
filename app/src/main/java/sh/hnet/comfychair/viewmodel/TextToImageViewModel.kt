@@ -21,19 +21,15 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.model.LoraSelection
-import sh.hnet.comfychair.model.WorkflowCapabilities
-import sh.hnet.comfychair.ui.components.config.CommonGenerationState
-import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.GenerationOutputs
-import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
-import sh.hnet.comfychair.util.ValidationUtils
-import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
+import sh.hnet.comfychair.viewmodel.base.GenerationParams
+import sh.hnet.comfychair.viewmodel.base.GenerationParamsState
+import sh.hnet.comfychair.viewmodel.base.ParamsGenerationViewModel
 import java.io.File
 import java.io.IOException
 
@@ -48,107 +44,15 @@ data class WorkflowItem(
 ) : WorkflowItemBase
 
 /**
- * UI state for the Text-to-Image screen
+ * UI state for the Text-to-Image screen.
  *
- * Architecture: Unified Field Visibility
- * - ALL workflows use the SAME set of fields
- * - Field VISIBILITY is controlled by WorkflowCapabilities (derived from placeholders)
- * - No separate checkpoint/UNET field sets - a QuadrupleCLIPLoader checkpoint workflow
- *   can use clip1-4 just like a UNET workflow
+ * Generation parameters live in [params] (shared with the other screens, see [GenerationParams]); the state
+ * exposes them directly through delegation, so `state.steps` etc. read from params. Field visibility is
+ * controlled by the workflow's placeholders (`capabilities`), not by the screen.
  */
 data class TextToImageUiState(
-    // Workflow selection
-    val selectedWorkflow: String = "",
-    val selectedWorkflowId: String = "",  // Workflow ID for storage
+    val params: GenerationParams = GenerationParams(),
     val availableWorkflows: List<WorkflowItem> = emptyList(),
-
-    // Workflow placeholders - detected from {{placeholder}} patterns in workflow JSON
-    // Used to determine which fields should be visible in the UI
-    val workflowPlaceholders: Set<String> = emptySet(),
-
-    // Workflow capabilities (unified flags derived from placeholders)
-    // Controls field visibility - ANY workflow can use ANY field if placeholder exists
-    override val capabilities: WorkflowCapabilities = WorkflowCapabilities(),
-
-    // Prompts
-    val positivePrompt: String = "",
-    val negativePrompt: String = "",
-
-    // Model selections - visibility driven by capabilities (hasCheckpointName, hasUnetName, etc.)
-    override val selectedCheckpoint: String = "",
-    override val selectedUnet: String = "",
-    override val selectedVae: String = "",
-    override val selectedClip: String = "",   // For single CLIP (clip_name placeholder)
-    override val selectedClip1: String = "",  // For multi-CLIP slot 1 (clip_name1 placeholder)
-    override val selectedClip2: String = "",  // For multi-CLIP slot 2 (clip_name2 placeholder)
-    override val selectedClip3: String = "",  // For multi-CLIP slot 3 (clip_name3 placeholder)
-    override val selectedClip4: String = "",  // For multi-CLIP slot 4 (clip_name4 placeholder)
-    override val selectedTextEncoder: String = "",  // For text encoder (text_encoder_name placeholder)
-    override val selectedLatentUpscaleModel: String = "",  // For latent upscale model (latent_upscale_model placeholder)
-
-    // Unified generation parameters - single set, visibility controlled by capabilities
-    val width: String = "1024",
-    val height: String = "1024",
-    // Shown only for workflows using these placeholders (e.g. one also saving a video)
-    val megapixels: String = "1.0",
-    val length: String = "33",
-    val fps: String = "16",
-    override val steps: String = "20",
-    override val cfg: String = "7.0",
-    override val sampler: String = "euler",
-    override val scheduler: String = "normal",
-    override val randomSeed: Boolean = true,
-    override val seed: String = "0",
-    override val denoise: String = "1.0",
-    override val batchSize: String = "1",
-    override val upscaleMethod: String = "nearest-exact",
-    override val scaleBy: String = "1.5",
-    override val stopAtClipLayer: String = "-1",
-
-    // Unified LoRA chain - visibility controlled by capabilities.hasLora
-    override val loraChain: List<LoraSelection> = emptyList(),
-
-    // Mandatory LoRA (single selection dropdown) - visibility controlled by capabilities.hasLoraName
-    override val selectedLoraName: String = "",
-    val deferredLoraName: String? = null,
-    override val filteredLoras: List<String>? = null,
-    override val filteredUpscaleMethods: List<String>? = null,
-
-    // Deferred model selections (for restoring after models load)
-    val deferredCheckpoint: String? = null,
-    val deferredUnet: String? = null,
-    val deferredVae: String? = null,
-    val deferredClip: String? = null,
-    val deferredClip1: String? = null,
-    val deferredClip2: String? = null,
-    val deferredClip3: String? = null,
-    val deferredClip4: String? = null,
-    val deferredTextEncoder: String? = null,
-    val deferredLatentUpscaleModel: String? = null,
-
-    // Available models (loaded from server)
-    override val availableCheckpoints: List<String> = emptyList(),
-    override val availableUnets: List<String> = emptyList(),
-    override val availableVaes: List<String> = emptyList(),
-    override val availableClips: List<String> = emptyList(),
-    override val availableLoras: List<String> = emptyList(),
-    override val availableUpscaleMethods: List<String> = emptyList(),
-    override val availableTextEncoders: List<String> = emptyList(),
-    override val availableLatentUpscaleModels: List<String> = emptyList(),
-    override val availableSamplers: List<String> = emptyList(),
-    override val availableSchedulers: List<String> = emptyList(),
-
-    // Workflow-specific filtered options (from actual node type)
-    override val filteredCheckpoints: List<String>? = null,
-    override val filteredUnets: List<String>? = null,
-    override val filteredVaes: List<String>? = null,
-    override val filteredClips: List<String>? = null,      // For single CLIP
-    override val filteredClips1: List<String>? = null,     // For multi-CLIP slot 1
-    override val filteredClips2: List<String>? = null,     // For multi-CLIP slot 2
-    override val filteredClips3: List<String>? = null,     // For multi-CLIP slot 3
-    override val filteredClips4: List<String>? = null,     // For multi-CLIP slot 4
-    override val filteredTextEncoders: List<String>? = null,
-    override val filteredLatentUpscaleModels: List<String>? = null,
 
     // Generated image (preview)
     val previewBitmap: Bitmap? = null,
@@ -163,25 +67,8 @@ data class TextToImageUiState(
     val currentImageSubfolder: String? = null,
     val currentImageType: String? = null,
 
-    // Loading states
-    val isLoadingModels: Boolean = false,
-    val modelsLoaded: Boolean = false,
-    val isFetching: Boolean = false,
-
-    // Validation errors
-    val widthError: String? = null,
-    val heightError: String? = null,
-    val megapixelsError: String? = null,
-    val lengthError: String? = null,
-    val fpsError: String? = null,
-    override val stepsError: String? = null,
-    override val cfgError: String? = null,
-    override val seedError: String? = null,
-    override val denoiseError: String? = null,
-    override val batchSizeError: String? = null,
-    override val scaleByError: String? = null,
-    override val stopAtClipLayerError: String? = null
-) : CommonGenerationState
+    val isFetching: Boolean = false
+) : GenerationParamsState by params
 
 /**
  * One-time events for Text-to-Image screen
@@ -195,9 +82,12 @@ sealed class TextToImageEvent {
  * ViewModel for the Text-to-Image screen.
  * Manages configuration state, model selection, and image generation.
  */
-class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToImageEvent>() {
+class TextToImageViewModel : ParamsGenerationViewModel<TextToImageUiState, TextToImageEvent>() {
 
     override val initialState = TextToImageUiState()
+
+    override fun TextToImageUiState.params() = params
+    override fun TextToImageUiState.withParams(params: GenerationParams) = copy(params = params)
 
     // Constants
     companion object {
@@ -221,77 +111,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
                     MediaStateHolder.saveGenerationOutputs(applicationContext, OWNER_ID, outputs, index)
                 }
         }
-        // Observe model cache from ConnectionManager
-        viewModelScope.launch {
-            ConnectionManager.modelCache.collect { cache ->
-                _uiState.update { state ->
-                    // Apply deferred selections first, then validate or fall back to first available
-                    val checkpoint = state.deferredCheckpoint?.takeIf { it in cache.checkpoints }
-                        ?: validateModelSelection(state.selectedCheckpoint, cache.checkpoints)
-                    val unet = state.deferredUnet?.takeIf { it in cache.unets }
-                        ?: validateModelSelection(state.selectedUnet, cache.unets)
-                    val vae = state.deferredVae?.takeIf { it in cache.vaes }
-                        ?: validateModelSelection(state.selectedVae, cache.vaes)
-                    val clip = state.deferredClip?.takeIf { it in cache.clips }
-                        ?: validateModelSelection(state.selectedClip, cache.clips)
-                    val clip1 = state.deferredClip1?.takeIf { it in cache.clips }
-                        ?: validateModelSelection(state.selectedClip1, cache.clips)
-                    val clip2 = state.deferredClip2?.takeIf { it in cache.clips }
-                        ?: validateModelSelection(state.selectedClip2, cache.clips)
-                    val clip3 = state.deferredClip3?.takeIf { it in cache.clips }
-                        ?: validateModelSelection(state.selectedClip3, cache.clips)
-                    val clip4 = state.deferredClip4?.takeIf { it in cache.clips }
-                        ?: validateModelSelection(state.selectedClip4, cache.clips)
-                    val textEncoder = state.deferredTextEncoder?.takeIf { it in cache.textEncoders }
-                        ?: validateModelSelection(state.selectedTextEncoder, cache.textEncoders)
-                    val latentUpscaleModel = state.deferredLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
-                        ?: validateModelSelection(state.selectedLatentUpscaleModel, cache.latentUpscaleModels)
-                    val loraName = state.deferredLoraName?.takeIf { it in cache.loras }
-                        ?: validateModelSelection(state.selectedLoraName, cache.loras)
-
-                    state.copy(
-                        availableCheckpoints = cache.checkpoints,
-                        availableUnets = cache.unets,
-                        availableVaes = cache.vaes,
-                        availableClips = cache.clips,
-                        availableLoras = cache.loras,
-                        availableUpscaleMethods = cache.upscaleMethods,
-                        availableTextEncoders = cache.textEncoders,
-                        availableLatentUpscaleModels = cache.latentUpscaleModels,
-                        availableSamplers = cache.samplers,
-                        availableSchedulers = cache.schedulers,
-                        isLoadingModels = cache.isLoading,
-                        modelsLoaded = cache.isLoaded,
-                        // Apply validated model selections
-                        selectedCheckpoint = checkpoint,
-                        selectedUnet = unet,
-                        selectedVae = vae,
-                        selectedClip = clip,
-                        selectedClip1 = clip1,
-                        selectedClip2 = clip2,
-                        selectedClip3 = clip3,
-                        selectedClip4 = clip4,
-                        selectedTextEncoder = textEncoder,
-                        selectedLatentUpscaleModel = latentUpscaleModel,
-                        selectedLoraName = loraName,
-                        // Clear deferred values once applied
-                        deferredCheckpoint = null,
-                        deferredUnet = null,
-                        deferredVae = null,
-                        deferredClip = null,
-                        deferredClip1 = null,
-                        deferredClip2 = null,
-                        deferredClip3 = null,
-                        deferredClip4 = null,
-                        deferredTextEncoder = null,
-                        deferredLatentUpscaleModel = null,
-                        deferredLoraName = null,
-                        loraChain = LoraChainManager.filterUnavailable(state.loraChain, cache.loras)
-                    )
-                }
-            }
-        }
-
         // Observe workflow changes to refresh list when workflows are added/updated/deleted
         viewModelScope.launch {
             WorkflowManager.workflowsVersion.collect {
@@ -344,16 +163,14 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         else
             sortedWorkflows.find { it.name == currentSelection } ?: sortedWorkflows.firstOrNull()
 
-        _uiState.value = _uiState.value.copy(
-            availableWorkflows = sortedWorkflows,
-            selectedWorkflow = selectedWorkflowItem?.name ?: "",
-            selectedWorkflowId = selectedWorkflowItem?.id ?: ""
-        )
+        _uiState.update { it.copy(availableWorkflows = sortedWorkflows) }
 
         // Reload workflow values to refresh capability flags from WorkflowDefaults
         // This is important after backup restore when workflowsVersion triggers this function
         if (selectedWorkflowItem != null) {
-            loadWorkflowValues(selectedWorkflowItem)
+            loadWorkflowValues(selectedWorkflowItem.id, selectedWorkflowItem.name)
+        } else {
+            updateParams(save = false) { it.copy(selectedWorkflow = "", selectedWorkflowId = "") }
         }
     }
 
@@ -366,18 +183,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
     fun fetchModels() {
         // Models are now loaded automatically via ConnectionManager.modelCache
         // which is observed in the init block above.
-    }
-
-    // State management
-
-    fun onPositivePromptChange(positivePrompt: String) {
-        _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
-        saveConfiguration()
-    }
-
-    fun onNegativePromptChange(negativePrompt: String) {
-        _uiState.value = _uiState.value.copy(negativePrompt = negativePrompt)
-        saveConfiguration()
     }
 
     /**
@@ -397,7 +202,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
             // Set prompt to seasonal default
             val defaultPrompt = SeasonalPrompts.getTextToImagePrompt()
-            _uiState.update { it.copy(positivePrompt = defaultPrompt) }
+            updateParams(save = false) { it.copy(positivePrompt = defaultPrompt) }
 
             // Emit toast event
             _events.emit(TextToImageEvent.ShowToast(R.string.msg_prompt_preset_reset_success))
@@ -408,217 +213,9 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
      * Unified workflow change - loads values for the new workflow
      */
     fun onWorkflowChange(workflowName: String) {
-        val state = _uiState.value
-
-        // Find workflow item
-        val workflowItem = state.availableWorkflows.find { it.name == workflowName } ?: return
-
+        val workflowItem = _uiState.value.availableWorkflows.find { it.name == workflowName } ?: return
         DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
-
-        // Save current workflow values before switching (using workflow ID)
-        if (state.selectedWorkflowId.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflowId)
-        }
-
-        // Load new workflow values (single source of truth)
-        loadWorkflowValues(workflowItem)
-
-        saveConfiguration()
-    }
-
-    // Unified model selection callbacks
-
-    fun onCheckpointChange(checkpoint: String) {
-        _uiState.value = _uiState.value.copy(selectedCheckpoint = checkpoint)
-        saveConfiguration()
-    }
-
-    fun onUnetChange(unet: String) {
-        _uiState.value = _uiState.value.copy(selectedUnet = unet)
-        saveConfiguration()
-    }
-
-    fun onVaeChange(vae: String) {
-        _uiState.value = _uiState.value.copy(selectedVae = vae)
-        saveConfiguration()
-    }
-
-    fun onClipChange(clip: String) {
-        _uiState.value = _uiState.value.copy(selectedClip = clip)
-        saveConfiguration()
-    }
-
-    fun onClip1Change(clip: String) {
-        _uiState.value = _uiState.value.copy(selectedClip1 = clip)
-        saveConfiguration()
-    }
-
-    fun onClip2Change(clip: String) {
-        _uiState.value = _uiState.value.copy(selectedClip2 = clip)
-        saveConfiguration()
-    }
-
-    fun onClip3Change(clip: String) {
-        _uiState.value = _uiState.value.copy(selectedClip3 = clip)
-        saveConfiguration()
-    }
-
-    fun onClip4Change(clip: String) {
-        _uiState.value = _uiState.value.copy(selectedClip4 = clip)
-        saveConfiguration()
-    }
-
-    fun onTextEncoderChange(textEncoder: String) {
-        _uiState.value = _uiState.value.copy(selectedTextEncoder = textEncoder)
-        saveConfiguration()
-    }
-
-    fun onLatentUpscaleModelChange(model: String) {
-        _uiState.value = _uiState.value.copy(selectedLatentUpscaleModel = model)
-        saveConfiguration()
-    }
-
-    fun onMandatoryLoraChange(loraName: String) {
-        _uiState.value = _uiState.value.copy(selectedLoraName = loraName)
-        saveConfiguration()
-    }
-
-    // Unified parameter callbacks
-
-    fun onWidthChange(width: String) {
-        val error = ValidationUtils.validateDimension(width, applicationContext)
-        _uiState.value = _uiState.value.copy(width = width, widthError = error)
-        saveConfiguration()
-    }
-
-    fun onHeightChange(height: String) {
-        val error = ValidationUtils.validateDimension(height, applicationContext)
-        _uiState.value = _uiState.value.copy(height = height, heightError = error)
-        saveConfiguration()
-    }
-
-    fun onMegapixelsChange(megapixels: String) {
-        val error = ValidationUtils.validateMegapixels(megapixels, applicationContext)
-        _uiState.value = _uiState.value.copy(megapixels = megapixels, megapixelsError = error)
-        saveConfiguration()
-    }
-
-    fun onLengthChange(length: String) {
-        val error = ValidationUtils.validateLength(length, applicationContext)
-        _uiState.value = _uiState.value.copy(length = length, lengthError = error)
-        saveConfiguration()
-    }
-
-    fun onFpsChange(fps: String) {
-        val error = ValidationUtils.validateFrameRate(fps, applicationContext)
-        _uiState.value = _uiState.value.copy(fps = fps, fpsError = error)
-        saveConfiguration()
-    }
-
-    fun onStepsChange(steps: String) {
-        val error = ValidationUtils.validateSteps(steps, applicationContext)
-        _uiState.value = _uiState.value.copy(steps = steps, stepsError = error)
-        saveConfiguration()
-    }
-
-    fun onCfgChange(cfg: String) {
-        val error = ValidationUtils.validateCfg(cfg, applicationContext)
-        _uiState.value = _uiState.value.copy(cfg = cfg, cfgError = error)
-        saveConfiguration()
-    }
-
-    fun onSamplerChange(sampler: String) {
-        _uiState.value = _uiState.value.copy(sampler = sampler)
-        saveConfiguration()
-    }
-
-    fun onSchedulerChange(scheduler: String) {
-        _uiState.value = _uiState.value.copy(scheduler = scheduler)
-        saveConfiguration()
-    }
-
-    fun onRandomSeedToggle() {
-        _uiState.value = _uiState.value.copy(randomSeed = !_uiState.value.randomSeed)
-        saveConfiguration()
-    }
-
-    fun onSeedChange(seed: String) {
-        val error = ValidationUtils.validateSeed(seed, applicationContext)
-        _uiState.value = _uiState.value.copy(seed = seed, seedError = error)
-        saveConfiguration()
-    }
-
-    fun onRandomizeSeed() {
-        val randomSeed = kotlin.random.Random.nextLong(0, Long.MAX_VALUE).toString()
-        _uiState.value = _uiState.value.copy(seed = randomSeed, seedError = null)
-        saveConfiguration()
-    }
-
-    fun onDenoiseChange(denoise: String) {
-        val error = ValidationUtils.validateDenoise(denoise, applicationContext)
-        _uiState.value = _uiState.value.copy(denoise = denoise, denoiseError = error)
-        saveConfiguration()
-    }
-
-    fun onBatchSizeChange(batchSize: String) {
-        val error = ValidationUtils.validateBatchSize(batchSize, applicationContext)
-        _uiState.value = _uiState.value.copy(batchSize = batchSize, batchSizeError = error)
-        saveConfiguration()
-    }
-
-    fun onUpscaleMethodChange(method: String) {
-        _uiState.value = _uiState.value.copy(upscaleMethod = method)
-        saveConfiguration()
-    }
-
-    fun onScaleByChange(scaleBy: String) {
-        val error = ValidationUtils.validateScaleBy(scaleBy, applicationContext)
-        _uiState.value = _uiState.value.copy(scaleBy = scaleBy, scaleByError = error)
-        saveConfiguration()
-    }
-
-    fun onStopAtClipLayerChange(layer: String) {
-        val error = ValidationUtils.validateStopAtClipLayer(layer, applicationContext)
-        _uiState.value = _uiState.value.copy(stopAtClipLayer = layer, stopAtClipLayerError = error)
-        saveConfiguration()
-    }
-
-    // Unified LoRA chain management
-
-    fun onAddLora() {
-        val state = _uiState.value
-        val newChain = LoraChainManager.addLora(state.loraChain, state.availableLoras)
-        if (newChain === state.loraChain) return // No change
-
-        _uiState.value = state.copy(loraChain = newChain)
-        saveConfiguration()
-    }
-
-    fun onRemoveLora(index: Int) {
-        val state = _uiState.value
-        val newChain = LoraChainManager.removeLora(state.loraChain, index)
-        if (newChain === state.loraChain) return // No change
-
-        _uiState.value = state.copy(loraChain = newChain)
-        saveConfiguration()
-    }
-
-    fun onLoraNameChange(index: Int, name: String) {
-        val state = _uiState.value
-        val newChain = LoraChainManager.updateLoraName(state.loraChain, index, name)
-        if (newChain === state.loraChain) return // No change
-
-        _uiState.value = state.copy(loraChain = newChain)
-        saveConfiguration()
-    }
-
-    fun onLoraStrengthChange(index: Int, strength: Float) {
-        val state = _uiState.value
-        val newChain = LoraChainManager.updateLoraStrength(state.loraChain, index, strength)
-        if (newChain === state.loraChain) return // No change
-
-        _uiState.value = state.copy(loraChain = newChain)
-        saveConfiguration()
+        switchWorkflow(workflowItem.id, workflowItem.name)
     }
 
     /**
@@ -754,35 +351,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
     /**
      * Validate current configuration before generation.
-     * Only checks for validation errors - model selections are optional.
      */
-    override fun hasValidConfiguration(): Boolean {
-        // Until the server's model lists arrive the saved model selections can't be applied, so
-        // the workflow would be sent with empty model fields and rejected by ComfyUI
-        if (!ConnectionManager.modelCache.value.isLoaded) return false
-        val state = _uiState.value
-        // No workflow when all of the screen's workflows are switched off
-        if (state.selectedWorkflowId.isEmpty()) return false
-
-        // Workflows without a positive prompt placeholder (e.g. upscalers) don't need one
-        if (state.capabilities.hasPositivePrompt && state.positivePrompt.isBlank()) {
-            return false
-        }
-
-        // Only check for validation errors in numeric fields
-        return state.widthError == null &&
-               state.heightError == null &&
-               state.megapixelsError == null &&
-               state.lengthError == null &&
-               state.fpsError == null &&
-               state.stepsError == null &&
-               state.cfgError == null &&
-               state.seedError == null &&
-               state.denoiseError == null &&
-               state.batchSizeError == null &&
-               state.scaleByError == null &&
-               state.stopAtClipLayerError == null
-    }
+    override fun hasValidConfiguration(): Boolean = isReadyToGenerate(_uiState.value.params)
 
     /**
      * Prepare workflow JSON for generation.
@@ -893,66 +463,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
 
     // Persistence
 
-    /**
-     * Save current workflow values to per-workflow storage.
-     *
-     * Saves ALL field values unconditionally - WorkflowValues is the unified storage format.
-     * Uses checkpoint OR unet model field based on which is set (capabilities determine which
-     * is visible in UI, so only one should be populated at a time).
-     */
-    private fun saveWorkflowValues(workflowId: String) {
-        val storage = workflowValuesStorage ?: return
-        val state = _uiState.value
-
-        // Use workflow ID as storage key (UUID-based)
-        val serverId = ConnectionManager.currentServerId ?: return
-
-        // Load existing values to preserve nodeAttributeEdits from Workflow Editor
-        val existingValues = storage.loadValues(serverId, workflowId)
-
-        // Save unified field values - model is whichever one is set (checkpoint or unet)
-        val values = WorkflowValues(
-            width = state.width.toIntOrNull(),
-            height = state.height.toIntOrNull(),
-            megapixels = state.megapixels.toFloatOrNull(),
-            length = state.length.toIntOrNull(),
-            frameRate = state.fps.toIntOrNull(),
-            steps = state.steps.toIntOrNull(),
-            cfg = state.cfg.toFloatOrNull(),
-            samplerName = state.sampler,
-            scheduler = state.scheduler,
-            negativePrompt = state.negativePrompt.takeIf { it.isNotEmpty() },
-            // Save checkpoint OR unet - whichever is set (capabilities control which is visible)
-            model = state.selectedCheckpoint.takeIf { it.isNotEmpty() }
-                ?: state.selectedUnet.takeIf { it.isNotEmpty() },
-            // Save ALL model selections unconditionally
-            vaeModel = state.selectedVae.takeIf { it.isNotEmpty() },
-            clipModel = state.selectedClip.takeIf { it.isNotEmpty() },
-            clip1Model = state.selectedClip1.takeIf { it.isNotEmpty() },
-            clip2Model = state.selectedClip2.takeIf { it.isNotEmpty() },
-            clip3Model = state.selectedClip3.takeIf { it.isNotEmpty() },
-            clip4Model = state.selectedClip4.takeIf { it.isNotEmpty() },
-            textEncoderModel = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
-            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
-            // Mandatory LoRA (single selection dropdown)
-            loraModel = state.selectedLoraName.takeIf { it.isNotEmpty() },
-            // Unified LoRA chain
-            loraChain = LoraSelection.toJsonString(state.loraChain).takeIf { state.loraChain.isNotEmpty() },
-            // Unified generation parameters
-            seed = state.seed.toLongOrNull(),
-            randomSeed = state.randomSeed,
-            denoise = state.denoise.toFloatOrNull(),
-            batchSize = state.batchSize.toIntOrNull(),
-            upscaleMethod = state.upscaleMethod.takeIf { it.isNotEmpty() },
-            scaleBy = state.scaleBy.toFloatOrNull(),
-            stopAtClipLayer = state.stopAtClipLayer.toIntOrNull(),
-            nodeAttributeEdits = existingValues?.nodeAttributeEdits
-        )
-
-        storage.saveValues(serverId, workflowId, values)
-    }
-
-    private fun saveConfiguration() {
+    override fun saveConfiguration() {
         val ctx = applicationContext ?: return
         val serverId = ConnectionManager.currentServerId ?: return
         val state = _uiState.value
@@ -965,10 +476,8 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             apply()
         }
 
-        // Save per-workflow values for the currently selected workflow (using workflow ID)
-        if (state.selectedWorkflowId.isNotEmpty()) {
-            saveWorkflowValues(state.selectedWorkflowId)
-        }
+        // Save per-workflow values for the currently selected workflow
+        saveWorkflowValues()
     }
 
     private fun restorePreferences() {
@@ -983,7 +492,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
         val savedWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", null)
 
         // Update positive prompt first
-        _uiState.value = _uiState.value.copy(positivePrompt = positivePrompt)
+        updateParams(save = false) { it.copy(positivePrompt = positivePrompt) }
 
         // Determine which workflow to select (by ID)
         val state = _uiState.value
@@ -999,158 +508,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState, TextToI
             else -> null
         }
 
-        // Load workflow and its values (this sets mode, capability flags, and values)
+        // Load workflow values without saving (to avoid circular save)
         if (workflowToLoad != null) {
-            // Load workflow values without saving (to avoid circular save)
-            loadWorkflowValues(workflowToLoad)
+            loadWorkflowValues(workflowToLoad.id, workflowToLoad.name)
         }
-    }
-
-    /**
-     * Load workflow values without triggering save (used during initialization).
-     *
-     * Uses unified fields - capabilities (derived from placeholders) control which
-     * fields are visible in the UI. The saved model value is loaded into the appropriate
-     * selection field (checkpoint OR unet) based on capabilities.
-     */
-    private fun loadWorkflowValues(workflow: WorkflowItem) {
-        val storage = workflowValuesStorage ?: return
-        val serverId = ConnectionManager.currentServerId ?: return
-
-        // Load saved values and defaults by workflow ID (not name, to avoid duplicate name issues)
-        val savedValues = storage.loadValues(serverId, workflow.id)
-        val defaults = WorkflowManager.getWorkflowDefaultsById(workflow.id)
-
-        // Get workflow placeholders - these determine field visibility via capabilities
-        val placeholders = WorkflowManager.getWorkflowPlaceholders(workflow.id)
-        val capabilities = WorkflowCapabilities.fromPlaceholders(placeholders)
-
-        val state = _uiState.value
-
-        // Get current model cache to validate saved selections
-        val cache = ConnectionManager.modelCache.value
-
-        // Get saved model selections
-        val savedModel = savedValues?.model
-        val savedVae = savedValues?.vaeModel
-        val savedClip = savedValues?.clipModel
-        val savedClip1 = savedValues?.clip1Model
-        val savedClip2 = savedValues?.clip2Model
-        val savedClip3 = savedValues?.clip3Model
-        val savedClip4 = savedValues?.clip4Model
-        val savedTextEncoder = savedValues?.textEncoderModel
-        val savedLatentUpscaleModel = savedValues?.latentUpscaleModel
-        val savedLoraName = savedValues?.loraModel
-
-        // Load model into appropriate field based on capabilities
-        // If workflow has ckpt_name placeholder, savedModel is a checkpoint
-        // If workflow has unet_name placeholder, savedModel is a UNET
-        val selectedCheckpoint = if (capabilities.hasCheckpointName) {
-            savedModel?.takeIf { it in cache.checkpoints }
-                ?: validateModelSelection("", cache.checkpoints)
-        } else ""
-
-        val selectedUnet = if (capabilities.hasUnetName) {
-            savedModel?.takeIf { it in cache.unets }
-                ?: validateModelSelection("", cache.unets)
-        } else ""
-
-        _uiState.value = state.copy(
-            // Workflow info
-            selectedWorkflow = workflow.name,
-            selectedWorkflowId = workflow.id,
-            workflowPlaceholders = placeholders,
-            capabilities = capabilities,
-
-            // Unified generation parameters
-            width = savedValues?.width?.toString()
-                ?: defaults?.width?.toString() ?: "1024",
-            height = savedValues?.height?.toString()
-                ?: defaults?.height?.toString() ?: "1024",
-            megapixels = savedValues?.megapixels?.toString()
-                ?: defaults?.megapixels?.toString() ?: "1.0",
-            length = savedValues?.length?.toString()
-                ?: defaults?.length?.toString() ?: "33",
-            fps = savedValues?.frameRate?.toString()
-                ?: defaults?.frameRate?.toString() ?: "16",
-            steps = savedValues?.steps?.toString()
-                ?: defaults?.steps?.toString() ?: "20",
-            cfg = savedValues?.cfg?.toString()
-                ?: defaults?.cfg?.toString() ?: "7.0",
-            sampler = savedValues?.samplerName
-                ?: defaults?.samplerName ?: "euler",
-            scheduler = savedValues?.scheduler
-                ?: defaults?.scheduler ?: "normal",
-            negativePrompt = savedValues?.negativePrompt
-                ?: defaults?.negativePrompt ?: "",
-
-            // Model selections - load into appropriate fields based on capabilities
-            selectedCheckpoint = selectedCheckpoint,
-            selectedUnet = selectedUnet,
-            selectedVae = savedVae?.takeIf { it in cache.vaes }
-                ?: validateModelSelection("", cache.vaes),
-            selectedClip = savedClip?.takeIf { it in cache.clips }
-                ?: validateModelSelection("", cache.clips),
-            selectedClip1 = savedClip1?.takeIf { it in cache.clips }
-                ?: validateModelSelection("", cache.clips),
-            selectedClip2 = savedClip2?.takeIf { it in cache.clips }
-                ?: validateModelSelection("", cache.clips),
-            selectedClip3 = savedClip3?.takeIf { it in cache.clips }
-                ?: validateModelSelection("", cache.clips),
-            selectedClip4 = savedClip4?.takeIf { it in cache.clips }
-                ?: validateModelSelection("", cache.clips),
-            selectedTextEncoder = savedTextEncoder?.takeIf { it in cache.textEncoders }
-                ?: validateModelSelection("", cache.textEncoders),
-            selectedLatentUpscaleModel = savedLatentUpscaleModel?.takeIf { it in cache.latentUpscaleModels }
-                ?: validateModelSelection("", cache.latentUpscaleModels),
-            selectedLoraName = savedLoraName?.takeIf { it in cache.loras }
-                ?: validateModelSelection("", cache.loras),
-
-            // Deferred values - applied when model cache updates
-            deferredCheckpoint = if (capabilities.hasCheckpointName) savedModel else null,
-            deferredUnet = if (capabilities.hasUnetName) savedModel else null,
-            deferredVae = savedVae,
-            deferredClip = savedClip,
-            deferredClip1 = savedClip1,
-            deferredClip2 = savedClip2,
-            deferredClip3 = savedClip3,
-            deferredClip4 = savedClip4,
-            deferredTextEncoder = savedTextEncoder,
-            deferredLatentUpscaleModel = savedLatentUpscaleModel,
-            deferredLoraName = savedLoraName,
-
-            // Unified LoRA chain
-            loraChain = savedValues?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
-
-            // Unified generation parameters
-            randomSeed = savedValues?.randomSeed ?: true,
-            seed = savedValues?.seed?.toString()
-                ?: defaults?.seed?.toString() ?: "0",
-            denoise = savedValues?.denoise?.toString()
-                ?: defaults?.denoise?.toString() ?: "1.0",
-            batchSize = savedValues?.batchSize?.toString()
-                ?: defaults?.batchSize?.toString() ?: "1",
-            upscaleMethod = savedValues?.upscaleMethod
-                ?: defaults?.upscaleMethod ?: "nearest-exact",
-            scaleBy = savedValues?.scaleBy?.toString()
-                ?: defaults?.scaleBy?.toString() ?: "1.5",
-            stopAtClipLayer = savedValues?.stopAtClipLayer?.toString()
-                ?: defaults?.stopAtClipLayer?.toString() ?: "-1",
-
-            // Workflow-specific filtered options (query for ALL possible fields)
-            filteredCheckpoints = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "ckpt_name"),
-            filteredUnets = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "unet_name"),
-            filteredVaes = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "vae_name"),
-            filteredClips = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name"),
-            filteredClips1 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name1"),
-            filteredClips2 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name2"),
-            filteredClips3 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name3"),
-            filteredClips4 = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "clip_name4"),
-            filteredTextEncoders = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "text_encoder_name"),
-            filteredLatentUpscaleModels = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "latent_upscale_model"),
-            filteredUpscaleMethods = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "upscale_method"),
-            filteredLoras = WorkflowManager.getNodeSpecificOptionsForField(workflow.id, "lora_name")
-        )
     }
 
     private fun saveLastGeneratedImage(bitmap: Bitmap) {

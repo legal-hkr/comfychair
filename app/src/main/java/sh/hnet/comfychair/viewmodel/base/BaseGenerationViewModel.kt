@@ -83,7 +83,7 @@ abstract class BaseGenerationViewModel<UiState, Event> : ViewModel() {
 
     /**
      * Validate model selection against available models.
-     * Returns current if valid, otherwise defaults to first available.
+     * Returns current if valid, otherwise an empty selection.
      */
     protected fun validateModelSelection(current: String, available: List<String>): String {
         return ValidationUtils.validateModelSelection(current, available)
