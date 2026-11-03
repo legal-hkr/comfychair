@@ -96,8 +96,19 @@
     <string name="error_invalid_hostname">无效的主机名或 IP 地址</string>
 
     <!-- SSL certificate warnings -->
-    <string name="warning_self_signed_cert">无法验证证书，仍然继续连接</string>
-    <string name="warning_unknown_ca">未知的证书颁发机构，仍然继续连接</string>
+    <string name="title_certificate_untrusted">服务器证书未经验证</string>
+    <string name="title_certificate_changed">服务器证书已更改</string>
+    <string name="msg_certificate_untrusted">Android 无法确认此服务器的身份。自签名证书或由您自己的证书颁发机构签发的证书通常会出现这种情况。请将指纹与服务器上的证书进行比对。信任后，ComfyChair 将只接受此服务器的这一证书。</string>
+    <string name="msg_certificate_changed">服务器提供的证书与您之前信任的不同。如果服务器上的证书没有被更换，连接可能正在被拦截。信任前请将指纹与服务器上的证书进行比对。</string>
+    <string name="msg_certificate_rejected_session">服务器证书已不是您之前信任的证书。请返回登录界面查看。</string>
+    <string name="label_certificate_subject">颁发给</string>
+    <string name="label_certificate_issuer">颁发者</string>
+    <string name="label_certificate_valid_until">有效期至</string>
+    <string name="label_certificate_fingerprint">SHA-256 指纹</string>
+    <string name="button_trust_certificate">信任并连接</string>
+    <string name="title_insecure_fallback">未加密的连接</string>
+    <string name="msg_insecure_fallback">此服务器之前支持 HTTPS，但现在只通过 HTTP 响应。没有加密时，同一网络中的任何人都能读取提示词、生成的媒体和登录凭据。只有在确认服务器配置是有意更改的情况下，才通过 HTTP 连接。</string>
+    <string name="button_connect_over_http">通过 HTTP 连接</string>
 
     <!-- Query screen strings -->
     <string name="hint_prompt">提示词</string>

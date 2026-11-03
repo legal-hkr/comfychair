@@ -69,8 +69,19 @@
     <string name="error_invalid_hostname">Invalid hostname or IP address</string>
 
     <!-- SSL certificate warnings -->
-    <string name="warning_self_signed_cert">Cannot validate the certificate, connecting anyway</string>
-    <string name="warning_unknown_ca">Unknown certificate issuer, connecting anyway</string>
+    <string name="title_certificate_untrusted">Unverified server certificate</string>
+    <string name="title_certificate_changed">Server certificate changed</string>
+    <string name="msg_certificate_untrusted">Android can\'t confirm this server\'s identity. This is expected for a self-signed certificate or one issued by your own certificate authority. Compare the fingerprint with the certificate on the server. Once you trust it, ComfyChair accepts only this certificate for this server.</string>
+    <string name="msg_certificate_changed">The server now presents a different certificate from the one you trusted. If it wasn\'t replaced on the server, someone may be intercepting the connection. Compare the fingerprint with the certificate on the server before trusting it.</string>
+    <string name="msg_certificate_rejected_session">The server\'s certificate is no longer the one you trusted. Return to the login screen to review it.</string>
+    <string name="label_certificate_subject">Issued to</string>
+    <string name="label_certificate_issuer">Issued by</string>
+    <string name="label_certificate_valid_until">Valid until</string>
+    <string name="label_certificate_fingerprint">SHA-256 fingerprint</string>
+    <string name="button_trust_certificate">Trust and connect</string>
+    <string name="title_insecure_fallback">Unencrypted connection</string>
+    <string name="msg_insecure_fallback">This server used to accept HTTPS, but now responds only over HTTP. Without encryption, prompts, generated media and credentials can be read by anyone on the network. Connect over HTTP only if you know the server configuration was changed on purpose.</string>
+    <string name="button_connect_over_http">Connect over HTTP</string>
 
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>

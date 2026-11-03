@@ -96,8 +96,19 @@
     <string name="error_invalid_hostname">Nom d\'hôte ou adresse IP invalide</string>
 
     <!-- SSL certificate warnings -->
-    <string name="warning_self_signed_cert">Impossible de valider le certificat, connexion quand même</string>
-    <string name="warning_unknown_ca">Émetteur de certificat inconnu, connexion quand même</string>
+    <string name="title_certificate_untrusted">Certificat du serveur non vérifié</string>
+    <string name="title_certificate_changed">Certificat du serveur modifié</string>
+    <string name="msg_certificate_untrusted">Android ne peut pas confirmer l\'identité de ce serveur. C\'est normal pour un certificat auto-signé ou émis par votre propre autorité de certification. Comparez l\'empreinte avec le certificat du serveur. Une fois approuvé, ComfyChair n\'acceptera que ce certificat pour ce serveur.</string>
+    <string name="msg_certificate_changed">Le serveur présente un certificat différent de celui que vous avez approuvé. S\'il n\'a pas été remplacé sur le serveur, quelqu\'un intercepte peut-être la connexion. Comparez l\'empreinte avec le certificat du serveur avant de l\'approuver.</string>
+    <string name="msg_certificate_rejected_session">Le certificat du serveur n\'est plus celui que vous avez approuvé. Vérifiez-le sur l\'écran de connexion.</string>
+    <string name="label_certificate_subject">Délivré à</string>
+    <string name="label_certificate_issuer">Délivré par</string>
+    <string name="label_certificate_valid_until">Valide jusqu\'au</string>
+    <string name="label_certificate_fingerprint">Empreinte SHA-256</string>
+    <string name="button_trust_certificate">Approuver et se connecter</string>
+    <string name="title_insecure_fallback">Connexion non chiffrée</string>
+    <string name="msg_insecure_fallback">Ce serveur acceptait HTTPS, mais il ne répond plus qu\'en HTTP. Sans chiffrement, les prompts, les médias générés et les identifiants peuvent être lus par toute personne sur le réseau. Connectez-vous en HTTP uniquement si vous savez que la configuration du serveur a été modifiée volontairement.</string>
+    <string name="button_connect_over_http">Se connecter en HTTP</string>
 
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>

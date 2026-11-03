@@ -157,16 +157,19 @@ object MetadataParser {
         }
 
         // Trace back from positive/negative sources to find CLIPTextEncode nodes
+        val positiveClipNodeIds = mutableSetOf<String>()
         for ((sourceNodeId, outputSlot) in positiveSourceConnections) {
             val clipNodeId = traceToClipTextEncode(sourceNodeId, outputSlot, nodeTypes, nodeInputs)
             if (clipNodeId != null && clipTexts.containsKey(clipNodeId)) {
                 positivePrompt = clipTexts[clipNodeId]
+                positiveClipNodeIds.add(clipNodeId)
             }
         }
 
         for ((sourceNodeId, outputSlot) in negativeSourceConnections) {
             val clipNodeId = traceToClipTextEncode(sourceNodeId, outputSlot, nodeTypes, nodeInputs)
-            if (clipNodeId != null && clipTexts.containsKey(clipNodeId)) {
+            // The encoder already feeding the positive input is not a negative prompt
+            if (clipNodeId != null && clipTexts.containsKey(clipNodeId) && clipNodeId !in positiveClipNodeIds) {
                 negativePrompt = clipTexts[clipNodeId]
             }
         }
@@ -224,6 +227,11 @@ object MetadataParser {
         // If this is a CLIPTextEncode, we found it
         if (nodeType == "CLIPTextEncode") {
             return startNodeId
+        }
+
+        // Zeroed conditioning carries no text (models without a negative prompt, e.g. Flux, Krea-2)
+        if (nodeType == "ConditioningZeroOut") {
+            return null
         }
 
         val inputs = nodeInputs[startNodeId] ?: return null

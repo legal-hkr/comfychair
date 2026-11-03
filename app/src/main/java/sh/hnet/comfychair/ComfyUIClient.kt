@@ -14,7 +14,11 @@ import okhttp3.ResponseBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import sh.hnet.comfychair.connection.CertificateIssue
 import sh.hnet.comfychair.connection.ConnectionFailure
+import sh.hnet.comfychair.connection.PendingCertificate
+import sh.hnet.comfychair.connection.ServerTrust
+import sh.hnet.comfychair.connection.ServerTrustStore
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.NodeErrors
@@ -61,8 +65,19 @@ class ComfyUIClient(
     // Auth interceptor for adding auth headers and detecting session expiry
     private val authInterceptor = AuthInterceptor(credentials, hostname)
 
+    // Trust decisions for this endpoint (accepted certificate fingerprint, last working protocol)
+    private val trustStore = context?.let { ServerTrustStore(it) }
+
+    // TLS trust shared by all three OkHttp clients
+    private val serverTrust = ServerTrust(hostname, port, trustStore)
+
+    /**
+     * Certificate rejected by the last connection test, waiting for the user's decision.
+     */
+    val pendingCertificate: PendingCertificate? get() = serverTrust.pendingCertificate
+
     // OkHttpClient for HTTP requests - short timeouts are fine
-    private val httpClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
+    private val httpClient = serverTrust.configure(
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)  // Max time to establish connection
@@ -73,7 +88,7 @@ class ComfyUIClient(
     // Separate OkHttpClient for WebSocket connections
     // WebSockets need longer timeouts since data may not arrive for extended periods
     // pingInterval keeps the connection alive during long operations
-    private val webSocketClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
+    private val webSocketClient = serverTrust.configure(
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -84,7 +99,7 @@ class ComfyUIClient(
 
     // Client for large transfers (uploads/downloads) - timeouts disabled, stall detection handles them
     // This allows slow but progressing transfers to complete while detecting truly stalled connections
-    private val transferClient = SelfSignedCertHelper.configureToAcceptSelfSigned(
+    private val transferClient = serverTrust.configure(
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -173,10 +188,23 @@ class ComfyUIClient(
      */
     fun testConnection(callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue, failureType: ConnectionFailure) -> Unit) {
         DebugLogger.i(TAG, "Testing connection to ${Obfuscator.hostname(hostname)}")
-        // Reset the certificate issue detection
-        SelfSignedCertHelper.reset()
-        // Try HTTPS first (more secure)
-        tryConnection("https", callback)
+        serverTrust.clearPending()
+        // Always try HTTPS first. Once HTTPS has worked for this endpoint, falling back to HTTP needs the user's consent.
+        val knownProtocol = workingProtocol ?: trustStore?.getProtocol(hostname, port)
+        tryConnection("https", httpsRequired = knownProtocol == "https", callback = callback)
+    }
+
+    /**
+     * Remember that the user agreed to use HTTP for this endpoint, although HTTPS worked before.
+     */
+    fun allowHttp() {
+        trustStore?.setProtocol(hostname, port, "http")
+        workingProtocol = null
+    }
+
+    private fun onProtocolWorks(protocol: String) {
+        workingProtocol = protocol
+        trustStore?.setProtocol(hostname, port, protocol)
     }
 
     /**
@@ -187,6 +215,7 @@ class ComfyUIClient(
      */
     private fun tryConnection(
         protocol: String,
+        httpsRequired: Boolean = false,
         callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue, failureType: ConnectionFailure) -> Unit
     ) {
         // Build the URL to test
@@ -203,10 +232,13 @@ class ComfyUIClient(
         // We use enqueue instead of execute to avoid blocking the UI thread
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                // Connection failed with this protocol
-                if (protocol == "https") {
-                    // HTTPS failed, try HTTP as fallback
-                    tryConnection("http", callback)
+                val pending = serverTrust.pendingCertificate
+                if (protocol == "https" && pending != null) {
+                    // TLS works, but the certificate needs the user's decision - never fall back to HTTP here
+                    DebugLogger.w(TAG, "Certificate not trusted (${pending.issue})")
+                    callback(false, e.message, pending.issue, ConnectionFailure.CERTIFICATE)
+                } else if (protocol == "https") {
+                    tryHttpFallback(httpsRequired, callback)
                 } else {
                     // HTTP also failed - both protocols don't work
                     callback(false, "Connection failed: ${e.message}", CertificateIssue.NONE, ConnectionFailure.NETWORK)
@@ -224,15 +256,14 @@ class ComfyUIClient(
                             val system = json.optJSONObject("system")
                             if (system != null && system.has("os")) {
                                 // Valid ComfyUI server
-                                workingProtocol = protocol
-                                val certIssue = SelfSignedCertHelper.certificateIssue
+                                onProtocolWorks(protocol)
                                 DebugLogger.i(TAG, "Connection successful (protocol: $protocol)")
-                                callback(true, null, certIssue, ConnectionFailure.NONE)
+                                callback(true, null, CertificateIssue.NONE, ConnectionFailure.NONE)
                             } else {
                                 // Response doesn't match ComfyUI format
                                 DebugLogger.w(TAG, "Invalid response: not a ComfyUI server")
                                 if (protocol == "https") {
-                                    tryConnection("http", callback)
+                                    tryHttpFallback(httpsRequired, callback)
                                 } else {
                                     callback(false, context?.getString(R.string.error_not_comfyui_server)
                                         ?: "Not a ComfyUI server", CertificateIssue.NONE, ConnectionFailure.INVALID_SERVER)
@@ -242,7 +273,7 @@ class ComfyUIClient(
                             // Response is not valid JSON - not a ComfyUI server
                             DebugLogger.w(TAG, "Invalid response: ${e.message}")
                             if (protocol == "https") {
-                                tryConnection("http", callback)
+                                tryHttpFallback(httpsRequired, callback)
                             } else {
                                 callback(false, context?.getString(R.string.error_invalid_server_response)
                                     ?: "Invalid server response", CertificateIssue.NONE, ConnectionFailure.INVALID_SERVER)
@@ -255,24 +286,73 @@ class ComfyUIClient(
                         // Check for authentication errors - these should not fallback to HTTP
                         // since authentication is protocol-independent
                         if (code == 401 || code == 403) {
-                            workingProtocol = protocol  // Protocol works, auth doesn't
+                            onProtocolWorks(protocol)  // Protocol works, auth doesn't
                             DebugLogger.w(TAG, "Authentication failed (protocol: $protocol, code: $code)")
                             callback(
                                 false,
                                 context?.getString(R.string.error_auth_unauthorized)
                                     ?: "Authentication failed. Please check your credentials.",
-                                SelfSignedCertHelper.certificateIssue,
+                                CertificateIssue.NONE,
                                 ConnectionFailure.AUTHENTICATION
                             )
                         } else if (protocol == "https") {
                             // Try HTTP as fallback for other errors
-                            tryConnection("http", callback)
+                            tryHttpFallback(httpsRequired, callback)
                         } else {
                             // Both protocols failed
                             DebugLogger.w(TAG, "Connection failed: server error $code")
                             callback(false, "Server returned error: $code", CertificateIssue.NONE, ConnectionFailure.NETWORK)
                         }
                     }
+                }
+            }
+        })
+    }
+
+    /**
+     * HTTPS did not work. If this endpoint never had working HTTPS, try HTTP as before.
+     * If it had, check whether HTTP works and report [ConnectionFailure.INSECURE_FALLBACK] instead of connecting,
+     * so credentials and prompts are never sent unencrypted without the user's consent.
+     */
+    private fun tryHttpFallback(
+        httpsRequired: Boolean,
+        callback: (success: Boolean, errorMessage: String?, certIssue: CertificateIssue, failureType: ConnectionFailure) -> Unit
+    ) {
+        if (!httpsRequired) {
+            tryConnection("http", callback = callback)
+            return
+        }
+        val request = Request.Builder().url("http://$hostname:$port/system_stats").get().build()
+        // Probe with a bare client: no auth interceptor, so credentials never go over HTTP before the user agrees
+        OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .followRedirects(false)
+            .build()
+            .newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(false, "Connection failed: ${e.message}", CertificateIssue.NONE, ConnectionFailure.NETWORK)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                // Only a ComfyUI answer counts (or an auth challenge, since the probe carries no credentials);
+                // a redirect back to HTTPS or an unrelated page is an ordinary network failure.
+                val comfyOverHttp = response.use {
+                    when {
+                        it.code == 401 || it.code == 403 -> true
+                        it.isSuccessful -> try {
+                            JSONObject(it.body?.string() ?: "{}").optJSONObject("system")?.has("os") == true
+                        } catch (e: Exception) {
+                            false
+                        }
+                        else -> false
+                    }
+                }
+                if (comfyOverHttp) {
+                    DebugLogger.w(TAG, "HTTPS failed for an endpoint that used HTTPS before; HTTP responds")
+                    callback(false, null, CertificateIssue.NONE, ConnectionFailure.INSECURE_FALLBACK)
+                } else {
+                    callback(false, "Connection failed: HTTPS unavailable", CertificateIssue.NONE, ConnectionFailure.NETWORK)
                 }
             }
         })

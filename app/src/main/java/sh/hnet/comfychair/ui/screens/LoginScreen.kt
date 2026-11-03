@@ -44,18 +44,22 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.BrowserAuthActivity
-import sh.hnet.comfychair.CertificateIssue
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.MainContainerActivity
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.connection.PendingCertificate
+import sh.hnet.comfychair.connection.ServerTrustStore
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.model.AuthType
 import sh.hnet.comfychair.model.Server
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.ServerStorage
+import sh.hnet.comfychair.ui.components.CertificateTrustDialog
 import sh.hnet.comfychair.ui.components.ConnectionSplitButton
+import sh.hnet.comfychair.ui.components.InsecureFallbackDialog
 import sh.hnet.comfychair.ui.components.ServerDialog
 import sh.hnet.comfychair.ui.components.ServerDropdown
 import sh.hnet.comfychair.util.ServerUrlUtils
@@ -99,7 +103,6 @@ fun LoginScreen() {
         )
     }
     var connectionState by remember { mutableStateOf(ConnectionState.IDLE) }
-    var warningMessage by remember { mutableStateOf<String?>(null) }
     var comfyUIClient by remember { mutableStateOf<ComfyUIClient?>(null) }
     var hasAutoConnected by remember { mutableStateOf(false) }
 
@@ -109,6 +112,10 @@ fun LoginScreen() {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showOfflinePrompt by remember { mutableStateOf(false) }
     var offlinePromptServer by remember { mutableStateOf<Server?>(null) }
+
+    // Trust decisions waiting for the user: an untrusted or changed certificate, or HTTP for a server that used HTTPS
+    var pendingCertificateTrust by remember { mutableStateOf<Pair<Server, PendingCertificate>?>(null) }
+    var pendingHttpFallbackServer by remember { mutableStateOf<Server?>(null) }
 
     // Browser auth state:
     // - pendingBrowserAuthServer: the server whose cookies are being captured
@@ -150,10 +157,6 @@ fun LoginScreen() {
         }
     }
 
-    // String resources
-    val warningSelfSigned = stringResource(R.string.warning_self_signed_cert)
-    val warningUnknownCa = stringResource(R.string.warning_unknown_ca)
-
     // Connection function.
     // isRetryAfterAuth: true when called after a successful WebView auth — prevents a
     // second WebView launch if the connection still fails (e.g. wrong cookies).
@@ -161,24 +164,13 @@ fun LoginScreen() {
     // the launcher directly (avoids a forward-reference to browserAuthLauncher).
     fun attemptConnection(server: Server, isRetryAfterAuth: Boolean = false) {
         connectionState = ConnectionState.CONNECTING
-        warningMessage = null
 
         scope.launch {
             // Load credentials for the server
             val credentials = credentialStorage.getCredentials(server.id, server.authType)
 
-            // For BROWSER auth with no saved cookies, skip the connection test and go
-            // straight to the WebView so the user can sign in before we try the server.
-            if (server.authType == AuthType.BROWSER
-                && credentials is AuthCredentials.None
-                && !isRetryAfterAuth
-            ) {
-                pendingBrowserAuthServer = server
-                pendingBrowserAuthUrl =
-                    ServerUrlUtils.buildServerUrl("https", server.hostname, server.port)
-                connectionState = ConnectionState.IDLE
-                return@launch
-            }
+            // BROWSER auth without saved cookies also runs the connection test first: the test settles certificate trust
+            // and the protocol before the WebView opens. Without cookies it fails and the WebView branch below takes over.
 
             val client = ComfyUIClient(
                 context.applicationContext,
@@ -190,30 +182,25 @@ fun LoginScreen() {
 
             // Test connection using suspendCoroutine
             val result = suspendCoroutine { continuation ->
-                client.testConnection { success, errorMessage, certIssue, _ ->
-                    continuation.resume(Triple(success, errorMessage, certIssue))
+                client.testConnection { success, errorMessage, _, failureType ->
+                    continuation.resume(Triple(success, errorMessage, failureType))
                 }
             }
 
-            val (success, errorMessage, certIssue) = result
+            val (success, errorMessage, failureType) = result
+            val pendingCertificate = client.pendingCertificate
 
-            if (success) {
+            if (!success && failureType == ConnectionFailure.CERTIFICATE && pendingCertificate != null) {
+                // Ask the user; trusting the certificate retries the connection
+                pendingCertificateTrust = server to pendingCertificate
+                connectionState = ConnectionState.IDLE
+            } else if (!success && failureType == ConnectionFailure.INSECURE_FALLBACK) {
+                pendingHttpFallbackServer = server
+                connectionState = ConnectionState.IDLE
+            } else if (success) {
                 connectionState = ConnectionState.CONNECTED
 
-                // Handle certificate warnings
-                val navigateDelay = when (certIssue) {
-                    CertificateIssue.SELF_SIGNED -> {
-                        warningMessage = warningSelfSigned
-                        1000L
-                    }
-                    CertificateIssue.UNKNOWN_CA -> {
-                        warningMessage = warningUnknownCa
-                        1000L
-                    }
-                    CertificateIssue.NONE -> 500L
-                }
-
-                delay(navigateDelay)
+                delay(500L)
 
                 // Establish connection via ConnectionManager
                 val detectedProtocol = client.getWorkingProtocol() ?: "http"
@@ -325,7 +312,6 @@ fun LoginScreen() {
                 // Reset connection state when screen becomes visible again
                 if (connectionState == ConnectionState.CONNECTED) {
                     connectionState = ConnectionState.IDLE
-                    warningMessage = null
                 }
             }
         }
@@ -455,6 +441,29 @@ fun LoginScreen() {
         )
     }
 
+    pendingCertificateTrust?.let { (server, pending) ->
+        CertificateTrustDialog(
+            pending = pending,
+            onTrust = {
+                pendingCertificateTrust = null
+                ServerTrustStore(context).pinFingerprint(server.hostname, server.port, pending.fingerprint)
+                attemptConnection(server)
+            },
+            onCancel = { pendingCertificateTrust = null }
+        )
+    }
+
+    pendingHttpFallbackServer?.let { server ->
+        InsecureFallbackDialog(
+            onConnectOverHttp = {
+                pendingHttpFallbackServer = null
+                ServerTrustStore(context).setProtocol(server.hostname, server.port, "http")
+                attemptConnection(server)
+            },
+            onCancel = { pendingHttpFallbackServer = null }
+        )
+    }
+
     // Offline prompt dialog - shown when connection fails but cache exists
     if (showOfflinePrompt && offlinePromptServer != null) {
         AlertDialog(
@@ -562,15 +571,5 @@ fun LoginScreen() {
             },
             modifier = Modifier.fillMaxWidth()
         )
-
-        // Warning message
-        warningMessage?.let { message ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.secondary,
-                fontSize = 14.sp
-            )
-        }
     }
 }

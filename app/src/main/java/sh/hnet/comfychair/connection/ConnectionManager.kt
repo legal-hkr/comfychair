@@ -398,6 +398,7 @@ object ConnectionManager {
         val hasCache = when {
             failureType == ConnectionFailure.STALLED -> false
             failureType == ConnectionFailure.AUTHENTICATION -> false
+            failureType == ConnectionFailure.CERTIFICATE -> false
             AppSettings.isMemoryFirstCache(context) -> false
             else -> hasOfflineCache(context, currentServerId ?: "")
         }
@@ -887,13 +888,13 @@ object ConnectionManager {
 
             if (success) {
                 openWebSocket()
-            } else if (failureType == ConnectionFailure.AUTHENTICATION) {
-                // Auth failure - don't retry, notify UI immediately
-                DebugLogger.w(TAG, "Authentication failed during reconnection")
+            } else if (failureType == ConnectionFailure.AUTHENTICATION || failureType == ConnectionFailure.CERTIFICATE) {
+                // Auth or certificate failure - retrying won't help, the user decides on the login screen
+                DebugLogger.w(TAG, "Reconnection rejected: $failureType")
                 reconnectAttempts = MAX_RECONNECT_ATTEMPTS  // Prevent further retries
                 _webSocketState.value = WebSocketState.Failed(
                     reason = errorMessage,
-                    failureType = ConnectionFailure.AUTHENTICATION
+                    failureType = failureType
                 )
             } else {
                 // Network error - schedule retry

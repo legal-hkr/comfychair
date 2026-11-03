@@ -96,8 +96,19 @@
     <string name="error_invalid_hostname">Nombre de host o dirección IP inválida</string>
 
     <!-- SSL certificate warnings -->
-    <string name="warning_self_signed_cert">No se puede validar el certificado, conectando de todos modos</string>
-    <string name="warning_unknown_ca">Emisor de certificado desconocido, conectando de todos modos</string>
+    <string name="title_certificate_untrusted">Certificado del servidor no verificado</string>
+    <string name="title_certificate_changed">El certificado del servidor ha cambiado</string>
+    <string name="msg_certificate_untrusted">Android no puede confirmar la identidad de este servidor. Es normal con un certificado autofirmado o emitido por tu propia autoridad de certificación. Compara la huella con el certificado del servidor. Si confías en él, ComfyChair solo aceptará este certificado para este servidor.</string>
+    <string name="msg_certificate_changed">El servidor presenta un certificado distinto del que aprobaste. Si no se ha cambiado en el servidor, alguien podría estar interceptando la conexión. Compara la huella con el certificado del servidor antes de confiar en él.</string>
+    <string name="msg_certificate_rejected_session">El certificado del servidor ya no es el que aprobaste. Revísalo en la pantalla de inicio de sesión.</string>
+    <string name="label_certificate_subject">Emitido para</string>
+    <string name="label_certificate_issuer">Emitido por</string>
+    <string name="label_certificate_valid_until">Válido hasta</string>
+    <string name="label_certificate_fingerprint">Huella SHA-256</string>
+    <string name="button_trust_certificate">Confiar y conectar</string>
+    <string name="title_insecure_fallback">Conexión sin cifrar</string>
+    <string name="msg_insecure_fallback">Este servidor aceptaba HTTPS, pero ahora solo responde por HTTP. Sin cifrado, cualquiera en la red puede leer los prompts, los medios generados y las credenciales. Conéctate por HTTP solo si sabes que la configuración del servidor se cambió a propósito.</string>
+    <string name="button_connect_over_http">Conectar por HTTP</string>
 
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>

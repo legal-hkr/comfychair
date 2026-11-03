@@ -42,7 +42,9 @@ fun ConnectionAlertDialog(
     onReturnToLogin: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isAuthFailure = failureType == ConnectionFailure.AUTHENTICATION
+    val isCertificateFailure = failureType == ConnectionFailure.CERTIFICATE
+    // Certificate problems are resolved on the login screen, like expired sessions
+    val isAuthFailure = failureType == ConnectionFailure.AUTHENTICATION || isCertificateFailure
     val isStallFailure = failureType == ConnectionFailure.STALLED
 
     AlertDialog(
@@ -51,6 +53,7 @@ fun ConnectionAlertDialog(
             Text(
                 text = stringResource(
                     when {
+                        isCertificateFailure -> R.string.title_certificate_changed
                         isAuthFailure -> R.string.title_session_expired
                         isStallFailure -> R.string.title_transfer_stalled
                         else -> R.string.title_connection_lost
@@ -63,6 +66,7 @@ fun ConnectionAlertDialog(
                 Text(
                     text = stringResource(
                         when {
+                            isCertificateFailure -> R.string.msg_certificate_rejected_session
                             isAuthFailure -> R.string.msg_session_expired
                             isStallFailure -> R.string.msg_transfer_stalled
                             else -> R.string.msg_connection_lost

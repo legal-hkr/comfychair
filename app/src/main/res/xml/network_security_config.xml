@@ -8,7 +8,8 @@
     3. Users connect to arbitrary IP addresses on their private networks
 
     The app supports and prefers HTTPS when available (auto-detection in ComfyUIClient).
-    Self-signed certificates are also supported with user notification.
+    Certificates not trusted by the system (self-signed, private CA) are accepted only after the user
+    confirms their SHA-256 fingerprint (trust on first use, see connection/ServerTrust.kt).
 
     See: https://developer.android.com/training/articles/security-config
 -->

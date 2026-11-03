@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.ui.screens
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.net.http.SslError
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.connection.ServerTrustStore
 
 /**
  * Full-screen WebView for browser-based SSO authentication.
@@ -93,9 +95,19 @@ fun BrowserAuthScreen(
                             handler: SslErrorHandler,
                             error: SslError
                         ) {
-                            // Accept self-signed and unknown CA certificates so that
-                            // servers already trusted via OkHttp continue to work in WebView.
-                            handler.proceed()
+                            // Accept only the certificate the user trusted for this server on the login screen
+                            // (the connection test always runs before this screen opens); reject anything else.
+                            val uri = Uri.parse(error.url)
+                            val host = uri.host
+                            val port = if (uri.port != -1) uri.port else 443
+                            val certificate = error.certificate.x509Certificate
+                            if (host != null && certificate != null &&
+                                ServerTrustStore(context).isPinned(host, port, certificate)
+                            ) {
+                                handler.proceed()
+                            } else {
+                                handler.cancel()
+                            }
                         }
                     }
 

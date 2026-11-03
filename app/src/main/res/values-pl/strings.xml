@@ -96,8 +96,19 @@
     <string name="error_invalid_hostname">Nieprawidłowa nazwa hosta lub adres IP</string>
 
     <!-- SSL certificate warnings -->
-    <string name="warning_self_signed_cert">Nie można zweryfikować certyfikatu, łączenie mimo to</string>
-    <string name="warning_unknown_ca">Nieznany wystawca certyfikatu, łączenie mimo to</string>
+    <string name="title_certificate_untrusted">Nieznany certyfikat serwera</string>
+    <string name="title_certificate_changed">Certyfikat serwera się zmienił</string>
+    <string name="msg_certificate_untrusted">Android nie potwierdza tożsamości tego serwera. Tak bywa przy certyfikacie podpisanym przez sam serwer albo wystawionym przez własny urząd certyfikacji. Porównaj odcisk z certyfikatem na serwerze. Po zaakceptowaniu ComfyChair będzie przyjmować dla tego serwera tylko ten certyfikat.</string>
+    <string name="msg_certificate_changed">Serwer przedstawia inny certyfikat niż ten zaakceptowany wcześniej. Jeśli nikt go nie wymieniał na serwerze, połączenie może być przechwytywane. Zanim go zaakceptujesz, porównaj odcisk z certyfikatem na serwerze.</string>
+    <string name="msg_certificate_rejected_session">Serwer przedstawia inny certyfikat niż zaakceptowany wcześniej. Sprawdzisz go na ekranie logowania.</string>
+    <string name="label_certificate_subject">Wystawiony dla</string>
+    <string name="label_certificate_issuer">Wystawca</string>
+    <string name="label_certificate_valid_until">Ważny do</string>
+    <string name="label_certificate_fingerprint">Odcisk SHA-256</string>
+    <string name="button_trust_certificate">Zaufaj i połącz</string>
+    <string name="title_insecure_fallback">Połączenie bez szyfrowania</string>
+    <string name="msg_insecure_fallback">Ten serwer łączył się wcześniej przez HTTPS, a teraz odpowiada tylko przez HTTP. Bez szyfrowania prompty, wygenerowane media i dane logowania może odczytać każdy w tej samej sieci. Połącz się przez HTTP tylko wtedy, gdy wiesz, że konfigurację serwera zmieniono celowo.</string>
+    <string name="button_connect_over_http">Połącz przez HTTP</string>
 
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>

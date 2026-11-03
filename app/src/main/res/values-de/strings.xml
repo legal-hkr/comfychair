@@ -96,8 +96,19 @@
     <string name="error_invalid_hostname">Ungültiger Hostname oder IP-Adresse</string>
 
     <!-- SSL certificate warnings -->
-    <string name="warning_self_signed_cert">Zertifikat kann nicht überprüft werden, verbinde trotzdem</string>
-    <string name="warning_unknown_ca">Unbekannter Zertifikatsaussteller, verbinde trotzdem</string>
+    <string name="title_certificate_untrusted">Unbekanntes Serverzertifikat</string>
+    <string name="title_certificate_changed">Serverzertifikat geändert</string>
+    <string name="msg_certificate_untrusted">Android kann die Identität dieses Servers nicht bestätigen. Das ist bei selbstsignierten Zertifikaten oder Zertifikaten einer eigenen Zertifizierungsstelle normal. Vergleiche den Fingerabdruck mit dem Zertifikat auf dem Server. Wenn du ihm vertraust, akzeptiert ComfyChair für diesen Server nur noch dieses Zertifikat.</string>
+    <string name="msg_certificate_changed">Der Server zeigt ein anderes Zertifikat als das, dem du vertraut hast. Wurde es auf dem Server nicht ausgetauscht, könnte jemand die Verbindung abfangen. Vergleiche den Fingerabdruck mit dem Zertifikat auf dem Server, bevor du ihm vertraust.</string>
+    <string name="msg_certificate_rejected_session">Das Serverzertifikat ist nicht mehr das, dem du vertraut hast. Prüfe es auf dem Anmeldebildschirm.</string>
+    <string name="label_certificate_subject">Ausgestellt für</string>
+    <string name="label_certificate_issuer">Ausgestellt von</string>
+    <string name="label_certificate_valid_until">Gültig bis</string>
+    <string name="label_certificate_fingerprint">SHA-256-Fingerabdruck</string>
+    <string name="button_trust_certificate">Vertrauen und verbinden</string>
+    <string name="title_insecure_fallback">Unverschlüsselte Verbindung</string>
+    <string name="msg_insecure_fallback">Dieser Server war bisher über HTTPS erreichbar, antwortet jetzt aber nur über HTTP. Ohne Verschlüsselung können Prompts, generierte Medien und Zugangsdaten von allen im Netzwerk mitgelesen werden. Verbinde dich nur über HTTP, wenn du weißt, dass die Serverkonfiguration absichtlich geändert wurde.</string>
+    <string name="button_connect_over_http">Über HTTP verbinden</string>
 
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>
