@@ -35,12 +35,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
@@ -127,6 +127,8 @@ fun ImageToVideoScreen(
         }
     }
 
+    val mediaViewer = LocalMediaViewer.current
+
     // Generate from the dock and from the prompt editor
     val submitJob = rememberJobSubmitter(
         generationViewModel = generationViewModel,
@@ -165,22 +167,11 @@ fun ImageToVideoScreen(
                         onClick = {
                             when (uiState.viewMode) {
                                 ImageToVideoViewMode.PREVIEW -> {
-                                    videoUri?.let { uri ->
-                                        val intent = MediaViewerActivity.createSingleVideoIntent(
-                                            context = context,
-                                            videoUri = uri,
-                                            hostname = generationViewModel.getHostname(),
-                                            port = generationViewModel.getPort()
-                                        )
-                                        context.startActivity(intent)
-                                    }
+                                    videoUri?.let { uri -> mediaViewer.openVideo(uri) }
                                 }
                                 ImageToVideoViewMode.SOURCE -> {
                                     // Source image is user-provided, no ComfyUI metadata
-                                    uiState.sourceImage?.let { bitmap ->
-                                        val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
-                                        context.startActivity(intent)
-                                    }
+                                    uiState.sourceImage?.let { bitmap -> mediaViewer.openImage(bitmap) }
                                 }
                             }
                         }
@@ -220,9 +211,7 @@ fun ImageToVideoScreen(
                         when {
                             showResults -> {
                                 val results = uiState.generationOutputs
-                                val openViewer = rememberResultsViewer(
-                                    generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToVideoViewModel::onCurrentResultChange
-                                )
+                                val openViewer = rememberResultsViewer(results, imageToVideoViewModel::onCurrentResultChange)
                                 // The screen already plays the job's first video
                                 val firstVideo = results.firstOrNull { it.isVideo }
                                 ResultsPreview(

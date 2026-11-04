@@ -34,13 +34,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MaskEditorActivity
-import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MaskEditorStateHolder
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
@@ -157,6 +157,8 @@ fun ImageToImageScreen(
     // Whether the mask is drawn over the source; only a view setting, the mask itself stays
     var maskVisible by rememberSaveable { mutableStateOf(true) }
 
+    val mediaViewer = LocalMediaViewer.current
+
     // Generate from the dock and from the prompt editor
     val submitJob = rememberJobSubmitter(
         generationViewModel = generationViewModel,
@@ -201,24 +203,17 @@ fun ImageToImageScreen(
                                 ImageToImageViewMode.PREVIEW -> {
                                     // Launch MediaViewer for generated image
                                     uiState.previewImage?.let { bitmap ->
-                                        val intent = MediaViewerActivity.createSingleImageIntent(
-                                            context = context,
+                                        mediaViewer.openImage(
                                             bitmap = bitmap,
-                                            hostname = generationViewModel.getHostname(),
-                                            port = generationViewModel.getPort(),
                                             filename = uiState.previewImageFilename,
                                             subfolder = uiState.previewImageSubfolder,
                                             type = uiState.previewImageType
                                         )
-                                        context.startActivity(intent)
                                     }
                                 }
                                 ImageToImageViewMode.SOURCE -> {
                                     // Launch MediaViewer for source image (without mask)
-                                    uiState.sourceImage?.let { bitmap ->
-                                        val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
-                                        context.startActivity(intent)
-                                    }
+                                    uiState.sourceImage?.let { bitmap -> mediaViewer.openImage(bitmap) }
                                 }
                             }
                         }
@@ -296,9 +291,7 @@ fun ImageToImageScreen(
                     result = { inTransition ->
                         if (showResults) {
                             val results = uiState.generationOutputs
-                            val openViewer = rememberResultsViewer(
-                                generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToImageViewModel::onCurrentResultChange
-                            )
+                            val openViewer = rememberResultsViewer(results, imageToImageViewModel::onCurrentResultChange)
                             ResultsPreview(
                                 results = results,
                                 currentIndex = uiState.currentResultIndex,

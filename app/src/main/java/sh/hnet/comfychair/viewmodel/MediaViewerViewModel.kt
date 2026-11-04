@@ -166,10 +166,54 @@ class MediaViewerViewModel : ViewModel() {
     private val _hasDeletedItems = MutableStateFlow(false)
     val hasDeletedItems: StateFlow<Boolean> = _hasDeletedItems.asStateFlow()
 
-    fun initialize(
+    /** Whether the viewer is shown over the main activity. */
+    private val _isOpen = MutableStateFlow(false)
+    val isOpen: StateFlow<Boolean> = _isOpen.asStateFlow()
+    private var onClosed: ((String?) -> Unit)? = null
+
+    /**
+     * Open the viewer over the main activity.
+     *
+     * @param onClosed Called on close with the file name of the item shown last (the list shrinks on deletion)
+     */
+    fun open(
         context: Context,
-        hostname: String,
-        port: Int,
+        mode: ViewerMode,
+        items: List<MediaViewerItem>,
+        initialIndex: Int,
+        singleBitmap: Bitmap? = null,
+        singleVideoUri: Uri? = null,
+        onClosed: (String?) -> Unit = {}
+    ) {
+        // A new session: nothing from the previous one carries over
+        commitPendingDeletion()
+        cachedMetadata.clear()
+        _currentMetadata.value = null
+        _isLoadingMetadata.value = false
+        _hasDeletedItems.value = false
+        this.onClosed = onClosed
+        initialize(context, mode, items, initialIndex, singleBitmap, singleVideoUri)
+        _isOpen.value = true
+    }
+
+    /** Close the viewer: a deletion waiting for Undo goes to the server, and the opener learns what was shown last. */
+    fun close() {
+        if (!_isOpen.value) return
+        commitPendingDeletion()
+        val lastShown = _uiState.value.currentItem?.filename
+        val deleted = _hasDeletedItems.value
+        _isOpen.value = false
+        _uiState.value = MediaViewerUiState()
+        cachedMetadata.clear()
+        _currentMetadata.value = null
+        onClosed?.invoke(lastShown)
+        onClosed = null
+        // The gallery already dropped the deleted jobs; refresh to match the server
+        if (deleted) GalleryRepository.getInstance().refresh()
+    }
+
+    private fun initialize(
+        context: Context,
         mode: ViewerMode,
         items: List<MediaViewerItem>,
         initialIndex: Int,

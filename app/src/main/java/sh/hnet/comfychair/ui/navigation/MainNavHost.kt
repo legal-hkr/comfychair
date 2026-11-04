@@ -12,6 +12,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -49,12 +51,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.cache.SourceHandoff
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.JobStatus
+import sh.hnet.comfychair.ui.components.LocalCoveredByMediaViewer
+import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.MainNavigationBar
+import sh.hnet.comfychair.ui.components.MediaViewerOpener
+import sh.hnet.comfychair.ui.components.MediaViewerOverlay
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
 import sh.hnet.comfychair.ui.screens.ApplicationSettingsScreen
@@ -70,6 +75,7 @@ import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
@@ -90,6 +96,7 @@ fun MainNavHost(
     textToVideoViewModel: TextToVideoViewModel,
     imageToVideoViewModel: ImageToVideoViewModel,
     galleryViewModel: GalleryViewModel,
+    mediaViewerViewModel: MediaViewerViewModel,
     settingsViewModel: SettingsViewModel,
     workflowManagementViewModel: WorkflowManagementViewModel,
     onLogout: () -> Unit,
@@ -120,12 +127,9 @@ fun MainNavHost(
         }
     }
 
-    // "Use as source" from the media viewer, which runs as its own activity over this one
-    LaunchedEffect(Unit) {
-        SourceHandoff.pending.collect { request ->
-            if (request != null) SourceHandoff.take()?.let { useAsSource(it.target) { it.bitmap } }
-        }
-    }
+    // The media viewer, over everything below (navigation bar included)
+    val viewerOpen by mediaViewerViewModel.isOpen.collectAsState()
+    val mediaViewer = remember(mediaViewerViewModel) { MediaViewerOpener(context, mediaViewerViewModel) }
 
     val resources = LocalResources.current
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -187,109 +191,117 @@ fun MainNavHost(
     val galleryState by galleryViewModel.uiState.collectAsState()
     val gallerySelecting = currentScreen == MainRoute.Gallery && galleryState.isSelectionMode
 
-    Scaffold(
-        bottomBar = {
-            AnimatedVisibility(
-                visible = !gallerySelecting,
-                enter = expandVertically(expandFrom = Alignment.Top),
-                exit = shrinkVertically(shrinkTowards = Alignment.Top)
-            ) {
-                MainNavigationBar(
-                    navController = navController,
-                    lastImageRoute = mainRouteOf(lastImageRoute) ?: MainRoute.TextToImage,
-                    lastVideoRoute = mainRouteOf(lastVideoRoute) ?: MainRoute.TextToVideo,
-                    ownJobs = ownJobsPerTab,
-                    unseenResults = unseenResults.toSet()
-                )
+    CompositionLocalProvider(LocalMediaViewer provides mediaViewer) {
+        Box(Modifier.fillMaxSize()) {
+            // Video players under the viewer step aside while it's open (the player is shared)
+            CompositionLocalProvider(LocalCoveredByMediaViewer provides viewerOpen) {
+                Scaffold(
+                    bottomBar = {
+                        AnimatedVisibility(
+                            visible = !gallerySelecting,
+                            enter = expandVertically(expandFrom = Alignment.Top),
+                            exit = shrinkVertically(shrinkTowards = Alignment.Top)
+                        ) {
+                            MainNavigationBar(
+                                navController = navController,
+                                lastImageRoute = mainRouteOf(lastImageRoute) ?: MainRoute.TextToImage,
+                                lastVideoRoute = mainRouteOf(lastVideoRoute) ?: MainRoute.TextToVideo,
+                                ownJobs = ownJobsPerTab,
+                                unseenResults = unseenResults.toSet()
+                            )
+                        }
+                    },
+                    snackbarHost = {
+                        // Above the generation screens' controls (prompt and Generate), so it doesn't cover them
+                        SnackbarHost(snackbarHostState) { data ->
+                            // Rounded and inset like the preview; standard snackbar colours
+                            Snackbar(data, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(horizontal = 12.dp))
+                        }
+                    },
+                    modifier = modifier.imePadding()
+                ) { paddingValues ->
+                    // The source switch on each screen shows the other screens of its tab
+                    CompositionLocalProvider(LocalScreenNavigator provides { route: MainRoute -> navController.navigateToScreen(route) }) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = startDestination,
+                            modifier = Modifier.padding(paddingValues),
+                            enterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = false) },
+                            exitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = false) },
+                            popEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
+                            popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
+                        ) {
+                            composable(MainRoute.TextToImage.route) {
+                                TextToImageScreen(
+                                    generationViewModel = generationViewModel,
+                                    textToImageViewModel = textToImageViewModel,
+                                    onUseAsSource = useAsSource
+                                )
+                            }
+
+                            composable(MainRoute.ImageToImage.route) {
+                                ImageToImageScreen(
+                                    generationViewModel = generationViewModel,
+                                    imageToImageViewModel = imageToImageViewModel,
+                                    onUseAsSource = useAsSource
+                                )
+                            }
+
+                            composable(MainRoute.TextToVideo.route) {
+                                TextToVideoScreen(
+                                    generationViewModel = generationViewModel,
+                                    textToVideoViewModel = textToVideoViewModel,
+                                    onUseAsSource = useAsSource
+                                )
+                            }
+
+                            // Server history; the same GenerationViewModel as the generation screens
+                            composable(MainRoute.Gallery.route) {
+                                GalleryScreen(
+                                    generationViewModel = generationViewModel,
+                                    galleryViewModel = galleryViewModel
+                                )
+                            }
+
+                            // Settings tab: the list, and the pages it opens (Back returns to the list)
+                            composable(MainRoute.Settings.route) {
+                                SettingsRootScreen(onOpenPage = { page -> navController.navigate(page.route) })
+                            }
+                            composable(SettingsRoute.Server.route) {
+                                ServerSettingsScreen(
+                                    viewModel = settingsViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onLogout = onLogout
+                                )
+                            }
+                            composable(SettingsRoute.Workflows.route) {
+                                WorkflowsSettingsScreen(
+                                    viewModel = workflowManagementViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable(SettingsRoute.Application.route) {
+                                ApplicationSettingsScreen(
+                                    viewModel = settingsViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable(SettingsRoute.About.route) {
+                                AboutSettingsScreen(onNavigateBack = { navController.popBackStack() })
+                            }
+
+                            composable(MainRoute.ImageToVideo.route) {
+                                ImageToVideoScreen(
+                                    generationViewModel = generationViewModel,
+                                    imageToVideoViewModel = imageToVideoViewModel,
+                                    onUseAsSource = useAsSource
+                                )
+                            }
+                        }
+                    }
+                }
             }
-        },
-        snackbarHost = {
-            // Above the generation screens' controls (prompt and Generate), so it doesn't cover them
-            SnackbarHost(snackbarHostState) { data ->
-                // Rounded and inset like the preview; standard snackbar colours
-                Snackbar(data, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(horizontal = 12.dp))
-            }
-        },
-        modifier = modifier.imePadding()
-    ) { paddingValues ->
-        // The source switch on each screen shows the other screens of its tab
-        CompositionLocalProvider(LocalScreenNavigator provides { route: MainRoute -> navController.navigateToScreen(route) }) {
-            NavHost(
-                navController = navController,
-                startDestination = startDestination,
-                modifier = Modifier.padding(paddingValues),
-                enterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = false) },
-                exitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = false) },
-                popEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
-                popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
-            ) {
-                composable(MainRoute.TextToImage.route) {
-                    TextToImageScreen(
-                        generationViewModel = generationViewModel,
-                        textToImageViewModel = textToImageViewModel,
-                        onUseAsSource = useAsSource
-                    )
-                }
-
-                composable(MainRoute.ImageToImage.route) {
-                    ImageToImageScreen(
-                        generationViewModel = generationViewModel,
-                        imageToImageViewModel = imageToImageViewModel,
-                        onUseAsSource = useAsSource
-                    )
-                }
-
-                composable(MainRoute.TextToVideo.route) {
-                    TextToVideoScreen(
-                        generationViewModel = generationViewModel,
-                        textToVideoViewModel = textToVideoViewModel,
-                        onUseAsSource = useAsSource
-                    )
-                }
-
-                // Server history; the same GenerationViewModel as the generation screens
-                composable(MainRoute.Gallery.route) {
-                    GalleryScreen(
-                        generationViewModel = generationViewModel,
-                        galleryViewModel = galleryViewModel
-                    )
-                }
-
-                // Settings tab: the list, and the pages it opens (Back returns to the list)
-                composable(MainRoute.Settings.route) {
-                    SettingsRootScreen(onOpenPage = { page -> navController.navigate(page.route) })
-                }
-                composable(SettingsRoute.Server.route) {
-                    ServerSettingsScreen(
-                        viewModel = settingsViewModel,
-                        onNavigateBack = { navController.popBackStack() },
-                        onLogout = onLogout
-                    )
-                }
-                composable(SettingsRoute.Workflows.route) {
-                    WorkflowsSettingsScreen(
-                        viewModel = workflowManagementViewModel,
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                composable(SettingsRoute.Application.route) {
-                    ApplicationSettingsScreen(
-                        viewModel = settingsViewModel,
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                composable(SettingsRoute.About.route) {
-                    AboutSettingsScreen(onNavigateBack = { navController.popBackStack() })
-                }
-
-                composable(MainRoute.ImageToVideo.route) {
-                    ImageToVideoScreen(
-                        generationViewModel = generationViewModel,
-                        imageToVideoViewModel = imageToVideoViewModel,
-                        onUseAsSource = useAsSource
-                    )
-                }
-            }
+            MediaViewerOverlay(mediaViewerViewModel, onUseAsSource = { target, bitmap -> useAsSource(target) { bitmap } })
         }
     }
 }

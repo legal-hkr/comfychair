@@ -39,6 +39,7 @@ import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
@@ -65,6 +66,7 @@ class MainContainerActivity : ComponentActivity() {
     private val textToVideoViewModel: TextToVideoViewModel by viewModels()
     private val imageToVideoViewModel: ImageToVideoViewModel by viewModels()
     private val galleryViewModel: GalleryViewModel by viewModels()
+    private val mediaViewerViewModel: MediaViewerViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
 
@@ -188,6 +190,7 @@ class MainContainerActivity : ComponentActivity() {
                         textToVideoViewModel = textToVideoViewModel,
                         imageToVideoViewModel = imageToVideoViewModel,
                         galleryViewModel = galleryViewModel,
+                        mediaViewerViewModel = mediaViewerViewModel,
                         settingsViewModel = settingsViewModel,
                         workflowManagementViewModel = workflowManagementViewModel,
                         onLogout = { logout() },

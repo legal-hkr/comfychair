@@ -110,6 +110,7 @@ fun VideoPlayer(
     showPlaybackStatus: Boolean = false,
     placeholder: Bitmap? = null
 ) {
+    val coveredByViewer = LocalCoveredByMediaViewer.current
     val context = LocalContext.current
 
     // Initialize thumbnail synchronously from cache to avoid black flash during transitions
@@ -191,7 +192,8 @@ fun VideoPlayer(
             // Read once: the thumbnail may be set from the metadata loader meanwhile
             val currentThumbnail = thumbnail
 
-            if (isActive && videoUri != null) {
+            // Under an open media viewer the player belongs to the viewer (one surface at a time)
+            if (isActive && !coveredByViewer && videoUri != null) {
                 // Use shared ExoPlayer instance with reference counting
                 val exoPlayer = remember { SharedVideoPlayer.registerConsumer(context) }
 

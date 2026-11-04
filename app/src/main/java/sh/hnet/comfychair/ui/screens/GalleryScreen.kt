@@ -2,11 +2,8 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
@@ -88,12 +85,11 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
-import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.PlayBadge
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
@@ -119,22 +115,7 @@ fun GalleryScreen(
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
 
-    // State and effects
-    // Activity result launcher for MediaViewerActivity
-    val mediaViewerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        // Restore active view to Gallery
-        MediaCache.setActiveView(ActiveView.GALLERY)
-
-        // Refresh gallery if item was deleted (silent refresh, no spinner)
-        if (result.resultCode == Activity.RESULT_OK) {
-            val itemDeleted = result.data?.getBooleanExtra(MediaViewerActivity.RESULT_ITEM_DELETED, false) ?: false
-            if (itemDeleted) {
-                galleryViewModel.refresh()
-            }
-        }
-    }
+    val mediaViewer = LocalMediaViewer.current
 
     // Initialize ViewModel
     LaunchedEffect(Unit) {
@@ -189,14 +170,8 @@ fun GalleryScreen(
         MediaCache.updateNavigationPriorities(clickedIndex, allKeys)
 
         val viewerItems = galleryItemsToViewerItems(uiState.items)
-        val intent = MediaViewerActivity.createGalleryIntent(
-            context = context,
-            hostname = ConnectionManager.hostname,
-            port = ConnectionManager.port,
-            items = viewerItems,
-            initialIndex = clickedIndex
-        )
-        mediaViewerLauncher.launch(intent)
+        // Back to the gallery's cache priorities when it closes (deletions there update the gallery already)
+        mediaViewer.openGallery(viewerItems, clickedIndex) { MediaCache.setActiveView(ActiveView.GALLERY) }
     }
 
     // Grid state for scroll tracking

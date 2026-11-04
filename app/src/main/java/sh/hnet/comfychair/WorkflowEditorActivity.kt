@@ -22,7 +22,6 @@ import sh.hnet.comfychair.workflow.WorkflowMappingState
 
 /**
  * Fullscreen activity for editing workflow graphs.
- * Follows the MediaViewerActivity pattern.
  *
  * Can operate in two modes:
  * 1. View mode: Display an existing workflow graph

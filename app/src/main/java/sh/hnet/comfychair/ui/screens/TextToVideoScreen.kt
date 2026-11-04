@@ -23,19 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
@@ -74,7 +73,6 @@ fun TextToVideoScreen(
     onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val ownerId = TextToVideoViewModel.OWNER_ID
@@ -104,6 +102,8 @@ fun TextToVideoScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val mediaViewer = LocalMediaViewer.current
+
     // Generate from the dock and from the prompt editor
     val submitJob = rememberJobSubmitter(
         generationViewModel = generationViewModel,
@@ -129,25 +129,14 @@ fun TextToVideoScreen(
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(enabled = videoUri != null && !showResults) {
                         // Open the single video in the media viewer
-                        videoUri?.let { uri ->
-                            context.startActivity(
-                                MediaViewerActivity.createSingleVideoIntent(
-                                    context = context,
-                                    videoUri = uri,
-                                    hostname = generationViewModel.getHostname(),
-                                    port = generationViewModel.getPort()
-                                )
-                            )
-                        }
+                        videoUri?.let { uri -> mediaViewer.openVideo(uri) }
                     },
                 contentAlignment = Alignment.Center
             ) {
                 when {
                     showResults -> {
                         val results = uiState.generationOutputs
-                        val openViewer = rememberResultsViewer(
-                            generationViewModel.getHostname(), generationViewModel.getPort(), results, textToVideoViewModel::onCurrentResultChange
-                        )
+                        val openViewer = rememberResultsViewer(results, textToVideoViewModel::onCurrentResultChange)
                         // The screen already plays the job's first video
                         val firstVideo = results.firstOrNull { it.isVideo }
                         ResultsPreview(

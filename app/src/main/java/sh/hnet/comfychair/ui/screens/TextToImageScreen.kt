@@ -21,17 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
@@ -67,7 +66,6 @@ fun TextToImageScreen(
     onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     val resources = LocalResources.current
     val ownerId = TextToImageViewModel.OWNER_ID
 
@@ -84,6 +82,8 @@ fun TextToImageScreen(
     // Several results of the last job are shown as a pager with a thumbnail strip
     val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
     val isThisScreenQueued = !isThisScreenExecuting && queueState.hasWaitingJob(ownerId)
+
+    val mediaViewer = LocalMediaViewer.current
 
     // Generate from the dock and from the prompt editor
     val submitJob = rememberJobSubmitter(
@@ -110,25 +110,19 @@ fun TextToImageScreen(
                     .clickable(enabled = uiState.previewBitmap != null && !isThisScreenExecuting && !showResults) {
                         // Launch MediaViewer for single image
                         uiState.previewBitmap?.let { bitmap ->
-                            val intent = MediaViewerActivity.createSingleImageIntent(
-                                context = context,
+                            mediaViewer.openImage(
                                 bitmap = bitmap,
-                                hostname = generationViewModel.getHostname(),
-                                port = generationViewModel.getPort(),
                                 filename = uiState.currentImageFilename,
                                 subfolder = uiState.currentImageSubfolder,
                                 type = uiState.currentImageType
                             )
-                            context.startActivity(intent)
                         }
                     },
                 contentAlignment = Alignment.Center
             ) {
                 if (showResults) {
                     val results = uiState.generationOutputs
-                    val openViewer = rememberResultsViewer(
-                        generationViewModel.getHostname(), generationViewModel.getPort(), results, textToImageViewModel::onCurrentResultChange
-                    )
+                    val openViewer = rememberResultsViewer(results, textToImageViewModel::onCurrentResultChange)
                     ResultsPreview(
                         results = results,
                         currentIndex = uiState.currentResultIndex,

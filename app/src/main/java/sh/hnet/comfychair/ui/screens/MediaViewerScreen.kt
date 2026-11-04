@@ -3,6 +3,7 @@
 package sh.hnet.comfychair.ui.screens
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -75,7 +76,6 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
-import sh.hnet.comfychair.cache.SourceHandoff
 import sh.hnet.comfychair.ui.components.ImageViewer
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.SharedVideoPlayer
@@ -96,6 +96,7 @@ import sh.hnet.comfychair.viewmodel.ViewerMode
 fun MediaViewerScreen(
     viewModel: MediaViewerViewModel,
     onClose: () -> Unit,
+    onUseAsSource: (SourceTarget, Bitmap) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -409,7 +410,7 @@ fun MediaViewerScreen(
                     scope.launch {
                         val bitmap = viewModel.currentImage()
                         if (bitmap != null) {
-                            SourceHandoff.offer(target, bitmap)
+                            onUseAsSource(target, bitmap)
                             onClose()
                         } else {
                             Toast.makeText(context, R.string.error_failed_load_image, Toast.LENGTH_SHORT).show()

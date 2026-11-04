@@ -2,8 +2,6 @@ package sh.hnet.comfychair.ui.components
 
 import android.graphics.Bitmap
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
@@ -88,7 +86,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
@@ -466,24 +463,20 @@ fun ResultHeroVideo(output: GenerationOutput, isCurrent: Boolean, isActive: Bool
  */
 @Composable
 fun rememberResultsViewer(
-    hostname: String,
-    port: Int,
     results: List<GenerationOutput>,
     onReturn: (Int) -> Unit
 ): (Int) -> Unit {
-    val context = LocalContext.current
+    val mediaViewer = LocalMediaViewer.current
     val currentResults by rememberUpdatedState(results)
     val currentOnReturn by rememberUpdatedState(onReturn)
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val filename = result.data?.getStringExtra(MediaViewerActivity.RESULT_CURRENT_FILENAME) ?: return@rememberLauncherForActivityResult
-        val index = currentResults.indexOfFirst { it.filename == filename }
-        if (index >= 0) currentOnReturn(index)
-    }
     return { index ->
         val items = currentResults.mapIndexed { i, output ->
             MediaViewerItem(output.promptId, output.filename, output.subfolder, output.type, output.isVideo, i)
         }
-        launcher.launch(MediaViewerActivity.createGalleryIntent(context, hostname, port, items, index))
+        mediaViewer.openGallery(items, index) { filename ->
+            val shown = currentResults.indexOfFirst { it.filename == filename }
+            if (shown >= 0) currentOnReturn(shown)
+        }
     }
 }
 

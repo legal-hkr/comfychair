@@ -17,7 +17,6 @@ import sh.hnet.comfychair.util.PrivacyUtils
 
 /**
  * Fullscreen activity for editing inpainting masks.
- * Follows the MediaViewerActivity pattern for consistent transitions.
  */
 class MaskEditorActivity : ComponentActivity() {
 
