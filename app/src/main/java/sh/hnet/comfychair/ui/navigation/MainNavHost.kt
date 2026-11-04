@@ -18,10 +18,12 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.components.MainNavigationBar
 import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
+import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
@@ -38,7 +40,6 @@ fun MainNavHost(
     imageToImageViewModel: ImageToImageViewModel,
     imageToVideoViewModel: ImageToVideoViewModel,
     onNavigateToSettings: () -> Unit,
-    onNavigateToGallery: () -> Unit,
     onLogout: () -> Unit,
     startDestination: String = MainRoute.TextToImage.route,
     modifier: Modifier = Modifier,
@@ -70,7 +71,6 @@ fun MainNavHost(
         bottomBar = {
             MainNavigationBar(
                 navController = navController,
-                onNavigateToGallery = onNavigateToGallery,
                 onNavigateToSettings = onNavigateToSettings
             )
         },
@@ -110,6 +110,17 @@ fun MainNavHost(
                         generationViewModel = generationViewModel,
                         textToVideoViewModel = textToVideoViewModel,
                         onUseAsSource = useAsSource,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onLogout = onLogout
+                    )
+                }
+
+                // Server history; the same GenerationViewModel as the generation screens
+                composable(MainRoute.Gallery.route) {
+                    val galleryViewModel: GalleryViewModel = viewModel()
+                    GalleryScreen(
+                        generationViewModel = generationViewModel,
+                        galleryViewModel = galleryViewModel,
                         onNavigateToSettings = onNavigateToSettings,
                         onLogout = onLogout
                     )

@@ -40,7 +40,6 @@ import sh.hnet.comfychair.ui.navigation.outputTab
 @Composable
 fun MainNavigationBar(
     navController: NavController,
-    onNavigateToGallery: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -73,14 +72,14 @@ fun MainNavigationBar(
             icon = Icons.Outlined.Movie,
             onClick = { mainRouteOf(lastVideoRoute)?.let(navController::navigateToScreen) }
         )
-        // Separate activities until they become tabs of this one
         TabItem(
-            selected = false,
+            selected = currentRoute == MainRoute.Gallery,
             label = stringResource(R.string.nav_gallery),
             selectedIcon = Icons.Filled.PhotoLibrary,
             icon = Icons.Outlined.PhotoLibrary,
-            onClick = onNavigateToGallery
+            onClick = { navController.navigateToScreen(MainRoute.Gallery) }
         )
+        // A separate activity until it becomes a tab of this one
         TabItem(
             selected = false,
             label = stringResource(R.string.action_settings),

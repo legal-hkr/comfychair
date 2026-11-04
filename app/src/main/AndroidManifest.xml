@@ -41,13 +41,6 @@
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- GalleryContainerActivity - Container for gallery screen -->
-        <activity
-            android:name=".GalleryContainerActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize" />
-
         <!-- MediaViewerActivity - Fullscreen media viewer -->
         <activity
             android:name=".MediaViewerActivity"

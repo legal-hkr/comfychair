@@ -25,20 +25,20 @@ import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.storage.MediaStorageMode
-import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.PrivacyUtils
 import sh.hnet.comfychair.util.ServerUrlUtils
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
-import sh.hnet.comfychair.util.PrivacyUtils
 
 /**
  * Container activity that hosts the main navigation graph.
@@ -174,7 +174,6 @@ class MainContainerActivity : ComponentActivity() {
                         imageToImageViewModel = imageToImageViewModel,
                         imageToVideoViewModel = imageToVideoViewModel,
                         onNavigateToSettings = { openSettings() },
-                        onNavigateToGallery = { openGallery() },
                         onLogout = { logout() },
                         startDestination = startDestination
                     )
@@ -246,14 +245,6 @@ class MainContainerActivity : ComponentActivity() {
     private fun openSettings() {
         val intent = Intent(this, SettingsContainerActivity::class.java)
         settingsLauncher.launch(intent)
-    }
-
-    /**
-     * Open the Gallery activity
-     */
-    private fun openGallery() {
-        val intent = Intent(this, GalleryContainerActivity::class.java)
-        startActivity(intent)
     }
 
     /**
