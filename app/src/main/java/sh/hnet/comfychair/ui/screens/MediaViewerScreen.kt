@@ -426,7 +426,6 @@ private fun MediaContent(
                 VideoPlayer(
                     videoUri = videoUri,
                     modifier = Modifier.fillMaxSize(),
-                    showController = false,
                     scaleMode = VideoScaleMode.FIT,
                     enableZoom = true,
                     onSingleTap = onSingleTap,
