@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.navigation
 
+import sh.hnet.comfychair.navigation.SettingsRoute
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -37,8 +38,15 @@ fun mainRouteOf(route: String?): MainRoute? = when (route) {
     MainRoute.TextToVideo.route -> MainRoute.TextToVideo
     MainRoute.ImageToVideo.route -> MainRoute.ImageToVideo
     MainRoute.Gallery.route -> MainRoute.Gallery
+    MainRoute.Settings.route -> MainRoute.Settings
     else -> null
 }
+
+/** The Settings tab: its list and the pages opened from it. */
+fun isSettingsRoute(route: String?): Boolean =
+    route == MainRoute.Settings.route || route in listOf(
+        SettingsRoute.Workflows.route, SettingsRoute.Application.route, SettingsRoute.Server.route, SettingsRoute.About.route
+    )
 
 /**
  * Show a screen the way tabs do: the previous screens' state is saved and restored, and switching never piles up

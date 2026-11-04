@@ -83,8 +83,6 @@ fun ImageToImageScreen(
     generationViewModel: GenerationViewModel,
     imageToImageViewModel: ImageToImageViewModel,
     onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onLogout: () -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -160,9 +158,7 @@ fun ImageToImageScreen(
         GenerationTopBar(
             screen = MainRoute.ImageToImage,
             ownerId = ownerId,
-            generationViewModel = generationViewModel,
-            onNavigateToSettings = onNavigateToSettings,
-            onLogout = onLogout
+            generationViewModel = generationViewModel
         )
 
         // Picture-in-picture thumbnails: the side that isn't shown full size

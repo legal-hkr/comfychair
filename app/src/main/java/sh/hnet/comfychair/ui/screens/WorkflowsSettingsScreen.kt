@@ -68,7 +68,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
+import sh.hnet.comfychair.ui.components.SettingsBackButton
 import sh.hnet.comfychair.ui.components.WorkflowThumbnail
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
@@ -83,8 +83,7 @@ import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 @Composable
 fun WorkflowsSettingsScreen(
     viewModel: WorkflowManagementViewModel,
-    onNavigateToGeneration: () -> Unit,
-    onLogout: () -> Unit
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -181,7 +180,7 @@ fun WorkflowsSettingsScreen(
                     exportLauncher.launch(event.suggestedFilename)
                 }
                 is WorkflowManagementEvent.WorkflowsChanged -> {
-                    // Handled by SettingsContainerActivity to set result
+                    // Handled by MainContainerActivity (reload when leaving the Settings tab)
                 }
             }
         }
@@ -192,6 +191,7 @@ fun WorkflowsSettingsScreen(
         TopAppBar(
             title = { Text(stringResource(R.string.title_workflows_settings)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
+            navigationIcon = { SettingsBackButton(onNavigateBack) },
             actions = {
                 // New workflow button
                 IconButton(onClick = {
@@ -205,11 +205,6 @@ fun WorkflowsSettingsScreen(
                 IconButton(onClick = { jsonPickerLauncher.launch("application/json") }) {
                     Icon(Icons.Default.UploadFile, contentDescription = stringResource(R.string.button_import))
                 }
-                // Menu button
-                SettingsMenuDropdown(
-                    onGeneration = onNavigateToGeneration,
-                    onLogout = onLogout
-                )
             }
         )
 

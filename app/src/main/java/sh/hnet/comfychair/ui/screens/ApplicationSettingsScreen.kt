@@ -1,10 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.storage.MediaStorageMode
-import androidx.compose.ui.semantics.Role
-import androidx.compose.material3.RadioButton
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.selectable
 import android.app.LocaleManager
 import android.net.Uri
 import android.os.LocaleList
@@ -19,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material3.AlertDialog
@@ -30,22 +27,28 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.Alignment
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.ui.components.LanguageDropdown
 import sh.hnet.comfychair.ui.components.LanguageOption
 import sh.hnet.comfychair.ui.components.LogViewerDialog
@@ -53,18 +56,12 @@ import sh.hnet.comfychair.ui.components.SettingsScreenScaffold
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
-import sh.hnet.comfychair.workflow.routing.RouterProvider
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ApplicationSettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToGeneration: () -> Unit,
-    onLogout: () -> Unit,
     onNavigateToLogin: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -126,7 +123,7 @@ fun ApplicationSettingsScreen(
                     Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                 }
                 is SettingsEvent.RefreshNeeded -> {
-                    // Handled by SettingsContainerActivity
+                    // Handled by MainContainerActivity (reload when leaving the Settings tab)
                 }
                 is SettingsEvent.ShowRestoreDialog -> {
                     pendingRestoreUri = event.uri
@@ -220,8 +217,7 @@ fun ApplicationSettingsScreen(
 
     SettingsScreenScaffold(
         title = stringResource(R.string.title_application_settings),
-        onNavigateToGeneration = onNavigateToGeneration,
-        onLogout = onLogout
+        onNavigateBack = onNavigateBack
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 

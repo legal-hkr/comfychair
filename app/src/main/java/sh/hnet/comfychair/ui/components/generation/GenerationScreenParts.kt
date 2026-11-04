@@ -79,7 +79,6 @@ import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.storage.AppSettings
-import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.components.GenerationButton
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
@@ -236,10 +235,10 @@ fun rememberPromptInputState(prompt: String): PromptInputState {
 }
 
 /**
- * Top app bar of a generation screen: source switch, queue chip and the app menu. The running job's progress is shown on the
+ * Top app bar of a generation screen: source switch and queue chip. The running job's progress is shown on the
  * preview ([ScreenJobStatus]).
  *
- * @param actions The screen's own actions (e.g. picking a source image), shown before the app menu
+ * @param actions The screen's own actions, shown after the queue chip
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -247,8 +246,6 @@ fun GenerationTopBar(
     screen: MainRoute,
     ownerId: String,
     generationViewModel: GenerationViewModel,
-    onNavigateToSettings: () -> Unit,
-    onLogout: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -268,7 +265,6 @@ fun GenerationTopBar(
         actions = {
             QueueChip(queueChipState, onClick = if (isOfflineMode) null else ({ QueueSheetController.visible = true }))
             actions()
-            AppMenuDropdown(onSettings = onNavigateToSettings, onLogout = onLogout)
         }
     )
 

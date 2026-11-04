@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -37,8 +38,12 @@ import sh.hnet.comfychair.util.ServerUrlUtils
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.SettingsEvent
+import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
+import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
 /**
  * Container activity that hosts the main navigation graph.
@@ -46,15 +51,21 @@ import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
  */
 class MainContainerActivity : ComponentActivity() {
 
-    // Constants
     companion object {
-        const val RESULT_REFRESH_NEEDED = 100
+        /** Route to show after a restart, e.g. the screen the user went to when leaving Settings. */
+        private const val EXTRA_START_ROUTE = "start_route"
     }
 
     // ViewModels
     private val generationViewModel: GenerationViewModel by viewModels()
     private val imageToImageViewModel: ImageToImageViewModel by viewModels()
     private val imageToVideoViewModel: ImageToVideoViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
+    private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
+
+    // Set by a change in Settings that needs the generation screens reloaded (restored backup, cleared data,
+    // changed workflows); applied when the user leaves the Settings tab
+    private var reloadPending = false
 
     // Credential storage — used to persist refreshed browser-session cookies
     private val credentialStorage by lazy { CredentialStorage(applicationContext) }
@@ -77,28 +88,6 @@ class MainContainerActivity : ComponentActivity() {
         }
         // If cancelled or no cookies: leave the user in the current state;
         // the session-expired dialog remains dismissible via Return to Login.
-    }
-
-    // Activity result launchers
-    private val settingsLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        when (result.resultCode) {
-            RESULT_REFRESH_NEEDED -> {
-                // Settings cleared/restored or workflows changed - restart activity fresh
-                val intent = Intent(this, MainContainerActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                finish()
-            }
-            SettingsContainerActivity.RESULT_CONNECTION_CHANGED -> {
-                // Connection settings changed - return to login screen
-                val intent = Intent(this, MainActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                finish()
-            }
-        }
     }
 
     // Lifecycle methods
@@ -151,8 +140,10 @@ class MainContainerActivity : ComponentActivity() {
         // previews once MediaStateHolder announces the media are ready
         MediaStateHolder.prepareForStorageMode(applicationContext, storageMode)
 
-        // Determine start destination based on active generation owner
-        val startDestination = when (generationViewModel.generationState.value.ownerId) {
+        settingsViewModel.initialize(applicationContext)
+
+        // Determine start destination: the screen chosen before a reload, else the active generation's owner
+        val startDestination = intent.getStringExtra(EXTRA_START_ROUTE) ?: when (generationViewModel.generationState.value.ownerId) {
             TextToImageViewModel.OWNER_ID -> MainRoute.TextToImage.route
             ImageToImageViewModel.OWNER_ID -> MainRoute.ImageToImage.route
             TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo.route
@@ -168,13 +159,31 @@ class MainContainerActivity : ComponentActivity() {
                 val isReconnecting by ConnectionManager.isReconnecting.collectAsState()
                 val sessionExpired by ConnectionManager.sessionExpired.collectAsState()
 
+                // Settings changes that need a reload, or a return to login
+                LaunchedEffect(Unit) {
+                    settingsViewModel.events.collect { event ->
+                        when (event) {
+                            is SettingsEvent.RefreshNeeded -> reloadPending = true
+                            is SettingsEvent.NavigateToLogin -> returnToLogin()
+                            else -> Unit // Toasts and dialogs are handled by the settings pages
+                        }
+                    }
+                }
+                LaunchedEffect(Unit) {
+                    workflowManagementViewModel.events.collect { event ->
+                        if (event is WorkflowManagementEvent.WorkflowsChanged) reloadPending = true
+                    }
+                }
+
                 Surface(modifier = Modifier.fillMaxSize()) {
                     MainNavHost(
                         generationViewModel = generationViewModel,
                         imageToImageViewModel = imageToImageViewModel,
                         imageToVideoViewModel = imageToVideoViewModel,
-                        onNavigateToSettings = { openSettings() },
+                        settingsViewModel = settingsViewModel,
+                        workflowManagementViewModel = workflowManagementViewModel,
                         onLogout = { logout() },
+                        onLeftSettings = { route -> if (reloadPending) reloadAt(route) },
                         startDestination = startDestination
                     )
                 }
@@ -240,11 +249,23 @@ class MainContainerActivity : ComponentActivity() {
 
     // Navigation helpers
     /**
-     * Open the Settings activity
+     * Start this activity fresh at [route], so the generation screens load workflows and settings again. Until an
+     * in-place reload exists, this is how changes made in Settings take effect, as when Settings was its own activity.
      */
-    private fun openSettings() {
-        val intent = Intent(this, SettingsContainerActivity::class.java)
-        settingsLauncher.launch(intent)
+    private fun reloadAt(route: String) {
+        val intent = Intent(this, MainContainerActivity::class.java)
+            .putExtra(EXTRA_START_ROUTE, route)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        finish()
+    }
+
+    /** Back to the login screen, e.g. after the connection settings changed. */
+    private fun returnToLogin() {
+        val intent = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        finish()
     }
 
     /**

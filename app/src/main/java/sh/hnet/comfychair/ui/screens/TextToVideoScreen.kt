@@ -68,8 +68,6 @@ fun TextToVideoScreen(
     generationViewModel: GenerationViewModel,
     textToVideoViewModel: TextToVideoViewModel,
     onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onLogout: () -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -106,9 +104,7 @@ fun TextToVideoScreen(
         GenerationTopBar(
             screen = MainRoute.TextToVideo,
             ownerId = ownerId,
-            generationViewModel = generationViewModel,
-            onNavigateToSettings = onNavigateToSettings,
-            onLogout = onLogout
+            generationViewModel = generationViewModel
         )
 
         GenerationPreviewArea(collapsed = promptInput.expanded) {

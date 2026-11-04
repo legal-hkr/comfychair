@@ -28,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.ui.navigation.OutputTab
+import sh.hnet.comfychair.ui.navigation.isSettingsRoute
 import sh.hnet.comfychair.ui.navigation.mainRouteOf
 import sh.hnet.comfychair.ui.navigation.navigateToScreen
 import sh.hnet.comfychair.ui.navigation.outputTab
@@ -39,8 +40,7 @@ import sh.hnet.comfychair.ui.navigation.outputTab
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainNavigationBar(
-    navController: NavController,
-    onNavigateToSettings: () -> Unit
+    navController: NavController
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = mainRouteOf(navBackStackEntry?.destination?.route)
@@ -79,13 +79,12 @@ fun MainNavigationBar(
             icon = Icons.Outlined.PhotoLibrary,
             onClick = { navController.navigateToScreen(MainRoute.Gallery) }
         )
-        // A separate activity until it becomes a tab of this one
         TabItem(
-            selected = false,
+            selected = isSettingsRoute(navBackStackEntry?.destination?.route),
             label = stringResource(R.string.action_settings),
             selectedIcon = Icons.Filled.Settings,
             icon = Icons.Outlined.Settings,
-            onClick = onNavigateToSettings
+            onClick = { navController.navigateToScreen(MainRoute.Settings) }
         )
     }
 }

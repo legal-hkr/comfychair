@@ -61,8 +61,6 @@ fun TextToImageScreen(
     generationViewModel: GenerationViewModel,
     textToImageViewModel: TextToImageViewModel,
     onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onLogout: () -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -87,9 +85,7 @@ fun TextToImageScreen(
         GenerationTopBar(
             screen = MainRoute.TextToImage,
             ownerId = ownerId,
-            generationViewModel = generationViewModel,
-            onNavigateToSettings = onNavigateToSettings,
-            onLogout = onLogout
+            generationViewModel = generationViewModel
         )
 
         GenerationPreviewArea(collapsed = promptInput.expanded) {

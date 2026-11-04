@@ -80,8 +80,6 @@ fun ImageToVideoScreen(
     generationViewModel: GenerationViewModel,
     imageToVideoViewModel: ImageToVideoViewModel,
     onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onLogout: () -> Unit,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -129,9 +127,7 @@ fun ImageToVideoScreen(
         GenerationTopBar(
             screen = MainRoute.ImageToVideo,
             ownerId = ownerId,
-            generationViewModel = generationViewModel,
-            onNavigateToSettings = onNavigateToSettings,
-            onLogout = onLogout
+            generationViewModel = generationViewModel
         )
 
         // Picture-in-picture thumbnails: the side that isn't shown full size

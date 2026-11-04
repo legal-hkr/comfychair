@@ -70,7 +70,6 @@ import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
-import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.components.PlayBadge
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
@@ -86,8 +85,6 @@ import sh.hnet.comfychair.viewmodel.MediaViewerItem
 fun GalleryScreen(
     generationViewModel: GenerationViewModel,
     galleryViewModel: GalleryViewModel,
-    onNavigateToSettings: () -> Unit,
-    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -260,14 +257,10 @@ fun GalleryScreen(
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
                     }
                 } else {
-                    // Normal mode actions: Select and Menu
+                    // Normal mode action: Select
                     IconButton(onClick = { galleryViewModel.enterSelectionMode() }) {
                         Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.button_gallery_select))
                     }
-                    AppMenuDropdown(
-                        onSettings = onNavigateToSettings,
-                        onLogout = onLogout
-                    )
                 }
             }
         )

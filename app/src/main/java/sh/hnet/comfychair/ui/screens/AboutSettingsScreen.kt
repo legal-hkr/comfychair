@@ -31,16 +31,14 @@ import sh.hnet.comfychair.ui.components.SettingsScreenScaffold
 
 @Composable
 fun AboutSettingsScreen(
-    onNavigateToGeneration: () -> Unit,
-    onLogout: () -> Unit
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
 
     // UI composition
     SettingsScreenScaffold(
         title = stringResource(R.string.title_about_settings),
-        onNavigateToGeneration = onNavigateToGeneration,
-        onLogout = onLogout,
+        onNavigateBack = onNavigateBack,
         horizontalPadding = 0.dp
     ) {
         Column(

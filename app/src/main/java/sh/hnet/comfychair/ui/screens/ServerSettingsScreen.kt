@@ -11,13 +11,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,7 +44,6 @@ import sh.hnet.comfychair.viewmodel.SettingsViewModel
 fun ServerSettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToGeneration: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -68,13 +71,13 @@ fun ServerSettingsScreen(
                     Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                 }
                 is SettingsEvent.RefreshNeeded -> {
-                    // Handled by SettingsContainerActivity
+                    // Handled by MainContainerActivity
                 }
                 is SettingsEvent.ShowRestoreDialog -> {
                     // Handled by ApplicationSettingsScreen
                 }
                 is SettingsEvent.NavigateToLogin -> {
-                    // Handled by SettingsContainerActivity
+                    // Handled by MainContainerActivity
                 }
             }
         }
@@ -83,8 +86,7 @@ fun ServerSettingsScreen(
     // UI composition
     SettingsScreenScaffold(
         title = stringResource(R.string.title_server_settings),
-        onNavigateToGeneration = onNavigateToGeneration,
-        onLogout = onLogout
+        onNavigateBack = onNavigateBack
     ) {
         Spacer(modifier = Modifier.height(16.dp))
             // Server Information Card
@@ -271,6 +273,18 @@ fun ServerSettingsScreen(
                     }
                 }
             }
+
+        // Ends the session; the login screen then offers the saved servers (also to switch servers)
+        Spacer(modifier = Modifier.height(24.dp))
+        OutlinedButton(
+            onClick = onLogout,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.action_logout))
+        }
 
         // Bottom padding
         Spacer(modifier = Modifier.height(16.dp))
