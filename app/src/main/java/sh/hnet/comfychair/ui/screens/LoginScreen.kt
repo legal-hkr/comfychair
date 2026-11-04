@@ -512,7 +512,7 @@ fun LoginScreen() {
             modifier = Modifier.offset(x = (-8).dp)
         ) {
             Image(
-                painter = painterResource(R.drawable.ic_comfychair_foreground),
+                painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = null,
                 modifier = Modifier.size(112.dp)
             )

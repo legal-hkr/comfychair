@@ -319,7 +319,7 @@ fun EmptyResultState(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_comfychair_foreground),
+                painter = painterResource(R.drawable.ic_launcher_monochrome),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(112.dp)
