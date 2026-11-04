@@ -141,6 +141,11 @@
     <string name="nav_text_to_image">Text to Image</string>
     <string name="nav_image_to_image">Image to Image</string>
     <string name="nav_gallery">Gallery</string>
+    <string name="nav_tab_image">Image</string>
+    <string name="nav_tab_video">Video</string>
+    <string name="label_source_text">Text</string>
+    <string name="label_source_image">Image</string>
+    <string name="content_description_source_switch">Generate from</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">Server Information</string>
@@ -250,15 +255,12 @@
     <string name="content_description_gallery_video_thumbnail">Generated video thumbnail</string>
 
     <!-- Text to Video fragment strings -->
-    <string name="title_text_to_video">Text to Video</string>
     <string name="nav_text_to_video">Text to Video</string>
 
     <!-- Image to Video fragment strings (ITV-specific) -->
-    <string name="title_image_to_video">Image to Video</string>
     <string name="nav_image_to_video">Image to Video</string>
 
     <!-- Image-to-image fragment strings -->
-    <string name="title_image_to_image">Image to Image</string>
     <string name="label_megapixels">Megapixels</string>
     <string name="button_edit_mask">Edit Mask</string>
     <string name="button_clear_mask">Clear Mask</string>

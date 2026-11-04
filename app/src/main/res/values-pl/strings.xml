@@ -176,6 +176,11 @@
     <string name="nav_text_to_image">Tekst na obraz</string>
     <string name="nav_image_to_image">Obraz na obraz</string>
     <string name="nav_gallery">Galeria</string>
+    <string name="nav_tab_image">Obraz</string>
+    <string name="nav_tab_video">Wideo</string>
+    <string name="label_source_text">Tekst</string>
+    <string name="label_source_image">Obraz</string>
+    <string name="content_description_source_switch">Generuj z</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">Informacje o serwerze</string>
@@ -237,11 +242,9 @@
     <string name="content_description_gallery_video_thumbnail">Miniatura wygenerowanego wideo</string>
 
     <!-- Text to Video fragment strings -->
-    <string name="title_text_to_video">Tekst na wideo</string>
     <string name="nav_text_to_video">Tekst na wideo</string>
 
     <!-- Image to Video fragment strings -->
-    <string name="title_image_to_video">Obraz na wideo</string>
     <string name="nav_image_to_video">Obraz na wideo</string>
     <string name="label_highnoise_unet">UNET wysokiego szumu</string>
     <string name="label_lownoise_unet">UNET niskiego szumu</string>
@@ -250,7 +253,6 @@
     <string name="label_length">Długość</string>
 
     <!-- Image-to-image fragment strings -->
-    <string name="title_image_to_image">Obraz na obraz</string>
     <string name="label_megapixels">Megapiksele</string>
     <string name="button_edit_mask">Edytuj maskę</string>
     <string name="button_clear_mask">Wyczyść maskę</string>

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -54,18 +55,14 @@ fun MainNavHost(
             val route = when (target) {
                 SourceTarget.IMAGE_TO_IMAGE -> {
                     imageToImageViewModel.useAsSource(context, bitmap)
-                    MainRoute.ImageToImage.route
+                    MainRoute.ImageToImage
                 }
                 SourceTarget.IMAGE_TO_VIDEO -> {
                     imageToVideoViewModel.useAsSource(context, bitmap)
-                    MainRoute.ImageToVideo.route
+                    MainRoute.ImageToVideo
                 }
             }
-            navController.navigate(route) {
-                popUpTo(MainRoute.TextToImage.route) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
-            }
+            navController.navigateToScreen(route)
         }
     }
 
@@ -73,56 +70,60 @@ fun MainNavHost(
         bottomBar = {
             MainNavigationBar(
                 navController = navController,
-                onNavigateToGallery = onNavigateToGallery
+                onNavigateToGallery = onNavigateToGallery,
+                onNavigateToSettings = onNavigateToSettings
             )
         },
         modifier = modifier.imePadding()
     ) { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(paddingValues)
-        ) {
-            composable(MainRoute.TextToImage.route) {
-                val textToImageViewModel: TextToImageViewModel = viewModel()
-                TextToImageScreen(
-                    generationViewModel = generationViewModel,
-                    textToImageViewModel = textToImageViewModel,
-                    onUseAsSource = useAsSource,
-                    onNavigateToSettings = onNavigateToSettings,
-                    onLogout = onLogout
-                )
-            }
+        // The source switch on each screen shows the other screens of its tab
+        CompositionLocalProvider(LocalScreenNavigator provides { route: MainRoute -> navController.navigateToScreen(route) }) {
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.padding(paddingValues)
+            ) {
+                composable(MainRoute.TextToImage.route) {
+                    val textToImageViewModel: TextToImageViewModel = viewModel()
+                    TextToImageScreen(
+                        generationViewModel = generationViewModel,
+                        textToImageViewModel = textToImageViewModel,
+                        onUseAsSource = useAsSource,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onLogout = onLogout
+                    )
+                }
 
-            composable(MainRoute.ImageToImage.route) {
-                ImageToImageScreen(
-                    generationViewModel = generationViewModel,
-                    imageToImageViewModel = imageToImageViewModel,
-                    onUseAsSource = useAsSource,
-                    onNavigateToSettings = onNavigateToSettings,
-                    onLogout = onLogout
-                )
-            }
+                composable(MainRoute.ImageToImage.route) {
+                    ImageToImageScreen(
+                        generationViewModel = generationViewModel,
+                        imageToImageViewModel = imageToImageViewModel,
+                        onUseAsSource = useAsSource,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onLogout = onLogout
+                    )
+                }
 
-            composable(MainRoute.TextToVideo.route) {
-                val textToVideoViewModel: TextToVideoViewModel = viewModel()
-                TextToVideoScreen(
-                    generationViewModel = generationViewModel,
-                    textToVideoViewModel = textToVideoViewModel,
-                    onUseAsSource = useAsSource,
-                    onNavigateToSettings = onNavigateToSettings,
-                    onLogout = onLogout
-                )
-            }
+                composable(MainRoute.TextToVideo.route) {
+                    val textToVideoViewModel: TextToVideoViewModel = viewModel()
+                    TextToVideoScreen(
+                        generationViewModel = generationViewModel,
+                        textToVideoViewModel = textToVideoViewModel,
+                        onUseAsSource = useAsSource,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onLogout = onLogout
+                    )
+                }
 
-            composable(MainRoute.ImageToVideo.route) {
-                ImageToVideoScreen(
-                    generationViewModel = generationViewModel,
-                    imageToVideoViewModel = imageToVideoViewModel,
-                    onUseAsSource = useAsSource,
-                    onNavigateToSettings = onNavigateToSettings,
-                    onLogout = onLogout
-                )
+                composable(MainRoute.ImageToVideo.route) {
+                    ImageToVideoScreen(
+                        generationViewModel = generationViewModel,
+                        imageToVideoViewModel = imageToVideoViewModel,
+                        onUseAsSource = useAsSource,
+                        onNavigateToSettings = onNavigateToSettings,
+                        onLogout = onLogout
+                    )
+                }
             }
         }
     }

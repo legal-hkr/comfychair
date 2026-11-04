@@ -164,6 +164,11 @@
     <string name="nav_text_to_image">文生图</string>
     <string name="nav_image_to_image">图生图</string>
     <string name="nav_gallery">图库</string>
+    <string name="nav_tab_image">图像</string>
+    <string name="nav_tab_video">视频</string>
+    <string name="label_source_text">文本</string>
+    <string name="label_source_image">图像</string>
+    <string name="content_description_source_switch">生成来源</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">服务器信息</string>
@@ -225,11 +230,9 @@
     <string name="content_description_gallery_video_thumbnail">生成视频缩略图</string>
 
     <!-- Text to Video fragment strings -->
-    <string name="title_text_to_video">文生视频</string>
     <string name="nav_text_to_video">文生视频</string>
 
     <!-- Image to Video fragment strings -->
-    <string name="title_image_to_video">图生视频</string>
     <string name="nav_image_to_video">图生视频</string>
     <string name="label_highnoise_unet">高噪声 UNET</string>
     <string name="label_lownoise_unet">低噪声 UNET</string>
@@ -238,7 +241,6 @@
     <string name="label_length">时长</string>
 
     <!-- Image-to-image fragment strings -->
-    <string name="title_image_to_image">图生图</string>
     <string name="label_megapixels">百万像素</string>
     <string name="button_edit_mask">编辑蒙版</string>
     <string name="button_clear_mask">清除蒙版</string>

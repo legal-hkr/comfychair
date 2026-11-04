@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.ResultHeroImage
@@ -103,7 +104,7 @@ fun TextToVideoScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         GenerationTopBar(
-            titleRes = R.string.title_text_to_video,
+            screen = MainRoute.TextToVideo,
             ownerId = ownerId,
             generationViewModel = generationViewModel,
             onNavigateToSettings = onNavigateToSettings,

@@ -172,6 +172,11 @@
     <string name="nav_text_to_image">Texto a imagen</string>
     <string name="nav_image_to_image">Imagen a imagen</string>
     <string name="nav_gallery">Galería</string>
+    <string name="nav_tab_image">Imagen</string>
+    <string name="nav_tab_video">Vídeo</string>
+    <string name="label_source_text">Texto</string>
+    <string name="label_source_image">Imagen</string>
+    <string name="content_description_source_switch">Generar a partir de</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">Información del servidor</string>
@@ -233,11 +238,9 @@
     <string name="content_description_gallery_video_thumbnail">Miniatura de vídeo generado</string>
 
     <!-- Text to Video fragment strings -->
-    <string name="title_text_to_video">Texto a vídeo</string>
     <string name="nav_text_to_video">Texto a vídeo</string>
 
     <!-- Image to Video fragment strings -->
-    <string name="title_image_to_video">Imagen a vídeo</string>
     <string name="nav_image_to_video">Imagen a vídeo</string>
     <string name="label_highnoise_unet">UNET de ruido alto</string>
     <string name="label_lownoise_unet">UNET de ruido bajo</string>
@@ -246,7 +249,6 @@
     <string name="label_length">Duración</string>
 
     <!-- Image-to-image fragment strings -->
-    <string name="title_image_to_image">Imagen a imagen</string>
     <string name="label_megapixels">Megapíxeles</string>
     <string name="button_edit_mask">Editar máscara</string>
     <string name="button_clear_mask">Borrar máscara</string>

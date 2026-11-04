@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.ResultHeroImage
@@ -126,7 +127,7 @@ fun ImageToVideoScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         GenerationTopBar(
-            titleRes = R.string.title_image_to_video,
+            screen = MainRoute.ImageToVideo,
             ownerId = ownerId,
             generationViewModel = generationViewModel,
             onNavigateToSettings = onNavigateToSettings,

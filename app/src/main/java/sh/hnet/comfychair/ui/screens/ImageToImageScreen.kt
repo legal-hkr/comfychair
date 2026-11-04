@@ -38,6 +38,7 @@ import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MaskEditorStateHolder
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.MaskPreview
@@ -157,7 +158,7 @@ fun ImageToImageScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with image options
         GenerationTopBar(
-            titleRes = R.string.title_image_to_image,
+            screen = MainRoute.ImageToImage,
             ownerId = ownerId,
             generationViewModel = generationViewModel,
             onNavigateToSettings = onNavigateToSettings,

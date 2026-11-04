@@ -75,6 +75,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.storage.AppSettings
@@ -235,7 +236,7 @@ fun rememberPromptInputState(prompt: String): PromptInputState {
 }
 
 /**
- * Top app bar of a generation screen: title, queue chip and the app menu. The running job's progress is shown on the
+ * Top app bar of a generation screen: source switch, queue chip and the app menu. The running job's progress is shown on the
  * preview ([ScreenJobStatus]).
  *
  * @param actions The screen's own actions (e.g. picking a source image), shown before the app menu
@@ -243,7 +244,7 @@ fun rememberPromptInputState(prompt: String): PromptInputState {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GenerationTopBar(
-    titleRes: Int,
+    screen: MainRoute,
     ownerId: String,
     generationViewModel: GenerationViewModel,
     onNavigateToSettings: () -> Unit,
@@ -261,7 +262,8 @@ fun GenerationTopBar(
     }
 
     TopAppBar(
-        title = { Text(stringResource(titleRes)) },
+        // What the screen generates from; the tab (Image or Video) is selected in the navigation bar
+        title = { SourceSwitch(screen) },
         windowInsets = WindowInsets(0, 0, 0, 0),
         actions = {
             QueueChip(queueChipState, onClick = if (isOfflineMode) null else ({ QueueSheetController.visible = true }))
