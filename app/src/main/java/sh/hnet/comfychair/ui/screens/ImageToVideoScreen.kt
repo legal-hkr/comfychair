@@ -11,13 +11,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -50,6 +45,7 @@ import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
+import sh.hnet.comfychair.ui.components.generation.EmptySourcePicker
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
 import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
 import sh.hnet.comfychair.ui.components.generation.GenerationPreviewArea
@@ -60,6 +56,7 @@ import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
+import sh.hnet.comfychair.ui.components.generation.SourceToolbar
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
@@ -132,11 +129,7 @@ fun ImageToVideoScreen(
             generationViewModel = generationViewModel,
             onNavigateToSettings = onNavigateToSettings,
             onLogout = onLogout
-        ) {
-            IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
-            }
-        }
+        )
 
         // Picture-in-picture thumbnails: the side that isn't shown full size
         val sourceThumb = remember(sourceImage) { sourceImage?.asImageBitmap() }
@@ -190,7 +183,7 @@ fun ImageToVideoScreen(
                     },
                     sourceThumb = sourceThumb,
                     resultThumb = resultThumb,
-                    source = { _ ->
+                    source = { inTransition ->
                         if (sourceImage != null) {
                             Image(
                                 bitmap = sourceImage.asImageBitmap(),
@@ -198,24 +191,15 @@ fun ImageToVideoScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
-                        } else {
-                            // Placeholder - app logo with tap to upload hint
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_comfychair_foreground),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                                    contentScale = ContentScale.Fit
-                                )
-                                Text(
-                                    text = stringResource(R.string.msg_no_source_image),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            // Tools appear once the swap animation is done
+                            if (!inTransition) {
+                                SourceToolbar(
+                                    onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onRemove = imageToVideoViewModel::clearSourceImage
                                 )
                             }
+                        } else {
+                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
                         }
                     },
                     // The video surface can't follow the swap animation, so a still stands in meanwhile

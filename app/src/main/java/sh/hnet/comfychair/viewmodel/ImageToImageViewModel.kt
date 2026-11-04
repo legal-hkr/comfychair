@@ -411,6 +411,13 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
         }
     }
 
+    /** Remove the source image and its mask (also from the device in device storage mode). */
+    fun clearSourceImage() {
+        val context = applicationContext ?: return
+        _uiState.update { it.copy(sourceImage = null, maskPaths = emptyList()) }
+        viewModelScope.launch { MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItiSource) }
+    }
+
     // Source image
     fun onSourceImageChange(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {

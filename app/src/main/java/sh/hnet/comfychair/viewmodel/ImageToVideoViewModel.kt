@@ -125,6 +125,13 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
         _uiState.update { it.copy(sourceImage = bitmap, viewMode = ImageToVideoViewMode.SOURCE) }
     }
 
+    /** Remove the source image (also from the device in device storage mode). */
+    fun clearSourceImage() {
+        val context = applicationContext ?: return
+        _uiState.update { it.copy(sourceImage = null) }
+        viewModelScope.launch { MediaStateHolder.evictAndDeleteFromDisk(context, MediaStateHolder.MediaKey.ItvSource) }
+    }
+
     // Source image
     fun onSourceImageChange(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {

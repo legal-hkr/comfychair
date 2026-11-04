@@ -11,17 +11,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +21,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,16 +46,22 @@ import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
+import sh.hnet.comfychair.ui.components.generation.EmptySourcePicker
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
 import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
 import sh.hnet.comfychair.ui.components.generation.GenerationPreviewArea
 import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
+import sh.hnet.comfychair.ui.components.generation.MaskLabel
+import sh.hnet.comfychair.ui.components.generation.MaskTools
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.ReferenceSlot
+import sh.hnet.comfychair.ui.components.generation.ReferenceSlots
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
+import sh.hnet.comfychair.ui.components.generation.SourceToolbar
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
@@ -125,6 +124,35 @@ fun ImageToImageScreen(
     }
 
     // UI composition
+    // Opens the mask editor on the current source; its edits come back through the ViewModel
+    fun openMaskEditor(sourceImage: Bitmap) {
+        MaskEditorStateHolder.initialize(
+            sourceImage = sourceImage,
+            maskPaths = uiState.maskPaths,
+            brushSize = uiState.brushSize,
+            isEraserMode = uiState.isEraserMode,
+            onPathAdded = { path, isEraser, brushSize ->
+                imageToImageViewModel.addMaskPath(path, isEraser, brushSize)
+                // Update state holder with new paths
+                MaskEditorStateHolder.updateMaskPaths(imageToImageViewModel.uiState.value.maskPaths)
+            },
+            onClearMask = {
+                imageToImageViewModel.clearMask()
+                MaskEditorStateHolder.updateMaskPaths(emptyList())
+            },
+            onInvertMask = {
+                imageToImageViewModel.invertMask()
+                MaskEditorStateHolder.updateMaskPaths(imageToImageViewModel.uiState.value.maskPaths)
+            },
+            onBrushSizeChange = { imageToImageViewModel.onBrushSizeChange(it) },
+            onEraserModeChange = { imageToImageViewModel.onEraserModeChange(it) }
+        )
+        context.startActivity(MaskEditorActivity.createIntent(context))
+    }
+
+    // Whether the mask is drawn over the source; only a view setting, the mask itself stays
+    var maskVisible by rememberSaveable { mutableStateOf(true) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with image options
         GenerationTopBar(
@@ -133,46 +161,7 @@ fun ImageToImageScreen(
             generationViewModel = generationViewModel,
             onNavigateToSettings = onNavigateToSettings,
             onLogout = onLogout
-        ) {
-            // Upload image button
-            IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
-            }
-            // Edit mask button (only in inpainting mode when source image exists)
-            if (sourceImage != null && uiState.mode == ImageToImageMode.INPAINTING) {
-                IconButton(onClick = {
-                    // Initialize state holder and launch mask editor activity
-                    MaskEditorStateHolder.initialize(
-                        sourceImage = sourceImage,
-                        maskPaths = uiState.maskPaths,
-                        brushSize = uiState.brushSize,
-                        isEraserMode = uiState.isEraserMode,
-                        onPathAdded = { path, isEraser, brushSize ->
-                            imageToImageViewModel.addMaskPath(path, isEraser, brushSize)
-                            // Update state holder with new paths
-                            MaskEditorStateHolder.updateMaskPaths(imageToImageViewModel.uiState.value.maskPaths)
-                        },
-                        onClearMask = {
-                            imageToImageViewModel.clearMask()
-                            MaskEditorStateHolder.updateMaskPaths(emptyList())
-                        },
-                        onInvertMask = {
-                            imageToImageViewModel.invertMask()
-                            MaskEditorStateHolder.updateMaskPaths(imageToImageViewModel.uiState.value.maskPaths)
-                        },
-                        onBrushSizeChange = { imageToImageViewModel.onBrushSizeChange(it) },
-                        onEraserModeChange = { imageToImageViewModel.onEraserModeChange(it) }
-                    )
-                    context.startActivity(MaskEditorActivity.createIntent(context))
-                }) {
-                    Icon(Icons.Default.Brush, contentDescription = stringResource(R.string.button_edit_mask))
-                }
-                // Clear mask button
-                IconButton(onClick = { imageToImageViewModel.clearMask() }) {
-                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.button_clear_mask))
-                }
-            }
-        }
+        )
 
         // Picture-in-picture thumbnails: the side that isn't shown full size
         val sourceThumb = remember(sourceImage) { sourceImage?.asImageBitmap() }
@@ -228,17 +217,18 @@ fun ImageToImageScreen(
                     },
                     sourceThumb = sourceThumb,
                     resultThumb = resultThumb,
-                    source = { _ ->
+                    source = { inTransition ->
+                        val inpainting = uiState.mode == ImageToImageMode.INPAINTING
+                        val hasMask = uiState.maskPaths.isNotEmpty()
                         if (sourceImage != null) {
-                            if (uiState.mode == ImageToImageMode.INPAINTING) {
-                                // Read-only preview of source image with mask overlay
+                            if (inpainting && maskVisible) {
+                                // Read-only preview of the source with the mask over it
                                 MaskPreview(
                                     sourceImage = sourceImage,
                                     maskPaths = uiState.maskPaths,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
-                                // Editing mode: show plain source image without mask
                                 Image(
                                     bitmap = sourceImage.asImageBitmap(),
                                     contentDescription = stringResource(R.string.content_description_source_image),
@@ -247,21 +237,40 @@ fun ImageToImageScreen(
                                 )
                             }
                         } else {
-                            // Placeholder - app logo
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_comfychair_foreground),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                                    contentScale = ContentScale.Fit
+                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
+                        }
+                        // Tools appear once the swap animation is done
+                        if (!inTransition) {
+                            if (sourceImage != null) {
+                                SourceToolbar(
+                                    onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onRemove = imageToImageViewModel::clearSourceImage,
+                                    maskTools = if (inpainting) MaskTools(
+                                        hasMask = hasMask,
+                                        maskVisible = maskVisible,
+                                        onToggleMaskVisible = { maskVisible = !maskVisible },
+                                        onClearMask = imageToImageViewModel::clearMask,
+                                        onEditMask = { openMaskEditor(sourceImage) }
+                                    ) else null
                                 )
-                                Text(
-                                    text = stringResource(R.string.msg_no_source_image),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                if (inpainting && maskVisible && hasMask) MaskLabel()
+                            }
+                            if (!inpainting) {
+                                ReferenceSlots(
+                                    listOfNotNull(
+                                        ReferenceSlot(
+                                            image = uiState.referenceImage1,
+                                            description = stringResource(R.string.content_description_reference_image_1),
+                                            onPick = { imageToImageViewModel.onReferenceImage1Change(context, it) },
+                                            onClear = imageToImageViewModel::onClearReferenceImage1
+                                        ).takeIf { uiState.capabilities.hasReferenceImage1 },
+                                        ReferenceSlot(
+                                            image = uiState.referenceImage2,
+                                            description = stringResource(R.string.content_description_reference_image_2),
+                                            onPick = { imageToImageViewModel.onReferenceImage2Change(context, it) },
+                                            onClear = imageToImageViewModel::onClearReferenceImage2
+                                        ).takeIf { uiState.capabilities.hasReferenceImage2 }
+                                    )
                                 )
                             }
                         }

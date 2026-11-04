@@ -3,6 +3,7 @@ package sh.hnet.comfychair.ui.components.generation
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
@@ -90,7 +91,11 @@ fun SourceResultSwitcher(
             transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
             label = "source result swap"
         ) { sourceShown ->
-            val inTransition = transition.isRunning
+            // Settled only once this side has fully entered. isRunning alone is still false in the first frame of the
+            // swap, when this side is measured at the thumbnail's size – too small for e.g. a toolbar with a FAB
+            val inTransition = transition.isRunning ||
+                transition.currentState != EnterExitState.Visible ||
+                transition.targetState != EnterExitState.Visible
             val otherThumb = if (sourceShown) resultThumb else sourceThumb
             val swapLabel = if (sourceShown) showResultLabel else showSourceLabel
 

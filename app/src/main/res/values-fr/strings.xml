@@ -203,7 +203,6 @@
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">Image vers image</string>
     <string name="label_megapixels">Mégapixels</string>
-    <string name="button_upload_source_image">Télécharger l\'image source</string>
     <string name="button_edit_mask">Modifier le masque</string>
     <string name="button_clear_mask">Effacer le masque</string>
     <string name="msg_no_source_image">Aucune image source sélectionnée</string>
@@ -409,6 +408,17 @@
     <string name="content_description_show_source">Afficher l\'image source</string>
     <string name="label_pip_result">Résultat</string>
     <string name="label_pip_source">Source</string>
+    <string name="button_pick_source_image">Choisir l\'image source</string>
+    <string name="msg_source_hint">ou envoyez ici un résultat avec %1$s</string>
+    <string name="content_description_replace_source">Remplacer l\'image source</string>
+    <string name="content_description_remove_source">Retirer l\'image source</string>
+    <string name="content_description_show_mask">Afficher le masque</string>
+    <string name="content_description_hide_mask">Cacher le masque</string>
+    <string name="label_mask">Masque</string>
+    <string name="label_reference_count">Réf. %1$d/%2$d</string>
+    <string name="button_replace">Remplacer</string>
+    <string name="button_remove">Retirer</string>
+    <string name="content_description_add_reference">Ajouter l\'image de référence %1$d</string>
     <string name="content_description_result_actions_numbered">Actions pour le résultat %1$d</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d seconde</item>
