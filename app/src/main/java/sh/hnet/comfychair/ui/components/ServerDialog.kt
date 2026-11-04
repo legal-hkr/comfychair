@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Key
@@ -27,11 +29,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,9 +46,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.drop
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.model.AuthType
@@ -82,16 +85,9 @@ fun ServerDialog(
             (existingCredentials as? AuthCredentials.Basic)?.username ?: ""
         )
     }
-    var password by remember {
-        mutableStateOf(
-            (existingCredentials as? AuthCredentials.Basic)?.password ?: ""
-        )
-    }
-    var token by remember {
-        mutableStateOf(
-            (existingCredentials as? AuthCredentials.Bearer)?.token ?: ""
-        )
-    }
+    // Secure fields: no keyboard suggestions or learning, no copy or cut
+    val passwordState = rememberTextFieldState((existingCredentials as? AuthCredentials.Basic)?.password ?: "")
+    val tokenState = rememberTextFieldState((existingCredentials as? AuthCredentials.Bearer)?.token ?: "")
     var passwordVisible by remember { mutableStateOf(false) }
     var tokenVisible by remember { mutableStateOf(false) }
 
@@ -102,6 +98,9 @@ fun ServerDialog(
     var usernameError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var tokenError by remember { mutableStateOf<String?>(null) }
+    // Editing a secure field clears its error, as the other fields do in onValueChange
+    LaunchedEffect(passwordState) { snapshotFlow { passwordState.text.toString() }.drop(1).collect { passwordError = null } }
+    LaunchedEffect(tokenState) { snapshotFlow { tokenState.text.toString() }.drop(1).collect { tokenError = null } }
 
     // Focus requester for name field
     val nameFocusRequester = remember { FocusRequester() }
@@ -175,13 +174,13 @@ fun ServerDialog(
                     usernameError = errorRequired
                     isValid = false
                 }
-                if (password.isEmpty()) {
+                if (passwordState.text.isEmpty()) {
                     passwordError = errorRequired
                     isValid = false
                 }
             }
             AuthType.BEARER -> {
-                if (token.trim().isEmpty()) {
+                if (tokenState.text.isBlank()) {
                     tokenError = errorRequired
                     isValid = false
                 }
@@ -196,8 +195,8 @@ fun ServerDialog(
     fun buildCredentials(): AuthCredentials {
         return when (authType) {
             AuthType.NONE -> AuthCredentials.None
-            AuthType.BASIC -> AuthCredentials.Basic(username.trim(), password)
-            AuthType.BEARER -> AuthCredentials.Bearer(token.trim())
+            AuthType.BASIC -> AuthCredentials.Basic(username.trim(), passwordState.text.toString())
+            AuthType.BEARER -> AuthCredentials.Bearer(tokenState.text.toString().trim())
             // Browser cookies are captured via BrowserAuthActivity at connection time
             AuthType.BROWSER -> AuthCredentials.None
         }
@@ -396,20 +395,15 @@ fun ServerDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { newValue ->
-                                password = newValue
-                                passwordError = null
-                            },
+                        OutlinedSecureTextField(
+                            state = passwordState,
                             label = { Text(stringResource(R.string.label_auth_password)) },
                             isError = passwordError != null,
                             supportingText = passwordError?.let { { Text(it) } },
-                            singleLine = true,
-                            visualTransformation = if (passwordVisible) {
-                                VisualTransformation.None
+                            textObfuscationMode = if (passwordVisible) {
+                                TextObfuscationMode.Visible
                             } else {
-                                PasswordVisualTransformation()
+                                TextObfuscationMode.RevealLastTyped
                             },
                             trailingIcon = {
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -440,20 +434,15 @@ fun ServerDialog(
 
                 // Bearer token field
                 AnimatedVisibility(visible = authType == AuthType.BEARER) {
-                    OutlinedTextField(
-                        value = token,
-                        onValueChange = { newValue ->
-                            token = newValue
-                            tokenError = null
-                        },
+                    OutlinedSecureTextField(
+                        state = tokenState,
                         label = { Text(stringResource(R.string.label_auth_token)) },
                         isError = tokenError != null,
                         supportingText = tokenError?.let { { Text(it) } },
-                        singleLine = true,
-                        visualTransformation = if (tokenVisible) {
-                            VisualTransformation.None
+                        textObfuscationMode = if (tokenVisible) {
+                            TextObfuscationMode.Visible
                         } else {
-                            PasswordVisualTransformation()
+                            TextObfuscationMode.RevealLastTyped
                         },
                         trailingIcon = {
                             IconButton(onClick = { tokenVisible = !tokenVisible }) {
