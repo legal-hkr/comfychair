@@ -1,12 +1,7 @@
 package sh.hnet.comfychair.viewmodel
 
-import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
-import android.provider.MediaStore
-import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -21,7 +16,6 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.GenerationOutputs
@@ -30,8 +24,6 @@ import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
-import java.io.File
-import java.io.IOException
 
 /**
  * UI state for the Text-to-Image screen.
@@ -458,76 +450,4 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
 
     override fun onStoredMediaAvailable() = restoreLastGeneratedImage()
 
-    // Image operations
-
-    fun saveToGallery(onResult: (success: Boolean) -> Unit) {
-        val ctx = applicationContext ?: run { onResult(false); return }
-        val bitmap = _uiState.value.previewBitmap ?: run { onResult(false); return }
-
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "ComfyChair_${System.currentTimeMillis()}.png")
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/ComfyChair")
-        }
-
-        val uri = ctx.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-        uri?.let {
-            try {
-                ctx.contentResolver.openOutputStream(it)?.use { outputStream ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                }
-                DebugLogger.i(TAG, "saveToGallery: Image saved successfully")
-                onResult(true)
-            } catch (e: IOException) {
-                DebugLogger.e(TAG, "saveToGallery: Failed to save image - ${e.message}")
-                onResult(false)
-            }
-        } ?: run {
-            DebugLogger.e(TAG, "saveToGallery: Failed to create media URI")
-            onResult(false)
-        }
-    }
-
-    fun saveToUri(uri: Uri, onResult: (success: Boolean) -> Unit) {
-        val ctx = applicationContext ?: run { onResult(false); return }
-        val bitmap = _uiState.value.previewBitmap ?: run { onResult(false); return }
-
-        try {
-            ctx.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            }
-            onResult(true)
-        } catch (e: IOException) {
-            onResult(false)
-        }
-    }
-
-    fun getShareIntent(): Intent? {
-        val ctx = applicationContext ?: return null
-        val bitmap = _uiState.value.previewBitmap ?: return null
-
-        val cachePath = ctx.cacheDir
-        val filename = "share_image_${System.currentTimeMillis()}.png"
-        val file = File(cachePath, filename)
-
-        return try {
-            file.outputStream().use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            }
-
-            val uri = FileProvider.getUriForFile(
-                ctx,
-                "${ctx.packageName}.fileprovider",
-                file
-            )
-
-            Intent(Intent.ACTION_SEND).apply {
-                type = "image/png"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
 }

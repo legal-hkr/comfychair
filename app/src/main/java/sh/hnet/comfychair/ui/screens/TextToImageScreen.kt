@@ -1,7 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
 import android.graphics.Bitmap
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,11 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -55,6 +49,8 @@ import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
+import sh.hnet.comfychair.ui.components.generation.SaveShareActions
+import sh.hnet.comfychair.util.MediaExport
 
 @Composable
 fun TextToImageScreen(
@@ -90,22 +86,12 @@ fun TextToImageScreen(
             onNavigateToSettings = onNavigateToSettings,
             onLogout = onLogout
         ) {
-            if (uiState.previewBitmap != null) {
-                IconButton(onClick = {
-                    textToImageViewModel.saveToGallery { success ->
-                        val messageRes = if (success) R.string.msg_image_saved_to_gallery else R.string.error_save_image
-                        Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
-                    }
-                }) {
-                    Icon(Icons.Default.Save, contentDescription = stringResource(R.string.button_save_to_gallery))
-                }
-                IconButton(onClick = {
-                    textToImageViewModel.getShareIntent()?.let { intent ->
-                        context.startActivity(android.content.Intent.createChooser(intent, resources.getString(R.string.share_image)))
-                    }
-                }) {
-                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
-                }
+            uiState.previewBitmap?.let { bitmap ->
+                SaveShareActions(
+                    kind = MediaExport.Kind.IMAGE,
+                    saveToGallery = { MediaExport.saveImage(context, bitmap) },
+                    shareFile = { MediaExport.shareFile(context, bitmap) }
+                )
             }
         }
 

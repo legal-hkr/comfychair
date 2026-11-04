@@ -1,22 +1,14 @@
 package sh.hnet.comfychair.util
 
-import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.provider.MediaStore
-import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
-import sh.hnet.comfychair.R
-import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -88,93 +80,6 @@ object VideoUtils {
                     onComplete(uri, outputs)
                 }
             }
-        }
-    }
-
-    /**
-     * Saves a video from a content URI to the device's Movies gallery.
-     *
-     * @param context Application context
-     * @param videoUri The source video URI to save
-     * @param filenamePrefix Prefix for the saved file (e.g., "ComfyChair" or "ComfyChair_ITV")
-     */
-    suspend fun saveVideoToGallery(
-        context: Context,
-        videoUri: Uri?,
-        filenamePrefix: String = "ComfyChair"
-    ) {
-        if (videoUri == null) return
-
-        withContext(Dispatchers.IO) {
-            try {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Video.Media.DISPLAY_NAME, "${filenamePrefix}_${System.currentTimeMillis()}.mp4")
-                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-                    put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/ComfyChair")
-                }
-
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-                uri?.let { outputUri ->
-                    resolver.openOutputStream(outputUri)?.use { outputStream ->
-                        InMemoryVideo.openInputStream(context, videoUri)?.use { inputStream ->
-                            inputStream.copyTo(outputStream)
-                        }
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.msg_video_saved_to_gallery),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.error_save_video),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        }
-    }
-
-    /**
-     * Shares a video via Android's share sheet.
-     *
-     * @param context Application context
-     * @param videoUri The video URI to share
-     */
-    suspend fun shareVideo(context: Context, videoUri: Uri?) {
-        if (videoUri == null) return
-
-        try {
-            // In-memory videos are written to a share file only now, at the user's request
-            val shareUri = withContext(Dispatchers.IO) { InMemoryVideo.shareableUri(context, videoUri) }
-                ?: throw IllegalStateException("Video is no longer available")
-            val shareIntent = Intent().apply {
-                action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_STREAM, shareUri)
-                type = "video/mp4"
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-
-            context.startActivity(
-                Intent.createChooser(
-                    shareIntent,
-                    context.getString(R.string.share_video)
-                )
-            )
-        } catch (e: Exception) {
-            Toast.makeText(
-                context,
-                context.getString(R.string.error_share_video),
-                Toast.LENGTH_SHORT
-            ).show()
         }
     }
 

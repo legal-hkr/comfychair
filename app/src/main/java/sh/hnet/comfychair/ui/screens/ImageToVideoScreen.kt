@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +72,8 @@ import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewMode
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
+import sh.hnet.comfychair.ui.components.generation.SaveShareActions
+import sh.hnet.comfychair.util.MediaExport
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,14 +136,11 @@ fun ImageToVideoScreen(
                 Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
             }
             if (videoUri != null && uiState.viewMode == ImageToVideoViewMode.PREVIEW) {
-                IconButton(onClick = {
-                    scope.launch { VideoUtils.saveVideoToGallery(context, videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO) }
-                }) {
-                    Icon(Icons.Default.Save, contentDescription = stringResource(R.string.button_save_to_gallery))
-                }
-                IconButton(onClick = { scope.launch { VideoUtils.shareVideo(context, videoUri) } }) {
-                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
-                }
+                SaveShareActions(
+                    kind = MediaExport.Kind.VIDEO,
+                    saveToGallery = { MediaExport.saveVideo(context, videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO) },
+                    shareFile = { MediaExport.shareFile(context, videoUri) }
+                )
             }
         }
 

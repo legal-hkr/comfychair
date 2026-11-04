@@ -9,11 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,7 +30,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
@@ -63,6 +57,8 @@ import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.ui.components.generation.SaveShareActions
+import sh.hnet.comfychair.util.MediaExport
 
 @Composable
 fun TextToVideoScreen(
@@ -111,14 +107,11 @@ fun TextToVideoScreen(
             onLogout = onLogout
         ) {
             if (videoUri != null) {
-                IconButton(onClick = {
-                    scope.launch { VideoUtils.saveVideoToGallery(context, videoUri, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO) }
-                }) {
-                    Icon(Icons.Default.Save, contentDescription = stringResource(R.string.button_save_to_gallery))
-                }
-                IconButton(onClick = { scope.launch { VideoUtils.shareVideo(context, videoUri) } }) {
-                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
-                }
+                SaveShareActions(
+                    kind = MediaExport.Kind.VIDEO,
+                    saveToGallery = { MediaExport.saveVideo(context, videoUri, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO) },
+                    shareFile = { MediaExport.shareFile(context, videoUri) }
+                )
             }
         }
 

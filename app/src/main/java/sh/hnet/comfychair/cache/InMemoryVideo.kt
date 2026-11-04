@@ -5,14 +5,12 @@ import android.media.MediaDataSource
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.annotation.OptIn
-import androidx.core.content.FileProvider
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.ByteArrayDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.TransferListener
-import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -26,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
  * MediaStateHolder or MediaCache, and helpers that read such URIs without touching the disk.
  * Other URIs (disk-first mode) are passed through unchanged.
  *
- * The URIs are only meaningful inside this process; [shareableUri] converts one into a file
+ * The URIs are only meaningful inside this process; [sh.hnet.comfychair.util.MediaExport.shareFile] converts one into a file
  * for other apps when the user explicitly shares a video.
  */
 object InMemoryVideo {
@@ -68,18 +66,6 @@ object InMemoryVideo {
         } else {
             retriever.setDataSource(context, uri)
         }
-    }
-
-    /**
-     * Returns a URI other apps can read. In-memory videos are written to a share file, which the
-     * user explicitly asked for; such files are removed by [deleteShareFiles] on the next start.
-     */
-    fun shareableUri(context: Context, uri: Uri): Uri? {
-        if (!isInMemory(uri)) return uri
-        val bytes = bytes(uri) ?: return null
-        val file = File(context.cacheDir, "${SHARE_FILE_PREFIX}video.mp4")
-        file.writeBytes(bytes)
-        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 
     /**
