@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.annotation.OptIn
@@ -91,6 +92,8 @@ enum class VideoScaleMode {
  * @param enableZoom Whether to enable zoom and pan gestures ([zoomable]); the video is then fitted
  * @param onSingleTap Called for a tap that didn't become a double tap (only with [enableZoom])
  * @param cacheKey Optional cache key to look up pre-fetched metadata from MediaCache
+ * @param placeholder A first frame of the video the caller already has (in memory), shown until the video plays and
+ *   used for its proportions, so nothing empty flashes when the player appears
  * @param showPlaybackStatus Show the pause/position chip at the top end and a position line at the bottom edge
  *   (inline results on the generation screens)
  */
@@ -104,23 +107,36 @@ fun VideoPlayer(
     enableZoom: Boolean = false,
     onSingleTap: () -> Unit = {},
     cacheKey: MediaCacheKey? = null,
-    showPlaybackStatus: Boolean = false
+    showPlaybackStatus: Boolean = false,
+    placeholder: Bitmap? = null
 ) {
     val context = LocalContext.current
 
     // Initialize thumbnail synchronously from cache to avoid black flash during transitions
     // This ensures the thumbnail is available on the very first composition
+    // A first frame the caller already has stands in when the cache has none
     val initialThumbnail = remember(cacheKey) {
-        cacheKey?.let { MediaCache.getBitmap(it) }
+        cacheKey?.let { MediaCache.getBitmap(it) } ?: placeholder
     }
     var thumbnail by remember(cacheKey) { mutableStateOf(initialThumbnail) }
 
-    // Video dimensions - also check cache synchronously for instant display
+    // Video dimensions - also check cache synchronously for instant display. The placeholder's proportions are the
+    // video's, which is all the layout needs, so the surface can be shown without waiting for the metadata
     val cachedDimensions = remember(cacheKey) {
         cacheKey?.let { MediaCache.getVideoDimensions(it) }
     }
-    var videoWidth by remember(cacheKey) { mutableStateOf(cachedDimensions?.width ?: 0) }
-    var videoHeight by remember(cacheKey) { mutableStateOf(cachedDimensions?.height ?: 0) }
+    var videoWidth by remember(cacheKey) { mutableStateOf(cachedDimensions?.width ?: placeholder?.width ?: 0) }
+    var videoHeight by remember(cacheKey) { mutableStateOf(cachedDimensions?.height ?: placeholder?.height ?: 0) }
+    // The placeholder may arrive after the first composition
+    LaunchedEffect(placeholder) {
+        if (placeholder != null) {
+            if (thumbnail == null) thumbnail = placeholder
+            if (videoWidth == 0 || videoHeight == 0) {
+                videoWidth = placeholder.width
+                videoHeight = placeholder.height
+            }
+        }
+    }
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     val zoomState = rememberZoomState(IntSize(videoWidth, videoHeight), resetKey = videoUri, onSingleTap = onSingleTap)

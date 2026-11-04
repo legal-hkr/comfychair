@@ -24,10 +24,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -45,6 +45,7 @@ import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
+import sh.hnet.comfychair.ui.components.generation.EmptyResultState
 import sh.hnet.comfychair.ui.components.generation.EmptySourcePicker
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
 import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
@@ -63,7 +64,6 @@ import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.generation.rememberVideoFrame
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
-import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -258,21 +258,18 @@ fun ImageToVideoScreen(
                                     videoUri = videoUri,
                                     modifier = Modifier.fillMaxSize(),
                                     isActive = isScreenVisible && !inTransition,
-                                    showPlaybackStatus = true
+                                    showPlaybackStatus = true,
+                                    // The frame that stood in during the swap, so the player shows it right away
+                                    placeholder = videoFrame?.asAndroidBitmap()
                                 )
                                 ResultActionsMenu(
                                     media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
                                     sendActions = emptyList()
                                 )
                             }
-                            // Show placeholder - app logo
+                            // Nothing generated yet
                             else -> {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_comfychair_foreground),
-                                    contentDescription = stringResource(R.string.placeholder_video),
-                                    modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                                    contentScale = ContentScale.Fit
-                                )
+                                EmptyResultState()
                             }
                         }
                     }

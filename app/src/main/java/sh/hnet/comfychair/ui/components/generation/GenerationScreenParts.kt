@@ -6,12 +6,17 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,14 +26,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,12 +49,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -254,21 +271,79 @@ fun GenerationTopBar(
 }
 
 /**
- * The screen's preview area: takes the space left by the controls and collapses while the prompt
- * field is expanded above the keyboard.
+ * The screen's preview area: takes the space left by the controls, inset 12 dp from the sides with 28 dp corners,
+ * and collapses while the prompt field is expanded above the keyboard.
+ *
+ * The corners are painted over in the screen's background colour instead of clipping: overlays such as the result
+ * action menu may grow past the area's top edge, and a video surface ignores clipping anyway.
  */
 @Composable
 fun ColumnScope.GenerationPreviewArea(
     collapsed: Boolean,
     content: @Composable () -> Unit
 ) {
+    val cornerColor = MaterialTheme.colorScheme.background
     AnimatedVisibility(
         visible = !collapsed,
         modifier = Modifier.weight(1f),
         enter = fadeIn(tween(150)),
         exit = ExitTransition.None
     ) {
-        content()
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp)
+                .drawWithContent {
+                    drawContent()
+                    drawCornerFillets(PreviewCornerRadius.toPx(), cornerColor)
+                }
+        ) {
+            content()
+        }
+    }
+}
+
+private val PreviewCornerRadius = 28.dp
+
+/** Fills the four corners outside a rounded rectangle of the given radius. */
+private fun DrawScope.drawCornerFillets(radius: Float, color: Color) {
+    val r = radius.coerceAtMost(minOf(size.width, size.height) / 2)
+    val w = size.width
+    val h = size.height
+    val path = Path().apply {
+        moveTo(0f, 0f); lineTo(r, 0f); arcTo(Rect(0f, 0f, 2 * r, 2 * r), 270f, -90f, false); close()
+        moveTo(w, 0f); lineTo(w, r); arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 0f, -90f, false); close()
+        moveTo(w, h); lineTo(w - r, h); arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 90f, -90f, false); close()
+        moveTo(0f, h); lineTo(0f, h - r); arcTo(Rect(0f, h - 2 * r, 2 * r, h), 180f, -90f, false); close()
+    }
+    drawPath(path, color)
+}
+
+/** Empty preview: the app mark in a soft Material shape and a line saying where results will appear. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun EmptyResultState(modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .size(112.dp)
+                .clip(MaterialShapes.Cookie9Sided.toShape())
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_comfychair_foreground),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(112.dp)
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.msg_results_appear_here),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

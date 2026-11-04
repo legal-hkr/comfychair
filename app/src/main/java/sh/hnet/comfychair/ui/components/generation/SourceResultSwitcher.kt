@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -18,7 +19,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,11 +61,12 @@ private const val RESULT_KEY = "result"
 /**
  * Preview area of a screen with a source (Image to Image, Image to Video): one side fills the area, the other is a
  * picture-in-picture thumbnail at the top start; tapping it swaps them with a container transform. Replaces the
- * Source / Preview toggle. The thumbnail is hidden when the other side is empty.
+ * Source / Preview toggle. The result thumbnail is hidden while there is no result; the source thumbnail is always
+ * there, as an "add image" placeholder without a source, since the source side is where one is picked.
  *
  * @param showSource Which side fills the area (the screen keeps its automatic switching: job start → result,
  *   new source → source)
- * @param sourceThumb The source as shown in the thumbnail; null when there is none
+ * @param sourceThumb The source as shown in the thumbnail; null when there is none (a placeholder is shown)
  * @param resultThumb The result (or live frames while generating) as shown in the thumbnail; null when there is none.
  *   It also stands in for the full-size result while the sides swap, so it should be sharp enough for that
  * @param source Full-size source; `inTransition` is true while the sides swap
@@ -97,6 +102,7 @@ fun SourceResultSwitcher(
                 transition.currentState != EnterExitState.Visible ||
                 transition.targetState != EnterExitState.Visible
             val otherThumb = if (sourceShown) resultThumb else sourceThumb
+            val showPip = !sourceShown || resultThumb != null
             val swapLabel = if (sourceShown) showResultLabel else showSourceLabel
 
             Box(
@@ -104,7 +110,7 @@ fun SourceResultSwitcher(
                     .fillMaxSize()
                     // TalkBack: swap without finding the small thumbnail
                     .semantics {
-                        if (otherThumb != null) {
+                        if (showPip) {
                             customActions = listOf(CustomAccessibilityAction(swapLabel) { onShowSourceChange(!sourceShown); true })
                         }
                     }
@@ -135,7 +141,7 @@ fun SourceResultSwitcher(
                     }
                 }
 
-                if (otherThumb != null) {
+                if (showPip) {
                     Box(
                         Modifier
                             .align(Alignment.TopStart)
@@ -155,12 +161,29 @@ fun SourceResultSwitcher(
                             .clickable(role = Role.Button, onClickLabel = swapLabel) { onShowSourceChange(!sourceShown) },
                         contentAlignment = Alignment.BottomCenter
                     ) {
-                        Image(
-                            bitmap = otherThumb,
-                            contentDescription = swapLabel,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (otherThumb != null) {
+                            Image(
+                                bitmap = otherThumb,
+                                contentDescription = swapLabel,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            // No source yet: the thumbnail leads to the picker
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Rounded.AddPhotoAlternate,
+                                    contentDescription = swapLabel,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 14.dp)
+                                )
+                            }
+                        }
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = MaterialTheme.colorScheme.onSurface,

@@ -198,7 +198,6 @@
     <string name="label_highnoise_lora">LoRA wysokiego szumu</string>
     <string name="label_lownoise_lora">LoRA niskiego szumu</string>
     <string name="label_length">Długość</string>
-    <string name="placeholder_video">Wygenerowane wideo pojawi się tutaj</string>
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">Obraz na obraz</string>
@@ -410,6 +409,7 @@
     <string name="content_description_show_source">Pokaż obraz źródłowy</string>
     <string name="label_pip_result">Wynik</string>
     <string name="label_pip_source">Źródło</string>
+    <string name="msg_results_appear_here">Tu pojawią się wyniki</string>
     <string name="button_pick_source_image">Wybierz obraz źródłowy</string>
     <string name="msg_source_hint">albo wyślij tu wynik przyciskiem %1$s</string>
     <string name="content_description_replace_source">Zamień obraz źródłowy</string>

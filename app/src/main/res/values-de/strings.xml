@@ -215,7 +215,6 @@
     <string name="label_highnoise_lora">High Noise LoRA</string>
     <string name="label_lownoise_lora">Low Noise LoRA</string>
     <string name="label_length">Länge</string>
-    <string name="placeholder_video">Generiertes Video erscheint hier</string>
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">Bild zu Bild</string>
@@ -421,6 +420,7 @@
     <string name="content_description_show_source">Quellbild anzeigen</string>
     <string name="label_pip_result">Ergebnis</string>
     <string name="label_pip_source">Quelle</string>
+    <string name="msg_results_appear_here">Hier erscheinen deine Ergebnisse</string>
     <string name="button_pick_source_image">Quellbild auswählen</string>
     <string name="msg_source_hint">oder sende ein Ergebnis mit %1$s hierher</string>
     <string name="content_description_replace_source">Quellbild ersetzen</string>

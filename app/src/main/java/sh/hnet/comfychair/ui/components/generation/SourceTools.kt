@@ -82,8 +82,8 @@ class MaskTools(
 
 /**
  * Tools for the source shown full size: a floating toolbar centred near the bottom of the preview. Replace and remove
- * the source; in Inpainting, replace, clear the mask and show or hide it, with Edit mask as the toolbar's FAB (the
- * step that can't be skipped).
+ * the source; in Inpainting also clear the mask and show or hide it, with Edit mask as the toolbar's FAB (the step that
+ * can't be skipped).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -119,6 +119,7 @@ fun BoxScope.SourceToolbar(
             }
         ) {
             replace()
+            TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
             TooltipIconButton(
                 Icons.Rounded.LayersClear,
                 stringResource(R.string.button_clear_mask),

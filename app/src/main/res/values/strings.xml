@@ -213,7 +213,6 @@
     <!-- Image to Video fragment strings (ITV-specific) -->
     <string name="title_image_to_video">Image to Video</string>
     <string name="nav_image_to_video">Image to Video</string>
-    <string name="placeholder_video">Generated video will appear here</string>
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">Image to Image</string>
@@ -520,6 +519,7 @@
     <string name="content_description_show_source">Show source image</string>
     <string name="label_pip_result">Result</string>
     <string name="label_pip_source">Source</string>
+    <string name="msg_results_appear_here">Your results appear here</string>
     <string name="button_pick_source_image">Pick source image</string>
     <string name="msg_source_hint">or send a result here with %1$s</string>
     <string name="content_description_replace_source">Replace source image</string>

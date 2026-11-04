@@ -198,7 +198,6 @@
     <string name="label_highnoise_lora">高噪声 LoRA</string>
     <string name="label_lownoise_lora">低噪声 LoRA</string>
     <string name="label_length">时长</string>
-    <string name="placeholder_video">生成的视频将显示在此处</string>
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">图生图</string>
@@ -404,6 +403,7 @@
     <string name="content_description_show_source">显示源图像</string>
     <string name="label_pip_result">结果</string>
     <string name="label_pip_source">源图</string>
+    <string name="msg_results_appear_here">生成结果将显示在这里</string>
     <string name="button_pick_source_image">选择源图像</string>
     <string name="msg_source_hint">或在任意结果上点按 %1$s 发送到这里</string>
     <string name="content_description_replace_source">替换源图像</string>
