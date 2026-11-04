@@ -149,7 +149,7 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
         saveWorkflowValues()
     }
 
-    fun onWorkflowChange(workflowName: String) {
+    override fun onWorkflowChange(workflowName: String) {
         val workflow = _uiState.value.workflows().find { it.name == workflowName } ?: return
         DebugLogger.d(tag, "onWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
         switchWorkflow(workflow.id, workflow.name)
@@ -159,7 +159,7 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
      * Reset prompt to seasonal default.
      * Clears saved positive prompt and reloads with seasonal default.
      */
-    fun resetPromptToDefault() {
+    override fun resetPromptToDefault() {
         val context = applicationContext ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
@@ -213,7 +213,7 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
      * Clear preview for a specific execution. Only clears if this is a new promptId
      * to prevent duplicate clears when navigating back to the screen.
      */
-    fun clearPreviewForExecution(promptId: String) {
+    override fun clearPreviewForExecution(promptId: String) {
         if (promptId == lastClearedForPromptId) return
         lastClearedForPromptId = promptId
         // Evict preview from cache so restoreLastPreviewImage() won't restore the old preview
@@ -266,7 +266,7 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
      * Start listening for generation events from the GenerationViewModel.
      * This registers this ViewModel as the active event handler.
      */
-    fun startListening(generationViewModel: GenerationViewModel) {
+    override fun startListening(generationViewModel: GenerationViewModel) {
         generationViewModelRef = generationViewModel
 
         // Retry loading video if not loaded during initialize()
@@ -286,7 +286,7 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
      * Note: We keep the refs if generation is still running,
      * as the handler may still be called for completion events.
      */
-    fun stopListening(generationViewModel: GenerationViewModel) {
+    override fun stopListening(generationViewModel: GenerationViewModel) {
         generationViewModel.unregisterEventHandler(ownerId)
         // Only clear refs if no generation is active (handler was actually unregistered)
         if (!generationViewModel.generationState.value.isGenerating &&

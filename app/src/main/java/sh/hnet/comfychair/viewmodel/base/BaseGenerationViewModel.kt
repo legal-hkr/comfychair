@@ -124,6 +124,23 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
      */
     abstract fun hasValidConfiguration(): Boolean
 
+    // What the shared screen parts (GenerationScreenEffects etc.) need from every screen
+
+    /** Select a workflow by name in the screen's (current mode's) workflow list. */
+    abstract fun onWorkflowChange(workflowName: String)
+
+    /** Reset the positive prompt to the seasonal default. */
+    abstract fun resetPromptToDefault()
+
+    /** Receive the screen's generation events from [GenerationViewModel]. */
+    abstract fun startListening(generationViewModel: GenerationViewModel)
+
+    /** Stop receiving generation events (kept while the screen's job is still running). */
+    abstract fun stopListening(generationViewModel: GenerationViewModel)
+
+    /** A new job of this screen started: clear the previous result (once per prompt ID). */
+    abstract fun clearPreviewForExecution(promptId: String)
+
     /**
      * Check if the ViewModel has been initialized.
      */
@@ -166,7 +183,8 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
      * no field with a validation error.
      */
     protected fun isReadyToGenerate(params: GenerationParams): Boolean =
-        ConnectionManager.modelCache.value.isLoaded &&
+        // From the params (not ConnectionManager), so the whole condition follows the observed UI state
+        params.modelsLoaded &&
             params.selectedWorkflowId.isNotEmpty() &&
             !(params.capabilities.hasPositivePrompt && params.positivePrompt.isBlank()) &&
             !params.hasErrors

@@ -304,16 +304,6 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
 
     override fun onStoredMediaAvailable() = loadSavedImages()
 
-    /**
-     * Fetch models from the server.
-     * Models are now loaded automatically via ConnectionManager on connection.
-     * This method is kept for API compatibility but is effectively a no-op.
-     */
-    @Suppress("unused")
-    fun fetchModels() {
-        // Models are now loaded automatically via ConnectionManager.modelCache
-        // which is observed in the init block above.
-    }
 
     // View mode
     fun onViewModeChange(mode: ImageToImageViewMode) {
@@ -570,7 +560,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
     /**
      * Workflow selection in the current mode.
      */
-    fun onWorkflowChange(workflowName: String) {
+    override fun onWorkflowChange(workflowName: String) {
         val workflowItem = _uiState.value.currentModeWorkflows.find { it.name == workflowName } ?: return
         DebugLogger.d(TAG, "onWorkflowChange: ${Obfuscator.workflowName(workflowName)}")
         switchWorkflow(workflowItem.id, workflowItem.name)
@@ -580,7 +570,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
      * Reset prompt to seasonal default.
      * Clears saved positive prompt and reloads with seasonal default.
      */
-    fun resetPromptToDefault() {
+    override fun resetPromptToDefault() {
         val ctx = applicationContext ?: return
         val serverId = ConnectionManager.currentServerId ?: return
 
@@ -978,7 +968,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
      * Clear preview for a specific execution. Only clears if this is a new promptId
      * to prevent duplicate clears when navigating back to the screen.
      */
-    fun clearPreviewForExecution(promptId: String) {
+    override fun clearPreviewForExecution(promptId: String) {
         if (promptId == lastClearedForPromptId) {
             return // Already cleared for this promptId
         }
@@ -1014,7 +1004,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
      * Start listening for generation events from the GenerationViewModel.
      * This registers this ViewModel as the active event handler.
      */
-    fun startListening(generationViewModel: GenerationViewModel) {
+    override fun startListening(generationViewModel: GenerationViewModel) {
         generationViewModelRef = generationViewModel
 
         // If generation is running for this screen, switch to preview mode
@@ -1033,7 +1023,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
      * Note: We keep the generationViewModelRef if generation is still running,
      * as the handler may still be called for completion events.
      */
-    fun stopListening(generationViewModel: GenerationViewModel) {
+    override fun stopListening(generationViewModel: GenerationViewModel) {
         generationViewModel.unregisterEventHandler(OWNER_ID)
         // Only clear ref if no generation is active (handler was actually unregistered)
         // If generation is running, the handler is kept and needs the ref
