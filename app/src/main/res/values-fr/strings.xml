@@ -113,6 +113,9 @@
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Prompt négatif</string>
     <string name="button_generate">Générer</string>
+    <string name="button_all_options">Toutes les options</string>
+    <string name="state_open">Ouvert</string>
+    <string name="state_closed">Fermé</string>
     <string name="state_generate_offline">Mode hors ligne – génération désactivée</string>
     <string name="state_generate_no_source">Choisissez d\'abord une image source</string>
     <string name="state_generate_invalid">Vérifiez les options – une valeur manque ou n\'est pas valide</string>
@@ -335,7 +338,6 @@
     <string name="menu_generation">Génération</string>
     <string name="action_settings">Paramètres</string>
     <string name="action_logout">Déconnexion</string>
-    <string name="button_options">Options</string>
 
     <!-- Configuration bottom sheet labels -->
     <string name="option_mode_inpainting">Inpainting</string>

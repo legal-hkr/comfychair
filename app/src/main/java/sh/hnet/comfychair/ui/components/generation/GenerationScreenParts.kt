@@ -3,7 +3,6 @@ package sh.hnet.comfychair.ui.components.generation
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
@@ -26,18 +25,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -58,7 +60,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -70,6 +71,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -474,6 +477,7 @@ fun RecipeChips(
  * @param missingSource The screen needs a source image it doesn't have yet (the reason given for a disabled button)
  * @param describeJob What the queue sheet shows for a submitted job (prompt and workflow), read when submitting
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GenerationControls(
     isEnabled: Boolean,
@@ -559,17 +563,22 @@ fun GenerationControls(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Gear icon turns while the options sheet is shown
-        val optionsIconRotation by animateFloatAsState(
-            targetValue = if (optionsOpen) 90f else 0f,
-            label = "options icon rotation"
-        )
-        OutlinedIconButton(onClick = onOpenOptions, modifier = Modifier.size(56.dp)) {
-            Icon(
-                Icons.Default.Settings,
-                contentDescription = stringResource(R.string.button_options),
-                modifier = Modifier.rotate(optionsIconRotation)
-            )
+        // Rounded square, turning round while the options sheet is open
+        val optionsLabel = stringResource(R.string.button_all_options)
+        val optionsState = stringResource(if (optionsOpen) R.string.state_open else R.string.state_closed)
+        FilledTonalIconToggleButton(
+            checked = optionsOpen,
+            onCheckedChange = { onOpenOptions() },
+            shapes = IconButtonDefaults.toggleableShapes(
+                shape = RoundedCornerShape(16.dp),
+                pressedShape = RoundedCornerShape(12.dp),
+                checkedShape = CircleShape
+            ),
+            modifier = Modifier
+                .size(56.dp)
+                .semantics { stateDescription = optionsState }
+        ) {
+            Icon(Icons.Rounded.Tune, contentDescription = optionsLabel)
         }
     }
 }

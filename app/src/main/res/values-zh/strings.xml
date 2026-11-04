@@ -113,6 +113,9 @@
     <string name="hint_prompt">提示词</string>
     <string name="hint_negative_prompt">反向提示词</string>
     <string name="button_generate">生成</string>
+    <string name="button_all_options">全部选项</string>
+    <string name="state_open">已打开</string>
+    <string name="state_closed">已关闭</string>
     <string name="state_generate_offline">离线模式 – 已停用生成</string>
     <string name="state_generate_no_source">请先选择源图像</string>
     <string name="state_generate_invalid">请检查选项 – 有值缺失或无效</string>
@@ -325,7 +328,6 @@
     <string name="menu_generation">生成</string>
     <string name="action_settings">设置</string>
     <string name="action_logout">退出登录</string>
-    <string name="button_options">选项</string>
 
     <!-- Configuration bottom sheet labels -->
     <string name="option_mode_inpainting">修复</string>
