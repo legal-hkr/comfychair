@@ -223,6 +223,8 @@ private fun Hero(
                     )
                 }
                 .clickable(onClickLabel = openLabel) { onOpenViewer(page) }
+                // The viewer flies the result out of the preview and back (fitted, in the rounded preview)
+                .mediaOrigin(mediaOriginKey(output.promptId, output.filename), fit = true, corner = 28.dp)
         ) {
             // Only the settled page counts as current, so a single player is swapped, not duplicated
             hero(output, page == pagerState.settledPage)

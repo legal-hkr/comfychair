@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.mediaOrigin
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -194,6 +195,12 @@ fun ImageToImageScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .heightIn(min = 150.dp)
+                    // The viewer flies the image shown (result or source) out of the preview and back
+                    .mediaOrigin(
+                        if (uiState.viewMode == ImageToImageViewMode.PREVIEW) RESULT_ORIGIN else SOURCE_ORIGIN,
+                        fit = true,
+                        corner = 28.dp
+                    )
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(
                         enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting && !showResults) ||
@@ -207,13 +214,14 @@ fun ImageToImageScreen(
                                             bitmap = bitmap,
                                             filename = uiState.previewImageFilename,
                                             subfolder = uiState.previewImageSubfolder,
-                                            type = uiState.previewImageType
+                                            type = uiState.previewImageType,
+                                            originKey = RESULT_ORIGIN
                                         )
                                     }
                                 }
                                 ImageToImageViewMode.SOURCE -> {
                                     // Launch MediaViewer for source image (without mask)
-                                    uiState.sourceImage?.let { bitmap -> mediaViewer.openImage(bitmap) }
+                                    uiState.sourceImage?.let { bitmap -> mediaViewer.openImage(bitmap, originKey = SOURCE_ORIGIN) }
                                 }
                             }
                         }
@@ -408,3 +416,7 @@ fun ImageToImageScreen(
 
     PromptPresetDialogs(presetViewModel, presetUiState)
 }
+
+/** Media origins of this screen's single result and its source in the preview. */
+private const val RESULT_ORIGIN = "iti_result"
+private const val SOURCE_ORIGIN = "iti_source"

@@ -25,12 +25,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /** M3 standard easing: no spring, so nothing overshoots. */
-private val StandardEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+internal val StandardEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 private const val SETTLE_MS = 300
 private const val FADE_OUT_MS = 200
 
 /** Below this share of the screen height a released drag settles back (unless flung). */
 private const val CLOSE_THRESHOLD = 0.25f
+
+/** Where the viewer's media is when closing starts, so a flight back can start from there. */
+class ViewerCloseFrom(val offsetY: Float, val scale: Float, val cornerPx: Float, val backdropAlpha: Float)
 
 /**
  * Closing the media viewer by swiping the media down or by predictive back: the media follows the finger (or the
@@ -89,6 +92,16 @@ class ViewerDismissState internal constructor() {
             launch { backAnim.animateTo(0f, tween(SETTLE_MS, easing = StandardEasing)) }
         }
         active = false
+    }
+
+    /** The media's place now: offset, scale, corner (28 dp at the threshold) and backdrop. */
+    fun closeFrom(cornerAtThresholdPx: Float): ViewerCloseFrom =
+        ViewerCloseFrom(offset, 1f - 0.15f * progress, cornerAtThresholdPx * progress, backdropAlpha)
+
+    /** Closing by another animation (the flight back): no new gesture, overlays stay hidden. */
+    fun markClosing() {
+        closing = true
+        active = true
     }
 
     /** Fade the media out from where it is (the viewer then closes without a window animation). */

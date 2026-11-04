@@ -2,6 +2,8 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.ViewerCloseFrom
+import androidx.compose.ui.platform.LocalDensity
 import android.content.Context
 import android.graphics.Bitmap
 import android.widget.Toast
@@ -97,6 +99,7 @@ fun MediaViewerScreen(
     viewModel: MediaViewerViewModel,
     onClose: () -> Unit,
     onUseAsSource: (SourceTarget, Bitmap) -> Unit,
+    onRequestClose: (ViewerCloseFrom) -> Boolean = { false },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -113,10 +116,17 @@ fun MediaViewerScreen(
     val dismiss = rememberViewerDismissState()
     val overlaysShown = uiState.isUiVisible && !dismiss.active
     val currentIsVideo = uiState.currentItem?.isVideo == true || uiState.currentVideoUri != null
+    val density = LocalDensity.current
+    // Back into the origin when the host can fly it there, else a fade
     fun animateClose() {
-        scope.launch {
-            dismiss.fadeOut()
-            onClose()
+        if (dismiss.closing) return
+        if (onRequestClose(dismiss.closeFrom(with(density) { 28.dp.toPx() }))) {
+            dismiss.markClosing()
+        } else {
+            scope.launch {
+                dismiss.fadeOut()
+                onClose()
+            }
         }
     }
 

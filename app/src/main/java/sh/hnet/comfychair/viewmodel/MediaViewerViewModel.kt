@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.mediaOriginKey
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -170,6 +171,8 @@ class MediaViewerViewModel : ViewModel() {
     private val _isOpen = MutableStateFlow(false)
     val isOpen: StateFlow<Boolean> = _isOpen.asStateFlow()
     private var onClosed: ((String?) -> Unit)? = null
+    /** Where a single item was opened from (its media origin), for the flight back. */
+    private var singleOriginKey: String? = null
 
     /**
      * Open the viewer over the main activity.
@@ -183,6 +186,7 @@ class MediaViewerViewModel : ViewModel() {
         initialIndex: Int,
         singleBitmap: Bitmap? = null,
         singleVideoUri: Uri? = null,
+        originKey: String? = null,
         onClosed: (String?) -> Unit = {}
     ) {
         // A new session: nothing from the previous one carries over
@@ -192,6 +196,7 @@ class MediaViewerViewModel : ViewModel() {
         _isLoadingMetadata.value = false
         _hasDeletedItems.value = false
         this.onClosed = onClosed
+        singleOriginKey = originKey
         initialize(context, mode, items, initialIndex, singleBitmap, singleVideoUri)
         _isOpen.value = true
     }
@@ -575,6 +580,21 @@ class MediaViewerViewModel : ViewModel() {
         )
         viewModelScope.launch { _events.emit(MediaViewerEvent.ItemDeleted) }
         loadCurrentItem()
+    }
+
+    /** Media origin of the item shown: where it flies back to on close. */
+    fun currentOriginKey(): String? {
+        val state = _uiState.value
+        val item = state.currentItem ?: return null
+        return if (state.mode == ViewerMode.SINGLE) singleOriginKey else mediaOriginKey(item.promptId, item.filename)
+    }
+
+    /** A still of the item shown, already in memory (a video's frame where cached), for the flight; null if none. */
+    fun currentStill(): Bitmap? {
+        val state = _uiState.value
+        val item = state.currentItem ?: return null
+        if (state.mode == ViewerMode.SINGLE) return state.currentBitmap
+        return state.currentBitmap?.takeIf { !item.isVideo } ?: MediaCache.getBitmap(item.toCacheKey())
     }
 
     /** The image shown, for "Use as source", fetched if it hasn't loaded yet (RAM only); null for a video. */

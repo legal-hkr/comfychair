@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.ui.navigation
 
+import sh.hnet.comfychair.ui.components.LocalMediaOrigins
+import sh.hnet.comfychair.ui.components.MediaOrigins
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -130,6 +132,7 @@ fun MainNavHost(
     // The media viewer, over everything below (navigation bar included)
     val viewerOpen by mediaViewerViewModel.isOpen.collectAsState()
     val mediaViewer = remember(mediaViewerViewModel) { MediaViewerOpener(context, mediaViewerViewModel) }
+    val mediaOrigins = remember { MediaOrigins() }
 
     val resources = LocalResources.current
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -191,7 +194,7 @@ fun MainNavHost(
     val galleryState by galleryViewModel.uiState.collectAsState()
     val gallerySelecting = currentScreen == MainRoute.Gallery && galleryState.isSelectionMode
 
-    CompositionLocalProvider(LocalMediaViewer provides mediaViewer) {
+    CompositionLocalProvider(LocalMediaViewer provides mediaViewer, LocalMediaOrigins provides mediaOrigins) {
         Box(Modifier.fillMaxSize()) {
             // Video players under the viewer step aside while it's open (the player is shared)
             CompositionLocalProvider(LocalCoveredByMediaViewer provides viewerOpen) {

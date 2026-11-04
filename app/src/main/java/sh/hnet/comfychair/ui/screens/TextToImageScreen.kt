@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.mediaOrigin
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -106,6 +107,8 @@ fun TextToImageScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .heightIn(min = 150.dp)
+                    // The viewer flies the image out of the preview and back
+                    .mediaOrigin(PREVIEW_ORIGIN, fit = true, corner = 28.dp)
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(enabled = uiState.previewBitmap != null && !isThisScreenExecuting && !showResults) {
                         // Launch MediaViewer for single image
@@ -114,7 +117,8 @@ fun TextToImageScreen(
                                 bitmap = bitmap,
                                 filename = uiState.currentImageFilename,
                                 subfolder = uiState.currentImageSubfolder,
-                                type = uiState.currentImageType
+                                type = uiState.currentImageType,
+                                originKey = PREVIEW_ORIGIN
                             )
                         }
                     },
@@ -216,3 +220,6 @@ fun TextToImageScreen(
 
     PromptPresetDialogs(presetViewModel, presetUiState)
 }
+
+/** Media origin of this screen's single result in the preview. */
+private const val PREVIEW_ORIGIN = "tti_preview"

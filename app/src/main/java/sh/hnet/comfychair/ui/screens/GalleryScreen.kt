@@ -2,6 +2,8 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.mediaOriginKey
+import sh.hnet.comfychair.ui.components.mediaOrigin
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -460,6 +462,8 @@ private fun GalleryTile(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            // The viewer flies the medium out of the tile and back
+            .mediaOrigin(mediaOriginKey(item.promptId, item.filename), fit = false, corner = 6.dp, still = bitmap)
             .clip(RoundedCornerShape(outerCorner.coerceAtLeast(0.dp)))
             .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
             .combinedClickable(onClick = onTap, onLongClick = onLongPress)

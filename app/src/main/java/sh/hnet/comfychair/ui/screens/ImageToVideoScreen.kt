@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.mediaOrigin
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -160,6 +161,12 @@ fun ImageToVideoScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .heightIn(min = 150.dp)
+                    // The viewer flies the source image out of the preview and back (a video has no still to fly)
+                    .mediaOrigin(
+                        SOURCE_ORIGIN.takeIf { uiState.viewMode == ImageToVideoViewMode.SOURCE },
+                        fit = true,
+                        corner = 28.dp
+                    )
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(
                         enabled = (uiState.viewMode == ImageToVideoViewMode.PREVIEW && videoUri != null && !showResults) ||
@@ -171,7 +178,7 @@ fun ImageToVideoScreen(
                                 }
                                 ImageToVideoViewMode.SOURCE -> {
                                     // Source image is user-provided, no ComfyUI metadata
-                                    uiState.sourceImage?.let { bitmap -> mediaViewer.openImage(bitmap) }
+                                    uiState.sourceImage?.let { bitmap -> mediaViewer.openImage(bitmap, originKey = SOURCE_ORIGIN) }
                                 }
                             }
                         }
@@ -325,3 +332,6 @@ fun ImageToVideoScreen(
 
     PromptPresetDialogs(presetViewModel, presetUiState)
 }
+
+/** Media origin of this screen's source image in the preview. */
+private const val SOURCE_ORIGIN = "itv_source"
