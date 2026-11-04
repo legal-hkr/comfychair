@@ -1,112 +1,143 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package sh.hnet.comfychair.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccountTree
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Polyline
+import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.navigation.SettingsRoute
+import sh.hnet.comfychair.storage.MediaStorageMode
+import sh.hnet.comfychair.storage.ServerStorage
+import sh.hnet.comfychair.ui.components.settings.SettingsGroup
+import sh.hnet.comfychair.ui.components.settings.SettingsNavigationRow
+import sh.hnet.comfychair.ui.components.settings.SettingsPage
+import sh.hnet.comfychair.ui.screens.settings.appLanguages
+import sh.hnet.comfychair.ui.screens.settings.currentLanguageTag
+import sh.hnet.comfychair.ui.screens.settings.edgeRouters
+import sh.hnet.comfychair.viewmodel.SettingsViewModel
 
 /**
- * The Settings tab: a list of the settings pages. The pages keep their content; their own redesign (and splitting
- * Application into topic pages) follows later.
+ * The Settings tab: the server the app is connected to, then the app's and the data's topic pages, each row showing
+ * its current value where it has one.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsRootScreen(onOpenPage: (SettingsRoute) -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text(stringResource(R.string.action_settings)) },
-            windowInsets = WindowInsets(0, 0, 0, 0)
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            // Address shown so it's clear which server these settings are about
-            val server = ConnectionManager.hostname.takeIf { it.isNotEmpty() }?.let { "$it:${ConnectionManager.port}" }
-            SettingsPageRow(Icons.Rounded.Storage, stringResource(R.string.nav_server_settings), supporting = server, first = true) {
-                onOpenPage(SettingsRoute.Server)
+fun SettingsRootScreen(viewModel: SettingsViewModel, onOpenPage: (SettingsRoute) -> Unit) {
+    val context = LocalContext.current
+    val serverName = remember {
+        ConnectionManager.currentServerId?.let { ServerStorage(context).getServer(it)?.name }
+    }
+    // Address shown so it's clear which server these settings are about
+    val address = ConnectionManager.hostname.takeIf { it.isNotEmpty() }?.let { "$it:${ConnectionManager.port}" }
+    val mediaStorageMode by viewModel.mediaStorageMode.collectAsState()
+    val debugLogging by viewModel.isDebugLoggingEnabled.collectAsState()
+    val routerId by viewModel.edgeRouterId.collectAsState()
+    val languageTag = remember { currentLanguageTag(context) }
+
+    SettingsPage(
+        title = stringResource(R.string.action_settings),
+        onNavigateBack = null,
+        subtitle = (serverName ?: address)?.let { stringResource(R.string.label_settings_connected_to, it) }
+    ) {
+        SettingsGroup(stringResource(R.string.title_settings_group_server)) {
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.Storage, serverName ?: stringResource(R.string.nav_server_settings),
+                    supporting = address
+                ) { onOpenPage(SettingsRoute.Server) }
             }
-            SettingsPageRow(Icons.Rounded.AccountTree, stringResource(R.string.nav_workflows_settings)) {
-                onOpenPage(SettingsRoute.Workflows)
+            row { shapes ->
+                SettingsNavigationRow(shapes, Icons.Rounded.AccountTree, stringResource(R.string.nav_workflows_settings)) {
+                    onOpenPage(SettingsRoute.Workflows)
+                }
             }
-            SettingsPageRow(Icons.Rounded.PhoneAndroid, stringResource(R.string.nav_application_settings)) {
-                onOpenPage(SettingsRoute.Application)
+        }
+        SettingsGroup(stringResource(R.string.title_settings_group_app)) {
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.Wifi, stringResource(R.string.title_settings_connection),
+                    supporting = stringResource(R.string.desc_settings_connection)
+                ) { onOpenPage(SettingsRoute.Connection) }
             }
-            SettingsPageRow(Icons.Rounded.Info, stringResource(R.string.nav_about_settings), last = true) {
-                onOpenPage(SettingsRoute.About)
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.AutoAwesome, stringResource(R.string.title_settings_generation),
+                    supporting = stringResource(R.string.desc_settings_generation_row)
+                ) { onOpenPage(SettingsRoute.Generation) }
+            }
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.Shield, stringResource(R.string.title_settings_media_privacy),
+                    supporting = stringResource(
+                        when (mediaStorageMode) {
+                            MediaStorageMode.MEMORY_ONLY -> R.string.label_media_storage_memory_only
+                            MediaStorageMode.MEMORY_PERSISTED -> R.string.label_media_storage_memory_persisted
+                            MediaStorageMode.DEVICE -> R.string.label_media_storage_device
+                        }
+                    )
+                ) { onOpenPage(SettingsRoute.MediaPrivacy) }
+            }
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.Translate, stringResource(R.string.title_settings_language_page),
+                    supporting = stringResource(
+                        (appLanguages.firstOrNull { it.localeTag == languageTag } ?: appLanguages.first()).nameRes
+                    )
+                ) { onOpenPage(SettingsRoute.Language) }
+            }
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.Polyline, stringResource(R.string.title_settings_workflow_editor),
+                    supporting = edgeRouters.firstOrNull { it.first == routerId }?.let { stringResource(it.second) }
+                ) { onOpenPage(SettingsRoute.WorkflowEditor) }
+            }
+        }
+        SettingsGroup(stringResource(R.string.title_settings_group_data)) {
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.SettingsBackupRestore, stringResource(R.string.title_backup_restore)
+                ) { onOpenPage(SettingsRoute.Backup) }
+            }
+            row { shapes ->
+                SettingsNavigationRow(shapes, Icons.Rounded.DeleteSweep, stringResource(R.string.title_settings_cache_page)) {
+                    onOpenPage(SettingsRoute.Cache)
+                }
+            }
+            row { shapes ->
+                SettingsNavigationRow(
+                    shapes, Icons.Rounded.BugReport, stringResource(R.string.title_settings_debug_log),
+                    supporting = stringResource(if (debugLogging) R.string.state_enabled else R.string.state_disabled)
+                ) { onOpenPage(SettingsRoute.DebugLog) }
+            }
+            row { shapes ->
+                SettingsNavigationRow(shapes, Icons.Rounded.RestartAlt, stringResource(R.string.title_settings_reset)) {
+                    onOpenPage(SettingsRoute.Reset)
+                }
+            }
+        }
+        SettingsGroup {
+            row { shapes ->
+                SettingsNavigationRow(shapes, Icons.Rounded.Info, stringResource(R.string.nav_about_settings)) {
+                    onOpenPage(SettingsRoute.About)
+                }
             }
         }
     }
-}
-
-/** A row of a group: rounded outer corners at the group's ends, small ones between rows. */
-@Composable
-private fun SettingsPageRow(
-    icon: ImageVector,
-    title: String,
-    supporting: String? = null,
-    first: Boolean = false,
-    last: Boolean = false,
-    onClick: () -> Unit
-) {
-    val outer = 20.dp
-    val inner = 6.dp
-    val shape = RoundedCornerShape(
-        topStart = if (first) outer else inner, topEnd = if (first) outer else inner,
-        bottomStart = if (last) outer else inner, bottomEnd = if (last) outer else inner
-    )
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = supporting?.let { { Text(it) } },
-        leadingContent = {
-            Box(
-                Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-        },
-        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        modifier = Modifier
-            .clip(shape)
-            .clickable(onClick = onClick)
-    )
 }

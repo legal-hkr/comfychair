@@ -305,6 +305,7 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
+    /** Delete generated media on the device and in memory; imported workflows aren't a cache and stay. */
     fun clearCache(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
@@ -324,10 +325,6 @@ class SettingsViewModel : ViewModel() {
                         }
                     }
                 }
-
-                // Clear user-uploaded workflows
-                WorkflowManager.ensureInitialized(context)
-                WorkflowManager.clearAllUserWorkflows()
             }
 
             // Clear in-memory media caches

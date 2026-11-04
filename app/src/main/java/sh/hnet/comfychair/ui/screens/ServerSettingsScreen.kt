@@ -2,7 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.SettingsScreenScaffold
 import sh.hnet.comfychair.viewmodel.GpuInfo
-import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 
 @Composable
@@ -60,26 +58,6 @@ fun ServerSettingsScreen(
         viewModel.startResourceAutoRefresh()
         onDispose {
             viewModel.stopResourceAutoRefresh()
-        }
-    }
-
-    // Event handling
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is SettingsEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                }
-                is SettingsEvent.RefreshNeeded -> {
-                    // Handled by MainContainerActivity
-                }
-                is SettingsEvent.ShowRestoreDialog -> {
-                    // Handled by ApplicationSettingsScreen
-                }
-                is SettingsEvent.NavigateToLogin -> {
-                    // Handled by MainContainerActivity
-                }
-            }
         }
     }
 

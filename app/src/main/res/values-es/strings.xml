@@ -1,7 +1,5 @@
 <resources>
     <!-- Language settings -->
-    <string name="title_settings_language">Idioma &amp; ortografía</string>
-    <string name="desc_settings_language">Elige tu idioma preferido y la configuración de ortografía</string>
     <string name="language_system_default">Predeterminado del sistema</string>
     <string name="label_language">Idioma de la aplicación</string>
 
@@ -78,13 +76,10 @@
     <string name="title_settings_connection">Conexión</string>
     <string name="desc_settings_connection">Comportamiento de conexión al servidor</string>
     <string name="title_settings_generation">Generación</string>
-    <string name="desc_settings_generation">Configuración de la experiencia de generación</string>
     <string name="title_settings_workflow_editor">Editor de flujos</string>
-    <string name="desc_settings_workflow_editor">Personalizar la apariencia del editor de flujos</string>
     <string name="label_edge_style">Estilo de conexión</string>
     <string name="option_edge_router_bezier">Curva de Bézier</string>
     <string name="option_edge_router_hermite">Spline de Hermite</string>
-    <string name="title_settings_cache">Caché y almacenamiento</string>
     <string name="desc_settings_cache">Dónde se guardan las imágenes y vídeos generados</string>
     <string name="title_settings_reset">Restablecer</string>
     <string name="desc_settings_reset">Restablecer datos y configuración de la aplicación</string>
@@ -352,6 +347,26 @@
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generación</string>
     <string name="action_settings">Configuración</string>
+    <string name="label_settings_connected_to">Conectado a %1$s</string>
+    <string name="title_settings_group_server">Servidor</string>
+    <string name="title_settings_group_app">Aplicación</string>
+    <string name="title_settings_group_data">Datos</string>
+    <string name="title_settings_media_privacy">Multimedia y privacidad</string>
+    <string name="title_settings_language_page">Idioma</string>
+    <string name="title_settings_cache_page">Caché</string>
+    <string name="title_settings_debug_log">Registro de depuración</string>
+    <string name="desc_settings_generation_row">Vista previa en vivo, corrector ortográfico</string>
+    <string name="state_enabled">Activado</string>
+    <string name="state_disabled">Desactivado</string>
+    <string name="desc_settings_cache_page">Vaciar la caché elimina los resultados y vistas previas guardados en el dispositivo y los archivos multimedia en memoria.</string>
+    <string name="title_confirm_clear_cache">¿Vaciar la caché?</string>
+    <string name="msg_confirm_clear_cache">Se eliminarán los resultados y vistas previas guardados en el dispositivo y los archivos multimedia en memoria.</string>
+    <string name="title_confirm_reset_prompts">¿Restablecer prompts y biblioteca?</string>
+    <string name="msg_confirm_reset_prompts">Los prompts de todas las pantallas vuelven a sus valores predeterminados y la biblioteca de prompts se vacía.</string>
+    <string name="title_confirm_restore_defaults">¿Restaurar valores predeterminados?</string>
+    <string name="msg_confirm_restore_defaults">Los valores guardados de cada workflow y las elecciones de las pantallas de generación vuelven a sus valores predeterminados.</string>
+    <string name="button_reset">Restablecer</string>
+    <string name="button_restore">Restaurar</string>
     <string name="action_logout">Cerrar sesión</string>
 
     <!-- Configuration bottom sheet labels -->
@@ -429,10 +444,8 @@
     <string name="node_editor_bypass">Omitir</string>
 
     <!-- Settings screen strings -->
-    <string name="nav_application_settings">Aplicación</string>
     <string name="nav_server_settings">Servidor</string>
     <string name="nav_workflows_settings">Workflows</string>
-    <string name="title_application_settings">Configuración de la aplicación</string>
     <string name="title_server_settings">Configuración del servidor</string>
     <string name="title_workflows_settings">Workflows</string>
 
@@ -653,7 +666,6 @@
     <string name="title_about_source">Código fuente</string>
 
     <!-- Debug Logging strings -->
-    <string name="title_debug_logging">Registro de depuración</string>
     <string name="desc_debug_logging">Capturar registros operacionales para solución de problemas</string>
     <string name="label_debug_logging_enable">Habilitar registro</string>
     <string name="desc_debug_logging_enable">Los registros se mantienen solo en memoria</string>

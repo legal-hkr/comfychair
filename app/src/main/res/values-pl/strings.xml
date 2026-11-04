@@ -1,7 +1,5 @@
 <resources>
     <!-- Language settings -->
-    <string name="title_settings_language">Język i pisownia</string>
-    <string name="desc_settings_language">Wybierz preferowany język aplikacji i ustawienia pisowni</string>
     <string name="language_system_default">Domyślny systemowy</string>
     <string name="label_language">Język aplikacji</string>
 
@@ -78,13 +76,10 @@
     <string name="title_settings_connection">Połączenie</string>
     <string name="desc_settings_connection">Zachowanie połączenia z serwerem</string>
     <string name="title_settings_generation">Generowanie</string>
-    <string name="desc_settings_generation">Ustawienia generowania</string>
     <string name="title_settings_workflow_editor">Edytor przepływu pracy</string>
-    <string name="desc_settings_workflow_editor">Dostosuj wygląd edytora przepływu pracy</string>
     <string name="label_edge_style">Styl połączeń</string>
     <string name="option_edge_router_bezier">Krzywa Béziera</string>
     <string name="option_edge_router_hermite">Splajn Hermite\'a</string>
-    <string name="title_settings_cache">Pamięć podręczna i przechowywanie</string>
     <string name="desc_settings_cache">Gdzie aplikacja przechowuje wygenerowane obrazy i wideo</string>
     <string name="title_settings_reset">Resetowanie</string>
     <string name="desc_settings_reset">Zresetuj dane i ustawienia aplikacji</string>
@@ -359,6 +354,26 @@
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generowanie</string>
     <string name="action_settings">Ustawienia</string>
+    <string name="label_settings_connected_to">Połączono z %1$s</string>
+    <string name="title_settings_group_server">Serwer</string>
+    <string name="title_settings_group_app">Aplikacja</string>
+    <string name="title_settings_group_data">Dane</string>
+    <string name="title_settings_media_privacy">Multimedia i prywatność</string>
+    <string name="title_settings_language_page">Język</string>
+    <string name="title_settings_cache_page">Pamięć podręczna</string>
+    <string name="title_settings_debug_log">Log debugowania</string>
+    <string name="desc_settings_generation_row">Podgląd na żywo, sprawdzanie pisowni</string>
+    <string name="state_enabled">Włączony</string>
+    <string name="state_disabled">Wyłączony</string>
+    <string name="desc_settings_cache_page">Wyczyszczenie pamięci podręcznej usuwa wyniki i podglądy zapisane na urządzeniu oraz multimedia trzymane w pamięci.</string>
+    <string name="title_confirm_clear_cache">Wyczyścić pamięć podręczną?</string>
+    <string name="msg_confirm_clear_cache">Znikną wyniki i podglądy zapisane na urządzeniu oraz multimedia w pamięci.</string>
+    <string name="title_confirm_reset_prompts">Zresetować prompty i bibliotekę?</string>
+    <string name="msg_confirm_reset_prompts">Prompty na wszystkich ekranach wrócą do domyślnych, a biblioteka promptów zostanie opróżniona.</string>
+    <string name="title_confirm_restore_defaults">Przywrócić ustawienia domyślne?</string>
+    <string name="msg_confirm_restore_defaults">Zapisane wartości wszystkich przepływów pracy i wybory na ekranach generowania wrócą do domyślnych.</string>
+    <string name="button_reset">Resetuj</string>
+    <string name="button_restore">Przywróć</string>
     <string name="action_logout">Wyloguj</string>
 
     <!-- Configuration bottom sheet labels -->
@@ -440,10 +455,8 @@
     <string name="node_editor_bypass">Pomiń</string>
 
     <!-- Settings screen strings -->
-    <string name="nav_application_settings">Aplikacja</string>
     <string name="nav_server_settings">Serwer</string>
     <string name="nav_workflows_settings">Przepływy pracy</string>
-    <string name="title_application_settings">Ustawienia aplikacji</string>
     <string name="title_server_settings">Ustawienia serwera</string>
     <string name="title_workflows_settings">Przepływy pracy</string>
 
@@ -668,7 +681,6 @@
     <string name="title_about_source">Kod źródłowy</string>
 
     <!-- Debug Logging strings -->
-    <string name="title_debug_logging">Logowanie debugowania</string>
     <string name="desc_debug_logging">Przechwytuj logi operacyjne do rozwiązywania problemów</string>
     <string name="label_debug_logging_enable">Włącz logowanie</string>
     <string name="desc_debug_logging_enable">Logi są przechowywane tylko w pamięci</string>

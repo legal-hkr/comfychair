@@ -1,7 +1,5 @@
 <resources>
     <!-- Language settings -->
-    <string name="title_settings_language">语言与拼写</string>
-    <string name="desc_settings_language">选择您偏好的应用语言和拼写设置</string>
     <string name="language_system_default">系统默认</string>
     <string name="label_language">应用语言</string>
 
@@ -78,13 +76,10 @@
     <string name="title_settings_connection">连接</string>
     <string name="desc_settings_connection">服务器连接行为</string>
     <string name="title_settings_generation">生成</string>
-    <string name="desc_settings_generation">生成体验设置</string>
     <string name="title_settings_workflow_editor">工作流编辑器</string>
-    <string name="desc_settings_workflow_editor">自定义工作流编辑器外观</string>
     <string name="label_edge_style">连线样式</string>
     <string name="option_edge_router_bezier">贝塞尔曲线</string>
     <string name="option_edge_router_hermite">埃尔米特样条</string>
-    <string name="title_settings_cache">缓存和存储</string>
     <string name="desc_settings_cache">生成的图片和视频的存储位置</string>
     <string name="title_settings_reset">重置</string>
     <string name="desc_settings_reset">重置应用数据和设置</string>
@@ -338,6 +333,26 @@
     <!-- Top app bar menu strings -->
     <string name="menu_generation">生成</string>
     <string name="action_settings">设置</string>
+    <string name="label_settings_connected_to">已连接到 %1$s</string>
+    <string name="title_settings_group_server">服务器</string>
+    <string name="title_settings_group_app">应用</string>
+    <string name="title_settings_group_data">数据</string>
+    <string name="title_settings_media_privacy">媒体与隐私</string>
+    <string name="title_settings_language_page">语言</string>
+    <string name="title_settings_cache_page">缓存</string>
+    <string name="title_settings_debug_log">调试日志</string>
+    <string name="desc_settings_generation_row">实时预览、拼写检查</string>
+    <string name="state_enabled">已开启</string>
+    <string name="state_disabled">已关闭</string>
+    <string name="desc_settings_cache_page">清除缓存会删除设备上保存的结果和预览以及内存中的媒体。</string>
+    <string name="title_confirm_clear_cache">清除缓存？</string>
+    <string name="msg_confirm_clear_cache">设备上保存的结果和预览以及内存中的媒体将被删除。</string>
+    <string name="title_confirm_reset_prompts">重置提示词和提示词库？</string>
+    <string name="msg_confirm_reset_prompts">所有屏幕的提示词将恢复为默认值，提示词库将被清空。</string>
+    <string name="title_confirm_restore_defaults">恢复默认设置？</string>
+    <string name="msg_confirm_restore_defaults">每个工作流保存的值以及生成屏幕上的选择将恢复为默认值。</string>
+    <string name="button_reset">重置</string>
+    <string name="button_restore">恢复</string>
     <string name="action_logout">退出登录</string>
 
     <!-- Configuration bottom sheet labels -->
@@ -407,10 +422,8 @@
     <string name="node_editor_bypass">跳过</string>
 
     <!-- Settings screen strings -->
-    <string name="nav_application_settings">应用</string>
     <string name="nav_server_settings">服务器</string>
     <string name="nav_workflows_settings">工作流</string>
-    <string name="title_application_settings">应用设置</string>
     <string name="title_server_settings">服务器设置</string>
     <string name="title_workflows_settings">工作流</string>
 
@@ -623,7 +636,6 @@
     <string name="title_about_source">源代码</string>
 
     <!-- Debug Logging strings -->
-    <string name="title_debug_logging">调试日志</string>
     <string name="desc_debug_logging">捕获操作日志以进行故障排除</string>
     <string name="label_debug_logging_enable">启用日志记录</string>
     <string name="desc_debug_logging_enable">日志仅保存在内存中</string>

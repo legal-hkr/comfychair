@@ -56,9 +56,7 @@ fun routeForOwner(ownerId: String?): MainRoute? = when (ownerId) {
 
 /** The Settings tab: its list and the pages opened from it. */
 fun isSettingsRoute(route: String?): Boolean =
-    route == MainRoute.Settings.route || route in listOf(
-        SettingsRoute.Workflows.route, SettingsRoute.Application.route, SettingsRoute.Server.route, SettingsRoute.About.route
-    )
+    route == MainRoute.Settings.route || SettingsRoute.all.any { it.route == route }
 
 /**
  * Show a screen. Every switch (tab, source, Gallery, Settings) is a step in the history, and Back retraces them; from

@@ -1,7 +1,5 @@
 <resources>
     <!-- Language settings -->
-    <string name="title_settings_language">Sprache &amp; Rechtschreibung</string>
-    <string name="desc_settings_language">Wähle deine bevorzugte App-Sprache und Rechtschreibeinstellungen</string>
     <string name="language_system_default">Systemstandard</string>
     <string name="label_language">App-Sprache</string>
 
@@ -78,13 +76,10 @@
     <string name="title_settings_connection">Verbindung</string>
     <string name="desc_settings_connection">Verbindungsverhalten zum Server</string>
     <string name="title_settings_generation">Generierung</string>
-    <string name="desc_settings_generation">Einstellungen für die Generierung</string>
     <string name="title_settings_workflow_editor">Workflow-Editor</string>
-    <string name="desc_settings_workflow_editor">Erscheinungsbild des Workflow-Editors anpassen</string>
     <string name="label_edge_style">Kantenstil</string>
     <string name="option_edge_router_bezier">Bézierkurve</string>
     <string name="option_edge_router_hermite">Hermite-Spline</string>
-    <string name="title_settings_cache">Cache und Speicher</string>
     <string name="desc_settings_cache">Wo generierte Bilder und Videos gespeichert werden</string>
     <string name="title_settings_reset">Zurücksetzen</string>
     <string name="desc_settings_reset">App-Daten und Einstellungen zurücksetzen</string>
@@ -360,6 +355,26 @@
     <!-- Top app bar menu strings -->
     <string name="menu_generation">Generierung</string>
     <string name="action_settings">Einstellungen</string>
+    <string name="label_settings_connected_to">Verbunden mit %1$s</string>
+    <string name="title_settings_group_server">Server</string>
+    <string name="title_settings_group_app">App</string>
+    <string name="title_settings_group_data">Daten</string>
+    <string name="title_settings_media_privacy">Medien und Datenschutz</string>
+    <string name="title_settings_language_page">Sprache</string>
+    <string name="title_settings_cache_page">Cache</string>
+    <string name="title_settings_debug_log">Debug-Protokoll</string>
+    <string name="desc_settings_generation_row">Live-Vorschau, Rechtschreibprüfung</string>
+    <string name="state_enabled">Ein</string>
+    <string name="state_disabled">Aus</string>
+    <string name="desc_settings_cache_page">Das Leeren des Caches löscht auf dem Gerät gespeicherte Ergebnisse und Vorschauen sowie Medien im Speicher.</string>
+    <string name="title_confirm_clear_cache">Cache leeren?</string>
+    <string name="msg_confirm_clear_cache">Auf dem Gerät gespeicherte Ergebnisse und Vorschauen sowie Medien im Speicher werden gelöscht.</string>
+    <string name="title_confirm_reset_prompts">Prompts und Bibliothek zurücksetzen?</string>
+    <string name="msg_confirm_reset_prompts">Die Prompts aller Bildschirme kehren zu ihren Standardwerten zurück und die Prompt-Bibliothek wird geleert.</string>
+    <string name="title_confirm_restore_defaults">Standardwerte wiederherstellen?</string>
+    <string name="msg_confirm_restore_defaults">Die gespeicherten Werte aller Workflows und die Auswahl auf den Generierungsbildschirmen kehren zu ihren Standardwerten zurück.</string>
+    <string name="button_reset">Zurücksetzen</string>
+    <string name="button_restore">Wiederherstellen</string>
     <string name="action_logout">Abmelden</string>
 
     <!-- Configuration bottom sheet labels -->
@@ -433,10 +448,8 @@
     <string name="node_editor_bypass">Umgehen</string>
 
     <!-- Settings screen strings -->
-    <string name="nav_application_settings">Anwendung</string>
     <string name="nav_server_settings">Server</string>
     <string name="nav_workflows_settings">Workflows</string>
-    <string name="title_application_settings">Anwendungseinstellungen</string>
     <string name="title_server_settings">Servereinstellungen</string>
     <string name="title_workflows_settings">Workflows</string>
 
@@ -636,7 +649,6 @@
     <string name="title_about_source">Quellcode</string>
 
     <!-- Debug Logging strings -->
-    <string name="title_debug_logging">Debug-Protokollierung</string>
     <string name="desc_debug_logging">Betriebsprotokolle zur Fehlerbehebung erfassen</string>
     <string name="label_debug_logging_enable">Protokollierung aktivieren</string>
     <string name="desc_debug_logging_enable">Protokolle werden nur im Speicher gehalten</string>

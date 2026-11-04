@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.ui.navigation
 
-import sh.hnet.comfychair.ui.components.LocalMediaOrigins
-import sh.hnet.comfychair.ui.components.MediaOrigins
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -58,13 +56,14 @@ import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.JobStatus
 import sh.hnet.comfychair.ui.components.LocalCoveredByMediaViewer
+import sh.hnet.comfychair.ui.components.LocalMediaOrigins
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.MainNavigationBar
+import sh.hnet.comfychair.ui.components.MediaOrigins
 import sh.hnet.comfychair.ui.components.MediaViewerOpener
 import sh.hnet.comfychair.ui.components.MediaViewerOverlay
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
-import sh.hnet.comfychair.ui.screens.ApplicationSettingsScreen
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
@@ -73,6 +72,16 @@ import sh.hnet.comfychair.ui.screens.SettingsRootScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
+import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.CacheSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.ConnectionSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.DebugLogSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.GenerationSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.LanguageSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.MediaPrivacySettingsPage
+import sh.hnet.comfychair.ui.screens.settings.ResetSettingsPage
+import sh.hnet.comfychair.ui.screens.settings.SettingsEventsHost
+import sh.hnet.comfychair.ui.screens.settings.WorkflowEditorSettingsPage
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
@@ -268,7 +277,7 @@ fun MainNavHost(
 
                             // Settings tab: the list, and the pages it opens (Back returns to the list)
                             composable(MainRoute.Settings.route) {
-                                SettingsRootScreen(onOpenPage = { page -> navController.navigate(page.route) })
+                                SettingsRootScreen(settingsViewModel, onOpenPage = { page -> navController.navigate(page.route) })
                             }
                             composable(SettingsRoute.Server.route) {
                                 ServerSettingsScreen(
@@ -283,12 +292,17 @@ fun MainNavHost(
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
-                            composable(SettingsRoute.Application.route) {
-                                ApplicationSettingsScreen(
-                                    viewModel = settingsViewModel,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
+                            // The app's and the data's topic pages
+                            val back: () -> Unit = { navController.popBackStack() }
+                            composable(SettingsRoute.Connection.route) { ConnectionSettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.Generation.route) { GenerationSettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.MediaPrivacy.route) { MediaPrivacySettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.Language.route) { LanguageSettingsPage(back) }
+                            composable(SettingsRoute.WorkflowEditor.route) { WorkflowEditorSettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.Backup.route) { BackupSettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.Cache.route) { CacheSettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.DebugLog.route) { DebugLogSettingsPage(settingsViewModel, back) }
+                            composable(SettingsRoute.Reset.route) { ResetSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.About.route) {
                                 AboutSettingsScreen(onNavigateBack = { navController.popBackStack() })
                             }
@@ -304,6 +318,8 @@ fun MainNavHost(
                     }
                 }
             }
+            // Messages and the restore confirmation of every settings page
+            SettingsEventsHost(settingsViewModel)
             MediaViewerOverlay(mediaViewerViewModel, onUseAsSource = { target, bitmap -> useAsSource(target) { bitmap } })
         }
     }

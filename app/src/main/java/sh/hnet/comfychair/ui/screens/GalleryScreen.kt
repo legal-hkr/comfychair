@@ -57,7 +57,7 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -394,7 +394,7 @@ fun GalleryScreen(
 }
 
 /**
- * The gallery's top bar: the title and the number of items, collapsing on scroll; while selecting, Close, the number
+ * The gallery's top bar, large like the Settings tab's: the title and the number of items, collapsing on scroll; while selecting, Close, the number
  * selected and Select all.
  */
 @Composable
@@ -407,7 +407,7 @@ private fun GalleryTopBar(
     onSelectAll: () -> Unit,
     onCloseSelection: () -> Unit
 ) {
-    MediumFlexibleTopAppBar(
+    LargeFlexibleTopAppBar(
         title = {
             Text(
                 if (selecting) pluralStringResource(R.plurals.gallery_selected_count, selectedCount, selectedCount)
