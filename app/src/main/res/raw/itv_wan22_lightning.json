@@ -118,7 +118,7 @@
         "width": "{{width}}",
         "height": "{{height}}",
         "length": "{{length}}",
-        "batch_size": "{{batch_size}}",
+        "batch_size": 1,
         "positive": ["6", 0],
         "negative": ["7", 0],
         "vae": ["2", 0],

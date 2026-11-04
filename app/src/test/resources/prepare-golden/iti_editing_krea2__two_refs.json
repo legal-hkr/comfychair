@@ -1,0 +1,225 @@
+{
+  "defaults": {
+    "cfg": 1,
+    "denoise": 1,
+    "megapixels": 1,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "steps": 10
+  },
+  "description": "Instruction-based image editing with the Krea-2 Edit model, no LoRA needed (requires the comfyui-krea2edit nodes)",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["1", "note:1"],
+    "title": "Diffusion Model"
+  }, {
+    "id": 3,
+    "member_nodes": ["3", "note:3"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 4,
+    "member_nodes": ["4", "note:4"],
+    "title": "VAE Configuration"
+  }, {
+    "id": 5,
+    "member_nodes": ["10", "11", "note:5"],
+    "title": "Edit Configuration"
+  }, {
+    "id": 6,
+    "member_nodes": ["13", "note:6"],
+    "title": "Sampling Configuration"
+  }],
+  "name": "Krea-2 Edit",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "Edit Model Patch"
+      },
+      "class_type": "Krea2EditModelPatch",
+      "inputs": {
+        "fit_mode": "fit",
+        "model": ["100", 0],
+        "ref_boost": 4,
+        "ref_boost_a": 1,
+        "source_image": ["6", 0],
+        "source_latent": ["9", 0],
+        "target_latent": ["8", 0],
+        "vae": ["4", 0]
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "Edit Instruction"
+      },
+      "class_type": "Krea2EditGroundedEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "grounding_px": 768,
+        "image": ["6", 0],
+        "prompt": "A \"red\" fox\nin snow \\ test",
+        "system_prompt": ""
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "Empty Negative"
+      },
+      "class_type": "Krea2EditGroundedEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "grounding_px": 768,
+        "image": ["6", 0],
+        "prompt": "",
+        "system_prompt": ""
+      }
+    },
+    "13": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": "4.5",
+        "denoise": "0.75",
+        "latent_image": ["8", 0],
+        "model": ["10", 0],
+        "negative": ["12", 0],
+        "positive": ["11", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": "28"
+      }
+    },
+    "14": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["4", 0]
+      }
+    },
+    "15": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["14", 0]
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load CLIP"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "krea2"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "Source Image"
+      },
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "source_upload.png [input]"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "Scale to Megapixels"
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": ["5", 0],
+        "megapixels": "1.5",
+        "resolution_steps": 16,
+        "upscale_method": "lanczos"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "Get Image Size"
+      },
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": ["6", 0]
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "Empty Latent Image"
+      },
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": ["7", 1],
+        "width": ["7", 0]
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "VAE Encode Source"
+      },
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": ["6", 0],
+        "vae": ["4", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended UNET Model\n\nUse **Krea-2 Edit** (krea2_edit_v1.0_int8 or krea2_edit_v1.5_bf16), a Krea-2 model trained for editing, so no edit LoRA is needed. The Krea-2 Turbo text-to-image model doesn't follow edit instructions here; for Turbo with the Identity Edit LoRA use the **Krea-2 Edit (Identity Edit LoRA)** workflow.\n\nThis workflow needs the **comfyui-krea2edit** custom nodes (github.com/lbouaraba/comfyui-krea2edit).",
+    "id": 1,
+    "title": "Diffusion Model Selection"
+  }, {
+    "content": "### Recommended CLIP Model\n\nUse **Qwen 3 VL 4B FP8 scaled**. It also sees the source image while reading the instruction.",
+    "id": 3,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Krea-2.",
+    "id": 4,
+    "title": "VAE Selection"
+  }, {
+    "content": "### Edit Settings\n\n- **ref_boost** (Edit Model Patch): how closely the result follows the source. 4 = strong likeness (default), 1 = classic behaviour, above 10 removals start failing.\n- **grounding_px** (Edit Instruction): how large the model sees the source while reading the instruction. Lower it if compositions come out doubled.\n\nWrite the edit as a plain instruction, e.g. *Change her outfit to a red raincoat.*",
+    "id": 5,
+    "title": "Edit Settings"
+  }, {
+    "content": "### Recommended Settings\n\n- **Steps:** 10 (8 for stronger instruction adherence, 12 for more face detail)\n- **CFG:** 1.0\n- **Megapixels:** 1.0; stay at or below 2\n\n---\n\n*The output keeps the aspect ratio of the source image.*",
+    "id": 6,
+    "title": "Sampler Settings"
+  }]
+}

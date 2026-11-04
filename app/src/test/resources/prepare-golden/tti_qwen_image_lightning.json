@@ -1,0 +1,184 @@
+{
+  "defaults": {
+    "cfg": 1,
+    "height": 1024,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "steps": 8,
+    "width": 1024
+  },
+  "description": "Workflow for Qwen Image UNET model with Lightning LoRA for fast generation",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["1", "note:1"],
+    "title": "Diffusion Model"
+  }, {
+    "id": 2,
+    "member_nodes": ["2", "note:2"],
+    "title": "Lightning LoRA"
+  }, {
+    "id": 3,
+    "member_nodes": ["3", "note:3"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 4,
+    "member_nodes": ["4", "note:4"],
+    "title": "VAE Configuration"
+  }, {
+    "id": 5,
+    "member_nodes": ["9", "note:5"],
+    "title": "Sampling Configuration"
+  }],
+  "name": "Qwen Image (Lightning LoRA)",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["9", 0],
+        "vae": ["4", 0]
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["10", 0]
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Load LoRA (Mandatory)"
+      },
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "mandatory_lora.safetensors",
+        "model": ["100", 0],
+        "strength_model": 1
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load CLIP"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "qwen_image"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "Empty Latent Image"
+      },
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": "1216",
+        "width": "832"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "ModelSamplingAuraFlow"
+      },
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": ["2", 0],
+        "shift": 3.1
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": "4.5",
+        "denoise": 1,
+        "latent_image": ["5", 0],
+        "model": ["8", 0],
+        "negative": ["7", 0],
+        "positive": ["6", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": "28"
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended UNET Model\n\nUse **Qwen Image FP8 e4m3fn** for optimal results.",
+    "id": 1,
+    "title": "Diffusion Model Selection"
+  }, {
+    "content": "### Required LoRA\n\nThis workflow uses Lightning LoRA for fast inference.\n\nUse **Qwen Image Lightning 8 Steps** for 8-step generation.",
+    "id": 2,
+    "title": "Lightning LoRA"
+  }, {
+    "content": "### Recommended CLIP Model\n\nUse **2.5 VL 7B FP8 Scaled** for optimal text understanding with Qwen Image.",
+    "id": 3,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Qwen Image models.",
+    "id": 4,
+    "title": "VAE Selection"
+  }, {
+    "content": "### Recommended Settings\n\n- **Steps:** 8\n- **CFG:** 1.0\n- **Sampler:** euler\n- **Scheduler:** simple\n\n---\n\n*Lightning LoRA enables fast 8-step inference.*",
+    "id": 5,
+    "title": "Sampler Settings"
+  }]
+}

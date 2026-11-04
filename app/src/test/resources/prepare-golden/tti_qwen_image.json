@@ -1,0 +1,165 @@
+{
+  "defaults": {
+    "cfg": 2.5,
+    "height": 1024,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "steps": 20,
+    "width": 1024
+  },
+  "description": "Workflow for Qwen Image UNET model",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["1", "note:1"],
+    "title": "Diffusion Model"
+  }, {
+    "id": 2,
+    "member_nodes": ["2", "note:2"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 3,
+    "member_nodes": ["3", "note:3"],
+    "title": "VAE Configuration"
+  }, {
+    "id": 4,
+    "member_nodes": ["8", "note:4"],
+    "title": "Sampling Configuration"
+  }],
+  "name": "Qwen Image",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["9", 0]
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Load CLIP"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "qwen_image"
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Empty Latent Image"
+      },
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": "1216",
+        "width": "832"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["2", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["2", 0],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "ModelSamplingAuraFlow"
+      },
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": ["100", 0],
+        "shift": 3.1
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": "4.5",
+        "denoise": 1,
+        "latent_image": ["4", 0],
+        "model": ["7", 0],
+        "negative": ["6", 0],
+        "positive": ["5", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": "28"
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["8", 0],
+        "vae": ["3", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended UNET Model\n\nUse **Qwen Image FP8 e4m3fn** for optimal results.",
+    "id": 1,
+    "title": "Diffusion Model Selection"
+  }, {
+    "content": "### Recommended CLIP Model\n\nUse **2.5 VL 7B FP8 Scaled** for optimal text understanding with Qwen Image.",
+    "id": 2,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse **Qwen Image** VAE for optimal results with Qwen Image models.",
+    "id": 3,
+    "title": "VAE Selection"
+  }, {
+    "content": "### Recommended Settings\n\n- **Steps:** 20\n- **CFG:** 2.5\n- **Sampler:** euler\n- **Scheduler:** simple",
+    "id": 4,
+    "title": "Sampler Settings"
+  }]
+}

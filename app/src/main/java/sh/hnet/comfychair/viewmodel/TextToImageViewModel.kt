@@ -323,59 +323,10 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
 
     /**
      * Prepare workflow JSON for generation.
-     *
-     * Uses unified fields - WorkflowManager.prepareWorkflowById() only substitutes
-     * placeholders that exist in the workflow JSON, so we can pass ALL selections
-     * and let the placeholder replacement handle which ones are actually used.
      */
     fun prepareWorkflowJson(): String? {
-        val state = _uiState.value
-
-        DebugLogger.i(TAG, "Preparing workflow: ${Obfuscator.workflowName(state.selectedWorkflow)}")
-
-        // Pass ALL model selections and parameters - only those with matching
-        // placeholders in the workflow will be substituted
-        val baseWorkflow = WorkflowManager.prepareWorkflowById(
-            workflowId = state.selectedWorkflowId,
-            positivePrompt = state.positivePrompt,
-            negativePrompt = state.negativePrompt,
-            // Model selections - workflow placeholders determine which are used
-            checkpoint = state.selectedCheckpoint,
-            unet = state.selectedUnet,
-            vae = state.selectedVae,
-            clip = state.selectedClip.takeIf { it.isNotEmpty() },
-            clip1 = state.selectedClip1.takeIf { it.isNotEmpty() },
-            clip2 = state.selectedClip2.takeIf { it.isNotEmpty() },
-            clip3 = state.selectedClip3.takeIf { it.isNotEmpty() },
-            clip4 = state.selectedClip4.takeIf { it.isNotEmpty() },
-            textEncoder = state.selectedTextEncoder.takeIf { it.isNotEmpty() },
-            latentUpscaleModel = state.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
-            lora = state.selectedLoraName.takeIf { it.isNotEmpty() },
-            highnoiseUnet = state.selectedHighnoiseUnet,
-            lownoiseUnet = state.selectedLownoiseUnet,
-            highnoiseLora = state.selectedHighnoiseLora,
-            lownoiseLora = state.selectedLownoiseLora,
-            // Unified generation parameters
-            width = state.width.toIntOrNull() ?: 1024,
-            height = state.height.toIntOrNull() ?: 1024,
-            megapixels = state.megapixels.toFloatOrNull(),
-            length = state.length.toIntOrNull(),
-            frameRate = state.fps.toIntOrNull(),
-            steps = state.steps.toIntOrNull() ?: 20,
-            cfg = state.cfg.toFloatOrNull() ?: 7.0f,
-            samplerName = state.sampler,
-            scheduler = state.scheduler,
-            seed = state.seed.toLongOrNull(),
-            randomSeed = state.randomSeed,
-            denoise = state.denoise.toFloatOrNull(),
-            batchSize = state.batchSize.toIntOrNull(),
-            upscaleMethod = state.upscaleMethod.takeIf { it.isNotEmpty() },
-            scaleBy = state.scaleBy.toFloatOrNull(),
-            stopAtClipLayer = state.stopAtClipLayer.toIntOrNull()
-        ) ?: return null
-
-        // Inject LoRA chain if present
-        return WorkflowManager.injectLoraChain(baseWorkflow, state.loraChain, WorkflowType.TTI)
+        val p = _uiState.value.params
+        return WorkflowManager.prepareWorkflow(p.selectedWorkflowId, p)
     }
 
     /**

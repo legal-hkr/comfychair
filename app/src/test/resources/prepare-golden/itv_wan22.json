@@ -1,0 +1,226 @@
+{
+  "defaults": {
+    "frame_rate": 24,
+    "height": 800,
+    "length": 49,
+    "negative_prompt": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+    "width": 480
+  },
+  "description": "Workflow for Wan 2.2 image to video generation",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["1", "note:1"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 2,
+    "member_nodes": ["3", "4", "note:2"],
+    "title": "Diffusion Models"
+  }],
+  "name": "Wan 2.2",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load CLIP"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "wan"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "ModelSamplingSD3 (Low Noise)"
+      },
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": ["4", 0],
+        "shift": 8
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["3", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "101": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "high_lora.safetensors",
+        "model": ["100", 0],
+        "strength_model": 0.5
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "KSampler (Advanced) - High Noise"
+      },
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "add_noise": "enable",
+        "cfg": 3.5,
+        "end_at_step": 10,
+        "latent_image": ["8", 2],
+        "model": ["9", 0],
+        "negative": ["8", 1],
+        "noise_seed": "1234567890123",
+        "positive": ["8", 0],
+        "return_with_leftover_noise": "enable",
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "start_at_step": 0,
+        "steps": 20
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "KSampler (Advanced) - Low Noise"
+      },
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "add_noise": "disable",
+        "cfg": 3.5,
+        "end_at_step": 20,
+        "latent_image": ["11", 0],
+        "model": ["10", 0],
+        "negative": ["8", 1],
+        "noise_seed": "1234567890123",
+        "positive": ["8", 0],
+        "return_with_leftover_noise": "disable",
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "start_at_step": 10,
+        "steps": 20
+      }
+    },
+    "13": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["12", 0],
+        "vae": ["2", 0]
+      }
+    },
+    "14": {
+      "_meta": {
+        "title": "Create Video"
+      },
+      "class_type": "CreateVideo",
+      "inputs": {
+        "fps": "24",
+        "images": ["13", 0]
+      }
+    },
+    "15": {
+      "_meta": {
+        "title": "Save Video"
+      },
+      "class_type": "SaveVideo",
+      "inputs": {
+        "codec": "auto",
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "video": ["14", 0]
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load Diffusion Model (High Noise)"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "high_unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Load Diffusion Model (Low Noise)"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "low_unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "Load Image"
+      },
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "source_upload.png [input]"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 0],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "WanImageToVideo"
+      },
+      "class_type": "WanImageToVideo",
+      "inputs": {
+        "batch_size": 1,
+        "height": "480",
+        "length": "49",
+        "negative": ["7", 0],
+        "positive": ["6", 0],
+        "start_image": ["5", 0],
+        "vae": ["2", 0],
+        "width": "832"
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "ModelSamplingSD3 (High Noise)"
+      },
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": ["101", 0],
+        "shift": 8
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended CLIP Model\n\nUse **UMT5 XXL FP8 e4m3fn** for optimal text understanding with Wan 2.2 video generation.",
+    "id": 1,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### High/Low Noise UNETs\n\nWan 2.2 requires **two separate UNET models** for the diffusion process:\n\n- **High Noise UNET:** Handles the initial denoising steps\n- **Low Noise UNET:** Refines the final output\n\n---\n\n*Both models must be loaded for proper video generation.*",
+    "id": 2,
+    "title": "Dual UNET Architecture"
+  }]
+}

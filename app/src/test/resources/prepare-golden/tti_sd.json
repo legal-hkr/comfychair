@@ -1,0 +1,101 @@
+{
+  "defaults": {
+    "cfg": 8,
+    "height": 512,
+    "negative_prompt": "text, watermark",
+    "sampler_name": "euler",
+    "scheduler": "normal",
+    "steps": 20,
+    "width": 512
+  },
+  "description": "Workflow for SD generation",
+  "name": "SD",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Checkpoint"
+      },
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "ckpt.safetensors"
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Empty Latent Image"
+      },
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": "1216",
+        "width": "832"
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 1],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 1],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": "4.5",
+        "denoise": 1,
+        "latent_image": ["2", 0],
+        "model": ["100", 0],
+        "negative": ["4", 0],
+        "positive": ["3", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": "28"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["5", 0],
+        "vae": ["1", 2]
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["6", 0]
+      }
+    }
+  }
+}

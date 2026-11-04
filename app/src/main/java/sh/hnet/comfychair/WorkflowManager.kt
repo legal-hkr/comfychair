@@ -3,6 +3,8 @@ package sh.hnet.comfychair
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.viewmodel.base.GenerationParams
+import sh.hnet.comfychair.viewmodel.base.ModelSlot
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.model.WorkflowDefaults
@@ -1633,660 +1635,138 @@ object WorkflowManager {
     }
 
     /**
-     * Prepare workflow JSON with actual parameter values (by workflow ID)
+     * Images uploaded to the server for a workflow (server-side file names).
      */
-    fun prepareWorkflowById(
+    data class WorkflowImages(
+        val source: String? = null,
+        val reference1: String? = null,
+        val reference2: String? = null
+    )
+
+    /**
+     * Prepare a workflow for submission: every placeholder filled from [params] (prompts, all model
+     * selections, all parameters), uploaded [images] referenced, unused reference image nodes removed,
+     * node edits from the Workflow Editor and bypassed nodes applied, and the LoRA chains injected.
+     *
+     * The single preparation for all screens: any workflow can use any placeholder, so nothing here
+     * depends on the screen. Returns null if the workflow doesn't exist.
+     */
+    fun prepareWorkflow(
         workflowId: String,
-        positivePrompt: String,
-        negativePrompt: String = "",
-        // Single-model patterns
-        checkpoint: String = "",
-        unet: String = "",
-        lora: String? = null,  // Mandatory LoRA (single selection dropdown)
-        // Dual-model patterns (for unified support)
-        highnoiseUnet: String = "",
-        lownoiseUnet: String = "",
-        highnoiseLora: String = "",
-        lownoiseLora: String = "",
-        // Common models
-        vae: String = "",
-        clip: String? = null,
-        clip1: String? = null,
-        clip2: String? = null,
-        clip3: String? = null,
-        clip4: String? = null,
-        textEncoder: String? = null,
-        latentUpscaleModel: String? = null,
-        width: Int,
-        height: Int,
-        megapixels: Float? = null,
-        length: Int? = null,
-        frameRate: Int? = null,
-        steps: Int,
-        cfg: Float = 8.0f,
-        samplerName: String = "euler",
-        scheduler: String = "normal",
-        seed: Long? = null,
-        randomSeed: Boolean = true,
-        denoise: Float? = null,
-        batchSize: Int? = null,
-        upscaleMethod: String? = null,
-        scaleBy: Float? = null,
-        stopAtClipLayer: Int? = null
+        params: GenerationParams,
+        images: WorkflowImages = WorkflowImages()
     ): String? {
         val workflow = getWorkflowById(workflowId) ?: return null
-        DebugLogger.i(TAG, "Preparing workflow: ${workflow.name} (id: $workflowId)")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
-        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Steps: $steps, CFG: $cfg")
-        DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
-        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
-        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
-        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
-        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
-        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
-        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
-        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
-        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
-        clip?.let { DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(it)}") }
-        clip1?.let { DebugLogger.d(TAG, "CLIP1: ${Obfuscator.modelName(it)}") }
-        clip2?.let { DebugLogger.d(TAG, "CLIP2: ${Obfuscator.modelName(it)}") }
-        clip3?.let { DebugLogger.d(TAG, "CLIP3: ${Obfuscator.modelName(it)}") }
-        clip4?.let { DebugLogger.d(TAG, "CLIP4: ${Obfuscator.modelName(it)}") }
+        DebugLogger.i(TAG, "Preparing workflow ${Obfuscator.workflowName(workflow.name)} (${workflow.type})")
+        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(params.positivePrompt)}, steps: ${params.steps}, cfg: ${params.cfg}, " +
+            "sampler: ${params.sampler}, scheduler: ${params.scheduler}")
+        ModelSlot.entries.forEach { slot ->
+            params.selection(slot).takeIf { it.isNotEmpty() }?.let {
+                DebugLogger.d(TAG, "${slot.name}: ${Obfuscator.modelName(it)}")
+            }
+        }
+        images.source?.let { DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(it)}") }
 
-        // Determine actual seed value - use provided seed if randomSeed is false, otherwise generate random
-        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
-        val escapedPositivePrompt = escapeForJson(positivePrompt)
-        val escapedNegativePrompt = escapeForJson(negativePrompt)
+        var json = workflow.jsonContent
 
-        var processedJson = workflow.jsonContent
+        // Prompts and models
+        json = json.replace("{{positive_prompt}}", escapeForJson(params.positivePrompt))
+        json = json.replace("{{negative_prompt}}", escapeForJson(params.negativePrompt))
+        ModelSlot.entries.forEach { slot ->
+            json = json.replace("{{${slot.placeholder}}}", escapeForJson(params.selection(slot)))
+        }
 
-        // Type-specific placeholders: prompts and models
-        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
-        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
-        // Single-model placeholders
-        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
-        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
-        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
-        // Dual-model placeholders
-        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
-        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
-        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
-        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
-        // Common model placeholders
-        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        clip?.let { processedJson = processedJson.replace("{{clip_name}}", escapeForJson(it)) }
-        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
-        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
-        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
-        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
-        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
+        // Uploaded images, as placeholders or as the templates' fixed file names
+        images.source?.let { name ->
+            val annotated = "${escapeForJson(name)} [input]"
+            json = json.replace("{{image_filename}}", annotated)
+            json = json.replace("uploaded_image.png [input]", annotated)
+        }
+        images.reference1?.let { name ->
+            val annotated = "${escapeForJson(name)} [input]"
+            json = json.replace("{{reference_image_1}}", annotated)
+            json = json.replace("reference_image_1.png [input]", annotated)
+        }
+        images.reference2?.let { name ->
+            val annotated = "${escapeForJson(name)} [input]"
+            json = json.replace("{{reference_image_2}}", annotated)
+            json = json.replace("reference_image_2.png [input]", annotated)
+        }
 
-        // Common parameter placeholders (unified handling)
-        processedJson = replaceCommonPlaceholders(
-            json = processedJson,
-            seed = actualSeed,
-            steps = steps,
-            cfg = cfg,
-            samplerName = samplerName,
-            scheduler = scheduler,
-            denoise = denoise,
-            batchSize = batchSize,
-            width = width,
-            height = height,
-            megapixels = megapixels,
-            length = length,
-            frameRate = frameRate,
-            upscaleMethod = upscaleMethod,
-            scaleBy = scaleBy,
-            stopAtClipLayer = stopAtClipLayer
+        // Parameters
+        json = replaceCommonPlaceholders(
+            json = json,
+            seed = if (params.randomSeed) (0..999999999999).random() else (params.seed.toLongOrNull() ?: 0),
+            steps = params.steps.toIntOrNull(),
+            cfg = params.cfg.toFloatOrNull(),
+            samplerName = params.sampler,
+            scheduler = params.scheduler,
+            denoise = params.denoise.toFloatOrNull(),
+            batchSize = params.batchSize.toIntOrNull(),
+            width = params.width.toIntOrNull(),
+            height = params.height.toIntOrNull(),
+            megapixels = params.megapixels.toFloatOrNull(),
+            length = params.length.toIntOrNull(),
+            frameRate = params.fps.toIntOrNull(),
+            upscaleMethod = params.upscaleMethod.takeIf { it.isNotEmpty() },
+            scaleBy = params.scaleBy.toFloatOrNull(),
+            stopAtClipLayer = params.stopAtClipLayer.toIntOrNull()
         )
 
-        // Apply node attribute edits from the Workflow Editor
-        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
+        json = removeUnusedReferenceImages(json, images)
+        json = applyBypassedNodes(applyNodeAttributeEdits(json, workflow.id))
+
+        // LoRA chains: the main chain after the model loader, the high/low noise chains after a
+        // dual-model workflow's own LoRAs (no change for workflows without that structure)
+        if (params.loraChain.isNotEmpty()) {
+            json = injectLoraChain(json, params.loraChain, workflow.type)
+        }
+        if (params.highnoiseLoraChain.isNotEmpty()) {
+            json = injectAdditionalVideoLoras(json, params.highnoiseLoraChain, isHighNoise = true)
+        }
+        if (params.lownoiseLoraChain.isNotEmpty()) {
+            json = injectAdditionalVideoLoras(json, params.lownoiseLoraChain, isHighNoise = false)
+        }
+        return json
     }
 
     /**
-     * Prepare Image-to-image workflow JSON with actual parameter values (by workflow ID)
+     * Remove reference image nodes (LoadImage with a reference image placeholder) that got no image,
+     * together with the inputs connected to them, so the workflow runs without the optional references.
      */
-    fun prepareImageToImageWorkflowById(
-        workflowId: String,
-        positivePrompt: String,
-        negativePrompt: String = "",
-        // Single-model patterns
-        checkpoint: String = "",
-        unet: String = "",
-        lora: String? = null,  // Mandatory LoRA (single selection dropdown)
-        // Dual-model patterns (for unified support)
-        highnoiseUnet: String = "",
-        lownoiseUnet: String = "",
-        highnoiseLora: String = "",
-        lownoiseLora: String = "",
-        // Common models
-        vae: String = "",
-        clip: String = "",
-        clip1: String? = null,
-        clip2: String? = null,
-        clip3: String? = null,
-        clip4: String? = null,
-        textEncoder: String? = null,
-        latentUpscaleModel: String? = null,
-        megapixels: Float = 1.0f,
-        width: Int? = null,
-        height: Int? = null,
-        length: Int? = null,
-        frameRate: Int? = null,
-        steps: Int,
-        cfg: Float = 8.0f,
-        samplerName: String = "euler",
-        scheduler: String = "normal",
-        denoise: Float = 1.0f,
-        seed: Long? = null,
-        randomSeed: Boolean = true,
-        batchSize: Int? = null,
-        upscaleMethod: String? = null,
-        scaleBy: Float? = null,
-        stopAtClipLayer: Int? = null,
-        imageFilename: String
-    ): String? {
-        val workflow = getWorkflowById(workflowId) ?: return null
-        DebugLogger.i(TAG, "Preparing ITI workflow: ${workflow.name} (id: $workflowId)")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
-        DebugLogger.d(TAG, "Megapixels: $megapixels, Steps: $steps, CFG: $cfg")
-        DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
-        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
-        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
-        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
-        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
-        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
-        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
-        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
-        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
-        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
-        DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
-
-        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
-        val escapedPositivePrompt = escapeForJson(positivePrompt)
-        val escapedNegativePrompt = escapeForJson(negativePrompt)
-
-        var processedJson = workflow.jsonContent
-
-        // Type-specific placeholders: prompts and models
-        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
-        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
-        // Single-model placeholders
-        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
-        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
-        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
-        // Dual-model placeholders
-        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
-        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
-        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
-        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
-        // Common model placeholders
-        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
-        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
-        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
-        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
-        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
-        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
-
-        // Type-specific: source image placeholder (both template and literal formats)
-        val escapedImageFilename = escapeForJson(imageFilename)
-        processedJson = processedJson.replace("{{image_filename}}", "$escapedImageFilename [input]")
-        processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedImageFilename [input]")
-
-        // Common parameter placeholders (unified handling)
-        processedJson = replaceCommonPlaceholders(
-            json = processedJson,
-            seed = actualSeed,
-            steps = steps,
-            cfg = cfg,
-            samplerName = samplerName,
-            scheduler = scheduler,
-            denoise = denoise,
-            batchSize = batchSize,
-            megapixels = megapixels,
-            width = width,
-            height = height,
-            length = length,
-            frameRate = frameRate,
-            upscaleMethod = upscaleMethod,
-            scaleBy = scaleBy,
-            stopAtClipLayer = stopAtClipLayer
-        )
-
-        // Apply node attribute edits from the Workflow Editor
-        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
-    }
-
-    /**
-     * Prepare Image-to-Image Editing workflow JSON with actual parameter values (by workflow ID).
-     * This is for the QwenImage Edit-style workflows that use reference images instead of masks.
-     */
-    fun prepareImageEditingWorkflowById(
-        workflowId: String,
-        positivePrompt: String,
-        negativePrompt: String = "",
-        checkpoint: String = "",
-        unet: String,
-        lora: String,
-        vae: String,
-        clip: String,
-        clip1: String? = null,
-        clip2: String? = null,
-        clip3: String? = null,
-        clip4: String? = null,
-        textEncoder: String? = null,
-        latentUpscaleModel: String? = null,
-        // Dual-model patterns (for video-style workflows)
-        highnoiseUnet: String = "",
-        lownoiseUnet: String = "",
-        highnoiseLora: String = "",
-        lownoiseLora: String = "",
-        megapixels: Float = 2.0f,
-        width: Int? = null,
-        height: Int? = null,
-        length: Int? = null,
-        frameRate: Int? = null,
-        steps: Int,
-        cfg: Float = 1.0f,
-        samplerName: String = "euler",
-        scheduler: String = "simple",
-        denoise: Float = 1.0f,
-        seed: Long? = null,
-        randomSeed: Boolean = true,
-        batchSize: Int? = null,
-        upscaleMethod: String? = null,
-        scaleBy: Float? = null,
-        stopAtClipLayer: Int? = null,
-        sourceImageFilename: String,
-        referenceImage1Filename: String? = null,
-        referenceImage2Filename: String? = null
-    ): String? {
-        val workflow = getWorkflowById(workflowId) ?: return null
-        DebugLogger.i(TAG, "Preparing ITE workflow: ${workflow.name} (id: $workflowId)")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
-        DebugLogger.d(TAG, "Megapixels: $megapixels, Steps: $steps, CFG: $cfg")
-        DebugLogger.d(TAG, "Sampler: $samplerName, Scheduler: $scheduler")
-        DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
-        DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(lora)}")
-        DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
-        DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
-        DebugLogger.d(TAG, "Source: ${Obfuscator.filename(sourceImageFilename)}")
-        referenceImage1Filename?.let { DebugLogger.d(TAG, "Reference1: ${Obfuscator.filename(it)}") }
-        referenceImage2Filename?.let { DebugLogger.d(TAG, "Reference2: ${Obfuscator.filename(it)}") }
-
-        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
-        val escapedPositivePrompt = escapeForJson(positivePrompt)
-        val escapedNegativePrompt = escapeForJson(negativePrompt)
-
-        var processedJson = workflow.jsonContent
-
-        // Type-specific placeholders: prompts and models
-        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
-        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
-        // Checkpoint (for checkpoint-based workflows like CheckpointLoaderSimple)
-        if (checkpoint.isNotEmpty()) {
-            processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
-        }
-        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
-        processedJson = processedJson.replace("{{lora_name}}", escapeForJson(lora))
-        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
-        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
-        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
-        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
-        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
-        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
-        // Dual-model patterns (for video-style workflows)
-        if (highnoiseUnet.isNotEmpty()) {
-            processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
-        }
-        if (lownoiseUnet.isNotEmpty()) {
-            processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
-        }
-        if (highnoiseLora.isNotEmpty()) {
-            processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
-        }
-        if (lownoiseLora.isNotEmpty()) {
-            processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
-        }
-
-        // Type-specific: source image placeholder (both template and literal formats)
-        val escapedSourceFilename = escapeForJson(sourceImageFilename)
-        processedJson = processedJson.replace("{{image_filename}}", "$escapedSourceFilename [input]")
-        processedJson = processedJson.replace("uploaded_image.png [input]", "$escapedSourceFilename [input]")
-
-        // Type-specific: reference images (both placeholder and magic filename formats)
-        if (referenceImage1Filename != null) {
-            val escaped1 = "${escapeForJson(referenceImage1Filename)} [input]"
-            processedJson = processedJson.replace("{{reference_image_1}}", escaped1)
-            processedJson = processedJson.replace("reference_image_1.png [input]", escaped1)
-        }
-        if (referenceImage2Filename != null) {
-            val escaped2 = "${escapeForJson(referenceImage2Filename)} [input]"
-            processedJson = processedJson.replace("{{reference_image_2}}", escaped2)
-            processedJson = processedJson.replace("reference_image_2.png [input]", escaped2)
-        }
-
-        // Common parameter placeholders (unified handling)
-        processedJson = replaceCommonPlaceholders(
-            json = processedJson,
-            seed = actualSeed,
-            steps = steps,
-            cfg = cfg,
-            samplerName = samplerName,
-            scheduler = scheduler,
-            denoise = denoise,
-            batchSize = batchSize,
-            megapixels = megapixels,
-            width = width,
-            height = height,
-            length = length,
-            frameRate = frameRate,
-            upscaleMethod = upscaleMethod,
-            scaleBy = scaleBy,
-            stopAtClipLayer = stopAtClipLayer
-        )
-
-        // Second pass: remove unused reference image nodes and their connections
-        try {
+    private fun removeUnusedReferenceImages(processedJson: String, images: WorkflowImages): String {
+        if (!processedJson.contains("reference_image_")) return processedJson
+        return try {
             val json = JSONObject(processedJson)
             val nodes = json.optJSONObject("nodes") ?: return processedJson
 
-            // Find and remove reference image nodes that weren't provided
-            // Also remove connections to those nodes from other nodes
-            val nodesToRemove = mutableListOf<String>()
-            val nodeIdToImageInput = mutableMapOf<String, String>() // nodeId -> "image2" or "image3"
-
-            // Scan for LoadImage nodes with reference image placeholders
-            val nodeIds = nodes.keys()
-            while (nodeIds.hasNext()) {
-                val nodeId = nodeIds.next()
+            val nodesToRemove = mutableSetOf<String>()
+            for (nodeId in nodes.keys()) {
                 val node = nodes.optJSONObject(nodeId) ?: continue
-                val inputs = node.optJSONObject("inputs") ?: continue
-                val classType = node.optString("class_type")
-
-                if (classType == "LoadImage") {
-                    val imageName = inputs.optString("image", "")
-                    // Check for both placeholder and magic filename patterns
-                    val isRef1 = imageName == "{{reference_image_1}}" || imageName == "reference_image_1.png [input]"
-                    val isRef2 = imageName == "{{reference_image_2}}" || imageName == "reference_image_2.png [input]"
-                    if (isRef1 && referenceImage1Filename == null) {
-                        nodesToRemove.add(nodeId)
-                        nodeIdToImageInput[nodeId] = "image2"
-                    } else if (isRef2 && referenceImage2Filename == null) {
-                        nodesToRemove.add(nodeId)
-                        nodeIdToImageInput[nodeId] = "image3"
-                    }
+                if (node.optString("class_type") != "LoadImage") continue
+                val imageName = node.optJSONObject("inputs")?.optString("image", "") ?: continue
+                val isRef1 = imageName == "{{reference_image_1}}" || imageName == "reference_image_1.png [input]"
+                val isRef2 = imageName == "{{reference_image_2}}" || imageName == "reference_image_2.png [input]"
+                if ((isRef1 && images.reference1 == null) || (isRef2 && images.reference2 == null)) {
+                    nodesToRemove.add(nodeId)
                 }
             }
+            if (nodesToRemove.isEmpty()) return processedJson
+            nodesToRemove.forEach { nodes.remove(it) }
 
-            // Remove the nodes
-            for (nodeId in nodesToRemove) {
-                nodes.remove(nodeId)
+            // Connections are [nodeId, outputIndex] arrays
+            for (nodeId in nodes.keys()) {
+                val inputs = nodes.optJSONObject(nodeId)?.optJSONObject("inputs") ?: continue
+                val connected = inputs.keys().asSequence().filter { key ->
+                    val value = inputs.opt(key)
+                    value is JSONArray && value.length() == 2 && value.optString(0) in nodesToRemove
+                }.toList()
+                connected.forEach { inputs.remove(it) }
             }
-
-            // Remove connections to removed nodes from all other nodes
-            val allNodeIds = nodes.keys()
-            while (allNodeIds.hasNext()) {
-                val nodeId = allNodeIds.next()
-                val node = nodes.optJSONObject(nodeId) ?: continue
-                val inputs = node.optJSONObject("inputs") ?: continue
-
-                // Check each input for connections to removed nodes
-                val inputsToRemove = mutableListOf<String>()
-                val inputKeys = inputs.keys()
-                while (inputKeys.hasNext()) {
-                    val inputKey = inputKeys.next()
-                    val inputValue = inputs.opt(inputKey)
-
-                    // Connection format is [nodeId, outputIndex] as JSONArray
-                    if (inputValue is JSONArray && inputValue.length() == 2) {
-                        val connectedNodeId = inputValue.optString(0)
-                        if (connectedNodeId in nodesToRemove) {
-                            inputsToRemove.add(inputKey)
-                        }
-                    }
-                }
-
-                // Remove the connections
-                for (inputKey in inputsToRemove) {
-                    inputs.remove(inputKey)
-                }
-            }
-
-            // Apply node attribute edits from the Workflow Editor
-            return applyNodeAttributeEdits(json.toString(), workflow.id)
+            json.toString()
         } catch (e: Exception) {
-            // If JSON parsing fails, return the string-processed version with edits applied
-            return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
+            processedJson
         }
-    }
-
-    /**
-     * Prepare video workflow JSON with actual parameter values (by workflow ID)
-     */
-    fun prepareVideoWorkflowById(
-        workflowId: String,
-        positivePrompt: String,
-        negativePrompt: String = "",
-        // Single-model patterns (e.g., LTX 2.0)
-        checkpoint: String = "",
-        unet: String = "",
-        lora: String? = null,
-        // Dual-model patterns (e.g., Wan 2.2)
-        highnoiseUnet: String = "",
-        lownoiseUnet: String = "",
-        highnoiseLora: String = "",
-        lownoiseLora: String = "",
-        // Common models
-        vae: String = "",
-        clip: String = "",
-        clip1: String? = null,
-        clip2: String? = null,
-        clip3: String? = null,
-        clip4: String? = null,
-        textEncoder: String? = null,
-        latentUpscaleModel: String? = null,
-        width: Int,
-        height: Int,
-        length: Int,
-        fps: Int = 16,
-        // Generation parameters (optional - workflow may have defaults)
-        steps: Int? = null,
-        cfg: Float? = null,
-        samplerName: String? = null,
-        scheduler: String? = null,
-        denoise: Float? = null,
-        megapixels: Float? = null,
-        seed: Long? = null,
-        randomSeed: Boolean = true,
-        upscaleMethod: String? = null,
-        scaleBy: Float? = null,
-        stopAtClipLayer: Int? = null
-    ): String? {
-        val workflow = getWorkflowById(workflowId) ?: return null
-        DebugLogger.i(TAG, "Preparing TTV workflow: ${workflow.name} (id: $workflowId)")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
-        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
-        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
-        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
-        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
-        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
-        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
-        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
-        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
-        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
-        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
-
-        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
-        val escapedPositivePrompt = escapeForJson(positivePrompt)
-        val escapedNegativePrompt = escapeForJson(negativePrompt)
-
-        var processedJson = workflow.jsonContent
-
-        // Type-specific placeholders: prompts and models
-        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
-        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
-        // Single-model placeholders
-        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
-        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
-        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
-        // Dual-model placeholders
-        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
-        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
-        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
-        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
-        // Common model placeholders
-        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
-        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
-        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
-        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
-        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
-        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
-
-        // Common parameter placeholders (unified handling)
-        processedJson = replaceCommonPlaceholders(
-            json = processedJson,
-            seed = actualSeed,
-            steps = steps,
-            cfg = cfg,
-            samplerName = samplerName,
-            scheduler = scheduler,
-            denoise = denoise,
-            width = width,
-            height = height,
-            megapixels = megapixels,
-            length = length,
-            frameRate = fps,
-            batchSize = 1,
-            upscaleMethod = upscaleMethod,
-            scaleBy = scaleBy,
-            stopAtClipLayer = stopAtClipLayer
-        )
-
-        // Apply node attribute edits from the Workflow Editor
-        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
-    }
-
-    /**
-     * Prepare image-to-video workflow JSON with actual parameter values (by workflow ID)
-     */
-    fun prepareImageToVideoWorkflowById(
-        workflowId: String,
-        positivePrompt: String,
-        negativePrompt: String = "",
-        // Single-model patterns (e.g., LTX 2.0)
-        checkpoint: String = "",
-        unet: String = "",
-        lora: String? = null,
-        // Dual-model patterns (e.g., Wan 2.2)
-        highnoiseUnet: String = "",
-        lownoiseUnet: String = "",
-        highnoiseLora: String = "",
-        lownoiseLora: String = "",
-        // Common models
-        vae: String = "",
-        clip: String = "",
-        clip1: String? = null,
-        clip2: String? = null,
-        clip3: String? = null,
-        clip4: String? = null,
-        textEncoder: String? = null,
-        latentUpscaleModel: String? = null,
-        width: Int,
-        height: Int,
-        length: Int,
-        fps: Int = 16,
-        imageFilename: String,
-        // Generation parameters (optional - workflow may have defaults)
-        steps: Int? = null,
-        cfg: Float? = null,
-        samplerName: String? = null,
-        scheduler: String? = null,
-        denoise: Float? = null,
-        megapixels: Float? = null,
-        seed: Long? = null,
-        randomSeed: Boolean = true,
-        upscaleMethod: String? = null,
-        scaleBy: Float? = null,
-        stopAtClipLayer: Int? = null
-    ): String? {
-        val workflow = getWorkflowById(workflowId) ?: return null
-        DebugLogger.i(TAG, "Preparing ITV workflow: ${workflow.name} (id: $workflowId)")
-        DebugLogger.d(TAG, "Prompt: ${Obfuscator.prompt(positivePrompt)}")
-        DebugLogger.d(TAG, "Dimensions: ${width}x${height}, Length: $length frames, FPS: $fps")
-        if (checkpoint.isNotEmpty()) DebugLogger.d(TAG, "Checkpoint: ${Obfuscator.modelName(checkpoint)}")
-        if (unet.isNotEmpty()) DebugLogger.d(TAG, "UNET: ${Obfuscator.modelName(unet)}")
-        lora?.let { DebugLogger.d(TAG, "LoRA: ${Obfuscator.modelName(it)}") }
-        if (highnoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "High-noise UNET: ${Obfuscator.modelName(highnoiseUnet)}")
-        if (lownoiseUnet.isNotEmpty()) DebugLogger.d(TAG, "Low-noise UNET: ${Obfuscator.modelName(lownoiseUnet)}")
-        if (highnoiseLora.isNotEmpty()) DebugLogger.d(TAG, "High-noise LoRA: ${Obfuscator.modelName(highnoiseLora)}")
-        if (lownoiseLora.isNotEmpty()) DebugLogger.d(TAG, "Low-noise LoRA: ${Obfuscator.modelName(lownoiseLora)}")
-        if (vae.isNotEmpty()) DebugLogger.d(TAG, "VAE: ${Obfuscator.modelName(vae)}")
-        if (clip.isNotEmpty()) DebugLogger.d(TAG, "CLIP: ${Obfuscator.modelName(clip)}")
-        DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(imageFilename)}")
-
-        val actualSeed = if (randomSeed) (0..999999999999).random() else (seed ?: 0)
-        val escapedPositivePrompt = escapeForJson(positivePrompt)
-        val escapedNegativePrompt = escapeForJson(negativePrompt)
-
-        var processedJson = workflow.jsonContent
-
-        // Type-specific placeholders: prompts and models
-        processedJson = processedJson.replace("{{positive_prompt}}", escapedPositivePrompt)
-        processedJson = processedJson.replace("{{negative_prompt}}", escapedNegativePrompt)
-        // Single-model placeholders
-        processedJson = processedJson.replace("{{ckpt_name}}", escapeForJson(checkpoint))
-        processedJson = processedJson.replace("{{unet_name}}", escapeForJson(unet))
-        lora?.let { processedJson = processedJson.replace("{{lora_name}}", escapeForJson(it)) }
-        // Dual-model placeholders
-        processedJson = processedJson.replace("{{highnoise_unet_name}}", escapeForJson(highnoiseUnet))
-        processedJson = processedJson.replace("{{lownoise_unet_name}}", escapeForJson(lownoiseUnet))
-        processedJson = processedJson.replace("{{highnoise_lora_name}}", escapeForJson(highnoiseLora))
-        processedJson = processedJson.replace("{{lownoise_lora_name}}", escapeForJson(lownoiseLora))
-        // Common model placeholders
-        processedJson = processedJson.replace("{{vae_name}}", escapeForJson(vae))
-        processedJson = processedJson.replace("{{clip_name}}", escapeForJson(clip))
-        clip1?.let { processedJson = processedJson.replace("{{clip_name1}}", escapeForJson(it)) }
-        clip2?.let { processedJson = processedJson.replace("{{clip_name2}}", escapeForJson(it)) }
-        clip3?.let { processedJson = processedJson.replace("{{clip_name3}}", escapeForJson(it)) }
-        clip4?.let { processedJson = processedJson.replace("{{clip_name4}}", escapeForJson(it)) }
-        textEncoder?.let { processedJson = processedJson.replace("{{text_encoder_name}}", escapeForJson(it)) }
-        latentUpscaleModel?.let { processedJson = processedJson.replace("{{latent_upscale_model}}", escapeForJson(it)) }
-
-        // Type-specific: source image placeholder
-        processedJson = processedJson.replace("{{image_filename}}", escapeForJson(imageFilename))
-
-        // Common parameter placeholders (unified handling)
-        processedJson = replaceCommonPlaceholders(
-            json = processedJson,
-            seed = actualSeed,
-            steps = steps,
-            cfg = cfg,
-            samplerName = samplerName,
-            scheduler = scheduler,
-            denoise = denoise,
-            width = width,
-            height = height,
-            megapixels = megapixels,
-            length = length,
-            frameRate = fps,
-            batchSize = 1,
-            upscaleMethod = upscaleMethod,
-            scaleBy = scaleBy,
-            stopAtClipLayer = stopAtClipLayer
-        )
-
-        // Apply node attribute edits from the Workflow Editor
-        return applyBypassedNodes(applyNodeAttributeEdits(processedJson, workflow.id))
     }
 
     /**

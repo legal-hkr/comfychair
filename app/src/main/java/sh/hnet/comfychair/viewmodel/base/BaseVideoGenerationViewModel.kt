@@ -174,26 +174,6 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
         }
     }
 
-    // Workflow
-
-    /**
-     * Inject the LoRA chains of [params] into a prepared video workflow: the main chain (single-model
-     * workflows such as LTX 2.0) and the high/low noise chains (dual-model workflows such as Wan 2.2).
-     */
-    protected fun injectVideoLoraChains(workflowJson: String, params: GenerationParams): String {
-        var workflow = workflowJson
-        if (params.loraChain.isNotEmpty()) {
-            workflow = WorkflowManager.injectLoraChain(workflow, params.loraChain, workflowType)
-        }
-        if (params.highnoiseLoraChain.isNotEmpty()) {
-            workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, params.highnoiseLoraChain, isHighNoise = true)
-        }
-        if (params.lownoiseLoraChain.isNotEmpty()) {
-            workflow = WorkflowManager.injectAdditionalVideoLoras(workflow, params.lownoiseLoraChain, isHighNoise = false)
-        }
-        return workflow
-    }
-
     // Preview and results
 
     fun onPreviewBitmapChange(bitmap: Bitmap) {

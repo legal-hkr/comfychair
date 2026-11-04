@@ -1,0 +1,150 @@
+{
+  "defaults": {
+    "cfg": 1,
+    "height": 1024,
+    "sampler_name": "lcm",
+    "scheduler": "normal",
+    "steps": 28,
+    "width": 1024
+  },
+  "description": "HiDream I1 Dev model with QuadrupleCLIPLoader",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["4", "note:1"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 2,
+    "member_nodes": ["3", "note:2"],
+    "title": "VAE Configuration"
+  }],
+  "name": "HiDream Dev",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["9", 0]
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "ModelSamplingSD3"
+      },
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": ["100", 0],
+        "shift": 6
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "QuadrupleCLIPLoader"
+      },
+      "class_type": "QuadrupleCLIPLoader",
+      "inputs": {
+        "clip_name1": "clip1.safetensors",
+        "clip_name2": "clip2.safetensors",
+        "clip_name3": "clip3.safetensors",
+        "clip_name4": "clip4.safetensors"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "Empty SD3 Latent Image"
+      },
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": "1216",
+        "width": "832"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "Positive Prompt"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["4", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "Negative Prompt"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["4", 0],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": "4.5",
+        "denoise": "0.75",
+        "latent_image": ["5", 0],
+        "model": ["2", 0],
+        "negative": ["7", 0],
+        "positive": ["6", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": "28"
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["8", 0],
+        "vae": ["3", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended CLIP Models\n\n- **CLIP 1:** L (clip_l)\n- **CLIP 2:** G (clip_g)\n- **CLIP 3:** T5 XXL\n- **CLIP 4:** Llama 3.1 8B Instruct\n\nHiDream uses a quadruple-encoder architecture for enhanced prompt understanding and semantic precision.",
+    "id": 1,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse **AE** (ae.safetensors) for optimal results with HiDream models.",
+    "id": 2,
+    "title": "VAE Selection"
+  }]
+}

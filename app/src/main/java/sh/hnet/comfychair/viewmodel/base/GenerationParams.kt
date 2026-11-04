@@ -11,11 +11,12 @@ import sh.hnet.comfychair.util.LoraChainManager
 import sh.hnet.comfychair.util.ValidationUtils
 
 /**
- * A model selection of a workflow: which server list it is chosen from, the field key used to ask
- * the workflow's own node for its options, and where it is kept in [WorkflowValues].
+ * A model selection of a workflow: its placeholder name (`{{placeholder}}` in templates, also the key
+ * to ask the workflow's own node for its options), which server list it is chosen from, and where it
+ * is kept in [WorkflowValues].
  */
 enum class ModelSlot(
-    val optionsFieldKey: String,
+    val placeholder: String,
     val available: (ModelCache) -> List<String>,
     val saved: (WorkflowValues) -> String?
 ) {
@@ -217,9 +218,9 @@ data class GenerationParams(
             },
             deferredSelections = savedSelections,
             filteredOptions = ModelSlot.entries.mapNotNull { slot ->
-                val own = options(slot.optionsFieldKey)
+                val own = options(slot.placeholder)
                     // A dual-model workflow has no plain unet_name; its UNET list comes from the high-noise node
-                    ?: if (slot == ModelSlot.UNET) options(ModelSlot.HIGHNOISE_UNET.optionsFieldKey) else null
+                    ?: if (slot == ModelSlot.UNET) options(ModelSlot.HIGHNOISE_UNET.placeholder) else null
                 own?.let { slot to it }
             }.toMap(),
             filteredUpscaleMethods = options("upscale_method"),

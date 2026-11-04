@@ -1,0 +1,252 @@
+{
+  "defaults": {
+    "frame_rate": 24,
+    "height": 800,
+    "length": 49,
+    "negative_prompt": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+    "width": 480
+  },
+  "description": "Workflow for Wan 2.2 video generation (Lightning LoRA)",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["1", "note:1"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 2,
+    "member_nodes": ["3", "4", "note:2"],
+    "title": "Diffusion Models"
+  }, {
+    "id": 3,
+    "member_nodes": ["8", "9", "note:3"],
+    "title": "Lightning LoRAs"
+  }],
+  "name": "Wan 2.2 (Lightning LoRA)",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load CLIP"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "wan"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "ModelSamplingSD3 (High Noise)"
+      },
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": ["101", 0],
+        "shift": 5
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["3", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "101": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "high_lora.safetensors",
+        "model": ["8", 0],
+        "strength_model": 0.5
+      }
+    },
+    "102": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "low_lora.safetensors",
+        "model": ["9", 0],
+        "strength_model": 0.6000000238418579
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "ModelSamplingSD3 (Low Noise)"
+      },
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": ["102", 0],
+        "shift": 5
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "KSampler (Advanced) - High Noise"
+      },
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "add_noise": "enable",
+        "cfg": 1,
+        "end_at_step": 2,
+        "latent_image": ["5", 0],
+        "model": ["10", 0],
+        "negative": ["7", 0],
+        "noise_seed": "1234567890123",
+        "positive": ["6", 0],
+        "return_with_leftover_noise": "enable",
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "start_at_step": 0,
+        "steps": 4
+      }
+    },
+    "13": {
+      "_meta": {
+        "title": "KSampler (Advanced) - Low Noise"
+      },
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "add_noise": "disable",
+        "cfg": 1,
+        "end_at_step": 4,
+        "latent_image": ["12", 0],
+        "model": ["11", 0],
+        "negative": ["7", 0],
+        "noise_seed": "1234567890123",
+        "positive": ["6", 0],
+        "return_with_leftover_noise": "disable",
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "start_at_step": 2,
+        "steps": 4
+      }
+    },
+    "14": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["2", 0]
+      }
+    },
+    "15": {
+      "_meta": {
+        "title": "Create Video"
+      },
+      "class_type": "CreateVideo",
+      "inputs": {
+        "fps": "24",
+        "images": ["14", 0]
+      }
+    },
+    "16": {
+      "_meta": {
+        "title": "Save Video"
+      },
+      "class_type": "SaveVideo",
+      "inputs": {
+        "codec": "auto",
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "video": ["15", 0],
+        "video-preview": ""
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load Diffusion Model (High Noise)"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "high_unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Load Diffusion Model (Low Noise)"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "low_unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "Empty HunyuanVideo 1.0 Latent"
+      },
+      "class_type": "EmptyHunyuanLatentVideo",
+      "inputs": {
+        "batch_size": 1,
+        "height": "480",
+        "length": "49",
+        "width": "832"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 0],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "LoraLoaderModelOnly (High Noise)"
+      },
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "high_lora_m.safetensors",
+        "model": ["100", 0],
+        "strength_model": 1
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "LoraLoaderModelOnly (Low Noise)"
+      },
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "low_lora_m.safetensors",
+        "model": ["4", 0],
+        "strength_model": 1
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended CLIP Model\n\nUse **UMT5 XXL FP8 e4m3fn** for optimal text understanding with Wan 2.2 video generation.",
+    "id": 1,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### High/Low Noise UNETs\n\nWan 2.2 requires **two separate UNET models** for the diffusion process:\n\n- **High Noise UNET:** Handles the initial denoising steps\n- **Low Noise UNET:** Refines the final output\n\n---\n\n*Both models must be loaded for proper video generation.*",
+    "id": 2,
+    "title": "Dual UNET Architecture"
+  }, {
+    "content": "### High/Low Noise Lightning LoRAs\n\nThis workflow uses Lightning LoRAs for fast 4-step inference.\n\n**Two separate LoRAs are required:**\n\n- **High Noise LoRA:** Lightning 4 Steps for initial denoising\n- **Low Noise LoRA:** Lightning 4 Steps for refinement\n\n---\n\n*Both Lightning LoRAs must be loaded for accelerated generation.*",
+    "id": 3,
+    "title": "Lightning LoRAs"
+  }]
+}

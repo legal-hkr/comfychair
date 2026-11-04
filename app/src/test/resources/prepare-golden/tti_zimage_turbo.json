@@ -1,0 +1,148 @@
+{
+  "defaults": {
+    "cfg": 1,
+    "height": 1216,
+    "negative_prompt": "blurry ugly bad",
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "steps": 9,
+    "width": 832
+  },
+  "description": "Workflow using Z-Image Turbo model",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["3", "note:1"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 2,
+    "member_nodes": ["2", "note:2"],
+    "title": "VAE Configuration"
+  }, {
+    "id": 3,
+    "member_nodes": ["7", "note:3"],
+    "title": "Sampling Configuration"
+  }],
+  "name": "Z-Image Turbo",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Load CLIP"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "lumina2"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "EmptySD3LatentImage"
+      },
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": "1216",
+        "width": "832"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "CLIP Text Encode (Positive Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "CLIP Text Encode (Negative Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "text": "blurry, \"bad\""
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": "4.5",
+        "denoise": 1,
+        "latent_image": ["4", 0],
+        "model": ["100", 0],
+        "negative": ["6", 0],
+        "positive": ["5", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": "28"
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["7", 0],
+        "vae": ["2", 0]
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["8", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended CLIP Model\n\nUse **Qwen 3 4V** for optimal text-to-image generation with Z-Image Turbo.",
+    "id": 1,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse **AE** (ae.safetensors) for optimal results with Z-Image Turbo.",
+    "id": 2,
+    "title": "VAE Selection"
+  }, {
+    "content": "### Recommended Settings\n\n- **Steps:** 9\n- **CFG:** 1.0\n- **Negative prompt:** Not required\n\n---\n\n*Z-Image Turbo is optimized for fast inference without the need for negative conditioning.*",
+    "id": 3,
+    "title": "Sampler Settings"
+  }]
+}

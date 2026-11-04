@@ -89,7 +89,7 @@
         "width": "{{width}}",
         "height": "{{height}}",
         "length": "{{length}}",
-        "batch_size": "{{batch_size}}"
+        "batch_size": 1
       },
       "_meta": {
         "title": "Empty HunyuanVideo 1.0 Latent"

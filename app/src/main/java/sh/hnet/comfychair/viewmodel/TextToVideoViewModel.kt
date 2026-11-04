@@ -58,52 +58,6 @@ class TextToVideoViewModel : BaseVideoGenerationViewModel<TextToVideoUiState>() 
     fun prepareWorkflow(): String? {
         val p = _uiState.value.params
         if (p.hasErrors) return null
-
-        val width = p.width.toIntOrNull() ?: return null
-        val height = p.height.toIntOrNull() ?: return null
-        val length = p.length.toIntOrNull() ?: return null
-        val fps = p.fps.toIntOrNull() ?: return null
-
-        val baseWorkflow = WorkflowManager.prepareVideoWorkflowById(
-            workflowId = p.selectedWorkflowId,
-            positivePrompt = p.positivePrompt,
-            negativePrompt = p.negativePrompt,
-            // Single-model patterns (e.g., LTX 2.0)
-            checkpoint = p.selectedCheckpoint,
-            unet = p.selectedUnet,
-            lora = p.selectedLoraName.takeIf { it.isNotEmpty() },
-            // Dual-model patterns (e.g., Wan 2.2)
-            highnoiseUnet = p.selectedHighnoiseUnet,
-            lownoiseUnet = p.selectedLownoiseUnet,
-            highnoiseLora = p.selectedHighnoiseLora,
-            lownoiseLora = p.selectedLownoiseLora,
-            // Common models
-            vae = p.selectedVae,
-            clip = p.selectedClip,
-            clip1 = p.selectedClip1.takeIf { it.isNotEmpty() },
-            clip2 = p.selectedClip2.takeIf { it.isNotEmpty() },
-            clip3 = p.selectedClip3.takeIf { it.isNotEmpty() },
-            clip4 = p.selectedClip4.takeIf { it.isNotEmpty() },
-            textEncoder = p.selectedTextEncoder.takeIf { it.isNotEmpty() },
-            latentUpscaleModel = p.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
-            width = width,
-            height = height,
-            length = length,
-            fps = fps,
-            // Generation parameters
-            steps = p.steps.toIntOrNull(),
-            cfg = p.cfg.toFloatOrNull(),
-            samplerName = p.sampler,
-            scheduler = p.scheduler,
-            denoise = p.denoise.toFloatOrNull(),
-            megapixels = p.megapixels.toFloatOrNull(),
-            seed = p.seed.toLongOrNull(),
-            randomSeed = p.randomSeed,
-            upscaleMethod = p.upscaleMethod.takeIf { it.isNotEmpty() },
-            scaleBy = p.scaleBy.toFloatOrNull(),
-            stopAtClipLayer = p.stopAtClipLayer.toIntOrNull()
-        ) ?: return null
-
-        return injectVideoLoraChains(baseWorkflow, p)
+        return WorkflowManager.prepareWorkflow(p.selectedWorkflowId, p)
     }
 }

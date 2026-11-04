@@ -1,0 +1,183 @@
+{
+  "defaults": {
+    "denoise": 1,
+    "sampler_name": "euler",
+    "scale_by": 2,
+    "scheduler": "simple",
+    "upscale_method": "lanczos"
+  },
+  "description": "Image restoration and upscaling with SeedVR2 7B, no prompt needed",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["5", "note:1"],
+    "title": "Diffusion Model"
+  }, {
+    "id": 2,
+    "member_nodes": ["6", "note:2"],
+    "title": "VAE Configuration"
+  }, {
+    "id": 3,
+    "member_nodes": ["3", "note:3"],
+    "title": "Upscale Configuration"
+  }],
+  "name": "SeedVR2 Upscale",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Source Image"
+      },
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "source_upload.png [input]"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "VAE Decode (Tiled)"
+      },
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "overlap": 128,
+        "samples": ["9", 0],
+        "temporal_overlap": 8,
+        "temporal_size": 4096,
+        "tile_size": 512,
+        "vae": ["6", 0]
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["5", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "Post-Process"
+      },
+      "class_type": "SeedVR2PostProcessing",
+      "inputs": {
+        "color_correction_method": "none",
+        "images": ["10", 0],
+        "original_resized_images": ["3", 0]
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["11", 0]
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Keep Alpha"
+      },
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "alpha": ["1", 1],
+        "image": ["1", 0]
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Upscale Input"
+      },
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": ["2", 0],
+        "resize_type": "scale by multiplier",
+        "resize_type.multiplier": "1.25",
+        "scale_method": "bislerp"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Preprocess"
+      },
+      "class_type": "SeedVR2Preprocess",
+      "inputs": {
+        "resized_images": ["3", 0]
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "VAE Encode (Tiled)"
+      },
+      "class_type": "VAEEncodeTiled",
+      "inputs": {
+        "overlap": 128,
+        "pixels": ["4", 0],
+        "temporal_overlap": 8,
+        "temporal_size": 4096,
+        "tile_size": 512,
+        "vae": ["6", 0]
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "Conditioning"
+      },
+      "class_type": "SeedVR2Conditioning",
+      "inputs": {
+        "model": ["100", 0],
+        "vae_conditioning": ["7", 0]
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "KSampler"
+      },
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": 1,
+        "denoise": "0.75",
+        "latent_image": ["7", 0],
+        "model": ["100", 0],
+        "negative": ["8", 1],
+        "positive": ["8", 0],
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "seed": "1234567890123",
+        "steps": 1
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended UNET Model\n\nUse **SeedVR2 7B Int8** for restoration and upscaling in a single step.",
+    "id": 1,
+    "title": "Diffusion Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse the **SeedVR2 EMA** VAE (fp16). It encodes and decodes in tiles, so large outputs fit in memory.",
+    "id": 2,
+    "title": "VAE Selection"
+  }, {
+    "content": "### Recommended Settings\n\n- **Scale by:** 2 (up to 4 for small images; the output grows with the square of the factor)\n- **Upscale method:** lanczos\n- **Denoise:** 1.0\n\n---\n\n*SeedVR2 works in one sampling step and doesn't use a prompt.*",
+    "id": 3,
+    "title": "Upscale Settings"
+  }]
+}

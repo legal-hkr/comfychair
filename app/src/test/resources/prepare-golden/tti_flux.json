@@ -1,0 +1,164 @@
+{
+  "defaults": {
+    "height": 1024,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "steps": 30,
+    "width": 1024
+  },
+  "description": "Workflow for Flux UNET model with dual CLIP",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["3", "note:1"],
+    "title": "CLIP Configuration"
+  }, {
+    "id": 2,
+    "member_nodes": ["2", "note:2"],
+    "title": "VAE Configuration"
+  }],
+  "name": "Flux",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "SamplerCustomAdvanced"
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "guider": ["9", 0],
+        "latent_image": ["4", 0],
+        "noise": ["6", 0],
+        "sampler": ["7", 0],
+        "sigmas": ["8", 0]
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["1", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "VAE Decode"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["10", 0],
+        "vae": ["2", 0]
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "Save Image"
+      },
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ComfyChair",
+        "images": ["11", 0]
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Load VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "DualCLIPLoader"
+      },
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": "clip1.safetensors",
+        "clip_name2": "clip2.safetensors",
+        "device": "default",
+        "type": "flux"
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Empty Latent Image"
+      },
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "batch_size": "2",
+        "height": "1216",
+        "width": "832"
+      }
+    },
+    "5": {
+      "_meta": {
+        "title": "CLIP Text Encode (Prompt)"
+      },
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 0],
+        "text": "A \"red\" fox\nin snow \\ test"
+      }
+    },
+    "6": {
+      "_meta": {
+        "title": "RandomNoise"
+      },
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "1234567890123"
+      }
+    },
+    "7": {
+      "_meta": {
+        "title": "KSamplerSelect"
+      },
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "dpmpp_2m"
+      }
+    },
+    "8": {
+      "_meta": {
+        "title": "BasicScheduler"
+      },
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "denoise": 1,
+        "model": ["100", 0],
+        "scheduler": "karras",
+        "steps": "28"
+      }
+    },
+    "9": {
+      "_meta": {
+        "title": "BasicGuider"
+      },
+      "class_type": "BasicGuider",
+      "inputs": {
+        "conditioning": ["5", 0],
+        "model": ["100", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended CLIP Models\n\n- **CLIP 1:** T5 XXL\n- **CLIP 2:** L (clip_l)\n\nFlux uses a dual-encoder architecture that combines the text understanding capabilities of T5 with CLIP's visual-semantic alignment.",
+    "id": 1,
+    "title": "CLIP Model Selection"
+  }, {
+    "content": "### Recommended VAE\n\nUse **AE** (ae.safetensors) for optimal results with Flux models.",
+    "id": 2,
+    "title": "VAE Selection"
+  }]
+}

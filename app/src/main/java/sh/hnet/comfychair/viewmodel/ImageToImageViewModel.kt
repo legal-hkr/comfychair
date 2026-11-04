@@ -718,50 +718,11 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
             uploadedRef2 = ref2Result.filename
         }
 
-        // Prepare editing workflow JSON
         val p = state.editingParams
-        val baseWorkflow = WorkflowManager.prepareImageEditingWorkflowById(
-            workflowId = p.selectedWorkflowId,
-            positivePrompt = p.positivePrompt,
-            negativePrompt = p.negativePrompt,
-            checkpoint = p.selectedCheckpoint,
-            unet = p.selectedUnet,
-            lora = p.selectedLoraName,
-            vae = p.selectedVae,
-            clip = p.selectedClip,
-            clip1 = p.selectedClip1.takeIf { it.isNotEmpty() },
-            clip2 = p.selectedClip2.takeIf { it.isNotEmpty() },
-            clip3 = p.selectedClip3.takeIf { it.isNotEmpty() },
-            clip4 = p.selectedClip4.takeIf { it.isNotEmpty() },
-            textEncoder = p.selectedTextEncoder.takeIf { it.isNotEmpty() },
-            latentUpscaleModel = p.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
-            highnoiseUnet = p.selectedHighnoiseUnet,
-            lownoiseUnet = p.selectedLownoiseUnet,
-            highnoiseLora = p.selectedHighnoiseLora,
-            lownoiseLora = p.selectedLownoiseLora,
-            megapixels = p.megapixels.toFloatOrNull() ?: 2.0f,
-            width = p.width.toIntOrNull(),
-            height = p.height.toIntOrNull(),
-            length = p.length.toIntOrNull(),
-            frameRate = p.fps.toIntOrNull(),
-            steps = p.steps.toIntOrNull() ?: 4,
-            cfg = p.cfg.toFloatOrNull() ?: 1.0f,
-            samplerName = p.sampler,
-            scheduler = p.scheduler,
-            denoise = p.denoise.toFloatOrNull() ?: 1.0f,
-            seed = p.seed.toLongOrNull(),
-            randomSeed = p.randomSeed,
-            batchSize = p.batchSize.toIntOrNull(),
-            upscaleMethod = p.upscaleMethod.takeIf { it.isNotEmpty() },
-            scaleBy = p.scaleBy.toFloatOrNull(),
-            stopAtClipLayer = p.stopAtClipLayer.toIntOrNull(),
-            sourceImageFilename = uploadedSource,
-            referenceImage1Filename = uploadedRef1,
-            referenceImage2Filename = uploadedRef2
-        ) ?: return null
-
-        // Inject additional LoRA chain if configured
-        return WorkflowManager.injectLoraChain(baseWorkflow, p.loraChain, WorkflowType.ITI_EDITING)
+        return WorkflowManager.prepareWorkflow(
+            p.selectedWorkflowId, p,
+            WorkflowManager.WorkflowImages(source = uploadedSource, reference1 = uploadedRef1, reference2 = uploadedRef2)
+        )
     }
 
     /**
@@ -816,50 +777,10 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
         }
         val uploadedFilename = uploadResult.filename
 
-        // Prepare workflow JSON using unified fields
         val p = state.inpaintingParams
-        val baseWorkflow = WorkflowManager.prepareImageToImageWorkflowById(
-            workflowId = p.selectedWorkflowId,
-            positivePrompt = p.positivePrompt,
-            negativePrompt = p.negativePrompt,
-            // Model selections - pass all, placeholder substitution handles which are used
-            checkpoint = p.selectedCheckpoint,
-            unet = p.selectedUnet,
-            lora = p.selectedLoraName.takeIf { it.isNotEmpty() },
-            highnoiseUnet = p.selectedHighnoiseUnet,
-            lownoiseUnet = p.selectedLownoiseUnet,
-            highnoiseLora = p.selectedHighnoiseLora,
-            lownoiseLora = p.selectedLownoiseLora,
-            vae = p.selectedVae,
-            clip = p.selectedClip,
-            clip1 = p.selectedClip1.takeIf { it.isNotEmpty() },
-            clip2 = p.selectedClip2.takeIf { it.isNotEmpty() },
-            clip3 = p.selectedClip3.takeIf { it.isNotEmpty() },
-            clip4 = p.selectedClip4.takeIf { it.isNotEmpty() },
-            textEncoder = p.selectedTextEncoder.takeIf { it.isNotEmpty() },
-            latentUpscaleModel = p.selectedLatentUpscaleModel.takeIf { it.isNotEmpty() },
-            // Unified parameters
-            megapixels = p.megapixels.toFloatOrNull() ?: 1.0f,
-            width = p.width.toIntOrNull(),
-            height = p.height.toIntOrNull(),
-            length = p.length.toIntOrNull(),
-            frameRate = p.fps.toIntOrNull(),
-            steps = p.steps.toIntOrNull() ?: 20,
-            cfg = p.cfg.toFloatOrNull() ?: 7.0f,
-            samplerName = p.sampler,
-            scheduler = p.scheduler,
-            denoise = p.denoise.toFloatOrNull() ?: 1.0f,
-            seed = p.seed.toLongOrNull(),
-            randomSeed = p.randomSeed,
-            batchSize = p.batchSize.toIntOrNull(),
-            upscaleMethod = p.upscaleMethod.takeIf { it.isNotEmpty() },
-            scaleBy = p.scaleBy.toFloatOrNull(),
-            stopAtClipLayer = p.stopAtClipLayer.toIntOrNull(),
-            imageFilename = uploadedFilename
-        ) ?: return null
-
-        // Inject unified LoRA chain
-        return WorkflowManager.injectLoraChain(baseWorkflow, p.loraChain, WorkflowType.ITI_INPAINTING)
+        return WorkflowManager.prepareWorkflow(
+            p.selectedWorkflowId, p, WorkflowManager.WorkflowImages(source = uploadedFilename)
+        )
     }
 
     /**
