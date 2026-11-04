@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +50,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -324,7 +325,7 @@ fun GalleryScreen(
                     }
                 } else {
                     // Gallery items
-                    itemsIndexed(uiState.items, key = { _, item -> "${item.promptId}_${item.filename}" }) { index, item ->
+                    items(uiState.items, key = { item -> "${item.promptId}_${item.filename}" }) { item ->
                         GalleryItemCard(
                             item = item,
                             isSelected = galleryViewModel.isItemSelected(item),
@@ -334,8 +335,12 @@ fun GalleryScreen(
                                     // In selection mode, tap toggles selection
                                     galleryViewModel.toggleSelection(item)
                                 } else {
-                                    // Normal mode, tap opens MediaViewer
-                                    launchMediaViewer(index)
+                                    // Normal mode, tap opens MediaViewer. The position is looked up now: the
+                                    // list may have changed (refresh) since this card was composed
+                                    val index = uiState.items.indexOfFirst {
+                                        it.promptId == item.promptId && it.filename == item.filename
+                                    }
+                                    if (index >= 0) launchMediaViewer(index)
                                 }
                             },
                             onLongPress = {
@@ -363,6 +368,10 @@ private fun GalleryItemCard(
     onTap: () -> Unit,
     onLongPress: () -> Unit
 ) {
+    // The gesture detector below starts once; it must call the current callbacks, not the first ones
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
+
     // Create cache key directly from item's stable properties
     val cacheKey = item.toCacheKey()
     val (bitmap, isLoading) = rememberLazyBitmap(
@@ -389,8 +398,8 @@ private fun GalleryItemCard(
             )
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { onTap() },
-                    onLongPress = { onLongPress() }
+                    onTap = { currentOnTap() },
+                    onLongPress = { currentOnLongPress() }
                 )
             }
     ) {
