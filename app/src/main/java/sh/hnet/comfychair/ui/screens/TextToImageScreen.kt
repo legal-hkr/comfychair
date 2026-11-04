@@ -43,7 +43,7 @@ import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
 import sh.hnet.comfychair.ui.components.generation.GenerationPreviewArea
 import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
-import sh.hnet.comfychair.ui.components.generation.PositivePromptField
+import sh.hnet.comfychair.ui.components.generation.PromptDock
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.RecipeChips
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
@@ -51,6 +51,7 @@ import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.WorkflowIcons
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
+import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
@@ -76,13 +77,22 @@ fun TextToImageScreen(
     val queueState by JobRegistry.queueState.collectAsState()
 
     GenerationScreenEffects(textToImageViewModel, generationViewModel, presetViewModel, ScreenType.TEXT_TO_IMAGE, ownerId)
-    val promptInput = rememberPromptInputState(uiState.positivePrompt)
+    val promptInput = rememberPromptInputState()
     var showOptionsSheet by remember { mutableStateOf(false) }
 
     val isThisScreenExecuting = queueState.executingOwnerId == ownerId
     // Several results of the last job are shown as a pager with a thumbnail strip
     val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
     val isThisScreenQueued = !isThisScreenExecuting && queueState.hasWaitingJob(ownerId)
+
+    // Generate from the dock and from the prompt editor
+    val submitJob = rememberJobSubmitter(
+        generationViewModel = generationViewModel,
+        ownerId = ownerId,
+        // Read when submitting, for the queue sheet (kept in memory only)
+        describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
+        prepareWorkflow = { textToImageViewModel.prepareWorkflowJson() }
+    )
 
     Column(modifier = Modifier.fillMaxSize()) {
         GenerationTopBar(
@@ -91,7 +101,7 @@ fun TextToImageScreen(
             generationViewModel = generationViewModel
         )
 
-        GenerationPreviewArea(collapsed = promptInput.expanded) {
+        GenerationPreviewArea {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -170,16 +180,18 @@ fun TextToImageScreen(
             }
         }
 
-        // Hidden for workflows without a positive prompt placeholder (e.g. upscalers)
-        if (uiState.capabilities.hasPositivePrompt) {
-            PositivePromptField(
-                prompt = uiState.positivePrompt,
-                onPromptChange = textToImageViewModel::onPositivePromptChange,
-                input = promptInput,
-                presetViewModel = presetViewModel,
-                presetUiState = presetUiState
-            )
-        }
+        // The prompt; tapping it opens the full-screen editor (absent for workflows without prompts)
+        PromptDock(
+            state = uiState,
+            onPositiveChange = textToImageViewModel::onPositivePromptChange,
+            onNegativeChange = textToImageViewModel::onNegativePromptChange,
+            preview = uiState.previewBitmap,
+            presetViewModel = presetViewModel,
+            presetUiState = presetUiState,
+            spellCheckEnabled = promptInput.spellCheckEnabled,
+            generateEnabled = textToImageViewModel.hasValidConfiguration(),
+            onGenerate = { submitJob(false) }
+        )
 
         RecipeChips(
             state = uiState,
@@ -189,8 +201,6 @@ fun TextToImageScreen(
         )
 
         GenerationControls(
-            // Read when submitting, for the queue sheet (kept in memory only)
-            describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
             // Read here, where the screen observes its state
             isEnabled = textToImageViewModel.hasValidConfiguration(),
             generationViewModel = generationViewModel,
@@ -199,7 +209,7 @@ fun TextToImageScreen(
             isFetching = uiState.isFetching,
             optionsOpen = showOptionsSheet,
             onOpenOptions = { showOptionsSheet = true },
-            prepareWorkflow = { textToImageViewModel.prepareWorkflowJson() }
+            submit = submitJob
         )
     }
 
@@ -207,8 +217,7 @@ fun TextToImageScreen(
         visible = showOptionsSheet,
         onDismiss = { showOptionsSheet = false },
         viewModel = textToImageViewModel,
-        state = uiState,
-        spellCheckEnabled = promptInput.spellCheckEnabled
+        state = uiState
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
     PromptPresetDialogs(presetViewModel, presetUiState)

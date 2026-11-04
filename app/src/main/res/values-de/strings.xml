@@ -112,6 +112,9 @@
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Negativer Prompt</string>
+    <string name="hint_describe_generation">Beschreibe, was entstehen soll</string>
+    <string name="tab_prompt_positive">Positiv</string>
+    <string name="tab_prompt_negative">Negativ</string>
     <string name="button_generate">Generieren</string>
     <string name="button_all_options">Alle Optionen</string>
     <string name="state_open">Geöffnet</string>
@@ -229,8 +232,6 @@
     <string name="desc_auto_connect">Beim App-Start automatisch mit dem letzten Server verbinden</string>
     <string name="label_prompt_spell_check">Rechtschreibprüfung &amp; Autokorrektur</string>
     <string name="desc_prompt_spell_check">Rechtschreibprüfung und Autokorrektur in Prompt-Feldern aktivieren. KI-spezifische Begriffe können als Fehler markiert werden.</string>
-    <string name="label_prompt_expand">Prompt-Feld beim Tippen erweitern</string>
-    <string name="desc_prompt_expand">Wenn fokussiert, füllt das Prompt-Feld den Bildschirm oberhalb der Tastatur aus. Die Vorschau wird ausgeblendet, bis die Tastatur geschlossen wird.</string>
     <string name="button_reset_prompts_and_library">Prompts und Bibliothek zurücksetzen</string>
     <string name="msg_reset_prompts_and_library_success">Prompts und Bibliothek zurückgesetzt</string>
     <string name="button_clear_cache">Cache leeren</string>

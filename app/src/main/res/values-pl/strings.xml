@@ -112,6 +112,9 @@
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Negatywny prompt</string>
+    <string name="hint_describe_generation">Opisz, co chcesz wygenerować</string>
+    <string name="tab_prompt_positive">Pozytywny</string>
+    <string name="tab_prompt_negative">Negatywny</string>
     <string name="button_generate">Generuj</string>
     <string name="button_all_options">Wszystkie opcje</string>
     <string name="state_open">Otwarte</string>
@@ -237,8 +240,6 @@
     <string name="desc_auto_connect">Automatyczne łączenie z ostatnim serwerem przy uruchomieniu aplikacji</string>
     <string name="label_prompt_spell_check">Sprawdzanie pisowni i autokorekta</string>
     <string name="desc_prompt_spell_check">Włącz sprawdzanie pisowni i autokorektę w polach promptu. Terminy specyficzne dla AI mogą być oznaczane jako błędy.</string>
-    <string name="label_prompt_expand">Rozwijaj pole promptu podczas pisania</string>
-    <string name="desc_prompt_expand">Po uaktywnieniu pole promptu wypełnia ekran nad klawiaturą. Podgląd jest ukryty do momentu schowania klawiatury.</string>
     <string name="button_reset_prompts_and_library">Resetuj prompty i bibliotekę</string>
     <string name="msg_reset_prompts_and_library_success">Prompty i biblioteka zresetowane</string>
     <string name="button_clear_cache">Wyczyść pamięć podręczną</string>

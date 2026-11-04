@@ -49,7 +49,7 @@ import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
 import sh.hnet.comfychair.ui.components.generation.GenerationPreviewArea
 import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
-import sh.hnet.comfychair.ui.components.generation.PositivePromptField
+import sh.hnet.comfychair.ui.components.generation.PromptDock
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.RecipeChips
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
@@ -57,6 +57,7 @@ import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.WorkflowIcons
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
+import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
@@ -83,7 +84,7 @@ fun TextToVideoScreen(
     val queueState by JobRegistry.queueState.collectAsState()
 
     GenerationScreenEffects(textToVideoViewModel, generationViewModel, presetViewModel, ScreenType.TEXT_TO_VIDEO, ownerId)
-    val promptInput = rememberPromptInputState(uiState.positivePrompt)
+    val promptInput = rememberPromptInputState()
     var showOptionsSheet by remember { mutableStateOf(false) }
 
     val isThisScreenExecuting = queueState.executingOwnerId == ownerId
@@ -103,6 +104,16 @@ fun TextToVideoScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Generate from the dock and from the prompt editor
+    val submitJob = rememberJobSubmitter(
+        generationViewModel = generationViewModel,
+        ownerId = ownerId,
+        // Read when submitting, for the queue sheet (kept in memory only)
+        describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
+        prepareWorkflow = { textToVideoViewModel.prepareWorkflow() },
+        contentType = ContentType.VIDEO
+    )
+
     Column(modifier = Modifier.fillMaxSize()) {
         GenerationTopBar(
             screen = MainRoute.TextToVideo,
@@ -110,7 +121,7 @@ fun TextToVideoScreen(
             generationViewModel = generationViewModel
         )
 
-        GenerationPreviewArea(collapsed = promptInput.expanded) {
+        GenerationPreviewArea {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -196,16 +207,18 @@ fun TextToVideoScreen(
             }
         }
 
-        // Hidden for workflows without a positive prompt placeholder (e.g. upscalers)
-        if (uiState.capabilities.hasPositivePrompt) {
-            PositivePromptField(
-                prompt = uiState.positivePrompt,
-                onPromptChange = textToVideoViewModel::onPositivePromptChange,
-                input = promptInput,
-                presetViewModel = presetViewModel,
-                presetUiState = presetUiState
-            )
-        }
+        // The prompt; tapping it opens the full-screen editor (absent for workflows without prompts)
+        PromptDock(
+            state = uiState,
+            onPositiveChange = textToVideoViewModel::onPositivePromptChange,
+            onNegativeChange = textToVideoViewModel::onNegativePromptChange,
+            preview = uiState.previewBitmap,
+            presetViewModel = presetViewModel,
+            presetUiState = presetUiState,
+            spellCheckEnabled = promptInput.spellCheckEnabled,
+            generateEnabled = textToVideoViewModel.hasValidConfiguration(),
+            onGenerate = { submitJob(false) }
+        )
 
         RecipeChips(
             state = uiState,
@@ -215,8 +228,6 @@ fun TextToVideoScreen(
         )
 
         GenerationControls(
-            // Read when submitting, for the queue sheet (kept in memory only)
-            describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
             // Read here, where the screen observes its state
             isEnabled = textToVideoViewModel.hasValidConfiguration(),
             generationViewModel = generationViewModel,
@@ -225,8 +236,7 @@ fun TextToVideoScreen(
             isFetching = uiState.isFetching,
             optionsOpen = showOptionsSheet,
             onOpenOptions = { showOptionsSheet = true },
-            prepareWorkflow = { textToVideoViewModel.prepareWorkflow() },
-            contentType = ContentType.VIDEO
+            submit = submitJob
         )
     }
 
@@ -234,8 +244,7 @@ fun TextToVideoScreen(
         visible = showOptionsSheet,
         onDismiss = { showOptionsSheet = false },
         viewModel = textToVideoViewModel,
-        state = uiState,
-        spellCheckEnabled = promptInput.spellCheckEnabled
+        state = uiState
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
     PromptPresetDialogs(presetViewModel, presetUiState)

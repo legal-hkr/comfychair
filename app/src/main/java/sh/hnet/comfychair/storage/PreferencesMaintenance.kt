@@ -26,6 +26,13 @@ object PreferencesMaintenance {
     private const val KEY_PASSWORD_PREFIX = "password_"
     private const val KEY_TOKEN_PREFIX = "token_"
 
+    private const val PREFS_APP_SETTINGS = "AppSettings"
+
+    /** App settings that no longer exist; their stored values are removed. */
+    private val RETIRED_APP_SETTINGS = listOf(
+        "prompt_expand" // The prompt is now always edited full screen (0.9.0)
+    )
+
     /**
      * Perform full maintenance on all SharedPreferences.
      * Removes entries for deleted servers and workflows.
@@ -45,8 +52,25 @@ object PreferencesMaintenance {
         totalRemoved += cleanCredentialPrefs(context, validServerIds)
         totalRemoved += cleanScreenPrefs(context, validServerIds, validWorkflowIds)
         totalRemoved += cleanFileCaches(context, validServerIds)
+        totalRemoved += cleanRetiredAppSettings(context)
 
         DebugLogger.i(TAG, "Maintenance complete. Removed $totalRemoved stale entries/files")
+    }
+
+    /**
+     * Remove stored values of app settings that no longer exist.
+     *
+     * @return Number of entries removed
+     */
+    private fun cleanRetiredAppSettings(context: Context): Int {
+        val prefs = context.getSharedPreferences(PREFS_APP_SETTINGS, Context.MODE_PRIVATE)
+        val stale = RETIRED_APP_SETTINGS.filter { prefs.contains(it) }
+        if (stale.isNotEmpty()) {
+            val editor = prefs.edit()
+            stale.forEach { editor.remove(it) }
+            editor.apply()
+        }
+        return stale.size
     }
 
     /**

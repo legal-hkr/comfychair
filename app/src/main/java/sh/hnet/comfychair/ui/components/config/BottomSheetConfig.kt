@@ -16,7 +16,6 @@ import sh.hnet.comfychair.viewmodel.ImageToImageMode
 @Stable
 data class BottomSheetConfig(
     val workflow: WorkflowConfig,
-    val prompts: PromptConfig,
     val itiConfig: ItiConfig? = null,
     val models: ModelConfig,
     val parameters: ParameterConfig,
@@ -35,16 +34,6 @@ data class WorkflowConfig(
     /** The workflow menu's groups (Image to Image: one per mode) */
     val groups: List<WorkflowGroup>,
     val icon: ImageVector
-)
-
-/**
- * Prompt fields configuration
- */
-@Stable
-data class PromptConfig(
-    val negativePrompt: String,
-    val onNegativePromptChange: (String) -> Unit,
-    val hasNegativePrompt: Boolean = true
 )
 
 /**

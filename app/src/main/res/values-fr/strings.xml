@@ -112,6 +112,9 @@
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Prompt négatif</string>
+    <string name="hint_describe_generation">Décrivez ce que vous voulez générer</string>
+    <string name="tab_prompt_positive">Positif</string>
+    <string name="tab_prompt_negative">Négatif</string>
     <string name="button_generate">Générer</string>
     <string name="button_all_options">Toutes les options</string>
     <string name="state_open">Ouvert</string>
@@ -233,8 +236,6 @@
     <string name="desc_auto_connect">Se connecter automatiquement au dernier serveur au lancement de l\'app</string>
     <string name="label_prompt_spell_check">Vérification orthographique &amp; autocorrection</string>
     <string name="desc_prompt_spell_check">Activer la vérification orthographique et l\'autocorrection dans les champs de prompt. Les termes spécifiques à l\'IA peuvent être signalés comme des erreurs.</string>
-    <string name="label_prompt_expand">Agrandir le champ de prompt lors de la saisie</string>
-    <string name="desc_prompt_expand">Lorsqu\'il est actif, le champ de prompt remplit l\'écran au-dessus du clavier. L\'aperçu est masqué jusqu\'à ce que le clavier soit fermé.</string>
     <string name="button_reset_prompts_and_library">Réinitialiser les prompts et la bibliothèque</string>
     <string name="msg_reset_prompts_and_library_success">Prompts et bibliothèque réinitialisés</string>
     <string name="button_clear_cache">Vider le cache</string>

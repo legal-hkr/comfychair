@@ -1,10 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +15,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,20 +22,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -48,7 +39,6 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,20 +50,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -96,8 +83,6 @@ import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.config.OptionField
 import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.optionsLayout
-import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
-import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransformation
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -115,7 +100,7 @@ import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
  *   Column {
  *       GenerationTopBar(...)          // title, menu, progress
  *       GenerationPreviewArea(...)     // the screen's own preview
- *       PositivePromptField(...)
+ *       PromptDock(...)                // prompt, opening the full-screen editor
  *       GenerationControls(...)        // Generate + options button
  *   }
  *   GenerationOptionsSheet(...)
@@ -205,44 +190,22 @@ fun GenerationScreenEffects(
     }
 }
 
-/**
- * Prompt field settings and state: spell check, and whether the field expands to fill the screen
- * above the keyboard while typing (the preview area collapses meanwhile).
- */
-class PromptInputState(
-    val spellCheckEnabled: Boolean,
-    val transformation: VisualTransformation,
-    val expanded: Boolean,
-    val onFocusChange: (Boolean) -> Unit
-)
+/** Prompt settings a screen reads: spell check, which may change while the screen is in the background. */
+class PromptInputState(val spellCheckEnabled: Boolean)
 
 @Composable
-fun rememberPromptInputState(prompt: String): PromptInputState {
+fun rememberPromptInputState(): PromptInputState {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var spellCheckEnabled by remember { mutableStateOf(AppSettings.isPromptSpellCheckEnabled(context)) }
-    var expandEnabled by remember { mutableStateOf(AppSettings.isPromptExpandEnabled(context)) }
     DisposableEffect(lifecycleOwner) {
-        // The settings may change while the screen is in the background
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                spellCheckEnabled = AppSettings.isPromptSpellCheckEnabled(context)
-                expandEnabled = AppSettings.isPromptExpandEnabled(context)
-            }
+            if (event == Lifecycle.Event.ON_RESUME) spellCheckEnabled = AppSettings.isPromptSpellCheckEnabled(context)
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    val transformation = rememberSpellCheckVisualTransformation(text = prompt, enabled = spellCheckEnabled)
-
-    // Expand only while the keyboard is up and not closing
-    val imeHeight = WindowInsets.ime.getBottom(LocalDensity.current)
-    var prevImeHeight by remember { mutableStateOf(imeHeight) }
-    SideEffect { prevImeHeight = imeHeight }
-    var focused by remember { mutableStateOf(false) }
-    val expanded = expandEnabled && focused && imeHeight > 0 && imeHeight >= prevImeHeight
-
-    return PromptInputState(spellCheckEnabled, transformation, expanded) { focused = it }
+    return PromptInputState(spellCheckEnabled)
 }
 
 /**
@@ -305,34 +268,25 @@ fun BoxScope.ScreenJobStatus(ownerId: String, generationViewModel: GenerationVie
 
 /**
  * The screen's preview area: takes the space left by the controls, inset 12 dp from the sides with 28 dp corners,
- * and collapses while the prompt field is expanded above the keyboard.
+.
  *
  * The corners are painted over in the screen's background colour instead of clipping: overlays such as the result
  * action menu may grow past the area's top edge, and a video surface ignores clipping anyway.
  */
 @Composable
-fun ColumnScope.GenerationPreviewArea(
-    collapsed: Boolean,
-    content: @Composable () -> Unit
-) {
+fun ColumnScope.GenerationPreviewArea(content: @Composable () -> Unit) {
     val cornerColor = MaterialTheme.colorScheme.background
-    AnimatedVisibility(
-        visible = !collapsed,
-        modifier = Modifier.weight(1f),
-        enter = fadeIn(tween(150)),
-        exit = ExitTransition.None
+    Box(
+        Modifier
+            .weight(1f)
+            .fillMaxSize()
+            .padding(horizontal = 12.dp)
+            .drawWithContent {
+                drawContent()
+                drawCornerFillets(PreviewCornerRadius.toPx(), cornerColor)
+            }
     ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp)
-                .drawWithContent {
-                    drawContent()
-                    drawCornerFillets(PreviewCornerRadius.toPx(), cornerColor)
-                }
-        ) {
-            content()
-        }
+        content()
     }
 }
 
@@ -381,55 +335,56 @@ fun EmptyResultState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Positive prompt field with the prompt library menu and a clear button. Hidden by the caller for
- * workflows without a positive prompt (e.g. upscalers).
+ * Submits a job of a screen: checks what must be there first, prepares the workflow (uploading images if needed) and
+ * queues it, reporting failures. Shared by the Generate button and the prompt editor's Generate.
+ *
+ * @param prepareWorkflow Builds the workflow JSON to submit; null on failure
+ * @param describeJob What the queue sheet shows for the job (prompt and workflow), read when submitting
+ * @param generationBlocker Message shown instead of generating, e.g. a missing mask; null to generate
+ * @return Submits a job, at the front of the queue or at its end
  */
 @Composable
-fun ColumnScope.PositivePromptField(
-    prompt: String,
-    onPromptChange: (String) -> Unit,
-    input: PromptInputState,
-    presetViewModel: PromptPresetViewModel,
-    presetUiState: PromptPresetUiState
-) {
-    OutlinedTextField(
-        value = prompt,
-        onValueChange = {
-            onPromptChange(it)
-            presetViewModel.clearActivePreset()
-        },
-        label = { Text(stringResource(R.string.hint_prompt)) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (input.expanded) Modifier.weight(1f) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .onFocusChanged { input.onFocusChange(it.isFocused) },
-        minLines = 2,
-        maxLines = if (input.expanded) Int.MAX_VALUE else 4,
-        keyboardOptions = KeyboardOptions(autoCorrectEnabled = input.spellCheckEnabled),
-        visualTransformation = input.transformation,
-        leadingIcon = {
-            PromptPresetDropdown(
-                favorites = presetUiState.favorites,
-                activePresetId = presetUiState.activePresetId,
-                currentPromptIsEmpty = prompt.isEmpty(),
-                onPresetSelected = { presetViewModel.onPresetSelected(it) },
-                onOpenLibrary = { presetViewModel.showLibrary() },
-                onSaveCurrentPrompt = { presetViewModel.showSaveDialog(prompt) },
-                onResetPrompt = { presetViewModel.resetPrompt() }
-            )
-        },
-        trailingIcon = {
-            if (prompt.isNotEmpty()) {
-                IconButton(onClick = {
-                    onPromptChange("")
-                    presetViewModel.clearActivePreset()
-                }) {
-                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.content_description_clear))
+fun rememberJobSubmitter(
+    generationViewModel: GenerationViewModel,
+    ownerId: String,
+    prepareWorkflow: suspend () -> String?,
+    contentType: ContentType = ContentType.IMAGE,
+    describeJob: () -> JobDescription? = { null },
+    generationBlocker: () -> Int? = { null }
+): (front: Boolean) -> Unit {
+    val context = LocalContext.current
+    val resources = LocalResources.current
+    val scope = rememberCoroutineScope()
+    // The latest lambdas, as they read the screen's current state
+    val prepare by rememberUpdatedState(prepareWorkflow)
+    val describe by rememberUpdatedState(describeJob)
+    val blocker by rememberUpdatedState(generationBlocker)
+    return remember(generationViewModel, ownerId, contentType) {
+        { front ->
+            scope.launch {
+                blocker()?.let { messageRes ->
+                    Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val workflowJson = prepare()
+                if (workflowJson == null) {
+                    Toast.makeText(context, resources.getString(R.string.error_failed_load_workflow), Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val description = describe()
+                generationViewModel.startGeneration(workflowJson, ownerId, contentType, front) { success, promptId, errorMessage ->
+                    if (success && promptId != null && description != null) JobRegistry.describeJob(promptId, description)
+                    if (!success) {
+                        Toast.makeText(
+                            context,
+                            errorMessage ?: resources.getString(R.string.error_generation_failed),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }
-    )
+    }
 }
 
 /**
@@ -487,44 +442,14 @@ fun GenerationControls(
     isFetching: Boolean,
     optionsOpen: Boolean,
     onOpenOptions: () -> Unit,
-    prepareWorkflow: suspend () -> String?,
-    contentType: ContentType = ContentType.IMAGE,
+    submit: (front: Boolean) -> Unit,
     isUploading: Boolean = false,
-    missingSource: Boolean = false,
-    describeJob: () -> JobDescription? = { null },
-    generationBlocker: () -> Int? = { null }
+    missingSource: Boolean = false
 ) {
     val context = LocalContext.current
-    val resources = LocalResources.current
-    val scope = rememberCoroutineScope()
     val queueState by JobRegistry.queueState.collectAsState()
     val isConnecting by ConnectionManager.isConnecting.collectAsState()
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
-
-    fun submit(front: Boolean) {
-        scope.launch {
-            generationBlocker()?.let { messageRes ->
-                Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val workflowJson = prepareWorkflow()
-            if (workflowJson == null) {
-                Toast.makeText(context, resources.getString(R.string.error_failed_load_workflow), Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val description = describeJob()
-            generationViewModel.startGeneration(workflowJson, ownerId, contentType, front) { success, promptId, errorMessage ->
-                if (success && promptId != null && description != null) JobRegistry.describeJob(promptId, description)
-                if (!success) {
-                    Toast.makeText(
-                        context,
-                        errorMessage ?: resources.getString(R.string.error_generation_failed),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-    }
 
     Row(
         modifier = Modifier
@@ -546,7 +471,7 @@ fun GenerationControls(
             isUploading = isUploading,
             isFetching = isFetching,
             isConnecting = isConnecting,
-            onGenerate = { submit(front = false) },
+            onGenerate = { submit(false) },
             // Read when tapped: the running job may have changed since the menu was composed
             onCancelOwnJob = {
                 val running = JobRegistry.queueState.value.executingPromptId
@@ -554,7 +479,7 @@ fun GenerationControls(
                     generationViewModel.cancelGeneration(running) { }
                 }
             },
-            onAddToFrontOfQueue = { submit(front = true) },
+            onAddToFrontOfQueue = { submit(true) },
             ownJobs = queueState.ownActiveJobCount,
             otherJobs = queueState.otherJobCount,
             onShowQueue = { QueueSheetController.visible = true },
@@ -593,7 +518,6 @@ fun generationCallbacks(
 ) = UnifiedCallbacks(
     onWorkflowChange = viewModel::onWorkflowChange,
     onViewWorkflow = onViewWorkflow,
-    onNegativePromptChange = viewModel::onNegativePromptChange,
     // Models
     onCheckpointChange = viewModel::onCheckpointChange,
     onUnetChange = viewModel::onUnetChange,
@@ -657,7 +581,6 @@ fun GenerationOptionsSheet(
     onDismiss: () -> Unit,
     viewModel: BaseGenerationViewModel<*>,
     state: CommonGenerationState,
-    spellCheckEnabled: Boolean,
     extraCallbacks: (UnifiedCallbacks) -> UnifiedCallbacks = { it },
     buildConfig: (UnifiedCallbacks) -> BottomSheetConfig
 ) {
@@ -683,8 +606,6 @@ fun GenerationOptionsSheet(
         optionsLayout(
             state.capabilities,
             setOfNotNull(
-                // Until the prompt editor takes it
-                OptionField.NEGATIVE_PROMPT,
                 OptionField.REFERENCE_IMAGES.takeIf {
                     iti != null && iti.mode == ImageToImageMode.EDITING && (iti.hasReferenceImage1 || iti.hasReferenceImage2)
                 }
@@ -708,7 +629,6 @@ fun GenerationOptionsSheet(
             config = config,
             layout = layout,
             workflowId = state.selectedWorkflowId,
-            spellCheckEnabled = spellCheckEnabled,
             modifier = Modifier.navigationBarsPadding()
         )
     }

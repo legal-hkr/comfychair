@@ -58,7 +58,7 @@ import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
 import sh.hnet.comfychair.ui.components.generation.MaskLabel
 import sh.hnet.comfychair.ui.components.generation.MaskTools
-import sh.hnet.comfychair.ui.components.generation.PositivePromptField
+import sh.hnet.comfychair.ui.components.generation.PromptDock
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.RecipeChips
 import sh.hnet.comfychair.ui.components.generation.ReferenceSlot
@@ -69,6 +69,7 @@ import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
 import sh.hnet.comfychair.ui.components.generation.SourceToolbar
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
+import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
@@ -108,7 +109,7 @@ fun ImageToImageScreen(
         imageToImageViewModel, generationViewModel, presetViewModel, ScreenType.IMAGE_TO_IMAGE, ownerId,
         onJobStarted = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW) }
     )
-    val promptInput = rememberPromptInputState(uiState.positivePrompt)
+    val promptInput = rememberPromptInputState()
     var showOptionsSheet by remember { mutableStateOf(false) }
 
     val isThisScreenExecuting = queueState.executingOwnerId == ownerId
@@ -156,6 +157,21 @@ fun ImageToImageScreen(
     // Whether the mask is drawn over the source; only a view setting, the mask itself stays
     var maskVisible by rememberSaveable { mutableStateOf(true) }
 
+    // Generate from the dock and from the prompt editor
+    val submitJob = rememberJobSubmitter(
+        generationViewModel = generationViewModel,
+        ownerId = ownerId,
+        // Read when submitting, for the queue sheet (kept in memory only)
+        describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
+        prepareWorkflow = { imageToImageViewModel.prepareWorkflow() },
+        // Inpainting needs a mask
+        generationBlocker = {
+            R.string.hint_paint_mask.takeIf {
+                uiState.mode == ImageToImageMode.INPAINTING && !imageToImageViewModel.hasMask()
+            }
+        }
+    )
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Top App Bar with image options
         GenerationTopBar(
@@ -171,7 +187,7 @@ fun ImageToImageScreen(
         val resultThumb = if (showResults) outputThumb ?: previewThumb else previewThumb
 
         // Preview area with the source and the result – collapses when typing in the prompt field
-        GenerationPreviewArea(collapsed = promptInput.expanded) {
+        GenerationPreviewArea {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -345,16 +361,18 @@ fun ImageToImageScreen(
             }
         }
 
-        // Hidden for workflows without a positive prompt placeholder (e.g. upscalers)
-        if (uiState.capabilities.hasPositivePrompt) {
-            PositivePromptField(
-                prompt = uiState.positivePrompt,
-                onPromptChange = imageToImageViewModel::onPositivePromptChange,
-                input = promptInput,
-                presetViewModel = presetViewModel,
-                presetUiState = presetUiState
-            )
-        }
+        // The prompt; tapping it opens the full-screen editor (absent for workflows without prompts)
+        PromptDock(
+            state = uiState,
+            onPositiveChange = imageToImageViewModel::onPositivePromptChange,
+            onNegativeChange = imageToImageViewModel::onNegativePromptChange,
+            preview = uiState.previewImage ?: sourceImage,
+            presetViewModel = presetViewModel,
+            presetUiState = presetUiState,
+            spellCheckEnabled = promptInput.spellCheckEnabled,
+            generateEnabled = imageToImageViewModel.hasValidConfiguration(),
+            onGenerate = { submitJob(false) }
+        )
 
         RecipeChips(
             state = uiState,
@@ -364,8 +382,6 @@ fun ImageToImageScreen(
         )
 
         GenerationControls(
-            // Read when submitting, for the queue sheet (kept in memory only)
-            describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
             missingSource = sourceImage == null,
             // Read here, where the screen observes its state
             isEnabled = imageToImageViewModel.hasValidConfiguration(),
@@ -375,14 +391,8 @@ fun ImageToImageScreen(
             isFetching = uiState.isFetching,
             optionsOpen = showOptionsSheet,
             onOpenOptions = { showOptionsSheet = true },
-            prepareWorkflow = { imageToImageViewModel.prepareWorkflow() },
             isUploading = uiState.isUploading,
-            // Inpainting needs a mask
-            generationBlocker = {
-                R.string.hint_paint_mask.takeIf {
-                    uiState.mode == ImageToImageMode.INPAINTING && !imageToImageViewModel.hasMask()
-                }
-            }
+            submit = submitJob
         )
     }
 
@@ -391,7 +401,6 @@ fun ImageToImageScreen(
         onDismiss = { showOptionsSheet = false },
         viewModel = imageToImageViewModel,
         state = uiState,
-        spellCheckEnabled = promptInput.spellCheckEnabled,
         // Mode and reference images; the ViewModel applies every other change to the current mode
         extraCallbacks = { callbacks ->
             callbacks.copy(

@@ -201,20 +201,6 @@ object AppSettings {
             .apply()
     }
 
-    private const val KEY_PROMPT_EXPAND = "prompt_expand"
-
-    fun isPromptExpandEnabled(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_PROMPT_EXPAND, false)
-    }
-
-    fun setPromptExpandEnabled(context: Context, enabled: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_PROMPT_EXPAND, enabled)
-            .apply()
-    }
-
 }
 
 /**

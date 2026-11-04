@@ -44,11 +44,6 @@ fun CommonGenerationState.toBottomSheetConfig(
             groups = workflowGroups,
             icon = workflowIcon
         ),
-        prompts = PromptConfig(
-            negativePrompt = negativePrompt,
-            onNegativePromptChange = callbacks.onNegativePromptChange,
-            hasNegativePrompt = caps.hasNegativePrompt
-        ),
         itiConfig = itiConfig,
         models = buildCommonModelConfig(this, callbacks).copy(
             // Dual-model patterns (e.g. Wan 2.2)

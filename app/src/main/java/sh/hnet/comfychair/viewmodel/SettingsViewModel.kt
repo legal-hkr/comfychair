@@ -2,6 +2,8 @@ package sh.hnet.comfychair.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -26,17 +28,15 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.BackupManager
+import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.storage.MediaStorageMode
-import sh.hnet.comfychair.storage.BackupManager
-import sh.hnet.comfychair.storage.RestoreResult
-import sh.hnet.comfychair.storage.CredentialStorage
-import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.storage.PromptPresetStorage
+import sh.hnet.comfychair.storage.RestoreResult
+import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.Stable
 
 /**
  * UI state for server settings screen
@@ -124,8 +124,6 @@ class SettingsViewModel : ViewModel() {
     private val _isPromptSpellCheckEnabled = MutableStateFlow(false)
     val isPromptSpellCheckEnabled: StateFlow<Boolean> = _isPromptSpellCheckEnabled.asStateFlow()
 
-    private val _isPromptExpandEnabled = MutableStateFlow(false)
-    val isPromptExpandEnabled: StateFlow<Boolean> = _isPromptExpandEnabled.asStateFlow()
 
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
@@ -143,7 +141,6 @@ class SettingsViewModel : ViewModel() {
         _isOfflineMode.value = AppSettings.isOfflineMode(context)
         _edgeRouterId.value = AppSettings.getEdgeRouterId(context)
         _isPromptSpellCheckEnabled.value = AppSettings.isPromptSpellCheckEnabled(context)
-        _isPromptExpandEnabled.value = AppSettings.isPromptExpandEnabled(context)
 
         // Initialize debug logger with saved state
         DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
@@ -496,11 +493,6 @@ class SettingsViewModel : ViewModel() {
         _isPromptSpellCheckEnabled.value = enabled
     }
 
-    fun setPromptExpandEnabled(context: Context, enabled: Boolean) {
-        AppSettings.setPromptExpandEnabled(context, enabled)
-        _isPromptExpandEnabled.value = enabled
-    }
-
     /**
      * Set whether offline mode should be enabled.
      * Offline mode allows browsing cached data without network connectivity.
@@ -702,7 +694,6 @@ class SettingsViewModel : ViewModel() {
         val newOfflineMode = AppSettings.isOfflineMode(context)
         val newEdgeRouterId = AppSettings.getEdgeRouterId(context)
         val newPromptSpellCheck = AppSettings.isPromptSpellCheckEnabled(context)
-        val newPromptExpand = AppSettings.isPromptExpandEnabled(context)
 
         // If debug logging was enabled before restore, keep it enabled
         val finalDebugLogging = if (preserveDebugLogging && !restoredDebugLogging) {
@@ -723,7 +714,6 @@ class SettingsViewModel : ViewModel() {
         _isOfflineMode.value = newOfflineMode
         _edgeRouterId.value = newEdgeRouterId
         _isPromptSpellCheckEnabled.value = newPromptSpellCheck
-        _isPromptExpandEnabled.value = newPromptExpand
 
         // Update DebugLogger state to match
         DebugLogger.setEnabled(finalDebugLogging)

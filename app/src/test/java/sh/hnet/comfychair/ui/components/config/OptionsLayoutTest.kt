@@ -72,16 +72,10 @@ class OptionsLayoutTest {
     }
 
     @Test
-    fun transitionalRowsJoinTheWorkflowSectionWithoutCounting() {
-        val caps = WorkflowCapabilities(hasSeed = true, hasNegativePrompt = true)
-        val layout = optionsLayout(caps, setOf(REFERENCE_IMAGES, NEGATIVE_PROMPT))
-        assertEquals(
-            listOf(listOf(WORKFLOW), listOf(REFERENCE_IMAGES), listOf(NEGATIVE_PROMPT)),
-            layout.sections[0].rows
-        )
+    fun referenceImagesJoinTheWorkflowSectionWithoutCounting() {
+        val layout = optionsLayout(WorkflowCapabilities(hasSeed = true), setOf(REFERENCE_IMAGES))
+        assertEquals(listOf(listOf(WORKFLOW), listOf(REFERENCE_IMAGES)), layout.sections[0].rows)
         assertEquals(1, layout.fieldCount)
-        // Without the placeholder there is no negative prompt row
-        assertFalse(NEGATIVE_PROMPT in optionsLayout(WorkflowCapabilities(), setOf(NEGATIVE_PROMPT)).fields)
     }
 
     @Test

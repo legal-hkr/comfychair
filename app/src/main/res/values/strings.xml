@@ -86,6 +86,9 @@
     <!-- Query screen strings -->
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Negative prompt</string>
+    <string name="hint_describe_generation">Describe what you want to generate</string>
+    <string name="tab_prompt_positive">Positive</string>
+    <string name="tab_prompt_negative">Negative</string>
     <string name="button_generate">Generate</string>
     <string name="button_all_options">All options</string>
     <string name="state_open">Open</string>
@@ -233,8 +236,6 @@
     <string name="desc_auto_connect">Automatically connect to the last server on app launch</string>
     <string name="label_prompt_spell_check">Spell check &amp; autocorrect</string>
     <string name="desc_prompt_spell_check">Enable spell checking and autocorrect in prompt fields. May flag AI-specific terms as errors.</string>
-    <string name="label_prompt_expand">Expand prompt field when typing</string>
-    <string name="desc_prompt_expand">When focused, the prompt field fills the screen above the keyboard. The preview is hidden until the keyboard is dismissed.</string>
     <string name="button_reset_prompts_and_library">Reset Prompts and Library</string>
     <string name="msg_reset_prompts_and_library_success">Prompts and library reset</string>
     <string name="button_clear_cache">Clear Cache</string>

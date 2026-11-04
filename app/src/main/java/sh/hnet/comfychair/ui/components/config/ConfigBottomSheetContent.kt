@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -20,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,7 +46,6 @@ import sh.hnet.comfychair.ui.components.shared.ConstrainedNumberField
 import sh.hnet.comfychair.ui.components.shared.NumberParameter
 import sh.hnet.comfychair.ui.components.shared.ReferenceImageThumbnail
 import sh.hnet.comfychair.ui.components.shared.SeedRow
-import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransformation
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 
 /** One line of the sheet's list. */
@@ -83,7 +80,6 @@ fun ConfigBottomSheetContent(
     config: BottomSheetConfig,
     layout: OptionsLayout,
     workflowId: String,
-    spellCheckEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -148,12 +144,12 @@ fun ConfigBottomSheetContent(
                 is SheetItem.Choices -> item(key = item.key) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         item.fields.forEachIndexed { index, field ->
-                            Field(field, config, workflowName, spellCheckEnabled, Modifier.fillMaxWidth(), groupShape(index, item.fields.size))
+                            Field(field, config, workflowName, Modifier.fillMaxWidth(), groupShape(index, item.fields.size))
                         }
                     }
                 }
                 is SheetItem.Fields -> item(key = item.key) {
-                    FieldRow(item.row, config, workflowName, spellCheckEnabled)
+                    FieldRow(item.row, config, workflowName)
                 }
             }
         }
@@ -185,15 +181,14 @@ private fun groupShape(index: Int, count: Int): Shape {
 private fun FieldRow(
     row: List<OptionField>,
     config: BottomSheetConfig,
-    workflowName: String,
-    spellCheckEnabled: Boolean
+    workflowName: String
 ) {
     if (row.size == 2) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            row.forEach { field -> Field(field, config, workflowName, spellCheckEnabled, Modifier.weight(1f)) }
+            row.forEach { field -> Field(field, config, workflowName, Modifier.weight(1f)) }
         }
     } else {
-        Field(row.single(), config, workflowName, spellCheckEnabled, Modifier.fillMaxWidth())
+        Field(row.single(), config, workflowName, Modifier.fillMaxWidth())
     }
 }
 
@@ -203,7 +198,6 @@ private fun Field(
     field: OptionField,
     config: BottomSheetConfig,
     workflowName: String,
-    spellCheckEnabled: Boolean,
     modifier: Modifier,
     shape: Shape = RoundedCornerShape(20.dp)
 ) {
@@ -247,7 +241,6 @@ private fun Field(
     when (field) {
         OptionField.WORKFLOW -> WorkflowSection(config.workflow)
         OptionField.REFERENCE_IMAGES -> config.itiConfig?.let { ReferenceImagesSection(it) }
-        OptionField.NEGATIVE_PROMPT -> NegativePromptSection(config.prompts, spellCheckEnabled)
         OptionField.SEED -> params.seed?.let { seed ->
             SeedRow(
                 workflowName = workflowName,
@@ -389,24 +382,6 @@ object OptionsSectionPrefs {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean("$workflowId:${section.name}", expanded).apply()
     }
-}
-
-@Composable
-private fun NegativePromptSection(prompts: PromptConfig, spellCheckEnabled: Boolean) {
-    val transformation = rememberSpellCheckVisualTransformation(
-        text = prompts.negativePrompt,
-        enabled = spellCheckEnabled
-    )
-    OutlinedTextField(
-        value = prompts.negativePrompt,
-        onValueChange = prompts.onNegativePromptChange,
-        label = { Text(stringResource(R.string.hint_negative_prompt)) },
-        modifier = Modifier.fillMaxWidth(),
-        minLines = 2,
-        maxLines = 4,
-        keyboardOptions = KeyboardOptions(autoCorrectEnabled = spellCheckEnabled),
-        visualTransformation = transformation
-    )
 }
 
 @Composable

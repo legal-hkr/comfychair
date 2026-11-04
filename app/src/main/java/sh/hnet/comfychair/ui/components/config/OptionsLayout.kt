@@ -13,7 +13,7 @@ enum class OptionsSection { WORKFLOW, QUICK, SAMPLING, MODELS, LORA }
  */
 enum class OptionField(val half: Boolean = false) {
     // Workflow section
-    WORKFLOW, REFERENCE_IMAGES, NEGATIVE_PROMPT,
+    WORKFLOW, REFERENCE_IMAGES,
 
     // Quick
     SEED, WIDTH(true), HEIGHT(true), LENGTH(true), FPS(true), STEPS(true), MEGAPIXELS(true), BATCH_SIZE(true), SCALE_BY(true),
@@ -52,8 +52,7 @@ const val FLAT_OPTIONS_MAX_FIELDS = 8
  */
 private val templates: Map<OptionsSection, List<List<OptionField>>> = mapOf(
     OptionsSection.WORKFLOW to listOf(
-        listOf(OptionField.WORKFLOW), listOf(OptionField.REFERENCE_IMAGES),
-        listOf(OptionField.NEGATIVE_PROMPT)
+        listOf(OptionField.WORKFLOW), listOf(OptionField.REFERENCE_IMAGES)
     ),
     OptionsSection.QUICK to listOf(
         listOf(OptionField.SEED),
@@ -85,7 +84,6 @@ private val templates: Map<OptionsSection, List<List<OptionField>>> = mapOf(
 private fun WorkflowCapabilities.has(field: OptionField, extras: Set<OptionField>): Boolean = when (field) {
     OptionField.WORKFLOW -> true
     OptionField.REFERENCE_IMAGES -> field in extras
-    OptionField.NEGATIVE_PROMPT -> hasNegativePrompt && field in extras
     OptionField.SEED -> hasSeed
     OptionField.WIDTH -> hasWidth
     OptionField.HEIGHT -> hasHeight
@@ -141,7 +139,7 @@ private fun rowsFor(templateRows: List<List<OptionField>>, present: (OptionField
  * only when it has at least one; nothing depends on the screen.
  *
  * @param extras Screen-provided rows of the workflow section that capabilities don't decide alone:
- *   [OptionField.REFERENCE_IMAGES] (Image to Image), [OptionField.NEGATIVE_PROMPT] (until the prompt editor takes it)
+ *   [OptionField.REFERENCE_IMAGES] (Image to Image)
  */
 fun optionsLayout(capabilities: WorkflowCapabilities, extras: Set<OptionField> = emptySet()): OptionsLayout {
     val present: (OptionField) -> Boolean = { capabilities.has(it, extras) }
