@@ -16,10 +16,10 @@ enum class OptionField(val half: Boolean = false) {
     WORKFLOW, REFERENCE_IMAGES, NEGATIVE_PROMPT,
 
     // Quick
-    SEED, WIDTH(true), HEIGHT(true), LENGTH(true), FPS(true), STEPS(true), MEGAPIXELS(true), DENOISE(true), BATCH_SIZE(true),
+    SEED, WIDTH(true), HEIGHT(true), LENGTH(true), FPS(true), STEPS(true), MEGAPIXELS(true), BATCH_SIZE(true), SCALE_BY(true),
 
     // Sampling
-    SAMPLER, SCHEDULER, CFG(true), CLIP_LAYER(true), UPSCALE_METHOD, SCALE_BY(true),
+    SAMPLER, SCHEDULER, CFG(true), CLIP_LAYER(true), DENOISE(true), UPSCALE_METHOD,
 
     // LoRA
     LORA_NAME, HIGHNOISE_LORA_NAME, LOWNOISE_LORA_NAME, LORA_CHAIN, HIGHNOISE_LORA_CHAIN, LOWNOISE_LORA_CHAIN,
@@ -60,12 +60,13 @@ private val templates: Map<OptionsSection, List<List<OptionField>>> = mapOf(
         listOf(OptionField.WIDTH, OptionField.HEIGHT),
         listOf(OptionField.LENGTH, OptionField.FPS),
         listOf(OptionField.STEPS, OptionField.MEGAPIXELS),
-        listOf(OptionField.DENOISE, OptionField.BATCH_SIZE)
+        listOf(OptionField.BATCH_SIZE, OptionField.SCALE_BY)
     ),
+    // Denoise stays at 1.0 but in a few cases, so it's not among the quick fields
     OptionsSection.SAMPLING to listOf(
         listOf(OptionField.SAMPLER), listOf(OptionField.SCHEDULER),
         listOf(OptionField.CFG, OptionField.CLIP_LAYER),
-        listOf(OptionField.UPSCALE_METHOD), listOf(OptionField.SCALE_BY)
+        listOf(OptionField.DENOISE), listOf(OptionField.UPSCALE_METHOD)
     ),
     OptionsSection.LORA to listOf(
         listOf(OptionField.LORA_NAME), listOf(OptionField.HIGHNOISE_LORA_NAME), listOf(OptionField.LOWNOISE_LORA_NAME),

@@ -431,18 +431,19 @@ fun ColumnScope.PositivePromptField(
 
 /**
  * The dock's recipe chips, between the prompt and Generate: the workflow chip first, which opens the workflow menu
- * (on Image to Image grouped by mode). Scrolls sideways when the chips don't fit.
- *
- * @param hasPositivePrompt Without the prompt field above, the row keeps the gap it provided
+ * (on Image to Image grouped by mode), then the parameter chips ([ParameterChips]). Scrolls sideways when the chips
+ * don't fit. Without the prompt field above, the row keeps the gap it provided.
  */
 @Composable
 fun RecipeChips(
-    workflowName: String,
-    workflowId: String,
+    state: CommonGenerationState,
+    viewModel: BaseGenerationViewModel<*>,
     icon: ImageVector,
-    groups: List<WorkflowGroup>,
-    hasPositivePrompt: Boolean
+    groups: List<WorkflowGroup>
 ) {
+    val workflowName = state.selectedWorkflow
+    val workflowId = state.selectedWorkflowId
+    val hasPositivePrompt = state.capabilities.hasPositivePrompt
     val context = LocalContext.current
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -455,6 +456,9 @@ fun RecipeChips(
             WorkflowChip(workflowName, icon, groups, onOpenEditor = {
                 if (workflowId.isNotEmpty()) context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
             })
+        }
+        item(key = "parameters") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ParameterChips(state, viewModel) }
         }
     }
 }

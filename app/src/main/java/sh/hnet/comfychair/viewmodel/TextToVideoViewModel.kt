@@ -58,6 +58,6 @@ class TextToVideoViewModel : BaseVideoGenerationViewModel<TextToVideoUiState>() 
     fun prepareWorkflow(): String? {
         val p = _uiState.value.params
         if (p.hasErrors) return null
-        return WorkflowManager.prepareWorkflow(p.selectedWorkflowId, p)
+        return WorkflowManager.prepareWorkflow(p.selectedWorkflowId, withSubmittedSeed(p))
     }
 }

@@ -352,6 +352,18 @@
     <string name="label_sampler">采样器</string>
     <string name="label_scheduler">调度器</string>
     <string name="label_seed">种子</string>
+    <string name="label_size">尺寸</string>
+    <string name="label_megapixels_value">%1$s MP</string>
+    <string name="label_scale_value">缩放 %1$s×</string>
+    <string name="option_seed_random">随机</string>
+    <string name="option_seed_fixed">固定</string>
+    <string name="button_reuse_last_seed">沿用上次的种子</string>
+    <plurals name="label_steps_count">
+        <item quantity="other">%d 步</item>
+    </plurals>
+    <plurals name="label_frames_count">
+        <item quantity="other">%d 帧</item>
+    </plurals>
     <string name="label_random_seed">随机种子</string>
     <string name="label_randomize_seed">随机</string>
     <string name="label_denoise">降噪</string>

@@ -373,6 +373,24 @@
     <string name="label_sampler">Sampler</string>
     <string name="label_scheduler">Scheduler</string>
     <string name="label_seed">Seed</string>
+    <string name="label_size">Rozmiar</string>
+    <string name="label_megapixels_value">%1$s MP</string>
+    <string name="label_scale_value">Skala %1$s×</string>
+    <string name="option_seed_random">Losowy</string>
+    <string name="option_seed_fixed">Stały</string>
+    <string name="button_reuse_last_seed">Użyj ostatniego seeda</string>
+    <plurals name="label_steps_count">
+        <item quantity="one">%d krok</item>
+        <item quantity="few">%d kroki</item>
+        <item quantity="many">%d kroków</item>
+        <item quantity="other">%d kroku</item>
+    </plurals>
+    <plurals name="label_frames_count">
+        <item quantity="one">%d klatka</item>
+        <item quantity="few">%d klatki</item>
+        <item quantity="many">%d klatek</item>
+        <item quantity="other">%d klatki</item>
+    </plurals>
     <string name="label_random_seed">Losowy seed</string>
     <string name="label_randomize_seed">Losuj</string>
     <string name="label_denoise">Odszumianie</string>

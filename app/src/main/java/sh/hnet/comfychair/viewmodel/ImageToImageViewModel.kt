@@ -753,7 +753,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
 
         val p = state.editingParams
         return WorkflowManager.prepareWorkflow(
-            p.selectedWorkflowId, p,
+            p.selectedWorkflowId, withSubmittedSeed(p),
             WorkflowManager.WorkflowImages(source = uploadedSource, reference1 = uploadedRef1, reference2 = uploadedRef2)
         )
     }
@@ -812,7 +812,7 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
 
         val p = state.inpaintingParams
         return WorkflowManager.prepareWorkflow(
-            p.selectedWorkflowId, p, WorkflowManager.WorkflowImages(source = uploadedFilename)
+            p.selectedWorkflowId, withSubmittedSeed(p), WorkflowManager.WorkflowImages(source = uploadedFilename)
         )
     }
 

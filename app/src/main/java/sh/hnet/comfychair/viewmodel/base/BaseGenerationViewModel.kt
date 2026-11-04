@@ -333,6 +333,30 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
     fun onUpscaleMethodChange(method: String) = updateParams { it.copy(upscaleMethod = method) }
     fun onRandomSeedToggle() = updateParams { it.copy(randomSeed = !it.randomSeed) }
 
+    // Seed of the last job submitted from this screen (with a random seed, the one it was given); in memory only
+    private val _lastSeed = MutableStateFlow<String?>(null)
+    val lastSeed: StateFlow<String?> = _lastSeed.asStateFlow()
+
+    /**
+     * Parameters as a job is submitted with them: a random seed is drawn here rather than when the workflow is
+     * prepared, so the job's seed is known and can be reused.
+     */
+    protected fun withSubmittedSeed(params: GenerationParams): GenerationParams {
+        val submitted = if (params.randomSeed) {
+            params.copy(randomSeed = false, seed = (0..999_999_999_999).random().toString())
+        } else {
+            params
+        }
+        _lastSeed.value = submitted.seed
+        return submitted
+    }
+
+    /** Fix the seed to the one of the last job from this screen. */
+    fun onReuseLastSeed() {
+        val seed = _lastSeed.value ?: return
+        updateParams { it.copy(randomSeed = false, seed = seed, seedError = null) }
+    }
+
     fun onRandomizeSeed() {
         val seed = kotlin.random.Random.nextLong(0, Long.MAX_VALUE).toString()
         updateParams { it.copy(seed = seed, seedError = null) }

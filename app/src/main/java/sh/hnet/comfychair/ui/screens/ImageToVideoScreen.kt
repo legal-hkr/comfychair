@@ -293,11 +293,10 @@ fun ImageToVideoScreen(
         }
 
         RecipeChips(
-            workflowName = uiState.selectedWorkflow,
-            workflowId = uiState.selectedWorkflowId,
+            state = uiState,
+            viewModel = imageToVideoViewModel,
             icon = WorkflowIcons.default,
-            groups = singleWorkflowGroup(uiState.availableWorkflows, imageToVideoViewModel::onWorkflowChange),
-            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+            groups = singleWorkflowGroup(uiState.availableWorkflows, imageToVideoViewModel::onWorkflowChange)
         )
 
         GenerationControls(

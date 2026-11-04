@@ -384,6 +384,20 @@
     <string name="label_sampler">Sampler</string>
     <string name="label_scheduler">Scheduler</string>
     <string name="label_seed">Seed</string>
+    <string name="label_size">Size</string>
+    <string name="label_megapixels_value">%1$s MP</string>
+    <string name="label_scale_value">Scale %1$s×</string>
+    <string name="option_seed_random">Random</string>
+    <string name="option_seed_fixed">Fixed</string>
+    <string name="button_reuse_last_seed">Reuse last seed</string>
+    <plurals name="label_steps_count">
+        <item quantity="one">%d step</item>
+        <item quantity="other">%d steps</item>
+    </plurals>
+    <plurals name="label_frames_count">
+        <item quantity="one">%d frame</item>
+        <item quantity="other">%d frames</item>
+    </plurals>
     <string name="label_random_seed">Random seed</string>
     <string name="label_randomize_seed">Randomize</string>
     <string name="label_denoise">Denoise</string>

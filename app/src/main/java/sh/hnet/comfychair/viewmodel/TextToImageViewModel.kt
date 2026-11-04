@@ -318,7 +318,7 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
      */
     fun prepareWorkflowJson(): String? {
         val p = _uiState.value.params
-        return WorkflowManager.prepareWorkflow(p.selectedWorkflowId, p)
+        return WorkflowManager.prepareWorkflow(p.selectedWorkflowId, withSubmittedSeed(p))
     }
 
     /**

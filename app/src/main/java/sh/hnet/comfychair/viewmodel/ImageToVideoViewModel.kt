@@ -220,7 +220,7 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
             }
             val uploadedFilename = uploadResult.filename
 
-            WorkflowManager.prepareWorkflow(p.selectedWorkflowId, p, WorkflowManager.WorkflowImages(source = uploadedFilename))
+            WorkflowManager.prepareWorkflow(p.selectedWorkflowId, withSubmittedSeed(p), WorkflowManager.WorkflowImages(source = uploadedFilename))
         } finally {
             _uiState.update { it.copy(isUploading = false) }
         }

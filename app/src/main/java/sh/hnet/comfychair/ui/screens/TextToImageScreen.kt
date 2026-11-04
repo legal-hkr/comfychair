@@ -182,11 +182,10 @@ fun TextToImageScreen(
         }
 
         RecipeChips(
-            workflowName = uiState.selectedWorkflow,
-            workflowId = uiState.selectedWorkflowId,
+            state = uiState,
+            viewModel = textToImageViewModel,
             icon = WorkflowIcons.default,
-            groups = singleWorkflowGroup(uiState.availableWorkflows, textToImageViewModel::onWorkflowChange),
-            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+            groups = singleWorkflowGroup(uiState.availableWorkflows, textToImageViewModel::onWorkflowChange)
         )
 
         GenerationControls(

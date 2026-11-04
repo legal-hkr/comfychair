@@ -357,11 +357,10 @@ fun ImageToImageScreen(
         }
 
         RecipeChips(
-            workflowName = uiState.selectedWorkflow,
-            workflowId = uiState.selectedWorkflowId,
+            state = uiState,
+            viewModel = imageToImageViewModel,
             icon = uiState.workflowIcon,
-            groups = uiState.workflowGroups(imageToImageViewModel::onModeChange, imageToImageViewModel::onWorkflowChange),
-            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+            groups = uiState.workflowGroups(imageToImageViewModel::onModeChange, imageToImageViewModel::onWorkflowChange)
         )
 
         GenerationControls(

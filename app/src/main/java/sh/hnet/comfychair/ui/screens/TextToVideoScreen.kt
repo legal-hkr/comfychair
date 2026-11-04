@@ -208,11 +208,10 @@ fun TextToVideoScreen(
         }
 
         RecipeChips(
-            workflowName = uiState.selectedWorkflow,
-            workflowId = uiState.selectedWorkflowId,
+            state = uiState,
+            viewModel = textToVideoViewModel,
             icon = WorkflowIcons.default,
-            groups = singleWorkflowGroup(uiState.availableWorkflows, textToVideoViewModel::onWorkflowChange),
-            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+            groups = singleWorkflowGroup(uiState.availableWorkflows, textToVideoViewModel::onWorkflowChange)
         )
 
         GenerationControls(
