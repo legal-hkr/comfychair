@@ -35,6 +35,7 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.config.singleWorkflowGroup
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.generation.EmptyResultState
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
@@ -44,9 +45,11 @@ import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.RecipeChips
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
+import sh.hnet.comfychair.ui.components.generation.WorkflowIcons
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
@@ -177,6 +180,14 @@ fun TextToImageScreen(
                 presetUiState = presetUiState
             )
         }
+
+        RecipeChips(
+            workflowName = uiState.selectedWorkflow,
+            workflowId = uiState.selectedWorkflowId,
+            icon = WorkflowIcons.default,
+            groups = singleWorkflowGroup(uiState.availableWorkflows, textToImageViewModel::onWorkflowChange),
+            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+        )
 
         GenerationControls(
             // Read when submitting, for the queue sheet (kept in memory only)

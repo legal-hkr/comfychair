@@ -346,6 +346,8 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Edycja</string>
     <string name="label_workflow">Przepływ pracy</string>
+    <string name="menu_open_in_editor">Otwórz w edytorze</string>
+    <string name="content_description_workflow_chip">Workflow: %1$s</string>
     <string name="label_section_quick">Szybkie</string>
     <string name="label_section_sampling">Próbkowanie</string>
     <string name="label_section_lora">LoRA</string>
@@ -633,7 +635,6 @@
     <string name="error_debug_log_save">Nie udało się zapisać logu</string>
 
     <!-- Missing translations -->
-    <string name="button_view_workflow">Zobacz przepływ pracy</string>
     <string name="button_discard">Odrzuć</string>
     <string name="button_new_workflow">Nowy przepływ pracy</string>
     <string name="title_save_workflow">Zapisz nowy przepływ pracy</string>

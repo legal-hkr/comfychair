@@ -331,6 +331,8 @@
     <string name="option_mode_inpainting">修复</string>
     <string name="option_mode_editing">编辑</string>
     <string name="label_workflow">工作流</string>
+    <string name="menu_open_in_editor">在编辑器中打开</string>
+    <string name="content_description_workflow_chip">工作流：%1$s</string>
     <string name="label_section_quick">常用</string>
     <string name="label_section_sampling">采样</string>
     <string name="label_section_lora">LoRA</string>
@@ -603,7 +605,6 @@
     <string name="error_debug_log_save">保存日志失败</string>
 
     <!-- Missing translations -->
-    <string name="button_view_workflow">查看工作流</string>
     <string name="button_discard">放弃</string>
     <string name="button_new_workflow">新建工作流</string>
     <string name="title_save_workflow">保存新工作流</string>

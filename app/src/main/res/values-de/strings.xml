@@ -351,6 +351,8 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Bearbeitung</string>
     <string name="label_workflow">Workflow</string>
+    <string name="menu_open_in_editor">Im Editor öffnen</string>
+    <string name="content_description_workflow_chip">Workflow: %1$s</string>
     <string name="label_section_quick">Schnell</string>
     <string name="label_section_sampling">Sampling</string>
     <string name="label_section_lora">LoRA</string>
@@ -611,7 +613,6 @@
     <string name="error_debug_log_save">Protokoll konnte nicht gespeichert werden</string>
 
     <!-- Missing translations -->
-    <string name="button_view_workflow">Workflow anzeigen</string>
     <string name="button_discard">Verwerfen</string>
     <string name="button_new_workflow">Neuer Workflow</string>
     <string name="title_save_workflow">Neuen Workflow speichern</string>

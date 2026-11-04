@@ -47,6 +47,8 @@ import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
+import sh.hnet.comfychair.ui.components.config.workflowGroups
+import sh.hnet.comfychair.ui.components.config.workflowIcon
 import sh.hnet.comfychair.ui.components.generation.EmptyResultState
 import sh.hnet.comfychair.ui.components.generation.EmptySourcePicker
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
@@ -58,6 +60,7 @@ import sh.hnet.comfychair.ui.components.generation.MaskLabel
 import sh.hnet.comfychair.ui.components.generation.MaskTools
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.RecipeChips
 import sh.hnet.comfychair.ui.components.generation.ReferenceSlot
 import sh.hnet.comfychair.ui.components.generation.ReferenceSlots
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
@@ -352,6 +355,14 @@ fun ImageToImageScreen(
                 presetUiState = presetUiState
             )
         }
+
+        RecipeChips(
+            workflowName = uiState.selectedWorkflow,
+            workflowId = uiState.selectedWorkflowId,
+            icon = uiState.workflowIcon,
+            groups = uiState.workflowGroups(imageToImageViewModel::onModeChange, imageToImageViewModel::onWorkflowChange),
+            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+        )
 
         GenerationControls(
             // Read when submitting, for the queue sheet (kept in memory only)

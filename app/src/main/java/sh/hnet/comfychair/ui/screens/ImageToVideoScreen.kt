@@ -46,6 +46,7 @@ import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.VideoPlayer
+import sh.hnet.comfychair.ui.components.config.singleWorkflowGroup
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.generation.EmptyResultState
 import sh.hnet.comfychair.ui.components.generation.EmptySourcePicker
@@ -56,11 +57,13 @@ import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.RecipeChips
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
 import sh.hnet.comfychair.ui.components.generation.SourceToolbar
+import sh.hnet.comfychair.ui.components.generation.WorkflowIcons
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
@@ -288,6 +291,14 @@ fun ImageToVideoScreen(
                 presetUiState = presetUiState
             )
         }
+
+        RecipeChips(
+            workflowName = uiState.selectedWorkflow,
+            workflowId = uiState.selectedWorkflowId,
+            icon = WorkflowIcons.default,
+            groups = singleWorkflowGroup(uiState.availableWorkflows, imageToVideoViewModel::onWorkflowChange),
+            hasPositivePrompt = uiState.capabilities.hasPositivePrompt
+        )
 
         GenerationControls(
             // Read when submitting, for the queue sheet (kept in memory only)

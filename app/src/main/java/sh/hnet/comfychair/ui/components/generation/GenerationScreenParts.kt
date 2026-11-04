@@ -7,10 +7,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -61,6 +64,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -426,6 +430,36 @@ fun ColumnScope.PositivePromptField(
 }
 
 /**
+ * The dock's recipe chips, between the prompt and Generate: the workflow chip first, which opens the workflow menu
+ * (on Image to Image grouped by mode). Scrolls sideways when the chips don't fit.
+ *
+ * @param hasPositivePrompt Without the prompt field above, the row keeps the gap it provided
+ */
+@Composable
+fun RecipeChips(
+    workflowName: String,
+    workflowId: String,
+    icon: ImageVector,
+    groups: List<WorkflowGroup>,
+    hasPositivePrompt: Boolean
+) {
+    val context = LocalContext.current
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = if (hasPositivePrompt) 0.dp else 12.dp, bottom = 6.dp)
+    ) {
+        item(key = "workflow") {
+            WorkflowChip(workflowName, icon, groups, onOpenEditor = {
+                if (workflowId.isNotEmpty()) context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
+            })
+        }
+    }
+}
+
+/**
  * Generate button (with its queue menu) and the options button.
  *
  * @param isEnabled Whether the screen is ready to generate; computed by the screen from its observed
@@ -488,7 +522,8 @@ fun GenerationControls(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .padding(top = if (hasPositivePrompt) 0.dp else 16.dp, bottom = 16.dp)
+            // The recipe chips above provide the gap
+            .padding(bottom = 16.dp)
     ) {
         GenerationButton(
             disabledReason = when {
@@ -637,8 +672,6 @@ fun GenerationOptionsSheet(
             setOfNotNull(
                 // Until the prompt editor takes it
                 OptionField.NEGATIVE_PROMPT,
-                // Until the workflow menu chooses the mode
-                OptionField.MODE.takeIf { iti != null },
                 OptionField.REFERENCE_IMAGES.takeIf {
                     iti != null && iti.mode == ImageToImageMode.EDITING && (iti.hasReferenceImage1 || iti.hasReferenceImage2)
                 }

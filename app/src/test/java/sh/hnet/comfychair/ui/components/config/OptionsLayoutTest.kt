@@ -74,9 +74,9 @@ class OptionsLayoutTest {
     @Test
     fun transitionalRowsJoinTheWorkflowSectionWithoutCounting() {
         val caps = WorkflowCapabilities(hasSeed = true, hasNegativePrompt = true)
-        val layout = optionsLayout(caps, setOf(MODE, REFERENCE_IMAGES, NEGATIVE_PROMPT))
+        val layout = optionsLayout(caps, setOf(REFERENCE_IMAGES, NEGATIVE_PROMPT))
         assertEquals(
-            listOf(listOf(WORKFLOW), listOf(MODE), listOf(REFERENCE_IMAGES), listOf(NEGATIVE_PROMPT)),
+            listOf(listOf(WORKFLOW), listOf(REFERENCE_IMAGES), listOf(NEGATIVE_PROMPT)),
             layout.sections[0].rows
         )
         assertEquals(1, layout.fieldCount)

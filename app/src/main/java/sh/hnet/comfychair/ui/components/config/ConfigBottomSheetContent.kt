@@ -21,9 +21,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,9 +42,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.LoraChainEditor
+import sh.hnet.comfychair.ui.components.generation.WorkflowRow
 import sh.hnet.comfychair.ui.components.shared.ChoiceRow
 import sh.hnet.comfychair.ui.components.shared.ConstrainedNumberField
-import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
 import sh.hnet.comfychair.ui.components.shared.NumberParameter
 import sh.hnet.comfychair.ui.components.shared.ReferenceImageThumbnail
 import sh.hnet.comfychair.ui.components.shared.SeedRow
@@ -249,7 +246,6 @@ private fun Field(
 
     when (field) {
         OptionField.WORKFLOW -> WorkflowSection(config.workflow)
-        OptionField.MODE -> config.itiConfig?.let { ModeSelector(it) }
         OptionField.REFERENCE_IMAGES -> config.itiConfig?.let { ReferenceImagesSection(it) }
         OptionField.NEGATIVE_PROMPT -> NegativePromptSection(config.prompts, spellCheckEnabled)
         OptionField.SEED -> params.seed?.let { seed ->
@@ -444,28 +440,6 @@ private fun ReferenceImagesSection(itiConfig: ItiConfig) {
 }
 
 @Composable
-private fun ModeSelector(itiConfig: ItiConfig) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        SegmentedButton(
-            selected = itiConfig.mode == ImageToImageMode.EDITING,
-            onClick = { itiConfig.onModeChange(ImageToImageMode.EDITING) },
-            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-        ) { Text(stringResource(R.string.option_mode_editing)) }
-        SegmentedButton(
-            selected = itiConfig.mode == ImageToImageMode.INPAINTING,
-            onClick = { itiConfig.onModeChange(ImageToImageMode.INPAINTING) },
-            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-        ) { Text(stringResource(R.string.option_mode_inpainting)) }
-    }
-}
-
-@Composable
 private fun WorkflowSection(workflow: WorkflowConfig) {
-    GenericWorkflowDropdown(
-        label = stringResource(R.string.label_workflow),
-        selectedWorkflow = workflow.selectedWorkflow,
-        workflows = workflow.availableWorkflows,
-        onWorkflowChange = workflow.onWorkflowChange,
-        onViewWorkflow = workflow.onViewWorkflow
-    )
+    WorkflowRow(workflow.selectedWorkflow, workflow.icon, workflow.groups, workflow.onViewWorkflow)
 }
