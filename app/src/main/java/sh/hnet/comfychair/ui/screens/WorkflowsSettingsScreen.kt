@@ -1,11 +1,14 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
+import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
+import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
+import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,12 +17,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -39,13 +40,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -75,8 +73,6 @@ import sh.hnet.comfychair.ui.components.SettingsMenuDropdown
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowEditorActivity
-import sh.hnet.comfychair.WorkflowType
-import sh.hnet.comfychair.WorkflowTypeDisplay
 import sh.hnet.comfychair.viewmodel.ExportFormat
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
@@ -322,7 +318,8 @@ fun WorkflowsSettingsScreen(
 
     // Import dialog
     if (uiState.showImportDialog) {
-        ImportWorkflowDialog(
+        WorkflowDetailsDialog(
+            titleRes = R.string.title_import_workflow,
             selectedType = uiState.importSelectedType,
             onTypeSelected = viewModel::onImportTypeSelected,
             isTypeDropdownExpanded = uiState.importTypeDropdownExpanded,
@@ -682,202 +679,6 @@ private fun WorkflowListItemContent(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ImportWorkflowDialog(
-    selectedType: WorkflowType?,
-    onTypeSelected: (WorkflowType) -> Unit,
-    isTypeDropdownExpanded: Boolean,
-    onToggleTypeDropdown: () -> Unit,
-    name: String,
-    onNameChange: (String) -> Unit,
-    nameError: String?,
-    description: String,
-    onDescriptionChange: (String) -> Unit,
-    descriptionError: String?,
-    isValidating: Boolean,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val selectedTypeName = selectedType?.let { stringResource(WorkflowTypeDisplay.getDisplayNameResId(it)) } ?: ""
-
-    AlertDialog(
-        onDismissRequest = { if (!isValidating) onDismiss() },
-        title = { Text(stringResource(R.string.title_import_workflow)) },
-        text = {
-            Column {
-                // Type dropdown
-                Text(
-                    text = stringResource(R.string.label_workflow_type),
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                ExposedDropdownMenuBox(
-                    expanded = isTypeDropdownExpanded,
-                    onExpandedChange = { if (!isValidating) onToggleTypeDropdown() }
-                ) {
-                    OutlinedTextField(
-                        value = selectedTypeName,
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isTypeDropdownExpanded) },
-                        modifier = Modifier
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
-                        enabled = !isValidating
-                    )
-                    ExposedDropdownMenu(
-                        expanded = isTypeDropdownExpanded,
-                        onDismissRequest = onToggleTypeDropdown
-                    ) {
-                        WorkflowTypeDisplay.allTypes.forEach { (type, displayNameResId) ->
-                            key(type) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(displayNameResId)) },
-                                    onClick = { onTypeSelected(type) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Name field
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    label = { Text(stringResource(R.string.label_workflow_name)) },
-                    singleLine = true,
-                    isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isValidating
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Description field
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = onDescriptionChange,
-                    label = { Text(stringResource(R.string.label_workflow_description)) },
-                    maxLines = 3,
-                    isError = descriptionError != null,
-                    supportingText = descriptionError?.let { { Text(it) } },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isValidating
-                )
-
-                if (isValidating) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.msg_validating_workflow))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = selectedType != null && name.isNotBlank() && !isValidating
-            ) {
-                Text(stringResource(R.string.button_continue))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss, enabled = !isValidating) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun MissingNodesDialog(
-    missingNodes: List<String>,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_missing_nodes)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.msg_missing_nodes))
-                Spacer(modifier = Modifier.height(8.dp))
-                NoOverscrollContainer(modifier = Modifier.heightIn(max = 200.dp)) {
-                    LazyColumn {
-                        items(missingNodes, key = { it }) { node ->
-                            Text(
-                                text = "- $node",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text(stringResource(R.string.button_dismiss))
-            }
-        }
-    )
-}
-
-@Composable
-private fun MissingFieldsDialog(
-    missingFields: List<String>,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_missing_fields)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.msg_missing_fields))
-                Spacer(modifier = Modifier.height(8.dp))
-                missingFields.forEach { field ->
-                    key(field) {
-                        Text(
-                            text = "- $field",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text(stringResource(R.string.button_dismiss))
-            }
-        }
-    )
-}
-
-@Composable
-private fun DuplicateNameDialog(
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_duplicate_name)) },
-        text = { Text(stringResource(R.string.msg_duplicate_name)) },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text(stringResource(R.string.button_ok))
-            }
-        }
-    )
-}
-
 @Composable
 private fun EditWorkflowDialog(
     name: String,
