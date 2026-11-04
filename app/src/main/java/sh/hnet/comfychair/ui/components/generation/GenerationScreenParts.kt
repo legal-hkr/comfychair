@@ -248,13 +248,22 @@ fun GenerationTopBar(
     onLogout: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
+    val context = LocalContext.current
     val generationState by generationViewModel.generationState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
+    val isConnecting by ConnectionManager.isConnecting.collectAsState()
+    val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
+    val queueChipState = when {
+        isOfflineMode -> QueueChipState.Offline
+        isConnecting -> QueueChipState.Connecting
+        else -> QueueChipState.Counts(own = queueState.ownActiveJobCount, others = queueState.otherJobCount)
+    }
 
     TopAppBar(
         title = { Text(stringResource(titleRes)) },
         windowInsets = WindowInsets(0, 0, 0, 0),
         actions = {
+            QueueChip(queueChipState)
             actions()
             AppMenuDropdown(onSettings = onNavigateToSettings, onLogout = onLogout)
         }

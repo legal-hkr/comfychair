@@ -116,6 +116,21 @@
     <string name="state_generate_offline">Tryb offline – generowanie wyłączone</string>
     <string name="state_generate_no_source">Najpierw wybierz obraz źródłowy</string>
     <string name="state_generate_invalid">Sprawdź opcje – któraś wartość jest pusta albo niepoprawna</string>
+    <string name="label_offline">Offline</string>
+    <string name="content_description_queue_empty">Kolejka jest pusta</string>
+    <string name="content_description_queue">Kolejka: %1$s</string>
+    <plurals name="label_queue_own_jobs">
+        <item quantity="one">%d Twoje zadanie</item>
+        <item quantity="few">%d Twoje zadania</item>
+        <item quantity="many">%d Twoich zadań</item>
+        <item quantity="other">%d Twojego zadania</item>
+    </plurals>
+    <plurals name="label_queue_other_jobs">
+        <item quantity="one">%d zadanie innych klientów</item>
+        <item quantity="few">%d zadania innych klientów</item>
+        <item quantity="many">%d zadań innych klientów</item>
+        <item quantity="other">%d zadania innych klientów</item>
+    </plurals>
 
     <!-- Configuration panel strings -->
 

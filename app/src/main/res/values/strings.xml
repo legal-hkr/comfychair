@@ -90,6 +90,17 @@
     <string name="state_generate_offline">Offline mode – generating is off</string>
     <string name="state_generate_no_source">Pick a source image first</string>
     <string name="state_generate_invalid">Check the options – a value is missing or invalid</string>
+    <string name="label_offline">Offline</string>
+    <string name="content_description_queue_empty">Queue is empty</string>
+    <string name="content_description_queue">Queue: %1$s</string>
+    <plurals name="label_queue_own_jobs">
+        <item quantity="one">%d of your jobs</item>
+        <item quantity="other">%d of your jobs</item>
+    </plurals>
+    <plurals name="label_queue_other_jobs">
+        <item quantity="one">%d from another client</item>
+        <item quantity="other">%d from other clients</item>
+    </plurals>
 
     <!-- Gallery screen strings -->
     <string name="title_gallery">Gallery</string>

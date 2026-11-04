@@ -116,6 +116,19 @@
     <string name="state_generate_offline">Modo sin conexión – la generación está desactivada</string>
     <string name="state_generate_no_source">Elige primero una imagen de origen</string>
     <string name="state_generate_invalid">Revisa las opciones – falta un valor o no es válido</string>
+    <string name="label_offline">Sin conexión</string>
+    <string name="content_description_queue_empty">La cola está vacía</string>
+    <string name="content_description_queue">Cola: %1$s</string>
+    <plurals name="label_queue_own_jobs">
+        <item quantity="one">%d trabajo tuyo</item>
+        <item quantity="many">%d trabajos tuyos</item>
+        <item quantity="other">%d trabajos tuyos</item>
+    </plurals>
+    <plurals name="label_queue_other_jobs">
+        <item quantity="one">%d trabajo de otros clientes</item>
+        <item quantity="many">%d trabajos de otros clientes</item>
+        <item quantity="other">%d trabajos de otros clientes</item>
+    </plurals>
 
     <!-- Configuration panel strings -->
 

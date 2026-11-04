@@ -116,6 +116,17 @@
     <string name="state_generate_offline">Offline-Modus – Generieren ist aus</string>
     <string name="state_generate_no_source">Wähle zuerst ein Quellbild</string>
     <string name="state_generate_invalid">Prüfe die Optionen – ein Wert fehlt oder ist ungültig</string>
+    <string name="label_offline">Offline</string>
+    <string name="content_description_queue_empty">Warteschlange ist leer</string>
+    <string name="content_description_queue">Warteschlange: %1$s</string>
+    <plurals name="label_queue_own_jobs">
+        <item quantity="one">%d eigener Auftrag</item>
+        <item quantity="other">%d eigene Aufträge</item>
+    </plurals>
+    <plurals name="label_queue_other_jobs">
+        <item quantity="one">%d Auftrag anderer Clients</item>
+        <item quantity="other">%d Aufträge anderer Clients</item>
+    </plurals>
 
     <!-- Configuration panel strings -->
 

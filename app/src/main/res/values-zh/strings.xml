@@ -116,6 +116,15 @@
     <string name="state_generate_offline">离线模式 – 已停用生成</string>
     <string name="state_generate_no_source">请先选择源图像</string>
     <string name="state_generate_invalid">请检查选项 – 有值缺失或无效</string>
+    <string name="label_offline">离线</string>
+    <string name="content_description_queue_empty">队列为空</string>
+    <string name="content_description_queue">队列：%1$s</string>
+    <plurals name="label_queue_own_jobs">
+        <item quantity="other">你的任务 %d 个</item>
+    </plurals>
+    <plurals name="label_queue_other_jobs">
+        <item quantity="other">其他客户端的任务 %d 个</item>
+    </plurals>
 
     <!-- Configuration panel strings -->
 

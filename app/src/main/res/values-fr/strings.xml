@@ -116,6 +116,19 @@
     <string name="state_generate_offline">Mode hors ligne – génération désactivée</string>
     <string name="state_generate_no_source">Choisissez d\'abord une image source</string>
     <string name="state_generate_invalid">Vérifiez les options – une valeur manque ou n\'est pas valide</string>
+    <string name="label_offline">Hors ligne</string>
+    <string name="content_description_queue_empty">La file d\'attente est vide</string>
+    <string name="content_description_queue">File d\'attente : %1$s</string>
+    <plurals name="label_queue_own_jobs">
+        <item quantity="one">%d tâche à vous</item>
+        <item quantity="many">%d tâches à vous</item>
+        <item quantity="other">%d tâches à vous</item>
+    </plurals>
+    <plurals name="label_queue_other_jobs">
+        <item quantity="one">%d tâche d\'autres clients</item>
+        <item quantity="many">%d tâches d\'autres clients</item>
+        <item quantity="other">%d tâches d\'autres clients</item>
+    </plurals>
 
     <!-- Configuration panel strings -->
 

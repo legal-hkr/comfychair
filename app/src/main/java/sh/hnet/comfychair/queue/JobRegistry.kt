@@ -54,6 +54,12 @@ data class QueueState(
     val ownActiveJobCount: Int get() = ownJobs.values.count {
         it.status == JobStatus.PENDING || it.status == JobStatus.EXECUTING
     }
+
+    /**
+     * Jobs of other clients in the server queue. The total and our own jobs arrive by different paths and may briefly
+     * disagree, so this never goes below zero.
+     */
+    val otherJobCount: Int get() = (totalQueueSize - ownActiveJobCount).coerceAtLeast(0)
 }
 
 /**
