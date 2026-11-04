@@ -1,7 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.comfychair.ui.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,8 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -135,7 +137,7 @@ fun ServerSettingsScreen(
 
                     // System Stats (software versions only)
                     if (uiState.isLoadingStats && uiState.systemStats == null) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        LoadingIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                     } else {
                         uiState.systemStats?.let { stats ->
                             Text(
@@ -245,10 +247,9 @@ fun ServerSettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (uiState.isRefreshingModels) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
+                            LoadingIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = LocalContentColor.current
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }

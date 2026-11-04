@@ -1,9 +1,7 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
-import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
-import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
-import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -17,7 +15,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,7 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -54,15 +51,16 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,8 +72,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -100,8 +97,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,6 +108,11 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
+import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
+import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
+import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
+import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.FieldMappingState
@@ -177,7 +179,7 @@ fun WorkflowEditorScreen(
     ) {
         when {
             uiState.isLoading -> {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }

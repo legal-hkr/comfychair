@@ -1,6 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.comfychair.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -25,7 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingToolbarColors
@@ -36,7 +39,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,14 +58,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.ui.components.ImageViewer
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.VideoPlayer
-import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.VideoScaleMode
+import sh.hnet.comfychair.ui.components.rememberLazyBitmap
+import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
 import sh.hnet.comfychair.viewmodel.MediaViewerEvent
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
@@ -443,7 +445,8 @@ private fun MediaContent(
             isVideo || isLoading -> {
                 // Video pages without content always show spinner (never black)
                 // This handles the case where thumbnail is not yet in cache
-                CircularProgressIndicator(color = Color.White)
+                // Contained: stays visible on any media behind it
+                ContainedLoadingIndicator()
             }
             // Fallback: only images without bitmap and not loading show black
         }
