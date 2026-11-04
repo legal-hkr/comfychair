@@ -46,6 +46,7 @@ import sh.hnet.comfychair.ui.components.shared.ConstrainedNumberField
 import sh.hnet.comfychair.ui.components.shared.NumberParameter
 import sh.hnet.comfychair.ui.components.shared.ReferenceImageThumbnail
 import sh.hnet.comfychair.ui.components.shared.SeedRow
+import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 
 /** One line of the sheet's list. */
@@ -144,7 +145,7 @@ fun ConfigBottomSheetContent(
                 is SheetItem.Choices -> item(key = item.key) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         item.fields.forEachIndexed { index, field ->
-                            Field(field, config, workflowName, Modifier.fillMaxWidth(), groupShape(index, item.fields.size))
+                            Field(field, config, workflowName, Modifier.fillMaxWidth(), segmentedItemShape(index, item.fields.size))
                         }
                     }
                 }
@@ -164,18 +165,6 @@ private val choiceFields = setOf(
     OptionField.CLIP, OptionField.CLIP1, OptionField.CLIP2, OptionField.CLIP3, OptionField.CLIP4,
     OptionField.TEXT_ENCODER, OptionField.LATENT_UPSCALE_MODEL
 )
-
-/** A row's shape in a group: rounded more at the group's ends, small corners between rows. */
-private fun groupShape(index: Int, count: Int): Shape {
-    val outer = 20.dp
-    val inner = 6.dp
-    val first = index == 0
-    val last = index == count - 1
-    return RoundedCornerShape(
-        topStart = if (first) outer else inner, topEnd = if (first) outer else inner,
-        bottomStart = if (last) outer else inner, bottomEnd = if (last) outer else inner
-    )
-}
 
 @Composable
 private fun FieldRow(

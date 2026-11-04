@@ -310,6 +310,7 @@
     <string name="error_save_image">Failed to save image</string>
     <string name="error_save_video">Failed to save video</string>
     <string name="error_share_image">Failed to share image</string>
+    <string name="error_failed_load_image">Couldn’t load the image</string>
     <string name="error_share_video">Failed to share video</string>
 
     <!-- Share chooser titles -->
@@ -645,6 +646,13 @@
 
     <!-- Media viewer action buttons -->
     <string name="media_viewer_delete">Delete</string>
+    <string name="button_undo">Undo</string>
+    <string name="button_use_as_source">Use as source</string>
+    <string name="content_description_copy_value">Copy %1$s</string>
+    <plurals name="msg_deleted_from_history">
+        <item quantity="one">Deleted from history</item>
+        <item quantity="other">%d items deleted from history</item>
+    </plurals>
     <string name="media_viewer_save">Save</string>
     <string name="media_viewer_share">Share</string>
     <string name="media_viewer_previous">Previous</string>

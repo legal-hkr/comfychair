@@ -5,11 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -21,10 +23,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import sh.hnet.comfychair.ui.screens.MediaViewerScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
+import sh.hnet.comfychair.util.PrivacyUtils
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
-import sh.hnet.comfychair.util.PrivacyUtils
 /**
  * Simple in-memory cache for passing bitmaps between activities.
  * Avoids expensive PNG compression/decompression when launching MediaViewer.
@@ -202,11 +204,26 @@ class MediaViewerActivity : ComponentActivity() {
             }
 
             ComfyChairTheme(forceDarkStatusBar = true) {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                // No Surface: the window is translucent, and swiping down reveals the screen underneath
+                Box(modifier = Modifier.fillMaxSize()) {
                     MediaViewerScreen(
                         viewModel = viewModel,
-                        // The result is already set (see above)
-                        onClose = { finish() }
+                        // A deletion waiting for Undo goes to the server now, and the result says so
+                        onClose = {
+                            viewModel.commitPendingDeletion()
+                            setResult(Activity.RESULT_OK, Intent().apply {
+                                putExtra(RESULT_ITEM_DELETED, viewModel.hasDeletedItems.value)
+                                viewModel.uiState.value.currentItem?.filename?.let { putExtra(RESULT_CURRENT_FILENAME, it) }
+                            })
+                            finish()
+                            // The screen has already faded the viewer out
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                overridePendingTransition(0, 0)
+                            }
+                        }
                     )
                 }
             }

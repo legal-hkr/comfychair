@@ -3,6 +3,9 @@ package sh.hnet.comfychair.viewmodel
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
@@ -15,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
@@ -124,6 +126,8 @@ data class MediaViewerUiState(
 sealed class MediaViewerEvent {
     data class ShowToast(val messageResId: Int) : MediaViewerEvent()
     data object ItemDeleted : MediaViewerEvent()
+    /** Items left the viewer; the server deletes them unless [id] is undone (see [MediaViewerViewModel.undoDeletion]). */
+    data class DeletionPending(val id: Long, val count: Int) : MediaViewerEvent()
     data object Close : MediaViewerEvent()
 }
 
@@ -147,6 +151,16 @@ class MediaViewerViewModel : ViewModel() {
 
     private val _isLoadingMetadata = MutableStateFlow(false)
     val isLoadingMetadata: StateFlow<Boolean> = _isLoadingMetadata.asStateFlow()
+
+    /** A deletion shown with Undo, sent to the server once the snackbar is gone or the viewer closes. */
+    private class PendingDeletion(
+        val id: Long,
+        val promptId: String,
+        val removed: List<IndexedValue<MediaViewerItem>>,
+        val previousIndex: Int
+    )
+    private var pendingDeletion: PendingDeletion? = null
+    private var nextDeletionId = 0L
 
     // Track whether any items were deleted during this session
     private val _hasDeletedItems = MutableStateFlow(false)
@@ -441,71 +455,98 @@ class MediaViewerViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Delete the item shown. The server deletes whole jobs, so every item of its job leaves the viewer; they come back
+     * on Undo. Nothing reaches the server until [commitDeletion] (or the viewer closes). The last item is deleted at
+     * once and closes the viewer, as there is nothing left to show.
+     */
     fun deleteCurrentItem() {
         val state = _uiState.value
         val item = state.currentItem ?: return
+        if (ConnectionManager.clientOrNull == null) return
+        // One Undo at a time
+        commitPendingDeletion()
+
+        val removed = state.items.withIndex().filter { it.value.promptId == item.promptId }
+        val remaining = state.items.filter { it.promptId != item.promptId }
+        val deletion = PendingDeletion(++nextDeletionId, item.promptId, removed, state.currentIndex)
+        pendingDeletion = deletion
+
+        if (remaining.isEmpty()) {
+            commitPendingDeletion()
+            viewModelScope.launch { _events.emit(MediaViewerEvent.Close) }
+            return
+        }
+        // The item that took the deleted one's place
+        val removedBefore = removed.count { it.index < state.currentIndex }
+        showItems(remaining, (state.currentIndex - removedBefore).coerceIn(0, remaining.size - 1))
+        viewModelScope.launch { _events.emit(MediaViewerEvent.DeletionPending(deletion.id, removed.size)) }
+    }
+
+    /** Bring back the items of a deletion that hasn't reached the server yet. */
+    fun undoDeletion(id: Long) {
+        val deletion = pendingDeletion?.takeIf { it.id == id } ?: return
+        pendingDeletion = null
+        val items = _uiState.value.items.toMutableList()
+        // In ascending order, each goes back to its old position
+        deletion.removed.forEach { items.add(it.index.coerceAtMost(items.size), it.value) }
+        showItems(items, deletion.previousIndex.coerceIn(0, items.size - 1))
+    }
+
+    /** Send a deletion to the server: its Undo is over. */
+    fun commitDeletion(id: Long) {
+        if (pendingDeletion?.id == id) commitPendingDeletion()
+    }
+
+    /** Send the waiting deletion, if any, to the server (also when the viewer closes). */
+    fun commitPendingDeletion() {
+        val deletion = pendingDeletion ?: return
+        pendingDeletion = null
         val client = ConnectionManager.clientOrNull ?: return
-
-        viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine<Boolean> { continuation ->
-                    client.deleteHistoryItem(item.promptId) { success ->
-                        continuation.resumeWith(Result.success(success))
-                    }
+        _hasDeletedItems.value = true
+        deletion.removed.forEach { MediaCache.evict(it.value.toCacheKey()) }
+        // Sync deletion to GalleryRepository so Gallery UI updates immediately
+        GalleryRepository.getInstance().removeItemLocally(deletion.promptId)
+        val context = applicationContext
+        // The viewer may be closed by the time the server answers
+        client.deleteHistoryItem(deletion.promptId) { success ->
+            if (!success && context != null) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, R.string.error_history_item_delete, Toast.LENGTH_SHORT).show()
                 }
-            }
-
-            if (success) {
-                _events.emit(MediaViewerEvent.ShowToast(R.string.msg_history_item_deleted_success))
-
-                // Mark that items were deleted (for result reporting)
-                _hasDeletedItems.value = true
-
-                // Evict from MediaCache (uses stable key, not index)
-                MediaCache.evict(item.toCacheKey())
-
-                // Sync deletion to GalleryRepository so Gallery UI updates immediately
-                GalleryRepository.getInstance().removeItemLocally(item.promptId)
-
-                // Get fresh state after async operation
-                val currentState = _uiState.value
-                val currentItems = currentState.items.toMutableList()
-
-                // Make sure we're removing the correct item
-                val actualIndexToRemove = currentItems.indexOfFirst {
-                    it.promptId == item.promptId && it.filename == item.filename
-                }
-
-                if (actualIndexToRemove >= 0) {
-                    currentItems.removeAt(actualIndexToRemove)
-                }
-
-                if (currentItems.isEmpty()) {
-                    // No more items, close viewer
-                    _events.emit(MediaViewerEvent.ItemDeleted)
-                    _events.emit(MediaViewerEvent.Close)
-                } else {
-                    // Adjust index and show next/previous item
-                    val newIndex = actualIndexToRemove.coerceIn(0, currentItems.size - 1)
-
-                    // Clear metadata cache (still uses indices)
-                    cachedMetadata.clear()
-                    _currentMetadata.value = null
-
-                    _uiState.value = currentState.copy(
-                        items = currentItems,
-                        currentIndex = newIndex,
-                        currentBitmap = null,
-                        currentVideoUri = null,
-                        isLoading = true
-                    )
-                    _events.emit(MediaViewerEvent.ItemDeleted)
-                    loadCurrentItem()
-                }
-            } else {
-                _events.emit(MediaViewerEvent.ShowToast(R.string.error_history_item_delete))
             }
         }
+    }
+
+    private fun showItems(items: List<MediaViewerItem>, index: Int) {
+        // Metadata is cached by index
+        cachedMetadata.clear()
+        _currentMetadata.value = null
+        _uiState.value = _uiState.value.copy(
+            items = items,
+            currentIndex = index,
+            currentBitmap = null,
+            currentVideoUri = null,
+            isLoading = true
+        )
+        viewModelScope.launch { _events.emit(MediaViewerEvent.ItemDeleted) }
+        loadCurrentItem()
+    }
+
+    /** The image shown, for "Use as source", fetched if it hasn't loaded yet (RAM only); null for a video. */
+    suspend fun currentImage(): Bitmap? {
+        val state = _uiState.value
+        val item = state.currentItem ?: return null
+        if (state.showsVideo()) return null
+        val key = item.toCacheKey()
+        return state.currentBitmap
+            ?: MediaCache.getBitmap(key)
+            ?: if (state.mode == ViewerMode.GALLERY) MediaCache.fetchImage(key, item.subfolder, item.type) else null
+    }
+
+    override fun onCleared() {
+        commitPendingDeletion()
+        super.onCleared()
     }
 
     /** Whether the item shown is a video (single mode: also a video passed as URI). */

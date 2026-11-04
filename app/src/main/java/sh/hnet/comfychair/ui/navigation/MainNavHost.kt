@@ -49,6 +49,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.cache.SourceHandoff
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.queue.JobRegistry
@@ -116,6 +117,13 @@ fun MainNavHost(
                 }
             }
             navController.navigateToScreen(route)
+        }
+    }
+
+    // "Use as source" from the media viewer, which runs as its own activity over this one
+    LaunchedEffect(Unit) {
+        SourceHandoff.pending.collect { request ->
+            if (request != null) SourceHandoff.take()?.let { useAsSource(it.target) { it.bitmap } }
         }
     }
 

@@ -38,6 +38,7 @@
         <activity
             android:name=".MediaViewerActivity"
             android:exported="false"
+            android:enableOnBackInvokedCallback="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.ComfyChair.Fullscreen" />
 

@@ -298,6 +298,7 @@
     <string name="error_save_image">Error al guardar la imagen</string>
     <string name="error_save_video">Error al guardar el vídeo</string>
     <string name="error_share_image">Error al compartir la imagen</string>
+    <string name="error_failed_load_image">No se pudo cargar la imagen</string>
     <string name="error_share_video">Error al compartir el vídeo</string>
 
     <!-- Share chooser titles -->
@@ -545,6 +546,14 @@
 
     <!-- Media viewer action buttons -->
     <string name="media_viewer_delete">Eliminar</string>
+    <string name="button_undo">Deshacer</string>
+    <string name="button_use_as_source">Usar como fuente</string>
+    <string name="content_description_copy_value">Copiar: %1$s</string>
+    <plurals name="msg_deleted_from_history">
+        <item quantity="one">Eliminado del historial</item>
+        <item quantity="many">%d elementos eliminados del historial</item>
+        <item quantity="other">%d elementos eliminados del historial</item>
+    </plurals>
     <string name="media_viewer_save">Guardar</string>
     <string name="media_viewer_share">Compartir</string>
     <string name="media_viewer_previous">Anterior</string>

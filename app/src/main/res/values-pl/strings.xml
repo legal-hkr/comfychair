@@ -302,6 +302,7 @@
     <string name="error_save_image">Nie udało się zapisać obrazu</string>
     <string name="error_save_video">Nie udało się zapisać wideo</string>
     <string name="error_share_image">Nie udało się udostępnić obrazu</string>
+    <string name="error_failed_load_image">Nie udało się wczytać obrazu</string>
     <string name="error_share_video">Nie udało się udostępnić wideo</string>
 
     <!-- Share chooser titles -->
@@ -559,6 +560,15 @@
 
     <!-- Media viewer action buttons -->
     <string name="media_viewer_delete">Usuń</string>
+    <string name="button_undo">Cofnij</string>
+    <string name="button_use_as_source">Użyj jako źródła</string>
+    <string name="content_description_copy_value">Skopiuj: %1$s</string>
+    <plurals name="msg_deleted_from_history">
+        <item quantity="one">Usunięto z historii</item>
+        <item quantity="few">Usunięto z historii %d elementy</item>
+        <item quantity="many">Usunięto z historii %d elementów</item>
+        <item quantity="other">Usunięto z historii %d elementu</item>
+    </plurals>
     <string name="media_viewer_save">Zapisz</string>
     <string name="media_viewer_share">Udostępnij</string>
     <string name="media_viewer_previous">Poprzedni</string>

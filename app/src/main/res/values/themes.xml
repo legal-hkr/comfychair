@@ -21,5 +21,8 @@
     <style name="Theme.ComfyChair.Fullscreen" parent="Theme.ComfyChair">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowContentOverlay">@null</item>
+        <!-- Translucent: swiping the media down reveals the screen it was opened from -->
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 </resources>

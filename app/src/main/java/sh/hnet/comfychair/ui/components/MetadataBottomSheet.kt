@@ -21,12 +21,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -36,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +44,8 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.PromptPreset
 import sh.hnet.comfychair.storage.PromptPresetStorage
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.PrivacyUtils
 
@@ -125,23 +126,23 @@ fun MetadataBottomSheet(
                     }
                     else -> {
                         // Display metadata
+                        // One segmented block: rows 2 dp apart
                         val items = remember(metadata) { buildMetadataItems(metadata, context) }
-                        items.forEach { item ->
-                            MetadataRow(
-                                label = item.label,
-                                value = item.value,
-                                onCopy = { copyToClipboard(context, item.value) },
-                                onSave = if (item.isPositivePrompt) {
-                                    {
-                                        promptToSave = item.value
-                                        showSavePromptDialog = true
-                                    }
-                                } else null
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            items.forEachIndexed { index, item ->
+                                MetadataRow(
+                                    label = item.label,
+                                    value = item.value,
+                                    shape = segmentedItemShape(index, items.size),
+                                    onCopy = { copyToClipboard(context, item.value) },
+                                    onSave = if (item.isPositivePrompt) {
+                                        {
+                                            promptToSave = item.value
+                                            showSavePromptDialog = true
+                                        }
+                                    } else null
+                                )
+                            }
                         }
                     }
                 }
@@ -175,6 +176,7 @@ fun MetadataBottomSheet(
  *
  * @param label The label to display
  * @param value The value to display
+ * @param shape Its place in the segmented block
  * @param onCopy Called when the copy button is tapped
  * @param onSave Optional callback for save action; when provided, a save button is shown
  */
@@ -182,57 +184,38 @@ fun MetadataBottomSheet(
 private fun MetadataRow(
     label: String,
     value: String,
+    shape: Shape,
     onCopy: () -> Unit,
     onSave: (() -> Unit)? = null
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 5,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Row {
-            if (onSave != null) {
-                IconButton(
-                    onClick = onSave,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.BookmarkAdd,
-                        contentDescription = stringResource(R.string.metadata_save_prompt),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            IconButton(
-                onClick = onCopy,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ContentCopy,
-                    contentDescription = stringResource(R.string.button_copy_to_clipboard),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 5,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            if (onSave != null) {
+                TooltipIconButton(Icons.Outlined.BookmarkAdd, stringResource(R.string.metadata_save_prompt), onSave)
+            }
+            TooltipIconButton(
+                Icons.Outlined.ContentCopy,
+                stringResource(R.string.content_description_copy_value, label),
+                onCopy
+            )
         }
     }
 }

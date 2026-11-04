@@ -290,6 +290,7 @@
     <string name="error_save_image">保存图片失败</string>
     <string name="error_save_video">保存视频失败</string>
     <string name="error_share_image">分享图片失败</string>
+    <string name="error_failed_load_image">无法加载图像</string>
     <string name="error_share_video">分享视频失败</string>
 
     <!-- Share chooser titles -->
@@ -517,6 +518,12 @@
 
     <!-- Media viewer action buttons -->
     <string name="media_viewer_delete">删除</string>
+    <string name="button_undo">撤销</string>
+    <string name="button_use_as_source">用作来源</string>
+    <string name="content_description_copy_value">复制%1$s</string>
+    <plurals name="msg_deleted_from_history">
+        <item quantity="other">已从历史中删除 %d 项</item>
+    </plurals>
     <string name="media_viewer_save">保存</string>
     <string name="media_viewer_share">分享</string>
     <string name="media_viewer_previous">上一个</string>
