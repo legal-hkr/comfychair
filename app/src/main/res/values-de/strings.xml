@@ -249,7 +249,7 @@
     <string name="button_fetching">Abrufen…</string>
 
     <!-- Queue menu strings -->
-    <string name="menu_cancel_current">Aktuellen abbrechen</string>
+    <string name="menu_cancel_my_job">Meinen laufenden Auftrag abbrechen</string>
     <string name="menu_add_to_front_of_queue">An Anfang der Warteschlange</string>
     <string name="content_description_queue_menu">Warteschlangenmenü</string>
     <string name="content_description_server_menu">Servermenü</string>

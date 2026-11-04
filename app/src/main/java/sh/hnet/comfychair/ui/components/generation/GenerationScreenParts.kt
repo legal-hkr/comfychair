@@ -486,14 +486,20 @@ fun GenerationControls(
                 !isEnabled -> stringResource(R.string.state_generate_invalid)
                 else -> null
             },
-            isExecuting = queueState.isExecuting,
+            canCancelOwnJob = queueState.executingPromptId?.let { it in queueState.ownJobs } == true,
             isEnabled = isEnabled,
             isOfflineMode = isOfflineMode,
             isUploading = isUploading,
             isFetching = isFetching,
             isConnecting = isConnecting,
             onGenerate = { submit(front = false) },
-            onCancelCurrent = { generationViewModel.cancelGeneration { } },
+            // Read when tapped: the running job may have changed since the menu was composed
+            onCancelOwnJob = {
+                val running = JobRegistry.queueState.value.executingPromptId
+                if (running != null && running in JobRegistry.queueState.value.ownJobs) {
+                    generationViewModel.cancelGeneration(running) { }
+                }
+            },
             onAddToFrontOfQueue = { submit(front = true) },
             onClearQueue = {
                 generationViewModel.getClient()?.clearQueue { success ->

@@ -110,8 +110,11 @@ fun BoxScope.SourceToolbar(
             modifier = modifier,
             floatingActionButton = {
                 val editMask = stringResource(R.string.button_edit_mask)
+                // Same colours as the result action FAB (primary container), so it reads as the main action
                 FloatingToolbarDefaults.VibrantFloatingActionButton(
                     onClick = maskTools.onEditMask,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.semantics { contentDescription = editMask }
                 ) {
                     Icon(Icons.Rounded.Brush, contentDescription = null)

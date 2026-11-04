@@ -229,7 +229,7 @@
     <string name="button_fetching">获取中…</string>
 
     <!-- Queue menu strings -->
-    <string name="menu_cancel_current">取消当前</string>
+    <string name="menu_cancel_my_job">取消我正在运行的任务</string>
     <string name="menu_add_to_front_of_queue">添加到队列开头</string>
     <string name="content_description_queue_menu">队列菜单</string>
     <string name="content_description_server_menu">服务器菜单</string>

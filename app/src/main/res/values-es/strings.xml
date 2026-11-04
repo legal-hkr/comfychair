@@ -235,7 +235,7 @@
     <string name="button_fetching">Descargando…</string>
 
     <!-- Queue menu strings -->
-    <string name="menu_cancel_current">Cancelar actual</string>
+    <string name="menu_cancel_my_job">Cancelar mi trabajo en curso</string>
     <string name="menu_add_to_front_of_queue">Agregar al frente de la cola</string>
     <string name="content_description_queue_menu">Menú de cola</string>
     <string name="content_description_server_menu">Menú de servidor</string>

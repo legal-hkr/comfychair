@@ -10,16 +10,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Cancel
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
@@ -52,14 +54,14 @@ import sh.hnet.comfychair.R
  * Trailing button: Dropdown menu with queue management actions
  *
  * @param disabledReason Why the button is disabled, read by TalkBack as its state; null when enabled
- * @param isExecuting Whether any job is currently executing on the server
+ * @param canCancelOwnJob Whether a job of this app is running (only then can it be cancelled from the menu)
  * @param isEnabled Whether the button should be enabled (valid input to submit)
  * @param isOfflineMode Whether the app is in offline mode (disables all generation)
  * @param isUploading Whether image upload is in progress (shows "Uploading...")
  * @param isFetching Whether result fetch is in progress (shows "Fetching...")
  * @param isConnecting Whether connection check is in progress (shows "Connecting...")
  * @param onGenerate Callback when Generate/Add to queue is clicked
- * @param onCancelCurrent Callback to cancel the currently executing job
+ * @param onCancelOwnJob Cancels this app's running job
  * @param onAddToFrontOfQueue Callback to add to front of queue
  * @param onClearQueue Callback to clear the server queue
  * @param modifier Modifier for the button layout
@@ -67,14 +69,14 @@ import sh.hnet.comfychair.R
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GenerationButton(
-    isExecuting: Boolean,
+    canCancelOwnJob: Boolean,
     isEnabled: Boolean,
     isOfflineMode: Boolean = false,
     isUploading: Boolean = false,
     isFetching: Boolean = false,
     isConnecting: Boolean = false,
     onGenerate: () -> Unit,
-    onCancelCurrent: () -> Unit,
+    onCancelOwnJob: () -> Unit,
     onAddToFrontOfQueue: () -> Unit = {},
     onClearQueue: () -> Unit,
     modifier: Modifier = Modifier,
@@ -151,55 +153,50 @@ fun GenerationButton(
                 )
             }
 
-            DropdownMenu(
+            // Expressive menu in two groups: where a new job goes, and stopping your own running job
+            DropdownMenuPopup(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                // Queue management actions (above gap)
-                // Add to front of queue
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.menu_add_to_front_of_queue)) },
-                    onClick = {
-                        showMenu = false
-                        onAddToFrontOfQueue()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.AutoMirrored.Filled.PlaylistAddCheck, contentDescription = null)
-                    }
-                )
-                // Clear queue
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.button_clear_queue)) },
-                    onClick = {
-                        showMenu = false
-                        onClearQueue()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                    }
-                )
-
-                // Gap divider separating queue actions from cancel
-                HorizontalDivider()
-
-                // Cancel current (below gap) - destructive action separated
-                // Use error/warning color when enabled to indicate destructive action
-                val cancelColor = if (isExecuting) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MenuDefaults.itemColors().disabledTextColor
+                val placementCount = 2
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, if (canCancelOwnJob) 2 else 1)) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.menu_add_to_front_of_queue)) },
+                        shape = MenuDefaults.itemShape(0, placementCount).shape,
+                        onClick = {
+                            showMenu = false
+                            onAddToFrontOfQueue()
+                        },
+                        leadingIcon = { Icon(Icons.Rounded.VerticalAlignTop, contentDescription = null) }
+                    )
+                    // Moves to the queue sheet once it exists
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.button_clear_queue)) },
+                        shape = MenuDefaults.itemShape(1, placementCount).shape,
+                        onClick = {
+                            showMenu = false
+                            onClearQueue()
+                        },
+                        leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) }
+                    )
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.menu_cancel_current), color = cancelColor) },
-                    onClick = {
-                        showMenu = false
-                        onCancelCurrent()
-                    },
-                    enabled = isExecuting,
-                    leadingIcon = {
-                        Icon(Icons.Default.Cancel, contentDescription = null, tint = cancelColor)
+                // Only when the running job is yours: another client's job isn't yours to stop
+                if (canCancelOwnJob) {
+                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                        val error = MaterialTheme.colorScheme.error
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_cancel_my_job)) },
+                            shape = MenuDefaults.itemShape(0, 1).shape,
+                            onClick = {
+                                showMenu = false
+                                onCancelOwnJob()
+                            },
+                            leadingIcon = { Icon(Icons.Rounded.Cancel, contentDescription = null) },
+                            colors = MenuDefaults.itemColors(textColor = error, leadingIconColor = error)
+                        )
                     }
-                )
+                }
             }
         }
     }

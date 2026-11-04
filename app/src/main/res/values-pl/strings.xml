@@ -238,7 +238,7 @@
     <string name="button_fetching">Pobieranie…</string>
 
     <!-- Queue menu strings -->
-    <string name="menu_cancel_current">Anuluj bieżące</string>
+    <string name="menu_cancel_my_job">Anuluj moje trwające zadanie</string>
     <string name="menu_add_to_front_of_queue">Dodaj na początek kolejki</string>
     <string name="content_description_queue_menu">Menu kolejki</string>
     <string name="content_description_server_menu">Menu serwera</string>
