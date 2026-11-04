@@ -122,6 +122,29 @@
     <string name="label_step_of">Étape %1$d sur %2$d</string>
     <string name="label_preparing">Préparation…</string>
     <string name="content_description_cancel_job">Annuler cette tâche</string>
+    <string name="title_queue">File d\'attente</string>
+    <string name="msg_queue_empty">La file d\'attente est vide</string>
+    <string name="label_queue_running_yours">Votre tâche est en cours</string>
+    <string name="label_queue_running_other">En cours pour un autre client</string>
+    <string name="label_queue_running_other_job">Tâche d\'un autre client</string>
+    <string name="label_queue_waiting_yours">Vos tâches en attente (%1$d)</string>
+    <string name="label_queue_position">%1$s – n° %2$d dans la file</string>
+    <string name="label_queue_others">Autres clients</string>
+    <string name="label_queue_other_positions">Positions %1$s – contenu non affiché</string>
+    <string name="content_description_move_job_to_front">Placer « %1$s » en tête</string>
+    <string name="content_description_remove_job">Retirer « %1$s » de la file</string>
+    <string name="button_clear_queue_confirm">Vider la file…</string>
+    <string name="title_clear_queue">Vider toute la file d\'attente ?</string>
+    <string name="msg_clear_queue_own">Toutes vos tâches en attente seront retirées. Une tâche en cours n\'est pas interrompue.</string>
+    <string name="button_clear">Vider</string>
+    <string name="error_queue_action">Impossible de modifier la file d\'attente</string>
+    <string name="menu_show_queue">Afficher la file</string>
+    <string name="content_description_open_queue">Ouvrir la file d\'attente</string>
+    <plurals name="msg_clear_queue_others">
+        <item quantity="one">Cela retire aussi %d tâche d\'un autre client.</item>
+        <item quantity="many">Cela retire aussi %d tâches d\'autres clients.</item>
+        <item quantity="other">Cela retire aussi %d tâches d\'autres clients.</item>
+    </plurals>
     <string name="content_description_generating_progress">Génération, %1$d %%</string>
     <plurals name="label_more_queued">
         <item quantity="one">Encore %d tâche à vous en attente</item>
@@ -155,7 +178,6 @@
     <string name="label_hostname">Nom d\'hôte :</string>
     <string name="label_port">Port :</string>
     <string name="title_server_management">Gestion du serveur</string>
-    <string name="button_clear_queue">Vider la file d\'attente</string>
     <string name="button_clear_history">Effacer l\'historique</string>
     <string name="button_refresh_models">Actualiser les modèles</string>
     <string name="msg_models_refreshed_success">Modèles actualisés avec succès</string>

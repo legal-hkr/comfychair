@@ -122,6 +122,28 @@
     <string name="label_step_of">Schritt %1$d von %2$d</string>
     <string name="label_preparing">Vorbereitung…</string>
     <string name="content_description_cancel_job">Diesen Auftrag abbrechen</string>
+    <string name="title_queue">Warteschlange</string>
+    <string name="msg_queue_empty">Die Warteschlange ist leer</string>
+    <string name="label_queue_running_yours">Dein Auftrag läuft</string>
+    <string name="label_queue_running_other">Läuft für einen anderen Client</string>
+    <string name="label_queue_running_other_job">Auftrag eines anderen Clients</string>
+    <string name="label_queue_waiting_yours">Deine wartenden Aufträge (%1$d)</string>
+    <string name="label_queue_position">%1$s – Platz %2$d in der Warteschlange</string>
+    <string name="label_queue_others">Andere Clients</string>
+    <string name="label_queue_other_positions">Plätze %1$s – Inhalte werden nicht angezeigt</string>
+    <string name="content_description_move_job_to_front">„%1$s“ nach vorne verschieben</string>
+    <string name="content_description_remove_job">„%1$s“ aus der Warteschlange entfernen</string>
+    <string name="button_clear_queue_confirm">Warteschlange leeren…</string>
+    <string name="title_clear_queue">Ganze Warteschlange leeren?</string>
+    <string name="msg_clear_queue_own">Damit werden alle deine wartenden Aufträge entfernt. Ein laufender Auftrag wird nicht abgebrochen.</string>
+    <string name="button_clear">Leeren</string>
+    <string name="error_queue_action">Die Warteschlange konnte nicht geändert werden</string>
+    <string name="menu_show_queue">Warteschlange anzeigen</string>
+    <string name="content_description_open_queue">Warteschlange öffnen</string>
+    <plurals name="msg_clear_queue_others">
+        <item quantity="one">Damit wird auch %d Auftrag eines anderen Clients entfernt.</item>
+        <item quantity="other">Damit werden auch %d Aufträge anderer Clients entfernt.</item>
+    </plurals>
     <string name="content_description_generating_progress">Generierung, %1$d %%</string>
     <plurals name="label_more_queued">
         <item quantity="one">%d weiterer eigener Auftrag in der Warteschlange</item>
@@ -152,7 +174,6 @@
     <string name="label_hostname">Hostname:</string>
     <string name="label_port">Port:</string>
     <string name="title_server_management">Server-Verwaltung</string>
-    <string name="button_clear_queue">Warteschlange leeren</string>
     <string name="button_clear_history">Verlauf löschen</string>
     <string name="button_refresh_models">Modelle aktualisieren</string>
     <string name="msg_models_refreshed_success">Modelle erfolgreich aktualisiert</string>

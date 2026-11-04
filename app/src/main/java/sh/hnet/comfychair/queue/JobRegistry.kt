@@ -32,6 +32,12 @@ data class TrackedJob(
 )
 
 /**
+ * What the queue sheet shows about one of our jobs. Kept in memory only, never saved with the tracked jobs: the
+ * prompt is private, and after a restart the sheet simply shows less.
+ */
+data class JobDescription(val prompt: String, val workflow: String)
+
+/**
  * Represents the current state of the queue system.
  * This state is observable and updates in real-time based on WebSocket events.
  */
@@ -93,6 +99,31 @@ object JobRegistry {
 
     private val _queueState = MutableStateFlow(QueueState())
     val queueState: StateFlow<QueueState> = _queueState.asStateFlow()
+
+    // Descriptions of our jobs for the queue sheet, in memory only (see JobDescription)
+    private val descriptions = java.util.concurrent.ConcurrentHashMap<String, JobDescription>()
+
+    fun describeJob(promptId: String, description: JobDescription) {
+        descriptions[promptId] = description
+    }
+
+    fun description(promptId: String): JobDescription? = descriptions[promptId]
+
+    /**
+     * Track a job under a new id, e.g. after it was submitted again and the server assigned one. Keeps its owner,
+     * status and description.
+     */
+    @Synchronized
+    fun rekeyJob(oldPromptId: String, newPromptId: String) {
+        if (oldPromptId == newPromptId) return
+        val currentState = _queueState.value
+        val job = currentState.ownJobs[oldPromptId] ?: return
+        DebugLogger.d(TAG, "Job ${Obfuscator.promptId(oldPromptId)} now tracked as ${Obfuscator.promptId(newPromptId)}")
+        _queueState.value = currentState.copy(
+            ownJobs = currentState.ownJobs - oldPromptId + (newPromptId to job.copy(promptId = newPromptId))
+        )
+        descriptions.remove(oldPromptId)?.let { descriptions[newPromptId] = it }
+    }
 
     /**
      * Register a new job when a workflow is submitted.
@@ -210,6 +241,7 @@ object JobRegistry {
 
         // Remove the job from tracking
         val newJobs = currentState.ownJobs - promptId
+        descriptions.remove(promptId)
 
         _queueState.value = currentState.copy(
             executingPromptId = if (isCurrentlyExecuting) null else currentState.executingPromptId,
@@ -265,6 +297,7 @@ object JobRegistry {
             val newJobs = currentState.ownJobs - promptId
             _queueState.value = currentState.copy(ownJobs = newJobs)
         }
+        descriptions.remove(promptId)
     }
 
     /**

@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -34,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
@@ -51,6 +51,7 @@ import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
@@ -207,6 +208,8 @@ fun TextToVideoScreen(
         }
 
         GenerationControls(
+            // Read when submitting, for the queue sheet (kept in memory only)
+            describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
             // Read here, where the screen observes its state
             isEnabled = textToVideoViewModel.hasValidConfiguration(),
             generationViewModel = generationViewModel,

@@ -75,6 +75,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
@@ -263,11 +264,15 @@ fun GenerationTopBar(
         title = { Text(stringResource(titleRes)) },
         windowInsets = WindowInsets(0, 0, 0, 0),
         actions = {
-            QueueChip(queueChipState)
+            QueueChip(queueChipState, onClick = if (isOfflineMode) null else ({ QueueSheetController.visible = true }))
             actions()
             AppMenuDropdown(onSettings = onNavigateToSettings, onLogout = onLogout)
         }
     )
+
+    if (QueueSheetController.visible) {
+        QueueSheet(generationViewModel, onDismiss = { QueueSheetController.visible = false })
+    }
 }
 
 /**
@@ -427,6 +432,7 @@ fun ColumnScope.PositivePromptField(
  * @param generationBlocker Message shown instead of generating, e.g. a missing mask; null to generate
  * @param hasPositivePrompt Without the prompt field above, the controls keep the gap it provided
  * @param missingSource The screen needs a source image it doesn't have yet (the reason given for a disabled button)
+ * @param describeJob What the queue sheet shows for a submitted job (prompt and workflow), read when submitting
  */
 @Composable
 fun GenerationControls(
@@ -441,6 +447,7 @@ fun GenerationControls(
     contentType: ContentType = ContentType.IMAGE,
     isUploading: Boolean = false,
     missingSource: Boolean = false,
+    describeJob: () -> JobDescription? = { null },
     generationBlocker: () -> Int? = { null }
 ) {
     val context = LocalContext.current
@@ -461,7 +468,9 @@ fun GenerationControls(
                 Toast.makeText(context, resources.getString(R.string.error_failed_load_workflow), Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            generationViewModel.startGeneration(workflowJson, ownerId, contentType, front) { success, _, errorMessage ->
+            val description = describeJob()
+            generationViewModel.startGeneration(workflowJson, ownerId, contentType, front) { success, promptId, errorMessage ->
+                if (success && promptId != null && description != null) JobRegistry.describeJob(promptId, description)
                 if (!success) {
                     Toast.makeText(
                         context,
@@ -501,14 +510,9 @@ fun GenerationControls(
                 }
             },
             onAddToFrontOfQueue = { submit(front = true) },
-            onClearQueue = {
-                generationViewModel.getClient()?.clearQueue { success ->
-                    val messageRes = if (success) R.string.msg_queue_cleared_success else R.string.error_queue_clear
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
+            ownJobs = queueState.ownActiveJobCount,
+            otherJobs = queueState.otherJobCount,
+            onShowQueue = { QueueSheetController.visible = true },
             modifier = Modifier.weight(1f)
         )
 

@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 
@@ -55,6 +56,7 @@ sealed interface QueueChipState {
 @Composable
 fun QueueChip(state: QueueChipState, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val description = queueDescription(state)
+    val openLabel = stringResource(R.string.content_description_open_queue)
     val content: @Composable () -> Unit = {
         Row(
             modifier = Modifier
@@ -89,6 +91,8 @@ fun QueueChip(state: QueueChipState, modifier: Modifier = Modifier, onClick: (()
         .clearAndSetSemantics {
             contentDescription = description
             liveRegion = LiveRegionMode.Polite
+            // Cleared semantics drop the click too, so it's set again here
+            if (onClick != null) onClick(label = openLabel) { onClick(); true }
         }
     val color = MaterialTheme.colorScheme.secondaryContainer
     val contentColor = MaterialTheme.colorScheme.onSecondaryContainer

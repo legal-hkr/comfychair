@@ -122,6 +122,27 @@
     <string name="label_step_of">第 %1$d 步，共 %2$d 步</string>
     <string name="label_preparing">正在准备…</string>
     <string name="content_description_cancel_job">取消此任务</string>
+    <string name="title_queue">队列</string>
+    <string name="msg_queue_empty">队列为空</string>
+    <string name="label_queue_running_yours">你的任务正在运行</string>
+    <string name="label_queue_running_other">正在为其他客户端运行</string>
+    <string name="label_queue_running_other_job">其他客户端的任务</string>
+    <string name="label_queue_waiting_yours">你等待中的任务（%1$d）</string>
+    <string name="label_queue_position">%1$s – 队列第 %2$d 位</string>
+    <string name="label_queue_others">其他客户端</string>
+    <string name="label_queue_other_positions">位置 %1$s – 不显示内容</string>
+    <string name="content_description_move_job_to_front">将“%1$s”移到最前</string>
+    <string name="content_description_remove_job">从队列中移除“%1$s”</string>
+    <string name="button_clear_queue_confirm">清空队列…</string>
+    <string name="title_clear_queue">清空整个队列？</string>
+    <string name="msg_clear_queue_own">这会移除你所有等待中的任务。正在运行的任务不会被中断。</string>
+    <string name="button_clear">清空</string>
+    <string name="error_queue_action">无法更改队列</string>
+    <string name="menu_show_queue">显示队列</string>
+    <string name="content_description_open_queue">打开队列</string>
+    <plurals name="msg_clear_queue_others">
+        <item quantity="other">这也会移除其他客户端的 %d 个任务。</item>
+    </plurals>
     <string name="content_description_generating_progress">正在生成，%1$d%%</string>
     <plurals name="label_more_queued">
         <item quantity="other">你还有 %d 个任务在排队</item>
@@ -149,7 +170,6 @@
     <string name="label_hostname">主机名：</string>
     <string name="label_port">端口：</string>
     <string name="title_server_management">服务器管理</string>
-    <string name="button_clear_queue">清空队列</string>
     <string name="button_clear_history">清空历史记录</string>
     <string name="button_refresh_models">刷新模型</string>
     <string name="msg_models_refreshed_success">模型刷新成功</string>

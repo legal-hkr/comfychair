@@ -96,6 +96,28 @@
     <string name="label_step_of">Step %1$d of %2$d</string>
     <string name="label_preparing">Preparing…</string>
     <string name="content_description_cancel_job">Cancel this job</string>
+    <string name="title_queue">Queue</string>
+    <string name="msg_queue_empty">The queue is empty</string>
+    <string name="label_queue_running_yours">Your job is running</string>
+    <string name="label_queue_running_other">Running for another client</string>
+    <string name="label_queue_running_other_job">Another client\'s job</string>
+    <string name="label_queue_waiting_yours">Your waiting jobs (%1$d)</string>
+    <string name="label_queue_position">%1$s – #%2$d in queue</string>
+    <string name="label_queue_others">Other clients</string>
+    <string name="label_queue_other_positions">Positions %1$s – contents not shown</string>
+    <string name="content_description_move_job_to_front">Move “%1$s” to the front</string>
+    <string name="content_description_remove_job">Remove “%1$s” from the queue</string>
+    <string name="button_clear_queue_confirm">Clear queue…</string>
+    <string name="title_clear_queue">Clear the whole queue?</string>
+    <string name="msg_clear_queue_own">This removes all your waiting jobs. A running job is not stopped.</string>
+    <string name="button_clear">Clear</string>
+    <string name="error_queue_action">The queue couldn\'t be changed</string>
+    <string name="menu_show_queue">Show queue</string>
+    <string name="content_description_open_queue">Open queue</string>
+    <plurals name="msg_clear_queue_others">
+        <item quantity="one">This also removes %d job from another client.</item>
+        <item quantity="other">This also removes %d jobs from other clients.</item>
+    </plurals>
     <string name="content_description_generating_progress">Generating, %1$d%%</string>
     <plurals name="label_more_queued">
         <item quantity="one">%d more of yours queued</item>
@@ -125,7 +147,6 @@
     <string name="label_hostname">Hostname:</string>
     <string name="label_port">Port:</string>
     <string name="title_server_management">Server Management</string>
-    <string name="button_clear_queue">Clear Queue</string>
     <string name="button_clear_history">Clear History</string>
     <string name="button_refresh_models">Refresh Models</string>
     <string name="msg_models_refreshed_success">Models refreshed successfully</string>

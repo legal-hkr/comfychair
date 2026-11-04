@@ -13,6 +13,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.connection.CertificateIssue
 import sh.hnet.comfychair.connection.ConnectionFailure
@@ -1446,6 +1447,78 @@ class ComfyUIClient(
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
                     callback(response.isSuccessful)
+                }
+            }
+        })
+    }
+
+    /**
+     * Remove waiting jobs from the server queue. A job that already runs is not affected (see [interruptExecution]).
+     *
+     * @param callback Called with the result: success true/false
+     */
+    fun deleteFromQueue(promptIds: List<String>, callback: (success: Boolean) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false)
+            return
+        }
+        val requestBody = JSONObject().put("delete", JSONArray(promptIds)).toString()
+            .toRequestBody("application/json".toMediaType())
+        val request = Request.Builder().url("$baseUrl/queue").post(requestBody).build()
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Removing from queue failed: ${e.javaClass.simpleName}")
+                callback(false)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use { callback(response.isSuccessful) }
+            }
+        })
+    }
+
+    /**
+     * Submit a workflow taken from the queue again, under the same job id, e.g. at the front after removing it.
+     * Servers that don't accept a client-chosen id assign a new one, which is passed to [callback].
+     *
+     * @param prompt The workflow as /queue lists it (API format)
+     */
+    fun resubmitPrompt(
+        prompt: JSONObject,
+        promptId: String,
+        front: Boolean,
+        callback: (success: Boolean, promptId: String?) -> Unit
+    ) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false, null)
+            return
+        }
+        val requestBody = JSONObject().apply {
+            put("prompt", prompt)
+            put("client_id", clientId)
+            put("prompt_id", promptId)
+            if (front) put("front", true)
+        }.toString().toRequestBody("application/json".toMediaType())
+        val request = Request.Builder().url("$baseUrl/prompt").post(requestBody).build()
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                DebugLogger.w(TAG, "Resubmitting failed: ${e.javaClass.simpleName}")
+                callback(false, null)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    val newId = if (response.isSuccessful) {
+                        try {
+                            JSONObject(response.body?.string() ?: "").optString("prompt_id").takeIf { it.isNotEmpty() }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    } else {
+                        DebugLogger.w(TAG, "Resubmitting failed: ${response.code}")
+                        null
+                    }
+                    callback(newId != null, newId)
                 }
             }
         })

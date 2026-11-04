@@ -122,6 +122,29 @@
     <string name="label_step_of">Paso %1$d de %2$d</string>
     <string name="label_preparing">Preparando…</string>
     <string name="content_description_cancel_job">Cancelar este trabajo</string>
+    <string name="title_queue">Cola</string>
+    <string name="msg_queue_empty">La cola está vacía</string>
+    <string name="label_queue_running_yours">Tu trabajo está en curso</string>
+    <string name="label_queue_running_other">En curso para otro cliente</string>
+    <string name="label_queue_running_other_job">Trabajo de otro cliente</string>
+    <string name="label_queue_waiting_yours">Tus trabajos en espera (%1$d)</string>
+    <string name="label_queue_position">%1$s – n.º %2$d en la cola</string>
+    <string name="label_queue_others">Otros clientes</string>
+    <string name="label_queue_other_positions">Posiciones %1$s – contenido no mostrado</string>
+    <string name="content_description_move_job_to_front">Mover «%1$s» al principio</string>
+    <string name="content_description_remove_job">Quitar «%1$s» de la cola</string>
+    <string name="button_clear_queue_confirm">Vaciar la cola…</string>
+    <string name="title_clear_queue">¿Vaciar toda la cola?</string>
+    <string name="msg_clear_queue_own">Se quitarán todos tus trabajos en espera. Un trabajo en curso no se detiene.</string>
+    <string name="button_clear">Vaciar</string>
+    <string name="error_queue_action">No se pudo cambiar la cola</string>
+    <string name="menu_show_queue">Mostrar la cola</string>
+    <string name="content_description_open_queue">Abrir la cola</string>
+    <plurals name="msg_clear_queue_others">
+        <item quantity="one">También se quita %d trabajo de otro cliente.</item>
+        <item quantity="many">También se quitan %d trabajos de otros clientes.</item>
+        <item quantity="other">También se quitan %d trabajos de otros clientes.</item>
+    </plurals>
     <string name="content_description_generating_progress">Generando, %1$d %%</string>
     <plurals name="label_more_queued">
         <item quantity="one">%d trabajo tuyo más en cola</item>
@@ -155,7 +178,6 @@
     <string name="label_hostname">Nombre de host:</string>
     <string name="label_port">Puerto:</string>
     <string name="title_server_management">Gestión del servidor</string>
-    <string name="button_clear_queue">Vaciar cola</string>
     <string name="button_clear_history">Borrar historial</string>
     <string name="button_refresh_models">Actualizar modelos</string>
     <string name="msg_models_refreshed_success">Modelos actualizados correctamente</string>

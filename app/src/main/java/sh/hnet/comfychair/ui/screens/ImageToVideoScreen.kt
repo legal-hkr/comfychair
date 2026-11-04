@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +38,7 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.ScreenType
+import sh.hnet.comfychair.queue.JobDescription
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
@@ -57,6 +57,7 @@ import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
 import sh.hnet.comfychair.ui.components.generation.SourceToolbar
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
@@ -292,6 +293,8 @@ fun ImageToVideoScreen(
         }
 
         GenerationControls(
+            // Read when submitting, for the queue sheet (kept in memory only)
+            describeJob = { JobDescription(uiState.positivePrompt, uiState.selectedWorkflow) },
             missingSource = sourceImage == null,
             // Read here, where the screen observes its state
             isEnabled = imageToVideoViewModel.hasValidConfiguration(),

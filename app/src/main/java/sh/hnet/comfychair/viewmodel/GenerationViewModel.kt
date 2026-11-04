@@ -9,27 +9,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.connection.WebSocketMessage
 import sh.hnet.comfychair.connection.WebSocketState
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.util.VideoUtils
 
 /**
  * Generation state data class
@@ -100,6 +102,10 @@ class GenerationViewModel : ViewModel() {
     // Generation state
     private val _generationState = MutableStateFlow(GenerationState())
     val generationState: StateFlow<GenerationState> = _generationState.asStateFlow()
+
+    // Latest live frame of our running job, for the queue sheet; RAM only, cleared when the job ends
+    private val _livePreview = MutableStateFlow<Bitmap?>(null)
+    val livePreview: StateFlow<Bitmap?> = _livePreview.asStateFlow()
 
     // One-time events
     private val _events = MutableSharedFlow<GenerationEvent>()
@@ -260,6 +266,7 @@ class GenerationViewModel : ViewModel() {
                 // Only process previews if we're generating and live preview is enabled
                 val context = applicationContext
                 if (currentState.isGenerating && context != null && AppSettings.isLivePreviewEnabled(context)) {
+                    _livePreview.value = message.bitmap
                     dispatchEvent(GenerationEvent.PreviewImage(message.bitmap))
                 }
             }
@@ -735,6 +742,80 @@ class GenerationViewModel : ViewModel() {
         }
     }
 
+    // Queue sheet
+
+    /** The server queue as job ids, on the main thread; null if it couldn't be read. */
+    fun fetchQueueSnapshot(onResult: (QueueSnapshot?) -> Unit) {
+        val client = comfyUIClient ?: return onResult(null)
+        val mainHandler = Handler(Looper.getMainLooper())
+        client.fetchQueue { json -> mainHandler.post { onResult(json?.let { QueueSnapshot.parse(it) }) } }
+    }
+
+    /** Remove one of our waiting jobs from the server queue and stop tracking it. */
+    fun removeFromQueue(promptId: String, onResult: (success: Boolean) -> Unit) {
+        val client = comfyUIClient ?: return onResult(false)
+        val mainHandler = Handler(Looper.getMainLooper())
+        client.deleteFromQueue(listOf(promptId)) { success ->
+            if (success) forgetJob(promptId)
+            mainHandler.post { onResult(success) }
+        }
+    }
+
+    /**
+     * Move one of our waiting jobs to the front. ComfyUI can't reorder its queue, so the job is removed and submitted
+     * again at the front with the same id. If it started running in between, it's left alone rather than run twice;
+     * if the queue can't be checked after removing it, it's submitted again rather than lost.
+     */
+    fun moveToFront(promptId: String, onResult: (success: Boolean) -> Unit) {
+        val client = comfyUIClient ?: return onResult(false)
+        val mainHandler = Handler(Looper.getMainLooper())
+        val done: (Boolean) -> Unit = { success -> mainHandler.post { onResult(success) } }
+        client.fetchQueue { json ->
+            val prompt = json?.let { QueueSnapshot.pendingPrompt(it, promptId) } ?: return@fetchQueue done(false)
+            client.deleteFromQueue(listOf(promptId)) { deleted ->
+                if (!deleted) return@deleteFromQueue done(false)
+                client.fetchQueue { after ->
+                    val snapshot = after?.let { QueueSnapshot.parse(it) }
+                    if (snapshot != null && (promptId in snapshot.running || promptId in snapshot.pending)) {
+                        // Started (or stayed) before it could be removed: nothing to resubmit
+                        return@fetchQueue done(false)
+                    }
+                    client.resubmitPrompt(prompt, promptId, front = true) { success, newId ->
+                        if (success && newId != null) {
+                            if (newId != promptId) {
+                                // The server assigned a new id: follow the job under it
+                                JobRegistry.rekeyJob(promptId, newId)
+                                _generationState.update { if (it.promptId == promptId) it.copy(promptId = newId) else it }
+                            }
+                            applicationContext?.let { JobRegistry.saveState(it) }
+                        } else {
+                            DebugLogger.w(TAG, "Job removed but not submitted again (${Obfuscator.promptId(promptId)})")
+                            forgetJob(promptId)
+                        }
+                        done(success)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Clear the whole server queue, other clients' jobs included. */
+    fun clearQueue(onResult: (success: Boolean) -> Unit) {
+        val client = comfyUIClient ?: return onResult(false)
+        val mainHandler = Handler(Looper.getMainLooper())
+        client.clearQueue { success -> mainHandler.post { onResult(success) } }
+    }
+
+    /** Stop tracking a job that left the queue without running; a screen waiting for it stops waiting. */
+    private fun forgetJob(promptId: String) {
+        JobRegistry.removeJob(promptId)
+        applicationContext?.let { JobRegistry.saveState(it) }
+        if (_generationState.value.promptId == promptId) {
+            resetGenerationState()
+            dispatchEvent(GenerationEvent.GenerationCancelled)
+        }
+    }
+
     /**
      * Complete generation (called after image is fetched)
      * @param promptId Optional promptId to verify - only resets if matches current generation.
@@ -771,6 +852,7 @@ class GenerationViewModel : ViewModel() {
         }
 
         _generationState.value = GenerationState()
+        _livePreview.value = null
         generationOwnerId = null
         // Clear persisted state to prevent stale "generating" state on app restart
         applicationContext?.let { saveGenerationState(it) }
