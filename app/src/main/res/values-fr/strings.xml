@@ -396,8 +396,6 @@
     <string name="content_description_open_in_viewer">Ouvrir dans la visionneuse</string>
     <string name="content_description_next_result">Résultat suivant</string>
     <string name="content_description_previous_result">Résultat précédent</string>
-    <string name="content_description_scroll_results_forward">Faire défiler les résultats vers l\'avant</string>
-    <string name="content_description_scroll_results_back">Faire défiler les résultats vers l\'arrière</string>
     <string name="button_edit_this_image">Modifier cette image</string>
     <string name="button_animate_it">Animer</string>
     <string name="button_use_as_reference">Utiliser comme référence</string>

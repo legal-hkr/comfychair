@@ -12,8 +12,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -55,7 +53,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -73,8 +70,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -98,18 +93,15 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.cache.ResultThumbnails
-import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
 
-private val StripHeight = 80.dp
-private val ThumbSize = 56.dp
-private val ThumbGap = 8.dp
-private val StripPadding = 12.dp
-private val ThumbCorner = 12.dp
+private val StripHeight = 64.dp
+private val ThumbSize = 44.dp
+private val ThumbGap = 6.dp
+private val ThumbCorner = 10.dp
 private val ThumbShape = RoundedCornerShape(ThumbCorner)
-private val MinHeightForStrip = 232.dp
-private val ChevronFade = 64.dp
+private val MinHeightForStrip = 216.dp
 private const val THUMB_STAGGER_MS = 30
 private const val THUMB_STAGGER_MAX_ITEMS = 8
 
@@ -169,7 +161,7 @@ fun ResultsPreview(
                 CounterPill(
                     current = pagerState.currentPage,
                     count = results.size,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                    modifier = Modifier.align(Alignment.TopCenter).padding(12.dp)
                 )
                 results.getOrNull(pagerState.currentPage)?.let { heroOverlay(it) }
             }
@@ -187,7 +179,6 @@ fun ResultsPreview(
                 ResultStrip(
                     results = results,
                     current = pagerState.currentPage,
-                    settled = pagerState.settledPage,
                     enabled = stripEnabled,
                     onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } }
                 )
@@ -244,7 +235,12 @@ private fun Hero(
 
 @Composable
 private fun CounterPill(current: Int, count: Int, modifier: Modifier) {
-    Surface(color = Color.Black.copy(alpha = 0.6f), contentColor = Color.White, shape = CircleShape, modifier = modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = CircleShape,
+        modifier = modifier
+    ) {
         Box(Modifier.height(28.dp).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text(
                 text = stringResource(R.string.label_result_counter, current + 1, count),
@@ -255,21 +251,22 @@ private fun CounterPill(current: Int, count: Int, modifier: Modifier) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/**
+ * Thumbnails of all results along the preview's bottom edge. The current one has a ring and is kept in the middle while
+ * the pager is swiped; with more results than fit, the row scrolls and thumbnails are cut off at both edges, which
+ * shows that there are more.
+ */
 @Composable
 private fun ResultStrip(
     results: List<GenerationOutput>,
     current: Int,
-    settled: Int,
     enabled: Boolean,
     onSelect: (Int) -> Unit
 ) {
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
 
-    // Keep the current thumbnail and one neighbour on each side visible, without centering
-    LaunchedEffect(settled) { listState.ensureVisibleWithNeighbours(settled) }
+    // Follows the pager's current page, which changes halfway through a swipe
+    LaunchedEffect(current) { listState.centerItem(current) }
 
     Box(
         Modifier
@@ -278,10 +275,10 @@ private fun ResultStrip(
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .alpha(if (enabled) 1f else 0.38f)
     ) {
-        // No scrollbar: LazyRow draws none, and none is added on purpose
+        // No scrollbar, arrows or fades: the cut-off thumbnails show that the row scrolls
         LazyRow(
             state = listState,
-            contentPadding = PaddingValues(horizontal = StripPadding),
+            contentPadding = PaddingValues(horizontal = ThumbGap),
             horizontalArrangement = Arrangement.spacedBy(ThumbGap, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
             userScrollEnabled = enabled,
@@ -297,20 +294,6 @@ private fun ResultStrip(
                     onClick = { onSelect(index) }
                 )
             }
-        }
-
-        val canScrollBack by remember { derivedStateOf { listState.canScrollBackward } }
-        val canScrollForward by remember { derivedStateOf { listState.canScrollForward } }
-        // A chevron pages by the viewport minus one thumbnail of context
-        val pagePx = {
-            val viewport = listState.layoutInfo.viewportSize.width
-            (viewport - with(density) { ChevronFade.toPx() }).coerceAtLeast(0f)
-        }
-        ScrollChevron(visible = canScrollBack && enabled, forward = false) {
-            scope.launch { listState.animateScrollBy(-pagePx()) }
-        }
-        ScrollChevron(visible = canScrollForward && enabled, forward = true) {
-            scope.launch { listState.animateScrollBy(pagePx()) }
         }
     }
 }
@@ -338,8 +321,10 @@ private fun ResultThumbnail(
         alpha.animateTo(1f, tween(durationMillis = 150, delayMillis = minOf(staggerIndex, THUMB_STAGGER_MAX_ITEMS) * THUMB_STAGGER_MS))
     }
 
-    val ringWidth by animateDpAsState(if (selected) 3.dp else 0.dp, MaterialTheme.motionScheme.fastSpatialSpec(), label = "ring")
-    val ringColor = MaterialTheme.colorScheme.primary
+    // The current thumbnail keeps its shape and gets a ring
+    val ringWidth by animateDpAsState(if (selected) 2.dp else 0.dp, MaterialTheme.motionScheme.fastSpatialSpec(), label = "ring")
+    val shape = ThumbShape
+    val ringColor = MaterialTheme.colorScheme.onSurface
     var focused by remember { mutableStateOf(false) }
     val focusColor = MaterialTheme.colorScheme.onSurface
 
@@ -348,7 +333,7 @@ private fun ResultThumbnail(
             .size(ThumbSize)
             .alpha(alpha.value)
             .drawBehind {
-                // Current ring: 3 dp, 2 dp outside the thumbnail
+                // Current ring, 2 dp outside the thumbnail
                 val width = ringWidth.toPx()
                 if (width > 0f) {
                     val inset = 2.dp.toPx() + width / 2f
@@ -362,9 +347,9 @@ private fun ResultThumbnail(
                 }
             }
             .onFocusChanged { focused = it.isFocused }
-            .then(if (focused) Modifier.border(2.dp, focusColor, ThumbShape) else Modifier)
-            .clip(ThumbShape)
-            .then(if (failed) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, ThumbShape) else Modifier)
+            .then(if (focused) Modifier.border(2.dp, focusColor, shape) else Modifier)
+            .clip(shape)
+            .then(if (failed) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape) else Modifier)
             .selectable(selected = selected, enabled = enabled, role = Role.Tab, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center
@@ -380,7 +365,7 @@ private fun ResultThumbnail(
             else -> ThumbnailPlaceholder(isVideo = output.isVideo, failed = failed)
         }
         if (output.isVideo && image != null) {
-            PlayBadge(Modifier.align(Alignment.BottomStart).padding(4.dp))
+            PlayBadge(Modifier.align(Alignment.BottomStart).padding(3.dp), size = 16.dp, iconSize = 12.dp)
         }
     }
 }
@@ -405,54 +390,20 @@ private fun ThumbnailPlaceholder(isVideo: Boolean, failed: Boolean) {
 }
 
 /**
- * Play badge marking video thumbnails: white play icon on a translucent black circle, placed in
- * a corner by the caller.
+ * Play badge marking video thumbnails, placed in a corner by the caller. Theme colours, like every overlay on media.
  */
 @Composable
 fun PlayBadge(modifier: Modifier = Modifier, size: Dp = 20.dp, iconSize: Dp = 14.dp) {
     Box(
-        modifier.size(size).background(Color.Black.copy(alpha = 0.6f), CircleShape),
+        modifier.size(size).background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(iconSize))
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun BoxScope.ScrollChevron(visible: Boolean, forward: Boolean, onClick: () -> Unit) {
-    val background = MaterialTheme.colorScheme.surfaceContainer
-    AnimatedVisibility(
-        visible = visible,
-        modifier = Modifier.align(if (forward) Alignment.CenterEnd else Alignment.CenterStart),
-        // The fade only fades in, at its full size, so no gap opens between it and the strip edge
-        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
-        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec())
-    ) {
-        // Fade over the thumbnails under the button
-        Box(
-            Modifier
-                .width(ChevronFade)
-                .height(StripHeight)
-                .background(
-                    if (forward) Brush.horizontalGradient(0f to Color.Transparent, 0.55f to background)
-                    else Brush.horizontalGradient(0.45f to background, 1f to Color.Transparent)
-                ),
-            contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart
-        ) {
-            CircleArrowButton(
-                forward = forward,
-                onClick = onClick,
-                contentDescription = stringResource(
-                    if (forward) R.string.content_description_scroll_results_forward
-                    else R.string.content_description_scroll_results_back
-                ),
-                modifier = Modifier
-                    // Only the button scales in and out
-                    .animateEnterExit(enter = scaleIn(initialScale = 0.8f), exit = scaleOut(targetScale = 0.8f))
-                    .padding(horizontal = 4.dp)
-            )
-        }
+        Icon(
+            Icons.Default.PlayArrow,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(iconSize)
+        )
     }
 }
 
@@ -562,48 +513,18 @@ private fun resultDescription(output: GenerationOutput, index: Int, count: Int):
 /** Visible position of a strip item, in viewport coordinates. */
 internal data class StripItemBounds(val offset: Int, val size: Int)
 
-/** What the strip has to do to show an item and its neighbours. */
-internal sealed class StripScrollAction {
-    data object None : StripScrollAction()
-    data class ScrollToItem(val index: Int) : StripScrollAction()
-    data class ScrollBy(val delta: Int) : StripScrollAction()
-}
+/** Scroll that puts the middle of an item in the middle of the viewport (the list clamps it at both ends). */
+internal fun centeringDelta(item: StripItemBounds, viewportStart: Int, viewportEnd: Int): Int =
+    item.offset + item.size / 2 - (viewportStart + viewportEnd) / 2
 
-/**
- * Decides the minimal scroll that brings item [index] and one neighbour on each side fully into
- * the viewport, without centering. [boundsOf] returns the position of a laid-out item or null if
- * it isn't visible.
- */
-internal fun stripScrollAction(
-    index: Int,
-    itemCount: Int,
-    viewportStart: Int,
-    viewportEnd: Int,
-    boundsOf: (Int) -> StripItemBounds?
-): StripScrollAction {
-    if (itemCount == 0) return StripScrollAction.None
-    val first = (index - 1).coerceAtLeast(0)
-    val last = (index + 1).coerceAtMost(itemCount - 1)
-    val firstBounds = boundsOf(first)
-    val lastBounds = boundsOf(last)
-    val firstVisible = firstBounds != null && firstBounds.offset >= viewportStart
-    val lastVisible = lastBounds != null && lastBounds.offset + lastBounds.size <= viewportEnd
-    return when {
-        firstVisible && lastVisible -> StripScrollAction.None
-        !firstVisible -> StripScrollAction.ScrollToItem(first)
-        lastBounds != null -> StripScrollAction.ScrollBy(lastBounds.offset + lastBounds.size - viewportEnd)
-        else -> StripScrollAction.ScrollToItem(first)
-    }
-}
-
-private suspend fun LazyListState.ensureVisibleWithNeighbours(index: Int) {
+private suspend fun LazyListState.centerItem(index: Int) {
+    if (index !in 0 until layoutInfo.totalItemsCount) return
+    fun bounds() = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.let { StripItemBounds(it.offset, it.size) }
+    // A far item isn't laid out yet: jump to it first, then center
+    val item = bounds() ?: run {
+        scrollToItem(index)
+        bounds()
+    } ?: return
     val info = layoutInfo
-    val action = stripScrollAction(index, info.totalItemsCount, info.viewportStartOffset, info.viewportEndOffset) { i ->
-        info.visibleItemsInfo.firstOrNull { it.index == i }?.let { StripItemBounds(it.offset, it.size) }
-    }
-    when (action) {
-        StripScrollAction.None -> Unit
-        is StripScrollAction.ScrollToItem -> animateScrollToItem(action.index)
-        is StripScrollAction.ScrollBy -> animateScrollBy(action.delta.toFloat())
-    }
+    animateScrollBy(centeringDelta(item, info.viewportStartOffset, info.viewportEndOffset).toFloat())
 }

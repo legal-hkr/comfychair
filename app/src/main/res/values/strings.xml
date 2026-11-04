@@ -508,8 +508,6 @@
     <string name="content_description_open_in_viewer">Open in viewer</string>
     <string name="content_description_next_result">Next result</string>
     <string name="content_description_previous_result">Previous result</string>
-    <string name="content_description_scroll_results_forward">Scroll results forward</string>
-    <string name="content_description_scroll_results_back">Scroll results back</string>
     <string name="button_edit_this_image">Edit this image</string>
     <string name="button_animate_it">Animate it</string>
     <string name="button_use_as_reference">Use as reference</string>

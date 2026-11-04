@@ -396,8 +396,6 @@
     <string name="content_description_open_in_viewer">Abrir en el visor</string>
     <string name="content_description_next_result">Siguiente resultado</string>
     <string name="content_description_previous_result">Resultado anterior</string>
-    <string name="content_description_scroll_results_forward">Desplazar resultados hacia delante</string>
-    <string name="content_description_scroll_results_back">Desplazar resultados hacia atrás</string>
     <string name="button_edit_this_image">Editar esta imagen</string>
     <string name="button_animate_it">Animar</string>
     <string name="button_use_as_reference">Usar como referencia</string>

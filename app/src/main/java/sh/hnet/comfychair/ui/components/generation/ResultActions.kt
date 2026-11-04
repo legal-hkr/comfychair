@@ -38,7 +38,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
@@ -170,9 +169,9 @@ fun BoxScope.ResultActionsMenu(
     var detailsLoading by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf<GenerationMetadata?>(null) }
 
-    // Scrim over the preview only, so the result stays recognisable behind the menu
+    // Standard M3 scrim (as under modal sheets), over the preview only, so the result stays recognisable behind the menu
     val scrimAlpha by animateFloatAsState(
-        targetValue = if (expanded) 0.45f else 0f,
+        targetValue = if (expanded) 0.32f else 0f,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "result actions scrim"
     )
@@ -180,7 +179,7 @@ fun BoxScope.ResultActionsMenu(
         Box(
             Modifier
                 .matchParentSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
                 // Catches taps meant for the preview below; Back closes the menu for TalkBack users
                 .pointerInput(Unit) { detectTapGestures { expanded = false } }
         )
