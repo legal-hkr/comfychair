@@ -371,7 +371,7 @@
     <string name="title_confirm_reset_prompts">Reset prompts and library?</string>
     <string name="msg_confirm_reset_prompts">Prompts on all screens return to their defaults and the prompt library is emptied.</string>
     <string name="title_confirm_restore_defaults">Restore defaults?</string>
-    <string name="msg_confirm_restore_defaults">Saved values of every workflow and the choices on the generation screens return to their defaults.</string>
+    <string name="msg_confirm_restore_defaults">Every app setting returns to its default and the app follows the system language. Imported workflows, the prompt library, the workflows’ saved values, the choices on the generation screens and media stored on the device are deleted. Only the servers stay.</string>
     <string name="button_reset">Reset</string>
     <string name="button_restore">Restore</string>
     <string name="action_logout">Log out</string>

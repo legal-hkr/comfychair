@@ -350,7 +350,7 @@
     <string name="title_confirm_reset_prompts">重置提示词和提示词库？</string>
     <string name="msg_confirm_reset_prompts">所有屏幕的提示词将恢复为默认值，提示词库将被清空。</string>
     <string name="title_confirm_restore_defaults">恢复默认设置？</string>
-    <string name="msg_confirm_restore_defaults">每个工作流保存的值以及生成屏幕上的选择将恢复为默认值。</string>
+    <string name="msg_confirm_restore_defaults">所有应用设置将恢复为默认值，应用语言将跟随系统。导入的工作流、提示词库、工作流保存的值、生成屏幕上的选择以及设备上保存的媒体将被删除。只保留服务器。</string>
     <string name="button_reset">重置</string>
     <string name="button_restore">恢复</string>
     <string name="action_logout">退出登录</string>

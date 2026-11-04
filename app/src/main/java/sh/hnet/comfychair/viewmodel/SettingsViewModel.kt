@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.viewmodel
 
+import sh.hnet.comfychair.ui.components.config.OptionsSectionPrefs
+import android.os.LocaleList
+import android.app.LocaleManager
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.Immutable
@@ -336,33 +339,47 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Restore the app as installed, keeping only the servers: their connections, credentials and trusted certificates
+     * (and the server data cached for them), plus the jobs being followed. Every app setting returns to its default,
+     * the app follows the system language again, and imported workflows, the prompt library, the workflows' saved
+     * values, the screens' choices and the media stored on the device are deleted. Media in memory stay until the app
+     * closes, as when switching to memory only.
+     */
     fun restoreDefaults(context: Context) {
         viewModelScope.launch {
+            // Memory only is the default: switching first deletes the media stored on the device
+            applyMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY)
             withContext(Dispatchers.IO) {
-                // Clear per-workflow saved values
-                val workflowValuesStorage = WorkflowValuesStorage(context)
-                workflowValuesStorage.clearAll()
-
-                // Clear global preferences (mode, workflow selections, prompts)
-                val prefsToDelete = listOf(
+                // App settings, then each workflow's values and each screen's choices
+                AppSettings.clearAll(context)
+                WorkflowValuesStorage(context).clearAll()
+                listOf(
                     "TextToImageFragmentPrefs",
                     "ImageToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
                     "ImageToVideoFragmentPrefs"
-                )
-
-                prefsToDelete.forEach { prefsName ->
-                    try {
-                        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-                        prefs.edit().clear().commit()
-                    } catch (e: Exception) {
-                        // Failed to clear preferences
-                    }
+                ).forEach { prefsName ->
+                    context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit().clear().commit()
                 }
-            }
+                OptionsSectionPrefs.clearAll(context)
 
-            _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.msg_defaults_restored_success))
+                // What the user added: imported workflows and the prompt library. The workflow manager keeps the
+                // switched-off workflows in memory, so it reloads them from the cleared settings first
+                WorkflowManager.ensureInitialized(context)
+                WorkflowManager.reloadWorkflows()
+                WorkflowManager.clearAllUserWorkflows()
+                PromptPresetStorage(context).clearAll()
+            }
+            // The settings shown (and debug logging) follow the cleared values
+            reloadAppSettings(context)
+
+            _events.emit(SettingsEvent.ShowToast(R.string.msg_defaults_restored_success))
             _events.emit(SettingsEvent.RefreshNeeded)
+
+            // Last: a language change recreates the activity
+            val localeManager = context.getSystemService(LocaleManager::class.java)
+            if (!localeManager.applicationLocales.isEmpty) localeManager.applicationLocales = LocaleList.getEmptyLocaleList()
         }
     }
 
@@ -431,31 +448,35 @@ class SettingsViewModel : ViewModel() {
      */
     fun setMediaStorageMode(context: Context, mode: MediaStorageMode) {
         viewModelScope.launch {
-            val previous = AppSettings.getMediaStorageMode(context)
-            if (previous == mode) return@launch
-
-            // Keep the current results when they start being stored on the device; the
-            // activity restart may skip onStop()
-            if (previous != MediaStorageMode.DEVICE && mode == MediaStorageMode.DEVICE) {
-                MediaStateHolder.persistToDisk(context)
-            }
-
-            AppSettings.setMediaStorageMode(context, mode)
-            _mediaStorageMode.value = mode
-
-            // The gallery list is kept only for offline mode, i.e. with storage on the device
-            if (mode != MediaStorageMode.DEVICE) GalleryMetadataCache.clearAllCaches(context)
-
-            if (mode == MediaStorageMode.MEMORY_ONLY) {
-                MediaStateHolder.enforceMemoryOnly(context)
-                MediaCache.setMemoryFirstMode(true)
-                MediaCache.deleteDiskCache(context)
-            } else {
-                MediaStateHolder.isMemoryOnly = false
-            }
-
-            _events.emit(SettingsEvent.RefreshNeeded)
+            if (applyMediaStorageMode(context, mode)) _events.emit(SettingsEvent.RefreshNeeded)
         }
+    }
+
+    /** Switch where media is kept (see [setMediaStorageMode]); returns whether the mode changed. */
+    private suspend fun applyMediaStorageMode(context: Context, mode: MediaStorageMode): Boolean {
+        val previous = AppSettings.getMediaStorageMode(context)
+        if (previous == mode) return false
+
+        // Keep the current results when they start being stored on the device; the
+        // activity restart may skip onStop()
+        if (previous != MediaStorageMode.DEVICE && mode == MediaStorageMode.DEVICE) {
+            MediaStateHolder.persistToDisk(context)
+        }
+
+        AppSettings.setMediaStorageMode(context, mode)
+        _mediaStorageMode.value = mode
+
+        // The gallery list is kept only for offline mode, i.e. with storage on the device
+        if (mode != MediaStorageMode.DEVICE) GalleryMetadataCache.clearAllCaches(context)
+
+        if (mode == MediaStorageMode.MEMORY_ONLY) {
+            MediaStateHolder.enforceMemoryOnly(context)
+            MediaCache.setMemoryFirstMode(true)
+            MediaCache.deleteDiskCache(context)
+        } else {
+            MediaStateHolder.isMemoryOnly = false
+        }
+        return true
     }
 
     /**

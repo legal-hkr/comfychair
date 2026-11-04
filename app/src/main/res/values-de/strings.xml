@@ -372,7 +372,7 @@
     <string name="title_confirm_reset_prompts">Prompts und Bibliothek zurücksetzen?</string>
     <string name="msg_confirm_reset_prompts">Die Prompts aller Bildschirme kehren zu ihren Standardwerten zurück und die Prompt-Bibliothek wird geleert.</string>
     <string name="title_confirm_restore_defaults">Standardwerte wiederherstellen?</string>
-    <string name="msg_confirm_restore_defaults">Die gespeicherten Werte aller Workflows und die Auswahl auf den Generierungsbildschirmen kehren zu ihren Standardwerten zurück.</string>
+    <string name="msg_confirm_restore_defaults">Alle App-Einstellungen kehren zu ihren Standardwerten zurück und die App folgt der Systemsprache. Importierte Workflows, die Prompt-Bibliothek, die gespeicherten Werte der Workflows, die Auswahl auf den Generierungsbildschirmen und auf dem Gerät gespeicherte Medien werden gelöscht. Nur die Server bleiben erhalten.</string>
     <string name="button_reset">Zurücksetzen</string>
     <string name="button_restore">Wiederherstellen</string>
     <string name="action_logout">Abmelden</string>

@@ -371,6 +371,10 @@ object OptionsSectionPrefs {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean("$workflowId:${section.name}", expanded).apply()
     }
+
+    fun clearAll(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+    }
 }
 
 @Composable

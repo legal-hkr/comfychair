@@ -364,7 +364,7 @@
     <string name="title_confirm_reset_prompts">Réinitialiser les prompts et la bibliothèque ?</string>
     <string name="msg_confirm_reset_prompts">Les prompts de tous les écrans reviennent à leurs valeurs par défaut et la bibliothèque de prompts est vidée.</string>
     <string name="title_confirm_restore_defaults">Restaurer les valeurs par défaut ?</string>
-    <string name="msg_confirm_restore_defaults">Les valeurs enregistrées de chaque workflow et les choix des écrans de génération reviennent à leurs valeurs par défaut.</string>
+    <string name="msg_confirm_restore_defaults">Tous les réglages de l’application reviennent à leurs valeurs par défaut et l’application suit la langue du système. Les workflows importés, la bibliothèque de prompts, les valeurs enregistrées des workflows, les choix des écrans de génération et les médias enregistrés sur l’appareil sont supprimés. Seuls les serveurs sont conservés.</string>
     <string name="button_reset">Réinitialiser</string>
     <string name="button_restore">Restaurer</string>
     <string name="action_logout">Déconnexion</string>

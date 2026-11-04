@@ -364,7 +364,7 @@
     <string name="title_confirm_reset_prompts">¿Restablecer prompts y biblioteca?</string>
     <string name="msg_confirm_reset_prompts">Los prompts de todas las pantallas vuelven a sus valores predeterminados y la biblioteca de prompts se vacía.</string>
     <string name="title_confirm_restore_defaults">¿Restaurar valores predeterminados?</string>
-    <string name="msg_confirm_restore_defaults">Los valores guardados de cada workflow y las elecciones de las pantallas de generación vuelven a sus valores predeterminados.</string>
+    <string name="msg_confirm_restore_defaults">Todos los ajustes de la aplicación vuelven a sus valores predeterminados y la aplicación sigue el idioma del sistema. Se eliminan los workflows importados, la biblioteca de prompts, los valores guardados de los workflows, las elecciones de las pantallas de generación y los archivos multimedia guardados en el dispositivo. Solo se conservan los servidores.</string>
     <string name="button_reset">Restablecer</string>
     <string name="button_restore">Restaurar</string>
     <string name="action_logout">Cerrar sesión</string>

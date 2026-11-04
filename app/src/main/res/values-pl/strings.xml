@@ -371,7 +371,7 @@
     <string name="title_confirm_reset_prompts">Zresetować prompty i bibliotekę?</string>
     <string name="msg_confirm_reset_prompts">Prompty na wszystkich ekranach wrócą do domyślnych, a biblioteka promptów zostanie opróżniona.</string>
     <string name="title_confirm_restore_defaults">Przywrócić ustawienia domyślne?</string>
-    <string name="msg_confirm_restore_defaults">Zapisane wartości wszystkich przepływów pracy i wybory na ekranach generowania wrócą do domyślnych.</string>
+    <string name="msg_confirm_restore_defaults">Wszystkie ustawienia aplikacji wrócą do domyślnych, a język będzie zgodny z systemem. Znikną zaimportowane przepływy pracy, biblioteka promptów, zapisane wartości przepływów, wybory na ekranach generowania i multimedia zapisane na urządzeniu. Zostaną tylko serwery.</string>
     <string name="button_reset">Resetuj</string>
     <string name="button_restore">Przywróć</string>
     <string name="action_logout">Wyloguj</string>
