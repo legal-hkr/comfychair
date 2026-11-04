@@ -181,6 +181,10 @@
     <string name="label_source_text">Tekst</string>
     <string name="label_source_image">Obraz</string>
     <string name="content_description_source_switch">Generuj z</string>
+    <string name="msg_image_ready">Obraz gotowy</string>
+    <string name="msg_video_ready">Wideo gotowe</string>
+    <string name="button_view">Pokaż</string>
+    <string name="content_description_new_result">Nowy wynik</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">Informacje o serwerze</string>

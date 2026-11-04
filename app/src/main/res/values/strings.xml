@@ -146,6 +146,10 @@
     <string name="label_source_text">Text</string>
     <string name="label_source_image">Image</string>
     <string name="content_description_source_switch">Generate from</string>
+    <string name="msg_image_ready">Image ready</string>
+    <string name="msg_video_ready">Video ready</string>
+    <string name="button_view">View</string>
+    <string name="content_description_new_result">New result</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">Server Information</string>

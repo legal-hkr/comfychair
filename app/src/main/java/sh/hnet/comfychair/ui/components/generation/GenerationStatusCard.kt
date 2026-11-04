@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
+import sh.hnet.comfychair.queue.JobRegistry
 import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
@@ -42,7 +43,7 @@ import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
  * while preparing), how many more of your jobs wait, and Cancel for this job only. Replaces the progress bar under
  * the top bar. TalkBack hears the progress at every quarter, not at every step.
  *
- * @param jobKey Identifies the job; the elapsed time starts when it changes
+ * @param jobKey The running job's id; the elapsed time is counted from its start
  * @param step Current sampler step, 0 before the first one
  * @param steps Number of sampler steps
  * @param moreQueued Your other jobs waiting in the queue
@@ -56,7 +57,8 @@ fun BoxScope.GenerationStatusCard(
     moreQueued: Int,
     onCancel: () -> Unit
 ) {
-    val startedAt = remember(jobKey) { SystemClock.elapsedRealtime() }
+    // Kept by JobRegistry, so leaving and returning to the screen doesn't restart the timer
+    val startedAt = remember(jobKey) { (jobKey as? String)?.let { JobRegistry.executionStartedAt(it) } ?: SystemClock.elapsedRealtime() }
     val elapsedMs by produceState(0L, startedAt) {
         while (true) {
             value = SystemClock.elapsedRealtime() - startedAt

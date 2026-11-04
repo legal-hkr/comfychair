@@ -4,6 +4,7 @@ package sh.hnet.comfychair.ui.screens
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -115,6 +116,9 @@ fun GalleryScreen(
     LaunchedEffect(Unit) {
         galleryViewModel.initialize()
     }
+
+    // Back first leaves selection mode
+    BackHandler(enabled = uiState.isSelectionMode) { galleryViewModel.clearSelection() }
 
     // Load gallery when connected
     LaunchedEffect(connectionStatus) {

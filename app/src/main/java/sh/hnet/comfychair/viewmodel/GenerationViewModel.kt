@@ -990,6 +990,8 @@ class GenerationViewModel : ViewModel() {
         }
         dispatchEvent(event)
         completeGeneration(promptId)  // Pass promptId to prevent clearing state for a different job
+        // Found in the history with outputs: a ready result (if the WebSocket didn't report it already)
+        JobRegistry.notifyReady(promptId)
         // Clear JobRegistry state - ensures executingOwnerId is reset even when
         // WebSocket events were missed (app was in background during completion)
         JobRegistry.markCompleted(promptId)

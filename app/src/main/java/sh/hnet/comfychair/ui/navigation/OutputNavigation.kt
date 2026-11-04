@@ -1,11 +1,14 @@
 package sh.hnet.comfychair.ui.navigation
 
-import sh.hnet.comfychair.navigation.SettingsRoute
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
+import sh.hnet.comfychair.navigation.SettingsRoute
+import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
+import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.TextToImageViewModel
+import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 
 /**
  * Navigation by what is made: an Image tab and a Video tab, each holding the screens for its sources. The screens stay
@@ -42,6 +45,15 @@ fun mainRouteOf(route: String?): MainRoute? = when (route) {
     else -> null
 }
 
+/** The screen that submitted a job (its owner id), e.g. to show its result. */
+fun routeForOwner(ownerId: String?): MainRoute? = when (ownerId) {
+    TextToImageViewModel.OWNER_ID -> MainRoute.TextToImage
+    ImageToImageViewModel.OWNER_ID -> MainRoute.ImageToImage
+    TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo
+    ImageToVideoViewModel.OWNER_ID -> MainRoute.ImageToVideo
+    else -> null
+}
+
 /** The Settings tab: its list and the pages opened from it. */
 fun isSettingsRoute(route: String?): Boolean =
     route == MainRoute.Settings.route || route in listOf(
@@ -49,15 +61,12 @@ fun isSettingsRoute(route: String?): Boolean =
     )
 
 /**
- * Show a screen the way tabs do: the previous screens' state is saved and restored, and switching never piles up
- * entries for Back.
+ * Show a screen. Every switch (tab, source, Gallery, Settings) is a step in the history, and Back retraces them; from
+ * the first one it leaves the main activity for the login screen, which then leaves the app. A screen visited twice
+ * shares its state, since the screens' view models belong to the activity, not to the history entry.
  */
 fun NavController.navigateToScreen(route: MainRoute) {
-    navigate(route.route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
-    }
+    navigate(route.route) { launchSingleTop = true }
 }
 
 /** Shows another generation screen; provided by the main navigation host for the source switch. */

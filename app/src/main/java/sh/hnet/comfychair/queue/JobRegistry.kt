@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.queue
 
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -100,6 +103,25 @@ object JobRegistry {
     private val _queueState = MutableStateFlow(QueueState())
     val queueState: StateFlow<QueueState> = _queueState.asStateFlow()
 
+    // Owners (screens) of our jobs that finished with results, for the "ready" notice and tab badges
+    private val _readyOwners = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val readyOwners: SharedFlow<String> = _readyOwners.asSharedFlow()
+
+    /**
+     * One of our jobs finished successfully. Call before [markCompleted], which stops tracking it: completion alone
+     * also follows errors and interruptions, so it can't tell a ready result.
+     */
+    fun notifyReady(promptId: String) {
+        _queueState.value.ownJobs[promptId]?.let { _readyOwners.tryEmit(it.ownerId) }
+    }
+
+    // When each running job started (elapsed realtime), so the status card's timer survives leaving the screen
+    private val startTimes = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** When a running job started; first asked counts as the start if the server's start wasn't seen. */
+    fun executionStartedAt(promptId: String): Long =
+        startTimes.getOrPut(promptId) { android.os.SystemClock.elapsedRealtime() }
+
     // Descriptions of our jobs for the queue sheet, in memory only (see JobDescription)
     private val descriptions = java.util.concurrent.ConcurrentHashMap<String, JobDescription>()
 
@@ -193,6 +215,7 @@ object JobRegistry {
      */
     @Synchronized
     fun markExecuting(promptId: String) {
+        startTimes.putIfAbsent(promptId, android.os.SystemClock.elapsedRealtime())
         val currentState = _queueState.value
         val job = currentState.ownJobs[promptId]
 
@@ -242,6 +265,7 @@ object JobRegistry {
         // Remove the job from tracking
         val newJobs = currentState.ownJobs - promptId
         descriptions.remove(promptId)
+        startTimes.remove(promptId)
 
         _queueState.value = currentState.copy(
             executingPromptId = if (isCurrentlyExecuting) null else currentState.executingPromptId,

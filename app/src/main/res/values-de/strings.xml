@@ -173,6 +173,10 @@
     <string name="label_source_text">Text</string>
     <string name="label_source_image">Bild</string>
     <string name="content_description_source_switch">Generieren aus</string>
+    <string name="msg_image_ready">Bild fertig</string>
+    <string name="msg_video_ready">Video fertig</string>
+    <string name="button_view">Anzeigen</string>
+    <string name="content_description_new_result">Neues Ergebnis</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">Server-Informationen</string>

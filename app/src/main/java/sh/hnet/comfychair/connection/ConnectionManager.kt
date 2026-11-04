@@ -759,8 +759,10 @@ object ConnectionManager {
                     val data = message.optJSONObject("data")
                     val promptId = data?.optString("prompt_id") ?: ""
                     DebugLogger.i(TAG, "WS: execution_success (promptId: ${Obfuscator.promptId(promptId)})")
-                    // Also notify JobRegistry - execution_success is another completion signal
+                    // Also notify JobRegistry - execution_success is another completion signal, and the only one
+                    // that means the job produced its results (it arrives before "executing" with no node)
                     if (promptId.isNotEmpty()) {
+                        JobRegistry.notifyReady(promptId)
                         JobRegistry.markCompleted(promptId)
                     }
                     WebSocketMessage.ExecutionSuccess(promptId)

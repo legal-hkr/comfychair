@@ -169,6 +169,10 @@
     <string name="label_source_text">文本</string>
     <string name="label_source_image">图像</string>
     <string name="content_description_source_switch">生成来源</string>
+    <string name="msg_image_ready">图像已生成</string>
+    <string name="msg_video_ready">视频已生成</string>
+    <string name="button_view">查看</string>
+    <string name="content_description_new_result">新结果</string>
 
     <!-- Configuration fragment strings -->
     <string name="title_server_info">服务器信息</string>
