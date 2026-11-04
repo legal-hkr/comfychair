@@ -106,6 +106,8 @@ fun ImageToVideoScreen(
     val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
     val isThisScreenQueued = !isThisScreenExecuting && queueState.ownJobs.values.any { it.ownerId == ownerId }
     val videoUri = uiState.currentVideoUri
+    val sourceImage = uiState.sourceImage
+    val previewBitmap = uiState.previewBitmap
 
     // Video plays only while the screen is resumed, so it doesn't render over navigation transitions
     var isScreenVisible by remember { mutableStateOf(true) }
@@ -183,9 +185,9 @@ fun ImageToVideoScreen(
                 ) {
                     when (uiState.viewMode) {
                         ImageToVideoViewMode.SOURCE -> {
-                            if (uiState.sourceImage != null) {
+                            if (sourceImage != null) {
                                 Image(
-                                    bitmap = uiState.sourceImage!!.asImageBitmap(),
+                                    bitmap = sourceImage.asImageBitmap(),
                                     contentDescription = stringResource(R.string.tab_source_image),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
@@ -243,9 +245,9 @@ fun ImageToVideoScreen(
                                     }
                                 }
                                 // Show preview bitmap during generation
-                                uiState.previewBitmap != null -> {
+                                previewBitmap != null -> {
                                     Image(
-                                        bitmap = uiState.previewBitmap!!.asImageBitmap(),
+                                        bitmap = previewBitmap.asImageBitmap(),
                                         contentDescription = stringResource(R.string.content_description_preview),
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop

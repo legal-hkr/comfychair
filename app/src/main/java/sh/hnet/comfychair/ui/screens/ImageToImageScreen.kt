@@ -92,6 +92,9 @@ fun ImageToImageScreen(
     val ownerId = ImageToImageViewModel.OWNER_ID
 
     val uiState by imageToImageViewModel.uiState.collectAsState()
+    // Read once per composition: also what click handlers below use
+    val sourceImage = uiState.sourceImage
+    val previewImage = uiState.previewImage
     val presetUiState by presetViewModel.uiState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
 
@@ -132,11 +135,11 @@ fun ImageToImageScreen(
                 Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
             }
             // Edit mask button (only in inpainting mode when source image exists)
-            if (uiState.sourceImage != null && uiState.mode == ImageToImageMode.INPAINTING) {
+            if (sourceImage != null && uiState.mode == ImageToImageMode.INPAINTING) {
                 IconButton(onClick = {
                     // Initialize state holder and launch mask editor activity
                     MaskEditorStateHolder.initialize(
-                        sourceImage = uiState.sourceImage!!,
+                        sourceImage = sourceImage,
                         maskPaths = uiState.maskPaths,
                         brushSize = uiState.brushSize,
                         isEraserMode = uiState.isEraserMode,
@@ -210,18 +213,18 @@ fun ImageToImageScreen(
                 ) {
                     when (uiState.viewMode) {
                         ImageToImageViewMode.SOURCE -> {
-                            if (uiState.sourceImage != null) {
+                            if (sourceImage != null) {
                                 if (uiState.mode == ImageToImageMode.INPAINTING) {
                                     // Read-only preview of source image with mask overlay
                                     MaskPreview(
-                                        sourceImage = uiState.sourceImage,
+                                        sourceImage = sourceImage,
                                         maskPaths = uiState.maskPaths,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {
                                     // Editing mode: show plain source image without mask
                                     Image(
-                                        bitmap = uiState.sourceImage!!.asImageBitmap(),
+                                        bitmap = sourceImage.asImageBitmap(),
                                         contentDescription = stringResource(R.string.content_description_source_image),
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
@@ -273,9 +276,9 @@ fun ImageToImageScreen(
                                         )
                                     }
                                 }
-                            } else if (uiState.previewImage != null) {
+                            } else if (previewImage != null) {
                                 Image(
-                                    bitmap = uiState.previewImage!!.asImageBitmap(),
+                                    bitmap = previewImage.asImageBitmap(),
                                     contentDescription = stringResource(R.string.content_description_preview),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop

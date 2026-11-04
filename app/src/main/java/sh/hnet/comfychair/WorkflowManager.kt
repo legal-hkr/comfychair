@@ -211,7 +211,7 @@ object WorkflowManager {
 
                 workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = true, defaults))
             } catch (e: Exception) {
-                // Failed to load workflow
+                DebugLogger.e(TAG, "Built-in workflow could not be loaded: ${e.javaClass.simpleName}")
             }
         }
     }
@@ -240,7 +240,7 @@ object WorkflowManager {
                 }
             }
         } catch (e: Exception) {
-            // Reflection failed, return empty list
+            DebugLogger.e(TAG, "Built-in workflows could not be listed: ${e.javaClass.simpleName}")
         }
 
         return resources
@@ -253,11 +253,17 @@ object WorkflowManager {
         val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
         val metadataJson = prefs.getString(USER_WORKFLOWS_KEY, null) ?: return
 
-        try {
-            val metadataArray = JSONArray(metadataJson)
-            val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
+        val metadataArray = try {
+            JSONArray(metadataJson)
+        } catch (e: Exception) {
+            DebugLogger.e(TAG, "User workflow list could not be read: ${e.javaClass.simpleName}")
+            return
+        }
+        val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
 
-            for (i in 0 until metadataArray.length()) {
+        // Each workflow on its own, so one broken entry doesn't hide the others
+        for (i in 0 until metadataArray.length()) {
+            try {
                 val metadata = metadataArray.getJSONObject(i)
                 val id = metadata.getString("id")
                 val name = metadata.getString("name")
@@ -275,7 +281,10 @@ object WorkflowManager {
                 }
 
                 val file = File(dir, filename)
-                if (!file.exists()) continue
+                if (!file.exists()) {
+                    DebugLogger.w(TAG, "Skipping workflow ${Obfuscator.workflowName(name)}: file missing")
+                    continue
+                }
 
                 val jsonContent = file.readText()
                 val jsonObject = try {
@@ -286,9 +295,9 @@ object WorkflowManager {
                 val defaults = WorkflowDefaults.fromJson(jsonObject?.optJSONObject("defaults"))
 
                 workflows.add(Workflow(id, name, description, jsonContent, type, isBuiltIn = false, defaults))
+            } catch (e: Exception) {
+                DebugLogger.e(TAG, "User workflow ${i + 1} could not be loaded: ${e.javaClass.simpleName}")
             }
-        } catch (e: Exception) {
-            // Failed to load user workflows
         }
     }
 

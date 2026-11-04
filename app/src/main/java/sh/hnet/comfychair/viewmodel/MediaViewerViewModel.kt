@@ -20,6 +20,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.util.GenerationMetadata
@@ -86,6 +87,7 @@ data class MediaViewerItem(
                     fromJson(array.getJSONObject(i))
                 }
             } catch (e: Exception) {
+                DebugLogger.w("MediaViewer", "Item list could not be read: ${e.javaClass.simpleName}")
                 emptyList()
             }
         }
@@ -399,6 +401,7 @@ class MediaViewerViewModel : ViewModel() {
         val item = state.items.getOrNull(index) ?: return null
         val context = applicationContext ?: return null
 
+        val client = ConnectionManager.clientOrNull
         return withContext(Dispatchers.IO) {
             val bytes: ByteArray? = when {
                 // For SINGLE mode videos, try to read from local file first
@@ -408,13 +411,14 @@ class MediaViewerViewModel : ViewModel() {
                             it.readBytes()
                         }
                     } catch (e: Exception) {
+                        DebugLogger.w("MediaViewer", "Video for metadata could not be read: ${e.javaClass.simpleName}")
                         null
                     }
                 }
                 // For items with server file info and a client, fetch from server
-                item.filename.isNotEmpty() && ConnectionManager.clientOrNull != null -> {
+                item.filename.isNotEmpty() && client != null -> {
                     kotlin.coroutines.suspendCoroutine { continuation ->
-                        ConnectionManager.clientOrNull!!.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes, _ ->
+                        client.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes, _ ->
                             continuation.resumeWith(Result.success(rawBytes))
                         }
                     }
@@ -465,7 +469,8 @@ class MediaViewerViewModel : ViewModel() {
                     val metadata = fetchMetadataForIndex(idx)
                     cachedMetadata[idx] = metadata
                 } catch (e: Exception) {
-                    // Silently fail - metadata will load on-demand if needed
+                    // Metadata is loaded again when the sheet is opened
+                    DebugLogger.w("MediaViewer", "Metadata preload failed: ${e.javaClass.simpleName}")
                 }
             }
         }

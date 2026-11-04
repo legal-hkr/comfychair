@@ -87,6 +87,7 @@ fun TextToVideoScreen(
     val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
     val isThisScreenQueued = !isThisScreenExecuting && queueState.ownJobs.values.any { it.ownerId == ownerId }
     val videoUri = uiState.currentVideoUri
+    val previewBitmap = uiState.previewBitmap
 
     // Video plays only while the screen is resumed, so it doesn't render over navigation transitions
     var isScreenVisible by remember { mutableStateOf(true) }
@@ -167,9 +168,9 @@ fun TextToVideoScreen(
                         }
                     }
                     // Live preview during generation
-                    uiState.previewBitmap != null -> {
+                    previewBitmap != null -> {
                         Image(
-                            bitmap = uiState.previewBitmap!!.asImageBitmap(),
+                            bitmap = previewBitmap.asImageBitmap(),
                             contentDescription = stringResource(R.string.content_description_preview),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop

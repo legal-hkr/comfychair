@@ -35,6 +35,7 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * Scale mode for video display
@@ -116,6 +117,7 @@ fun VideoPlayer(
                         videoHeight = height
                     } catch (e: Exception) {
                         // Keep any existing values
+                        DebugLogger.w("VideoPlayer", "Video metadata could not be read: ${e.javaClass.simpleName}")
                     }
                 }
             }
@@ -140,6 +142,8 @@ fun VideoPlayer(
                 scaleMode == VideoScaleMode.CROP -> ContentScale.Crop
                 else -> ContentScale.Fit
             }
+            // Read once: the thumbnail may be set from the metadata loader meanwhile
+            val currentThumbnail = thumbnail
 
             if (isActive && videoUri != null) {
                 // Use shared ExoPlayer instance with reference counting
@@ -224,9 +228,9 @@ fun VideoPlayer(
 
                         // Shutter overlay - show until surface is ready (first frame rendered)
                         if (presentationState.coverSurface) {
-                            if (thumbnail != null) {
+                            if (currentThumbnail != null) {
                                 Image(
-                                    bitmap = thumbnail!!.asImageBitmap(),
+                                    bitmap = currentThumbnail.asImageBitmap(),
                                     contentDescription = null,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = thumbnailContentScale
@@ -242,9 +246,9 @@ fun VideoPlayer(
                     }
                 } else {
                     // Show placeholder until dimensions are extracted
-                    if (thumbnail != null) {
+                    if (currentThumbnail != null) {
                         Image(
-                            bitmap = thumbnail!!.asImageBitmap(),
+                            bitmap = currentThumbnail.asImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = thumbnailContentScale
@@ -257,10 +261,10 @@ fun VideoPlayer(
                         )
                     }
                 }
-            } else if (thumbnail != null) {
+            } else if (currentThumbnail != null) {
                 // When inactive, show only the thumbnail
                 Image(
-                    bitmap = thumbnail!!.asImageBitmap(),
+                    bitmap = currentThumbnail.asImageBitmap(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = thumbnailContentScale

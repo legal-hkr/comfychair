@@ -66,6 +66,7 @@ fun TextToImageScreen(
     val ownerId = TextToImageViewModel.OWNER_ID
 
     val uiState by textToImageViewModel.uiState.collectAsState()
+    val previewBitmap = uiState.previewBitmap
     val presetUiState by presetViewModel.uiState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
 
@@ -139,9 +140,9 @@ fun TextToImageScreen(
                             preloaded = uiState.previewBitmap.takeIf { output.filename == uiState.currentImageFilename }
                         )
                     }
-                } else if (uiState.previewBitmap != null) {
+                } else if (previewBitmap != null) {
                     Image(
-                        bitmap = uiState.previewBitmap!!.asImageBitmap(),
+                        bitmap = previewBitmap.asImageBitmap(),
                         contentDescription = stringResource(R.string.content_description_generated_image),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop

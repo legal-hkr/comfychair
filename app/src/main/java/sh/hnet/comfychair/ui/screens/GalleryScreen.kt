@@ -408,7 +408,7 @@ private fun GalleryItemCard(
             when {
                 bitmap != null -> {
                     Image(
-                        bitmap = bitmap!!.asImageBitmap(),
+                        bitmap = bitmap.asImageBitmap(),
                         contentDescription = if (item.isVideo) {
                             stringResource(R.string.content_description_gallery_video_thumbnail)
                         } else {
