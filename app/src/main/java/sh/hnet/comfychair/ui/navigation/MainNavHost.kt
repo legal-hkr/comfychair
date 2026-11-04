@@ -1,8 +1,17 @@
 package sh.hnet.comfychair.ui.navigation
 
 import android.graphics.Bitmap
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -24,7 +33,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -138,6 +149,7 @@ fun MainNavHost(
             (it.status == JobStatus.PENDING || it.status == JobStatus.EXECUTING) && routeForOwner(it.ownerId)?.outputTab == tab
         }
     }
+    val transitions = rememberScreenTransitions()
     val snackbarHostState = remember { SnackbarHostState() }
     // Read when a result arrives, not when the collector started
     val shownScreen by rememberUpdatedState(currentScreen)
@@ -183,7 +195,11 @@ fun MainNavHost(
             NavHost(
                 navController = navController,
                 startDestination = startDestination,
-                modifier = Modifier.padding(paddingValues)
+                modifier = Modifier.padding(paddingValues),
+                enterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = false) },
+                exitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = false) },
+                popEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
+                popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
             ) {
                 composable(MainRoute.TextToImage.route) {
                     TextToImageScreen(
@@ -253,5 +269,58 @@ fun MainNavHost(
                 }
             }
         }
+    }
+}
+
+/**
+ * Transitions between screens, timed by the theme's (standard) motion scheme:
+ * - another tab: fade through (the old screen fades out quickly, the new one fades in growing slightly);
+ * - another source in the same tab: a quick crossfade, as it's a choice within one place;
+ * - Settings list and its pages: shared axis X (the page comes in from the end, and goes back there on Back).
+ */
+private class ScreenTransitions(
+    private val fastFade: FiniteAnimationSpec<Float>,
+    private val fade: FiniteAnimationSpec<Float>,
+    private val scale: FiniteAnimationSpec<Float>,
+    private val slide: FiniteAnimationSpec<IntOffset>,
+    private val axisOffsetPx: Int
+) {
+    private enum class Kind { TAB, SOURCE, AXIS }
+
+    private fun kind(from: String?, to: String?): Kind {
+        val fromScreen = mainRouteOf(from)
+        val toScreen = mainRouteOf(to)
+        return when {
+            isSettingsRoute(from) && isSettingsRoute(to) -> Kind.AXIS
+            fromScreen?.outputTab != null && fromScreen.outputTab == toScreen?.outputTab -> Kind.SOURCE
+            else -> Kind.TAB
+        }
+    }
+
+    fun enter(from: String?, to: String?, back: Boolean): EnterTransition = when (kind(from, to)) {
+        Kind.TAB -> fadeIn(fade) + scaleIn(scale, initialScale = 0.92f)
+        Kind.SOURCE -> fadeIn(fastFade)
+        Kind.AXIS -> slideInHorizontally(slide) { if (back) -axisOffsetPx else axisOffsetPx } + fadeIn(fade)
+    }
+
+    fun exit(from: String?, to: String?, back: Boolean): ExitTransition = when (kind(from, to)) {
+        Kind.TAB, Kind.SOURCE -> fadeOut(fastFade)
+        Kind.AXIS -> slideOutHorizontally(slide) { if (back) axisOffsetPx else -axisOffsetPx } + fadeOut(fastFade)
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun rememberScreenTransitions(): ScreenTransitions {
+    val motion = MaterialTheme.motionScheme
+    val axisOffsetPx = with(LocalDensity.current) { 30.dp.roundToPx() }
+    return remember(motion, axisOffsetPx) {
+        ScreenTransitions(
+            fastFade = motion.fastEffectsSpec(),
+            fade = motion.defaultEffectsSpec(),
+            scale = motion.defaultSpatialSpec(),
+            slide = motion.defaultSpatialSpec(),
+            axisOffsetPx = axisOffsetPx
+        )
     }
 }
