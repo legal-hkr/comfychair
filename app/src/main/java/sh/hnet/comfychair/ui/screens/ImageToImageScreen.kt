@@ -14,11 +14,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.ui.res.painterResource
-import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -31,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,21 +52,12 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MaskEditorStateHolder
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
-import sh.hnet.comfychair.ui.components.UseAsSourceButton
-import sh.hnet.comfychair.ui.components.loadResultBitmap
-import sh.hnet.comfychair.ui.components.rememberResultsViewer
-import sh.hnet.comfychair.ui.theme.Dimensions
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
-import sh.hnet.comfychair.ui.components.MaskPreview
-import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.ImageToImageMode
-import sh.hnet.comfychair.viewmodel.ImageToImageViewMode
-import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
-import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
 import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
 import sh.hnet.comfychair.ui.components.generation.GenerationPreviewArea
@@ -73,7 +65,19 @@ import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
+import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
+import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.rememberResultsViewer
+import sh.hnet.comfychair.ui.theme.Dimensions
+import sh.hnet.comfychair.util.VideoUtils
+import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.ImageToImageMode
+import sh.hnet.comfychair.viewmodel.ImageToImageViewMode
+import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
+import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -95,6 +99,9 @@ fun ImageToImageScreen(
     // Read once per composition: also what click handlers below use
     val sourceImage = uiState.sourceImage
     val previewImage = uiState.previewImage
+    // Offered only while Editing mode has a free reference slot
+    val useAsReference: ((Bitmap) -> Unit)? =
+        if (imageToImageViewModel.freeReferenceSlot(uiState) != null) imageToImageViewModel::useAsReference else null
     val presetUiState by presetViewModel.uiState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
 
@@ -263,7 +270,19 @@ fun ImageToImageScreen(
                                     onOpenViewer = openViewer,
                                     stripEnabled = !isThisScreenQueued,
                                     heroOverlay = { current ->
-                                        if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                                        // A new menu for each result, so it doesn't stay open after swiping
+                                        key(current.id) {
+                                            val preloaded = uiState.previewImage.takeIf { current.filename == uiState.previewImageFilename }
+                                            val load: suspend () -> Bitmap? = { preloaded ?: loadResultBitmap(current) }
+                                            ResultActionsMenu(
+                                                media = ResultMedia.output(current, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO, preloaded),
+                                                sendActions = if (current.isVideo) emptyList() else imageSendActions(
+                                                    onUseAsSource, load,
+                                                    onUseAsReference = useAsReference?.let { use -> { scope.launch { load()?.let(use) } } }
+                                                ),
+                                                resultNumber = results.indexOf(current) + 1
+                                            )
+                                        }
                                     }
                                 ) { output, isCurrent ->
                                     if (output.isVideo) {
@@ -285,8 +304,15 @@ fun ImageToImageScreen(
                                 )
                                 // While generating, the area shows live previews instead of a result
                                 if (!isThisScreenExecuting) {
-                                    val result = uiState.previewImage
-                                    UseAsSourceButton { target -> onUseAsSource(target) { result } }
+                                    ResultActionsMenu(
+                                        media = ResultMedia.image(
+                                            previewImage, uiState.previewImageFilename, uiState.previewImageSubfolder, uiState.previewImageType
+                                        ),
+                                        sendActions = imageSendActions(
+                                            onUseAsSource, { previewImage },
+                                            onUseAsReference = useAsReference?.let { use -> { use(previewImage) } }
+                                        )
+                                    )
                                 }
                             } else {
                         // Placeholder - app logo

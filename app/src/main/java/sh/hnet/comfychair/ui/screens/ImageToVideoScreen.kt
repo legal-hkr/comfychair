@@ -27,10 +27,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -52,7 +53,6 @@ import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
-import sh.hnet.comfychair.ui.components.UseAsSourceButton
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
@@ -62,6 +62,9 @@ import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
+import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
@@ -72,8 +75,6 @@ import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewMode
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
-import sh.hnet.comfychair.ui.components.generation.SaveShareActions
-import sh.hnet.comfychair.util.MediaExport
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,13 +137,6 @@ fun ImageToVideoScreen(
         ) {
             IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
                 Icon(Icons.Default.AddPhotoAlternate, contentDescription = stringResource(R.string.button_upload_source_image))
-            }
-            if (videoUri != null && uiState.viewMode == ImageToVideoViewMode.PREVIEW) {
-                SaveShareActions(
-                    kind = MediaExport.Kind.VIDEO,
-                    saveToGallery = { MediaExport.saveVideo(context, videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO) },
-                    shareFile = { MediaExport.shareFile(context, videoUri) }
-                )
             }
         }
 
@@ -228,8 +222,16 @@ fun ImageToVideoScreen(
                                         onOpenViewer = openViewer,
                                         stripEnabled = !isThisScreenQueued,
                                         heroOverlay = { current ->
-                                            // The source of Image to Video is an image
-                                            if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                                            // A new menu for each result, so it doesn't stay open after swiping
+                                            key(current.id) {
+                                                ResultActionsMenu(
+                                                    media = ResultMedia.output(current, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
+                                                    sendActions = if (current.isVideo) emptyList() else {
+                                                        imageSendActions(onUseAsSource, { loadResultBitmap(current) })
+                                                    },
+                                                    resultNumber = results.indexOf(current) + 1
+                                                )
+                                            }
                                         }
                                     ) { output, isCurrent ->
                                         if (output.isVideo) {
@@ -259,6 +261,10 @@ fun ImageToVideoScreen(
                                         videoUri = videoUri,
                                         modifier = Modifier.fillMaxSize(),
                                         isActive = isScreenVisible
+                                    )
+                                    ResultActionsMenu(
+                                        media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
+                                        sendActions = emptyList()
                                     )
                                 }
                                 // Show placeholder - app logo

@@ -77,10 +77,6 @@ import sh.hnet.comfychair.viewmodel.PromptPresetEvent
 import sh.hnet.comfychair.viewmodel.PromptPresetUiState
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
-import android.net.Uri
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
-import sh.hnet.comfychair.util.MediaExport
 
 /*
  * Parts every generation screen (Text to Image, Image to Image, Text to Video, Image to Video) shares.
@@ -88,7 +84,7 @@ import sh.hnet.comfychair.util.MediaExport
  *
  *   GenerationScreenEffects(...)
  *   Column {
- *       GenerationTopBar(...)          // title, save/share actions, menu, progress
+ *       GenerationTopBar(...)          // title, menu, progress
  *       GenerationPreviewArea(...)     // the screen's own preview
  *       PositivePromptField(...)
  *       GenerationControls(...)        // Generate + options button
@@ -223,7 +219,7 @@ fun rememberPromptInputState(prompt: String): PromptInputState {
 /**
  * Top app bar of a generation screen with the progress bar below it, shown while this screen's job runs.
  *
- * @param actions The screen's own actions (save, share, upload…), shown before the app menu
+ * @param actions The screen's own actions (e.g. picking a source image), shown before the app menu
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -254,52 +250,6 @@ fun GenerationTopBar(
             maxProgress = generationState.maxProgress,
             modifier = Modifier.fillMaxWidth()
         )
-    }
-}
-
-/**
- * Save and share buttons for the result shown on a generation screen. Toasts report the outcome.
- *
- * @param saveToGallery Saves the result; whether it succeeded
- * @param shareFile A shareable URI for the result, or null on failure
- */
-@Composable
-fun SaveShareActions(
-    kind: MediaExport.Kind,
-    saveToGallery: suspend () -> Boolean,
-    shareFile: suspend () -> Uri?
-) {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-    val scope = rememberCoroutineScope()
-    val isVideo = kind == MediaExport.Kind.VIDEO
-
-    IconButton(onClick = {
-        scope.launch {
-            val messageRes = when {
-                saveToGallery() -> if (isVideo) R.string.msg_video_saved_to_gallery else R.string.msg_image_saved_to_gallery
-                else -> if (isVideo) R.string.error_save_video else R.string.error_save_image
-            }
-            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
-        }
-    }) {
-        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.button_save_to_gallery))
-    }
-    IconButton(onClick = {
-        scope.launch {
-            val uri = shareFile()
-            if (uri == null) {
-                val messageRes = if (isVideo) R.string.error_share_video else R.string.error_share_image
-                Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
-            } else {
-                MediaExport.startShare(
-                    context, listOf(uri), kind.mimeType,
-                    resources.getString(if (isVideo) R.string.share_video else R.string.share_image)
-                )
-            }
-        }
-    }) {
-        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
     }
 }
 

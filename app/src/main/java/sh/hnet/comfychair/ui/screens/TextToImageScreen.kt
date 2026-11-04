@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,7 +34,6 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultsPreview
 import sh.hnet.comfychair.ui.components.SourceTarget
-import sh.hnet.comfychair.ui.components.UseAsSourceButton
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.generation.GenerationControls
 import sh.hnet.comfychair.ui.components.generation.GenerationOptionsSheet
@@ -42,15 +42,17 @@ import sh.hnet.comfychair.ui.components.generation.GenerationScreenEffects
 import sh.hnet.comfychair.ui.components.generation.GenerationTopBar
 import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
+import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
+import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.ui.theme.Dimensions
+import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
-import sh.hnet.comfychair.ui.components.generation.SaveShareActions
-import sh.hnet.comfychair.util.MediaExport
 
 @Composable
 fun TextToImageScreen(
@@ -86,15 +88,7 @@ fun TextToImageScreen(
             generationViewModel = generationViewModel,
             onNavigateToSettings = onNavigateToSettings,
             onLogout = onLogout
-        ) {
-            uiState.previewBitmap?.let { bitmap ->
-                SaveShareActions(
-                    kind = MediaExport.Kind.IMAGE,
-                    saveToGallery = { MediaExport.saveImage(context, bitmap) },
-                    shareFile = { MediaExport.shareFile(context, bitmap) }
-                )
-            }
-        }
+        )
 
         GenerationPreviewArea(collapsed = promptInput.expanded) {
             Box(
@@ -131,7 +125,17 @@ fun TextToImageScreen(
                         onOpenViewer = openViewer,
                         stripEnabled = !isThisScreenQueued,
                         heroOverlay = { current ->
-                            if (!current.isVideo) UseAsSourceButton { target -> onUseAsSource(target) { loadResultBitmap(current) } }
+                            // A new menu for each result, so it doesn't stay open after swiping
+                            key(current.id) {
+                                val preloaded = uiState.previewBitmap.takeIf { current.filename == uiState.currentImageFilename }
+                                ResultActionsMenu(
+                                    media = ResultMedia.output(current, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO, preloaded),
+                                    sendActions = if (current.isVideo) emptyList() else {
+                                        imageSendActions(onUseAsSource, { preloaded ?: loadResultBitmap(current) })
+                                    },
+                                    resultNumber = results.indexOf(current) + 1
+                                )
+                            }
                         }
                     ) { output, _ ->
                         // The image already shown on the screen doesn't need loading again
@@ -149,8 +153,12 @@ fun TextToImageScreen(
                     )
                     // While generating, the area shows live previews instead of a result
                     if (!isThisScreenExecuting) {
-                        val result = uiState.previewBitmap
-                        UseAsSourceButton { target -> onUseAsSource(target) { result } }
+                        ResultActionsMenu(
+                            media = ResultMedia.image(
+                                previewBitmap, uiState.currentImageFilename, uiState.currentImageSubfolder, uiState.currentImageType
+                            ),
+                            sendActions = imageSendActions(onUseAsSource, { previewBitmap })
+                        )
                     }
                 } else {
                     // Placeholder - app logo

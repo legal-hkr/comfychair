@@ -275,7 +275,6 @@
     <string name="hint_paint_mask">Please paint a mask area for inpainting</string>
 
     <!-- Save options -->
-    <string name="button_save_to_gallery">Save to gallery</string>
     <string name="button_share">Share…</string>
     <string name="button_save_image">Save</string>
 
@@ -511,7 +510,15 @@
     <string name="content_description_previous_result">Previous result</string>
     <string name="content_description_scroll_results_forward">Scroll results forward</string>
     <string name="content_description_scroll_results_back">Scroll results back</string>
-    <string name="button_use_as_source">Use as source</string>
+    <string name="button_edit_this_image">Edit this image</string>
+    <string name="button_animate_it">Animate it</string>
+    <string name="button_use_as_reference">Use as reference</string>
+    <string name="button_details">Details</string>
+    <string name="button_share_result">Share</string>
+    <string name="button_save_result">Save</string>
+    <string name="content_description_result_actions">Result actions</string>
+    <string name="content_description_video_actions">Video actions</string>
+    <string name="content_description_result_actions_numbered">Actions for result %1$d</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d second</item>
         <item quantity="other">%d seconds</item>

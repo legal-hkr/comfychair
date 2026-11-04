@@ -2,7 +2,6 @@ package sh.hnet.comfychair.ui.components
 
 import android.graphics.Bitmap
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -45,21 +44,15 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButtonMenu
-import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleFloatingActionButton
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -69,7 +62,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -86,11 +78,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -120,8 +110,6 @@ private val ThumbCorner = 12.dp
 private val ThumbShape = RoundedCornerShape(ThumbCorner)
 private val MinHeightForStrip = 232.dp
 private val ChevronFade = 64.dp
-// Half of the largest FAB size, so the container stays a circle while it shrinks when expanded
-private val FabCornerRadius = 48.dp
 private const val THUMB_STAGGER_MS = 30
 private const val THUMB_STAGGER_MAX_ITEMS = 8
 
@@ -549,60 +537,6 @@ fun rememberResultsViewer(
 
 /** Screens a generated image can be sent to as their source image. */
 enum class SourceTarget { IMAGE_TO_IMAGE, IMAGE_TO_VIDEO }
-
-/**
- * "Use as source" over a result image: an Expressive FAB menu in the bottom-end corner that sends
- * the image to Image to Image or Image to Video, which then shows it as its source. The icon is
- * the one of the screens' own "add source image" button.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun BoxScope.UseAsSourceButton(onUse: (SourceTarget) -> Unit) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = expanded) { expanded = false }
-    val description = stringResource(R.string.button_use_as_source)
-
-    FloatingActionButtonMenu(
-        expanded = expanded,
-        modifier = Modifier.align(Alignment.BottomEnd),
-        button = {
-            ToggleFloatingActionButton(
-                checked = expanded,
-                onCheckedChange = { expanded = it },
-                // Round in both states, unlike the square gallery FAB in the navigation bar
-                containerCornerRadius = { FabCornerRadius },
-                // A toggle: TalkBack announces its expanded state itself
-                modifier = Modifier.semantics { contentDescription = description }
-            ) {
-                val icon by remember {
-                    derivedStateOf { if (checkedProgress > 0.5f) Icons.Default.Close else Icons.Default.AddPhotoAlternate }
-                }
-                Icon(
-                    painter = rememberVectorPainter(icon),
-                    contentDescription = null,
-                    modifier = Modifier.animateIcon({ checkedProgress })
-                )
-            }
-        }
-    ) {
-        FloatingActionButtonMenuItem(
-            onClick = {
-                expanded = false
-                onUse(SourceTarget.IMAGE_TO_IMAGE)
-            },
-            icon = { Icon(painterResource(R.drawable.image_to_image_24px), contentDescription = null) },
-            text = { Text(stringResource(R.string.nav_image_to_image)) }
-        )
-        FloatingActionButtonMenuItem(
-            onClick = {
-                expanded = false
-                onUse(SourceTarget.IMAGE_TO_VIDEO)
-            },
-            icon = { Icon(painterResource(R.drawable.image_to_video_24px), contentDescription = null) },
-            text = { Text(stringResource(R.string.nav_image_to_video)) }
-        )
-    }
-}
 
 /**
  * Full-size image of a result, from MediaCache (RAM only in memory-first mode).

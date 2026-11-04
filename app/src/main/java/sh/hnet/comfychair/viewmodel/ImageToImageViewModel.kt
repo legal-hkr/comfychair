@@ -371,6 +371,32 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
     }
 
     /**
+     * The reference slot a result could fill: in Editing mode, the first slot the workflow uses that is still empty.
+     * Null when there is none, which hides "Use as reference".
+     */
+    fun freeReferenceSlot(state: ImageToImageUiState): Int? = when {
+        state.mode != ImageToImageMode.EDITING -> null
+        state.capabilities.hasReferenceImage1 && state.referenceImage1 == null -> 1
+        state.capabilities.hasReferenceImage2 && state.referenceImage2 == null -> 2
+        else -> null
+    }
+
+    /** Put a generated image into the first free reference slot (see [freeReferenceSlot]). */
+    fun useAsReference(bitmap: Bitmap) {
+        val context = applicationContext ?: return
+        when (freeReferenceSlot(_uiState.value)) {
+            1 -> {
+                MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage1, bitmap, context)
+                _uiState.update { it.copy(referenceImage1 = bitmap) }
+            }
+            2 -> {
+                MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.IteReferenceImage2, bitmap, context)
+                _uiState.update { it.copy(referenceImage2 = bitmap) }
+            }
+        }
+    }
+
+    /**
      * Use a generated image as the source image (clearing the mask) and switch to the Source tab.
      *
      * May run before the screen was first opened, i.e. before [initialize]: the context is then

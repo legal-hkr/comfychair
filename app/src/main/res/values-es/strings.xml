@@ -261,7 +261,6 @@
     <!-- Image/Video parameters section -->
 
     <!-- Save options -->
-    <string name="button_save_to_gallery">Guardar en galería</string>
     <string name="button_share">Compartir…</string>
     <string name="button_save_image">Guardar</string>
 
@@ -399,7 +398,15 @@
     <string name="content_description_previous_result">Resultado anterior</string>
     <string name="content_description_scroll_results_forward">Desplazar resultados hacia delante</string>
     <string name="content_description_scroll_results_back">Desplazar resultados hacia atrás</string>
-    <string name="button_use_as_source">Usar como origen</string>
+    <string name="button_edit_this_image">Editar esta imagen</string>
+    <string name="button_animate_it">Animar</string>
+    <string name="button_use_as_reference">Usar como referencia</string>
+    <string name="button_details">Detalles</string>
+    <string name="button_share_result">Compartir</string>
+    <string name="button_save_result">Guardar</string>
+    <string name="content_description_result_actions">Acciones del resultado</string>
+    <string name="content_description_video_actions">Acciones del vídeo</string>
+    <string name="content_description_result_actions_numbered">Acciones del resultado %1$d</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d segundo</item>
         <item quantity="many">%d segundos</item>

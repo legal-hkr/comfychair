@@ -3,6 +3,8 @@ package sh.hnet.comfychair.viewmodel
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -17,18 +19,13 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
-import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationMetadata
-import sh.hnet.comfychair.util.MetadataParser
-import sh.hnet.comfychair.util.Mp4MetadataExtractor
-import sh.hnet.comfychair.util.PngMetadataExtractor
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.Stable
+import sh.hnet.comfychair.util.GenerationMetadataLoader
 import sh.hnet.comfychair.util.MediaExport
 
 /**
@@ -400,44 +397,12 @@ class MediaViewerViewModel : ViewModel() {
         val state = _uiState.value
         val item = state.items.getOrNull(index) ?: return null
         val context = applicationContext ?: return null
-
-        val client = ConnectionManager.clientOrNull
-        return withContext(Dispatchers.IO) {
-            val bytes: ByteArray? = when {
-                // For SINGLE mode videos, try to read from local file first
-                state.mode == ViewerMode.SINGLE && item.isVideo && state.currentVideoUri != null -> {
-                    try {
-                        InMemoryVideo.openInputStream(context, state.currentVideoUri)?.use {
-                            it.readBytes()
-                        }
-                    } catch (e: Exception) {
-                        DebugLogger.w("MediaViewer", "Video for metadata could not be read: ${e.javaClass.simpleName}")
-                        null
-                    }
-                }
-                // For items with server file info and a client, fetch from server
-                item.filename.isNotEmpty() && client != null -> {
-                    kotlin.coroutines.suspendCoroutine { continuation ->
-                        client.fetchRawBytes(item.filename, item.subfolder, item.type) { rawBytes, _ ->
-                            continuation.resumeWith(Result.success(rawBytes))
-                        }
-                    }
-                }
-                // No source available
-                else -> null
-            }
-
-            if (bytes == null) return@withContext null
-
-            // Extract metadata based on file type
-            val jsonString = if (item.isVideo) {
-                Mp4MetadataExtractor.extractPromptMetadata(bytes)
-            } else {
-                PngMetadataExtractor.extractPromptMetadata(bytes)
-            }
-
-            // Parse the workflow JSON
-            jsonString?.let { MetadataParser.parseWorkflowJson(it) }
+        val videoUri = state.currentVideoUri
+        return when {
+            // A single video is read from where it plays (RAM or a stored file)
+            state.mode == ViewerMode.SINGLE && item.isVideo && videoUri != null ->
+                GenerationMetadataLoader.fromVideo(context, videoUri)
+            else -> GenerationMetadataLoader.fromServerFile(item.filename, item.subfolder, item.type, item.isVideo)
         }
     }
 
