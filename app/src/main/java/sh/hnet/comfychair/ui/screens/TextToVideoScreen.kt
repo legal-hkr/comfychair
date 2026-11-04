@@ -179,7 +179,7 @@ fun TextToVideoScreen(
                         )
                     }
                     videoUri != null -> {
-                        VideoPlayer(videoUri = videoUri, modifier = Modifier.fillMaxSize(), isActive = isScreenVisible)
+                        VideoPlayer(videoUri = videoUri, modifier = Modifier.fillMaxSize(), isActive = isScreenVisible, showPlaybackStatus = true)
                         ResultActionsMenu(
                             media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO),
                             sendActions = emptyList()

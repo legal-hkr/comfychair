@@ -260,7 +260,8 @@ fun ImageToVideoScreen(
                                     VideoPlayer(
                                         videoUri = videoUri,
                                         modifier = Modifier.fillMaxSize(),
-                                        isActive = isScreenVisible
+                                        isActive = isScreenVisible,
+                                        showPlaybackStatus = true
                                     )
                                     ResultActionsMenu(
                                         media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),

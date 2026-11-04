@@ -404,6 +404,9 @@
     <string name="button_save_result">Guardar</string>
     <string name="content_description_result_actions">Acciones del resultado</string>
     <string name="content_description_video_actions">Acciones del vídeo</string>
+    <string name="content_description_play_video">Reproducir vídeo</string>
+    <string name="content_description_pause_video">Pausar vídeo</string>
+    <string name="content_description_video_position">%1$s de %2$s</string>
     <string name="content_description_result_actions_numbered">Acciones del resultado %1$d</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d segundo</item>

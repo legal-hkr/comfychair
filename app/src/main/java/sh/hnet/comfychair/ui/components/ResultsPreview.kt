@@ -452,7 +452,8 @@ fun ResultHeroVideo(output: GenerationOutput, isCurrent: Boolean, isActive: Bool
                 videoUri = videoUri,
                 modifier = Modifier.fillMaxSize(),
                 isActive = isActive,
-                cacheKey = key
+                cacheKey = key,
+                showPlaybackStatus = true
             )
         }
     }

@@ -5,13 +5,29 @@ import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -24,14 +40,25 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.compose.PlayerSurface
 import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
+import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.media3.ui.compose.state.rememberPresentationState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
@@ -64,6 +91,8 @@ enum class VideoScaleMode {
  * @param enableZoom Whether to enable zoom and pan gestures ([zoomable]); the video is then fitted
  * @param onSingleTap Called for a tap that didn't become a double tap (only with [enableZoom])
  * @param cacheKey Optional cache key to look up pre-fetched metadata from MediaCache
+ * @param showPlaybackStatus Show the pause/position chip at the top end and a position line at the bottom edge
+ *   (inline results on the generation screens)
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -74,7 +103,8 @@ fun VideoPlayer(
     scaleMode: VideoScaleMode = VideoScaleMode.CROP,
     enableZoom: Boolean = false,
     onSingleTap: () -> Unit = {},
-    cacheKey: MediaCacheKey? = null
+    cacheKey: MediaCacheKey? = null,
+    showPlaybackStatus: Boolean = false
 ) {
     val context = LocalContext.current
 
@@ -243,6 +273,10 @@ fun VideoPlayer(
                                 )
                             }
                         }
+                        // Only once the video shows, so the chip doesn't sit on the thumbnail
+                        if (showPlaybackStatus && !presentationState.coverSurface) {
+                            PlaybackStatus(exoPlayer)
+                        }
                     }
                 } else {
                     // Show placeholder until dimensions are extracted
@@ -272,4 +306,74 @@ fun VideoPlayer(
             }
         }
     }
+}
+
+/**
+ * Pause/position chip at the top end (tap toggles pause) and a thin position line along the bottom edge, over an
+ * inline video. Theme colours only. The position is polled only while this is shown.
+ */
+@Composable
+private fun BoxScope.PlaybackStatus(player: Player) {
+    val playPause = rememberPlayPauseButtonState(player)
+    var positionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(player) {
+        while (true) {
+            positionMs = player.currentPosition.coerceAtLeast(0L)
+            durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
+            delay(100)
+        }
+    }
+
+    val position = formatPlaybackTime(positionMs)
+    val duration = formatPlaybackTime(durationMs)
+    val action = stringResource(if (playPause.showPlay) R.string.content_description_play_video else R.string.content_description_pause_video)
+    val progress = stringResource(R.string.content_description_video_position, position, duration)
+    Surface(
+        onClick = playPause::onClick,
+        enabled = playPause.isEnabled,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .padding(12.dp)
+            .clearAndSetSemantics {
+                contentDescription = "$action, $progress"
+                role = Role.Button
+            }
+    ) {
+        Row(
+            modifier = Modifier.height(32.dp).padding(start = 8.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = if (playPause.showPlay) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "$position / $duration",
+                // Tabular digits, so the chip doesn't change width while the time runs
+                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+            )
+        }
+    }
+
+    if (durationMs > 0L) {
+        Box(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth((positionMs.toFloat() / durationMs).coerceIn(0f, 1f))
+                .height(3.dp)
+                .background(MaterialTheme.colorScheme.primary)
+        )
+    }
+}
+
+/** Playback time as m:ss. */
+internal fun formatPlaybackTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
