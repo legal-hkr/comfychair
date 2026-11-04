@@ -184,25 +184,27 @@
     <string name="content_description_new_result">Nouveau résultat</string>
 
     <!-- Configuration fragment strings -->
-    <string name="title_server_info">Informations serveur</string>
-    <string name="label_hostname">Nom d\'hôte :</string>
-    <string name="label_port">Port :</string>
-    <string name="title_server_management">Gestion du serveur</string>
     <string name="button_clear_history">Effacer l\'historique</string>
     <string name="button_refresh_models">Actualiser les modèles</string>
+    <string name="button_free_memory">Libérer la mémoire</string>
+    <string name="button_unload_models">Décharger les modèles</string>
+    <string name="msg_memory_freed">Le serveur a libéré sa mémoire</string>
+    <string name="msg_models_unloaded">Modèles déchargés de la mémoire</string>
+    <string name="error_free_memory">Impossible de libérer la mémoire du serveur</string>
+    <string name="title_confirm_clear_history">Effacer l’historique du serveur ?</string>
+    <string name="msg_confirm_clear_history">Tous les résultats disparaissent de l’historique du serveur et de la galerie. Les fichiers restent sur le disque du serveur.</string>
+    <string name="label_memory_usage">%1$.1f / %2$.1f Go</string>
+    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="title_server_software">Logiciels</string>
+    <string name="label_operating_system">Système d’exploitation</string>
+    <string name="title_server_maintenance">Maintenance</string>
     <string name="msg_models_refreshed_success">Modèles actualisés avec succès</string>
     <string name="error_models_refresh">Échec de l\'actualisation des modèles</string>
 
     <!-- Resource usage strings -->
     <string name="title_ram_usage">RAM</string>
-    <string name="title_gpu_usage">GPU</string>
-    <string name="resource_usage_format">%1$.2f Go / %2$.2f Go utilisés</string>
 
     <!-- Server info labels -->
-    <string name="label_server_info_os">OS :</string>
-    <string name="label_server_info_comfyui">ComfyUI :</string>
-    <string name="label_server_info_python">Python :</string>
-    <string name="label_server_info_pytorch">PyTorch :</string>
 
     <!-- Toast messages -->
     <string name="msg_queue_cleared_success">File d\'attente vidée avec succès</string>

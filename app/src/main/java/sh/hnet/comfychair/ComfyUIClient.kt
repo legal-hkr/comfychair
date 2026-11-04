@@ -1561,6 +1561,39 @@ class ComfyUIClient(
     }
 
     /**
+     * Free memory on the server (POST /free): unload the models only, or also free the memory ComfyUI keeps cached
+     * (which unloads the models too).
+     *
+     * @param unloadModelsOnly Unload the models but keep the other caches
+     * @param callback Called with the result: success true/false
+     */
+    fun freeMemory(unloadModelsOnly: Boolean, callback: (success: Boolean) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(false)
+            return
+        }
+
+        val requestBody = JSONObject().apply {
+            if (unloadModelsOnly) put("unload_models", true) else put("free_memory", true)
+        }.toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("$baseUrl/free")
+            .post(requestBody)
+            .build()
+
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(false)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use { callback(response.isSuccessful) }
+            }
+        })
+    }
+
+    /**
      * Delete a single history item by prompt ID
      * Removes the specified entry from execution history
      *

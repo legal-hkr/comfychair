@@ -180,25 +180,27 @@
     <string name="content_description_new_result">Neues Ergebnis</string>
 
     <!-- Configuration fragment strings -->
-    <string name="title_server_info">Server-Informationen</string>
-    <string name="label_hostname">Hostname:</string>
-    <string name="label_port">Port:</string>
-    <string name="title_server_management">Server-Verwaltung</string>
     <string name="button_clear_history">Verlauf löschen</string>
     <string name="button_refresh_models">Modelle aktualisieren</string>
+    <string name="button_free_memory">Speicher freigeben</string>
+    <string name="button_unload_models">Modelle entladen</string>
+    <string name="msg_memory_freed">Der Server hat Speicher freigegeben</string>
+    <string name="msg_models_unloaded">Modelle aus dem Speicher entladen</string>
+    <string name="error_free_memory">Speicher des Servers konnte nicht freigegeben werden</string>
+    <string name="title_confirm_clear_history">Verlauf des Servers leeren?</string>
+    <string name="msg_confirm_clear_history">Alle Ergebnisse verschwinden aus dem Serververlauf und der Galerie. Die Dateien bleiben auf dem Datenträger des Servers.</string>
+    <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
+    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="title_server_software">Software</string>
+    <string name="label_operating_system">Betriebssystem</string>
+    <string name="title_server_maintenance">Wartung</string>
     <string name="msg_models_refreshed_success">Modelle erfolgreich aktualisiert</string>
     <string name="error_models_refresh">Modelle konnten nicht aktualisiert werden</string>
 
     <!-- Resource usage strings -->
     <string name="title_ram_usage">RAM</string>
-    <string name="title_gpu_usage">GPU</string>
-    <string name="resource_usage_format">%1$.2f GB / %2$.2f GB belegt</string>
 
     <!-- Server info labels -->
-    <string name="label_server_info_os">OS:</string>
-    <string name="label_server_info_comfyui">ComfyUI:</string>
-    <string name="label_server_info_python">Python:</string>
-    <string name="label_server_info_pytorch">PyTorch:</string>
 
     <!-- Toast messages -->
     <string name="msg_queue_cleared_success">Warteschlange erfolgreich geleert</string>

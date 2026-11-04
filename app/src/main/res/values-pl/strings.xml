@@ -188,25 +188,27 @@
     <string name="content_description_new_result">Nowy wynik</string>
 
     <!-- Configuration fragment strings -->
-    <string name="title_server_info">Informacje o serwerze</string>
-    <string name="label_hostname">Nazwa hosta:</string>
-    <string name="label_port">Port:</string>
-    <string name="title_server_management">Zarządzanie serwerem</string>
     <string name="button_clear_history">Wyczyść historię</string>
     <string name="button_refresh_models">Odśwież modele</string>
+    <string name="button_free_memory">Zwolnij pamięć</string>
+    <string name="button_unload_models">Wyładuj modele</string>
+    <string name="msg_memory_freed">Serwer zwolnił pamięć</string>
+    <string name="msg_models_unloaded">Modele zostały wyładowane z pamięci</string>
+    <string name="error_free_memory">Nie udało się zwolnić pamięci serwera</string>
+    <string name="title_confirm_clear_history">Wyczyścić historię serwera?</string>
+    <string name="msg_confirm_clear_history">Wszystkie wyniki znikną z historii serwera i z galerii. Pliki zostaną na dysku serwera.</string>
+    <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
+    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="title_server_software">Oprogramowanie</string>
+    <string name="label_operating_system">System operacyjny</string>
+    <string name="title_server_maintenance">Konserwacja</string>
     <string name="msg_models_refreshed_success">Modele odświeżone pomyślnie</string>
     <string name="error_models_refresh">Nie udało się odświeżyć modeli</string>
 
     <!-- Resource usage strings -->
     <string name="title_ram_usage">RAM</string>
-    <string name="title_gpu_usage">GPU</string>
-    <string name="resource_usage_format">%1$.2f GB / %2$.2f GB zajęte</string>
 
     <!-- Server info labels -->
-    <string name="label_server_info_os">OS:</string>
-    <string name="label_server_info_comfyui">ComfyUI:</string>
-    <string name="label_server_info_python">Python:</string>
-    <string name="label_server_info_pytorch">PyTorch:</string>
 
     <!-- Toast messages -->
     <string name="msg_queue_cleared_success">Kolejka wyczyszczona pomyślnie</string>

@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.components.settings
 
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ListItemColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -250,20 +251,40 @@ fun SettingsActionRow(
     onClick: () -> Unit,
     supporting: String? = null,
     destructive: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    busy: Boolean = false
 ) {
     val defaults = rowColors()
     SegmentedListItem(
         onClick = onClick,
         shapes = shapes,
         colors = rowColors(),
-        enabled = enabled,
+        // Not again while it runs
+        enabled = enabled && !busy,
+        trailingContent = if (busy) {
+            { LoadingIndicator(Modifier.size(24.dp)) }
+        } else null,
         leadingContent = {
             Icon(icon, contentDescription = null, tint = if (destructive && enabled) MaterialTheme.colorScheme.error else defaults.leadingContentColor)
         },
         supportingContent = supporting?.let { { Text(it) } }
     ) {
         Text(title, color = if (destructive && enabled) MaterialTheme.colorScheme.error else Color.Unspecified)
+    }
+}
+
+/** A value to read (e.g. a version): not a button, in a segment of the group. */
+@Composable
+fun SettingsInfoRow(shapes: ListItemShapes, title: String, value: String) {
+    Surface(
+        shape = shapes.shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

@@ -51,7 +51,8 @@ data class ServerSettingsUiState(
     val systemStats: SystemStats? = null,
     val isLoadingStats: Boolean = false,
     val isClearingHistory: Boolean = false,
-    val isRefreshingModels: Boolean = false
+    val isRefreshingModels: Boolean = false,
+    val isFreeingMemory: Boolean = false
 )
 
 /**
@@ -251,6 +252,32 @@ class SettingsViewModel : ViewModel() {
             ramFreeGB = ramFreeGB,
             gpus = gpus
         )
+    }
+
+    /**
+     * Free memory on the server: unload the models, or also free its other caches. The usage meters show the result
+     * at their next refresh.
+     */
+    fun freeServerMemory(unloadModelsOnly: Boolean) {
+        val client = comfyUIClient ?: return
+        _serverSettingsState.value = _serverSettingsState.value.copy(isFreeingMemory = true)
+        viewModelScope.launch {
+            val success = withContext(Dispatchers.IO) {
+                kotlin.coroutines.suspendCoroutine { continuation ->
+                    client.freeMemory(unloadModelsOnly) { continuation.resumeWith(Result.success(it)) }
+                }
+            }
+            _serverSettingsState.value = _serverSettingsState.value.copy(isFreeingMemory = false)
+            _events.emit(
+                SettingsEvent.ShowToast(
+                    when {
+                        !success -> R.string.error_free_memory
+                        unloadModelsOnly -> R.string.msg_models_unloaded
+                        else -> R.string.msg_memory_freed
+                    }
+                )
+            )
+        }
     }
 
     fun clearHistory() {

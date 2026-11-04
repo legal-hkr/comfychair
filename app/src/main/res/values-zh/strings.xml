@@ -176,25 +176,27 @@
     <string name="content_description_new_result">新结果</string>
 
     <!-- Configuration fragment strings -->
-    <string name="title_server_info">服务器信息</string>
-    <string name="label_hostname">主机名：</string>
-    <string name="label_port">端口：</string>
-    <string name="title_server_management">服务器管理</string>
     <string name="button_clear_history">清空历史记录</string>
     <string name="button_refresh_models">刷新模型</string>
+    <string name="button_free_memory">释放内存</string>
+    <string name="button_unload_models">卸载模型</string>
+    <string name="msg_memory_freed">服务器已释放内存</string>
+    <string name="msg_models_unloaded">模型已从内存中卸载</string>
+    <string name="error_free_memory">无法释放服务器内存</string>
+    <string name="title_confirm_clear_history">清除服务器历史记录？</string>
+    <string name="msg_confirm_clear_history">所有结果将从服务器历史记录和图库中消失。文件仍保留在服务器磁盘上。</string>
+    <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
+    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="title_server_software">软件</string>
+    <string name="label_operating_system">操作系统</string>
+    <string name="title_server_maintenance">维护</string>
     <string name="msg_models_refreshed_success">模型刷新成功</string>
     <string name="error_models_refresh">模型刷新失败</string>
 
     <!-- Resource usage strings -->
     <string name="title_ram_usage">内存</string>
-    <string name="title_gpu_usage">显卡</string>
-    <string name="resource_usage_format">已用 %1$.2f GB / %2$.2f GB</string>
 
     <!-- Server info labels -->
-    <string name="label_server_info_os">操作系统：</string>
-    <string name="label_server_info_comfyui">ComfyUI：</string>
-    <string name="label_server_info_python">Python：</string>
-    <string name="label_server_info_pytorch">PyTorch：</string>
 
     <!-- Toast messages -->
     <string name="msg_queue_cleared_success">队列已清空</string>

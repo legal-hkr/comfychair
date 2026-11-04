@@ -184,25 +184,27 @@
     <string name="content_description_new_result">Nuevo resultado</string>
 
     <!-- Configuration fragment strings -->
-    <string name="title_server_info">Información del servidor</string>
-    <string name="label_hostname">Nombre de host:</string>
-    <string name="label_port">Puerto:</string>
-    <string name="title_server_management">Gestión del servidor</string>
     <string name="button_clear_history">Borrar historial</string>
     <string name="button_refresh_models">Actualizar modelos</string>
+    <string name="button_free_memory">Liberar memoria</string>
+    <string name="button_unload_models">Descargar modelos</string>
+    <string name="msg_memory_freed">El servidor liberó su memoria</string>
+    <string name="msg_models_unloaded">Modelos descargados de la memoria</string>
+    <string name="error_free_memory">No se pudo liberar la memoria del servidor</string>
+    <string name="title_confirm_clear_history">¿Borrar el historial del servidor?</string>
+    <string name="msg_confirm_clear_history">Todos los resultados desaparecen del historial del servidor y de la galería. Los archivos permanecen en el disco del servidor.</string>
+    <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
+    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="title_server_software">Software</string>
+    <string name="label_operating_system">Sistema operativo</string>
+    <string name="title_server_maintenance">Mantenimiento</string>
     <string name="msg_models_refreshed_success">Modelos actualizados correctamente</string>
     <string name="error_models_refresh">Error al actualizar modelos</string>
 
     <!-- Resource usage strings -->
     <string name="title_ram_usage">RAM</string>
-    <string name="title_gpu_usage">GPU</string>
-    <string name="resource_usage_format">%1$.2f GB / %2$.2f GB usados</string>
 
     <!-- Server info labels -->
-    <string name="label_server_info_os">OS:</string>
-    <string name="label_server_info_comfyui">ComfyUI:</string>
-    <string name="label_server_info_python">Python:</string>
-    <string name="label_server_info_pytorch">PyTorch:</string>
 
     <!-- Toast messages -->
     <string name="msg_queue_cleared_success">Cola vaciada correctamente</string>
