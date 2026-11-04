@@ -709,7 +709,12 @@ class GenerationViewModel : ViewModel() {
     /**
      * Cancel the current generation
      */
-    fun cancelGeneration(onResult: (success: Boolean) -> Unit) {
+    /**
+     * Interrupt the running job.
+     *
+     * @param promptId Interrupt only this job (see [ComfyUIClient.interruptExecution]); null for whatever runs
+     */
+    fun cancelGeneration(promptId: String? = null, onResult: (success: Boolean) -> Unit) {
         DebugLogger.i(TAG, "Cancelling generation")
         val client = comfyUIClient ?: run {
             DebugLogger.w(TAG, "Cannot cancel: client not initialized")
@@ -718,7 +723,7 @@ class GenerationViewModel : ViewModel() {
         }
 
         val mainHandler = Handler(Looper.getMainLooper())
-        client.interruptExecution { success ->
+        client.interruptExecution(promptId) { success ->
             if (success) {
                 DebugLogger.i(TAG, "Generation cancelled successfully")
             } else {

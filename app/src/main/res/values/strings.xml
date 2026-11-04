@@ -93,6 +93,14 @@
     <string name="label_offline">Offline</string>
     <string name="content_description_queue_empty">Queue is empty</string>
     <string name="content_description_queue">Queue: %1$s</string>
+    <string name="label_step_of">Step %1$d of %2$d</string>
+    <string name="label_preparing">Preparing…</string>
+    <string name="content_description_cancel_job">Cancel this job</string>
+    <string name="content_description_generating_progress">Generating, %1$d%%</string>
+    <plurals name="label_more_queued">
+        <item quantity="one">%d more of yours queued</item>
+        <item quantity="other">%d more of yours queued</item>
+    </plurals>
     <plurals name="label_queue_own_jobs">
         <item quantity="one">%d of your jobs</item>
         <item quantity="other">%d of your jobs</item>

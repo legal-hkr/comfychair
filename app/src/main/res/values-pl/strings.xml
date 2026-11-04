@@ -119,6 +119,16 @@
     <string name="label_offline">Offline</string>
     <string name="content_description_queue_empty">Kolejka jest pusta</string>
     <string name="content_description_queue">Kolejka: %1$s</string>
+    <string name="label_step_of">Krok %1$d z %2$d</string>
+    <string name="label_preparing">Przygotowanie…</string>
+    <string name="content_description_cancel_job">Anuluj to zadanie</string>
+    <string name="content_description_generating_progress">Generowanie, %1$d %%</string>
+    <plurals name="label_more_queued">
+        <item quantity="one">W kolejce jeszcze %d Twoje zadanie</item>
+        <item quantity="few">W kolejce jeszcze %d Twoje zadania</item>
+        <item quantity="many">W kolejce jeszcze %d Twoich zadań</item>
+        <item quantity="other">W kolejce jeszcze %d Twojego zadania</item>
+    </plurals>
     <plurals name="label_queue_own_jobs">
         <item quantity="one">%d Twoje zadanie</item>
         <item quantity="few">%d Twoje zadania</item>

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -78,7 +79,6 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.AppMenuDropdown
 import sh.hnet.comfychair.ui.components.GenerationButton
-import sh.hnet.comfychair.ui.components.GenerationProgressBar
 import sh.hnet.comfychair.ui.components.PromptLibraryDialog
 import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.config.BottomSheetConfig
@@ -234,7 +234,8 @@ fun rememberPromptInputState(prompt: String): PromptInputState {
 }
 
 /**
- * Top app bar of a generation screen with the progress bar below it, shown while this screen's job runs.
+ * Top app bar of a generation screen: title, queue chip and the app menu. The running job's progress is shown on the
+ * preview ([ScreenJobStatus]).
  *
  * @param actions The screen's own actions (e.g. picking a source image), shown before the app menu
  */
@@ -249,7 +250,6 @@ fun GenerationTopBar(
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     val context = LocalContext.current
-    val generationState by generationViewModel.generationState.collectAsState()
     val queueState by JobRegistry.queueState.collectAsState()
     val isConnecting by ConnectionManager.isConnecting.collectAsState()
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -268,15 +268,25 @@ fun GenerationTopBar(
             AppMenuDropdown(onSettings = onNavigateToSettings, onLogout = onLogout)
         }
     )
+}
 
-    // Shown from the start of the job (empty until the step count is known), so it's clear the job runs
-    if (queueState.executingOwnerId == ownerId) {
-        GenerationProgressBar(
-            progress = generationState.progress,
-            maxProgress = generationState.maxProgress,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
+/**
+ * The status card of this screen's running job ([GenerationStatusCard]), shown only while it runs. Cancel interrupts
+ * only this job, not one that another client may have started meanwhile.
+ */
+@Composable
+fun BoxScope.ScreenJobStatus(ownerId: String, generationViewModel: GenerationViewModel) {
+    val generationState by generationViewModel.generationState.collectAsState()
+    val queueState by JobRegistry.queueState.collectAsState()
+    if (queueState.executingOwnerId != ownerId) return
+    val promptId = queueState.executingPromptId
+    GenerationStatusCard(
+        jobKey = promptId,
+        step = generationState.progress,
+        steps = generationState.maxProgress,
+        moreQueued = queueState.ownWaitingJobCount,
+        onCancel = { generationViewModel.cancelGeneration(promptId) { } }
+    )
 }
 
 /**

@@ -119,6 +119,14 @@
     <string name="label_offline">Offline</string>
     <string name="content_description_queue_empty">Warteschlange ist leer</string>
     <string name="content_description_queue">Warteschlange: %1$s</string>
+    <string name="label_step_of">Schritt %1$d von %2$d</string>
+    <string name="label_preparing">Vorbereitung…</string>
+    <string name="content_description_cancel_job">Diesen Auftrag abbrechen</string>
+    <string name="content_description_generating_progress">Generierung, %1$d %%</string>
+    <plurals name="label_more_queued">
+        <item quantity="one">%d weiterer eigener Auftrag in der Warteschlange</item>
+        <item quantity="other">%d weitere eigene Aufträge in der Warteschlange</item>
+    </plurals>
     <plurals name="label_queue_own_jobs">
         <item quantity="one">%d eigener Auftrag</item>
         <item quantity="other">%d eigene Aufträge</item>

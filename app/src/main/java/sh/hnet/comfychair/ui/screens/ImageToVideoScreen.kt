@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -272,6 +273,8 @@ fun ImageToVideoScreen(
                                 EmptyResultState()
                             }
                         }
+                        // Over the live frames while this screen's job runs
+                        ScreenJobStatus(ownerId, generationViewModel)
                     }
                 )
             }

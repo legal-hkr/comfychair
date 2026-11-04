@@ -119,6 +119,15 @@
     <string name="label_offline">Sin conexión</string>
     <string name="content_description_queue_empty">La cola está vacía</string>
     <string name="content_description_queue">Cola: %1$s</string>
+    <string name="label_step_of">Paso %1$d de %2$d</string>
+    <string name="label_preparing">Preparando…</string>
+    <string name="content_description_cancel_job">Cancelar este trabajo</string>
+    <string name="content_description_generating_progress">Generando, %1$d %%</string>
+    <plurals name="label_more_queued">
+        <item quantity="one">%d trabajo tuyo más en cola</item>
+        <item quantity="many">%d trabajos tuyos más en cola</item>
+        <item quantity="other">%d trabajos tuyos más en cola</item>
+    </plurals>
     <plurals name="label_queue_own_jobs">
         <item quantity="one">%d trabajo tuyo</item>
         <item quantity="many">%d trabajos tuyos</item>

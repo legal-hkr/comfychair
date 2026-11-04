@@ -119,6 +119,15 @@
     <string name="label_offline">Hors ligne</string>
     <string name="content_description_queue_empty">La file d\'attente est vide</string>
     <string name="content_description_queue">File d\'attente : %1$s</string>
+    <string name="label_step_of">Étape %1$d sur %2$d</string>
+    <string name="label_preparing">Préparation…</string>
+    <string name="content_description_cancel_job">Annuler cette tâche</string>
+    <string name="content_description_generating_progress">Génération, %1$d %%</string>
+    <plurals name="label_more_queued">
+        <item quantity="one">Encore %d tâche à vous en attente</item>
+        <item quantity="many">Encore %d tâches à vous en attente</item>
+        <item quantity="other">Encore %d tâches à vous en attente</item>
+    </plurals>
     <plurals name="label_queue_own_jobs">
         <item quantity="one">%d tâche à vous</item>
         <item quantity="many">%d tâches à vous</item>

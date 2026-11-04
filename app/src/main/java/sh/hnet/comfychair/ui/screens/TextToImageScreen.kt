@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -163,6 +164,8 @@ fun TextToImageScreen(
                     // Nothing generated yet
                     EmptyResultState()
                 }
+                // Over the live frames while this screen's job runs
+                ScreenJobStatus(ownerId, generationViewModel)
             }
         }
 

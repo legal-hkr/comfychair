@@ -119,6 +119,13 @@
     <string name="label_offline">离线</string>
     <string name="content_description_queue_empty">队列为空</string>
     <string name="content_description_queue">队列：%1$s</string>
+    <string name="label_step_of">第 %1$d 步，共 %2$d 步</string>
+    <string name="label_preparing">正在准备…</string>
+    <string name="content_description_cancel_job">取消此任务</string>
+    <string name="content_description_generating_progress">正在生成，%1$d%%</string>
+    <plurals name="label_more_queued">
+        <item quantity="other">你还有 %d 个任务在排队</item>
+    </plurals>
     <plurals name="label_queue_own_jobs">
         <item quantity="other">你的任务 %d 个</item>
     </plurals>

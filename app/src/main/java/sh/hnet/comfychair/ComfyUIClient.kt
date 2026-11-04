@@ -1332,9 +1332,11 @@ class ComfyUIClient(
      * Interrupt/cancel the currently running execution
      * Posts to the /interrupt endpoint to stop the current generation
      *
+     * @param promptId Interrupt only this job: the server then leaves another client's running job alone. Servers
+     *   that don't know the field ignore it and interrupt whatever runs, as without it.
      * @param callback Called with the result: success true/false
      */
-    fun interruptExecution(callback: (success: Boolean) -> Unit) {
+    fun interruptExecution(promptId: String? = null, callback: (success: Boolean) -> Unit) {
         DebugLogger.i(TAG, "Interrupting execution")
         val baseUrl = getBaseUrl() ?: run {
             DebugLogger.w(TAG, "Cannot interrupt: no connection")
@@ -1346,7 +1348,10 @@ class ComfyUIClient(
 
         val request = Request.Builder()
             .url(url)
-            .post("{}".toRequestBody("application/json".toMediaType()))
+            .post(
+                (if (promptId != null) JSONObject().put("prompt_id", promptId).toString() else "{}")
+                    .toRequestBody("application/json".toMediaType())
+            )
             .build()
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
