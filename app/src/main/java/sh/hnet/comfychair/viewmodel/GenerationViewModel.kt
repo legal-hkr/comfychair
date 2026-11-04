@@ -807,14 +807,10 @@ class GenerationViewModel : ViewModel() {
 
             val outputs = historyJson.optJSONObject(promptId)?.optJSONObject("outputs")
             if (outputs != null && outputs.length() > 0) {
-                val event = if (contentType == ContentType.VIDEO) {
-                    GenerationEvent.VideoGenerated(promptId)
-                } else {
-                    GenerationEvent.ImageGenerated(promptId)
-                }
-                dispatchEvent(event)
-                completeGeneration(promptId)
-                // Gallery refresh handled by JobRegistry.markCompleted() via WebSocket event
+                // Same completion as the other paths, including marking the job done in JobRegistry: polling runs
+                // exactly when no WebSocket completion event will come (e.g. after an app restart the server sends the
+                // job's events to the client id that submitted it, not to ours)
+                dispatchCompletionEvent(promptId, contentType)
             }
         }
     }

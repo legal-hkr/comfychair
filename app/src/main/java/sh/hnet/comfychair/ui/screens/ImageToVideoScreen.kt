@@ -100,7 +100,7 @@ fun ImageToVideoScreen(
     val isThisScreenExecuting = queueState.executingOwnerId == ownerId
     // Several results of the last job are shown as a pager with a thumbnail strip
     val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
-    val isThisScreenQueued = !isThisScreenExecuting && queueState.ownJobs.values.any { it.ownerId == ownerId }
+    val isThisScreenQueued = !isThisScreenExecuting && queueState.hasWaitingJob(ownerId)
     val videoUri = uiState.currentVideoUri
     val sourceImage = uiState.sourceImage
     val previewBitmap = uiState.previewBitmap

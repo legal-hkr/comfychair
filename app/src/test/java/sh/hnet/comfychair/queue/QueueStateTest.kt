@@ -34,4 +34,15 @@ class QueueStateTest {
         val state = QueueState(totalQueueSize = 0, ownJobs = mapOf(job("a", JobStatus.PENDING)))
         assertEquals(0, state.otherJobCount)
     }
+
+    @Test
+    fun onlyWaitingJobsMakeAScreenBusy() {
+        // After a restart, finished jobs stay tracked until they are cleaned up
+        val finished = QueueState(ownJobs = mapOf(job("a", JobStatus.COMPLETED), job("b", JobStatus.FAILED)))
+        assertEquals(false, finished.hasWaitingJob("TEXT_TO_IMAGE"))
+
+        val waiting = QueueState(ownJobs = mapOf(job("a", JobStatus.COMPLETED), job("c", JobStatus.PENDING)))
+        assertEquals(true, waiting.hasWaitingJob("TEXT_TO_IMAGE"))
+        assertEquals(false, waiting.hasWaitingJob("IMAGE_TO_VIDEO"))
+    }
 }
