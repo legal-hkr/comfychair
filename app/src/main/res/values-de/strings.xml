@@ -329,6 +329,17 @@
         <item quantity="one">%d ausgewählt</item>
         <item quantity="other">%d ausgewählt</item>
     </plurals>
+    <plurals name="label_gallery_subtitle">
+        <item quantity="one">Serververlauf – %d Element</item>
+        <item quantity="other">Serververlauf – %d Elemente</item>
+    </plurals>
+    <string name="button_select_all">Alle auswählen</string>
+    <string name="title_delete_selected">Vom Server löschen?</string>
+    <plurals name="msg_delete_selected">
+        <item quantity="one">Das ausgewählte Element wird aus dem Serververlauf gelöscht.</item>
+        <item quantity="other">%d ausgewählte Elemente werden aus dem Serververlauf gelöscht.</item>
+    </plurals>
+    <string name="msg_delete_whole_jobs">Die übrigen Ergebnisse derselben Aufträge werden mitgelöscht.</string>
     <string name="button_gallery_select">Elemente auswählen</string>
     <string name="button_cancel_selection">Auswahl aufheben</string>
     <string name="label_item_selected">Ausgewählt</string>

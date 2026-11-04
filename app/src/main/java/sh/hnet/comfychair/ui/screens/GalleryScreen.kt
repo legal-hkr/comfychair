@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package sh.hnet.comfychair.ui.screens
 
@@ -7,10 +7,15 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +25,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -28,8 +34,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
@@ -38,32 +44,49 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.SelectAll
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.MediaViewerActivity
 import sh.hnet.comfychair.R
@@ -74,6 +97,7 @@ import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.PlayBadge
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
 import sh.hnet.comfychair.viewmodel.GalleryItem
@@ -177,6 +201,15 @@ fun GalleryScreen(
 
     // Grid state for scroll tracking
     val gridState = rememberLazyGridState()
+    // Adaptive columns: as many as the grid lays out
+    val gridColumns by remember {
+        derivedStateOf { (gridState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 1) + 1 }
+    }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    // A selection doesn't outlive the tab: the navigation bar is hidden while selecting
+    DisposableEffect(Unit) { onDispose { galleryViewModel.clearSelection() } }
 
     // Create prefetch items list from gallery items
     val prefetchItems = remember(uiState.items) {
@@ -200,7 +233,7 @@ fun GalleryScreen(
                 firstVisibleIndex = gridState.firstVisibleItemIndex,
                 visibleItemCount = gridState.layoutInfo.visibleItemsInfo.size,
                 allItems = prefetchItems,
-                columnsInGrid = 2
+                columnsInGrid = gridColumns
             )
         }
     }
@@ -227,148 +260,215 @@ fun GalleryScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                if (uiState.isSelectionMode) {
-                    Text(pluralStringResource(R.plurals.gallery_selected_count, uiState.selectedItems.size, uiState.selectedItems.size))
-                } else {
-                    Text(stringResource(R.string.title_gallery))
-                }
-            },
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            navigationIcon = {
-                if (uiState.isSelectionMode) {
-                    IconButton(onClick = { galleryViewModel.clearSelection() }) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.button_cancel_selection))
-                    }
-                }
-            },
-            actions = {
-                if (uiState.isSelectionMode) {
-                    // Selection mode actions: Delete, Save, and Share
-                    IconButton(onClick = { galleryViewModel.deleteSelected() }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.button_delete_history_item),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    IconButton(onClick = { galleryViewModel.saveSelectedToGallery(context) }) {
-                        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.button_save_image))
-                    }
-                    IconButton(onClick = { galleryViewModel.shareSelected(context) }) {
-                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.button_share))
-                    }
-                } else {
-                    // Normal mode action: Select
-                    IconButton(onClick = { galleryViewModel.enterSelectionMode() }) {
-                        Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.button_gallery_select))
-                    }
-                }
-            }
-        )
-
-        PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = { galleryViewModel.manualRefresh() },
-            modifier = Modifier.fillMaxSize()
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
-            // Always use LazyVerticalGrid for consistent nested scroll behavior with pull-to-refresh
-            NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    state = gridState,
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                if (uiState.isLoading && uiState.items.isEmpty()) {
-                    // Loading state - show as full-span item
-                    item(span = { GridItemSpan(2) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            LoadingIndicator()
-                        }
-                    }
-                } else if (uiState.items.isEmpty()) {
-                    // Empty state - show as full-span item
-                    item(span = { GridItemSpan(2) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                                Text(
-                                    text = stringResource(R.string.msg_gallery_empty),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // Gallery items
-                    items(uiState.items, key = { item -> "${item.promptId}_${item.filename}" }) { item ->
-                        GalleryItemCard(
-                            item = item,
-                            isSelected = galleryViewModel.isItemSelected(item),
-                            isOfflineMode = isOfflineMode,
-                            onTap = {
-                                if (uiState.isSelectionMode) {
-                                    // In selection mode, tap toggles selection
-                                    galleryViewModel.toggleSelection(item)
-                                } else {
-                                    // Normal mode, tap opens MediaViewer. The position is looked up now: the
-                                    // list may have changed (refresh) since this card was composed
-                                    val index = uiState.items.indexOfFirst {
-                                        it.promptId == item.promptId && it.filename == item.filename
-                                    }
-                                    if (index >= 0) launchMediaViewer(index)
+            GalleryTopBar(
+                selecting = uiState.isSelectionMode,
+                selectedCount = uiState.selectedItems.size,
+                itemCount = uiState.items.size,
+                scrollBehavior = scrollBehavior,
+                onSelect = { galleryViewModel.enterSelectionMode() },
+                onSelectAll = { galleryViewModel.selectAll() },
+                onCloseSelection = { galleryViewModel.clearSelection() }
+            )
+
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { galleryViewModel.manualRefresh() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Always use LazyVerticalGrid for consistent nested scroll behavior with pull-to-refresh
+                NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(160.dp),
+                        state = gridState,
+                        // Room under the last row for the selection toolbar
+                        contentPadding = PaddingValues(bottom = if (uiState.isSelectionMode) 96.dp else 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp)
+                            // The grid is one block with rounded top corners, as the generation preview
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    ) {
+                        if (uiState.isLoading && uiState.items.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    LoadingIndicator()
                                 }
-                            },
-                            onLongPress = {
-                                // Long press enters selection mode and selects this item
-                                galleryViewModel.toggleSelection(item)
                             }
-                        )
+                        } else if (uiState.items.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.Image,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(64.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.msg_gallery_empty),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(uiState.items, key = { item -> "${item.promptId}_${item.filename}" }) { item ->
+                                GalleryTile(
+                                    item = item,
+                                    selecting = uiState.isSelectionMode,
+                                    isSelected = "${item.promptId}_${item.filename}" in uiState.selectedItems,
+                                    isOfflineMode = isOfflineMode,
+                                    onTap = {
+                                        if (uiState.isSelectionMode) {
+                                            galleryViewModel.toggleSelection(item)
+                                        } else {
+                                            // The position is looked up now: the list may have changed (refresh)
+                                            // since this tile was composed
+                                            val index = uiState.items.indexOfFirst {
+                                                it.promptId == item.promptId && it.filename == item.filename
+                                            }
+                                            if (index >= 0) launchMediaViewer(index)
+                                        }
+                                    },
+                                    // Long press enters selection mode and selects this item
+                                    onLongPress = { galleryViewModel.toggleSelection(item) }
+                                )
+                            }
+                        }
                     }
-                }
                 }
             }
         }
+
+        // Selection actions, where the navigation bar was: Delete apart from Save and Share
+        AnimatedVisibility(
+            visible = uiState.isSelectionMode,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp)
+        ) {
+            val hasSelection = uiState.selectedItems.isNotEmpty()
+            HorizontalFloatingToolbar(expanded = true) {
+                TooltipIconButton(
+                    Icons.Rounded.Delete,
+                    stringResource(R.string.button_delete_history_item),
+                    { confirmDelete = true },
+                    enabled = hasSelection,
+                    tint = MaterialTheme.colorScheme.error
+                )
+                VerticalDivider(Modifier.height(24.dp).padding(horizontal = 4.dp))
+                TooltipIconButton(
+                    Icons.Rounded.Download,
+                    stringResource(R.string.button_save_image),
+                    { galleryViewModel.saveSelectedToGallery(context) },
+                    enabled = hasSelection
+                )
+                TooltipIconButton(
+                    Icons.Rounded.Share,
+                    stringResource(R.string.button_share),
+                    { galleryViewModel.shareSelected(context) },
+                    enabled = hasSelection
+                )
+            }
+        }
+    }
+
+    if (confirmDelete) {
+        val count = uiState.selectedItems.size
+        val deletesMore = remember { galleryViewModel.selectionDeletesOtherResults() }
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.title_delete_selected)) },
+            text = {
+                val message = pluralStringResource(R.plurals.msg_delete_selected, count, count)
+                Text(if (deletesMore) message + " " + stringResource(R.string.msg_delete_whole_jobs) else message)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    galleryViewModel.deleteSelected()
+                }) { Text(stringResource(R.string.button_delete), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
     }
 }
 
 /**
- * Gallery item card with lazy bitmap loading.
- * Bitmaps are loaded from MediaCache on-demand.
+ * The gallery's top bar: the title and the number of items, collapsing on scroll; while selecting, Close, the number
+ * selected and Select all.
  */
 @Composable
-private fun GalleryItemCard(
+private fun GalleryTopBar(
+    selecting: Boolean,
+    selectedCount: Int,
+    itemCount: Int,
+    scrollBehavior: TopAppBarScrollBehavior,
+    onSelect: () -> Unit,
+    onSelectAll: () -> Unit,
+    onCloseSelection: () -> Unit
+) {
+    MediumFlexibleTopAppBar(
+        title = {
+            Text(
+                if (selecting) pluralStringResource(R.plurals.gallery_selected_count, selectedCount, selectedCount)
+                else stringResource(R.string.title_gallery)
+            )
+        },
+        subtitle = if (!selecting && itemCount > 0) {
+            { Text(pluralStringResource(R.plurals.label_gallery_subtitle, itemCount, itemCount)) }
+        } else null,
+        navigationIcon = {
+            if (selecting) TooltipIconButton(Icons.Rounded.Close, stringResource(R.string.button_cancel_selection), onCloseSelection)
+        },
+        actions = {
+            if (selecting) {
+                TooltipIconButton(Icons.Rounded.SelectAll, stringResource(R.string.button_select_all), onSelectAll)
+            } else {
+                TooltipIconButton(Icons.Rounded.Checklist, stringResource(R.string.button_gallery_select), onSelect)
+            }
+        },
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        scrollBehavior = scrollBehavior
+    )
+}
+
+/**
+ * A gallery tile with lazy bitmap loading from MediaCache. While selecting, a selected tile shrinks onto a tonal
+ * container with rounder corners and a check; the others show an empty circle.
+ */
+@Composable
+private fun GalleryTile(
     item: GalleryItem,
+    selecting: Boolean,
     isSelected: Boolean,
     isOfflineMode: Boolean = false,
     onTap: () -> Unit,
     onLongPress: () -> Unit
 ) {
-    // The gesture detector below starts once; it must call the current callbacks, not the first ones
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnLongPress by rememberUpdatedState(onLongPress)
-
     // Create cache key directly from item's stable properties
     val cacheKey = item.toCacheKey()
     val (bitmap, isLoading) = rememberLazyBitmap(
@@ -377,28 +477,22 @@ private fun GalleryItemCard(
         subfolder = item.subfolder,
         type = item.type
     )
+    val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Dp>()
+    val inset by animateDpAsState(if (isSelected) 10.dp else 0.dp, spec, label = "tile inset")
+    val outerCorner by animateDpAsState(if (isSelected) 20.dp else 6.dp, spec, label = "tile corner")
+    val innerCorner by animateDpAsState(if (isSelected) 12.dp else 6.dp, spec, label = "image corner")
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .then(
-                if (isSelected) {
-                    Modifier.border(
-                        width = 3.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.medium
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { currentOnTap() },
-                    onLongPress = { currentOnLongPress() }
-                )
-            }
+            .clip(RoundedCornerShape(outerCorner.coerceAtLeast(0.dp)))
+            .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+            .combinedClickable(onClick = onTap, onLongClick = onLongPress)
+            .then(if (selecting) Modifier.semantics { selected = isSelected } else Modifier)
+            // The spring overshoots a little: on the way back to 0 it would go negative
+            .padding(inset.coerceAtLeast(0.dp))
+            .clip(RoundedCornerShape(innerCorner.coerceAtLeast(0.dp)))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Thumbnail from cache
@@ -448,27 +542,30 @@ private fun GalleryItemCard(
                                 null
                             },
                             modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
 
-            // Selection indicator
-            if (isSelected) {
+            // Selection mark: a check when selected, an empty circle otherwise
+            if (selecting) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)
                         .size(24.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = stringResource(R.string.label_item_selected),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = if (isSelected) Icons.Rounded.Check else Icons.Rounded.RadioButtonUnchecked,
+                        contentDescription = if (isSelected) stringResource(R.string.label_item_selected) else null,
+                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(if (isSelected) 18.dp else 22.dp)
                     )
                 }
             }

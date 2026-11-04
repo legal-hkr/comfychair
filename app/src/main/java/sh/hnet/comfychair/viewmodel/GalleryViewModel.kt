@@ -195,6 +195,21 @@ class GalleryViewModel : ViewModel() {
         _isSelectionMode.value = true
     }
 
+    fun selectAll() {
+        _selectedItems.value = uiState.value.items.map { getItemKey(it) }.toSet()
+        _isSelectionMode.value = true
+    }
+
+    /**
+     * Whether deleting the selection also deletes results that aren't selected: the server deletes whole jobs, so the
+     * other results of a job with a selected result go too.
+     */
+    fun selectionDeletesOtherResults(): Boolean {
+        val selected = getSelectedItems()
+        val jobs = selected.map { it.promptId }.toSet()
+        return uiState.value.items.count { it.promptId in jobs } > selected.size
+    }
+
     fun deleteSelected() {
         val selectedItems = getSelectedItems()
         if (selectedItems.isEmpty()) return

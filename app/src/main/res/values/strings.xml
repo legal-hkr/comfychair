@@ -328,6 +328,17 @@
         <item quantity="one">%d selected</item>
         <item quantity="other">%d selected</item>
     </plurals>
+    <plurals name="label_gallery_subtitle">
+        <item quantity="one">Server history – %d item</item>
+        <item quantity="other">Server history – %d items</item>
+    </plurals>
+    <string name="button_select_all">Select all</string>
+    <string name="title_delete_selected">Delete from the server?</string>
+    <plurals name="msg_delete_selected">
+        <item quantity="one">The selected item will be deleted from the server history.</item>
+        <item quantity="other">%d selected items will be deleted from the server history.</item>
+    </plurals>
+    <string name="msg_delete_whole_jobs">The other results of the same jobs will be deleted with them.</string>
     <string name="button_gallery_select">Select items</string>
     <string name="button_cancel_selection">Cancel selection</string>
     <string name="label_item_selected">Selected</string>

@@ -324,6 +324,21 @@
         <item quantity="many">Zaznaczono: %d</item>
         <item quantity="other">Zaznaczono: %d</item>
     </plurals>
+    <plurals name="label_gallery_subtitle">
+        <item quantity="one">Historia serwera – %d element</item>
+        <item quantity="few">Historia serwera – %d elementy</item>
+        <item quantity="many">Historia serwera – %d elementów</item>
+        <item quantity="other">Historia serwera – %d elementu</item>
+    </plurals>
+    <string name="button_select_all">Zaznacz wszystko</string>
+    <string name="title_delete_selected">Usunąć z serwera?</string>
+    <plurals name="msg_delete_selected">
+        <item quantity="one">Zaznaczony element zniknie z historii serwera.</item>
+        <item quantity="few">%d zaznaczone elementy znikną z historii serwera.</item>
+        <item quantity="many">%d zaznaczonych elementów zniknie z historii serwera.</item>
+        <item quantity="other">Zaznaczone elementy (%d) znikną z historii serwera.</item>
+    </plurals>
+    <string name="msg_delete_whole_jobs">Razem z nimi znikną pozostałe wyniki tych samych zadań.</string>
     <string name="button_gallery_select">Zaznacz elementy</string>
     <string name="button_cancel_selection">Anuluj zaznaczenie</string>
     <string name="label_item_selected">Zaznaczono</string>

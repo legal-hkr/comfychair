@@ -1,12 +1,15 @@
 package sh.hnet.comfychair.ui.navigation
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.imePadding
@@ -31,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -171,15 +175,25 @@ fun MainNavHost(
         }
     }
 
+    // The gallery's selection toolbar takes the navigation bar's place
+    val galleryState by galleryViewModel.uiState.collectAsState()
+    val gallerySelecting = currentScreen == MainRoute.Gallery && galleryState.isSelectionMode
+
     Scaffold(
         bottomBar = {
-            MainNavigationBar(
-                navController = navController,
-                lastImageRoute = mainRouteOf(lastImageRoute) ?: MainRoute.TextToImage,
-                lastVideoRoute = mainRouteOf(lastVideoRoute) ?: MainRoute.TextToVideo,
-                ownJobs = ownJobsPerTab,
-                unseenResults = unseenResults.toSet()
-            )
+            AnimatedVisibility(
+                visible = !gallerySelecting,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                MainNavigationBar(
+                    navController = navController,
+                    lastImageRoute = mainRouteOf(lastImageRoute) ?: MainRoute.TextToImage,
+                    lastVideoRoute = mainRouteOf(lastVideoRoute) ?: MainRoute.TextToVideo,
+                    ownJobs = ownJobsPerTab,
+                    unseenResults = unseenResults.toSet()
+                )
+            }
         },
         snackbarHost = {
             // Above the generation screens' controls (prompt and Generate), so it doesn't cover them

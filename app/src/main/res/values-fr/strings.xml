@@ -319,6 +319,19 @@
         <item quantity="many">%d sélectionnés</item>
         <item quantity="other">%d sélectionnés</item>
     </plurals>
+    <plurals name="label_gallery_subtitle">
+        <item quantity="one">Historique du serveur – %d élément</item>
+        <item quantity="many">Historique du serveur – %d éléments</item>
+        <item quantity="other">Historique du serveur – %d éléments</item>
+    </plurals>
+    <string name="button_select_all">Tout sélectionner</string>
+    <string name="title_delete_selected">Supprimer du serveur ?</string>
+    <plurals name="msg_delete_selected">
+        <item quantity="one">L’élément sélectionné sera supprimé de l’historique du serveur.</item>
+        <item quantity="many">%d éléments sélectionnés seront supprimés de l’historique du serveur.</item>
+        <item quantity="other">%d éléments sélectionnés seront supprimés de l’historique du serveur.</item>
+    </plurals>
+    <string name="msg_delete_whole_jobs">Les autres résultats des mêmes tâches seront supprimés avec eux.</string>
     <string name="button_gallery_select">Sélectionner des éléments</string>
     <string name="button_cancel_selection">Annuler la sélection</string>
     <string name="label_item_selected">Sélectionné</string>

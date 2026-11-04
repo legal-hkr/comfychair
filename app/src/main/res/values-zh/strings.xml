@@ -309,6 +309,15 @@
     <plurals name="gallery_selected_count">
         <item quantity="other">已选择 %d 项</item>
     </plurals>
+    <plurals name="label_gallery_subtitle">
+        <item quantity="other">服务器历史 – %d 项</item>
+    </plurals>
+    <string name="button_select_all">全选</string>
+    <string name="title_delete_selected">从服务器删除？</string>
+    <plurals name="msg_delete_selected">
+        <item quantity="other">将从服务器历史中删除 %d 个所选项目。</item>
+    </plurals>
+    <string name="msg_delete_whole_jobs">同一任务的其他结果也会一并删除。</string>
     <string name="button_gallery_select">选择项目</string>
     <string name="button_cancel_selection">取消选择</string>
     <string name="label_item_selected">已选择</string>

@@ -319,6 +319,19 @@
         <item quantity="many">%d seleccionados</item>
         <item quantity="other">%d seleccionados</item>
     </plurals>
+    <plurals name="label_gallery_subtitle">
+        <item quantity="one">Historial del servidor – %d elemento</item>
+        <item quantity="many">Historial del servidor – %d elementos</item>
+        <item quantity="other">Historial del servidor – %d elementos</item>
+    </plurals>
+    <string name="button_select_all">Seleccionar todo</string>
+    <string name="title_delete_selected">¿Eliminar del servidor?</string>
+    <plurals name="msg_delete_selected">
+        <item quantity="one">El elemento seleccionado se eliminará del historial del servidor.</item>
+        <item quantity="many">Se eliminarán %d elementos seleccionados del historial del servidor.</item>
+        <item quantity="other">Se eliminarán %d elementos seleccionados del historial del servidor.</item>
+    </plurals>
+    <string name="msg_delete_whole_jobs">Los demás resultados de los mismos trabajos también se eliminarán.</string>
     <string name="button_gallery_select">Seleccionar elementos</string>
     <string name="button_cancel_selection">Cancelar selección</string>
     <string name="label_item_selected">Seleccionado</string>
