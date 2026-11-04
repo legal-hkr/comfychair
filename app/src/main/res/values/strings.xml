@@ -350,6 +350,21 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Editing</string>
     <string name="label_workflow">Workflow</string>
+    <string name="label_section_quick">Quick</string>
+    <string name="label_section_sampling">Sampling</string>
+    <string name="label_section_lora">LoRA</string>
+    <string name="label_section_models">Models</string>
+    <string name="label_no_loras">No LoRA</string>
+    <string name="content_description_show_section">Show %1$s</string>
+    <string name="content_description_hide_section">Hide %1$s</string>
+    <plurals name="label_lora_count">
+        <item quantity="one">%d LoRA</item>
+        <item quantity="other">%d LoRAs</item>
+    </plurals>
+    <plurals name="label_models_count">
+        <item quantity="one">%d model</item>
+        <item quantity="other">%d models</item>
+    </plurals>
     <string name="button_view_workflow">View workflow</string>
     <string name="label_checkpoint" translatable="false">Checkpoint</string>
     <string name="label_unet" translatable="false">UNET</string>

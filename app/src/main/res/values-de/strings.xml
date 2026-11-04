@@ -351,6 +351,21 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Bearbeitung</string>
     <string name="label_workflow">Workflow</string>
+    <string name="label_section_quick">Schnell</string>
+    <string name="label_section_sampling">Sampling</string>
+    <string name="label_section_lora">LoRA</string>
+    <string name="label_section_models">Modelle</string>
+    <string name="label_no_loras">Keine LoRA</string>
+    <string name="content_description_show_section">%1$s anzeigen</string>
+    <string name="content_description_hide_section">%1$s ausblenden</string>
+    <plurals name="label_lora_count">
+        <item quantity="one">%d LoRA</item>
+        <item quantity="other">%d LoRAs</item>
+    </plurals>
+    <plurals name="label_models_count">
+        <item quantity="one">%d Modell</item>
+        <item quantity="other">%d Modelle</item>
+    </plurals>
     <string name="label_width">Breite</string>
     <string name="label_height">Höhe</string>
     <string name="label_steps">Schritte</string>

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -85,12 +86,15 @@ import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.config.BottomSheetConfig
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
+import sh.hnet.comfychair.ui.components.config.OptionField
 import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
+import sh.hnet.comfychair.ui.components.config.optionsLayout
 import sh.hnet.comfychair.ui.components.shared.PromptPresetDropdown
 import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransformation
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
+import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.PromptPresetEvent
 import sh.hnet.comfychair.viewmodel.PromptPresetUiState
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
@@ -592,7 +596,8 @@ fun generationCallbacks(
 )
 
 /**
- * Options bottom sheet of a generation screen.
+ * Options sheet of a generation screen, laid out by [optionsLayout]: small workflows as a flat list opening at content
+ * height (the preview stays visible), large ones with sections opening at full height.
  *
  * @param extraCallbacks Adds the screen's own callbacks (Image to Image: mode, reference images)
  * @param buildConfig The sheet configuration for the screen's state
@@ -608,31 +613,57 @@ fun GenerationOptionsSheet(
     extraCallbacks: (UnifiedCallbacks) -> UnifiedCallbacks = { it },
     buildConfig: (UnifiedCallbacks) -> BottomSheetConfig
 ) {
-    if (!visible) return
+    // Stays composed while it slides away, also when closed by the Options button in its footer
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) { if (visible) shown = true }
+    if (!shown) return
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // Read when tapped, so the editor opens the workflow selected at that moment
     val selectedWorkflowId by rememberUpdatedState(state.selectedWorkflowId)
+    val callbacks = remember(viewModel) {
+        extraCallbacks(
+            generationCallbacks(viewModel) {
+                selectedWorkflowId.takeIf { it.isNotEmpty() }?.let { workflowId ->
+                    context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
+                }
+            }
+        )
+    }
+    val config = remember(state, callbacks) { buildConfig(callbacks) }
+    val layout = remember(state.capabilities, config.itiConfig?.mode) {
+        val iti = config.itiConfig
+        optionsLayout(
+            state.capabilities,
+            setOfNotNull(
+                // Until the prompt editor takes it
+                OptionField.NEGATIVE_PROMPT,
+                // Until the workflow menu chooses the mode
+                OptionField.MODE.takeIf { iti != null },
+                OptionField.REFERENCE_IMAGES.takeIf {
+                    iti != null && iti.mode == ImageToImageMode.EDITING && (iti.hasReferenceImage1 || iti.hasReferenceImage2)
+                }
+            )
+        )
+    }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = layout.sectioned)
+    LaunchedEffect(visible) {
+        if (!visible) {
+            sheetState.hide()
+            shown = false
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
-        val callbacks = remember(viewModel) {
-            extraCallbacks(
-                generationCallbacks(viewModel) {
-                    selectedWorkflowId.takeIf { it.isNotEmpty() }?.let { workflowId ->
-                        context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
-                    }
-                }
-            )
-        }
-        val config = remember(state, callbacks) { buildConfig(callbacks) }
         ConfigBottomSheetContent(
             config = config,
-            workflowName = state.selectedWorkflow,
-            spellCheckEnabled = spellCheckEnabled
+            layout = layout,
+            workflowId = state.selectedWorkflowId,
+            spellCheckEnabled = spellCheckEnabled,
+            modifier = Modifier.navigationBarsPadding()
         )
     }
 }

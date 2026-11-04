@@ -331,6 +331,19 @@
     <string name="option_mode_inpainting">修复</string>
     <string name="option_mode_editing">编辑</string>
     <string name="label_workflow">工作流</string>
+    <string name="label_section_quick">常用</string>
+    <string name="label_section_sampling">采样</string>
+    <string name="label_section_lora">LoRA</string>
+    <string name="label_section_models">模型</string>
+    <string name="label_no_loras">无 LoRA</string>
+    <string name="content_description_show_section">显示%1$s</string>
+    <string name="content_description_hide_section">隐藏%1$s</string>
+    <plurals name="label_lora_count">
+        <item quantity="other">%d 个 LoRA</item>
+    </plurals>
+    <plurals name="label_models_count">
+        <item quantity="other">%d 个模型</item>
+    </plurals>
     <string name="label_width">宽度</string>
     <string name="label_height">高度</string>
     <string name="label_steps">步数</string>

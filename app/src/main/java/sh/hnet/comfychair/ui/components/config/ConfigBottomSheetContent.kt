@@ -1,97 +1,397 @@
 package sh.hnet.comfychair.ui.components.config
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.model.SamplerOptions
-import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
-import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransformation
 import sh.hnet.comfychair.ui.components.LoraChainEditor
-import sh.hnet.comfychair.ui.components.shared.DimensionStepperRow
+import sh.hnet.comfychair.ui.components.shared.ChoiceRow
+import sh.hnet.comfychair.ui.components.shared.ConstrainedNumberField
 import sh.hnet.comfychair.ui.components.shared.GenericWorkflowDropdown
-import sh.hnet.comfychair.ui.components.shared.LengthFpsRow
-import sh.hnet.comfychair.ui.components.shared.MegapixelsField
-import sh.hnet.comfychair.ui.components.shared.ClipLayerField
-import sh.hnet.comfychair.ui.components.shared.DenoiseBatchRow
-import sh.hnet.comfychair.ui.components.shared.ModelDropdown
+import sh.hnet.comfychair.ui.components.shared.NumberParameter
 import sh.hnet.comfychair.ui.components.shared.ReferenceImageThumbnail
-import sh.hnet.comfychair.ui.components.shared.ScaleByField
 import sh.hnet.comfychair.ui.components.shared.SeedRow
-import sh.hnet.comfychair.ui.components.shared.StepsCfgRow
+import sh.hnet.comfychair.ui.components.shared.rememberSpellCheckVisualTransformation
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 
+/** One line of the sheet's list. */
+private sealed interface SheetItem {
+    val key: String
+
+    data class Fields(val row: List<OptionField>, val index: Int) : SheetItem {
+        override val key get() = "row-${row.joinToString()}-$index"
+    }
+    data class Header(val section: OptionsSection, val collapsible: Boolean) : SheetItem {
+        override val key get() = "header-$section"
+    }
+    /** Choices next to each other (models, sampler…), shown as one group of list rows. */
+    data class Choices(val fields: List<OptionField>) : SheetItem {
+        override val key get() = "choices-${fields.joinToString()}"
+    }
+    data class Summary(val section: OptionsSection) : SheetItem {
+        override val key get() = "summary-$section"
+    }
+}
+
+/** Sections that collapse to a summary in a large workflow; Quick always stays open. */
+private val collapsibleSections = setOf(OptionsSection.SAMPLING, OptionsSection.LORA, OptionsSection.MODELS)
+
 /**
- * Unified configuration bottom sheet content.
- * All fields are driven by the BottomSheetConfig data class.
+ * Options sheet content, laid out by [layout]: the workflow first, then (in large workflows) section headers, Quick
+ * always open, and Sampling, Models and LoRA collapsed to a summary row whose open state is remembered per workflow.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigBottomSheetContent(
     config: BottomSheetConfig,
-    workflowName: String,
+    layout: OptionsLayout,
+    workflowId: String,
     spellCheckEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    NoOverscrollContainer {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // 1. Negative Prompt (at top)
-            if (config.prompts.hasNegativePrompt) {
-                NegativePromptSection(config.prompts, spellCheckEnabled)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+    val context = LocalContext.current
+    val listState = rememberLazyListState()
+    val workflowName = config.workflow.selectedWorkflow
 
-            // 2. ITI Reference Images (if applicable)
-            config.itiConfig?.let { itiConfig ->
-                ReferenceImagesSection(itiConfig)
-            }
-
-            // 3. ITI Mode Selector (if applicable)
-            config.itiConfig?.let { itiConfig ->
-                ModeSelector(itiConfig)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // 4. Workflow Dropdown
-            WorkflowSection(config.workflow)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 5. Model Selection Section
-            ModelSelectionSection(config.models)
-
-            // 6. Generation Parameters Section
-            ParametersSection(config.parameters, workflowName)
-
-            // 7. LoRA Section (including single LoRA dropdowns at the bottom)
-            LoraSection(config.lora, config.models)
+    // Open sections of this workflow; read once from preferences, then kept here
+    val expanded = remember(workflowId) {
+        mutableStateMapOf<OptionsSection, Boolean>().apply {
+            collapsibleSections.forEach { put(it, OptionsSectionPrefs.isExpanded(context, workflowId, it)) }
         }
+    }
+    fun setExpanded(section: OptionsSection, value: Boolean) {
+        expanded[section] = value
+        OptionsSectionPrefs.setExpanded(context, workflowId, section, value)
+    }
+
+    val items = buildList {
+        layout.sections.forEach { section ->
+            val title = section.section
+            if (layout.sectioned && title != null && title != OptionsSection.WORKFLOW) {
+                val collapsible = title in collapsibleSections
+                add(SheetItem.Header(title, collapsible))
+                if (collapsible && expanded[title] != true) {
+                    add(SheetItem.Summary(title))
+                    return@forEach
+                }
+            }
+            section.rows.forEachIndexed { index, row ->
+                val choice = row.singleOrNull()?.takeIf { it in choiceFields }
+                val last = lastOrNull()
+                when {
+                    choice == null -> add(SheetItem.Fields(row, index))
+                    // Joins the group of choices right before it
+                    last is SheetItem.Choices -> set(lastIndex, SheetItem.Choices(last.fields + choice))
+                    else -> add(SheetItem.Choices(listOf(choice)))
+                }
+            }
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        items.forEach { item ->
+            when (item) {
+                is SheetItem.Header -> item(key = item.key) {
+                    SectionHeader(
+                        section = item.section,
+                        expanded = expanded[item.section] == true,
+                        onCollapse = if (item.collapsible && expanded[item.section] == true) {
+                            { setExpanded(item.section, false) }
+                        } else null
+                    )
+                }
+                is SheetItem.Summary -> item(key = item.key) {
+                    SectionSummary(item.section, config) { setExpanded(item.section, true) }
+                }
+                is SheetItem.Choices -> item(key = item.key) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        item.fields.forEachIndexed { index, field ->
+                            Field(field, config, workflowName, spellCheckEnabled, Modifier.fillMaxWidth(), groupShape(index, item.fields.size))
+                        }
+                    }
+                }
+                is SheetItem.Fields -> item(key = item.key) {
+                    FieldRow(item.row, config, workflowName, spellCheckEnabled)
+                }
+            }
+        }
+    }
+}
+
+/** Fields chosen from a list, shown as list rows rather than text fields. */
+private val choiceFields = setOf(
+    OptionField.SAMPLER, OptionField.SCHEDULER, OptionField.UPSCALE_METHOD,
+    OptionField.LORA_NAME, OptionField.HIGHNOISE_LORA_NAME, OptionField.LOWNOISE_LORA_NAME,
+    OptionField.CHECKPOINT, OptionField.UNET, OptionField.HIGHNOISE_UNET, OptionField.LOWNOISE_UNET, OptionField.VAE,
+    OptionField.CLIP, OptionField.CLIP1, OptionField.CLIP2, OptionField.CLIP3, OptionField.CLIP4,
+    OptionField.TEXT_ENCODER, OptionField.LATENT_UPSCALE_MODEL
+)
+
+/** A row's shape in a group: rounded more at the group's ends, small corners between rows. */
+private fun groupShape(index: Int, count: Int): Shape {
+    val outer = 20.dp
+    val inner = 6.dp
+    val first = index == 0
+    val last = index == count - 1
+    return RoundedCornerShape(
+        topStart = if (first) outer else inner, topEnd = if (first) outer else inner,
+        bottomStart = if (last) outer else inner, bottomEnd = if (last) outer else inner
+    )
+}
+
+@Composable
+private fun FieldRow(
+    row: List<OptionField>,
+    config: BottomSheetConfig,
+    workflowName: String,
+    spellCheckEnabled: Boolean
+) {
+    if (row.size == 2) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            row.forEach { field -> Field(field, config, workflowName, spellCheckEnabled, Modifier.weight(1f)) }
+        }
+    } else {
+        Field(row.single(), config, workflowName, spellCheckEnabled, Modifier.fillMaxWidth())
+    }
+}
+
+/** One field, built from the screen's configuration; nothing is shown if the configuration lacks it. */
+@Composable
+private fun Field(
+    field: OptionField,
+    config: BottomSheetConfig,
+    workflowName: String,
+    spellCheckEnabled: Boolean,
+    modifier: Modifier,
+    shape: Shape = RoundedCornerShape(20.dp)
+) {
+    val params = config.parameters
+    val models = config.models
+    fun number(parameter: NumberParameter, numeric: NumericField?) = @Composable {
+        numeric?.let {
+            ConstrainedNumberField(parameter, workflowName, it.value, it.onValueChange, it.error, modifier)
+        }
+    }
+    fun dropdown(labelRes: Int, dropdown: DropdownField?) = @Composable {
+        dropdown?.let {
+            ChoiceRow(stringResource(labelRes), it.selectedValue, it.options, it.onValueChange, shape, modifier)
+        }
+    }
+    // Models and single LoRAs: files, shown by name with their role and folder
+    fun model(modelField: ModelField?) = @Composable {
+        modelField?.let {
+            ChoiceRow(
+                stringResource(it.label), it.selectedValue, it.filteredOptions ?: it.options, it.onValueChange, shape, modifier,
+                isFile = true
+            )
+        }
+    }
+    fun singleLora(modelField: ModelField?) = model(modelField)
+    fun chain(chainField: LoraChainField?) = @Composable {
+        chainField?.let {
+            LoraChainEditor(
+                title = stringResource(it.title),
+                loraChain = it.chain,
+                availableLoras = it.availableLoras,
+                onAddLora = it.onAdd,
+                onRemoveLora = it.onRemove,
+                onLoraNameChange = it.onNameChange,
+                onLoraStrengthChange = it.onStrengthChange,
+                modifier = modifier
+            )
+        }
+    }
+
+    when (field) {
+        OptionField.WORKFLOW -> WorkflowSection(config.workflow)
+        OptionField.MODE -> config.itiConfig?.let { ModeSelector(it) }
+        OptionField.REFERENCE_IMAGES -> config.itiConfig?.let { ReferenceImagesSection(it) }
+        OptionField.NEGATIVE_PROMPT -> NegativePromptSection(config.prompts, spellCheckEnabled)
+        OptionField.SEED -> params.seed?.let { seed ->
+            SeedRow(
+                workflowName = workflowName,
+                randomSeed = seed.randomSeed,
+                onRandomSeedToggle = seed.onRandomSeedToggle,
+                seed = seed.seed,
+                onSeedChange = seed.onSeedChange,
+                onRandomizeSeed = seed.onRandomizeSeed,
+                seedError = seed.seedError
+            )
+        }
+        OptionField.WIDTH -> number(NumberParameter.WIDTH, params.width)()
+        OptionField.HEIGHT -> number(NumberParameter.HEIGHT, params.height)()
+        OptionField.LENGTH -> number(NumberParameter.LENGTH, params.length)()
+        OptionField.FPS -> number(NumberParameter.FPS, params.fps)()
+        OptionField.STEPS -> number(NumberParameter.STEPS, params.steps)()
+        OptionField.MEGAPIXELS -> number(NumberParameter.MEGAPIXELS, params.megapixels)()
+        OptionField.DENOISE -> number(NumberParameter.DENOISE, params.denoise)()
+        OptionField.BATCH_SIZE -> number(NumberParameter.BATCH_SIZE, params.batchSize)()
+        OptionField.CFG -> number(NumberParameter.CFG, params.cfg)()
+        OptionField.CLIP_LAYER -> number(NumberParameter.CLIP_LAYER, params.stopAtClipLayer)()
+        OptionField.SCALE_BY -> number(NumberParameter.SCALE_BY, params.scaleBy)()
+        OptionField.SAMPLER -> dropdown(R.string.label_sampler, params.sampler)()
+        OptionField.SCHEDULER -> dropdown(R.string.label_scheduler, params.scheduler)()
+        OptionField.UPSCALE_METHOD -> dropdown(R.string.label_upscale_method, params.upscaleMethod)()
+        OptionField.LORA_NAME -> singleLora(config.lora.loraName)()
+        OptionField.HIGHNOISE_LORA_NAME -> singleLora(models.highnoiseLora)()
+        OptionField.LOWNOISE_LORA_NAME -> singleLora(models.lownoiseLora)()
+        OptionField.LORA_CHAIN -> chain(config.lora.primaryChain)()
+        OptionField.HIGHNOISE_LORA_CHAIN -> chain(config.lora.highnoiseChain)()
+        OptionField.LOWNOISE_LORA_CHAIN -> chain(config.lora.lownoiseChain)()
+        OptionField.CHECKPOINT -> model(models.checkpoint)()
+        OptionField.UNET -> model(models.unet)()
+        OptionField.HIGHNOISE_UNET -> model(models.highnoiseUnet)()
+        OptionField.LOWNOISE_UNET -> model(models.lownoiseUnet)()
+        OptionField.VAE -> model(models.vae)()
+        OptionField.CLIP -> model(models.clip)()
+        OptionField.CLIP1 -> model(models.clip1)()
+        OptionField.CLIP2 -> model(models.clip2)()
+        OptionField.CLIP3 -> model(models.clip3)()
+        OptionField.CLIP4 -> model(models.clip4)()
+        OptionField.TEXT_ENCODER -> model(models.textEncoder)()
+        OptionField.LATENT_UPSCALE_MODEL -> model(models.latentUpscaleModel)()
+    }
+}
+
+private fun sectionTitleRes(section: OptionsSection): Int = when (section) {
+    OptionsSection.WORKFLOW -> R.string.label_workflow
+    OptionsSection.QUICK -> R.string.label_section_quick
+    OptionsSection.SAMPLING -> R.string.label_section_sampling
+    OptionsSection.LORA -> R.string.label_section_lora
+    OptionsSection.MODELS -> R.string.label_section_models
+}
+
+/** LoRAs in use: single LoRA fields that are set, and the chains' entries. */
+private fun loraCount(config: BottomSheetConfig): Int =
+    listOfNotNull(config.lora.loraName, config.models.highnoiseLora, config.models.lownoiseLora)
+        .count { it.selectedValue.isNotEmpty() } +
+        listOfNotNull(config.lora.primaryChain, config.lora.highnoiseChain, config.lora.lownoiseChain)
+            .filter { it.isVisible }.sumOf { it.chain.size }
+
+private fun modelCount(config: BottomSheetConfig): Int = with(config.models) {
+    listOfNotNull(checkpoint, unet, highnoiseUnet, lownoiseUnet, vae, clip, clip1, clip2, clip3, clip4, textEncoder, latentUpscaleModel)
+        .count { it.isVisible }
+}
+
+@Composable
+private fun SectionHeader(section: OptionsSection, expanded: Boolean, onCollapse: (() -> Unit)?) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(sectionTitleRes(section)),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        if (onCollapse != null && expanded) {
+            sh.hnet.comfychair.ui.components.shared.TooltipIconButton(
+                Icons.Rounded.ExpandLess,
+                stringResource(R.string.content_description_hide_section, stringResource(sectionTitleRes(section))),
+                onCollapse
+            )
+        }
+    }
+}
+
+/** A collapsed section: what it's set to, and what it holds; tapping opens it. */
+@Composable
+private fun SectionSummary(section: OptionsSection, config: BottomSheetConfig, onExpand: () -> Unit) {
+    val params = config.parameters
+    val summary = when (section) {
+        OptionsSection.SAMPLING -> listOfNotNull(
+            params.sampler?.selectedValue,
+            params.scheduler?.selectedValue,
+            params.cfg?.takeIf { it.isVisible }?.let { "${stringResource(R.string.label_cfg)} ${it.value}" },
+            params.stopAtClipLayer?.takeIf { it.isVisible }?.let { "${stringResource(R.string.label_stop_at_clip_layer)} ${it.value}" },
+            params.upscaleMethod?.selectedValue,
+            params.scaleBy?.takeIf { it.isVisible }?.let { "${stringResource(R.string.label_scale_by)} ${it.value}" }
+        ).filter { it.isNotBlank() }.joinToString(", ")
+        OptionsSection.LORA -> loraCount(config).let { count ->
+            if (count == 0) stringResource(R.string.label_no_loras) else pluralStringResource(R.plurals.label_lora_count, count, count)
+        }
+        OptionsSection.MODELS -> modelCount(config).let { pluralStringResource(R.plurals.label_models_count, it, it) }
+        else -> ""
+    }
+    val title = stringResource(sectionTitleRes(section))
+    val showLabel = stringResource(R.string.content_description_show_section, title)
+    Surface(
+        onClick = onExpand,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                role = Role.Button
+                stateDescription = showLabel
+            }
+    ) {
+        ListItem(
+            headlineContent = { Text(summary, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            trailingContent = { Icon(Icons.Rounded.ExpandMore, contentDescription = null) },
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        )
+    }
+}
+
+/** Remembers per workflow which sections of the options sheet are open (UI preference, no generation data). */
+object OptionsSectionPrefs {
+    private const val PREFS = "OptionsSheetSections"
+
+    fun isExpanded(context: Context, workflowId: String, section: OptionsSection): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("$workflowId:${section.name}", false)
+
+    fun setExpanded(context: Context, workflowId: String, section: OptionsSection, expanded: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("$workflowId:${section.name}", expanded).apply()
     }
 }
 
@@ -140,7 +440,6 @@ private fun ReferenceImagesSection(itiConfig: ItiConfig) {
                 )
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -168,313 +467,5 @@ private fun WorkflowSection(workflow: WorkflowConfig) {
         workflows = workflow.availableWorkflows,
         onWorkflowChange = workflow.onWorkflowChange,
         onViewWorkflow = workflow.onViewWorkflow
-    )
-}
-
-@Composable
-private fun ModelSelectionSection(models: ModelConfig) {
-    // Note: Single LoRA dropdowns (highnoiseLora, lownoiseLora) are rendered in LoraSection
-    val visibleModels = remember(models) {
-        listOfNotNull(
-            models.checkpoint?.takeIf { it.isVisible },
-            models.unet?.takeIf { it.isVisible },
-            models.latentUpscaleModel?.takeIf { it.isVisible },
-            models.highnoiseUnet?.takeIf { it.isVisible },
-            models.lownoiseUnet?.takeIf { it.isVisible },
-            models.vae?.takeIf { it.isVisible },
-            models.clip?.takeIf { it.isVisible },
-            models.clip1?.takeIf { it.isVisible },
-            models.clip2?.takeIf { it.isVisible },
-            models.clip3?.takeIf { it.isVisible },
-            models.clip4?.takeIf { it.isVisible },
-            models.textEncoder?.takeIf { it.isVisible }
-        )
-    }
-
-    if (visibleModels.isEmpty()) return
-
-    // Section title
-    Text(
-        text = stringResource(R.string.title_model_selection),
-        style = MaterialTheme.typography.labelLarge,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-
-    // Render each visible model field in order
-    models.checkpoint?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.unet?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.latentUpscaleModel?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.highnoiseUnet?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.lownoiseUnet?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.vae?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.clip?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.clip1?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.clip2?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.clip3?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.clip4?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-    models.textEncoder?.takeIf { it.isVisible }?.let { RenderModelField(it) }
-}
-
-@Composable
-private fun RenderModelField(field: ModelField) {
-    Spacer(modifier = Modifier.height(12.dp))
-    ModelDropdown(
-        label = stringResource(field.label),
-        selectedValue = field.selectedValue,
-        options = field.filteredOptions ?: field.options,
-        onValueChange = field.onValueChange
-    )
-}
-
-@Composable
-private fun ParametersSection(params: ParameterConfig, workflowName: String) {
-    val hasAnyParams = remember(params) {
-        listOfNotNull(
-            params.width?.takeIf { it.isVisible },
-            params.height?.takeIf { it.isVisible },
-            params.megapixels?.takeIf { it.isVisible },
-            params.steps?.takeIf { it.isVisible },
-            params.cfg?.takeIf { it.isVisible },
-            params.length?.takeIf { it.isVisible },
-            params.fps?.takeIf { it.isVisible },
-            params.sampler?.takeIf { it.isVisible },
-            params.scheduler?.takeIf { it.isVisible },
-            params.seed?.takeIf { it.isVisible },
-            params.denoise?.takeIf { it.isVisible },
-            params.batchSize?.takeIf { it.isVisible },
-            params.upscaleMethod?.takeIf { it.isVisible },
-            params.scaleBy?.takeIf { it.isVisible },
-            params.stopAtClipLayer?.takeIf { it.isVisible }
-        ).isNotEmpty()
-    }
-
-    if (!hasAnyParams) return
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Dimensions row (width/height)
-    val showWidth = params.width?.isVisible == true
-    val showHeight = params.height?.isVisible == true
-    if (showWidth || showHeight) {
-        DimensionStepperRow(
-            workflowName = workflowName,
-            width = params.width?.value ?: "",
-            onWidthChange = params.width?.onValueChange ?: {},
-            widthError = params.width?.error,
-            height = params.height?.value ?: "",
-            onHeightChange = params.height?.onValueChange ?: {},
-            heightError = params.height?.error,
-            showWidth = showWidth,
-            showHeight = showHeight
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Megapixels
-    params.megapixels?.takeIf { it.isVisible }?.let { field ->
-        MegapixelsField(
-            workflowName = workflowName,
-            value = field.value,
-            onValueChange = field.onValueChange,
-            error = field.error,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Steps/CFG row
-    val showSteps = params.steps?.isVisible == true
-    val showCfg = params.cfg?.isVisible == true
-    if (showSteps || showCfg) {
-        StepsCfgRow(
-            workflowName = workflowName,
-            steps = params.steps?.value ?: "",
-            onStepsChange = params.steps?.onValueChange ?: {},
-            stepsError = params.steps?.error,
-            showSteps = showSteps,
-            cfg = params.cfg?.value ?: "",
-            onCfgChange = params.cfg?.onValueChange ?: {},
-            cfgError = params.cfg?.error,
-            showCfg = showCfg
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Length/FPS row
-    val showLength = params.length?.isVisible == true
-    val showFps = params.fps?.isVisible == true
-    if (showLength || showFps) {
-        LengthFpsRow(
-            workflowName = workflowName,
-            length = params.length?.value ?: "",
-            onLengthChange = params.length?.onValueChange ?: {},
-            lengthError = params.length?.error,
-            showLength = showLength,
-            fps = params.fps?.value ?: "",
-            onFpsChange = params.fps?.onValueChange ?: {},
-            fpsError = params.fps?.error,
-            showFps = showFps
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Sampler dropdown
-    params.sampler?.takeIf { it.isVisible }?.let { field ->
-        ModelDropdown(
-            label = stringResource(R.string.label_sampler),
-            selectedValue = field.selectedValue,
-            options = field.options,
-            onValueChange = field.onValueChange
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Scheduler dropdown
-    params.scheduler?.takeIf { it.isVisible }?.let { field ->
-        ModelDropdown(
-            label = stringResource(R.string.label_scheduler),
-            selectedValue = field.selectedValue,
-            options = field.options,
-            onValueChange = field.onValueChange
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Seed row (toggle + field + randomize button)
-    params.seed?.takeIf { it.isVisible }?.let { seedConfig ->
-        SeedRow(
-            workflowName = workflowName,
-            randomSeed = seedConfig.randomSeed,
-            onRandomSeedToggle = seedConfig.onRandomSeedToggle,
-            seed = seedConfig.seed,
-            onSeedChange = seedConfig.onSeedChange,
-            onRandomizeSeed = seedConfig.onRandomizeSeed,
-            seedError = seedConfig.seedError
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Denoise / Batch size row
-    val showDenoise = params.denoise?.isVisible == true
-    val showBatchSize = params.batchSize?.isVisible == true
-    if (showDenoise || showBatchSize) {
-        DenoiseBatchRow(
-            workflowName = workflowName,
-            denoise = params.denoise?.value ?: "",
-            onDenoiseChange = params.denoise?.onValueChange ?: {},
-            denoiseError = params.denoise?.error,
-            showDenoise = showDenoise,
-            batchSize = params.batchSize?.value ?: "",
-            onBatchSizeChange = params.batchSize?.onValueChange ?: {},
-            batchSizeError = params.batchSize?.error,
-            showBatchSize = showBatchSize
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // Upscale method / Scale by row
-    val showUpscaleMethod = params.upscaleMethod?.isVisible == true
-    val showScaleBy = params.scaleBy?.isVisible == true
-    if (showUpscaleMethod || showScaleBy) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (showUpscaleMethod) {
-                params.upscaleMethod?.let { field ->
-                    ModelDropdown(
-                        label = stringResource(R.string.label_upscale_method),
-                        selectedValue = field.selectedValue,
-                        options = field.options,
-                        onValueChange = field.onValueChange,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-            if (showScaleBy) {
-                params.scaleBy?.let { field ->
-                    ScaleByField(
-                        workflowName = workflowName,
-                        value = field.value,
-                        onValueChange = field.onValueChange,
-                        error = field.error,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-
-    // CLIP layer
-    params.stopAtClipLayer?.takeIf { it.isVisible }?.let { field ->
-        ClipLayerField(
-            workflowName = workflowName,
-            value = field.value,
-            onValueChange = field.onValueChange,
-            error = field.error,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun LoraSection(lora: LoraConfig, models: ModelConfig) {
-    // Single LoRA dropdowns (in order: LoRA, High noise LoRA, Low noise LoRA)
-    lora.loraName?.takeIf { it.isVisible }?.let { field ->
-        Spacer(modifier = Modifier.height(16.dp))
-        ModelDropdown(
-            label = stringResource(field.label),
-            selectedValue = field.selectedValue,
-            options = field.filteredOptions ?: field.options,
-            onValueChange = field.onValueChange
-        )
-    }
-
-    models.highnoiseLora?.takeIf { it.isVisible }?.let { field ->
-        Spacer(modifier = Modifier.height(16.dp))
-        ModelDropdown(
-            label = stringResource(field.label),
-            selectedValue = field.selectedValue,
-            options = field.filteredOptions ?: field.options,
-            onValueChange = field.onValueChange
-        )
-    }
-
-    models.lownoiseLora?.takeIf { it.isVisible }?.let { field ->
-        Spacer(modifier = Modifier.height(16.dp))
-        ModelDropdown(
-            label = stringResource(field.label),
-            selectedValue = field.selectedValue,
-            options = field.filteredOptions ?: field.options,
-            onValueChange = field.onValueChange
-        )
-    }
-
-    // LoRA chain editors
-    lora.primaryChain?.takeIf { it.isVisible }?.let { chain ->
-        RenderLoraChain(chain)
-    }
-
-    lora.highnoiseChain?.takeIf { it.isVisible }?.let { chain ->
-        RenderLoraChain(chain)
-    }
-
-    lora.lownoiseChain?.takeIf { it.isVisible }?.let { chain ->
-        RenderLoraChain(chain)
-    }
-}
-
-@Composable
-private fun RenderLoraChain(chain: LoraChainField) {
-    Spacer(modifier = Modifier.height(16.dp))
-    LoraChainEditor(
-        title = stringResource(chain.title),
-        loraChain = chain.chain,
-        availableLoras = chain.availableLoras,
-        onAddLora = chain.onAdd,
-        onRemoveLora = chain.onRemove,
-        onLoraNameChange = chain.onNameChange,
-        onLoraStrengthChange = chain.onStrengthChange
     )
 }
