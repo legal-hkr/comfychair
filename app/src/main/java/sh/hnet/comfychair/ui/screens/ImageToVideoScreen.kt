@@ -9,9 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
@@ -19,9 +17,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -64,8 +59,11 @@ import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
+import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
+import sh.hnet.comfychair.ui.components.generation.rememberVideoFrame
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.ui.theme.Dimensions
@@ -140,171 +138,161 @@ fun ImageToVideoScreen(
             }
         }
 
-        // Preview area with the Source/Preview toggle
+        // Picture-in-picture thumbnails: the side that isn't shown full size
+        val sourceThumb = remember(sourceImage) { sourceImage?.asImageBitmap() }
+        val liveThumb = remember(previewBitmap) { previewBitmap?.asImageBitmap() }
+        val outputThumb = rememberOutputThumbnail(uiState.generationOutputs.getOrNull(uiState.currentResultIndex).takeIf { showResults })
+        // Large enough to stand in for the video while the sides swap
+        val videoFrame = rememberVideoFrame(videoUri.takeIf { !showResults }, sizeDp = 180.dp)
+        val resultThumb = liveThumb ?: (if (showResults) outputThumb else videoFrame)
+
+        // Preview area with the source and the result – collapses when typing in the prompt field
         GenerationPreviewArea(collapsed = promptInput.expanded) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .heightIn(min = 150.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .clickable(
-                            enabled = (uiState.viewMode == ImageToVideoViewMode.PREVIEW && videoUri != null && !showResults) ||
-                                      (uiState.viewMode == ImageToVideoViewMode.SOURCE && uiState.sourceImage != null),
-                            onClick = {
-                                when (uiState.viewMode) {
-                                    ImageToVideoViewMode.PREVIEW -> {
-                                        videoUri?.let { uri ->
-                                            val intent = MediaViewerActivity.createSingleVideoIntent(
-                                                context = context,
-                                                videoUri = uri,
-                                                hostname = generationViewModel.getHostname(),
-                                                port = generationViewModel.getPort()
-                                            )
-                                            context.startActivity(intent)
-                                        }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .heightIn(min = 150.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .clickable(
+                        enabled = (uiState.viewMode == ImageToVideoViewMode.PREVIEW && videoUri != null && !showResults) ||
+                                  (uiState.viewMode == ImageToVideoViewMode.SOURCE && uiState.sourceImage != null),
+                        onClick = {
+                            when (uiState.viewMode) {
+                                ImageToVideoViewMode.PREVIEW -> {
+                                    videoUri?.let { uri ->
+                                        val intent = MediaViewerActivity.createSingleVideoIntent(
+                                            context = context,
+                                            videoUri = uri,
+                                            hostname = generationViewModel.getHostname(),
+                                            port = generationViewModel.getPort()
+                                        )
+                                        context.startActivity(intent)
                                     }
-                                    ImageToVideoViewMode.SOURCE -> {
-                                        // Source image is user-provided, no ComfyUI metadata
-                                        uiState.sourceImage?.let { bitmap ->
-                                            val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
-                                            context.startActivity(intent)
-                                        }
+                                }
+                                ImageToVideoViewMode.SOURCE -> {
+                                    // Source image is user-provided, no ComfyUI metadata
+                                    uiState.sourceImage?.let { bitmap ->
+                                        val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                                        context.startActivity(intent)
                                     }
                                 }
                             }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when (uiState.viewMode) {
-                        ImageToVideoViewMode.SOURCE -> {
-                            if (sourceImage != null) {
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                SourceResultSwitcher(
+                    showSource = uiState.viewMode == ImageToVideoViewMode.SOURCE,
+                    onShowSourceChange = { showSource ->
+                        imageToVideoViewModel.onViewModeChange(
+                            if (showSource) ImageToVideoViewMode.SOURCE else ImageToVideoViewMode.PREVIEW
+                        )
+                    },
+                    sourceThumb = sourceThumb,
+                    resultThumb = resultThumb,
+                    source = { _ ->
+                        if (sourceImage != null) {
+                            Image(
+                                bitmap = sourceImage.asImageBitmap(),
+                                contentDescription = stringResource(R.string.content_description_source_image),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            // Placeholder - app logo with tap to upload hint
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
+                            ) {
                                 Image(
-                                    bitmap = sourceImage.asImageBitmap(),
-                                    contentDescription = stringResource(R.string.tab_source_image),
+                                    painter = painterResource(R.drawable.ic_comfychair_foreground),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
+                                    contentScale = ContentScale.Fit
+                                )
+                                Text(
+                                    text = stringResource(R.string.msg_no_source_image),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    // The video surface can't follow the swap animation, so a still stands in meanwhile
+                    result = { inTransition ->
+                        when {
+                            showResults -> {
+                                val results = uiState.generationOutputs
+                                val openViewer = rememberResultsViewer(
+                                    generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToVideoViewModel::onCurrentResultChange
+                                )
+                                // The screen already plays the job's first video
+                                val firstVideo = results.firstOrNull { it.isVideo }
+                                ResultsPreview(
+                                    results = results,
+                                    currentIndex = uiState.currentResultIndex,
+                                    onCurrentIndexChange = imageToVideoViewModel::onCurrentResultChange,
+                                    onOpenViewer = openViewer,
+                                    stripEnabled = !isThisScreenQueued,
+                                    heroOverlay = { current ->
+                                        // A new menu for each result, so it doesn't stay open after swiping
+                                        key(current.id) {
+                                            ResultActionsMenu(
+                                                media = ResultMedia.output(current, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
+                                                sendActions = if (current.isVideo) emptyList() else {
+                                                    imageSendActions(onUseAsSource, { loadResultBitmap(current) })
+                                                },
+                                                resultNumber = results.indexOf(current) + 1
+                                            )
+                                        }
+                                    }
+                                ) { output, isCurrent ->
+                                    if (output.isVideo) {
+                                        ResultHeroVideo(
+                                            output = output,
+                                            isCurrent = isCurrent,
+                                            isActive = isScreenVisible && !inTransition,
+                                            preloadedUri = videoUri.takeIf { output == firstVideo }
+                                        )
+                                    } else {
+                                        ResultHeroImage(output)
+                                    }
+                                }
+                            }
+                            // Show preview bitmap during generation
+                            previewBitmap != null -> {
+                                Image(
+                                    bitmap = previewBitmap.asImageBitmap(),
+                                    contentDescription = stringResource(R.string.content_description_preview),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
-                            } else {
-                                // Placeholder - app logo with tap to upload hint
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
-                                ) {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_comfychair_foreground),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.msg_no_source_image),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
                             }
-                        }
-                        ImageToVideoViewMode.PREVIEW -> {
-                            when {
-                                showResults -> {
-                                    val results = uiState.generationOutputs
-                                    val openViewer = rememberResultsViewer(
-                                        generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToVideoViewModel::onCurrentResultChange
-                                    )
-                                    // The screen already plays the job's first video
-                                    val firstVideo = results.firstOrNull { it.isVideo }
-                                    ResultsPreview(
-                                        results = results,
-                                        currentIndex = uiState.currentResultIndex,
-                                        onCurrentIndexChange = imageToVideoViewModel::onCurrentResultChange,
-                                        onOpenViewer = openViewer,
-                                        stripEnabled = !isThisScreenQueued,
-                                        heroOverlay = { current ->
-                                            // A new menu for each result, so it doesn't stay open after swiping
-                                            key(current.id) {
-                                                ResultActionsMenu(
-                                                    media = ResultMedia.output(current, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
-                                                    sendActions = if (current.isVideo) emptyList() else {
-                                                        imageSendActions(onUseAsSource, { loadResultBitmap(current) })
-                                                    },
-                                                    resultNumber = results.indexOf(current) + 1
-                                                )
-                                            }
-                                        }
-                                    ) { output, isCurrent ->
-                                        if (output.isVideo) {
-                                            ResultHeroVideo(
-                                                output = output,
-                                                isCurrent = isCurrent,
-                                                isActive = isScreenVisible,
-                                                preloadedUri = videoUri.takeIf { output == firstVideo }
-                                            )
-                                        } else {
-                                            ResultHeroImage(output)
-                                        }
-                                    }
-                                }
-                                // Show preview bitmap during generation
-                                previewBitmap != null -> {
-                                    Image(
-                                        bitmap = previewBitmap.asImageBitmap(),
-                                        contentDescription = stringResource(R.string.content_description_preview),
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                }
-                                // Show video player when video is available
-                                videoUri != null -> {
-                                    VideoPlayer(
-                                        videoUri = videoUri,
-                                        modifier = Modifier.fillMaxSize(),
-                                        isActive = isScreenVisible,
-                                        showPlaybackStatus = true
-                                    )
-                                    ResultActionsMenu(
-                                        media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
-                                        sendActions = emptyList()
-                                    )
-                                }
-                                // Show placeholder - app logo
-                                else -> {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_comfychair_foreground),
-                                        contentDescription = stringResource(R.string.placeholder_video),
-                                        modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                }
+                            // Show video player when video is available
+                            videoUri != null -> {
+                                VideoPlayer(
+                                    videoUri = videoUri,
+                                    modifier = Modifier.fillMaxSize(),
+                                    isActive = isScreenVisible && !inTransition,
+                                    showPlaybackStatus = true
+                                )
+                                ResultActionsMenu(
+                                    media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
+                                    sendActions = emptyList()
+                                )
+                            }
+                            // Show placeholder - app logo
+                            else -> {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_comfychair_foreground),
+                                    contentDescription = stringResource(R.string.placeholder_video),
+                                    modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
+                                    contentScale = ContentScale.Fit
+                                )
                             }
                         }
                     }
-                }
-
-                // View mode toggle, on the preview area's background like the results strip
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp, bottom = 16.dp)
-                ) {
-                    SegmentedButton(
-                        selected = uiState.viewMode == ImageToVideoViewMode.SOURCE,
-                        onClick = { imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.SOURCE) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                    ) {
-                        Text(stringResource(R.string.tab_source_image))
-                    }
-                    SegmentedButton(
-                        selected = uiState.viewMode == ImageToVideoViewMode.PREVIEW,
-                        onClick = { imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.PREVIEW) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                    ) {
-                        Text(stringResource(R.string.tab_preview))
-                    }
-                }
+                )
             }
         }
 

@@ -202,8 +202,6 @@
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">图生图</string>
-    <string name="tab_source_image">原图</string>
-    <string name="tab_preview">预览</string>
     <string name="label_megapixels">百万像素</string>
     <string name="button_upload_source_image">上传原图</string>
     <string name="button_edit_mask">编辑蒙版</string>
@@ -403,6 +401,10 @@
     <string name="content_description_play_video">播放视频</string>
     <string name="content_description_pause_video">暂停视频</string>
     <string name="content_description_video_position">%1$s / %2$s</string>
+    <string name="content_description_show_result">显示结果</string>
+    <string name="content_description_show_source">显示源图像</string>
+    <string name="label_pip_result">结果</string>
+    <string name="label_pip_source">源图</string>
     <string name="content_description_result_actions_numbered">结果 %1$d 的操作</string>
     <plurals name="label_duration_seconds">
         <item quantity="other">%d 秒</item>

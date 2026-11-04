@@ -9,9 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
@@ -23,9 +21,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -67,7 +62,9 @@ import sh.hnet.comfychair.ui.components.generation.PositivePromptField
 import sh.hnet.comfychair.ui.components.generation.PromptPresetDialogs
 import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
+import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
 import sh.hnet.comfychair.ui.components.generation.imageSendActions
+import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
@@ -177,179 +174,167 @@ fun ImageToImageScreen(
             }
         }
 
-        // Image Preview Area + view mode toggle — collapse when typing in the prompt field
+        // Picture-in-picture thumbnails: the side that isn't shown full size
+        val sourceThumb = remember(sourceImage) { sourceImage?.asImageBitmap() }
+        val previewThumb = remember(previewImage) { previewImage?.asImageBitmap() }
+        val outputThumb = rememberOutputThumbnail(uiState.generationOutputs.getOrNull(uiState.currentResultIndex).takeIf { showResults })
+        val resultThumb = if (showResults) outputThumb ?: previewThumb else previewThumb
+
+        // Preview area with the source and the result – collapses when typing in the prompt field
         GenerationPreviewArea(collapsed = promptInput.expanded) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .heightIn(min = 150.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .clickable(
-                            enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting && !showResults) ||
-                                      (uiState.viewMode == ImageToImageViewMode.SOURCE && uiState.sourceImage != null),
-                            onClick = {
-                                when (uiState.viewMode) {
-                                    ImageToImageViewMode.PREVIEW -> {
-                                        // Launch MediaViewer for generated image
-                                        uiState.previewImage?.let { bitmap ->
-                                            val intent = MediaViewerActivity.createSingleImageIntent(
-                                                context = context,
-                                                bitmap = bitmap,
-                                                hostname = generationViewModel.getHostname(),
-                                                port = generationViewModel.getPort(),
-                                                filename = uiState.previewImageFilename,
-                                                subfolder = uiState.previewImageSubfolder,
-                                                type = uiState.previewImageType
-                                            )
-                                            context.startActivity(intent)
-                                        }
-                                    }
-                                    ImageToImageViewMode.SOURCE -> {
-                                        // Launch MediaViewer for source image (without mask)
-                                        uiState.sourceImage?.let { bitmap ->
-                                            val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
-                                            context.startActivity(intent)
-                                        }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .heightIn(min = 150.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .clickable(
+                        enabled = (uiState.viewMode == ImageToImageViewMode.PREVIEW && uiState.previewImage != null && !isThisScreenExecuting && !showResults) ||
+                                  (uiState.viewMode == ImageToImageViewMode.SOURCE && uiState.sourceImage != null),
+                        onClick = {
+                            when (uiState.viewMode) {
+                                ImageToImageViewMode.PREVIEW -> {
+                                    // Launch MediaViewer for generated image
+                                    uiState.previewImage?.let { bitmap ->
+                                        val intent = MediaViewerActivity.createSingleImageIntent(
+                                            context = context,
+                                            bitmap = bitmap,
+                                            hostname = generationViewModel.getHostname(),
+                                            port = generationViewModel.getPort(),
+                                            filename = uiState.previewImageFilename,
+                                            subfolder = uiState.previewImageSubfolder,
+                                            type = uiState.previewImageType
+                                        )
+                                        context.startActivity(intent)
                                     }
                                 }
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when (uiState.viewMode) {
-                        ImageToImageViewMode.SOURCE -> {
-                            if (sourceImage != null) {
-                                if (uiState.mode == ImageToImageMode.INPAINTING) {
-                                    // Read-only preview of source image with mask overlay
-                                    MaskPreview(
-                                        sourceImage = sourceImage,
-                                        maskPaths = uiState.maskPaths,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    // Editing mode: show plain source image without mask
-                                    Image(
-                                        bitmap = sourceImage.asImageBitmap(),
-                                        contentDescription = stringResource(R.string.content_description_source_image),
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                }
-                            } else {
-                                // Placeholder - app logo
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
-                                ) {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_comfychair_foreground),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.msg_no_source_image),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                ImageToImageViewMode.SOURCE -> {
+                                    // Launch MediaViewer for source image (without mask)
+                                    uiState.sourceImage?.let { bitmap ->
+                                        val intent = MediaViewerActivity.createSingleImageIntent(context, bitmap)
+                                        context.startActivity(intent)
+                                    }
                                 }
                             }
                         }
-                        ImageToImageViewMode.PREVIEW -> {
-                            if (showResults) {
-                                val results = uiState.generationOutputs
-                                val openViewer = rememberResultsViewer(
-                                    generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToImageViewModel::onCurrentResultChange
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                SourceResultSwitcher(
+                    showSource = uiState.viewMode == ImageToImageViewMode.SOURCE,
+                    onShowSourceChange = { showSource ->
+                        imageToImageViewModel.onViewModeChange(
+                            if (showSource) ImageToImageViewMode.SOURCE else ImageToImageViewMode.PREVIEW
+                        )
+                    },
+                    sourceThumb = sourceThumb,
+                    resultThumb = resultThumb,
+                    source = { _ ->
+                        if (sourceImage != null) {
+                            if (uiState.mode == ImageToImageMode.INPAINTING) {
+                                // Read-only preview of source image with mask overlay
+                                MaskPreview(
+                                    sourceImage = sourceImage,
+                                    maskPaths = uiState.maskPaths,
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                                ResultsPreview(
-                                    results = results,
-                                    currentIndex = uiState.currentResultIndex,
-                                    onCurrentIndexChange = imageToImageViewModel::onCurrentResultChange,
-                                    onOpenViewer = openViewer,
-                                    stripEnabled = !isThisScreenQueued,
-                                    heroOverlay = { current ->
-                                        // A new menu for each result, so it doesn't stay open after swiping
-                                        key(current.id) {
-                                            val preloaded = uiState.previewImage.takeIf { current.filename == uiState.previewImageFilename }
-                                            val load: suspend () -> Bitmap? = { preloaded ?: loadResultBitmap(current) }
-                                            ResultActionsMenu(
-                                                media = ResultMedia.output(current, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO, preloaded),
-                                                sendActions = if (current.isVideo) emptyList() else imageSendActions(
-                                                    onUseAsSource, load,
-                                                    onUseAsReference = useAsReference?.let { use -> { scope.launch { load()?.let(use) } } }
-                                                ),
-                                                resultNumber = results.indexOf(current) + 1
-                                            )
-                                        }
-                                    }
-                                ) { output, isCurrent ->
-                                    if (output.isVideo) {
-                                        ResultHeroVideo(output = output, isCurrent = isCurrent, isActive = true)
-                                    } else {
-                                        // The image already shown on the screen doesn't need loading again
-                                        ResultHeroImage(
-                                            output = output,
-                                            preloaded = uiState.previewImage.takeIf { output.filename == uiState.previewImageFilename }
-                                        )
-                                    }
-                                }
-                            } else if (previewImage != null) {
+                            } else {
+                                // Editing mode: show plain source image without mask
                                 Image(
-                                    bitmap = previewImage.asImageBitmap(),
-                                    contentDescription = stringResource(R.string.content_description_preview),
+                                    bitmap = sourceImage.asImageBitmap(),
+                                    contentDescription = stringResource(R.string.content_description_source_image),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
-                                // While generating, the area shows live previews instead of a result
-                                if (!isThisScreenExecuting) {
-                                    ResultActionsMenu(
-                                        media = ResultMedia.image(
-                                            previewImage, uiState.previewImageFilename, uiState.previewImageSubfolder, uiState.previewImageType
-                                        ),
-                                        sendActions = imageSendActions(
-                                            onUseAsSource, { previewImage },
-                                            onUseAsReference = useAsReference?.let { use -> { use(previewImage) } }
-                                        )
-                                    )
-                                }
-                            } else {
-                        // Placeholder - app logo
+                            }
+                        } else {
+                            // Placeholder - app logo
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
+                            ) {
                                 Image(
                                     painter = painterResource(R.drawable.ic_comfychair_foreground),
                                     contentDescription = null,
                                     modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
                                     contentScale = ContentScale.Fit
                                 )
+                                Text(
+                                    text = stringResource(R.string.msg_no_source_image),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
+                    },
+                    // The video surface can't follow the swap animation, so a still stands in meanwhile
+                    result = { inTransition ->
+                        if (showResults) {
+                            val results = uiState.generationOutputs
+                            val openViewer = rememberResultsViewer(
+                                generationViewModel.getHostname(), generationViewModel.getPort(), results, imageToImageViewModel::onCurrentResultChange
+                            )
+                            ResultsPreview(
+                                results = results,
+                                currentIndex = uiState.currentResultIndex,
+                                onCurrentIndexChange = imageToImageViewModel::onCurrentResultChange,
+                                onOpenViewer = openViewer,
+                                stripEnabled = !isThisScreenQueued,
+                                heroOverlay = { current ->
+                                    // A new menu for each result, so it doesn't stay open after swiping
+                                    key(current.id) {
+                                        val preloaded = uiState.previewImage.takeIf { current.filename == uiState.previewImageFilename }
+                                        val load: suspend () -> Bitmap? = { preloaded ?: loadResultBitmap(current) }
+                                        ResultActionsMenu(
+                                            media = ResultMedia.output(current, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO, preloaded),
+                                            sendActions = if (current.isVideo) emptyList() else imageSendActions(
+                                                onUseAsSource, load,
+                                                onUseAsReference = useAsReference?.let { use -> { scope.launch { load()?.let(use) } } }
+                                            ),
+                                            resultNumber = results.indexOf(current) + 1
+                                        )
+                                    }
+                                }
+                            ) { output, isCurrent ->
+                                if (output.isVideo) {
+                                    ResultHeroVideo(output = output, isCurrent = isCurrent, isActive = !inTransition)
+                                } else {
+                                    // The image already shown on the screen doesn't need loading again
+                                    ResultHeroImage(
+                                        output = output,
+                                        preloaded = uiState.previewImage.takeIf { output.filename == uiState.previewImageFilename }
+                                    )
+                                }
+                            }
+                        } else if (previewImage != null) {
+                            Image(
+                                bitmap = previewImage.asImageBitmap(),
+                                contentDescription = stringResource(R.string.content_description_preview),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            // While generating, the area shows live previews instead of a result
+                            if (!isThisScreenExecuting) {
+                                ResultActionsMenu(
+                                    media = ResultMedia.image(
+                                        previewImage, uiState.previewImageFilename, uiState.previewImageSubfolder, uiState.previewImageType
+                                    ),
+                                    sendActions = imageSendActions(
+                                        onUseAsSource, { previewImage },
+                                        onUseAsReference = useAsReference?.let { use -> { use(previewImage) } }
+                                    )
+                                )
+                            }
+                        } else {
+                    // Placeholder - app logo
+                            Image(
+                                painter = painterResource(R.drawable.ic_comfychair_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.size(Dimensions.PlaceholderLogoSize),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
                     }
-                }
-
-                // View mode toggle, on the preview area's background like the results strip
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp, bottom = 16.dp)
-                ) {
-                    SegmentedButton(
-                        selected = uiState.viewMode == ImageToImageViewMode.SOURCE,
-                        onClick = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                    ) {
-                        Text(stringResource(R.string.tab_source_image))
-                    }
-                    SegmentedButton(
-                        selected = uiState.viewMode == ImageToImageViewMode.PREVIEW,
-                        onClick = { imageToImageViewModel.onViewModeChange(ImageToImageViewMode.PREVIEW) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                    ) {
-                        Text(stringResource(R.string.tab_preview))
-                    }
-                }
+                )
             }
         }
 

@@ -217,8 +217,6 @@
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">Image to Image</string>
-    <string name="tab_source_image">Source Image</string>
-    <string name="tab_preview">Preview</string>
     <string name="label_megapixels">Megapixels</string>
     <string name="button_upload_source_image">Upload Source Image</string>
     <string name="button_edit_mask">Edit Mask</string>
@@ -519,6 +517,10 @@
     <string name="content_description_play_video">Play video</string>
     <string name="content_description_pause_video">Pause video</string>
     <string name="content_description_video_position">%1$s of %2$s</string>
+    <string name="content_description_show_result">Show result</string>
+    <string name="content_description_show_source">Show source image</string>
+    <string name="label_pip_result">Result</string>
+    <string name="label_pip_source">Source</string>
     <string name="content_description_result_actions_numbered">Actions for result %1$d</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d second</item>

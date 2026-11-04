@@ -202,8 +202,6 @@
 
     <!-- Image-to-image fragment strings -->
     <string name="title_image_to_image">Imagen a imagen</string>
-    <string name="tab_source_image">Imagen origen</string>
-    <string name="tab_preview">Vista previa</string>
     <string name="label_megapixels">Megapíxeles</string>
     <string name="button_upload_source_image">Subir imagen origen</string>
     <string name="button_edit_mask">Editar máscara</string>
@@ -407,6 +405,10 @@
     <string name="content_description_play_video">Reproducir vídeo</string>
     <string name="content_description_pause_video">Pausar vídeo</string>
     <string name="content_description_video_position">%1$s de %2$s</string>
+    <string name="content_description_show_result">Mostrar resultado</string>
+    <string name="content_description_show_source">Mostrar imagen de origen</string>
+    <string name="label_pip_result">Resultado</string>
+    <string name="label_pip_source">Origen</string>
     <string name="content_description_result_actions_numbered">Acciones del resultado %1$d</string>
     <plurals name="label_duration_seconds">
         <item quantity="one">%d segundo</item>
