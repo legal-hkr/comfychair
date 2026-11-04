@@ -407,6 +407,7 @@ fun ColumnScope.PositivePromptField(
  * @param prepareWorkflow Builds the workflow JSON to submit (uploading images if needed); null on failure
  * @param generationBlocker Message shown instead of generating, e.g. a missing mask; null to generate
  * @param hasPositivePrompt Without the prompt field above, the controls keep the gap it provided
+ * @param missingSource The screen needs a source image it doesn't have yet (the reason given for a disabled button)
  */
 @Composable
 fun GenerationControls(
@@ -420,6 +421,7 @@ fun GenerationControls(
     prepareWorkflow: suspend () -> String?,
     contentType: ContentType = ContentType.IMAGE,
     isUploading: Boolean = false,
+    missingSource: Boolean = false,
     generationBlocker: () -> Int? = { null }
 ) {
     val context = LocalContext.current
@@ -459,7 +461,12 @@ fun GenerationControls(
             .padding(top = if (hasPositivePrompt) 0.dp else 16.dp, bottom = 16.dp)
     ) {
         GenerationButton(
-            queueSize = queueState.totalQueueSize,
+            disabledReason = when {
+                isOfflineMode -> stringResource(R.string.state_generate_offline)
+                missingSource -> stringResource(R.string.state_generate_no_source)
+                !isEnabled -> stringResource(R.string.state_generate_invalid)
+                else -> null
+            },
             isExecuting = queueState.isExecuting,
             isEnabled = isEnabled,
             isOfflineMode = isOfflineMode,

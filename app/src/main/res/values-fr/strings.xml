@@ -57,7 +57,6 @@
     <!-- Connection button states -->
     <string name="button_connect">Connecter</string>
     <string name="button_connecting">Connexion…</string>
-    <string name="button_connecting_queue">Connexion… (%d)</string>
     <string name="button_failed">Échec</string>
     <string name="button_connected">Connecté</string>
     <string name="button_offline">Hors ligne</string>
@@ -114,6 +113,9 @@
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Prompt négatif</string>
     <string name="button_generate">Générer</string>
+    <string name="state_generate_offline">Mode hors ligne – génération désactivée</string>
+    <string name="state_generate_no_source">Choisissez d\'abord une image source</string>
+    <string name="state_generate_invalid">Vérifiez les options – une valeur manque ou n\'est pas valide</string>
 
     <!-- Configuration panel strings -->
 
@@ -207,11 +209,8 @@
     <string name="msg_no_source_image">Aucune image source sélectionnée</string>
 
     <!-- Generation button states -->
-    <string name="button_add_to_queue">Ajouter à la file (%d)</string>
     <string name="button_uploading">Téléversement…</string>
-    <string name="button_uploading_queue">Téléversement… (%d)</string>
     <string name="button_fetching">Récupération…</string>
-    <string name="button_fetching_queue">Récupération… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Annuler l\'actuel</string>

@@ -57,7 +57,6 @@
     <!-- Connection button states -->
     <string name="button_connect">Połącz</string>
     <string name="button_connecting">Łączenie…</string>
-    <string name="button_connecting_queue">Łączenie… (%d)</string>
     <string name="button_failed">Błąd</string>
     <string name="button_connected">Połączono</string>
     <string name="button_offline">Tryb offline</string>
@@ -114,6 +113,9 @@
     <string name="hint_prompt">Prompt</string>
     <string name="hint_negative_prompt">Negatywny prompt</string>
     <string name="button_generate">Generuj</string>
+    <string name="state_generate_offline">Tryb offline – generowanie wyłączone</string>
+    <string name="state_generate_no_source">Najpierw wybierz obraz źródłowy</string>
+    <string name="state_generate_invalid">Sprawdź opcje – któraś wartość jest pusta albo niepoprawna</string>
 
     <!-- Configuration panel strings -->
 
@@ -207,11 +209,8 @@
     <string name="msg_no_source_image">Nie wybrano obrazu źródłowego</string>
 
     <!-- Generation button states -->
-    <string name="button_add_to_queue">Dodaj do kolejki (%d)</string>
     <string name="button_uploading">Przesyłanie…</string>
-    <string name="button_uploading_queue">Przesyłanie… (%d)</string>
     <string name="button_fetching">Pobieranie…</string>
-    <string name="button_fetching_queue">Pobieranie… (%d)</string>
 
     <!-- Queue menu strings -->
     <string name="menu_cancel_current">Anuluj bieżące</string>

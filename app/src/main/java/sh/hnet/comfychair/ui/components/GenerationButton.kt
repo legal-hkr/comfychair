@@ -8,17 +8,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SplitButtonDefaults
@@ -32,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import sh.hnet.comfychair.R
@@ -39,12 +46,12 @@ import sh.hnet.comfychair.R
 /**
  * Split button for generation screens with queue management dropdown.
  *
- * Leading button: Always submits to queue ("Generate" or "Add to queue (X)")
+ * Leading button: always says "Generate" and always submits to the end of the queue; the queue's state is shown
+ * elsewhere, never in this label. Short transient states ("Connecting…", "Uploading…", "Fetching…") replace the label
+ * while they last, with a loading indicator instead of the icon.
  * Trailing button: Dropdown menu with queue management actions
  *
- * Button text priority: Connecting > Uploading > Fetching > Queue size > Generate
- *
- * @param queueSize Total number of jobs in the server queue (all clients)
+ * @param disabledReason Why the button is disabled, read by TalkBack as its state; null when enabled
  * @param isExecuting Whether any job is currently executing on the server
  * @param isEnabled Whether the button should be enabled (valid input to submit)
  * @param isOfflineMode Whether the app is in offline mode (disables all generation)
@@ -60,7 +67,6 @@ import sh.hnet.comfychair.R
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GenerationButton(
-    queueSize: Int,
     isExecuting: Boolean,
     isEnabled: Boolean,
     isOfflineMode: Boolean = false,
@@ -71,47 +77,49 @@ fun GenerationButton(
     onCancelCurrent: () -> Unit,
     onAddToFrontOfQueue: () -> Unit = {},
     onClearQueue: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    disabledReason: String? = null
 ) {
     val focusManager = LocalFocusManager.current
     var showMenu by remember { mutableStateOf(false) }
 
-    // Button always uses primary color (no more red cancel state)
-    val containerColor = MaterialTheme.colorScheme.primary
-    val contentColor = MaterialTheme.colorScheme.onPrimary
-
-    // Button text changes based on connection/upload/fetch state and queue size
-    val buttonText = when {
-        isConnecting && queueSize > 0 -> stringResource(R.string.button_connecting_queue, queueSize)
+    val transientLabel = when {
         isConnecting -> stringResource(R.string.button_connecting)
-        isUploading && queueSize > 0 -> stringResource(R.string.button_uploading_queue, queueSize)
         isUploading -> stringResource(R.string.button_uploading)
-        isFetching && queueSize > 0 -> stringResource(R.string.button_fetching_queue, queueSize)
         isFetching -> stringResource(R.string.button_fetching)
-        queueSize > 0 -> stringResource(R.string.button_add_to_queue, queueSize)
-        else -> stringResource(R.string.button_generate)
+        else -> null
     }
+    val enabled = isEnabled && !isOfflineMode
 
     Row(modifier = modifier) {
-        // Leading button - fills available width, always submits to queue
-        // Disabled when offline mode is active or input is invalid
-        SplitButtonDefaults.ElevatedLeadingButton(
+        // Leading button - fills available width, always submits to the end of the queue
+        SplitButtonDefaults.LeadingButton(
             onClick = {
                 focusManager.clearFocus()
                 onGenerate()
             },
-            enabled = isEnabled && !isOfflineMode,
-            colors = ButtonDefaults.elevatedButtonColors(
-                containerColor = containerColor,
-                contentColor = contentColor
-            ),
+            enabled = enabled,
+            shapes = SplitButtonDefaults.leadingButtonShapesFor(ButtonHeight),
+            contentPadding = SplitButtonDefaults.leadingButtonContentPaddingFor(ButtonHeight),
             modifier = Modifier
                 .weight(1f)
-                .height(56.dp)
+                .height(ButtonHeight)
+                .semantics { if (!enabled && disabledReason != null) stateDescription = disabledReason }
         ) {
+            val iconSize = SplitButtonDefaults.leadingButtonIconSizeFor(ButtonHeight)
+            if (transientLabel != null) {
+                // Drawn in the button's content colour, so it shows on the filled container
+                LoadingIndicator(color = LocalContentColor.current, modifier = Modifier.size(iconSize))
+            } else {
+                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(iconSize))
+            }
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
             Text(
-                text = buttonText,
-                fontSize = 18.sp
+                text = transientLabel ?: stringResource(R.string.button_generate),
+                maxLines = 1,
+                // Long translations shrink rather than wrap or cut
+                autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 18.sp),
+                style = LocalTextStyle.current.copy(fontSize = 18.sp)
             )
         }
 
@@ -127,15 +135,14 @@ fun GenerationButton(
 
         // Trailing button - disabled in offline mode (no queue operations available)
         Box(modifier = Modifier.wrapContentWidth(unbounded = true)) {
-            SplitButtonDefaults.ElevatedTrailingButton(
+            // Turns round while its menu is open
+            SplitButtonDefaults.TrailingButton(
                 checked = showMenu,
                 onCheckedChange = { showMenu = it },
                 enabled = !isOfflineMode,
-                colors = ButtonDefaults.elevatedButtonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor
-                ),
-                modifier = Modifier.size(56.dp)  // Square button to match leading height
+                shapes = SplitButtonDefaults.trailingButtonShapesFor(ButtonHeight),
+                contentPadding = SplitButtonDefaults.trailingButtonContentPaddingFor(ButtonHeight),
+                modifier = Modifier.size(ButtonHeight)
             ) {
                 Icon(
                     Icons.Default.KeyboardArrowDown,
@@ -197,3 +204,5 @@ fun GenerationButton(
         }
     }
 }
+
+private val ButtonHeight = 56.dp

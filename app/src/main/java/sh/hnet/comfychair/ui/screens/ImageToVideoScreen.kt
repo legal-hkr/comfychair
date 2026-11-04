@@ -289,6 +289,7 @@ fun ImageToVideoScreen(
         }
 
         GenerationControls(
+            missingSource = sourceImage == null,
             // Read here, where the screen observes its state
             isEnabled = imageToVideoViewModel.hasValidConfiguration(),
             generationViewModel = generationViewModel,
