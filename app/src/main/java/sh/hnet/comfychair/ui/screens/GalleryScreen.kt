@@ -261,11 +261,7 @@ fun GalleryScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             GalleryTopBar(
                 selecting = uiState.isSelectionMode,
                 selectedCount = uiState.selectedItems.size,
@@ -292,6 +288,9 @@ fun GalleryScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier
                             .fillMaxSize()
+                            // The top bar sees the grid's scrolling before pull to refresh: at the top, a pull down
+                            // first expands the bar, and only then refreshes
+                            .nestedScroll(scrollBehavior.nestedScrollConnection)
                             .padding(horizontal = 12.dp)
                             // The grid is one block with rounded top corners, as the generation preview
                             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
