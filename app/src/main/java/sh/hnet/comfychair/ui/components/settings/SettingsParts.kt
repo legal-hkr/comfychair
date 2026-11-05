@@ -150,10 +150,37 @@ fun SettingsDescription(text: String) {
     )
 }
 
-/** Row colours: segments on surfaceContainer, so they stand out from the page's background as one block. */
+/**
+ * Row colours: segments on surfaceContainer, so they stand out from the page's background as one block.
+ *
+ * @param highlightSelected Whether a selected row (a chosen radio option) keeps the component's selected colours; a
+ *   switch row's "on" isn't a selection and looks like the others
+ */
 @Composable
-private fun rowColors(): ListItemColors =
-    ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+private fun rowColors(highlightSelected: Boolean = false): ListItemColors {
+    val base = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    if (highlightSelected) return base
+    return ListItemDefaults.segmentedColors(
+        containerColor = base.containerColor,
+        selectedContainerColor = base.containerColor,
+        selectedContentColor = base.contentColor,
+        selectedLeadingContentColor = base.leadingContentColor,
+        selectedTrailingContentColor = base.trailingContentColor,
+        selectedOverlineContentColor = base.overlineContentColor,
+        selectedSupportingContentColor = base.supportingContentColor
+    )
+}
+
+/** The row keeps its place's shape when selected (checked), so the group stays one block. */
+@Composable
+private fun steadyShapes(shapes: ListItemShapes): ListItemShapes = ListItemDefaults.shapes(
+    shape = shapes.shape,
+    selectedShape = shapes.shape,
+    pressedShape = shapes.pressedShape,
+    focusedShape = shapes.focusedShape,
+    hoveredShape = shapes.hoveredShape,
+    draggedShape = shapes.draggedShape
+)
 
 /** The tonal leading icon of a row. */
 @Composable
@@ -206,7 +233,7 @@ fun SettingsSwitchRow(
     SegmentedListItem(
         checked = checked,
         onCheckedChange = onCheckedChange,
-        shapes = shapes,
+        shapes = steadyShapes(shapes),
         colors = rowColors(),
         enabled = enabled,
         leadingContent = icon?.let { { RowIcon(it) } },
@@ -230,8 +257,9 @@ fun SettingsRadioRow(
     SegmentedListItem(
         selected = selected,
         onClick = onSelect,
-        shapes = shapes,
-        colors = rowColors(),
+        shapes = steadyShapes(shapes),
+        // The chosen option stands out by colour only
+        colors = rowColors(highlightSelected = true),
         leadingContent = { RadioButton(selected = selected, onClick = null) },
         supportingContent = supporting?.let { { Text(it) } }
     ) {
