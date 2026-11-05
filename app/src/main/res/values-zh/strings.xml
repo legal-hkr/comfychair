@@ -852,4 +852,18 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">保存提示词到库</string>
+    <string name="server_workflow_import">从服务器导入</string>
+    <string name="server_workflow_refresh">刷新已保存的工作流</string>
+    <string name="server_workflow_search">搜索已保存的工作流</string>
+    <string name="server_workflow_loading">正在加载工作流…</string>
+    <string name="server_workflow_downloading">正在下载工作流…</string>
+    <string name="server_workflow_empty">没有找到已保存的 JSON 工作流</string>
+    <string name="server_workflow_disconnected">请先连接服务器以浏览工作流</string>
+    <string name="server_workflow_unauthorized">服务器拒绝访问（401/403）</string>
+    <string name="server_workflow_network_error">无法从服务器读取工作流</string>
+    <string name="server_workflow_invalid">工作流响应或路径无效</string>
+    <string name="server_workflow_too_large">工作流超过 8 MB 限制</string>
+    <string name="server_workflow_metadata">%1$d KB · %2$s</string>
+    <string name="server_workflow_conversion_notes">转换提示（请在继续前查看；部分输入可能需要手动修正）：</string>
+    <string name="server_workflow_multiuser_unsupported">此服务器启用了多用户。需明确配置用户身份后才能导入服务器工作流，当前不可用。</string>
 </resources>

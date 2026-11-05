@@ -904,4 +904,28 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Save prompt to library</string>
+    <string name="notification_channel_foreground_name">Generation Progress</string>
+    <string name="notification_channel_foreground_desc">Shows ongoing generation status</string>
+    <string name="notification_channel_completion_name">Generation Complete</string>
+    <string name="notification_channel_completion_desc">Notifies when generation is complete with image preview</string>
+    <string name="notification_generating_image">Generating image…</string>
+    <string name="notification_generating_video">Generating video…</string>
+    <string name="notification_generating_progress">Please wait</string>
+    <string name="notification_image_ready">Image ready</string>
+    <string name="notification_video_ready">Video ready</string>
+    <string name="notification_tap_to_view">Tap to view</string>
+    <string name="server_workflow_import">Import from server</string>
+    <string name="server_workflow_refresh">Refresh saved workflows</string>
+    <string name="server_workflow_search">Search saved workflows</string>
+    <string name="server_workflow_loading">Loading saved workflows…</string>
+    <string name="server_workflow_downloading">Downloading workflow…</string>
+    <string name="server_workflow_empty">No saved JSON workflows found</string>
+    <string name="server_workflow_disconnected">Connect to a server to browse workflows</string>
+    <string name="server_workflow_unauthorized">Access denied by server (401/403)</string>
+    <string name="server_workflow_network_error">Could not load workflow from server</string>
+    <string name="server_workflow_invalid">Invalid workflow response or path</string>
+    <string name="server_workflow_too_large">Workflow exceeds the 8 MB limit</string>
+    <string name="server_workflow_metadata">%1$d KB · %2$s</string>
+    <string name="server_workflow_conversion_notes">Conversion notes (review before continuing; some inputs may need manual correction):</string>
+    <string name="server_workflow_multiuser_unsupported">This server uses multiple users. Server workflow import needs an explicitly configured user identity and is unavailable here.</string>
 </resources>
