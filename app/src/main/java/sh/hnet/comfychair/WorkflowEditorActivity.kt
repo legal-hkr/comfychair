@@ -49,7 +49,8 @@ class WorkflowEditorActivity : ComponentActivity() {
         /**
          * Create intent to preview a workflow by ID
          *
-         * @param readOnly Only to look at: no way into edit mode, even for the user's own workflows
+         * @param readOnly Only to look at: no node attributes to change and no way into edit mode, even for the user's own
+         *   workflows
          */
         fun createIntent(context: Context, workflowId: String, readOnly: Boolean = false): Intent {
             return Intent(context, WorkflowEditorActivity::class.java).apply {

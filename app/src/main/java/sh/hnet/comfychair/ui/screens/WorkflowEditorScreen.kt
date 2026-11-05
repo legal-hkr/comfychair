@@ -129,7 +129,7 @@ import sh.hnet.comfychair.workflow.WorkflowMappingState
 fun WorkflowEditorScreen(
     viewModel: WorkflowEditorViewModel,
     onClose: () -> Unit,
-    // Opened only to look at (the workflows page's graph card): no way into edit mode
+    // Opened only to look at (the workflows page's graph card): no node attributes to change, no way into edit mode
     readOnly: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -341,6 +341,8 @@ fun WorkflowEditorScreen(
                                         // In edit mode, toggle node selection
                                         viewModel.toggleNodeSelection(nodeId)
                                     }
+                                    // Read-only (the workflows page's graph card): nothing to change
+                                    readOnly -> Unit
                                     else -> {
                                         // Normal mode - open node attribute editor
                                         val node = uiState.graph?.nodes?.find { it.id == nodeId }
