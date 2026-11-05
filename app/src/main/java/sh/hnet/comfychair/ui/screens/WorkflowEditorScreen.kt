@@ -82,6 +82,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.NodeValuesSheetContent
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
+import sh.hnet.comfychair.ui.components.graphCanvasColor
 import sh.hnet.comfychair.ui.components.dialogs.ChoiceDialog
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.dialogs.DialogChoice
@@ -251,7 +252,7 @@ fun WorkflowEditorScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(graphCanvasColor())
     ) {
         when {
             uiState.isLoading -> {

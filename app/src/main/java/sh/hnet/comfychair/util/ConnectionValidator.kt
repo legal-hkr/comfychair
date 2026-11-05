@@ -54,8 +54,7 @@ object ConnectionValidator {
 
                     if (isTypeCompatible(outputType, inputType)) {
                         // Calculate input slot position (left side of node)
-                        val slotY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
-                            (inputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+                        val slotY = node.y + WorkflowLayoutEngine.rowCenterY(inputIndex)
 
                         validSlots.add(
                             SlotPosition(
@@ -101,16 +100,11 @@ object ConnectionValidator {
             // Skip the target node - can't connect to self
             if (node.id == targetNodeId) continue
 
-            // Count literal inputs to calculate output Y positions correctly
-            val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
-
             // Check each output on this node
             node.outputs.forEachIndexed { outputIndex, output ->
                 if (isTypeCompatible(output.type, inputType)) {
                     // Calculate output slot position (right side of node)
-                    val slotY = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT + 20f +
-                        (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
-                        (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
+                    val slotY = node.y + WorkflowLayoutEngine.outputSlotY(node, outputIndex)
 
                     validSlots.add(
                         SlotPosition(

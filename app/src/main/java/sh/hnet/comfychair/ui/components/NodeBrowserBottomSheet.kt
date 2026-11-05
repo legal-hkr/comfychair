@@ -1,7 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -61,8 +61,8 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.ConnectionValidator
+import sh.hnet.comfychair.workflow.GraphColors
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
-import sh.hnet.comfychair.workflow.SlotColors
 import sh.hnet.comfychair.workflow.nodeCategoryOf
 
 /** Split category into hierarchy levels (handles both "/" and "\" separators) */
@@ -235,7 +235,8 @@ fun NodeBrowserBottomSheet(
                     modifier = Modifier.padding(16.dp)
                 )
             } else {
-                val dark = isSystemInDarkTheme()
+                // Dark or light by the theme actually shown, as the graph decides it
+                val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
                 NoOverscrollContainer(modifier = Modifier.weight(1f)) {
                     LazyColumn(
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -244,7 +245,8 @@ fun NodeBrowserBottomSheet(
                         itemsIndexed(shown, key = { _, node -> "node_${node.classType}" }) { index, nodeType ->
                             NodeTypeRow(
                                 nodeType = nodeType,
-                                swatch = SlotColors.getCategoryColor(nodeCategoryOf(nodeType.classType), dark).header,
+                                swatch = GraphColors.palette(dark).categoryTint(nodeCategoryOf(nodeType.classType))
+                                    ?: MaterialTheme.colorScheme.surfaceContainerHighest,
                                 shape = segmentedItemShape(index, shown.size),
                                 onClick = { onNodeTypeSelected(nodeType) }
                             )

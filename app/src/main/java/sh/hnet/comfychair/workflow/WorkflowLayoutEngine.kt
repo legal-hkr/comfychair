@@ -16,6 +16,22 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         const val HORIZONTAL_SPACING = 240f
         const val VERTICAL_SPACING = 80f
         const val INPUT_ROW_HEIGHT = 40f
+        // Above the first row and below the last (the node height adds both)
+        const val NODE_BODY_PADDING = 8f
+
+        /** Vertical centre of a node's row (inputs in order, then outputs beside the connection inputs), from its top. */
+        fun rowCenterY(rowIndex: Int): Float =
+            NODE_HEADER_HEIGHT + NODE_BODY_PADDING + rowIndex * INPUT_ROW_HEIGHT + INPUT_ROW_HEIGHT / 2
+
+        /** An input socket's centre from the node's top (inputs are sorted: literals first, then connections). */
+        fun inputSlotY(node: WorkflowNode, inputName: String): Float {
+            val index = node.inputs.keys.indexOf(inputName)
+            return if (index >= 0) rowCenterY(index) else node.height / 2
+        }
+
+        /** An output socket's centre from the node's top: outputs start beside the first connection input. */
+        fun outputSlotY(node: WorkflowNode, outputIndex: Int): Float =
+            rowCenterY(node.inputs.count { (_, value) -> value is InputValue.Literal } + outputIndex)
 
         // Serpentine layout constants
         const val MAX_NODES_PER_COLUMN = 8
@@ -43,7 +59,7 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         }
 
         // Group constants
-        const val GROUP_PADDING_TOP = 32f
+        const val GROUP_PADDING_TOP = 48f  // Room for the label chip above the nodes
         const val GROUP_PADDING_SIDE = 16f    // Left and right padding (50% of top)
         const val GROUP_PADDING_BOTTOM = 16f  // Bottom padding (50% of top)
         const val GROUP_HEADER_HEIGHT = 24f   // Smaller than node header
@@ -896,7 +912,7 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         // Total content height
         val contentHeight = (literalInputCount * INPUT_ROW_HEIGHT) + connectionAreaHeight
 
-        val rawHeight = maxOf(NODE_MIN_HEIGHT, NODE_HEADER_HEIGHT + contentHeight + 16f)
+        val rawHeight = maxOf(NODE_MIN_HEIGHT, NODE_HEADER_HEIGHT + contentHeight + 2 * NODE_BODY_PADDING)
         // Snap to grid (round up to nearest GRID_CELL_SIZE)
         return (kotlin.math.ceil(rawHeight / GRID_CELL_SIZE) * GRID_CELL_SIZE).toFloat()
     }

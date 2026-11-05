@@ -454,7 +454,6 @@
     <string name="node_editor_no_editable_inputs">Aucune entrée modifiable</string>
     <string name="node_editor_range_min">Min : %1$s</string>
     <string name="node_editor_range_max">Max : %1$s</string>
-    <string name="node_editor_ui_field_prefix">IU : %1$s</string>
     <string name="node_editor_image_load_error">Échec du chargement de l\'image</string>
     <string name="button_rename">Renommer</string>
     <string name="hint_node_name_empty">Vide : %1$s</string>
