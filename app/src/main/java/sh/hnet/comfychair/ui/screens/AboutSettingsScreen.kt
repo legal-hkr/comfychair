@@ -1,21 +1,16 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package sh.hnet.comfychair.ui.screens
 
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +22,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.BuildConfig
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.SettingsScreenScaffold
+import sh.hnet.comfychair.ui.components.settings.SettingsActionRow
+import sh.hnet.comfychair.ui.components.settings.SettingsGroup
+import sh.hnet.comfychair.ui.components.settings.SettingsInfoRow
+import sh.hnet.comfychair.ui.components.settings.SettingsPage
 
 @Composable
 fun AboutSettingsScreen(
@@ -35,106 +33,41 @@ fun AboutSettingsScreen(
 ) {
     val context = LocalContext.current
 
-    // UI composition
-    SettingsScreenScaffold(
-        title = stringResource(R.string.title_about_settings),
-        onNavigateBack = onNavigateBack,
-        horizontalPadding = 0.dp
-    ) {
+    SettingsPage(stringResource(R.string.title_about_settings), onNavigateBack) {
         Column(
-            modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // App Logo (300dp)
             Image(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
                 contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(300.dp)
+                modifier = Modifier.size(240.dp)
             )
-
-            // App Name
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Version
             Text(
                 text = stringResource(R.string.label_about_version, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // License Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.title_about_license),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.label_about_license_name),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+        }
+        SettingsGroup {
+            row { shapes ->
+                SettingsInfoRow(shapes, stringResource(R.string.title_about_license), stringResource(R.string.label_about_license_name))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // GitHub Link Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clickable {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/legal-hkr/comfychair")
-                        )
-                        context.startActivity(intent)
-                    }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = stringResource(R.string.title_about_source),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "github.com/legal-hkr/comfychair",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+            row { shapes ->
+                SettingsActionRow(
+                    shapes = shapes,
+                    icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                    title = stringResource(R.string.title_about_source),
+                    supporting = SOURCE_ADDRESS,
+                    onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://$SOURCE_ADDRESS"))) }
+                )
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
+
+private const val SOURCE_ADDRESS = "github.com/legal-hkr/comfychair"
