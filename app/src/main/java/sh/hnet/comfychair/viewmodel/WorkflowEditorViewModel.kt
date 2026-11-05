@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.viewmodel
 
-import sh.hnet.comfychair.workflow.changedInputNames
-import sh.hnet.comfychair.workflow.workflowValueOf
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -36,7 +34,6 @@ import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
-import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import sh.hnet.comfychair.workflow.NoteManager
@@ -53,8 +50,11 @@ import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowNote
 import sh.hnet.comfychair.workflow.WorkflowParser
 import sh.hnet.comfychair.workflow.WorkflowSerializer
+import sh.hnet.comfychair.workflow.changedInputNames
 import sh.hnet.comfychair.workflow.getEffectiveDefault
+import sh.hnet.comfychair.workflow.nodeCategoryOf
 import sh.hnet.comfychair.workflow.sortInputsForLayout
+import sh.hnet.comfychair.workflow.workflowValueOf
 
 /**
  * Events emitted by the Workflow Editor
@@ -2219,29 +2219,6 @@ class WorkflowEditorViewModel : ViewModel() {
         return nodeTypeRegistry.getNodeTypesByCategory()
     }
 
-    /**
-     * Categorize a node by its class type (same logic as WorkflowParser).
-     */
-    private fun categorizeNodeByClassType(classType: String): NodeCategory {
-        return when {
-            classType.contains("Loader", ignoreCase = true) -> NodeCategory.LOADER
-            classType.contains("CLIPTextEncode", ignoreCase = true) ||
-            classType.contains("TextEncode", ignoreCase = true) -> NodeCategory.ENCODER
-            classType.contains("Sampler", ignoreCase = true) -> NodeCategory.SAMPLER
-            classType.contains("EmptyLatent", ignoreCase = true) ||
-            classType.contains("Empty") && classType.contains("Latent", ignoreCase = true) -> NodeCategory.LATENT
-            classType.contains("LoadImage", ignoreCase = true) -> NodeCategory.INPUT
-            classType.contains("Save", ignoreCase = true) ||
-            classType.contains("Preview", ignoreCase = true) -> NodeCategory.OUTPUT
-            classType.contains("Decode", ignoreCase = true) ||
-            classType.contains("Encode", ignoreCase = true) ||
-            classType.contains("Scale", ignoreCase = true) ||
-            classType.contains("Create", ignoreCase = true) ||
-            classType.contains("Sampling", ignoreCase = true) ||
-            classType.contains("ModelMerge", ignoreCase = true) -> NodeCategory.PROCESS
-            else -> NodeCategory.OTHER
-        }
-    }
 
     /**
      * Add a new node from a NodeTypeDefinition at the current insert position.
@@ -2276,7 +2253,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         // Categorize the node based on class type
-        val category = categorizeNodeByClassType(nodeType.classType)
+        val category = nodeCategoryOf(nodeType.classType)
 
         // Calculate proper node dimensions using the same logic as WorkflowLayoutEngine
         val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH
@@ -2553,7 +2530,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         when (compatibleInputs.size) {
-            0 -> cancelLongPressConnection()  // Shouldn't happen if filtering works
+            0 -> addUnconnected(nodeType)
             1 -> completeConnection(nodeType, compatibleInputs.first())
             else -> {
                 // Show input selection dialog
@@ -2570,6 +2547,15 @@ class WorkflowEditorViewModel : ViewModel() {
     /**
      * Handle input selection from the dialog.
      */
+    /**
+     * A node that can't take the held socket (its compatibility filter was removed in the node browser): added on its
+     * own, as from Add node.
+     */
+    private fun addUnconnected(nodeType: NodeTypeDefinition) {
+        cancelLongPressConnection()
+        if (_uiState.value.isManualPlacementMode) addNodeManual(nodeType) else addNode(nodeType)
+    }
+
     fun selectInputForConnection(input: InputDefinition) {
         val nodeType = _uiState.value.inputSelectionNodeType ?: return
         completeConnection(nodeType, input)
@@ -2591,7 +2577,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         when (compatibleOutputs.size) {
-            0 -> cancelLongPressConnection()  // Shouldn't happen if filtering works
+            0 -> addUnconnected(nodeType)
             1 -> completeReverseConnection(nodeType, compatibleOutputs.first())
             else -> {
                 // Show output selection dialog
@@ -2656,7 +2642,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         // 2. Categorize and calculate dimensions
-        val category = categorizeNodeByClassType(nodeType.classType)
+        val category = nodeCategoryOf(nodeType.classType)
         val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH
         val literalInputCount = inputs.count { (_, value) -> value is InputValue.Literal }
         val connectionInputCount = inputs.count { (_, value) ->
@@ -2802,7 +2788,7 @@ class WorkflowEditorViewModel : ViewModel() {
         }
 
         // 2. Categorize and calculate dimensions
-        val category = categorizeNodeByClassType(nodeType.classType)
+        val category = nodeCategoryOf(nodeType.classType)
         val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH
         val literalInputCount = inputs.count { (_, value) -> value is InputValue.Literal }
         val connectionInputCount = inputs.count { (_, value) ->
@@ -3197,7 +3183,7 @@ class WorkflowEditorViewModel : ViewModel() {
             }
         }
 
-        val category = categorizeNodeByClassType(nodeType.classType)
+        val category = nodeCategoryOf(nodeType.classType)
 
         // Calculate proper node dimensions
         val nodeWidth = WorkflowLayoutEngine.NODE_WIDTH

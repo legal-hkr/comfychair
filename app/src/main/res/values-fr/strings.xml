@@ -753,10 +753,17 @@
     <string name="error_value_min_float">Minimum : %1$.2f</string>
     <string name="error_value_max_float">Maximum : %1$.2f</string>
     <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_no_match">Aucun nœud ne correspond à « %1$s »</string>
+    <string name="content_description_custom_node">Nœud d’une extension</string>
+    <string name="content_description_remove_filter">Afficher tous les nœuds</string>
+    <plurals name="node_browser_compatible_count">
+        <item quantity="one">%d nœud compatible</item>
+        <item quantity="many">%d nœuds compatibles</item>
+        <item quantity="other">%d nœuds compatibles</item>
+    </plurals>
     <string name="node_browser_title">Ajouter un nœud</string>
     <string name="placeholder_node_browser_search">Rechercher des nœuds…</string>
     <string name="node_browser_no_results">Aucun nœud correspondant trouvé</string>
-    <string name="node_browser_io_info">%1$s, %2$s</string>
     <plurals name="node_browser_inputs_count">
         <item quantity="one">%d entrée</item>
         <item quantity="many">%d entrées</item>
@@ -769,11 +776,8 @@
     </plurals>
     <string name="node_browser_deprecated">Obsolète</string>
     <string name="node_browser_experimental">Expérimental</string>
-    <string name="node_browser_filter_category">Catégorie</string>
-    <string name="node_browser_filter_subcategory">Sous-catégorie</string>
-    <string name="node_browser_filter_group">Groupe</string>
-    <string name="node_browser_accepts_input">Accepte entrée %1$s</string>
-    <string name="node_browser_provides_output">Fournit une sortie %1$s</string>
+    <string name="node_browser_accepts_input">Accepte %1$s</string>
+    <string name="node_browser_provides_output">Fournit %1$s</string>
     <string name="button_clear_search">Effacer la recherche</string>
     <string name="workflow_editor_delete_node">Supprimer la sélection</string>
     <string name="workflow_editor_duplicate_node">Dupliquer la sélection</string>

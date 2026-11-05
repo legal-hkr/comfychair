@@ -67,7 +67,8 @@ data class NodeTypeDefinition(
     val displayName: String? = null,    // Human-readable name
     val description: String? = null,    // Node documentation
     val deprecated: Boolean = false,    // Whether node is deprecated
-    val experimental: Boolean = false   // Whether node is experimental
+    val experimental: Boolean = false,  // Whether node is experimental
+    val isCustom: Boolean = false       // From an extension (custom_nodes), not ComfyUI itself
 )
 
 /**
@@ -219,6 +220,8 @@ class NodeTypeRegistry {
         val description = (nodeInfo.opt("description") as? String)?.takeIf { it.isNotEmpty() }
         val deprecated = nodeInfo.optBoolean("deprecated", false)
         val experimental = nodeInfo.optBoolean("experimental", false)
+        // "nodes" and "comfy_extras.…" are ComfyUI's own; extensions live in "custom_nodes.…"
+        val isCustom = nodeInfo.optString("python_module", "").startsWith("custom_nodes")
 
         nodeDefinitions[classType] = NodeTypeDefinition(
             classType = classType,
@@ -228,7 +231,8 @@ class NodeTypeRegistry {
             displayName = displayName,
             description = description,
             deprecated = deprecated,
-            experimental = experimental
+            experimental = experimental,
+            isCustom = isCustom
         )
     }
 

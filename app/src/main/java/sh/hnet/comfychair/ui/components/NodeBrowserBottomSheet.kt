@@ -1,43 +1,47 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Science
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,15 +49,21 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
-import androidx.compose.ui.res.pluralStringResource
+import sh.hnet.comfychair.workflow.SlotColors
+import sh.hnet.comfychair.workflow.nodeCategoryOf
 
 /** Split category into hierarchy levels (handles both "/" and "\" separators) */
 private fun parseCategoryLevels(category: String): List<String> {
@@ -65,36 +75,6 @@ private fun normalizeCategory(category: String): String {
     return category.replace("\\", "/")
 }
 
-/** Get unique values at a specific level, optionally filtered by parent prefix */
-private fun getOptionsAtLevel(
-    categories: Set<String>,
-    level: Int,
-    parentPrefix: String?
-): List<String> {
-    return categories
-        .map { normalizeCategory(it) }
-        .filter { cat ->
-            if (parentPrefix == null) true
-            else cat.startsWith("$parentPrefix/") || cat == parentPrefix
-        }
-        .mapNotNull { cat ->
-            parseCategoryLevels(cat).getOrNull(level)
-        }
-        .distinct()
-        .sorted()
-}
-
-/** Build category prefix from selections */
-private fun buildCategoryPrefix(
-    level1: String?,
-    level2: String?,
-    level3: String?
-): String? {
-    return listOfNotNull(level1, level2, level3)
-        .takeIf { it.isNotEmpty() }
-        ?.joinToString("/")
-}
-
 /** Literal types that are not connection types */
 private val LITERAL_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
 
@@ -102,14 +82,12 @@ private val LITERAL_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
 private fun isConnectionType(type: String): Boolean = type.uppercase() !in LITERAL_TYPES
 
 /**
- * Bottom sheet for browsing and selecting node types to add to the workflow.
+ * The node browser, a full-height sheet: search, then chips (from a held socket first "Takes LATENT ×", then the
+ * categories, most nodes first, drilling down one level per chip), and the nodes as segmented rows with their
+ * category colour. Tapping a node adds it (wired to the held socket when it came from one).
  *
- * @param nodeTypesByCategory All available node types grouped by category
- * @param sheetState The modal sheet state
- * @param onNodeTypeSelected Callback when user selects a node type
- * @param onDismiss Callback when sheet is dismissed
- * @param filterToOutputType If set, only show nodes with compatible inputs for this output type
- * @param filterToInputType If set, only show nodes with compatible outputs for this input type
+ * @param filterToOutputType Held output socket: nodes that take its type
+ * @param filterToInputType Held input socket: nodes that give its type
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,279 +100,152 @@ fun NodeBrowserBottomSheet(
     filterToInputType: String? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    // Selected category levels ("sampling", "custom_sampling", …)
+    var path by remember { mutableStateOf(emptyList<String>()) }
+    val slotType = filterToOutputType ?: filterToInputType
+    var compatibleOnly by remember { mutableStateOf(slotType != null) }
 
-    // Category filter state
-    var level1Selection by remember { mutableStateOf<String?>(null) }
-    var level2Selection by remember { mutableStateOf<String?>(null) }
-    var level3Selection by remember { mutableStateOf<String?>(null) }
-
-    // Expansion state for each level
-    var level1Expanded by remember { mutableStateOf(false) }
-    var level2Expanded by remember { mutableStateOf(false) }
-    var level3Expanded by remember { mutableStateOf(false) }
-
-    // Compute available options for each level
-    val allCategories = remember(nodeTypesByCategory) {
-        nodeTypesByCategory.keys
-    }
-
-    val level1Options = remember(allCategories) {
-        getOptionsAtLevel(allCategories, 0, null)
-    }
-
-    val level2Options = remember(allCategories, level1Selection) {
-        if (level1Selection == null) emptyList()
-        else getOptionsAtLevel(allCategories, 1, level1Selection)
-    }
-
-    val level3Options = remember(allCategories, level1Selection, level2Selection) {
-        val prefix = buildCategoryPrefix(level1Selection, level2Selection, null)
-        if (prefix == null || level2Selection == null) emptyList()
-        else getOptionsAtLevel(allCategories, 2, prefix)
-    }
-
-    val categoryPrefix = buildCategoryPrefix(level1Selection, level2Selection, level3Selection)
-
-    // Filter nodes by compatibility, search query, and category filter
-    val filteredCategories = remember(nodeTypesByCategory, searchQuery, categoryPrefix, filterToOutputType, filterToInputType) {
-        var result = nodeTypesByCategory
-
-        // Apply compatibility filter for output->input (long-press on output slot)
-        if (filterToOutputType != null) {
-            result = result.mapValues { (_, nodes) ->
-                nodes.filter { nodeType ->
-                    // Node is compatible if it has any connection-type input that matches output type
-                    nodeType.inputs.any { input ->
-                        isConnectionType(input.type) &&
-                        ConnectionValidator.isTypeCompatible(filterToOutputType, input.type)
-                    }
-                }
-            }.filterValues { it.isNotEmpty() }
-        }
-
-        // Apply compatibility filter for input->output (long-press on input slot)
-        if (filterToInputType != null) {
-            result = result.mapValues { (_, nodes) ->
-                nodes.filter { nodeType ->
-                    // Node is compatible if it has any output that matches input type
-                    nodeType.outputs.any { output ->
-                        ConnectionValidator.isTypeCompatible(output.type, filterToInputType)
-                    }
-                }
-            }.filterValues { it.isNotEmpty() }
-        }
-
-        // Apply category filter (normalize both sides for cross-platform matching)
-        if (categoryPrefix != null) {
-            result = result.filterKeys { category ->
-                val normalizedCategory = normalizeCategory(category)
-                normalizedCategory.startsWith(categoryPrefix) || normalizedCategory == categoryPrefix
+    val allNodes = remember(nodeTypesByCategory) { nodeTypesByCategory.values.flatten() }
+    val compatibleNodes = remember(allNodes, compatibleOnly) {
+        when {
+            !compatibleOnly -> allNodes
+            filterToOutputType != null -> allNodes.filter { node ->
+                node.inputs.any { isConnectionType(it.type) && ConnectionValidator.isTypeCompatible(filterToOutputType, it.type) }
             }
+            filterToInputType != null -> allNodes.filter { node ->
+                node.outputs.any { ConnectionValidator.isTypeCompatible(it.type, filterToInputType) }
+            }
+            else -> allNodes
         }
-
-        // Apply search filter
-        if (searchQuery.isNotBlank()) {
-            val query = searchQuery.lowercase()
-            result = result.mapValues { (_, nodes) ->
-                nodes.filter { node ->
-                    node.classType.lowercase().contains(query) ||
-                    node.category.lowercase().contains(query) ||
-                    node.displayName?.lowercase()?.contains(query) == true ||
-                    node.description?.lowercase()?.contains(query) == true
-                }
-            }.filterValues { it.isNotEmpty() }
-        }
-
-        result
+    }
+    val prefix = path.joinToString("/")
+    val inCategory = remember(compatibleNodes, prefix) {
+        if (prefix.isEmpty()) compatibleNodes
+        else compatibleNodes.filter { normalizeCategory(it.category).let { c -> c == prefix || c.startsWith("$prefix/") } }
+    }
+    // The next level's categories, most nodes first
+    val subcategories = remember(inCategory, path) {
+        inCategory.mapNotNull { parseCategoryLevels(normalizeCategory(it.category)).getOrNull(path.size) }
+            .groupingBy { it }.eachCount()
+            .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.lowercase() })
+            .map { it.key }
+    }
+    val shown = remember(inCategory, searchQuery) {
+        val query = searchQuery.trim().lowercase()
+        inCategory.filter { node ->
+            query.isEmpty() || node.classType.lowercase().contains(query) || node.category.lowercase().contains(query) ||
+                node.displayName?.lowercase()?.contains(query) == true || node.description?.lowercase()?.contains(query) == true
+        }.sortedBy { (it.displayName ?: it.classType).lowercase() }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
+                .fillMaxSize()
+                .navigationBarsPadding()
         ) {
             Text(
                 text = stringResource(R.string.node_browser_title),
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
-
-            // Show filter chip when filtering by type compatibility
-            if (filterToOutputType != null || filterToInputType != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                val filterText = when {
-                    filterToOutputType != null -> stringResource(R.string.node_browser_accepts_input, filterToOutputType)
-                    filterToInputType != null -> stringResource(R.string.node_browser_provides_output, filterToInputType)
-                    else -> ""
-                }
-                AssistChip(
-                    onClick = { /* Filter is read-only in this mode */ },
-                    label = { Text(filterText) },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.FilterList,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search field with M3 Expressive style
-            SearchBar(
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onSearch = { },
-                        expanded = false,
-                        onExpandedChange = { },
-                        placeholder = { Text(stringResource(R.string.placeholder_node_browser_search)) },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null)
-                        },
-                        trailingIcon = if (searchQuery.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = stringResource(R.string.button_clear_search)
-                                    )
-                                }
-                            }
-                        } else null
-                    )
-                },
+            SearchBarDefaults.InputField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onSearch = { },
                 expanded = false,
                 onExpandedChange = { },
-                modifier = Modifier.fillMaxWidth()
-            ) { }
+                placeholder = { Text(stringResource(R.string.placeholder_node_browser_search)) },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
+                        }
+                    }
+                } else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                    .clip(SearchBarDefaults.inputFieldShape)
+            )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Category filters section with animated size changes
-            Column(
-                modifier = Modifier.animateContentSize()
+            // Compatibility, the chosen categories, then the next level's
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(vertical = 12.dp)
             ) {
-                // Level 1 filter chips
-                // Collapse to only selected chip when level 2 has options (user drilled down)
-                val level1DisplayOptions = remember(level1Selection, level2Options, level1Options) {
-                    if (level2Options.isNotEmpty() && level1Selection != null) {
-                        listOfNotNull(level1Selection)
-                    } else {
-                        level1Options
+                if (slotType != null && compatibleOnly) {
+                    item(key = "compatible") {
+                        InputChip(
+                            selected = true,
+                            onClick = {
+                                compatibleOnly = false
+                                path = emptyList()
+                            },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (filterToOutputType != null) R.string.node_browser_accepts_input else R.string.node_browser_provides_output,
+                                        slotType
+                                    )
+                                )
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.content_description_remove_filter),
+                                    modifier = Modifier.size(InputChipDefaults.IconSize)
+                                )
+                            }
+                        )
                     }
                 }
-                if (level1DisplayOptions.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.node_browser_filter_category),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ExpandableFilterChipRow(
-                        options = level1DisplayOptions,
-                        selectedOption = level1Selection,
-                        onOptionSelected = { selection ->
-                            level1Selection = selection
-                            level2Selection = null  // Clear deeper levels
-                            level3Selection = null
-                            level2Expanded = false
-                            level3Expanded = false
-                        },
-                        expanded = level1Expanded,
-                        onExpandedChange = { level1Expanded = it }
-                    )
-                }
-
-                // Level 2 filter chips (only show if level 1 selected and options exist)
-                // Collapse to only selected chip when level 3 has options (user drilled down)
-                val level2DisplayOptions = remember(level2Selection, level3Options, level2Options) {
-                    if (level3Options.isNotEmpty() && level2Selection != null) {
-                        listOfNotNull(level2Selection)
-                    } else {
-                        level2Options
+                path.forEachIndexed { index, level ->
+                    item(key = "path_$index") {
+                        FilterChip(
+                            selected = true,
+                            onClick = { path = path.take(index) },
+                            label = { Text(level) },
+                            leadingIcon = { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                        )
                     }
                 }
-                if (level2DisplayOptions.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.node_browser_filter_subcategory),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ExpandableFilterChipRow(
-                        options = level2DisplayOptions,
-                        selectedOption = level2Selection,
-                        onOptionSelected = { selection ->
-                            level2Selection = selection
-                            level3Selection = null  // Clear deeper level
-                            level3Expanded = false
-                        },
-                        expanded = level2Expanded,
-                        onExpandedChange = { level2Expanded = it }
-                    )
-                }
-
-                // Level 3 filter chips (only show if level 2 selected and options exist)
-                if (level3Options.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.node_browser_filter_group),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ExpandableFilterChipRow(
-                        options = level3Options,
-                        selectedOption = level3Selection,
-                        onOptionSelected = { selection ->
-                            level3Selection = selection
-                        },
-                        expanded = level3Expanded,
-                        onExpandedChange = { level3Expanded = it }
-                    )
+                items(subcategories, key = { "sub_$it" }) { category ->
+                    FilterChip(selected = false, onClick = { path = path + category }, label = { Text(category) })
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Flatten and sort all nodes alphabetically by display name (or classType)
-            val sortedNodes = remember(filteredCategories) {
-                filteredCategories.values.flatten().sortedBy {
-                    (it.displayName ?: it.classType).lowercase()
-                }
-            }
-
-            if (sortedNodes.isEmpty()) {
+            if (slotType != null && compatibleOnly) {
                 Text(
-                    text = stringResource(R.string.node_browser_no_results),
+                    pluralStringResource(R.plurals.node_browser_compatible_count, shown.size, shown.size),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                )
+            }
+
+            if (shown.isEmpty()) {
+                Text(
+                    text = if (searchQuery.isNotBlank()) stringResource(R.string.node_browser_no_match, searchQuery.trim())
+                        else stringResource(R.string.node_browser_no_results),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp)
                 )
             } else {
-                NoOverscrollContainer(modifier = Modifier.weight(1f, fill = false)) {
+                val dark = isSystemInDarkTheme()
+                NoOverscrollContainer(modifier = Modifier.weight(1f)) {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        items(
-                            items = sortedNodes,
-                            key = { "node_${it.classType}" }
-                        ) { nodeType ->
+                        itemsIndexed(shown, key = { _, node -> "node_${node.classType}" }) { index, nodeType ->
                             NodeTypeRow(
                                 nodeType = nodeType,
+                                swatch = SlotColors.getCategoryColor(nodeCategoryOf(nodeType.classType), dark).header,
+                                shape = segmentedItemShape(index, shown.size),
                                 onClick = { onNodeTypeSelected(nodeType) }
                             )
                         }
@@ -405,173 +256,68 @@ fun NodeBrowserBottomSheet(
     }
 }
 
+/**
+ * A node type: a swatch in its category colour (the graph's colours, the one exception to theme roles), its name, and
+ * "category – n inputs – n outputs"; the class name under it when it differs. Extension nodes, deprecated and
+ * experimental ones are marked with an icon.
+ */
 @Composable
-private fun NodeTypeRow(
-    nodeType: NodeTypeDefinition,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp)
+private fun NodeTypeRow(nodeType: NodeTypeDefinition, swatch: Color, shape: Shape, onClick: () -> Unit) {
+    val io = listOf(
+        nodeType.category,
+        pluralStringResource(R.plurals.node_browser_inputs_count, nodeType.inputs.size, nodeType.inputs.size),
+        pluralStringResource(R.plurals.node_browser_outputs_count, nodeType.outputs.size, nodeType.outputs.size)
+    ).filter { it.isNotEmpty() }.joinToString(" – ")
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            if (nodeType.category.isNotEmpty()) {
-                Text(
-                    text = nodeType.category,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                Text(
-                    text = nodeType.displayName ?: nodeType.classType,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                // Show deprecated badge (error color - adapts to light/dark)
-                if (nodeType.deprecated) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = stringResource(R.string.node_browser_deprecated),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-                // Show experimental badge (tertiary color - adapts to light/dark)
-                if (nodeType.experimental) {
-                    Icon(
-                        imageVector = Icons.Default.Science,
-                        contentDescription = stringResource(R.string.node_browser_experimental),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            }
-            // Show classType if different from displayName
-            if (nodeType.displayName != null && nodeType.displayName != nodeType.classType) {
-                Text(
-                    text = nodeType.classType,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-            if (nodeType.inputs.isNotEmpty() || nodeType.outputs.isNotEmpty()) {
-                Text(
-                    text = stringResource(
-                        R.string.node_browser_io_info,
-                        pluralStringResource(R.plurals.node_browser_inputs_count, nodeType.inputs.size, nodeType.inputs.size),
-                        pluralStringResource(R.plurals.node_browser_outputs_count, nodeType.outputs.size, nodeType.outputs.size)
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ExpandableFilterChipRow(
-    options: List<String>,
-    selectedOption: String?,
-    onOptionSelected: (String?) -> Unit,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    if (options.isEmpty()) return
-
-    // Only show expand/collapse if there are enough options
-    val canExpand = options.size > 3
-
-    if (expanded) {
-        // Expanded mode: wrapping flow layout with collapse button first
-        FlowRow(
-            modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Collapse button first (FilledTonalIconButton for visual distinction)
-            if (canExpand) {
-                FilledTonalIconButton(
-                    onClick = { onExpandedChange(false) }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowUp,
-                        contentDescription = null
-                    )
-                }
-            }
-            options.forEach { option ->
-                key(option) {
-                    val isSelected = option == selectedOption
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            onOptionSelected(if (isSelected) null else option)
-                        },
-                        label = { Text(option) },
-                        leadingIcon = if (isSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Filled.Done,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                )
-                            }
-                        } else null
-                    )
-                }
-            }
-        }
-    } else {
-        // Collapsed mode: horizontal scrolling with expand button first
-        NoOverscrollContainer(modifier = modifier.fillMaxWidth()) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Box(
+                Modifier
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(swatch)
+            )
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp)
             ) {
-                // Expand button first (FilledTonalIconButton for visual distinction)
-                if (canExpand) {
-                    item(key = "expand_chip") {
-                        FilledTonalIconButton(
-                            onClick = { onExpandedChange(true) }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.KeyboardArrowDown,
-                                contentDescription = null
-                            )
-                        }
-                    }
+                Text(nodeType.displayName ?: nodeType.classType, style = MaterialTheme.typography.bodyLarge)
+                Text(io, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (nodeType.displayName != null && nodeType.displayName != nodeType.classType) {
+                    Text(nodeType.classType, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                items(
-                    items = options,
-                    key = { "chip_$it" }
-                ) { option ->
-                    val isSelected = option == selectedOption
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            onOptionSelected(if (isSelected) null else option)
-                        },
-                        label = { Text(option) },
-                        leadingIcon = if (isSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Filled.Done,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                )
-                            }
-                        } else null
-                    )
-                }
+            }
+            if (nodeType.deprecated) {
+                Icon(
+                    Icons.Rounded.Warning,
+                    contentDescription = stringResource(R.string.node_browser_deprecated),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                )
+            }
+            if (nodeType.experimental) {
+                Icon(
+                    Icons.Rounded.Science,
+                    contentDescription = stringResource(R.string.node_browser_experimental),
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                )
+            }
+            if (nodeType.isCustom) {
+                Icon(
+                    Icons.Rounded.Extension,
+                    contentDescription = stringResource(R.string.content_description_custom_node),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                )
             }
         }
     }

@@ -753,10 +753,17 @@
     <string name="error_value_min_float">Mínimo: %1$.2f</string>
     <string name="error_value_max_float">Máximo: %1$.2f</string>
     <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_no_match">Ningún nodo coincide con «%1$s»</string>
+    <string name="content_description_custom_node">Nodo de una extensión</string>
+    <string name="content_description_remove_filter">Mostrar todos los nodos</string>
+    <plurals name="node_browser_compatible_count">
+        <item quantity="one">%d nodo compatible</item>
+        <item quantity="many">%d nodos compatibles</item>
+        <item quantity="other">%d nodos compatibles</item>
+    </plurals>
     <string name="node_browser_title">Agregar nodo</string>
     <string name="placeholder_node_browser_search">Buscar nodos…</string>
     <string name="node_browser_no_results">No se encontraron nodos coincidentes</string>
-    <string name="node_browser_io_info">%1$s, %2$s</string>
     <plurals name="node_browser_inputs_count">
         <item quantity="one">%d entrada</item>
         <item quantity="many">%d entradas</item>
@@ -769,11 +776,8 @@
     </plurals>
     <string name="node_browser_deprecated">Obsoleto</string>
     <string name="node_browser_experimental">Experimental</string>
-    <string name="node_browser_filter_category">Categoría</string>
-    <string name="node_browser_filter_subcategory">Subcategoría</string>
-    <string name="node_browser_filter_group">Grupo</string>
-    <string name="node_browser_accepts_input">Acepta entrada %1$s</string>
-    <string name="node_browser_provides_output">Proporciona salida %1$s</string>
+    <string name="node_browser_accepts_input">Acepta %1$s</string>
+    <string name="node_browser_provides_output">Da %1$s</string>
     <string name="button_clear_search">Borrar búsqueda</string>
     <string name="workflow_editor_delete_node">Eliminar seleccionado</string>
     <string name="workflow_editor_duplicate_node">Duplicar seleccionado</string>

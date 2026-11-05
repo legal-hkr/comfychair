@@ -771,10 +771,18 @@
     <string name="error_value_min_float">Minimum: %1$.2f</string>
     <string name="error_value_max_float">Maksimum: %1$.2f</string>
     <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_no_match">Żaden węzeł nie pasuje do „%1$s”</string>
+    <string name="content_description_custom_node">Węzeł z rozszerzenia</string>
+    <string name="content_description_remove_filter">Pokaż wszystkie węzły</string>
+    <plurals name="node_browser_compatible_count">
+        <item quantity="one">%d pasujący węzeł</item>
+        <item quantity="few">%d pasujące węzły</item>
+        <item quantity="many">%d pasujących węzłów</item>
+        <item quantity="other">%d pasującego węzła</item>
+    </plurals>
     <string name="node_browser_title">Dodaj węzeł</string>
     <string name="placeholder_node_browser_search">Szukaj węzłów…</string>
     <string name="node_browser_no_results">Nie znaleziono pasujących węzłów</string>
-    <string name="node_browser_io_info">%1$s, %2$s</string>
     <plurals name="node_browser_inputs_count">
         <item quantity="one">%d wejście</item>
         <item quantity="few">%d wejścia</item>
@@ -789,11 +797,8 @@
     </plurals>
     <string name="node_browser_deprecated">Przestarzały</string>
     <string name="node_browser_experimental">Eksperymentalny</string>
-    <string name="node_browser_filter_category">Kategoria</string>
-    <string name="node_browser_filter_subcategory">Podkategoria</string>
-    <string name="node_browser_filter_group">Grupa</string>
-    <string name="node_browser_accepts_input">Przyjmuje wejście %1$s</string>
-    <string name="node_browser_provides_output">Dostarcza wyjście %1$s</string>
+    <string name="node_browser_accepts_input">Przyjmuje %1$s</string>
+    <string name="node_browser_provides_output">Daje %1$s</string>
     <string name="button_clear_search">Wyczyść wyszukiwanie</string>
     <string name="workflow_editor_delete_node">Usuń zaznaczone</string>
     <string name="workflow_editor_duplicate_node">Duplikuj zaznaczone</string>

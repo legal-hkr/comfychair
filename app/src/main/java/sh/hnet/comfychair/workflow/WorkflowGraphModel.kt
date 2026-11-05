@@ -88,6 +88,42 @@ enum class NodeCategory {
     OTHER        // Fallback
 }
 
+/** A node's category by its class type, for its colours (canvas, node browser). */
+fun nodeCategoryOf(classType: String): NodeCategory {
+    return when {
+        // Loaders
+        classType.contains("Loader", ignoreCase = true) -> NodeCategory.LOADER
+
+        // Text encoders
+        classType.contains("CLIPTextEncode", ignoreCase = true) ||
+        classType.contains("TextEncode", ignoreCase = true) -> NodeCategory.ENCODER
+
+        // Samplers
+        classType.contains("Sampler", ignoreCase = true) -> NodeCategory.SAMPLER
+
+        // Latent image creation
+        classType.contains("EmptyLatent", ignoreCase = true) ||
+        classType.contains("Empty") && classType.contains("Latent", ignoreCase = true) -> NodeCategory.LATENT
+
+        // Input nodes
+        classType.contains("LoadImage", ignoreCase = true) -> NodeCategory.INPUT
+
+        // Output nodes
+        classType.contains("Save", ignoreCase = true) ||
+        classType.contains("Preview", ignoreCase = true) -> NodeCategory.OUTPUT
+
+        // Processing nodes
+        classType.contains("Decode", ignoreCase = true) ||
+        classType.contains("Encode", ignoreCase = true) ||
+        classType.contains("Scale", ignoreCase = true) ||
+        classType.contains("Create", ignoreCase = true) ||
+        classType.contains("Sampling", ignoreCase = true) ||
+        classType.contains("ModelMerge", ignoreCase = true) -> NodeCategory.PROCESS
+
+        else -> NodeCategory.OTHER
+    }
+}
+
 /**
  * Represents a group container in the workflow graph.
  * Groups visually organize related nodes together.

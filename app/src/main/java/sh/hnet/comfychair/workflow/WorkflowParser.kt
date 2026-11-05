@@ -123,7 +123,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
                     id = nodeId,
                     classType = classType,
                     title = title,
-                    category = categorizeNode(classType),
+                    category = nodeCategoryOf(classType),
                     inputs = sortInputsForLayout(inputs),
                     templateInputKeys = templateKeys,
                     mode = mode,
@@ -346,41 +346,4 @@ class WorkflowParser(private val logDetails: Boolean = true) {
         }
     }
 
-    /**
-     * Categorize a node by its class type
-     */
-    private fun categorizeNode(classType: String): NodeCategory {
-        return when {
-            // Loaders
-            classType.contains("Loader", ignoreCase = true) -> NodeCategory.LOADER
-
-            // Text encoders
-            classType.contains("CLIPTextEncode", ignoreCase = true) ||
-            classType.contains("TextEncode", ignoreCase = true) -> NodeCategory.ENCODER
-
-            // Samplers
-            classType.contains("Sampler", ignoreCase = true) -> NodeCategory.SAMPLER
-
-            // Latent image creation
-            classType.contains("EmptyLatent", ignoreCase = true) ||
-            classType.contains("Empty") && classType.contains("Latent", ignoreCase = true) -> NodeCategory.LATENT
-
-            // Input nodes
-            classType.contains("LoadImage", ignoreCase = true) -> NodeCategory.INPUT
-
-            // Output nodes
-            classType.contains("Save", ignoreCase = true) ||
-            classType.contains("Preview", ignoreCase = true) -> NodeCategory.OUTPUT
-
-            // Processing nodes
-            classType.contains("Decode", ignoreCase = true) ||
-            classType.contains("Encode", ignoreCase = true) ||
-            classType.contains("Scale", ignoreCase = true) ||
-            classType.contains("Create", ignoreCase = true) ||
-            classType.contains("Sampling", ignoreCase = true) ||
-            classType.contains("ModelMerge", ignoreCase = true) -> NodeCategory.PROCESS
-
-            else -> NodeCategory.OTHER
-        }
-    }
 }

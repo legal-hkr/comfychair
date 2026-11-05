@@ -751,10 +751,16 @@
     <string name="workflow_editor_edit_mode_hint">Tap socket to connect, hold for node browser</string>
 
     <!-- Node browser bottom sheet strings -->
+    <string name="node_browser_no_match">No nodes match “%1$s”</string>
+    <string name="content_description_custom_node">Custom node</string>
+    <string name="content_description_remove_filter">Show all nodes</string>
+    <plurals name="node_browser_compatible_count">
+        <item quantity="one">%d compatible node</item>
+        <item quantity="other">%d compatible nodes</item>
+    </plurals>
     <string name="node_browser_title">Add node</string>
     <string name="placeholder_node_browser_search">Search nodes…</string>
     <string name="node_browser_no_results">No nodes match your search</string>
-    <string name="node_browser_io_info">%1$s, %2$s</string>
     <plurals name="node_browser_inputs_count">
         <item quantity="one">%d input</item>
         <item quantity="other">%d inputs</item>
@@ -765,11 +771,8 @@
     </plurals>
     <string name="node_browser_deprecated">Deprecated</string>
     <string name="node_browser_experimental">Experimental</string>
-    <string name="node_browser_filter_category">Category</string>
-    <string name="node_browser_filter_subcategory">Subcategory</string>
-    <string name="node_browser_filter_group">Group</string>
-    <string name="node_browser_accepts_input">Accepts %1$s input</string>
-    <string name="node_browser_provides_output">Provides %1$s output</string>
+    <string name="node_browser_accepts_input">Takes %1$s</string>
+    <string name="node_browser_provides_output">Gives %1$s</string>
     <string name="button_clear_search">Clear search</string>
 
     <!-- Workflow import dialog strings -->

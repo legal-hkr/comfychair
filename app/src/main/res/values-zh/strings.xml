@@ -717,10 +717,15 @@
     <string name="error_value_min_float">最小值：%1$.2f</string>
     <string name="error_value_max_float">最大值：%1$.2f</string>
     <string name="node_editor_range_min_max">%1$s – %2$s</string>
+    <string name="node_browser_no_match">没有与“%1$s”匹配的节点</string>
+    <string name="content_description_custom_node">扩展节点</string>
+    <string name="content_description_remove_filter">显示所有节点</string>
+    <plurals name="node_browser_compatible_count">
+        <item quantity="other">%d 个兼容节点</item>
+    </plurals>
     <string name="node_browser_title">添加节点</string>
     <string name="placeholder_node_browser_search">搜索节点…</string>
     <string name="node_browser_no_results">未找到匹配的节点</string>
-    <string name="node_browser_io_info">%1$s，%2$s</string>
     <plurals name="node_browser_inputs_count">
         <item quantity="other">%d 个输入</item>
     </plurals>
@@ -729,11 +734,8 @@
     </plurals>
     <string name="node_browser_deprecated">已弃用</string>
     <string name="node_browser_experimental">实验性</string>
-    <string name="node_browser_filter_category">类别</string>
-    <string name="node_browser_filter_subcategory">子类别</string>
-    <string name="node_browser_filter_group">分组</string>
-    <string name="node_browser_accepts_input">接受 %1$s 输入</string>
-    <string name="node_browser_provides_output">提供 %1$s 输出</string>
+    <string name="node_browser_accepts_input">接受 %1$s</string>
+    <string name="node_browser_provides_output">输出 %1$s</string>
     <string name="button_clear_search">清除搜索</string>
     <string name="workflow_editor_delete_node">删除所选</string>
     <string name="workflow_editor_duplicate_node">复制所选</string>
