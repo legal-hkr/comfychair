@@ -131,14 +131,16 @@ fun DebugLogSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () -> Uni
                     onCheckedChange = { viewModel.setDebugLoggingEnabled(context, it) }
                 )
             }
-            row { shapes ->
-                SettingsActionRow(
-                    shapes = shapes,
-                    icon = Icons.Rounded.BugReport,
-                    title = stringResource(R.string.button_debug_logging_view),
-                    enabled = enabled,
-                    onClick = { showViewer = true }
-                )
+            // Only while logging: before, there is nothing to view
+            if (enabled) {
+                row { shapes ->
+                    SettingsActionRow(
+                        shapes = shapes,
+                        icon = Icons.Rounded.BugReport,
+                        title = stringResource(R.string.button_debug_logging_view),
+                        onClick = { showViewer = true }
+                    )
+                }
             }
         }
     }

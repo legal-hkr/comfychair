@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.components.settings
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -128,7 +129,11 @@ fun SettingsGroup(title: String? = null, content: SettingsGroupScope.() -> Unit)
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        // Rows that come and go (shown only in some states) resize the group smoothly
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.fastSpatialSpec())
+        ) {
             scope.rows.forEachIndexed { index, row ->
                 row(groupShapes(index, scope.rows.size))
             }
