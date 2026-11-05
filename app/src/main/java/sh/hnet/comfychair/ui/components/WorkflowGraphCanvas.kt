@@ -6,7 +6,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.ExtensionOff
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.DefaultShadowColor
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
@@ -63,6 +64,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import sh.hnet.comfychair.workflow.ConnectionDirection
@@ -74,6 +76,8 @@ import sh.hnet.comfychair.workflow.MarkdownParser
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.routing.EdgeRouter
+import sh.hnet.comfychair.workflow.routing.RouterProvider
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
@@ -82,8 +86,6 @@ import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowNote
 import sh.hnet.comfychair.workflow.changedInputNames
 import sh.hnet.comfychair.workflow.getEffectiveDefault
-import sh.hnet.comfychair.workflow.routing.EdgeRouter
-import sh.hnet.comfychair.workflow.routing.RouterProvider
 
 /**
  * Highlight state for nodes in mapping mode
@@ -249,6 +251,7 @@ private data class AnimatedEdgeState(
 /**
  * Canvas component for rendering workflow graphs
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun WorkflowGraphCanvas(
     graph: WorkflowGraph,
@@ -341,12 +344,12 @@ fun WorkflowGraphCanvas(
         { fieldKey -> FieldDisplayRegistry.getDisplayName(context, fieldKey) }
     }
 
-    // Get the edge router from settings
-    val edgeRouter = remember { RouterProvider.getActiveRouter(context) }
-
     // TextMeasurer for markdown rendering in notes
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+
+    // The wire shape chosen in Settings
+    val edgeRouter = remember { RouterProvider.getActiveRouter(context) }
 
     // Track if note heights changed during drawing (triggers relayout)
     var noteHeightsChanged by remember { mutableStateOf(false) }
@@ -419,41 +422,28 @@ fun WorkflowGraphCanvas(
         tween(durationMillis = 350, easing = FastOutSlowInEasing)
     } else snap()
 
-    // Pulsing glow animation for valid input sockets - only runs when in connection mode
-    val glowPulse = remember { Animatable(0f) }
     val inConnectionMode = connectionModeState != null
 
-    LaunchedEffect(inConnectionMode) {
-        if (inConnectionMode) {
-            // Run pulsing animation while in connection mode
-            while (true) {
-                glowPulse.animateTo(1f, tween(800, easing = FastOutSlowInEasing))
-                glowPulse.animateTo(0f, tween(800, easing = FastOutSlowInEasing))
-            }
-        } else {
-            // Reset when exiting connection mode
-            glowPulse.snapTo(0f)
-        }
+    // Focus (spec §12.5): the selected nodes (Edit structure), the node whose values are open, or the node a pending
+    // connection starts from. Their wires are emphasised, all others recede; changes crossfade.
+    val focusedNodeIds: Set<String> = buildSet {
+        if (isEditMode) addAll(selectedNodeIds)
+        editingNodeId?.let(::add)
+        connectionModeState?.sourceSlot?.nodeId?.let(::add)
+    }
+    var shownFocus by remember { mutableStateOf(focusedNodeIds) }
+    var previousFocus by remember { mutableStateOf(focusedNodeIds) }
+    val focusProgress = remember { Animatable(1f) }
+    val focusSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    LaunchedEffect(focusedNodeIds) {
+        if (focusedNodeIds == shownFocus) return@LaunchedEffect
+        previousFocus = shownFocus
+        shownFocus = focusedNodeIds
+        focusProgress.snapTo(0f)
+        focusProgress.animateTo(1f, focusSpec)
     }
 
-    // Segment animation for highlighted wires - only runs when nodes are selected
-    val segmentTime = remember { Animatable(0f) }
-    val hasSelectedNodes = selectedNodeIds.isNotEmpty()
-
-    LaunchedEffect(hasSelectedNodes) {
-        if (hasSelectedNodes) {
-            // Run segment animation while nodes are selected
-            while (true) {
-                segmentTime.animateTo(1f, tween(1500, easing = LinearEasing))
-                segmentTime.snapTo(0f)
-            }
-        } else {
-            // Reset when no nodes selected
-            segmentTime.snapTo(0f)
-        }
-    }
-
-    // Long-press glow animation state
+    // Long-press feedback: a ring growing around the slot until the press counts
     var longPressSlot by remember { mutableStateOf<SlotPosition?>(null) }
     val longPressProgress = remember { Animatable(0f) }
 
@@ -1258,17 +1248,23 @@ fun WorkflowGraphCanvas(
             // Build node positions map for edge drawing
             val nodePositionsMap = animatedNodes.associate { it.node.id to it.node }
 
-            // Draw edges with alpha
-            animatedEdges.forEach { (edge, alpha) ->
+            // Wires: those of focused nodes over the others, which recede
+            val progress = focusProgress.value
+            val (focusedEdges, otherEdges) = animatedEdges.partition { (edge, _) ->
+                edge.sourceNodeId in shownFocus || edge.targetNodeId in shownFocus
+            }
+            (otherEdges + focusedEdges).forEach { (edge, alpha) ->
                 if (alpha > 0.01f) {
+                    val before = wireEmphasis(edge, previousFocus)
+                    val after = wireEmphasis(edge, shownFocus)
                     drawEdge(
                         edge = edge,
                         nodesById = nodePositionsMap,
                         colors = colors,
                         router = edgeRouter,
                         alpha = alpha,
-                        selectedNodeIds = selectedNodeIds,
-                        segmentTime = segmentTime.value,
+                        recede = lerp(before.recede, after.recede, progress),
+                        width = lerp(before.width, after.width, progress),
                         draggingNodeId = draggingNodeId,
                         dragScale = dragScale.value
                     )
@@ -1431,85 +1427,26 @@ fun WorkflowGraphCanvas(
 
             // Connection feedback while editing
             if (isEditMode) {
-                // Draw highlighted valid input slots when in connection mode
-                if (inConnectionMode) {
-                    val glowValue = glowPulse.value
-                    connectionModeState?.validTargetSlots?.forEach { slot ->
-                        // Draw pulsing glow effect around the input slot
-                        // glowValue ranges from 0 to 1, animating the glow intensity
-                        val baseAlpha = 0.3f + (glowValue * 0.4f)  // Alpha pulses between 0.3 and 0.7
-
-                        // Outer glow layer (largest, most transparent) - matches long-press glow size
-                        val outerGlowRadius = 15f + (glowValue * 35f)  // 15 -> 50
-                        drawCircle(
-                            color = colors.primary.copy(alpha = baseAlpha * 0.3f),
-                            radius = outerGlowRadius,
-                            center = slot.center
-                        )
-
-                        // Middle glow layer
-                        val midGlowRadius = 12f + (glowValue * 20f)  // 12 -> 32
-                        drawCircle(
-                            color = colors.primary.copy(alpha = baseAlpha * 0.5f),
-                            radius = midGlowRadius,
-                            center = slot.center
-                        )
-
-                        // Inner glow layer (smallest, most opaque)
-                        val innerGlowRadius = 10f + (glowValue * 10f)  // 10 -> 20
-                        drawCircle(
-                            color = colors.primary.copy(alpha = baseAlpha * 0.8f),
-                            radius = innerGlowRadius,
-                            center = slot.center
-                        )
-
-                        // Draw the actual input slot (solid circle with hole)
-                        // Pulse the socket color for brightness effect (towards white in dark mode, black in light mode)
-                        // Size matches highlighted output circle (14f)
-                        val pulseTargetColor = if (colors.isDark) Color.White else Color.Black
-                        val socketColor = lerp(colors.primary, pulseTargetColor, glowValue * 0.5f)
-                        drawCircle(
-                            color = socketColor,
-                            radius = 14f,
-                            center = slot.center
-                        )
-                        drawCircle(
-                            color = colors.nodeBody,
-                            radius = 7f,
-                            center = slot.center
-                        )
-                    }
+                // Compatible slots of a pending connection: a ring in primary around the socket
+                val ringRadius = NodeStyle.SOCKET_RADIUS + NodeStyle.SOCKET_HALO + NodeStyle.SELECTION_WIDTH / 2
+                connectionModeState?.validTargetSlots?.forEach { slot ->
+                    drawCircle(
+                        color = colors.primary,
+                        radius = ringRadius,
+                        center = slot.center,
+                        style = Stroke(NodeStyle.SELECTION_WIDTH)
+                    )
                 }
 
-                // Draw expanding glow during long-press gesture
+                // Long-press on a slot: the ring grows until the press counts
                 longPressSlot?.let { slot ->
-                    val progress = longPressProgress.value
-                    if (progress > 0f) {
-                        // Three-layer expanding glow effect (sized to be visible under finger)
-                        val baseAlpha = 0.3f + (progress * 0.4f)  // 0.3 -> 0.7
-
-                        // Outer glow - expands significantly
-                        val outerRadius = 30f + (progress * 70f)  // 30 -> 100
+                    val pressProgress = longPressProgress.value
+                    if (pressProgress > 0f) {
                         drawCircle(
-                            color = colors.primary.copy(alpha = baseAlpha * 0.3f),
-                            radius = outerRadius,
-                            center = slot.center
-                        )
-
-                        // Middle glow
-                        val midRadius = 24f + (progress * 40f)  // 24 -> 64
-                        drawCircle(
-                            color = colors.primary.copy(alpha = baseAlpha * 0.5f),
-                            radius = midRadius,
-                            center = slot.center
-                        )
-
-                        // Inner glow
-                        val innerRadius = 20f + (progress * 20f)  // 20 -> 40
-                        drawCircle(
-                            color = colors.primary.copy(alpha = baseAlpha * 0.8f),
-                            radius = innerRadius,
-                            center = slot.center
+                            color = colors.primary,
+                            radius = ringRadius + pressProgress * 24f,
+                            center = slot.center,
+                            style = Stroke(NodeStyle.SELECTION_WIDTH)
                         )
                     }
                 }
@@ -1741,10 +1678,24 @@ private fun DrawScope.drawSocket(
     }
 }
 
+/** How a wire is drawn for a focus: how far it recedes into `outlineVariant` (0–1) and its width in graph units. */
+private class WireEmphasis(val recede: Float, val width: Float)
+
+private val WIRE_PLAIN = WireEmphasis(recede = 0f, width = 4f)
+private val WIRE_FOCUSED = WireEmphasis(recede = 0f, width = 6f)
+private val WIRE_RECEDED = WireEmphasis(recede = 1f, width = 4f)
+
+/** Without focus every wire in its slot colour; with focus, the focused nodes' wires wider and the rest receding. */
+private fun wireEmphasis(edge: WorkflowEdge, focus: Set<String>): WireEmphasis = when {
+    focus.isEmpty() -> WIRE_PLAIN
+    edge.sourceNodeId in focus || edge.targetNodeId in focus -> WIRE_FOCUSED
+    else -> WIRE_RECEDED
+}
+
 /**
- * Draw an edge (connection) between two nodes.
- * Uses the configured edge router for path computation.
- * When connected to a selected node, animates interweaving colored segments along the wire.
+ * A wire from an output socket to an input socket, shaped by the router chosen in Settings, in the slot colour of its
+ * output type (receding toward `outlineVariant` while other nodes are focused), round caps and a dot at each end
+ * under the sockets.
  */
 private fun DrawScope.drawEdge(
     edge: WorkflowEdge,
@@ -1752,110 +1703,29 @@ private fun DrawScope.drawEdge(
     colors: CanvasColors,
     router: EdgeRouter,
     alpha: Float = 1f,
-    selectedNodeIds: Set<String> = emptySet(),
-    segmentTime: Float = 0f,
+    recede: Float = 0f,
+    width: Float = 4f,
     draggingNodeId: String? = null,
     dragScale: Float = 1f
 ) {
     val sourceNode = nodesById[edge.sourceNodeId] ?: return
     val targetNode = nodesById[edge.targetNodeId] ?: return
 
-    // Helper to apply alpha to a color
-    fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
-
-    // Connection points: always exit right side of source, enter left side of target
-    // Apply scale transform when connected to a dragging node
-    val sourceSocketX = sourceNode.x + sourceNode.width
-    val sourceSocketY = sourceNode.y + WorkflowLayoutEngine.outputSlotY(sourceNode, edge.sourceOutputIndex)
-    val scaledStart = scaleSocketPosition(sourceNode, sourceSocketX, sourceSocketY, draggingNodeId, dragScale)
-    val startX = scaledStart.x
-    val startY = scaledStart.y
-
-    val targetSocketX = targetNode.x
-    val targetSocketY = targetNode.y + WorkflowLayoutEngine.inputSlotY(targetNode, edge.targetInputName)
-    val scaledEnd = scaleSocketPosition(targetNode, targetSocketX, targetSocketY, draggingNodeId, dragScale)
-    val endX = scaledEnd.x
-    val endY = scaledEnd.y
-
-    // Resolve base color from slot type, fallback to default
-    val baseEdgeColor = colors.slot(edge.slotType).withAlpha()
-
-    // Check if this edge is connected to a selected node
-    val isConnectedToSelected = edge.sourceNodeId in selectedNodeIds || edge.targetNodeId in selectedNodeIds
-
-    // Make wires thicker when connected to selected node (same color as normal)
-    // Highlight segments use the selected node's frame color
-    val edgeColor: Color
-    val highlightColor: Color
-    val edgeWidth: Float
-    if (isConnectedToSelected) {
-        edgeColor = baseEdgeColor  // Wire stays same color
-        highlightColor = colors.primary.withAlpha()  // Same as highlighted node's frame
-        edgeWidth = 8f
-    } else {
-        edgeColor = baseEdgeColor
-        highlightColor = baseEdgeColor
-        edgeWidth = 4f
-    }
-
-    // Compute the path using the configured router
-    val startPoint = Offset(startX, startY)
-    val endPoint = Offset(endX, endY)
-    val routedPath = router.computeRoute(startPoint, endPoint)
-    val path = routedPath.path
-
-    // Draw the path - use animated interweaving segments for highlighted wires
-    if (isConnectedToSelected) {
-        val segmentLength = 20f  // Length of each colored segment
-        // Animate phase: negative to flow from output to input
-        val animatedPhase = -segmentTime * segmentLength * 2
-
-        // Draw base color segments (dashed)
-        drawPath(
-            path = path,
-            color = edgeColor,
-            style = Stroke(
-                width = edgeWidth,
-                pathEffect = PathEffect.dashPathEffect(
-                    intervals = floatArrayOf(segmentLength, segmentLength),
-                    phase = animatedPhase
-                )
-            )
-        )
-
-        // Draw highlight color segments (offset by segmentLength to interweave)
-        drawPath(
-            path = path,
-            color = highlightColor,
-            style = Stroke(
-                width = edgeWidth,
-                pathEffect = PathEffect.dashPathEffect(
-                    intervals = floatArrayOf(segmentLength, segmentLength),
-                    phase = animatedPhase + segmentLength
-                )
-            )
-        )
-    } else {
-        // Non-highlighted: solid color
-        drawPath(
-            path = path,
-            color = edgeColor,
-            style = Stroke(width = edgeWidth)
-        )
-    }
-
-    // Draw small circle at connection points (use highlight color when selected)
-    val endpointColor = if (isConnectedToSelected) highlightColor else edgeColor
-    drawCircle(
-        color = endpointColor,
-        radius = 8f,
-        center = Offset(startX, startY)
+    // Socket positions, following a node lifted while dragged
+    val start = scaleSocketPosition(
+        sourceNode, sourceNode.x + sourceNode.width,
+        sourceNode.y + WorkflowLayoutEngine.outputSlotY(sourceNode, edge.sourceOutputIndex), draggingNodeId, dragScale
     )
-    drawCircle(
-        color = endpointColor,
-        radius = 8f,
-        center = Offset(endX, endY)
+    val end = scaleSocketPosition(
+        targetNode, targetNode.x, targetNode.y + WorkflowLayoutEngine.inputSlotY(targetNode, edge.targetInputName),
+        draggingNodeId, dragScale
     )
+    val path = router.computeRoute(start, end).path
+
+    val color = lerp(colors.slot(edge.slotType), colors.outlineVariant, recede).copy(alpha = alpha)
+    drawPath(path = path, color = color, style = Stroke(width = width, cap = StrokeCap.Round))
+    drawCircle(color = color, radius = 4f, center = start)
+    drawCircle(color = color, radius = 4f, center = end)
 }
 
 /**
@@ -2036,89 +1906,6 @@ private fun DrawScope.drawNote(
             }
         }
     }
-}
-
-/**
- * Calculate a point along a cubic Bezier curve at parameter t (0-1).
- */
-private fun cubicBezierPoint(
-    start: Offset,
-    control1: Offset,
-    control2: Offset,
-    end: Offset,
-    t: Float
-): Offset {
-    val u = 1 - t
-    val tt = t * t
-    val uu = u * u
-    val uuu = uu * u
-    val ttt = tt * t
-
-    return Offset(
-        x = uuu * start.x + 3 * uu * t * control1.x + 3 * u * tt * control2.x + ttt * end.x,
-        y = uuu * start.y + 3 * uu * t * control1.y + 3 * u * tt * control2.y + ttt * end.y
-    )
-}
-
-/**
- * Approximate the arc length of a cubic Bezier curve by sampling.
- */
-private fun approximateBezierLength(
-    start: Offset,
-    control1: Offset,
-    control2: Offset,
-    end: Offset,
-    samples: Int = 30
-): Float {
-    var length = 0f
-    var prevPoint = start
-    for (i in 1..samples) {
-        val t = i.toFloat() / samples
-        val point = cubicBezierPoint(start, control1, control2, end, t)
-        length += (point - prevPoint).getDistance()
-        prevPoint = point
-    }
-    return length
-}
-
-/**
- * Find the point on a Bezier curve at a given arc length distance from the start.
- * Returns null if distance exceeds curve length.
- */
-private fun pointAtArcLength(
-    start: Offset,
-    control1: Offset,
-    control2: Offset,
-    end: Offset,
-    targetDistance: Float,
-    samples: Int = 30
-): Offset? {
-    if (targetDistance <= 0f) return start
-
-    var accumulatedDistance = 0f
-    var prevPoint = start
-
-    for (i in 1..samples) {
-        val t = i.toFloat() / samples
-        val point = cubicBezierPoint(start, control1, control2, end, t)
-        val segmentLength = (point - prevPoint).getDistance()
-
-        if (accumulatedDistance + segmentLength >= targetDistance) {
-            // Interpolate within this segment for smooth positioning
-            val remaining = targetDistance - accumulatedDistance
-            val fraction = remaining / segmentLength
-            return Offset(
-                prevPoint.x + (point.x - prevPoint.x) * fraction,
-                prevPoint.y + (point.y - prevPoint.y) * fraction
-            )
-        }
-
-        accumulatedDistance += segmentLength
-        prevPoint = point
-    }
-
-    // Distance exceeds curve length
-    return null
 }
 
 /** [text] cut at the end with "…" to fit [maxWidth]; empty when not even that fits. */
