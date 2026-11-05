@@ -14,7 +14,6 @@
     <string name="placeholder_server_name">Mon serveur</string>
     <string name="placeholder_server_hostname">192.168.1.100</string>
     <string name="error_server_name_taken">Ce nom est déjà utilisé</string>
-    <string name="placeholder_server_select">Sélectionner un serveur</string>
     <string name="button_server_edit">Modifier le serveur</string>
     <string name="button_server_add">Ajouter un serveur</string>
     <string name="button_server_delete">Supprimer le serveur</string>
@@ -54,10 +53,13 @@
 
     <!-- Connection button states -->
     <string name="button_connect">Connecter</string>
+    <string name="label_choose_server">Choisissez un serveur</string>
+    <string name="button_connect_offline">Se connecter hors ligne</string>
+    <string name="content_description_connection_options">Options de connexion</string>
+    <string name="msg_no_servers">Ajoutez votre serveur ComfyUI pour commencer.</string>
     <string name="button_connecting">Connexion…</string>
     <string name="button_failed">Échec</string>
     <string name="button_connected">Connecté</string>
-    <string name="button_offline">Hors ligne</string>
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">Aucune donnée mise en cache disponible pour ce serveur</string>

@@ -268,7 +268,7 @@ fun SettingsSwitchRow(
     }
 }
 
-/** One option of a longer choice, with what it means. */
+/** One option of a longer choice, with what it means; optionally with its own trailing control (e.g. a row menu). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsRadioRow(
@@ -276,15 +276,19 @@ fun SettingsRadioRow(
     title: String,
     selected: Boolean,
     onSelect: () -> Unit,
-    supporting: String? = null
+    supporting: String? = null,
+    enabled: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null
 ) {
     SegmentedListItem(
         selected = selected,
         onClick = onSelect,
         shapes = steadyShapes(shapes),
+        enabled = enabled,
         // The chosen option stands out by colour only
         colors = rowColors(highlightSelected = true),
-        leadingContent = { RadioButton(selected = selected, onClick = null) },
+        leadingContent = { RadioButton(selected = selected, onClick = null, enabled = enabled) },
+        trailingContent = trailing,
         supportingContent = supporting?.let { { Text(it) } }
     ) {
         Text(title)

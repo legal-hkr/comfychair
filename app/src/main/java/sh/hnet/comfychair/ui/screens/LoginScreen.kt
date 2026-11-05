@@ -1,28 +1,46 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package sh.hnet.comfychair.ui.screens
 
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.layout
 import android.app.Activity
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,14 +51,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -61,12 +76,16 @@ import sh.hnet.comfychair.model.AuthType
 import sh.hnet.comfychair.model.Server
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.CredentialStorage
+import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.ui.components.CertificateTrustDialog
 import sh.hnet.comfychair.ui.components.ConnectionSplitButton
 import sh.hnet.comfychair.ui.components.InsecureFallbackDialog
 import sh.hnet.comfychair.ui.components.ServerDialog
-import sh.hnet.comfychair.ui.components.ServerDropdown
+import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
+import sh.hnet.comfychair.ui.components.settings.SettingsGroup
+import sh.hnet.comfychair.ui.components.settings.SettingsRadioRow
+import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.util.ServerUrlUtils
 
 /**
@@ -109,7 +128,7 @@ fun LoginScreen() {
     // Dialog state
     var showServerDialog by remember { mutableStateOf(false) }
     var serverToEdit by remember { mutableStateOf<Server?>(null) }
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var serverToDelete by remember { mutableStateOf<Server?>(null) }
     var showOfflinePrompt by remember { mutableStateOf(false) }
     var offlinePromptServer by remember { mutableStateOf<Server?>(null) }
 
@@ -402,42 +421,25 @@ fun LoginScreen() {
         )
     }
 
-    // Delete confirmation dialog
-    if (showDeleteConfirmation && selectedServer != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text(stringResource(R.string.title_server_delete)) },
-            text = { Text(stringResource(R.string.msg_server_delete, selectedServer!!.name)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val serverToDelete = selectedServer!!
-                        serverStorage.deleteServer(serverToDelete.id)
-
-                        // Also delete credentials for the server
-                        credentialStorage.deleteCredentials(serverToDelete.id)
-
-                        servers = serverStorage.getServers()
-
-                        // Select another server or null
-                        selectedServer = servers.firstOrNull()
-                        selectedServer?.let { serverStorage.setSelectedServerId(it.id) }
-
-                        showDeleteConfirmation = false
-                        Toast.makeText(context, R.string.msg_server_deleted_success, Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text(stringResource(R.string.button_server_delete))
+    // Delete confirmation, for the server whose row menu asked
+    serverToDelete?.let { server ->
+        ConfirmDestructiveDialog(
+            title = stringResource(R.string.title_server_delete),
+            text = stringResource(R.string.msg_server_delete, server.name),
+            confirmLabel = stringResource(R.string.button_delete),
+            onConfirm = {
+                serverStorage.deleteServer(server.id)
+                // Also delete credentials for the server
+                credentialStorage.deleteCredentials(server.id)
+                servers = serverStorage.getServers()
+                // Keep the selection unless it was this server
+                if (selectedServer?.id == server.id) {
+                    selectedServer = servers.firstOrNull()
+                    selectedServer?.let { serverStorage.setSelectedServerId(it.id) }
                 }
+                Toast.makeText(context, R.string.msg_server_deleted_success, Toast.LENGTH_SHORT).show()
             },
-            dismissButton = {
-                OutlinedButton(onClick = { showDeleteConfirmation = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            }
+            onDismiss = { serverToDelete = null }
         )
     }
 
@@ -493,83 +495,183 @@ fun LoginScreen() {
         )
     }
 
-    // UI
+    // Offline: from the cache kept with media stored on the device, for the selected server
+    val canConnectOffline = remember(selectedServer, isOfflineMode) {
+        AppSettings.getMediaStorageMode(context) == MediaStorageMode.DEVICE &&
+            selectedServer?.let { ConnectionManager.hasOfflineCache(context, it.id) } == true
+    }
+    val busy = connectionState != ConnectionState.IDLE
+
+    // UI: the app and the servers above, Connect at the bottom in thumb reach
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
-        // App logo and name
-        // The text has a -16dp offset to tuck it closer to the icon (which has built-in padding).
-        // To keep the visual center aligned, we offset the entire Row by half that amount (-8dp).
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.offset(x = (-8).dp)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
         ) {
+            Spacer(Modifier.height(16.dp))
+            // The logo file is the launcher icon's foreground, with the safe zone around the mark: the mark is moved
+            // to start on the title's line, and the empty band below it doesn't push the title down
             Image(
                 painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = null,
-                modifier = Modifier.size(112.dp)
+                modifier = Modifier
+                    .size(LOGO_SIZE)
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val markStart = (placeable.width * LOGO_MARK_START).roundToInt()
+                        val emptyBelow = (placeable.height * LOGO_EMPTY_BELOW).roundToInt()
+                        layout(placeable.width, placeable.height - emptyBelow) {
+                            placeable.place(TITLE_INSET.roundToPx() - markStart, 0)
+                        }
+                    }
             )
             Text(
                 text = stringResource(R.string.app_name),
-                fontSize = 36.sp,
-                fontFamily = FontFamily.Serif,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.offset(x = (-16).dp)
+                style = MaterialTheme.typography.displaySmall,
+                modifier = Modifier.padding(horizontal = TITLE_INSET)
             )
+            Text(
+                text = stringResource(R.string.label_choose_server),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+
+            if (servers.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.msg_no_servers),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                )
+            }
+            // One choice among the saved servers; each row has its own menu
+            Column(Modifier.selectableGroup()) {
+                SettingsGroup {
+                    servers.forEach { server ->
+                        row { shapes ->
+                            SettingsRadioRow(
+                                shapes = shapes,
+                                title = server.name,
+                                supporting = "${server.hostname}:${server.port}",
+                                selected = server.id == selectedServer?.id,
+                                enabled = !busy,
+                                onSelect = {
+                                    selectedServer = server
+                                    serverStorage.setSelectedServerId(server.id)
+                                },
+                                trailing = {
+                                    ServerRowMenu(
+                                        enabled = !busy,
+                                        onEdit = {
+                                            serverToEdit = server
+                                            showServerDialog = true
+                                        },
+                                        onDelete = { serverToDelete = server }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            FilledTonalButton(
+                onClick = {
+                    serverToEdit = null
+                    showServerDialog = true
+                },
+                enabled = !busy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(stringResource(R.string.button_server_add))
+            }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // Server dropdown
-        ServerDropdown(
-            servers = servers,
-            selectedServer = selectedServer,
-            onServerSelected = { server ->
-                selectedServer = server
-                serverStorage.setSelectedServerId(server.id)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Connect split button with server management
+        Spacer(Modifier.height(16.dp))
         ConnectionSplitButton(
             connectionState = connectionState,
             hasSelectedServer = selectedServer != null,
             isOfflineMode = isOfflineMode,
+            canConnectOffline = canConnectOffline,
             onConnect = {
-                if (selectedServer != null) {
-                    if (isOfflineMode) {
-                        attemptOfflineConnection(selectedServer!!)
-                    } else {
-                        attemptConnection(selectedServer!!)
-                    }
+                selectedServer?.let { server ->
+                    if (isOfflineMode) attemptOfflineConnection(server) else attemptConnection(server)
+                }
+            },
+            onConnectOffline = {
+                selectedServer?.let { server ->
+                    // Offline mode applies to the whole session (gallery from the cache)
+                    AppSettings.setOfflineMode(context, true)
+                    isOfflineMode = true
+                    attemptOfflineConnection(server)
                 }
             },
             onGoOnline = {
                 AppSettings.setOfflineMode(context, false)
                 isOfflineMode = false
             },
-            onAddServer = {
-                serverToEdit = null
-                showServerDialog = true
-            },
-            onEditServer = {
-                serverToEdit = selectedServer
-                showServerDialog = true
-            },
-            onRemoveServer = {
-                showDeleteConfirmation = true
-            },
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
+
+/** A server row's menu: Edit, and Delete (confirmed) apart, in the error colour. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ServerRowMenu(enabled: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TooltipIconButton(Icons.Rounded.MoreVert, stringResource(R.string.content_description_server_menu), { expanded = true }, enabled = enabled)
+        DropdownMenuPopup(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.button_server_edit)) },
+                    leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+                    shape = MenuDefaults.itemShape(0, 1).shape,
+                    onClick = {
+                        expanded = false
+                        onEdit()
+                    }
+                )
+            }
+            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                val error = MaterialTheme.colorScheme.error
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.button_server_delete), color = error) },
+                    leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = error) },
+                    shape = MenuDefaults.itemShape(0, 1).shape,
+                    onClick = {
+                        expanded = false
+                        onDelete()
+                    }
+                )
+            }
+        }
+    }
+}
+
+private val LOGO_SIZE = 144.dp
+
+/** Where the mark starts in the logo file, as a share of its width (measured from the icon's artwork). */
+private const val LOGO_MARK_START = 0.30f
+
+/** The empty band below the mark in the logo file, as a share of its height. */
+private const val LOGO_EMPTY_BELOW = 0.265f
+
+/** Start inset of the title and subtitle, which the mark lines up with. */
+private val TITLE_INSET = 8.dp

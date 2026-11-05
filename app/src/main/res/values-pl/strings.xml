@@ -14,7 +14,6 @@
     <string name="placeholder_server_name">Mój serwer</string>
     <string name="placeholder_server_hostname">192.168.1.100</string>
     <string name="error_server_name_taken">Ta nazwa jest już używana</string>
-    <string name="placeholder_server_select">Wybierz serwer</string>
     <string name="button_server_edit">Edytuj serwer</string>
     <string name="button_server_add">Dodaj serwer</string>
     <string name="button_server_delete">Usuń serwer</string>
@@ -54,10 +53,13 @@
 
     <!-- Connection button states -->
     <string name="button_connect">Połącz</string>
+    <string name="label_choose_server">Wybierz serwer</string>
+    <string name="button_connect_offline">Połącz offline</string>
+    <string name="content_description_connection_options">Opcje połączenia</string>
+    <string name="msg_no_servers">Dodaj swój serwer ComfyUI, żeby zacząć.</string>
     <string name="button_connecting">Łączenie…</string>
     <string name="button_failed">Błąd</string>
     <string name="button_connected">Połączono</string>
-    <string name="button_offline">Tryb offline</string>
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">Brak danych w pamięci podręcznej dla tego serwera</string>

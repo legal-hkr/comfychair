@@ -14,7 +14,6 @@
     <string name="placeholder_server_name">我的服务器</string>
     <string name="placeholder_server_hostname">192.168.1.100</string>
     <string name="error_server_name_taken">此名称已被使用</string>
-    <string name="placeholder_server_select">选择服务器</string>
     <string name="button_server_edit">编辑服务器</string>
     <string name="button_server_add">添加服务器</string>
     <string name="button_server_delete">删除服务器</string>
@@ -54,10 +53,13 @@
 
     <!-- Connection button states -->
     <string name="button_connect">连接</string>
+    <string name="label_choose_server">选择服务器</string>
+    <string name="button_connect_offline">离线连接</string>
+    <string name="content_description_connection_options">连接选项</string>
+    <string name="msg_no_servers">添加你的 ComfyUI 服务器以开始。</string>
     <string name="button_connecting">连接中…</string>
     <string name="button_failed">连接失败</string>
     <string name="button_connected">已连接</string>
-    <string name="button_offline">离线</string>
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">此服务器没有可用的缓存数据</string>

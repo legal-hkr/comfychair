@@ -14,7 +14,6 @@
     <string name="placeholder_server_name">Mein Server</string>
     <string name="placeholder_server_hostname">192.168.1.100</string>
     <string name="error_server_name_taken">Dieser Name wird bereits verwendet</string>
-    <string name="placeholder_server_select">Server auswählen</string>
     <string name="button_server_edit">Server bearbeiten</string>
     <string name="button_server_add">Server hinzufügen</string>
     <string name="button_server_delete">Server löschen</string>
@@ -54,10 +53,13 @@
 
     <!-- Connection button states -->
     <string name="button_connect">Verbinden</string>
+    <string name="label_choose_server">Server auswählen</string>
+    <string name="button_connect_offline">Offline verbinden</string>
+    <string name="content_description_connection_options">Verbindungsoptionen</string>
+    <string name="msg_no_servers">Füge deinen ComfyUI-Server hinzu, um zu beginnen.</string>
     <string name="button_connecting">Verbinde…</string>
     <string name="button_failed">Fehlgeschlagen</string>
     <string name="button_connected">Verbunden</string>
-    <string name="button_offline">Offline</string>
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">Keine zwischengespeicherten Daten für diesen Server verfügbar</string>

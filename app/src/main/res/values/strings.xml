@@ -12,7 +12,6 @@
     <string name="placeholder_server_name">My Server</string>
     <string name="placeholder_server_hostname">192.168.1.100</string>
     <string name="error_server_name_taken">This name is already used</string>
-    <string name="placeholder_server_select">Select a Server</string>
     <string name="button_server_edit">Edit Server</string>
     <string name="button_server_add">Add Server</string>
     <string name="button_server_delete">Delete Server</string>
@@ -52,10 +51,13 @@
 
     <!-- Connection button states -->
     <string name="button_connect">Connect</string>
+    <string name="label_choose_server">Choose a server</string>
+    <string name="button_connect_offline">Connect offline</string>
+    <string name="content_description_connection_options">Connection options</string>
+    <string name="msg_no_servers">Add your ComfyUI server to start.</string>
     <string name="button_connecting">Connecting…</string>
     <string name="button_failed">Failed</string>
     <string name="button_connected">Connected</string>
-    <string name="button_offline">Offline</string>
     <string name="error_no_offline_cache">No cached data available for this server</string>
     <string name="title_offline_prompt">Server Unreachable</string>
     <string name="msg_offline_prompt">Cannot connect to the server. Would you like to continue in offline mode using cached data?</string>
