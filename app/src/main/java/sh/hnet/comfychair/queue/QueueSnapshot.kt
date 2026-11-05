@@ -12,6 +12,9 @@ import org.json.JSONObject
  */
 data class QueueSnapshot(val running: List<String>, val pending: List<String>) {
 
+    /** Whether a job is still on the server: running or waiting. */
+    operator fun contains(promptId: String): Boolean = promptId in running || promptId in pending
+
     /** Position of a waiting job, 1 = next to run; null if it doesn't wait. */
     fun positionOf(promptId: String): Int? = pending.indexOf(promptId).takeIf { it >= 0 }?.plus(1)
 

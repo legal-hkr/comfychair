@@ -2,6 +2,8 @@ package sh.hnet.comfychair.queue
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -27,6 +29,15 @@ class QueueSnapshotTest {
         val snapshot = QueueSnapshot.parse(json)
         assertEquals(listOf("run"), snapshot.running)
         assertEquals(listOf("front", "next", "later"), snapshot.pending)
+    }
+
+    @Test
+    fun runningAndWaitingJobsAreOnTheServer() {
+        val snapshot = QueueSnapshot.parse(json)
+        assertTrue("run" in snapshot)
+        assertTrue("front" in snapshot)
+        assertFalse("gone" in snapshot)
+        assertFalse("run" in QueueSnapshot.parse(JSONObject("{}")))
     }
 
     @Test

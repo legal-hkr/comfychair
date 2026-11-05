@@ -26,6 +26,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.connection.WebSocketMessage
 import sh.hnet.comfychair.connection.WebSocketState
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.queue.JobStatus
 import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.util.DebugLogger
@@ -752,13 +753,24 @@ class GenerationViewModel : ViewModel() {
         client.fetchQueue { json -> mainHandler.post { onResult(json?.let { QueueSnapshot.parse(it) }) } }
     }
 
-    /** Remove one of our waiting jobs from the server queue and stop tracking it. */
+    /**
+     * Remove one of our waiting jobs from the server queue and stop tracking it. The server answers the same whether
+     * it removed the job or not, so the queue is read again: a job that started meanwhile is still followed (and the
+     * removal reported as failed), as is one whose state couldn't be read (the next queue poll settles it).
+     */
     fun removeFromQueue(promptId: String, onResult: (success: Boolean) -> Unit) {
         val client = comfyUIClient ?: return onResult(false)
         val mainHandler = Handler(Looper.getMainLooper())
-        client.deleteFromQueue(listOf(promptId)) { success ->
-            if (success) forgetJob(promptId)
-            mainHandler.post { onResult(success) }
+        client.deleteFromQueue(listOf(promptId)) { deleted ->
+            if (!deleted) {
+                mainHandler.post { onResult(false) }
+                return@deleteFromQueue
+            }
+            client.fetchQueue { json ->
+                val removed = json != null && promptId !in QueueSnapshot.parse(json)
+                if (removed) forgetJob(promptId)
+                mainHandler.post { onResult(removed) }
+            }
         }
     }
 
@@ -773,19 +785,22 @@ class GenerationViewModel : ViewModel() {
         val done: (Boolean) -> Unit = { success -> mainHandler.post { onResult(success) } }
         client.fetchQueue { json ->
             val prompt = json?.let { QueueSnapshot.pendingPrompt(it, promptId) } ?: return@fetchQueue done(false)
+            // As tracked now: a queue poll while the job is off the server may drop it, so it can be tracked again
+            val job = JobRegistry.queueState.value.ownJobs[promptId] ?: return@fetchQueue done(false)
+            val description = JobRegistry.description(promptId)
             client.deleteFromQueue(listOf(promptId)) { deleted ->
                 if (!deleted) return@deleteFromQueue done(false)
                 client.fetchQueue { after ->
                     val snapshot = after?.let { QueueSnapshot.parse(it) }
-                    if (snapshot != null && (promptId in snapshot.running || promptId in snapshot.pending)) {
+                    if (snapshot != null && promptId in snapshot) {
                         // Started (or stayed) before it could be removed: nothing to resubmit
                         return@fetchQueue done(false)
                     }
                     client.resubmitPrompt(prompt, promptId, front = true) { success, newId ->
                         if (success && newId != null) {
+                            // Followed under the id the server gave it (often the same), tracked again if dropped
+                            JobRegistry.followMovedJob(job, newId, description)
                             if (newId != promptId) {
-                                // The server assigned a new id: follow the job under it
-                                JobRegistry.rekeyJob(promptId, newId)
                                 _generationState.update { if (it.promptId == promptId) it.copy(promptId = newId) else it }
                             }
                             applicationContext?.let { JobRegistry.saveState(it) }
@@ -800,11 +815,21 @@ class GenerationViewModel : ViewModel() {
         }
     }
 
-    /** Clear the whole server queue, other clients' jobs included. */
+    /**
+     * Clear the whole server queue, other clients' jobs included. Our waiting jobs are gone with it and no event will
+     * say so, so they're forgotten (a screen waiting for one stops waiting); the running job isn't touched.
+     */
     fun clearQueue(onResult: (success: Boolean) -> Unit) {
         val client = comfyUIClient ?: return onResult(false)
         val mainHandler = Handler(Looper.getMainLooper())
-        client.clearQueue { success -> mainHandler.post { onResult(success) } }
+        client.clearQueue { success ->
+            if (success) {
+                JobRegistry.queueState.value.ownJobs.values
+                    .filter { it.status == JobStatus.PENDING }
+                    .forEach { forgetJob(it.promptId) }
+            }
+            mainHandler.post { onResult(success) }
+        }
     }
 
     /** Stop tracking a job that left the queue without running; a screen waiting for it stops waiting. */
@@ -1013,31 +1038,7 @@ class GenerationViewModel : ViewModel() {
                 return@fetchQueue
             }
 
-            // Check queue_running array: [[number, prompt_id, {...}], ...]
-            val queueRunning = queueJson.optJSONArray("queue_running")
-            if (queueRunning != null) {
-                for (i in 0 until queueRunning.length()) {
-                    val entry = queueRunning.optJSONArray(i)
-                    if (entry != null && entry.length() > 1 && entry.optString(1) == promptId) {
-                        callback(true)
-                        return@fetchQueue
-                    }
-                }
-            }
-
-            // Check queue_pending array: [[number, prompt_id, {...}], ...]
-            val queuePending = queueJson.optJSONArray("queue_pending")
-            if (queuePending != null) {
-                for (i in 0 until queuePending.length()) {
-                    val entry = queuePending.optJSONArray(i)
-                    if (entry != null && entry.length() > 1 && entry.optString(1) == promptId) {
-                        callback(true)
-                        return@fetchQueue
-                    }
-                }
-            }
-
-            callback(false)
+            callback(promptId in QueueSnapshot.parse(queueJson))
         }
     }
 

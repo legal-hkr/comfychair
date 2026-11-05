@@ -3,7 +3,7 @@ package sh.hnet.comfychair.connection
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.widget.Toast
-import sh.hnet.comfychair.R
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,12 +26,14 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
-import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.cache.MediaCache
-import sh.hnet.comfychair.cache.ResultThumbnails
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.cache.ResultThumbnails
+import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.queue.JobRegistry
+import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.ObjectInfoCache
@@ -39,7 +41,6 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
-import java.util.UUID
 
 /**
  * Connection state representing whether the app is connected to a ComfyUI server.
@@ -927,9 +928,7 @@ object ConnectionManager {
         val client = _client ?: return
         client.fetchQueue { queueJson ->
             if (queueJson != null) {
-                val running = queueJson.optJSONArray("queue_running")
-                val pending = queueJson.optJSONArray("queue_pending")
-                JobRegistry.updateFromServerQueue(running, pending)
+                JobRegistry.updateFromServerQueue(QueueSnapshot.parse(queueJson))
                 // Stale jobs dropped here mustn't come back at the next start
                 _applicationContext?.let { JobRegistry.saveState(it) }
             }

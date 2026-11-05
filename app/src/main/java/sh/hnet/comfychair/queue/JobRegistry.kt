@@ -1,11 +1,11 @@
 package sh.hnet.comfychair.queue
 
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import android.content.Context
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
@@ -145,6 +145,24 @@ object JobRegistry {
             ownJobs = currentState.ownJobs - oldPromptId + (newPromptId to job.copy(promptId = newPromptId))
         )
         descriptions.remove(oldPromptId)?.let { descriptions[newPromptId] = it }
+        startTimes.remove(oldPromptId)?.let { startTimes[newPromptId] = it }
+    }
+
+    /**
+     * Follow a job moved to the front (removed and submitted again) under its id after the move. If it was dropped in
+     * between (a queue poll didn't find it while it was off the server), it's tracked again as [job] was, with its
+     * [description].
+     */
+    @Synchronized
+    fun followMovedJob(job: TrackedJob, newPromptId: String, description: JobDescription?) {
+        if (_queueState.value.ownJobs.containsKey(job.promptId)) {
+            rekeyJob(job.promptId, newPromptId)
+            return
+        }
+        DebugLogger.d(TAG, "Moved job ${Obfuscator.promptId(job.promptId)} tracked again as ${Obfuscator.promptId(newPromptId)}")
+        registerJob(newPromptId, job.ownerId, job.contentType)
+        descriptions.remove(job.promptId)
+        description?.let { descriptions[newPromptId] = it }
     }
 
     /**
@@ -322,6 +340,7 @@ object JobRegistry {
             _queueState.value = currentState.copy(ownJobs = newJobs)
         }
         descriptions.remove(promptId)
+        startTimes.remove(promptId)
     }
 
     /**
@@ -355,79 +374,42 @@ object JobRegistry {
     }
 
     /**
-     * Update state from server queue response.
-     * This provides detailed information about running and pending jobs.
-     *
-     * @param running The queue_running array from /queue endpoint
-     * @param pending The queue_pending array from /queue endpoint
+     * Bring the tracked jobs in line with the server queue: its size, the job running, and our jobs that left it
+     * (completed, removed) dropped, unless they're done and awaiting cleanup.
      */
-    @Synchronized
-    fun updateFromServerQueue(running: JSONArray?, pending: JSONArray?) {
-        val runningCount = running?.length() ?: 0
-        val pendingCount = pending?.length() ?: 0
-        val totalCount = runningCount + pendingCount
-
+    fun updateFromServerQueue(snapshot: QueueSnapshot) {
         val currentState = _queueState.value
         var newState = currentState
 
-        // Update total queue size
+        val totalCount = snapshot.running.size + snapshot.pending.size
         if (newState.totalQueueSize != totalCount) {
             newState = newState.copy(totalQueueSize = totalCount)
         }
 
-        // Find currently executing job from server queue
-        if (running != null && running.length() > 0) {
-            val firstRunning = running.optJSONArray(0)
-            if (firstRunning != null && firstRunning.length() > 1) {
-                val runningPromptId = firstRunning.optString(1)
-                if (runningPromptId.isNotEmpty() && newState.executingPromptId != runningPromptId) {
-                    // Update executing job based on server state
-                    val job = newState.ownJobs[runningPromptId]
-                    newState = newState.copy(
-                        executingPromptId = runningPromptId,
-                        executingOwnerId = job?.ownerId,
-                        executingContentType = job?.contentType
-                    )
-                }
+        // The job running on the server
+        val runningPromptId = snapshot.running.firstOrNull()
+        if (runningPromptId != null) {
+            if (newState.executingPromptId != runningPromptId) {
+                val job = newState.ownJobs[runningPromptId]
+                newState = newState.copy(
+                    executingPromptId = runningPromptId,
+                    executingOwnerId = job?.ownerId,
+                    executingContentType = job?.contentType
+                )
             }
-        } else if (newState.executingPromptId != null && runningCount == 0) {
+        } else if (newState.executingPromptId != null) {
             // No running jobs on server but we thought something was executing
-            newState = newState.copy(
-                executingPromptId = null,
-                executingOwnerId = null,
-                executingContentType = null
-            )
+            newState = newState.copy(executingPromptId = null, executingOwnerId = null, executingContentType = null)
         }
 
-        // Validate our tracked jobs against server queue
-        val serverPromptIds = mutableSetOf<String>()
-        running?.let { arr ->
-            for (i in 0 until arr.length()) {
-                arr.optJSONArray(i)?.optString(1)?.takeIf { it.isNotEmpty() }?.let {
-                    serverPromptIds.add(it)
-                }
-            }
+        // Keep jobs that are in the queue OR are not pending/executing (completed/failed awaiting cleanup)
+        val (validJobs, staleJobs) = newState.ownJobs.entries.partition { (promptId, job) ->
+            promptId in snapshot || (job.status != JobStatus.PENDING && job.status != JobStatus.EXECUTING)
         }
-        pending?.let { arr ->
-            for (i in 0 until arr.length()) {
-                arr.optJSONArray(i)?.optString(1)?.takeIf { it.isNotEmpty() }?.let {
-                    serverPromptIds.add(it)
-                }
-            }
-        }
-
-        // Remove jobs that are no longer in the server queue (completed or removed)
-        val validJobs = newState.ownJobs.filter { (promptId, job) ->
-            val isInQueue = serverPromptIds.contains(promptId)
-            val isPendingOrExecuting = job.status == JobStatus.PENDING || job.status == JobStatus.EXECUTING
-            // Keep jobs that are in the queue OR are not pending/executing (completed/failed awaiting cleanup)
-            isInQueue || !isPendingOrExecuting
-        }
-
-        if (validJobs.size != newState.ownJobs.size) {
-            val removedCount = newState.ownJobs.size - validJobs.size
-            DebugLogger.d(TAG, "Removed $removedCount stale jobs not found in server queue")
-            newState = newState.copy(ownJobs = validJobs)
+        if (staleJobs.isNotEmpty()) {
+            DebugLogger.d(TAG, "Removed ${staleJobs.size} stale jobs not found in server queue")
+            staleJobs.forEach { startTimes.remove(it.key) }
+            newState = newState.copy(ownJobs = validJobs.associate { it.key to it.value })
         }
 
         if (newState != currentState) {
