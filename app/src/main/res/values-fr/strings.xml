@@ -681,7 +681,8 @@
 
     <!-- Missing translations -->
     <string name="button_discard">Abandonner</string>
-    <string name="button_new_workflow">Nouveau workflow</string>
+    <string name="button_create_workflow">Créer</string>
+    <string name="content_description_add_workflow">Ajouter un workflow</string>
     <string name="title_save_workflow">Enregistrer le nouveau workflow</string>
     <string name="error_invalid_integer">Doit être un nombre entier</string>
     <string name="error_invalid_option">Option non valide</string>

@@ -567,7 +567,8 @@
     <string name="title_delete_workflow">Delete Workflow</string>
     <string name="msg_delete_workflow">Are you sure you want to delete \"%s\"?</string>
     <string name="button_import">Import</string>
-    <string name="button_new_workflow">New workflow</string>
+    <string name="button_create_workflow">Create new</string>
+    <string name="content_description_add_workflow">Add a workflow</string>
     <string name="button_save">Save</string>
     <string name="button_delete">Delete</string>
     <string name="button_discard">Discard</string>

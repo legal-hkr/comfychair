@@ -4,12 +4,17 @@ package sh.hnet.comfychair.ui.screens
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,9 +23,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -29,48 +37,68 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.rounded.AccountTree
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.SaveAlt
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.ui.components.SettingsBackButton
 import sh.hnet.comfychair.ui.components.WorkflowThumbnail
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
@@ -186,131 +214,84 @@ fun WorkflowsSettingsScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Top App Bar
-        TopAppBar(
-            title = { Text(stringResource(R.string.title_workflows_settings)) },
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            navigationIcon = { SettingsBackButton(onNavigateBack) },
-            actions = {
-                // New workflow button
-                IconButton(onClick = {
-                    createEditorLauncher.launch(
-                        WorkflowEditorActivity.createIntentForNewWorkflow(context)
-                    )
-                }) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.button_new_workflow))
-                }
-                // Import button
-                IconButton(onClick = { jsonPickerLauncher.launch("application/json") }) {
-                    Icon(Icons.Default.UploadFile, contentDescription = stringResource(R.string.button_import))
-                }
-            }
-        )
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val listState = rememberLazyListState()
+    val sections = listOf(
+        R.string.workflow_section_tti to uiState.ttiWorkflows,
+        R.string.workflow_section_iti_inpainting to uiState.itiInpaintingWorkflows,
+        R.string.workflow_section_iti_editing to uiState.itiEditingWorkflows,
+        R.string.workflow_section_ttv to uiState.ttvWorkflows,
+        R.string.workflow_section_itv to uiState.itvWorkflows
+    )
+    val rowActions = WorkflowRowActions(
+        onOpen = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
+        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
+        onRename = { viewModel.onEditWorkflow(it) },
+        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
+        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
+        onDelete = { viewModel.onDeleteWorkflow(it) },
+        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
+    )
 
-        // Loading indicator
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                LoadingIndicator()
-            }
-        } else {
-            // Workflow list organized by type
-            NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
-                ) {
-                // Text-to-Image
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_tti),
-                        workflows = uiState.ttiWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) },
-                        disabledWorkflowIds = uiState.disabledWorkflowIds,
-                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
-                    )
-                }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            MediumFlexibleTopAppBar(
+                title = { Text(stringResource(R.string.title_workflows_settings)) },
+                navigationIcon = {
+                    TooltipIconButton(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.content_description_back), onNavigateBack)
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                scrollBehavior = scrollBehavior
+            )
 
-                // Image to Image: Inpainting
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_iti_inpainting),
-                        workflows = uiState.itiInpaintingWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) },
-                        disabledWorkflowIds = uiState.disabledWorkflowIds,
-                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
-                    )
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
                 }
-
-                // Image to Image: Editing
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_iti_editing),
-                        workflows = uiState.itiEditingWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) },
-                        disabledWorkflowIds = uiState.disabledWorkflowIds,
-                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
-                    )
-                }
-
-                // Text-to-Video
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_ttv),
-                        workflows = uiState.ttvWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) },
-                        disabledWorkflowIds = uiState.disabledWorkflowIds,
-                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
-                    )
-                }
-
-                // Image-to-Video
-                item {
-                    WorkflowSection(
-                        title = stringResource(R.string.workflow_section_itv),
-                        workflows = uiState.itvWorkflows,
-                        onWorkflowClick = { context.startActivity(WorkflowEditorActivity.createIntent(context, it.id)) },
-                        onEditStructure = { editExistingLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, it.id)) },
-                        onRename = { viewModel.onEditWorkflow(it) },
-                        onDuplicate = { viewModel.onDuplicateWorkflow(it) },
-                        onExport = { workflow, format -> viewModel.onExportWorkflow(workflow, format) },
-                        onDelete = { viewModel.onDeleteWorkflow(it) },
-                        disabledWorkflowIds = uiState.disabledWorkflowIds,
-                        onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) }
-                    )
-                }
-
-                // Bottom padding
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+            } else {
+                NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        // Room under the last row for Import
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(scrollBehavior.nestedScrollConnection)
+                    ) {
+                        sections.forEach { (titleRes, workflows) ->
+                            item(key = "header_$titleRes") {
+                                WorkflowSectionHeader(stringResource(titleRes), workflows, uiState.disabledWorkflowIds)
+                            }
+                            if (workflows.isEmpty()) {
+                                item(key = "empty_$titleRes") {
+                                    Text(
+                                        text = stringResource(R.string.workflow_section_empty),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                            itemsIndexed(workflows, key = { _, workflow -> workflow.id }) { index, workflow ->
+                                WorkflowRow(
+                                    workflow = workflow,
+                                    shapes = ListItemDefaults.segmentedShapes(index, workflows.size),
+                                    enabled = workflow.id !in uiState.disabledWorkflowIds,
+                                    actions = rowActions
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
+
+        // Add a workflow: build one in the editor, or import a file (exported from ComfyUI or from this app)
+        AddWorkflowMenu(
+            onCreate = { createEditorLauncher.launch(WorkflowEditorActivity.createIntentForNewWorkflow(context)) },
+            onImport = { jsonPickerLauncher.launch("application/json") }
+        )
     }
 
     // Import dialog
@@ -415,261 +396,212 @@ private fun parseMappingsFromJson(jsonString: String): Map<String, Pair<String, 
 }
 
 /**
- * A complete workflow section with header and segmented list card.
+ * Adding a workflow, as the result actions on the generation preview: a toggle FAB at the bottom end opening Create new
+ * and Import upward, over a scrim; tapping the scrim or Back closes it.
  */
 @Composable
-private fun WorkflowSection(
-    title: String,
-    workflows: List<WorkflowManager.Workflow>,
-    onWorkflowClick: (WorkflowManager.Workflow) -> Unit,
-    onEditStructure: (WorkflowManager.Workflow) -> Unit,
-    onRename: (WorkflowManager.Workflow) -> Unit,
-    onDuplicate: (WorkflowManager.Workflow) -> Unit,
-    onExport: (WorkflowManager.Workflow, ExportFormat) -> Unit,
-    onDelete: (WorkflowManager.Workflow) -> Unit,
-    disabledWorkflowIds: Set<String>,
-    onEnabledChange: (WorkflowManager.Workflow, Boolean) -> Unit
-) {
-    Column {
-        // Section header, with how many of the section's workflows the generation screens offer
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            if (workflows.isNotEmpty()) {
-                Text(
-                    text = stringResource(
-                        R.string.label_workflows_enabled_count,
-                        workflows.count { it.id !in disabledWorkflowIds },
-                        workflows.size
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+private fun BoxScope.AddWorkflowMenu(onCreate: () -> Unit, onImport: () -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = expanded) { expanded = false }
+
+    // Standard M3 scrim, as under modal sheets
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (expanded) 0.32f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "add workflow scrim"
+    )
+    if (scrimAlpha > 0f) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
+                .pointerInput(Unit) { detectTapGestures { expanded = false } }
+        )
+    }
+
+    val description = stringResource(R.string.content_description_add_workflow)
+    FloatingActionButtonMenu(
+        expanded = expanded,
+        horizontalAlignment = Alignment.End,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(16.dp),
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { expanded = it },
+                modifier = Modifier.semantics { contentDescription = description }
+            ) {
+                val icon by remember { derivedStateOf { if (checkedProgress > 0.5f) Icons.Rounded.Close else Icons.Rounded.Add } }
+                Icon(
+                    painter = rememberVectorPainter(icon),
+                    contentDescription = null,
+                    modifier = Modifier.animateIcon({ checkedProgress })
                 )
             }
         }
+    ) {
+        FloatingActionButtonMenuItem(
+            onClick = {
+                expanded = false
+                onCreate()
+            },
+            icon = { Icon(Icons.Rounded.AccountTree, contentDescription = null) },
+            text = { Text(stringResource(R.string.button_create_workflow)) },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        FloatingActionButtonMenuItem(
+            onClick = {
+                expanded = false
+                onImport()
+            },
+            icon = { Icon(Icons.Rounded.UploadFile, contentDescription = null) },
+            text = { Text(stringResource(R.string.button_import)) },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+    }
+}
 
-        if (workflows.isEmpty()) {
-            // Empty state
+/** What a workflow row can do; the same for every section. */
+private class WorkflowRowActions(
+    val onOpen: (WorkflowManager.Workflow) -> Unit,
+    val onEditStructure: (WorkflowManager.Workflow) -> Unit,
+    val onRename: (WorkflowManager.Workflow) -> Unit,
+    val onDuplicate: (WorkflowManager.Workflow) -> Unit,
+    val onExport: (WorkflowManager.Workflow, ExportFormat) -> Unit,
+    val onDelete: (WorkflowManager.Workflow) -> Unit,
+    val onEnabledChange: (WorkflowManager.Workflow, Boolean) -> Unit
+)
+
+/** A section's title, with how many of its workflows the generation screens offer. */
+@Composable
+private fun WorkflowSectionHeader(title: String, workflows: List<WorkflowManager.Workflow>, disabledWorkflowIds: Set<String>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        if (workflows.isNotEmpty()) {
             Text(
-                text = stringResource(R.string.workflow_section_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 8.dp)
+                text = stringResource(
+                    R.string.label_workflows_enabled_count,
+                    workflows.count { it.id !in disabledWorkflowIds },
+                    workflows.size
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        } else {
-            // Card containing all workflows with dividers
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    workflows.forEachIndexed { index, workflow ->
-                        key(workflow.id) {
-                            WorkflowListItemContent(
-                                workflow = workflow,
-                                enabled = workflow.id !in disabledWorkflowIds,
-                                onEnabledChange = { onEnabledChange(workflow, it) },
-                                onClick = { onWorkflowClick(workflow) },
-                                onEditStructure = { onEditStructure(workflow) },
-                                onRename = { onRename(workflow) },
-                                onDuplicate = { onDuplicate(workflow) },
-                                onExport = { format -> onExport(workflow, format) },
-                                onDelete = { onDelete(workflow) }
-                            )
-                            if (index < workflows.size - 1) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
 /**
- * Content for a single workflow item (without Card wrapper).
+ * A workflow: its graph in small, name and description, whether the generation screens offer it (the switch takes
+ * effect at once) and its menu. Tapping the row opens the graph. A switched-off workflow's text takes the list's
+ * disabled colours.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun WorkflowListItemContent(
+private fun WorkflowRow(
     workflow: WorkflowManager.Workflow,
+    shapes: ListItemShapes,
     enabled: Boolean,
-    onEnabledChange: (Boolean) -> Unit,
-    onClick: () -> Unit,
-    onEditStructure: () -> Unit,
-    onRename: () -> Unit,
-    onDuplicate: () -> Unit,
-    onExport: (ExportFormat) -> Unit,
-    onDelete: () -> Unit
+    actions: WorkflowRowActions
 ) {
-    var showContextMenu by remember { mutableStateOf(false) }
-    // A switched-off workflow is dimmed; the switch and the menu stay fully opaque
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (enabled) 1f else 0.45f,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "workflow content alpha"
-    )
+    val colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     val switchDescription = stringResource(R.string.content_description_workflow_enabled, workflow.name)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Workflow graph thumbnail
-        WorkflowThumbnail(
-            jsonContent = workflow.jsonContent,
-            modifier = Modifier.size(48.dp).alpha(contentAlpha)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f).alpha(contentAlpha)) {
-            Text(
-                text = workflow.name,
-                style = MaterialTheme.typography.titleSmall
+    SegmentedListItem(
+        onClick = { actions.onOpen(workflow) },
+        shapes = shapes,
+        colors = colors,
+        leadingContent = {
+            WorkflowThumbnail(
+                jsonContent = workflow.jsonContent,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
             )
-            if (workflow.description.isNotEmpty()) {
-                Text(
-                    text = workflow.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        },
+        supportingContent = {
+            Column {
+                if (workflow.description.isNotEmpty()) {
+                    Text(
+                        workflow.description,
+                        color = if (enabled) colors.supportingContentColor else colors.disabledSupportingContentColor
+                    )
+                }
+                if (workflow.isBuiltIn) {
+                    Text(
+                        stringResource(R.string.label_workflow_built_in),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (enabled) MaterialTheme.colorScheme.primary else colors.disabledSupportingContentColor
+                    )
+                }
             }
-            if (workflow.isBuiltIn) {
-                Text(
-                    text = stringResource(R.string.label_workflow_built_in),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = { actions.onEnabledChange(workflow, it) },
+                    modifier = Modifier.semantics { contentDescription = switchDescription }
                 )
+                WorkflowMenu(workflow, actions)
             }
         }
+    ) {
+        Text(workflow.name, color = if (enabled) colors.contentColor else colors.disabledContentColor)
+    }
+}
 
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Whether the generation screens offer this workflow; takes effect immediately
-        Switch(
-            checked = enabled,
-            onCheckedChange = onEnabledChange,
-            modifier = Modifier.semantics { contentDescription = switchDescription }
-        )
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        // Context menu
-        Box {
-            IconButton(onClick = { showContextMenu = true }) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.content_description_menu),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            DropdownMenu(
-                expanded = showContextMenu,
-                onDismissRequest = { showContextMenu = false }
-            ) {
-                // Edit workflow (structure) - only for custom workflows
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workflow_menu_edit_structure)) },
-                    onClick = {
-                        showContextMenu = false
-                        onEditStructure()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.Tune, contentDescription = null)
-                    },
-                    enabled = !workflow.isBuiltIn
-                )
-
-                // Rename - only for custom workflows
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workflow_menu_rename)) },
-                    onClick = {
-                        showContextMenu = false
-                        onRename()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.Edit, contentDescription = null)
-                    },
-                    enabled = !workflow.isBuiltIn
-                )
-
-                // Duplicate - available for all workflows
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workflow_menu_duplicate)) },
-                    onClick = {
-                        showContextMenu = false
-                        onDuplicate()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null)
-                    }
-                )
-
-                // Export (Internal format) - available for all workflows
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workflow_menu_export)) },
-                    onClick = {
-                        showContextMenu = false
-                        onExport(ExportFormat.INTERNAL)
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.SaveAlt, contentDescription = null)
-                    }
-                )
-
-                // Export (API Format) - available for all workflows
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workflow_menu_export_api)) },
-                    onClick = {
-                        showContextMenu = false
-                        onExport(ExportFormat.API)
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.SaveAlt, contentDescription = null)
-                    }
-                )
-
-                // Divider above Delete
-                HorizontalDivider()
-
-                // Delete - only for custom workflows
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(R.string.workflow_menu_delete),
-                            color = if (!workflow.isBuiltIn) MaterialTheme.colorScheme.error
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+/**
+ * A workflow's menu, in groups: changing it (structure, name – own workflows only – and a copy), exporting it, and
+ * deleting it (own workflows only, confirmed).
+ */
+@Composable
+private fun WorkflowMenu(workflow: WorkflowManager.Workflow, actions: WorkflowRowActions) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TooltipIconButton(Icons.Rounded.MoreVert, stringResource(R.string.content_description_menu), { expanded = true })
+        DropdownMenuPopup(expanded = expanded, onDismissRequest = { expanded = false }) {
+            val own = !workflow.isBuiltIn
+            val groups = listOfNotNull(
+                listOfNotNull(
+                    if (own) Triple(R.string.workflow_menu_edit_structure, Icons.Rounded.Tune) { actions.onEditStructure(workflow) } else null,
+                    if (own) Triple(R.string.workflow_menu_rename, Icons.Rounded.Edit) { actions.onRename(workflow) } else null,
+                    Triple(R.string.workflow_menu_duplicate, Icons.Rounded.ContentCopy) { actions.onDuplicate(workflow) }
+                ),
+                listOf(
+                    Triple(R.string.workflow_menu_export, Icons.Rounded.SaveAlt) { actions.onExport(workflow, ExportFormat.INTERNAL) },
+                    Triple(R.string.workflow_menu_export_api, Icons.Rounded.SaveAlt) { actions.onExport(workflow, ExportFormat.API) }
+                ),
+                if (own) listOf(Triple(R.string.workflow_menu_delete, Icons.Rounded.Delete) { actions.onDelete(workflow) }) else null
+            )
+            groups.forEachIndexed { groupIndex, items ->
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, groups.size)) {
+                    items.forEachIndexed { index, (labelRes, icon, onClick) ->
+                        val destructive = labelRes == R.string.workflow_menu_delete
+                        val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        DropdownMenuItem(
+                            text = { Text(stringResource(labelRes), color = color) },
+                            leadingIcon = { Icon(icon, contentDescription = null, tint = color) },
+                            shape = MenuDefaults.itemShape(index, items.size).shape,
+                            onClick = {
+                                expanded = false
+                                onClick()
+                            }
                         )
-                    },
-                    onClick = {
-                        showContextMenu = false
-                        onDelete()
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = if (!workflow.isBuiltIn) MaterialTheme.colorScheme.error
-                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    },
-                    enabled = !workflow.isBuiltIn
-                )
+                    }
+                }
+                if (groupIndex < groups.lastIndex) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
             }
         }
     }
