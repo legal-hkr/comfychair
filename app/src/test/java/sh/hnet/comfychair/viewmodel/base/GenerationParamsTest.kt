@@ -71,6 +71,29 @@ class GenerationParamsTest {
     }
 
     @Test
+    fun choiceAfterLoadingWithListsThere_survivesListsDeliveredAgain() {
+        // Lists already loaded: the saved model is applied at once and mustn't come back at the next delivery
+        val params = load(WorkflowValues(unetModel = "flux.gguf"))
+        assertEquals("flux.gguf", params.selectedUnet)
+        val chosen = params.withSelection(ModelSlot.UNET, "wan_high.safetensors")
+        assertEquals("wan_high.safetensors", chosen.withModelCache(cache).selectedUnet)
+    }
+
+    @Test
+    fun savedModelMissingFromLoadedLists_isAppliedWhenItAppears() {
+        val withoutFlux = cache.copy(unets = listOf("wan_high.safetensors"))
+        val params = load(WorkflowValues(unetModel = "flux.gguf"), start = GenerationParams(models = withoutFlux))
+        assertEquals("flux.gguf", params.withModelCache(cache).selectedUnet)
+    }
+
+    @Test
+    fun choiceBeforeListsArrive_winsOverTheSavedModel() {
+        val params = load(WorkflowValues(unetModel = "flux.gguf"), start = GenerationParams())
+            .withSelection(ModelSlot.UNET, "wan_high.safetensors")
+        assertEquals("wan_high.safetensors", params.withModelCache(cache).selectedUnet)
+    }
+
+    @Test
     fun savingBeforeListsArrive_keepsWaitingSelections() {
         val params = load(WorkflowValues(unetModel = "flux.gguf", vaeModel = "ae.safetensors"), start = GenerationParams())
         val values = params.toWorkflowValues(null)

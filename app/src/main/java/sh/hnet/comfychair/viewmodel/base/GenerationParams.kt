@@ -148,8 +148,9 @@ data class GenerationParams(
     override val filteredLatentUpscaleModels: List<String>? get() = filteredOptions[ModelSlot.LATENT_UPSCALE_MODEL]
     override val filteredLoras: List<String>? get() = filteredOptions[ModelSlot.LORA]
 
+    /** A model chosen by the user; it wins over a saved one still waiting for the server's lists. */
     fun withSelection(slot: ModelSlot, value: String): GenerationParams =
-        copy(selections = selections + (slot to value))
+        copy(selections = selections + (slot to value), deferredSelections = deferredSelections - slot)
 
     fun loraChain(kind: LoraChainKind): List<LoraSelection> = when (kind) {
         LoraChainKind.MAIN -> loraChain
@@ -216,7 +217,11 @@ data class GenerationParams(
                 savedSelections[slot]?.takeIf { it in slot.available(cache) }
                     ?: ValidationUtils.validateModelSelection(selection(slot), slot.available(cache))
             },
-            deferredSelections = savedSelections,
+            // Only what couldn't be applied yet waits for the lists: a saved model applied now must not come back over
+            // a later choice when the lists are delivered again (a refresh, a reconnection)
+            deferredSelections = savedSelections.filter { (slot, value) ->
+                !cache.isLoaded || value !in slot.available(cache)
+            },
             filteredOptions = ModelSlot.entries.mapNotNull { slot ->
                 val own = options(slot.placeholder)
                     // A dual-model workflow has no plain unet_name; its UNET list comes from the high-noise node
