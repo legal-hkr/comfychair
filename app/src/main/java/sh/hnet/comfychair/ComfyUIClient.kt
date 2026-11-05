@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.JsonReader
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -62,6 +63,7 @@ class ComfyUIClient(
 ) {
     companion object {
         private const val TAG = "API"
+        private const val MAX_SAVED_WORKFLOW_BYTES = 8 * 1024 * 1024
         private const val STALL_TIMEOUT_MS = 30_000L          // 30 seconds without progress = stalled
         private const val STALL_CHECK_INTERVAL_MS = 5_000L    // Check every 5 seconds
     }
@@ -453,6 +455,175 @@ class ComfyUIClient(
      */
     fun getBaseUrl(): String? {
         return workingProtocol?.let { "$it://$hostname:$port" }
+    }
+
+    data class SavedWorkflow(val path: String, val size: Long, val modified: Long)
+
+    enum class SavedWorkflowError { DISCONNECTED, NOT_FOUND, UNAUTHORIZED, NETWORK, INVALID_RESPONSE, TOO_LARGE, INVALID_PATH, MULTIUSER_UNSUPPORTED }
+
+    sealed class SavedWorkflowResult<out T> {
+        data class Success<T>(val value: T) : SavedWorkflowResult<T>()
+        data class Failure(val error: SavedWorkflowError) : SavedWorkflowResult<Nothing>()
+    }
+
+    private fun savedWorkflowHttpError(code: Int): SavedWorkflowError = when (code) {
+        401, 403 -> SavedWorkflowError.UNAUTHORIZED
+        404 -> SavedWorkflowError.NOT_FOUND
+        else -> SavedWorkflowError.NETWORK
+    }
+
+    /** Only relative JSON paths returned by /userdata are eligible for download. */
+    internal fun isValidSavedWorkflowPath(path: String): Boolean =
+        path.isNotBlank() && !path.startsWith('/') && !path.startsWith('\\') &&
+            !path.contains('\\') && !path.contains('?') && !path.contains('#') &&
+            !path.contains('%') && !path.contains(':') && !path.contains('\u0000') &&
+            path.endsWith(".json", ignoreCase = true) &&
+            path.split('/').all { it.isNotEmpty() && it != "." && it != ".." }
+
+    /** No user identity exists in the app. Never ask /userdata to choose an implicit multiuser identity. */
+    private fun checkSavedWorkflowUser(callback: (SavedWorkflowError?) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(SavedWorkflowError.DISCONNECTED); return
+        }
+        val url = baseUrl.toHttpUrl().newBuilder().addPathSegment("users").build()
+        httpClient.newCall(Request.Builder().url(url).get().build()).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(SavedWorkflowError.NETWORK)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (response.code == 404) {
+                        // Older single-user servers may not expose /users.
+                        callback(null); return
+                    }
+                    if (!response.isSuccessful) {
+                        callback(savedWorkflowHttpError(response.code)); return
+                    }
+                    val error = try {
+                        val status = JSONObject(response.body?.string() ?: "")
+                        // Native ComfyUI returns {storage, migrated} for single-user and
+                        // {storage, users} for --multi-user; never infer an identity from users.
+                        if (status.has("users")) SavedWorkflowError.MULTIUSER_UNSUPPORTED
+                        else if (status.optString("storage") == "server" && status.has("migrated")) null
+                        else SavedWorkflowError.INVALID_RESPONSE
+                    } catch (e: Exception) {
+                        SavedWorkflowError.INVALID_RESPONSE
+                    }
+                    callback(error)
+                }
+            }
+        })
+    }
+
+    /** Read-only listing of files saved via ComfyUI's workflow UI. Callbacks run on the OkHttp thread. */
+    fun listSavedWorkflows(callback: (SavedWorkflowResult<List<SavedWorkflow>>) -> Unit) {
+        checkSavedWorkflowUser { error ->
+            if (error != null) callback(SavedWorkflowResult.Failure(error))
+            else listSavedWorkflowsForSingleUser(callback)
+        }
+    }
+
+    private fun listSavedWorkflowsForSingleUser(callback: (SavedWorkflowResult<List<SavedWorkflow>>) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(SavedWorkflowResult.Failure(SavedWorkflowError.DISCONNECTED)); return
+        }
+        val url = baseUrl.toHttpUrl().newBuilder().addPathSegment("userdata")
+            .addQueryParameter("dir", "workflows")
+            .addQueryParameter("recurse", "true")
+            .addQueryParameter("full_info", "true").build()
+        httpClient.newCall(Request.Builder().url(url).get().build()).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(SavedWorkflowResult.Failure(SavedWorkflowError.NETWORK))
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (!response.isSuccessful) {
+                        callback(SavedWorkflowResult.Failure(savedWorkflowHttpError(response.code)))
+                        return
+                    }
+                    val result = try {
+                        val body = response.body ?: throw IOException("Missing body")
+                        val array = JSONArray(body.string())
+                        val files = (0 until array.length()).map { index ->
+                            val entry = array.getJSONObject(index)
+                            SavedWorkflow(entry.getString("path"), entry.optLong("size"), entry.optLong("modified"))
+                        }.filter { isValidSavedWorkflowPath(it.path) }
+                        SavedWorkflowResult.Success(files)
+                    } catch (e: Exception) {
+                        SavedWorkflowResult.Failure(SavedWorkflowError.INVALID_RESPONSE)
+                    }
+                    callback(result)
+                }
+            }
+        })
+    }
+
+    /** Encode workflows/<relative path> as ONE URL path segment, never a traversable URL path. */
+    fun fetchSavedWorkflow(path: String, callback: (SavedWorkflowResult<String>) -> Unit) {
+        if (!isValidSavedWorkflowPath(path)) {
+            callback(SavedWorkflowResult.Failure(SavedWorkflowError.INVALID_PATH)); return
+        }
+        checkSavedWorkflowUser { error ->
+            if (error != null) callback(SavedWorkflowResult.Failure(error))
+            else fetchSavedWorkflowForSingleUser(path, callback)
+        }
+    }
+
+    private fun fetchSavedWorkflowForSingleUser(path: String, callback: (SavedWorkflowResult<String>) -> Unit) {
+        val baseUrl = getBaseUrl() ?: run {
+            callback(SavedWorkflowResult.Failure(SavedWorkflowError.DISCONNECTED)); return
+        }
+        // Encode the complete relative file key once. addPathSegment leaves literal '+'
+        // in a URL path; explicitly percent-encode it so proxies cannot treat it as space.
+        val encodedFile = java.net.URLEncoder.encode("workflows/$path", Charsets.UTF_8.name())
+            .replace("+", "%20")
+        val url = baseUrl.toHttpUrl().newBuilder().addPathSegment("userdata")
+            .addEncodedPathSegment(encodedFile).build()
+        httpClient.newCall(Request.Builder().url(url).get().build()).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                callback(SavedWorkflowResult.Failure(SavedWorkflowError.NETWORK))
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (!response.isSuccessful) {
+                        callback(SavedWorkflowResult.Failure(savedWorkflowHttpError(response.code)))
+                        return
+                    }
+                    val result = try {
+                        val body = response.body ?: throw IOException("Missing body")
+                        if (body.contentLength() > MAX_SAVED_WORKFLOW_BYTES) {
+                            SavedWorkflowResult.Failure(SavedWorkflowError.TOO_LARGE)
+                        } else {
+                            // Limit actual bytes too: content-length may be absent or dishonest.
+                            val bytes = body.byteStream().use { input ->
+                                val output = java.io.ByteArrayOutputStream()
+                                val buffer = ByteArray(8192)
+                                while (output.size() <= MAX_SAVED_WORKFLOW_BYTES) {
+                                    val count = input.read(buffer, 0,
+                                        minOf(buffer.size, MAX_SAVED_WORKFLOW_BYTES + 1 - output.size()))
+                                    if (count < 0) break
+                                    output.write(buffer, 0, count)
+                                }
+                                output.toByteArray()
+                            }
+                            if (bytes.size > MAX_SAVED_WORKFLOW_BYTES) {
+                                SavedWorkflowResult.Failure(SavedWorkflowError.TOO_LARGE)
+                            } else {
+                                val text = bytes.toString(Charsets.UTF_8)
+                                JSONObject(text) // reject HTML and non-object JSON
+                                SavedWorkflowResult.Success(text)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        SavedWorkflowResult.Failure(SavedWorkflowError.INVALID_RESPONSE)
+                    }
+                    callback(result)
+                }
+            }
+        })
     }
 
     /**

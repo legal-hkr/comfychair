@@ -127,6 +127,21 @@ class LiteGraphConverter(
      * Convert LiteGraph format workflow to ComfyChair format
      */
     fun convert(liteGraphJson: JSONObject): ConversionResult {
+        // /object_info is loaded asynchronously. Never create an API workflow with
+        // silently missing widget inputs while the registry is still empty.
+        val subgraphsForValidation = parseSubgraphDefinitions(liteGraphJson)
+        fun requireWidgetDefinitions(nodes: JSONArray) {
+            for (index in 0 until nodes.length()) {
+                val node = nodes.optJSONObject(index) ?: continue
+                val type = node.optString("type", "")
+                if (type in NOTE_NODE_TYPES || type in REROUTE_NODE_TYPES || type in subgraphsForValidation) continue
+                if ((node.optJSONArray("widgets_values")?.length() ?: 0) > 0 && getNodeDefinition(type) == null) {
+                    throw IllegalStateException("Node $type requires /object_info before widget conversion")
+                }
+            }
+        }
+        requireWidgetDefinitions(liteGraphJson.optJSONArray("nodes") ?: JSONArray())
+        subgraphsForValidation.values.forEach { requireWidgetDefinitions(it.nodes) }
         val warnings = mutableListOf<String>()
         val inputNodeCount = liteGraphJson.optJSONArray("nodes")?.length() ?: 0
         val inputGroupCount = liteGraphJson.optJSONArray("groups")?.length() ?: 0

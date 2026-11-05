@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.WorkflowTypeDisplay
@@ -45,6 +47,7 @@ fun WorkflowDetailsDialog(
     description: String,
     onDescriptionChange: (String) -> Unit,
     isValidating: Boolean,
+    warnings: List<String> = emptyList(),
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     fileName: String? = null
@@ -81,6 +84,13 @@ fun WorkflowDetailsDialog(
             optional = true,
             enabled = !isValidating
         )
+        if (warnings.isNotEmpty()) {
+            Text(
+                stringResource(R.string.server_workflow_conversion_notes),
+                color = MaterialTheme.colorScheme.error
+            )
+            warnings.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
+        }
     }
 }
 

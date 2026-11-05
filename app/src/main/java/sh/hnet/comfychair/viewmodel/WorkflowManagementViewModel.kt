@@ -28,6 +28,8 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LiteGraphConverter
 import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.util.WorkflowImportPreparation
+import sh.hnet.comfychair.util.ServerImportOrigin
 import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.FieldCandidate
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
@@ -90,6 +92,12 @@ data class WorkflowManagementUiState(
 
     // LiteGraph conversion warnings
     val pendingImportWarnings: List<String> = emptyList(),
+    val showServerWorkflows: Boolean = false,
+    val serverWorkflows: List<ComfyUIClient.SavedWorkflow> = emptyList(),
+    val serverSearch: String = "",
+    val serverLoading: Boolean = false,
+    val serverDownloading: Boolean = false,
+    val serverError: ComfyUIClient.SavedWorkflowError? = null,
 
     // Edit dialog state
     val showEditDialog: Boolean = false,
@@ -157,6 +165,104 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     private var applicationContext: Context? = null
+    private var serverRequestGeneration = 0
+    private var listedClient: ComfyUIClient? = null
+    private var listedServerId: String? = null
+    private var importOrigin: ServerImportOrigin<ComfyUIClient>? = null
+    private var importGeneration = 0
+
+    /** Invalidate server-origin imports when their connection disappears or changes. */
+    fun onServerConnectionChanged() {
+        val origin = importOrigin ?: return
+        val serverId = (ConnectionManager.connectionState.value as? sh.hnet.comfychair.connection.ConnectionState.Connected)?.serverId
+        if (!origin.matches(ConnectionManager.clientOrNull, serverId)) cancelImport()
+    }
+
+    fun openServerWorkflows() {
+        _uiState.value = _uiState.value.copy(showServerWorkflows = true)
+        refreshServerWorkflows()
+    }
+
+    fun closeServerWorkflows() {
+        serverRequestGeneration++
+        _uiState.value = _uiState.value.copy(
+            showServerWorkflows = false, serverLoading = false, serverDownloading = false,
+            serverError = null, serverWorkflows = emptyList(), serverSearch = ""
+        )
+    }
+
+    fun setServerSearch(value: String) {
+        _uiState.value = _uiState.value.copy(serverSearch = value)
+    }
+
+    fun refreshServerWorkflows() {
+        val generation = ++serverRequestGeneration
+        val connection = ConnectionManager.connectionState.value as? sh.hnet.comfychair.connection.ConnectionState.Connected
+        val client = ConnectionManager.clientOrNull
+        _uiState.value = _uiState.value.copy(
+            serverLoading = connection != null && client != null, serverDownloading = false,
+            serverWorkflows = emptyList(), serverError = null
+        )
+        listedClient = client
+        listedServerId = connection?.serverId
+        if (connection == null || client == null) {
+            _uiState.value = _uiState.value.copy(serverError = ComfyUIClient.SavedWorkflowError.DISCONNECTED)
+            return
+        }
+        client.listSavedWorkflows { result ->
+            viewModelScope.launch {
+                if (generation != serverRequestGeneration || !isSameServer(client, connection.serverId)) return@launch
+                _uiState.value = when (result) {
+                    is ComfyUIClient.SavedWorkflowResult.Success -> _uiState.value.copy(
+                        serverLoading = false, serverWorkflows = result.value, serverError = null
+                    )
+                    is ComfyUIClient.SavedWorkflowResult.Failure -> _uiState.value.copy(
+                        serverLoading = false, serverError = result.error
+                    )
+                }
+            }
+        }
+    }
+
+    private fun isSameServer(client: ComfyUIClient, serverId: String): Boolean =
+        ConnectionManager.clientOrNull === client &&
+            (ConnectionManager.connectionState.value as? sh.hnet.comfychair.connection.ConnectionState.Connected)?.serverId == serverId
+
+    fun selectServerWorkflow(file: ComfyUIClient.SavedWorkflow) {
+        val client = listedClient ?: return
+        val serverId = listedServerId ?: return
+        if (!isSameServer(client, serverId)) {
+            refreshServerWorkflows()
+            return
+        }
+        if (file !in _uiState.value.serverWorkflows || _uiState.value.serverDownloading) return
+        val generation = ++serverRequestGeneration
+        _uiState.value = _uiState.value.copy(serverDownloading = true, serverError = null)
+        client.fetchSavedWorkflow(file.path) { result ->
+            viewModelScope.launch {
+                if (generation != serverRequestGeneration || !isSameServer(client, serverId)) return@launch
+                _uiState.value = _uiState.value.copy(serverDownloading = false)
+                when (result) {
+                    is ComfyUIClient.SavedWorkflowResult.Success -> {
+                        val suggested = file.path.substringAfterLast('/').substringBeforeLast('.')
+                        val prepared = prepareImportJson(result.value, suggestedName = suggested) {
+                            generation == serverRequestGeneration && isSameServer(client, serverId)
+                        }
+                        if (generation != serverRequestGeneration || !isSameServer(client, serverId)) return@launch
+                        if (prepared) {
+                            importOrigin = ServerImportOrigin(client, serverId)
+                            closeServerWorkflows()
+                        }
+                        else _uiState.value = _uiState.value.copy(
+                            serverError = ComfyUIClient.SavedWorkflowError.INVALID_RESPONSE
+                        )
+                    }
+                    is ComfyUIClient.SavedWorkflowResult.Failure ->
+                        _uiState.value = _uiState.value.copy(serverError = result.error)
+                }
+            }
+        }
+    }
 
     // Initialization
     /**
@@ -222,6 +328,7 @@ class WorkflowManagementViewModel : ViewModel() {
      * Handle file selection from file picker - new flow without filename prefix requirement
      */
     fun onFileSelected(context: Context, uri: Uri) {
+        cancelImport()
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
@@ -240,36 +347,54 @@ class WorkflowManagementViewModel : ViewModel() {
                     context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
                 }
 
-                // Validate JSON format
-                try {
-                    JSONObject(jsonContent)
-                } catch (e: Exception) {
-                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                    return@launch
-                }
-
-                // The type picked with the filter, if it names one; otherwise detected from the workflow (user can
-                // override either)
-                val filterTypes = _uiState.value.filter.types
-                val detectedType = filterTypes.singleOrNull() ?: WorkflowManager.detectWorkflowType(jsonContent)
-
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    showImportDialog = true,
-                    pendingImportJsonContent = jsonContent,
-                    importSelectedType = detectedType,
-                    importFileName = fileName,
-                    // The file's name as a start; the user can change it
-                    importName = fileName?.substringBeforeLast('.')?.let { ValidationUtils.truncateWorkflowName(it) } ?: "",
-                    importDescription = "",
-                    importNameError = null,
-                )
+                prepareImportJson(jsonContent, fileName)
             } catch (e: Exception) {
                 emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_import))
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    private suspend fun prepareImportJson(jsonContent: String, fileName: String? = null, suggestedName: String? = null,
+        stillCurrent: () -> Boolean = { true }): Boolean {
+        val valid = withContext(Dispatchers.Default) { WorkflowImportPreparation.isImportableJson(jsonContent) }
+        if (!stillCurrent()) return false
+        if (!valid) {
+            if (suggestedName == null) {
+                _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+            }
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return false
+        }
+        val converted = withContext(Dispatchers.Default) {
+            WorkflowImportPreparation.prepare(jsonContent) { classType ->
+                ConnectionManager.nodeTypeRegistry.getNodeDefinition(classType)
+            }
+        }
+        if (!stillCurrent()) return false
+        if (converted == null) {
+            if (suggestedName == null) _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return false
+        }
+        // The type picked with the filter, if it names one; otherwise detected from the workflow (user can override
+        // either)
+        val filterTypes = _uiState.value.filter.types
+        val detectedType = withContext(Dispatchers.Default) {
+            filterTypes.singleOrNull() ?: WorkflowManager.detectWorkflowType(converted.jsonContent)
+        }
+        if (!stillCurrent()) return false
+        _uiState.value = _uiState.value.copy(
+            isLoading = false, showImportDialog = true, pendingImportJsonContent = converted.jsonContent,
+            importSelectedType = detectedType,
+            importFileName = fileName,
+            // A server path's file name as a start; the user can change it
+            importName = (suggestedName ?: fileName?.substringBeforeLast('.'))
+                ?.let(ValidationUtils::truncateWorkflowName) ?: "",
+            importDescription = "", importNameError = null,
+            pendingImportWarnings = converted.warnings
+        )
+        return true
     }
 
     fun onImportTypeSelected(type: WorkflowType) {
@@ -296,7 +421,16 @@ class WorkflowManagementViewModel : ViewModel() {
      * Proceed with import - validate and launch editor
      */
     fun proceedWithImport(context: Context, comfyUIClient: ComfyUIClient) {
+        onServerConnectionChanged()
         val state = _uiState.value
+        if (!state.showImportDialog || state.pendingImportJsonContent.isEmpty() || state.isValidatingNodes) return
+        val origin = importOrigin
+        fun originCurrent(): Boolean = origin == null || origin.matches(
+            ConnectionManager.clientOrNull,
+            (ConnectionManager.connectionState.value as? sh.hnet.comfychair.connection.ConnectionState.Connected)?.serverId
+        )
+        if (!originCurrent() || (origin != null && comfyUIClient !== ConnectionManager.clientOrNull)) return
+        val generation = importGeneration
 
         val selectedType = state.importSelectedType ?: return
         val name = state.importName.trim()
@@ -322,40 +456,18 @@ class WorkflowManagementViewModel : ViewModel() {
         // Fetch available nodes from server
         comfyUIClient.fetchAllNodeTypes { availableNodes ->
             viewModelScope.launch {
+                if (generation != importGeneration || !originCurrent()) {
+                    onServerConnectionChanged()
+                    return@launch
+                }
                 if (availableNodes == null) {
                     emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_fetch_nodes_failed))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
                     return@launch
                 }
 
-                // Check if JSON is LiteGraph format and convert if needed
-                var jsonContent = state.pendingImportJsonContent
-                var conversionWarnings = emptyList<String>()
-
-                try {
-                    val jsonObject = JSONObject(jsonContent)
-                    val isLiteGraph = WorkflowJsonAnalyzer.isLiteGraphFormat(jsonObject)
-                    DebugLogger.i(TAG, "Import: format=${if (isLiteGraph) "LiteGraph" else "API/ComfyChair"}")
-
-                    if (isLiteGraph) {
-                        val converter = LiteGraphConverter { classType ->
-                            ConnectionManager.nodeTypeRegistry.getNodeDefinition(classType)
-                        }
-                        val result = converter.convert(jsonObject)
-                        jsonContent = result.jsonContent
-                        conversionWarnings = result.warnings
-                    }
-                } catch (e: Exception) {
-                    DebugLogger.e(TAG, "Import failed: ${e.message}")
-                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
-                    _uiState.value = _uiState.value.copy(isValidatingNodes = false)
-                    return@launch
-                }
-
-                // Store conversion warnings
-                if (conversionWarnings.isNotEmpty()) {
-                    _uiState.value = _uiState.value.copy(pendingImportWarnings = conversionWarnings)
-                }
+                // Conversion and its warnings were prepared before the confirmation dialog opened.
+                val jsonContent = state.pendingImportJsonContent
 
                 // Extract class types from workflow
                 val classTypesResult = WorkflowManager.extractClassTypes(jsonContent)
@@ -365,6 +477,11 @@ class WorkflowManagementViewModel : ViewModel() {
                     return@launch
                 }
                 val workflowClassTypes = classTypesResult.getOrThrow()
+                if (workflowClassTypes.isEmpty()) {
+                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+                    _uiState.value = _uiState.value.copy(isValidatingNodes = false)
+                    return@launch
+                }
 
                 // Validate nodes
                 val missingNodes = WorkflowManager.validateNodesAgainstServer(workflowClassTypes, availableNodes)
@@ -759,6 +876,8 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     fun cancelImport() {
+        importGeneration++
+        importOrigin = null
         _uiState.value = _uiState.value.copy(
             showImportDialog = false,
             pendingImportJsonContent = "",
@@ -793,10 +912,20 @@ class WorkflowManagementViewModel : ViewModel() {
      * Complete the import after mapping is confirmed in editor
      */
     fun completeImport(fieldMappings: Map<String, Pair<String, String>>) {
+        // The mapping editor is a separate Activity; the settings screen's connection
+        // observer may not run before its result arrives. Guard the actual save too.
+        onServerConnectionChanged()
         val pending = _uiState.value.pendingWorkflowForMapping ?: return
+        val origin = importOrigin
         val warnings = _uiState.value.pendingImportWarnings
 
         viewModelScope.launch {
+            val currentServerId = (ConnectionManager.connectionState.value as?
+                sh.hnet.comfychair.connection.ConnectionState.Connected)?.serverId
+            if (origin != null && !origin.matches(ConnectionManager.clientOrNull, currentServerId)) {
+                cancelImport()
+                return@launch
+            }
             val result = WorkflowManager.addUserWorkflowWithMapping(
                 name = pending.name,
                 description = pending.description,
@@ -831,6 +960,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 pendingWorkflowForMapping = null,
                 pendingImportWarnings = emptyList()
             )
+            importOrigin = null
         }
     }
 
@@ -838,7 +968,7 @@ class WorkflowManagementViewModel : ViewModel() {
      * Cancel mapping and discard workflow
      */
     fun cancelMapping() {
-        _uiState.value = _uiState.value.copy(pendingWorkflowForMapping = null)
+        cancelImport()
     }
 
     // Edit flow

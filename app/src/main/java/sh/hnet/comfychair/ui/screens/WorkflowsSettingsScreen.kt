@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -44,6 +45,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -60,7 +64,14 @@ import androidx.compose.material.icons.rounded.ToggleOff
 import androidx.compose.material.icons.rounded.ToggleOn
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Warning
+import sh.hnet.comfychair.ComfyUIClient
+import java.text.DateFormat
+import java.util.Date
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
@@ -74,6 +85,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SnackbarDuration
@@ -144,6 +156,7 @@ import sh.hnet.comfychair.viewmodel.ExportFormat
 import sh.hnet.comfychair.viewmodel.WorkflowFilter
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
+import sh.hnet.comfychair.viewmodel.WorkflowManagementUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,6 +167,11 @@ fun WorkflowsSettingsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val connectionState by ConnectionManager.connectionState.collectAsState()
+    LaunchedEffect(connectionState) {
+        viewModel.onServerConnectionChanged()
+        if (uiState.showServerWorkflows) viewModel.refreshServerWorkflows()
+    }
 
     // State and effects
     // JSON file picker
@@ -323,12 +341,27 @@ fun WorkflowsSettingsScreen(
             }
         }
 
-        // Add a workflow: build one in the editor, or import a file (exported from ComfyUI or from this app)
+        // Add a workflow: build one in the editor, import a file, or import one saved on the server
         AddWorkflowMenu(
             offline = offline,
             onCreate = { createEditorLauncher.launch(WorkflowEditorActivity.createIntentForNewWorkflow(context)) },
-            onImport = { jsonPickerLauncher.launch("application/json") }
+            onImport = { jsonPickerLauncher.launch("application/json") },
+            onImportFromServer = {
+                if (uiState.showServerWorkflows) viewModel.closeServerWorkflows()
+                else viewModel.openServerWorkflows()
+            }
         )
+
+        // Browse and import workflows saved on the connected server
+        if (uiState.showServerWorkflows) {
+            ServerWorkflowPanel(
+                state = uiState,
+                onSearch = viewModel::setServerSearch,
+                onRefresh = viewModel::refreshServerWorkflows,
+                onClose = viewModel::closeServerWorkflows,
+                onSelect = viewModel::selectServerWorkflow
+            )
+        }
     }
 
     // Import dialog
@@ -345,7 +378,11 @@ fun WorkflowsSettingsScreen(
             description = uiState.importDescription,
             onDescriptionChange = viewModel::onImportDescriptionChange,
             isValidating = uiState.isValidatingNodes,
-            onConfirm = { viewModel.proceedWithImport(context, ConnectionManager.client) },
+            warnings = uiState.pendingImportWarnings,
+            onConfirm = {
+                ConnectionManager.clientOrNull?.let { viewModel.proceedWithImport(context, it) }
+                    ?: Toast.makeText(context, R.string.server_workflow_disconnected, Toast.LENGTH_SHORT).show()
+            },
             onDismiss = viewModel::cancelImport
         )
     }
@@ -367,6 +404,78 @@ fun WorkflowsSettingsScreen(
         )
     }
 
+}
+
+@Composable
+private fun ServerWorkflowPanel(
+    state: WorkflowManagementUiState,
+    onSearch: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onClose: () -> Unit,
+    onSelect: (ComfyUIClient.SavedWorkflow) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.server_workflow_import), modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = onRefresh, enabled = !state.serverLoading && !state.serverDownloading) {
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.server_workflow_refresh))
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.button_cancel))
+                }
+            }
+            OutlinedTextField(
+                value = state.serverSearch, onValueChange = onSearch,
+                label = { Text(stringResource(R.string.server_workflow_search)) },
+                singleLine = true, modifier = Modifier.fillMaxWidth()
+            )
+            if (state.serverLoading || state.serverDownloading) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(if (state.serverDownloading) R.string.server_workflow_downloading
+                        else R.string.server_workflow_loading))
+                }
+            }
+            state.serverError?.let { error ->
+                val message = when (error) {
+                    ComfyUIClient.SavedWorkflowError.DISCONNECTED -> R.string.server_workflow_disconnected
+                    ComfyUIClient.SavedWorkflowError.NOT_FOUND -> R.string.server_workflow_empty
+                    ComfyUIClient.SavedWorkflowError.UNAUTHORIZED -> R.string.server_workflow_unauthorized
+                    ComfyUIClient.SavedWorkflowError.TOO_LARGE -> R.string.server_workflow_too_large
+                    ComfyUIClient.SavedWorkflowError.INVALID_RESPONSE,
+                    ComfyUIClient.SavedWorkflowError.INVALID_PATH -> R.string.server_workflow_invalid
+                    ComfyUIClient.SavedWorkflowError.MULTIUSER_UNSUPPORTED -> R.string.server_workflow_multiuser_unsupported
+                    ComfyUIClient.SavedWorkflowError.NETWORK -> R.string.server_workflow_network_error
+                }
+                Text(stringResource(message), color = MaterialTheme.colorScheme.error)
+            }
+            val filtered = state.serverWorkflows.filter {
+                it.path.contains(state.serverSearch, ignoreCase = true)
+            }
+            if (!state.serverLoading && state.serverError == null && filtered.isEmpty()) {
+                Text(stringResource(R.string.server_workflow_empty))
+            }
+            NoOverscrollContainer(modifier = Modifier.heightIn(max = 280.dp)) {
+                LazyColumn {
+                    items(filtered, key = { it.path }) { file ->
+                        Column(modifier = Modifier.fillMaxWidth()
+                            .clickable(enabled = !state.serverDownloading) { onSelect(file) }
+                            .padding(vertical = 10.dp)) {
+                            Text(file.path, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.server_workflow_metadata,
+                                file.size / 1024, DateFormat.getDateTimeInstance().format(Date(file.modified))),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        HorizontalDivider()
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -637,7 +746,12 @@ private fun WorkflowRow(
  * and Import upward, over a scrim; tapping the scrim or Back closes it.
  */
 @Composable
-private fun BoxScope.AddWorkflowMenu(offline: Boolean, onCreate: () -> Unit, onImport: () -> Unit) {
+private fun BoxScope.AddWorkflowMenu(
+    offline: Boolean,
+    onCreate: () -> Unit,
+    onImport: () -> Unit,
+    onImportFromServer: () -> Unit
+) {
     val context = LocalContext.current
     val needsServer = stringResource(R.string.msg_needs_server)
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -696,6 +810,13 @@ private fun BoxScope.AddWorkflowMenu(offline: Boolean, onCreate: () -> Unit, onI
             onClick = { act(onImport) },
             icon = { Icon(Icons.Rounded.UploadFile, contentDescription = null) },
             text = { Text(stringResource(R.string.button_import)) },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        FloatingActionButtonMenuItem(
+            onClick = { act(onImportFromServer) },
+            icon = { Icon(Icons.Filled.CloudDownload, contentDescription = null) },
+            text = { Text(stringResource(R.string.server_workflow_import)) },
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         )
