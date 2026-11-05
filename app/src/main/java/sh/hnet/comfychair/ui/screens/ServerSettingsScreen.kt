@@ -146,6 +146,7 @@ fun ServerSettingsScreen(
             title = stringResource(R.string.title_confirm_clear_history),
             text = stringResource(R.string.msg_confirm_clear_history),
             confirmLabel = stringResource(R.string.button_clear),
+            icon = Icons.Rounded.DeleteSweep,
             onConfirm = { viewModel.clearHistory() },
             onDismiss = { confirmClearHistory = false }
         )

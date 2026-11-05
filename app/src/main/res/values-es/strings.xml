@@ -17,8 +17,7 @@
     <string name="button_server_edit">Editar servidor</string>
     <string name="button_server_add">Añadir servidor</string>
     <string name="button_server_delete">Eliminar servidor</string>
-    <string name="title_server_delete">Eliminar servidor</string>
-    <string name="msg_server_delete">¿Seguro que desea eliminar \"%s\"? Esto también eliminará todas las preferencias guardadas para este servidor.</string>
+    <string name="msg_server_delete">También se eliminarán sus ajustes y datos de inicio de sesión guardados.</string>
     <string name="msg_server_deleted_success">Servidor eliminado</string>
 
     <!-- Authentication strings -->
@@ -62,10 +61,9 @@
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">No hay datos en caché disponibles para este servidor</string>
-    <string name="title_offline_prompt">Servidor inaccesible</string>
-    <string name="msg_offline_prompt">No se puede conectar al servidor. ¿Desea continuar en modo sin conexión usando datos en caché?</string>
-    <string name="button_offline_prompt_confirm">Modo sin conexión</string>
-    <string name="button_offline_prompt_dismiss">Cancelar</string>
+    <string name="title_offline_prompt">¿Trabajar sin conexión?</string>
+    <string name="msg_offline_prompt">No se puede contactar con el servidor. Mientras tanto, puedes ver lo que está guardado en este dispositivo.</string>
+    <string name="button_offline_prompt_confirm">Sin conexión</string>
     <string name="button_go_online">Volver a estar en línea</string>
     <string name="content_description_not_cached">No disponible sin conexión</string>
     <string name="label_offline_mode">Modo sin conexión</string>
@@ -484,7 +482,7 @@
     <string name="button_export_app">Exportar para ComfyChair</string>
     <string name="button_export_api">Exportar en formato API de ComfyUI</string>
     <string name="button_delete_workflow">Eliminar workflow</string>
-    <string name="title_delete_workflow_named">¿Eliminar «%1$s»?</string>
+    <string name="title_delete_named">¿Eliminar «%1$s»?</string>
     <string name="msg_delete_workflow_device">Se eliminará de este dispositivo. Los archivos exportados no se ven afectados.</string>
     <string name="label_workflow_name">Nombre</string>
     <string name="label_workflow_description">Descripción</string>
@@ -680,9 +678,8 @@
     <string name="error_backup_invalid_json">Formato de archivo de copia de seguridad inválido</string>
     <string name="error_backup_unsupported_version">Versión de copia de seguridad no compatible</string>
     <string name="error_backup_no_servers">No se encontraron servidores en la copia de seguridad</string>
-    <string name="title_backup_restore_confirm">¿Restaurar configuración?</string>
-    <string name="msg_backup_restore_confirm">Esto reemplazará su configuración actual. Esta acción no se puede deshacer.</string>
-    <string name="button_backup_restore_confirm">Restaurar</string>
+    <string name="title_backup_restore_confirm">¿Restaurar desde la copia de seguridad?</string>
+    <string name="msg_backup_restore_confirm">Los ajustes se sustituirán por los de la copia, y sus servidores, flujos de trabajo y prompts se añadirán a los tuyos. Se eliminarán los resultados guardados en el dispositivo.</string>
 
     <!-- About screen strings -->
     <string name="nav_about_settings">Acerca de</string>

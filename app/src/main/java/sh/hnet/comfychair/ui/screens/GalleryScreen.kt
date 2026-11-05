@@ -2,8 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.mediaOriginKey
-import sh.hnet.comfychair.ui.components.mediaOrigin
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -24,7 +22,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -51,18 +48,15 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -93,6 +87,9 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.PlayBadge
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
+import sh.hnet.comfychair.ui.components.mediaOrigin
+import sh.hnet.comfychair.ui.components.mediaOriginKey
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
@@ -347,14 +344,6 @@ fun GalleryScreen(
             val hasSelection = uiState.selectedItems.isNotEmpty()
             HorizontalFloatingToolbar(expanded = true) {
                 TooltipIconButton(
-                    Icons.Rounded.Delete,
-                    stringResource(R.string.button_delete_history_item),
-                    { confirmDelete = true },
-                    enabled = hasSelection,
-                    tint = MaterialTheme.colorScheme.error
-                )
-                VerticalDivider(Modifier.height(24.dp).padding(horizontal = 4.dp))
-                TooltipIconButton(
                     Icons.Rounded.Download,
                     stringResource(R.string.button_save_image),
                     { galleryViewModel.saveSelectedToGallery(context) },
@@ -366,6 +355,13 @@ fun GalleryScreen(
                     { galleryViewModel.shareSelected(context) },
                     enabled = hasSelection
                 )
+                TooltipIconButton(
+                    Icons.Rounded.Delete,
+                    stringResource(R.string.button_delete_history_item),
+                    { confirmDelete = true },
+                    enabled = hasSelection,
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -373,21 +369,17 @@ fun GalleryScreen(
     if (confirmDelete) {
         val count = uiState.selectedItems.size
         val deletesMore = remember { galleryViewModel.selectionDeletesOtherResults() }
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.title_delete_selected)) },
-            text = {
-                val message = pluralStringResource(R.plurals.msg_delete_selected, count, count)
-                Text(if (deletesMore) message + " " + stringResource(R.string.msg_delete_whole_jobs) else message)
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    galleryViewModel.deleteSelected()
-                }) { Text(stringResource(R.string.button_delete), color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.button_cancel)) }
+        val message = pluralStringResource(R.plurals.msg_delete_selected, count, count)
+        ConfirmDialog(
+            title = stringResource(R.string.title_delete_selected),
+            text = if (deletesMore) message + " " + stringResource(R.string.msg_delete_whole_jobs) else message,
+            confirmLabel = stringResource(R.string.button_delete),
+            icon = Icons.Rounded.Delete,
+            destructive = true,
+            onDismiss = { confirmDelete = false },
+            onConfirm = {
+                confirmDelete = false
+                galleryViewModel.deleteSelected()
             }
         )
     }

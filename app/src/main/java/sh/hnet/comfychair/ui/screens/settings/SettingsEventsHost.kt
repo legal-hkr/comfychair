@@ -2,9 +2,8 @@ package sh.hnet.comfychair.ui.screens.settings
 
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 
@@ -38,18 +38,17 @@ fun SettingsEventsHost(viewModel: SettingsViewModel) {
     }
 
     pendingRestore?.let { uri ->
-        AlertDialog(
-            onDismissRequest = { pendingRestore = null },
-            title = { Text(stringResource(R.string.title_backup_restore_confirm)) },
-            text = { Text(stringResource(R.string.msg_backup_restore_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingRestore = null
-                    viewModel.restoreBackup(context, uri)
-                }) { Text(stringResource(R.string.button_backup_restore_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingRestore = null }) { Text(stringResource(R.string.button_cancel)) }
+        // Replaces the settings and deletes stored results: the error colour
+        ConfirmDialog(
+            title = stringResource(R.string.title_backup_restore_confirm),
+            text = stringResource(R.string.msg_backup_restore_confirm),
+            confirmLabel = stringResource(R.string.button_restore),
+            icon = Icons.Rounded.SettingsBackupRestore,
+            destructive = true,
+            onDismiss = { pendingRestore = null },
+            onConfirm = {
+                pendingRestore = null
+                viewModel.restoreBackup(context, uri)
             }
         )
     }

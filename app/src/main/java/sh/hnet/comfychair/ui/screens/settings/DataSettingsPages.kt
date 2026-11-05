@@ -97,6 +97,7 @@ fun CacheSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () -> Unit) 
             title = stringResource(R.string.title_confirm_clear_cache),
             text = stringResource(R.string.msg_confirm_clear_cache),
             confirmLabel = stringResource(R.string.button_clear),
+            icon = Icons.Rounded.DeleteSweep,
             onConfirm = { viewModel.clearCache(context) },
             onDismiss = { confirm = false }
         )
@@ -189,6 +190,7 @@ fun ResetSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () -> Unit) 
             title = stringResource(R.string.title_confirm_reset_prompts),
             text = stringResource(R.string.msg_confirm_reset_prompts),
             confirmLabel = stringResource(R.string.button_reset),
+            icon = Icons.Rounded.RestartAlt,
             onConfirm = { viewModel.resetPromptsAndLibrary(context) },
             onDismiss = { confirmPrompts = false }
         )
@@ -198,6 +200,7 @@ fun ResetSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () -> Unit) 
             title = stringResource(R.string.title_confirm_restore_defaults),
             text = stringResource(R.string.msg_confirm_restore_defaults),
             confirmLabel = stringResource(R.string.button_restore),
+            icon = Icons.Rounded.Restore,
             onConfirm = { viewModel.restoreDefaults(context) },
             onDismiss = { confirmDefaults = false }
         )

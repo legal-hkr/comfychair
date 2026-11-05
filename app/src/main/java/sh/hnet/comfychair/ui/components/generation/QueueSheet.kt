@@ -22,7 +22,6 @@ import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.VerticalAlignTop
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -34,7 +33,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.QueueSnapshot
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 
@@ -246,7 +245,10 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
                     OutlinedButton(
                         onClick = { confirmClear = true },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.fillMaxWidth()
+                        // Same height as the other full-width buttons (Log out, Add server)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
                     ) {
                         Icon(Icons.Rounded.ClearAll, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                         Spacer(Modifier.size(ButtonDefaults.IconSpacing))
@@ -259,30 +261,21 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
 
     if (confirmClear) {
         val others = waitingOther.size
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.title_clear_queue)) },
-            text = {
-                Text(
-                    if (others > 0) pluralStringResource(R.plurals.msg_clear_queue_others, others, others)
-                    else stringResource(R.string.msg_clear_queue_own)
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmClear = false
-                        generationViewModel.clearQueue { success ->
-                            val messageRes = if (success) R.string.msg_queue_cleared_success else R.string.error_queue_clear
-                            Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
-                            refresh()
-                        }
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.button_clear)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.button_cancel)) }
+        ConfirmDialog(
+            title = stringResource(R.string.title_clear_queue),
+            text = if (others > 0) pluralStringResource(R.plurals.msg_clear_queue_others, others, others)
+                else stringResource(R.string.msg_clear_queue_own),
+            confirmLabel = stringResource(R.string.button_clear),
+            icon = Icons.Rounded.ClearAll,
+            destructive = true,
+            onDismiss = { confirmClear = false },
+            onConfirm = {
+                confirmClear = false
+                generationViewModel.clearQueue { success ->
+                    val messageRes = if (success) R.string.msg_queue_cleared_success else R.string.error_queue_clear
+                    Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+                    refresh()
+                }
             }
         )
     }

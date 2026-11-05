@@ -82,6 +82,7 @@ sealed class ConnectionState {
  */
 object ConnectionManager {
     private const val TAG = "Connection"
+    const val CLIENT_ID_PREFS = "ConnectionClientIds"
     private const val KEEPALIVE_INTERVAL_MS = 30000L
     private const val MAX_RECONNECT_ATTEMPTS = 3
 
@@ -282,8 +283,9 @@ object ConnectionManager {
             _client?.shutdown()
         }
 
-        // Generate unique client ID for this session
-        _clientId = "comfychair_android_${UUID.randomUUID()}"
+        // The server sends a job's progress and completion only to the client ID that queued it: keep one per server, so
+        // jobs restored after a restart are still reported to this app
+        _clientId = clientIdFor(context, serverId)
 
         // Store application context for offline cache operations
         _applicationContext = context.applicationContext
@@ -309,6 +311,15 @@ object ConnectionManager {
 
         // Fetch server data (node types and model lists) after connection
         fetchServerData()
+    }
+
+    /** This app's client ID for a server: random, kept across restarts (as ComfyUI's own frontend keeps it per tab). */
+    private fun clientIdFor(context: Context, serverId: String): String {
+        val prefs = context.getSharedPreferences(CLIENT_ID_PREFS, Context.MODE_PRIVATE)
+        val key = "client_id_$serverId"
+        return prefs.getString(key, null) ?: "comfychair_android_${UUID.randomUUID()}".also {
+            prefs.edit().putString(key, it).apply()
+        }
     }
 
     /**
@@ -779,6 +790,9 @@ object ConnectionManager {
                     val queueRemaining = execInfo?.optInt("queue_remaining") ?: 0
                     // Update JobRegistry with queue size
                     JobRegistry.updateFromStatus(queueRemaining)
+                    // More of our jobs waiting than the whole queue holds: some left it without us hearing (e.g. queued
+                    // before a restart); check them against the server's queue
+                    if (JobRegistry.queueState.value.ownActiveJobCount > queueRemaining) pollQueueStatus()
                     WebSocketMessage.Status(queueRemaining)
                 }
                 "previewing", "executed" -> null  // Don't emit for these types
@@ -916,6 +930,8 @@ object ConnectionManager {
                 val running = queueJson.optJSONArray("queue_running")
                 val pending = queueJson.optJSONArray("queue_pending")
                 JobRegistry.updateFromServerQueue(running, pending)
+                // Stale jobs dropped here mustn't come back at the next start
+                _applicationContext?.let { JobRegistry.saveState(it) }
             }
         }
     }

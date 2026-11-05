@@ -15,8 +15,7 @@
     <string name="button_server_edit">Edit Server</string>
     <string name="button_server_add">Add Server</string>
     <string name="button_server_delete">Delete Server</string>
-    <string name="title_server_delete">Delete Server</string>
-    <string name="msg_server_delete">Are you sure you want to delete \"%s\"? This will also remove all saved preferences for this server.</string>
+    <string name="msg_server_delete">Its saved settings and sign-in details will be removed too.</string>
     <string name="msg_server_deleted_success">Server deleted</string>
 
     <!-- Authentication strings -->
@@ -58,10 +57,9 @@
     <string name="button_failed">Failed</string>
     <string name="button_connected">Connected</string>
     <string name="error_no_offline_cache">No cached data available for this server</string>
-    <string name="title_offline_prompt">Server Unreachable</string>
-    <string name="msg_offline_prompt">Cannot connect to the server. Would you like to continue in offline mode using cached data?</string>
-    <string name="button_offline_prompt_confirm">Go Offline</string>
-    <string name="button_offline_prompt_dismiss">Cancel</string>
+    <string name="title_offline_prompt">Work offline?</string>
+    <string name="msg_offline_prompt">The server can’t be reached. You can browse what’s stored on this device until it’s back.</string>
+    <string name="button_offline_prompt_confirm">Work offline</string>
     <string name="button_go_online">Go Online</string>
 
     <!-- Validation error messages -->
@@ -253,9 +251,8 @@
     <string name="error_backup_invalid_json">Invalid backup file format</string>
     <string name="error_backup_unsupported_version">Unsupported backup version</string>
     <string name="error_backup_no_servers">No servers found in backup</string>
-    <string name="title_backup_restore_confirm">Restore Settings?</string>
-    <string name="msg_backup_restore_confirm">This will replace your current settings. This action cannot be undone.</string>
-    <string name="button_backup_restore_confirm">Restore</string>
+    <string name="title_backup_restore_confirm">Restore from the backup?</string>
+    <string name="msg_backup_restore_confirm">Settings will be replaced with the backup’s, and its servers, workflows and prompts added to yours. Results stored on the device will be deleted.</string>
 
     <!-- Gallery item strings -->
     <string name="button_delete_history_item">Delete from history</string>
@@ -582,7 +579,7 @@
     <string name="button_export_app">Export for ComfyChair</string>
     <string name="button_export_api">Export in ComfyUI API format</string>
     <string name="button_delete_workflow">Delete workflow</string>
-    <string name="title_delete_workflow_named">Delete “%1$s”?</string>
+    <string name="title_delete_named">Delete “%1$s”?</string>
     <string name="msg_delete_workflow_device">It will be removed from this device. Files you exported are not affected.</string>
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Description</string>

@@ -25,11 +25,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
@@ -39,7 +38,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -82,6 +80,7 @@ import sh.hnet.comfychair.ui.components.CertificateTrustDialog
 import sh.hnet.comfychair.ui.components.ConnectionSplitButton
 import sh.hnet.comfychair.ui.components.InsecureFallbackDialog
 import sh.hnet.comfychair.ui.components.ServerDialog
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsRadioRow
@@ -424,8 +423,8 @@ fun LoginScreen() {
     // Delete confirmation, for the server whose row menu asked
     serverToDelete?.let { server ->
         ConfirmDestructiveDialog(
-            title = stringResource(R.string.title_server_delete),
-            text = stringResource(R.string.msg_server_delete, server.name),
+            title = stringResource(R.string.title_delete_named, server.name),
+            text = stringResource(R.string.msg_server_delete),
             confirmLabel = stringResource(R.string.button_delete),
             icon = Icons.Rounded.Delete,
             onConfirm = {
@@ -469,28 +468,19 @@ fun LoginScreen() {
 
     // Offline prompt dialog - shown when connection fails but cache exists
     if (showOfflinePrompt && offlinePromptServer != null) {
-        AlertDialog(
-            onDismissRequest = { showOfflinePrompt = false },
-            title = { Text(stringResource(R.string.title_offline_prompt)) },
-            text = { Text(stringResource(R.string.msg_offline_prompt)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showOfflinePrompt = false
-                        // Enable offline mode and attempt offline connection
-                        AppSettings.setOfflineMode(context, true)
-                        isOfflineMode = true
-                        offlinePromptServer?.let { server ->
-                            attemptOfflineConnection(server)
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.button_offline_prompt_confirm))
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showOfflinePrompt = false }) {
-                    Text(stringResource(R.string.button_offline_prompt_dismiss))
+        ConfirmDialog(
+            title = stringResource(R.string.title_offline_prompt),
+            text = stringResource(R.string.msg_offline_prompt),
+            confirmLabel = stringResource(R.string.button_offline_prompt_confirm),
+            icon = Icons.Rounded.CloudOff,
+            onDismiss = { showOfflinePrompt = false },
+            onConfirm = {
+                showOfflinePrompt = false
+                // Enable offline mode and attempt offline connection
+                AppSettings.setOfflineMode(context, true)
+                isOfflineMode = true
+                offlinePromptServer?.let { server ->
+                    attemptOfflineConnection(server)
                 }
             }
         )

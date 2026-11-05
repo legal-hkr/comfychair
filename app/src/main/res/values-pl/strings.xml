@@ -17,8 +17,7 @@
     <string name="button_server_edit">Edytuj serwer</string>
     <string name="button_server_add">Dodaj serwer</string>
     <string name="button_server_delete">Usuń serwer</string>
-    <string name="title_server_delete">Usuń serwer</string>
-    <string name="msg_server_delete">Czy na pewno chcesz usunąć \"%s\"? Spowoduje to również usunięcie wszystkich zapisanych preferencji dla tego serwera.</string>
+    <string name="msg_server_delete">Razem z nim znikną jego ustawienia i dane logowania.</string>
     <string name="msg_server_deleted_success">Serwer usunięty</string>
 
     <!-- Authentication strings -->
@@ -62,10 +61,9 @@
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">Brak danych w pamięci podręcznej dla tego serwera</string>
-    <string name="title_offline_prompt">Serwer niedostępny</string>
-    <string name="msg_offline_prompt">Nie można połączyć się z serwerem. Czy chcesz kontynuować w trybie offline, używając danych z pamięci podręcznej?</string>
+    <string name="title_offline_prompt">Przejść w tryb offline?</string>
+    <string name="msg_offline_prompt">Serwer nie odpowiada. Do czasu jego powrotu możesz przeglądać to, co jest zapisane na tym urządzeniu.</string>
     <string name="button_offline_prompt_confirm">Tryb offline</string>
-    <string name="button_offline_prompt_dismiss">Anuluj</string>
     <string name="button_go_online">Przejdź do trybu online</string>
     <string name="content_description_not_cached">Niedostępne offline</string>
     <string name="label_offline_mode">Tryb offline</string>
@@ -495,7 +493,7 @@
     <string name="button_export_app">Eksportuj dla ComfyChair</string>
     <string name="button_export_api">Eksportuj w formacie API ComfyUI</string>
     <string name="button_delete_workflow">Usuń przepływ pracy</string>
-    <string name="title_delete_workflow_named">Usunąć „%1$s”?</string>
+    <string name="title_delete_named">Usunąć „%1$s”?</string>
     <string name="msg_delete_workflow_device">Zniknie z tego urządzenia. Wyeksportowane pliki zostaną nietknięte.</string>
     <string name="label_workflow_name">Nazwa</string>
     <string name="label_workflow_description">Opis</string>
@@ -696,9 +694,8 @@
     <string name="error_backup_invalid_json">Nieprawidłowy format pliku kopii zapasowej</string>
     <string name="error_backup_unsupported_version">Nieobsługiwana wersja kopii zapasowej</string>
     <string name="error_backup_no_servers">Nie znaleziono serwerów w kopii zapasowej</string>
-    <string name="title_backup_restore_confirm">Przywrócić ustawienia?</string>
-    <string name="msg_backup_restore_confirm">Spowoduje to zastąpienie bieżących ustawień. Tej czynności nie można cofnąć.</string>
-    <string name="button_backup_restore_confirm">Przywróć</string>
+    <string name="title_backup_restore_confirm">Przywrócić z kopii zapasowej?</string>
+    <string name="msg_backup_restore_confirm">Ustawienia zostaną zastąpione tymi z kopii, a zapisane w niej serwery, przepływy pracy i prompty dołączą do obecnych. Wyniki przechowywane na urządzeniu zostaną usunięte.</string>
 
     <!-- About screen strings -->
     <string name="nav_about_settings">O aplikacji</string>

@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.storage
 
+import sh.hnet.comfychair.connection.ConnectionManager
 import android.content.Context
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.util.DebugLogger
@@ -53,8 +54,21 @@ object PreferencesMaintenance {
         totalRemoved += cleanScreenPrefs(context, validServerIds, validWorkflowIds)
         totalRemoved += cleanFileCaches(context, validServerIds)
         totalRemoved += cleanRetiredAppSettings(context)
+        totalRemoved += cleanClientIds(context, validServerIds)
 
         DebugLogger.i(TAG, "Maintenance complete. Removed $totalRemoved stale entries/files")
+    }
+
+    /**
+     * Remove the client IDs kept for deleted servers (ConnectionManager, key `client_id_{serverId}`).
+     *
+     * @return Number of entries removed
+     */
+    private fun cleanClientIds(context: Context, validServerIds: Set<String>): Int {
+        val prefs = context.getSharedPreferences(ConnectionManager.CLIENT_ID_PREFS, Context.MODE_PRIVATE)
+        val stale = prefs.all.keys.filter { it.removePrefix("client_id_") !in validServerIds }
+        if (stale.isNotEmpty()) prefs.edit().apply { stale.forEach { remove(it) } }.apply()
+        return stale.size
     }
 
     /**

@@ -70,13 +70,13 @@ data class QueueState(
      */
     val otherJobCount: Int get() = (totalQueueSize - ownActiveJobCount).coerceAtLeast(0)
 
+    /** Our own jobs waiting in the queue (not running yet). */
+    val ownWaitingJobCount: Int get() = ownJobs.values.count { it.status == JobStatus.PENDING }
+
     /**
      * Whether a job of this screen waits in the queue. Only waiting jobs count: finished ones stay tracked until they
      * are cleaned up (also across an app restart) and must not make the screen look busy.
      */
-    /** Our own jobs waiting in the queue (not running yet). */
-    val ownWaitingJobCount: Int get() = ownJobs.values.count { it.status == JobStatus.PENDING }
-
     fun hasWaitingJob(ownerId: String): Boolean =
         ownJobs.values.any { it.ownerId == ownerId && it.status == JobStatus.PENDING }
 }

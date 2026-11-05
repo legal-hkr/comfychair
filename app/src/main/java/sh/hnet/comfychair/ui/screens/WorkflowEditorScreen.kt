@@ -1028,21 +1028,6 @@ private fun WorkflowEditorFloatingToolbar(
                     modifier = Modifier.height(IntrinsicSize.Min),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Delete (enabled when nodes selected)
-                    IconButton(
-                        onClick = onDeleteSelected,
-                        enabled = hasSelection
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.workflow_editor_delete_node),
-                            tint = if (hasSelection)
-                                MaterialTheme.colorScheme.error
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-
                     // Add node
                     IconButton(onClick = onAddNode) {
                         Icon(
@@ -1205,6 +1190,21 @@ private fun WorkflowEditorFloatingToolbar(
                                 )
                             }
                         }
+                    }
+
+                    // Delete last among the node actions (enabled when nodes selected)
+                    IconButton(
+                        onClick = onDeleteSelected,
+                        enabled = hasSelection
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.workflow_editor_delete_node),
+                            tint = if (hasSelection)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
                     }
 
                     // Divider between node actions and workflow actions

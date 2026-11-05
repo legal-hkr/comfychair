@@ -153,11 +153,12 @@ class GenerationViewModel : ViewModel() {
         DebugLogger.i(TAG, "Initializing")
         this.applicationContext = context.applicationContext
 
-        // Restore JobRegistry state from persistence
-        JobRegistry.restoreState(context)
-
-        // Restore generation state
-        restoreGenerationState(context)
+        // Jobs and the running generation are restored only with a server to check them against: offline nothing can run,
+        // and they'd show as waiting forever. They stay stored for the next session with the server, which validates them.
+        if (ConnectionManager.isConnected) {
+            JobRegistry.restoreState(context)
+            restoreGenerationState(context)
+        }
 
         // Subscribe to ConnectionManager's WebSocket flows
         subscribeToWebSocketMessages()

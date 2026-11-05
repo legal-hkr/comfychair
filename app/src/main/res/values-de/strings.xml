@@ -17,8 +17,7 @@
     <string name="button_server_edit">Server bearbeiten</string>
     <string name="button_server_add">Server hinzufügen</string>
     <string name="button_server_delete">Server löschen</string>
-    <string name="title_server_delete">Server löschen</string>
-    <string name="msg_server_delete">Möchten Sie \"%s\" wirklich löschen? Dies entfernt auch alle gespeicherten Einstellungen für diesen Server.</string>
+    <string name="msg_server_delete">Seine gespeicherten Einstellungen und Anmeldedaten werden ebenfalls entfernt.</string>
     <string name="msg_server_deleted_success">Server gelöscht</string>
 
     <!-- Authentication strings -->
@@ -62,10 +61,9 @@
 
     <!-- Offline mode strings -->
     <string name="error_no_offline_cache">Keine zwischengespeicherten Daten für diesen Server verfügbar</string>
-    <string name="title_offline_prompt">Server nicht erreichbar</string>
-    <string name="msg_offline_prompt">Verbindung zum Server nicht möglich. Möchten Sie im Offline-Modus mit zwischengespeicherten Daten fortfahren?</string>
-    <string name="button_offline_prompt_confirm">Offline gehen</string>
-    <string name="button_offline_prompt_dismiss">Abbrechen</string>
+    <string name="title_offline_prompt">Offline arbeiten?</string>
+    <string name="msg_offline_prompt">Der Server ist nicht erreichbar. Bis er wieder da ist, kannst du durchsehen, was auf diesem Gerät gespeichert ist.</string>
+    <string name="button_offline_prompt_confirm">Offline arbeiten</string>
     <string name="button_go_online">Online gehen</string>
     <string name="content_description_not_cached">Offline nicht verfügbar</string>
     <string name="label_offline_mode">Offline-Modus</string>
@@ -249,9 +247,8 @@
     <string name="error_backup_invalid_json">Ungültiges Sicherungsdateiformat</string>
     <string name="error_backup_unsupported_version">Nicht unterstützte Sicherungsversion</string>
     <string name="error_backup_no_servers">Keine Server in der Sicherung gefunden</string>
-    <string name="title_backup_restore_confirm">Einstellungen wiederherstellen?</string>
-    <string name="msg_backup_restore_confirm">Dies ersetzt Ihre aktuellen Einstellungen. Diese Aktion kann nicht rückgängig gemacht werden.</string>
-    <string name="button_backup_restore_confirm">Wiederherstellen</string>
+    <string name="title_backup_restore_confirm">Aus der Sicherung wiederherstellen?</string>
+    <string name="msg_backup_restore_confirm">Die Einstellungen werden durch die der Sicherung ersetzt, ihre Server, Workflows und Prompts kommen zu deinen hinzu. Auf dem Gerät gespeicherte Ergebnisse werden gelöscht.</string>
 
     <!-- Gallery item strings -->
     <string name="button_delete_history_item">Aus Verlauf löschen</string>
@@ -488,7 +485,7 @@
     <string name="button_export_app">Für ComfyChair exportieren</string>
     <string name="button_export_api">Im ComfyUI-API-Format exportieren</string>
     <string name="button_delete_workflow">Workflow löschen</string>
-    <string name="title_delete_workflow_named">„%1$s“ löschen?</string>
+    <string name="title_delete_named">„%1$s“ löschen?</string>
     <string name="msg_delete_workflow_device">Er wird von diesem Gerät entfernt. Exportierte Dateien sind nicht betroffen.</string>
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Beschreibung</string>

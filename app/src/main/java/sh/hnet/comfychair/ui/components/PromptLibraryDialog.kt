@@ -208,7 +208,7 @@ fun PromptLibraryDialog(
 
     presetToDelete?.let { preset ->
         ConfirmDialog(
-            title = stringResource(R.string.title_delete_workflow_named, preset.name),
+            title = stringResource(R.string.title_delete_named, preset.name),
             text = stringResource(R.string.msg_delete_prompt),
             confirmLabel = stringResource(R.string.button_delete),
             icon = Icons.Rounded.Delete,

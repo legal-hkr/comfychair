@@ -2,6 +2,8 @@
 
 package sh.hnet.comfychair.ui.screens.settings
 
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.Icons
 import android.app.LocaleManager
 import android.content.Context
 import android.os.LocaleList
@@ -143,6 +145,7 @@ fun MediaPrivacySettingsPage(viewModel: SettingsViewModel, onNavigateBack: () ->
             title = stringResource(R.string.title_media_storage_memory_only_confirm),
             text = stringResource(R.string.msg_media_storage_memory_only_confirm),
             confirmLabel = stringResource(R.string.button_delete),
+            icon = Icons.Rounded.Memory,
             onConfirm = { viewModel.setMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY) },
             onDismiss = { confirmMemoryOnly = false }
         )

@@ -930,9 +930,10 @@ fun WorkflowDetailPage(
 
     if (confirmDelete) {
         ConfirmDestructiveDialog(
-            title = stringResource(R.string.title_delete_workflow_named, workflow.name),
+            title = stringResource(R.string.title_delete_named, workflow.name),
             text = stringResource(R.string.msg_delete_workflow_device),
             confirmLabel = stringResource(R.string.button_delete),
+            icon = Icons.Rounded.Delete,
             onConfirm = { viewModel.deleteWorkflow(workflow) },
             onDismiss = { confirmDelete = false }
         )
