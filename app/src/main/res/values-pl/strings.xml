@@ -638,6 +638,8 @@
     <string name="label_editor_mode_editing">Edycja</string>
     <string name="label_editor_mode_editing_unsaved">Edycja – niezapisane zmiany</string>
     <string name="label_editor_mode_placement">Edycja – rozmieszczanie</string>
+    <string name="label_editor_zoom_in_to_connect">Przybliż, żeby łączyć</string>
+    <string name="label_graph_note">Notatka</string>
     <string name="label_editor_mode_mapping">Import – przypisywanie pól</string>
     <string name="label_editor_connecting">Łączenie: %1$s</string>
     <string name="hint_editor_tap_input">Dotknij podświetlonego wejścia</string>

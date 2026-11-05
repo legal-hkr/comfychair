@@ -2,18 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.CustomAccessibilityAction
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -23,8 +11,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -40,6 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
@@ -48,9 +40,13 @@ import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -75,6 +71,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -82,12 +81,14 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.NodeValuesSheetContent
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
-import sh.hnet.comfychair.ui.components.graphCanvasColor
 import sh.hnet.comfychair.ui.components.dialogs.ChoiceDialog
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.dialogs.DialogChoice
 import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
 import sh.hnet.comfychair.ui.components.dialogs.FormDialog
+import sh.hnet.comfychair.ui.components.graphCanvasColor
+import sh.hnet.comfychair.ui.components.rememberGraphDetailLevel
+import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.ui.components.workflow.AllFieldsSheet
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
 import sh.hnet.comfychair.ui.components.workflow.EditorMode
@@ -101,6 +102,7 @@ import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
+import sh.hnet.comfychair.workflow.GraphDetailLevel
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.changedValueCount
@@ -169,13 +171,19 @@ fun WorkflowEditorScreen(
     val changedValues = remember(uiState.graph, uiState.nodeDefinitions, uiState.nodeAttributeEdits) {
         uiState.graph?.let { changedValueCount(it, uiState.nodeDefinitions, uiState.nodeAttributeEdits) } ?: 0
     }
+    val detailLevel = rememberGraphDetailLevel(uiState.scale)
     val status = when {
         connection != null -> EditorStatus.Connecting(
             connection.sourceSlot.slotType ?: "",
             fromOutput = connection.direction == ConnectionDirection.OUTPUT_TO_INPUT
         )
         mode == EditorMode.MAPPING -> EditorStatus.Mapping(import = uiState.isImportMapping)
-        mode == EditorMode.EDIT -> EditorStatus.Editing(uiState.hasUnsavedChanges, uiState.isManualPlacementMode)
+        mode == EditorMode.EDIT -> EditorStatus.Editing(
+            uiState.hasUnsavedChanges,
+            uiState.isManualPlacementMode,
+            // Sockets can be tapped at full detail only
+            zoomInToConnect = detailLevel != GraphDetailLevel.FULL
+        )
         mode == EditorMode.GRAPH -> EditorStatus.Graph
         else -> EditorStatus.NodeValues(changedValues)
     }
@@ -521,6 +529,11 @@ fun WorkflowEditorScreen(
                                 viewModel.clearJustDroppedNote()
                             },
                             onTransform = { scale, offset ->
+                                viewModel.onTransform(scale, offset)
+                            },
+                            // Overview: a tapped block zooms in to it, animated like the zoom buttons
+                            onZoomTo = { scale, offset ->
+                                shouldAnimateZoomChange.value = true
                                 viewModel.onTransform(scale, offset)
                             },
                             modifier = Modifier

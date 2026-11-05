@@ -92,7 +92,8 @@ enum class EditorMode {
 sealed interface EditorStatus {
     data object Graph : EditorStatus
     data class NodeValues(val changed: Int) : EditorStatus
-    data class Editing(val unsaved: Boolean, val placement: Boolean) : EditorStatus
+    /** @param zoomInToConnect Zoomed out below full detail, where sockets can't be tapped */
+    data class Editing(val unsaved: Boolean, val placement: Boolean, val zoomInToConnect: Boolean = false) : EditorStatus
     /** @param import While importing; otherwise while saving from the editor */
     data class Mapping(val import: Boolean) : EditorStatus
     /** A connection waits for its other end: the pill turns into a status pill with a way out */
@@ -228,6 +229,7 @@ private fun pillLines(workflowName: String, status: EditorStatus): Pair<String, 
         is EditorStatus.Editing -> name to stringResource(
             when {
                 status.placement -> R.string.label_editor_mode_placement
+                status.zoomInToConnect -> R.string.label_editor_zoom_in_to_connect
                 status.unsaved -> R.string.label_editor_mode_editing_unsaved
                 else -> R.string.label_editor_mode_editing
             }

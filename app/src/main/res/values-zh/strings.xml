@@ -587,6 +587,8 @@
     <string name="label_editor_mode_editing">编辑</string>
     <string name="label_editor_mode_editing_unsaved">编辑 – 未保存的更改</string>
     <string name="label_editor_mode_placement">编辑 – 摆放</string>
+    <string name="label_editor_zoom_in_to_connect">放大后才能连接</string>
+    <string name="label_graph_note">注释</string>
     <string name="label_editor_mode_mapping">导入 – 映射字段</string>
     <string name="label_editor_connecting">正在连接 %1$s</string>
     <string name="hint_editor_tap_input">点按高亮的输入</string>
