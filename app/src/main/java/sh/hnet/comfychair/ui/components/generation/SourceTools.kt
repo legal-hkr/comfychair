@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -217,22 +219,27 @@ fun BoxScope.ReferenceSlots(slots: List<ReferenceSlot>) {
         modifier = Modifier
             .align(Alignment.TopEnd)
             .padding(PreviewThumbnailInset),
-        // Against the edge, as the result thumbnail on the other side, however wide the label below is
+        // Against the edge, as the result thumbnail on the other side
         horizontalAlignment = Alignment.End,
         // Each slot's ring reaches 4 dp beyond it, so the rings stay 8 dp apart
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         slots.forEachIndexed { index, slot -> ReferenceSlotItem(slot, index + 1) }
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.label_reference_count, slots.count { it.image != null }, slots.size),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-            )
+        // Centred under the slots, even when wider than they are (then reaching out equally on both sides)
+        Box(Modifier.width(ReferenceSlotSize), contentAlignment = Alignment.Center) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.wrapContentWidth(unbounded = true)
+            ) {
+                Text(
+                    text = stringResource(R.string.label_reference_count, slots.count { it.image != null }, slots.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
         }
     }
 }
