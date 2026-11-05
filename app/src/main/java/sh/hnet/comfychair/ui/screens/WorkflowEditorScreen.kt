@@ -2,6 +2,18 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Surface
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -166,6 +178,10 @@ fun WorkflowEditorScreen(
         mode == EditorMode.GRAPH -> EditorStatus.Graph
         else -> EditorStatus.NodeValues(changedValues)
     }
+
+    // Accessibility: the graph can't be explored node by node, so a list of its nodes (spec §10.5)
+    var showNodeList by remember { mutableStateOf(false) }
+    val nodesListLabel = stringResource(R.string.label_nodes_list)
 
     // Map fields: the card starts at the first unmapped field
     var showAllFields by remember { mutableStateOf(false) }
@@ -508,6 +524,14 @@ fun WorkflowEditorScreen(
                             },
                             modifier = Modifier
                                 .fillMaxSize()
+                                .semantics {
+                                    if (mode == EditorMode.EDIT || mode == EditorMode.NODE_VALUES) {
+                                        customActions = listOf(CustomAccessibilityAction(nodesListLabel) {
+                                            showNodeList = true
+                                            true
+                                        })
+                                    }
+                                }
                                 .onSizeChanged { size ->
                                     with(density) {
                                         viewModel.setCanvasSize(
@@ -562,6 +586,21 @@ fun WorkflowEditorScreen(
                     onDismiss = { showAllFields = false }
                 )
             }
+        }
+        if (showNodeList) {
+            NodeListSheet(
+                nodes = uiState.graph?.nodes ?: emptyList(),
+                onPick = { node ->
+                    showNodeList = false
+                    if (mode == EditorMode.EDIT) {
+                        viewModel.clearSelection()
+                        viewModel.toggleNodeSelection(node.id)
+                    } else {
+                        viewModel.onNodeTappedForEditing(node)
+                    }
+                },
+                onDismiss = { showNodeList = false }
+            )
         }
         if (confirmCancelImport) {
             ConfirmDialog(
@@ -905,5 +944,38 @@ fun WorkflowEditorScreen(
             )
         }
     }
+    }
+}
+
+/** The graph's nodes as a list (accessibility): picking one selects it or opens its values. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NodeListSheet(nodes: List<WorkflowNode>, onPick: (WorkflowNode) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            stringResource(R.string.label_nodes_list),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.navigationBarsPadding()
+        ) {
+            itemsIndexed(nodes, key = { _, node -> node.id }) { index, node ->
+                Surface(
+                    onClick = { onPick(node) },
+                    shape = segmentedItemShape(index, nodes.size),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = { Text(node.title) },
+                        supportingContent = if (node.title != node.classType) ({ Text(node.classType) }) else null,
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    )
+                }
+            }
+        }
     }
 }

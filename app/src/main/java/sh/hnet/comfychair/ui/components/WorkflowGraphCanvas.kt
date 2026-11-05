@@ -1,5 +1,13 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.vector.VectorPainter
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import sh.hnet.comfychair.workflow.changedInputNames
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.core.Animatable
@@ -304,7 +312,7 @@ fun WorkflowGraphCanvas(
         nodeHeaderBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
         nodeBorder = MaterialTheme.colorScheme.outline,
         templateTextHighlight = MaterialTheme.colorScheme.secondary,
-        candidateBorder = MaterialTheme.colorScheme.secondary,
+        candidateBorder = MaterialTheme.colorScheme.primary,
         selectedBorder = MaterialTheme.colorScheme.primary,
         textPrimary = MaterialTheme.colorScheme.onSurface,
         textSecondary = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -316,8 +324,13 @@ fun WorkflowGraphCanvas(
         isDarkTheme = isDarkTheme
     )
 
-    // Constants for slot detection
-    val slotHitRadius = 30f  // Larger hit area for easier tapping
+    // Sockets: a touch target of about 48 dp on screen while editing (spec §10.4), at least 30 graph units, at most 60
+    // so a tap near a node's edge still reaches the node; the nearest socket wins
+    val slotHitRadius = 30f
+    val touchSlotRadiusPx = with(density) { 24.dp.toPx() }
+    // Badge on bypassed nodes' title bar
+    val bypassBadge = rememberVectorPainter(Icons.Rounded.DoNotDisturbOn)
+    fun socketRadius(scale: Float) = (touchSlotRadiusPx / scale).coerceIn(slotHitRadius, 60f)
 
     // Animation state for nodes (position + alpha)
     val animatedNodeStates = remember { mutableStateMapOf<String, AnimatedNodeState>() }
@@ -866,7 +879,7 @@ fun WorkflowGraphCanvas(
                         graphX = graphX,
                         graphY = graphY,
                         nodes = currentGraphState.value.nodes,
-                        slotHitRadius = slotHitRadius
+                        slotHitRadius = socketRadius(currentScaleState.value)
                     )
                     if (hitSlot == null) {
                         return@awaitEachGesture
@@ -940,7 +953,7 @@ fun WorkflowGraphCanvas(
                         graphX = graphX,
                         graphY = graphY,
                         nodes = currentGraphState.value.nodes,
-                        slotHitRadius = slotHitRadius,
+                        slotHitRadius = socketRadius(currentScaleState.value),
                         nodeDefinitions = currentNodeDefinitions.value
                     )
                     if (hitSlot == null) {
@@ -1006,14 +1019,14 @@ fun WorkflowGraphCanvas(
                         val connectionState = currentConnectionModeState.value
                         val inConnectionMode = connectionState != null
                         val inEditMode = currentIsEditMode.value
+                        val radius = socketRadius(currentScaleState.value)
 
-                        // In connection mode, check for taps on valid target slots
+                        // In connection mode, check for taps on valid target slots (the nearest one)
                         if (connectionState != null) {
-                            val tappedTargetSlot = connectionState.validTargetSlots.find { slot ->
-                                val dx = graphX - slot.center.x
-                                val dy = graphY - slot.center.y
-                                (dx * dx + dy * dy) <= slotHitRadius * slotHitRadius
-                            }
+                            fun distance(slot: SlotPosition) = (graphX - slot.center.x).let { it * it } + (graphY - slot.center.y).let { it * it }
+                            val tappedTargetSlot = connectionState.validTargetSlots
+                                .filter { distance(it) <= radius * radius }
+                                .minByOrNull { distance(it) }
                             if (tappedTargetSlot != null) {
                                 // Call appropriate callback based on direction
                                 when (connectionState.direction) {
@@ -1026,33 +1039,9 @@ fun WorkflowGraphCanvas(
 
                         // In edit mode (not connection mode), check for taps on output slots to start connection
                         if (inEditMode && !inConnectionMode && onOutputSlotTapped != null) {
-                            for (node in graph.nodes) {
-                                // Output slots are on the right side of the node
-                                val outputX = node.x + node.width
-
-                                // Check each output at its correct Y position
-                                node.outputs.forEachIndexed { outputIndex, output ->
-                                    val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
-                                    val literalInputCount = node.inputs.count { (_, v) -> v is InputValue.Literal }
-                                    val outputY = node.y + headerHeight + 20f +
-                                            (literalInputCount * WorkflowLayoutEngine.INPUT_ROW_HEIGHT) +
-                                            (outputIndex * WorkflowLayoutEngine.INPUT_ROW_HEIGHT)
-
-                                    val dx = graphX - outputX
-                                    val dy = graphY - outputY
-                                    if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
-                                        val slotPosition = SlotPosition(
-                                            nodeId = node.id,
-                                            slotName = output.name,
-                                            isOutput = true,
-                                            outputIndex = outputIndex,
-                                            center = Offset(outputX, outputY),
-                                            slotType = output.type
-                                        )
-                                        onOutputSlotTapped(slotPosition)
-                                        return@detectTapGestures
-                                    }
-                                }
+                            findOutputSlotAt(graphX, graphY, graph.nodes, radius)?.let {
+                                onOutputSlotTapped(it)
+                                return@detectTapGestures
                             }
                         }
 
@@ -1062,7 +1051,7 @@ fun WorkflowGraphCanvas(
                                 graphX = graphX,
                                 graphY = graphY,
                                 nodes = graph.nodes,
-                                slotHitRadius = slotHitRadius,
+                                slotHitRadius = radius,
                                 nodeDefinitions = currentNodeDefinitions.value
                             )
                             if (tappedInputSlot != null) {
@@ -1252,6 +1241,9 @@ fun WorkflowGraphCanvas(
 
                     // Get edits for this node
                     val nodeEdits = nodeAttributeEdits[node.id] ?: emptyMap()
+                    // Node values mode only (not while editing the structure or mapping)
+                    val showChangedDot = !isEditMode && !isFieldMappingMode && nodeEdits.isNotEmpty() &&
+                        changedInputNames(node, nodeDefinitions[node.classType], nodeEdits).isNotEmpty()
 
                     // Editable inputs are only highlighted when this node is being edited
                     val highlightEditableInputs = editingNodeId == node.id
@@ -1281,7 +1273,9 @@ fun WorkflowGraphCanvas(
                                 uiFieldPrefix = uiFieldPrefix,
                                 displayNameResolver = displayNameResolver,
                                 inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
-                                mappedFields = graph.mappedFields
+                                mappedFields = graph.mappedFields,
+                                showChangedDot = showChangedDot,
+                                bypassBadge = bypassBadge
                             )
                         }
                     } else {
@@ -1297,7 +1291,9 @@ fun WorkflowGraphCanvas(
                             uiFieldPrefix = uiFieldPrefix,
                             displayNameResolver = displayNameResolver,
                             inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
-                            mappedFields = graph.mappedFields
+                            mappedFields = graph.mappedFields,
+                            showChangedDot = showChangedDot,
+                            bypassBadge = bypassBadge
                         )
                     }
                 }
@@ -1620,10 +1616,13 @@ private fun DrawScope.drawNode(
     uiFieldPrefix: String = "UI: %1\$s",
     displayNameResolver: (String) -> String = { it },
     inputWireColors: Map<String, Int> = emptyMap(),
-    mappedFields: Map<Pair<String, String>, String> = emptyMap()
+    mappedFields: Map<Pair<String, String>, String> = emptyMap(),
+    // Node values: a dot after the title when a value differs from the workflow's
+    showChangedDot: Boolean = false,
+    bypassBadge: VectorPainter? = null
 ) {
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
-    val cornerRadius = 16f
+    val cornerRadius = 24f
 
     // Helper to apply alpha to a color
     fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
@@ -1688,13 +1687,16 @@ private fun DrawScope.drawNode(
         )
     }
 
-    // Node border
+    // Node border: candidates (mapping, connecting) dashed, the chosen node solid
     drawRoundRect(
         color = actualBorderColor,
         topLeft = Offset(node.x, node.y),
         size = Size(node.width, node.height),
         cornerRadius = CornerRadius(cornerRadius),
-        style = Stroke(width = borderWidth)
+        style = Stroke(
+            width = borderWidth,
+            pathEffect = if (highlightState == NodeHighlightState.CANDIDATE) PathEffect.dashPathEffect(floatArrayOf(18f, 12f)) else null
+        )
     )
 
     // Header separator line - use header color for consistency
@@ -1726,15 +1728,32 @@ private fun DrawScope.drawNode(
     val headerColorArgb = headerColor.toArgb()
     val drawableAlpha = (alpha * 255).toInt()
 
-    drawContext.canvas.nativeCanvas.apply {
-        val titleMaxWidth = node.width - 32f
-        val titlePaint = Paint().apply {
-            color = textPrimaryArgb
-            textSize = 24f
-            typeface = Typeface.DEFAULT_BOLD
-            isAntiAlias = true
+    // Title, leaving room for the changed dot and the bypass badge
+    val badgeSize = 28f
+    val titleMaxWidth = node.width - 32f - (if (showChangedDot) 28f else 0f) - (if (node.isBypassed && bypassBadge != null) badgeSize + 8f else 0f)
+    val titlePaint = Paint().apply {
+        color = textPrimaryArgb
+        textSize = 24f
+        typeface = Typeface.DEFAULT_BOLD
+        isAntiAlias = true
+    }
+    val title = truncateText(node.title, titleMaxWidth, titlePaint)
+    if (showChangedDot) {
+        drawCircle(
+            color = colors.selectedBorder.withAlpha(),
+            radius = 8f,
+            center = Offset(node.x + 16f + titlePaint.measureText(title) + 16f, node.y + 32f)
+        )
+    }
+    if (node.isBypassed && bypassBadge != null) {
+        translate(node.x + node.width - 16f - badgeSize, node.y + (headerHeight - badgeSize) / 2) {
+            with(bypassBadge) {
+                draw(Size(badgeSize, badgeSize), alpha = alpha, colorFilter = ColorFilter.tint(Color(textPrimaryArgb)))
+            }
         }
-        val title = truncateText(node.title, titleMaxWidth, titlePaint)
+    }
+
+    drawContext.canvas.nativeCanvas.apply {
         drawText(title, node.x + 16f, node.y + 40f, titlePaint)
 
         // Input labels
@@ -1773,8 +1792,8 @@ private fun DrawScope.drawNode(
             isAntiAlias = true
         }
 
-        // Red color for edited values
-        val editedColorArgb = android.graphics.Color.RED
+        // Edited values in the theme's primary
+        val editedColorArgb = colors.selectedBorder.withAlpha().toArgb()
 
         var inputY = node.y + headerHeight + 32f
         node.inputs.forEach { (name, value) ->
@@ -1864,7 +1883,7 @@ private fun DrawScope.drawNode(
                 val toggleBottom = toggleTop + toggleHeight
                 val toggleRadius = toggleHeight / 2
 
-                // Draw track (edited: blended red, on: selectedBorder/primary, off: nodeBorder/outline)
+                // Draw track (edited: blended primary, on: selectedBorder/primary, off: nodeBorder/outline)
                 val trackPaint = Paint().apply {
                     color = when {
                         isEdited -> blendColors(textPrimaryArgb, editedColorArgb, 0.5f)
@@ -2539,6 +2558,8 @@ private fun findOutputSlotAt(
     nodes: List<WorkflowNode>,
     slotHitRadius: Float
 ): SlotPosition? {
+    var best: SlotPosition? = null
+    var bestDistance = slotHitRadius * slotHitRadius
     for (node in nodes) {
         // Output slots are on the right side of the node
         val outputX = node.x + node.width
@@ -2553,8 +2574,9 @@ private fun findOutputSlotAt(
 
             val dx = graphX - outputX
             val dy = graphY - outputY
-            if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
-                return SlotPosition(
+            if (dx * dx + dy * dy <= bestDistance) {
+                bestDistance = dx * dx + dy * dy
+                best = SlotPosition(
                     nodeId = node.id,
                     slotName = output.name,
                     isOutput = true,
@@ -2565,7 +2587,7 @@ private fun findOutputSlotAt(
             }
         }
     }
-    return null
+    return best
 }
 
 /**
@@ -2580,6 +2602,8 @@ private fun findInputSlotAt(
     slotHitRadius: Float,
     nodeDefinitions: Map<String, NodeTypeDefinition>
 ): SlotPosition? {
+    var best: SlotPosition? = null
+    var bestDistance = slotHitRadius * slotHitRadius
     for (node in nodes) {
         // Input slots are on the left side of the node
         val inputX = node.x
@@ -2597,7 +2621,8 @@ private fun findInputSlotAt(
 
                 val dx = graphX - inputX
                 val dy = graphY - inputY
-                if (dx * dx + dy * dy <= slotHitRadius * slotHitRadius) {
+                if (dx * dx + dy * dy <= bestDistance) {
+                    bestDistance = dx * dx + dy * dy
                     // Resolve slot type - for connected inputs, look up from node definition
                     val slotType = when (inputValue) {
                         is InputValue.UnconnectedSlot -> inputValue.slotType
@@ -2607,7 +2632,7 @@ private fun findInputSlotAt(
                         }
                         else -> null
                     }
-                    return SlotPosition(
+                    best = SlotPosition(
                         nodeId = node.id,
                         slotName = inputName,
                         isOutput = false,
@@ -2620,5 +2645,5 @@ private fun findInputSlotAt(
             inputIndex++
         }
     }
-    return null
+    return best
 }

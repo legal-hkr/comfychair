@@ -487,6 +487,7 @@
     <string name="error_clip_layer_range">Must be -24 to -1</string>
 
     <!-- Node attribute editor -->
+    <string name="label_nodes_list">Nodes list</string>
     <string name="button_reset_node">Reset node</string>
     <string name="label_value_changed">Changed – default %1$s</string>
     <string name="content_description_reset_value">Reset %1$s to %2$s</string>

@@ -411,6 +411,7 @@
     <string name="error_invalid_number">无效的数字</string>
 
     <!-- Node attribute editor -->
+    <string name="label_nodes_list">节点列表</string>
     <string name="button_reset_node">重置节点</string>
     <string name="label_value_changed">已更改 – 默认 %1$s</string>
     <string name="content_description_reset_value">将 %1$s 重置为 %2$s</string>

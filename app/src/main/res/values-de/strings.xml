@@ -436,6 +436,7 @@
     <string name="error_invalid_number">Ungültige Zahl</string>
 
     <!-- Node attribute editor -->
+    <string name="label_nodes_list">Knotenliste</string>
     <string name="button_reset_node">Knoten zurücksetzen</string>
     <string name="label_value_changed">Geändert – Standard %1$s</string>
     <string name="content_description_reset_value">%1$s auf %2$s zurücksetzen</string>

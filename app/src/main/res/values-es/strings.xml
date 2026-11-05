@@ -433,6 +433,7 @@
     <string name="error_invalid_number">Número inválido</string>
 
     <!-- Node attribute editor -->
+    <string name="label_nodes_list">Lista de nodos</string>
     <string name="button_reset_node">Restablecer nodo</string>
     <string name="label_value_changed">Cambiado – por defecto %1$s</string>
     <string name="content_description_reset_value">Restablecer %1$s a %2$s</string>

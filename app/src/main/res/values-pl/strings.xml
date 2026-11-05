@@ -444,6 +444,7 @@
     <string name="error_invalid_number">Nieprawidłowa liczba</string>
 
     <!-- Node attribute editor -->
+    <string name="label_nodes_list">Lista węzłów</string>
     <string name="button_reset_node">Resetuj węzeł</string>
     <string name="label_value_changed">Zmieniono – domyślnie %1$s</string>
     <string name="content_description_reset_value">Przywróć %1$s do %2$s</string>

@@ -433,6 +433,7 @@
     <string name="error_invalid_number">Nombre invalide</string>
 
     <!-- Node attribute editor -->
+    <string name="label_nodes_list">Liste des nœuds</string>
     <string name="button_reset_node">Réinitialiser le nœud</string>
     <string name="label_value_changed">Modifié – par défaut %1$s</string>
     <string name="content_description_reset_value">Rétablir %1$s à %2$s</string>
