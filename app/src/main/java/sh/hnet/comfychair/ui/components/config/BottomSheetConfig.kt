@@ -30,7 +30,6 @@ data class WorkflowConfig(
     val selectedWorkflow: String,
     val availableWorkflows: List<WorkflowItemBase>,
     val onWorkflowChange: (String) -> Unit,
-    val onViewWorkflow: () -> Unit,
     /** The workflow menu's groups (Image to Image: one per mode) */
     val groups: List<WorkflowGroup>,
     val icon: ImageVector

@@ -70,8 +70,11 @@ object WorkflowIcons {
 }
 
 /**
- * The workflow menu: groups (titled by mode on Image to Image), the selected workflow checked, and "Open in editor"
- * after a gap.
+ * The workflow menu: groups (titled by mode on Image to Image), the selected workflow checked, and "Node values" after a
+ * gap.
+ *
+ * @param onOpenEditor Opens the workflow's node values; null where they're reached another way (the options sheet has
+ *   its own row)
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -80,10 +83,10 @@ fun WorkflowMenu(
     onDismiss: () -> Unit,
     groups: List<WorkflowGroup>,
     selectedWorkflow: String,
-    onOpenEditor: () -> Unit
+    onOpenEditor: (() -> Unit)?
 ) {
     val visibleGroups = groups.filter { it.workflows.isNotEmpty() }
-    val count = visibleGroups.size + 1
+    val count = visibleGroups.size + if (onOpenEditor != null) 1 else 0
     DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismiss) {
         visibleGroups.forEachIndexed { groupIndex, group ->
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, count)) {
@@ -114,9 +117,9 @@ fun WorkflowMenu(
                     )
                 }
             }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            if (groupIndex < count - 1) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
         }
-        DropdownMenuGroup(shapes = MenuDefaults.groupShape(count - 1, count)) {
+        if (onOpenEditor != null) DropdownMenuGroup(shapes = MenuDefaults.groupShape(count - 1, count)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.menu_node_values)) },
                 shape = MenuDefaults.itemShape(0, 1).shape,
@@ -177,15 +180,14 @@ fun WorkflowChip(
 }
 
 /**
- * The workflow in the options sheet, as a list row like the other choices there; it opens the same menu as the
- * workflow chip.
+ * The workflow in the options sheet, as a list row like the other choices there; it opens the workflow chip's menu
+ * without Node values, which the sheet has as its last row.
  */
 @Composable
 fun WorkflowRow(
     workflowName: String,
     icon: ImageVector,
     groups: List<WorkflowGroup>,
-    onOpenEditor: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -209,6 +211,6 @@ fun WorkflowRow(
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             )
         }
-        WorkflowMenu(expanded, { expanded = false }, groups, workflowName, onOpenEditor)
+        WorkflowMenu(expanded, { expanded = false }, groups, workflowName, onOpenEditor = null)
     }
 }

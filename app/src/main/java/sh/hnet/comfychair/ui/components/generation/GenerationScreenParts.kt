@@ -515,15 +515,10 @@ fun GenerationControls(
 }
 
 /**
- * Callbacks of the options sheet: every generation parameter handler of the ViewModel, plus opening
- * the selected workflow in the editor.
+ * Callbacks of the options sheet: every generation parameter handler of the ViewModel.
  */
-fun generationCallbacks(
-    viewModel: BaseGenerationViewModel<*>,
-    onViewWorkflow: () -> Unit
-) = UnifiedCallbacks(
+fun generationCallbacks(viewModel: BaseGenerationViewModel<*>) = UnifiedCallbacks(
     onWorkflowChange = viewModel::onWorkflowChange,
-    onViewWorkflow = onViewWorkflow,
     // Models
     onCheckpointChange = viewModel::onCheckpointChange,
     onUnetChange = viewModel::onUnetChange,
@@ -603,7 +598,7 @@ fun GenerationOptionsSheet(
         }
         Unit
     }
-    val callbacks = remember(viewModel) { extraCallbacks(generationCallbacks(viewModel, openNodeValues)) }
+    val callbacks = remember(viewModel) { extraCallbacks(generationCallbacks(viewModel)) }
     val config = remember(state, callbacks) { buildConfig(callbacks) }
     val layout = remember(state.capabilities, config.itiConfig?.mode) {
         val iti = config.itiConfig

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -327,8 +326,8 @@ fun VideoPlayer(
 }
 
 /**
- * Pause/position chip at the top end (tap toggles pause) and a thin position line along the bottom edge, over an
- * inline video. Theme colours only. The position is polled only while this is shown.
+ * Pause/position chip at the top end (tap toggles pause) over an inline video. Theme colours only. The position is
+ * polled only while this is shown.
  */
 @Composable
 private fun BoxScope.PlaybackStatus(player: Player) {
@@ -379,15 +378,6 @@ private fun BoxScope.PlaybackStatus(player: Player) {
         }
     }
 
-    if (durationMs > 0L) {
-        Box(
-            Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth((positionMs.toFloat() / durationMs).coerceIn(0f, 1f))
-                .height(3.dp)
-                .background(MaterialTheme.colorScheme.primary)
-        )
-    }
 }
 
 /** Playback time as m:ss. */

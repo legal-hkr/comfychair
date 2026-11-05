@@ -435,5 +435,5 @@ private fun ReferenceImagesSection(itiConfig: ItiConfig) {
 
 @Composable
 private fun WorkflowSection(workflow: WorkflowConfig) {
-    WorkflowRow(workflow.selectedWorkflow, workflow.icon, workflow.groups, workflow.onViewWorkflow)
+    WorkflowRow(workflow.selectedWorkflow, workflow.icon, workflow.groups)
 }

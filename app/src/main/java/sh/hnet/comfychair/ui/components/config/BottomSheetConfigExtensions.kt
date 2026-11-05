@@ -40,7 +40,6 @@ fun CommonGenerationState.toBottomSheetConfig(
             selectedWorkflow = selectedWorkflow,
             availableWorkflows = availableWorkflows,
             onWorkflowChange = callbacks.onWorkflowChange,
-            onViewWorkflow = callbacks.onViewWorkflow,
             groups = workflowGroups,
             icon = workflowIcon
         ),

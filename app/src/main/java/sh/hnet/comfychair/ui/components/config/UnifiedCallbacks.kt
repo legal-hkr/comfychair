@@ -20,7 +20,6 @@ import sh.hnet.comfychair.viewmodel.ImageToImageMode
 data class UnifiedCallbacks(
     // === Core (required for ALL screens) ===
     val onWorkflowChange: (String) -> Unit,
-    val onViewWorkflow: () -> Unit,
 
     // === Model Callbacks (common to all) ===
     val onCheckpointChange: ((String) -> Unit)? = null,
