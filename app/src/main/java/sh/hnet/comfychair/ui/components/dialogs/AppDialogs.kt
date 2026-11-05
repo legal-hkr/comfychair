@@ -5,27 +5,43 @@ package sh.hnet.comfychair.ui.components.dialogs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.TextObfuscationMode
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -42,7 +59,9 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import sh.hnet.comfychair.R
 
@@ -77,6 +96,7 @@ private fun DialogIcon(icon: ImageVector, risky: Boolean) {
  * @param icon Only for destructive or risky actions
  * @param destructive The verb removes data or lowers security: in the error colour
  * @param dismissLabel Cancel, or a verb when the choice is two-sided ("Keep editing")
+ * @param content What the decision is about, under the text (e.g. a certificate's fingerprint)
  */
 @Composable
 fun ConfirmDialog(
@@ -87,13 +107,22 @@ fun ConfirmDialog(
     onDismiss: () -> Unit,
     icon: ImageVector? = null,
     destructive: Boolean = false,
-    dismissLabel: String = stringResource(R.string.button_cancel)
+    dismissLabel: String = stringResource(R.string.button_cancel),
+    content: (@Composable () -> Unit)? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = icon?.let { { DialogIcon(it, destructive) } },
         title = { Text(title) },
-        text = { Text(text) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                Text(text)
+                content?.invoke()
+            }
+        },
         confirmButton = {
             ConfirmButton(confirmLabel, onClick = {
                 onDismiss()
@@ -166,21 +195,32 @@ fun DialogTextField(
     multiLine: Boolean = false,
     optional: Boolean = false,
     enabled: Boolean = true,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    supporting: String? = null,
+    // An example value; an optional field says "Optional" instead
+    placeholder: String? = null,
     onDone: (() -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        placeholder = if (optional) ({ Text(stringResource(R.string.hint_optional)) }) else null,
+        placeholder = when {
+            optional -> ({ Text(stringResource(R.string.hint_optional)) })
+            placeholder != null -> ({ Text(placeholder) })
+            else -> null
+        },
         isError = error != null,
         trailingIcon = error?.let { { Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error) } },
-        supportingText = error?.let { { Text(it) } },
+        supportingText = (error ?: supporting)?.let { { Text(it) } },
         singleLine = !multiLine,
         minLines = if (multiLine) 3 else 1,
         maxLines = if (multiLine) 8 else 1,
         enabled = enabled,
-        keyboardOptions = KeyboardOptions(imeAction = if (onDone != null) ImeAction.Done else if (multiLine) ImeAction.Default else ImeAction.Next),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = if (onDone != null) ImeAction.Done else if (multiLine) ImeAction.Default else ImeAction.Next
+        ),
         keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
         modifier = modifier.fillMaxWidth()
     )
@@ -283,4 +323,163 @@ fun InfoDialog(
         } else null,
         modifier = Modifier.semantics { paneTitle = title }
     )
+}
+
+/**
+ * A secure field (password, token): no keyboard suggestions or learning, no copy, and a toggle to show the text.
+ *
+ * @param supporting Shown under the field when there's no error (e.g. how it's stored)
+ */
+@Composable
+fun DialogSecureField(
+    state: TextFieldState,
+    label: String,
+    modifier: Modifier = Modifier,
+    error: String? = null,
+    supporting: String? = null
+) {
+    var visible by remember { mutableStateOf(false) }
+    OutlinedSecureTextField(
+        state = state,
+        label = { Text(label) },
+        isError = error != null,
+        supportingText = (error ?: supporting)?.let { { Text(it) } },
+        textObfuscationMode = if (visible) TextObfuscationMode.Visible else TextObfuscationMode.RevealLastTyped,
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }) {
+                Icon(
+                    if (visible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    contentDescription = stringResource(
+                        if (visible) R.string.content_description_hide_password else R.string.content_description_show_password
+                    )
+                )
+            }
+        },
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+/** An action of an [ActionDialog]: a text button; the confirming one goes last. */
+class DialogAction(
+    val label: String,
+    val onClick: () -> Unit,
+    val destructive: Boolean = false,
+    val busy: Boolean = false,
+    val enabled: Boolean = true
+)
+
+/**
+ * A dialog with an icon, headline, text and its actions as text buttons, wrapping to more rows when they don't fit
+ * (e.g. Return to login, Work offline, Reconnect). The last action is the confirming one.
+ *
+ * @param onDismissRequest Back and a tap outside; null keeps the dialog until an action is chosen
+ */
+@Composable
+fun ActionDialog(
+    icon: ImageVector,
+    title: String,
+    text: String,
+    actions: List<DialogAction>,
+    onDismissRequest: (() -> Unit)?,
+    error: Boolean = false
+) {
+    val busy = actions.any { it.busy }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismissRequest?.invoke() },
+        properties = DialogProperties(
+            dismissOnBackPress = onDismissRequest != null && !busy,
+            dismissOnClickOutside = onDismissRequest != null && !busy
+        ),
+        icon = { DialogIcon(icon, error) },
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                actions.forEach { action ->
+                    ConfirmButton(
+                        action.label,
+                        action.onClick,
+                        enabled = action.enabled && !(busy && !action.busy),
+                        destructive = action.destructive,
+                        busy = action.busy
+                    )
+                }
+            }
+        },
+        modifier = Modifier.semantics { paneTitle = title }
+    )
+}
+
+/**
+ * E · Full-screen form: × and the title at the top, outlined fields, and the action as a full-width button pinned at
+ * the bottom above the keyboard (in thumb reach). Closing with changes asks first.
+ *
+ * @param hasChanges Something was edited: closing asks "Discard changes?"
+ */
+@Composable
+fun FullScreenFormDialog(
+    title: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    hasChanges: Boolean,
+    confirmEnabled: Boolean = true,
+    busy: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val close = { if (hasChanges) confirmDiscard = true else onDismiss() }
+    Dialog(
+        onDismissRequest = { if (!busy) close() },
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize().semantics { paneTitle = title }) {
+            // Safe drawing includes the keyboard, so the button stays above it
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+                ) {
+                    IconButton(onClick = close, enabled = !busy) {
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.content_description_close))
+                    }
+                    Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
+                }
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(22.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    content = content
+                )
+                Button(
+                    onClick = onConfirm,
+                    enabled = confirmEnabled && !busy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .height(56.dp)
+                ) {
+                    if (busy) LoadingIndicator(color = LocalContentColor.current, modifier = Modifier.size(24.dp))
+                    else Text(confirmLabel)
+                }
+            }
+        }
+    }
+    if (confirmDiscard) {
+        ConfirmDialog(
+            title = stringResource(R.string.title_discard_changes),
+            text = stringResource(R.string.msg_discard_changes),
+            confirmLabel = stringResource(R.string.button_discard),
+            dismissLabel = stringResource(R.string.button_keep_editing),
+            icon = Icons.Rounded.Warning,
+            destructive = true,
+            onConfirm = onDismiss,
+            onDismiss = { confirmDiscard = false }
+        )
+    }
 }

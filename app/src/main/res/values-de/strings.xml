@@ -23,14 +23,14 @@
 
     <!-- Authentication strings -->
     <string name="label_auth_type">Authentifizierung</string>
-    <string name="option_auth_type_none">Keine</string>
-    <string name="option_auth_type_basic">Basic</string>
-    <string name="option_auth_type_bearer">API-Schlüssel</string>
+    <string name="option_auth_type_none">Keine Authentifizierung</string>
+    <string name="option_auth_type_basic">Benutzername und Passwort</string>
+    <string name="option_auth_type_bearer">Token (API-Schlüssel)</string>
     <string name="label_auth_username">Benutzername</string>
     <string name="label_auth_password">Passwort</string>
     <string name="label_auth_token">API-Schlüssel / Token</string>
     <string name="error_auth_unauthorized">Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.</string>
-    <string name="option_auth_type_browser">Browser</string>
+    <string name="option_auth_type_browser">Anmeldung im Browser</string>
     <string name="label_auth_browser_info">Authentifizierung über den Browser. Beim Verbinden werden Sie aufgefordert, sich anzumelden.</string>
     <string name="title_browser_auth">Anmelden</string>
     <string name="button_browser_auth_done">Fertig</string>
@@ -46,7 +46,6 @@
     <string name="msg_transfer_stalled">30 Sekunden lang wurden keine Daten übertragen. Dies könnte auf ein Verbindungsproblem hinweisen.</string>
     <string name="error_upload_stalled">Upload gestoppt</string>
     <string name="action_reconnect">Erneut verbinden</string>
-    <string name="action_reconnecting">Verbindung wird hergestellt…</string>
     <string name="msg_reconnect_failed">Verbindung fehlgeschlagen</string>
     <string name="action_go_offline">Offline gehen</string>
     <string name="action_return_to_login">Zur Anmeldung</string>
@@ -498,6 +497,12 @@
     <string name="button_save">Speichern</string>
     <string name="button_delete">Löschen</string>
     <string name="button_cancel">Abbrechen</string>
+    <string name="title_discard_changes">Änderungen verwerfen?</string>
+    <string name="msg_discard_changes">Deine Änderungen gehen verloren.</string>
+    <string name="button_keep_editing">Weiter bearbeiten</string>
+    <string name="label_stored_encrypted">Verschlüsselt auf diesem Gerät gespeichert</string>
+    <string name="content_description_show_password">Passwort anzeigen</string>
+    <string name="content_description_hide_password">Passwort verbergen</string>
     <string name="error_cannot_edit_builtin">Eingebaute Workflows können nicht bearbeitet werden</string>
     <string name="error_workflow_invalid_json">Ungültiges JSON-Format</string>
     <string name="msg_workflow_import_success">Workflow importiert</string>

@@ -23,14 +23,14 @@
 
     <!-- Authentication strings -->
     <string name="label_auth_type">Authentification</string>
-    <string name="option_auth_type_none">Aucune</string>
-    <string name="option_auth_type_basic">Basique</string>
-    <string name="option_auth_type_bearer">Clé API</string>
+    <string name="option_auth_type_none">Sans authentification</string>
+    <string name="option_auth_type_basic">Nom d’utilisateur et mot de passe</string>
+    <string name="option_auth_type_bearer">Jeton (clé API)</string>
     <string name="label_auth_username">Utilisateur</string>
     <string name="label_auth_password">Mot de passe</string>
     <string name="label_auth_token">Clé API / jeton</string>
     <string name="error_auth_unauthorized">Échec de l\'authentification. Veuillez vérifier vos identifiants.</string>
-    <string name="option_auth_type_browser">Navigateur</string>
+    <string name="option_auth_type_browser">Connexion dans le navigateur</string>
     <string name="label_auth_browser_info">Authentification via le navigateur. Vous serez invité à vous connecter lors de la connexion.</string>
     <string name="title_browser_auth">Connexion</string>
     <string name="button_browser_auth_done">Terminé</string>
@@ -46,7 +46,6 @@
     <string name="msg_transfer_stalled">Aucune donnée n\'a été transférée pendant 30 secondes. Cela peut indiquer un problème de connexion.</string>
     <string name="error_upload_stalled">Téléversement bloqué</string>
     <string name="action_reconnect">Reconnecter</string>
-    <string name="action_reconnecting">Reconnexion…</string>
     <string name="msg_reconnect_failed">Impossible de se reconnecter</string>
     <string name="action_go_offline">Mode hors ligne</string>
     <string name="action_return_to_login">Retour à la connexion</string>
@@ -494,6 +493,12 @@
     <string name="button_save">Enregistrer</string>
     <string name="button_delete">Supprimer</string>
     <string name="button_cancel">Annuler</string>
+    <string name="title_discard_changes">Ignorer les modifications ?</string>
+    <string name="msg_discard_changes">Vos modifications seront perdues.</string>
+    <string name="button_keep_editing">Continuer</string>
+    <string name="label_stored_encrypted">Stocké chiffré sur cet appareil</string>
+    <string name="content_description_show_password">Afficher le mot de passe</string>
+    <string name="content_description_hide_password">Masquer le mot de passe</string>
     <string name="error_cannot_edit_builtin">Les workflows intégrés ne peuvent pas être modifiés</string>
     <string name="error_workflow_invalid_json">Format JSON invalide</string>
     <string name="msg_workflow_import_success">Workflow importé</string>

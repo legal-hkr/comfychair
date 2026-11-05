@@ -9,11 +9,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LockClock
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +28,8 @@ import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
+import sh.hnet.comfychair.ui.components.dialogs.ActionDialog
+import sh.hnet.comfychair.ui.components.dialogs.DialogAction
 import sh.hnet.comfychair.ui.navigation.MainNavHost
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 import sh.hnet.comfychair.util.DebugLogger
@@ -202,12 +202,18 @@ class MainContainerActivity : ComponentActivity() {
                 // Session-expired dialog for browser-based (Cookie) authentication.
                 // Shown when the AuthInterceptor detects a 401/403 or SSO redirect.
                 if (sessionExpired) {
-                    AlertDialog(
+                    ActionDialog(
+                        icon = Icons.Rounded.LockClock,
+                        title = stringResource(R.string.title_session_expired),
+                        text = stringResource(R.string.msg_session_expired),
                         onDismissRequest = { ConnectionManager.resetSessionExpired() },
-                        title = { Text(stringResource(R.string.title_session_expired)) },
-                        text = { Text(stringResource(R.string.msg_session_expired)) },
-                        confirmButton = {
-                            Button(onClick = {
+                        actions = listOf(
+                            DialogAction(stringResource(R.string.action_return_to_login), {
+                                ConnectionManager.resetSessionExpired()
+                                generationViewModel.logout()
+                                finish()
+                            }),
+                            DialogAction(stringResource(R.string.button_reauthenticate), {
                                 ConnectionManager.resetSessionExpired()
                                 val serverUrl = ServerUrlUtils.buildServerUrl(
                                     ConnectionManager.protocol,
@@ -217,19 +223,8 @@ class MainContainerActivity : ComponentActivity() {
                                 browserAuthLauncher.launch(
                                     BrowserAuthActivity.createIntent(activity, serverUrl)
                                 )
-                            }) {
-                                Text(stringResource(R.string.button_reauthenticate))
-                            }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = {
-                                ConnectionManager.resetSessionExpired()
-                                generationViewModel.logout()
-                                finish()
-                            }) {
-                                Text(stringResource(R.string.action_return_to_login))
-                            }
-                        }
+                            })
+                        )
                     )
                 }
 

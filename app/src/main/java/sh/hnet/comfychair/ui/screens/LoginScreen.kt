@@ -2,8 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import kotlin.math.roundToInt
-import androidx.compose.ui.layout.layout
 import android.app.Activity
 import android.content.Intent
 import android.widget.Toast
@@ -52,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -61,6 +60,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.BrowserAuthActivity
@@ -427,6 +427,7 @@ fun LoginScreen() {
             title = stringResource(R.string.title_server_delete),
             text = stringResource(R.string.msg_server_delete, server.name),
             confirmLabel = stringResource(R.string.button_delete),
+            icon = Icons.Rounded.Delete,
             onConfirm = {
                 serverStorage.deleteServer(server.id)
                 // Also delete credentials for the server

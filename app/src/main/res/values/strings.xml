@@ -21,14 +21,14 @@
 
     <!-- Authentication strings -->
     <string name="label_auth_type">Authentication</string>
-    <string name="option_auth_type_none">None</string>
-    <string name="option_auth_type_basic">Basic</string>
-    <string name="option_auth_type_bearer">API key</string>
+    <string name="option_auth_type_none">No authentication</string>
+    <string name="option_auth_type_basic">Username and password</string>
+    <string name="option_auth_type_bearer">Token (API key)</string>
     <string name="label_auth_username">Username</string>
     <string name="label_auth_password">Password</string>
     <string name="label_auth_token">API key / token</string>
     <string name="error_auth_unauthorized">Authentication failed. Please check your credentials.</string>
-    <string name="option_auth_type_browser">Browser</string>
+    <string name="option_auth_type_browser">Sign-in in the browser</string>
     <string name="label_auth_browser_info">Authenticate via your browser. You will be prompted to sign in when connecting.</string>
     <string name="title_browser_auth">Sign In</string>
     <string name="button_browser_auth_done">Done</string>
@@ -44,7 +44,6 @@
     <string name="msg_transfer_stalled">No data was transferred for 30 seconds. This may indicate a connection problem.</string>
     <string name="error_upload_stalled">Upload stalled</string>
     <string name="action_reconnect">Reconnect</string>
-    <string name="action_reconnecting">Reconnecting…</string>
     <string name="msg_reconnect_failed">Unable to reconnect</string>
     <string name="action_go_offline">Go Offline</string>
     <string name="action_return_to_login">Return to Login</string>
@@ -596,6 +595,12 @@
     <string name="button_delete">Delete</string>
     <string name="button_discard">Discard</string>
     <string name="button_cancel">Cancel</string>
+    <string name="title_discard_changes">Discard changes?</string>
+    <string name="msg_discard_changes">Your changes will be lost.</string>
+    <string name="button_keep_editing">Keep editing</string>
+    <string name="label_stored_encrypted">Stored encrypted on this device</string>
+    <string name="content_description_show_password">Show password</string>
+    <string name="content_description_hide_password">Hide password</string>
     <string name="error_cannot_edit_builtin">Built-in workflows cannot be edited</string>
     <string name="error_workflow_invalid_json">Invalid JSON format</string>
     <string name="msg_workflow_import_success">Workflow imported</string>

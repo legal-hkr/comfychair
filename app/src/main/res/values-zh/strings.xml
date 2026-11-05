@@ -23,14 +23,14 @@
 
     <!-- Authentication strings -->
     <string name="label_auth_type">身份验证</string>
-    <string name="option_auth_type_none">无</string>
-    <string name="option_auth_type_basic">基本</string>
-    <string name="option_auth_type_bearer">API 密钥</string>
+    <string name="option_auth_type_none">无需认证</string>
+    <string name="option_auth_type_basic">用户名和密码</string>
+    <string name="option_auth_type_bearer">令牌（API 密钥）</string>
     <string name="label_auth_username">用户名</string>
     <string name="label_auth_password">密码</string>
     <string name="label_auth_token">API 密钥 / 令牌</string>
     <string name="error_auth_unauthorized">身份验证失败。请检查您的凭据。</string>
-    <string name="option_auth_type_browser">浏览器</string>
+    <string name="option_auth_type_browser">在浏览器中登录</string>
     <string name="label_auth_browser_info">通过浏览器进行身份验证。连接时将提示您登录。</string>
     <string name="title_browser_auth">登录</string>
     <string name="button_browser_auth_done">完成</string>
@@ -46,7 +46,6 @@
     <string name="msg_transfer_stalled">30 秒内没有数据传输。这可能表示连接存在问题。</string>
     <string name="error_upload_stalled">上传停滞</string>
     <string name="action_reconnect">重新连接</string>
-    <string name="action_reconnecting">重新连接中…</string>
     <string name="msg_reconnect_failed">无法重新连接</string>
     <string name="action_go_offline">离线模式</string>
     <string name="action_return_to_login">返回登录</string>
@@ -472,6 +471,12 @@
     <string name="button_save">保存</string>
     <string name="button_delete">删除</string>
     <string name="button_cancel">取消</string>
+    <string name="title_discard_changes">放弃更改？</string>
+    <string name="msg_discard_changes">你的更改将丢失。</string>
+    <string name="button_keep_editing">继续编辑</string>
+    <string name="label_stored_encrypted">已加密存储在此设备上</string>
+    <string name="content_description_show_password">显示密码</string>
+    <string name="content_description_hide_password">隐藏密码</string>
     <string name="error_cannot_edit_builtin">内置工作流无法编辑</string>
     <string name="error_workflow_invalid_json">无效的 JSON 格式</string>
     <string name="msg_workflow_import_success">工作流已导入</string>

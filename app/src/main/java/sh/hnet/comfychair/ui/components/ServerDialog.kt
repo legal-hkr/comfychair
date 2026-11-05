@@ -1,45 +1,18 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.TextObfuscationMode
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Password
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedSecureTextField
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -52,6 +25,10 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.model.AuthType
 import sh.hnet.comfychair.model.Server
+import sh.hnet.comfychair.ui.components.dialogs.DialogDropdownField
+import sh.hnet.comfychair.ui.components.dialogs.DialogSecureField
+import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
+import sh.hnet.comfychair.ui.components.dialogs.FullScreenFormDialog
 
 /**
  * Dialog for adding or editing a server configuration.
@@ -88,8 +65,6 @@ fun ServerDialog(
     // Secure fields: no keyboard suggestions or learning, no copy or cut
     val passwordState = rememberTextFieldState((existingCredentials as? AuthCredentials.Basic)?.password ?: "")
     val tokenState = rememberTextFieldState((existingCredentials as? AuthCredentials.Bearer)?.token ?: "")
-    var passwordVisible by remember { mutableStateOf(false) }
-    var tokenVisible by remember { mutableStateOf(false) }
 
     // Error states
     var nameError by remember { mutableStateOf<String?>(null) }
@@ -207,281 +182,112 @@ fun ServerDialog(
         nameFocusRequester.requestFocus()
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(
-                    if (isEditMode) R.string.title_server_edit
-                    else R.string.title_server_add
-                )
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Server name
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { newValue ->
-                        name = newValue
-                        // Clear error on change
-                        nameError = null
-                    },
-                    label = { Text(stringResource(R.string.label_server_name)) },
-                    placeholder = { Text(stringResource(R.string.placeholder_server_name)) },
-                    isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(nameFocusRequester)
-                )
+    // What was there when the form opened, to ask before throwing edits away
+    val initial = remember {
+        listOf(server?.name ?: "", server?.hostname ?: "", server?.port?.toString() ?: "8188", server?.authType ?: AuthType.NONE,
+            (existingCredentials as? AuthCredentials.Basic)?.username ?: "")
+    }
+    val initialPassword = remember { passwordState.text.toString() }
+    val initialToken = remember { tokenState.text.toString() }
+    val hasChanges = listOf(name, hostname, port, authType, username) != initial ||
+        passwordState.text.toString() != initialPassword || tokenState.text.toString() != initialToken
 
-                // Hostname
-                OutlinedTextField(
-                    value = hostname,
-                    onValueChange = { newValue ->
-                        hostname = newValue
-                        // Live validation
-                        val trimmed = newValue.trim()
-                        hostnameError = when {
-                            trimmed.isEmpty() -> null
-                            !isValidHostname(trimmed) -> errorInvalidHostname
-                            else -> null
-                        }
-                    },
-                    label = { Text(stringResource(R.string.hint_hostname)) },
-                    placeholder = { Text(stringResource(R.string.placeholder_server_hostname)) },
-                    isError = hostnameError != null,
-                    supportingText = hostnameError?.let { { Text(it) } },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Port
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { newValue ->
-                        port = newValue
-                        // Live validation
-                        val trimmed = newValue.trim()
-                        portError = when {
-                            trimmed.isEmpty() -> null
-                            else -> {
-                                val portNum = trimmed.toIntOrNull()
-                                if (portNum == null || portNum !in 1..65535) {
-                                    errorInvalidPort
-                                } else {
-                                    null
-                                }
-                            }
-                        }
-                    },
-                    label = { Text(stringResource(R.string.hint_port)) },
-                    isError = portError != null,
-                    supportingText = portError?.let { { Text(it) } },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Authentication section
-                Text(
-                    text = stringResource(R.string.label_auth_type),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Auth type selector using connected button group
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                ) {
-                    ToggleButton(
-                        checked = authType == AuthType.NONE,
-                        onCheckedChange = { isChecked ->
-                            if (isChecked) {
-                                authType = AuthType.NONE
-                                usernameError = null
-                                passwordError = null
-                                tokenError = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LockOpen,
-                            contentDescription = stringResource(R.string.option_auth_type_none)
-                        )
-                    }
-                    ToggleButton(
-                        checked = authType == AuthType.BASIC,
-                        onCheckedChange = { isChecked ->
-                            if (isChecked) {
-                                authType = AuthType.BASIC
-                                tokenError = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shapes = ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Password,
-                            contentDescription = stringResource(R.string.option_auth_type_basic)
-                        )
-                    }
-                    ToggleButton(
-                        checked = authType == AuthType.BEARER,
-                        onCheckedChange = { isChecked ->
-                            if (isChecked) {
-                                authType = AuthType.BEARER
-                                usernameError = null
-                                passwordError = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shapes = ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = stringResource(R.string.option_auth_type_bearer)
-                        )
-                    }
-                    ToggleButton(
-                        checked = authType == AuthType.BROWSER,
-                        onCheckedChange = { isChecked ->
-                            if (isChecked) {
-                                authType = AuthType.BROWSER
-                                usernameError = null
-                                passwordError = null
-                                tokenError = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Language,
-                            contentDescription = stringResource(R.string.option_auth_type_browser)
-                        )
-                    }
-                }
-
-                // Basic auth fields
-                AnimatedVisibility(visible = authType == AuthType.BASIC) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = { newValue ->
-                                username = newValue
-                                usernameError = null
-                            },
-                            label = { Text(stringResource(R.string.label_auth_username)) },
-                            isError = usernameError != null,
-                            supportingText = usernameError?.let { { Text(it) } },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedSecureTextField(
-                            state = passwordState,
-                            label = { Text(stringResource(R.string.label_auth_password)) },
-                            isError = passwordError != null,
-                            supportingText = passwordError?.let { { Text(it) } },
-                            textObfuscationMode = if (passwordVisible) {
-                                TextObfuscationMode.Visible
-                            } else {
-                                TextObfuscationMode.RevealLastTyped
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        imageVector = if (passwordVisible) {
-                                            Icons.Filled.VisibilityOff
-                                        } else {
-                                            Icons.Filled.Visibility
-                                        },
-                                        contentDescription = null
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-
-                // Browser auth info text
-                AnimatedVisibility(visible = authType == AuthType.BROWSER) {
-                    Text(
-                        text = stringResource(R.string.label_auth_browser_info),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                // Bearer token field
-                AnimatedVisibility(visible = authType == AuthType.BEARER) {
-                    OutlinedSecureTextField(
-                        state = tokenState,
-                        label = { Text(stringResource(R.string.label_auth_token)) },
-                        isError = tokenError != null,
-                        supportingText = tokenError?.let { { Text(it) } },
-                        textObfuscationMode = if (tokenVisible) {
-                            TextObfuscationMode.Visible
-                        } else {
-                            TextObfuscationMode.RevealLastTyped
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { tokenVisible = !tokenVisible }) {
-                                Icon(
-                                    imageVector = if (tokenVisible) {
-                                        Icons.Filled.VisibilityOff
-                                    } else {
-                                        Icons.Filled.Visibility
-                                    },
-                                    contentDescription = null
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (validate()) {
-                        onSave(
-                            name.trim(),
-                            hostname.trim(),
-                            port.trim().toInt(),
-                            authType,
-                            buildCredentials()
-                        )
-                    }
-                }
-            ) {
-                Text(stringResource(R.string.button_save))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_cancel))
+    FullScreenFormDialog(
+        title = stringResource(if (isEditMode) R.string.title_server_edit else R.string.title_server_add),
+        confirmLabel = stringResource(R.string.button_save),
+        hasChanges = hasChanges,
+        onDismiss = onDismiss,
+        onConfirm = {
+            if (validate()) {
+                onSave(name.trim(), hostname.trim(), port.trim().toInt(), authType, buildCredentials())
             }
         }
-    )
+    ) {
+        DialogTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                nameError = null
+            },
+            label = stringResource(R.string.label_server_name),
+            placeholder = stringResource(R.string.placeholder_server_name),
+            error = nameError,
+            modifier = Modifier.focusRequester(nameFocusRequester)
+        )
+
+        // Host and port belong together, in one row
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            DialogTextField(
+                value = hostname,
+                onValueChange = { newValue ->
+                    hostname = newValue
+                    // Live validation
+                    val trimmed = newValue.trim()
+                    hostnameError = if (trimmed.isNotEmpty() && !isValidHostname(trimmed)) errorInvalidHostname else null
+                },
+                label = stringResource(R.string.hint_hostname),
+                placeholder = stringResource(R.string.placeholder_server_hostname),
+                error = hostnameError,
+                keyboardType = KeyboardType.Uri,
+                modifier = Modifier.weight(2f)
+            )
+            DialogTextField(
+                value = port,
+                onValueChange = { newValue ->
+                    port = newValue
+                    val trimmed = newValue.trim()
+                    portError = if (trimmed.isNotEmpty() && trimmed.toIntOrNull()?.let { it in 1..65535 } != true) errorInvalidPort else null
+                },
+                label = stringResource(R.string.hint_port),
+                error = portError,
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Authentication, by name; its fields follow
+        DialogDropdownField(
+            label = stringResource(R.string.label_auth_type),
+            options = listOf(
+                AuthType.NONE to stringResource(R.string.option_auth_type_none),
+                AuthType.BASIC to stringResource(R.string.option_auth_type_basic),
+                AuthType.BEARER to stringResource(R.string.option_auth_type_bearer),
+                AuthType.BROWSER to stringResource(R.string.option_auth_type_browser)
+            ),
+            selected = authType,
+            onSelect = {
+                authType = it
+                usernameError = null
+                passwordError = null
+                tokenError = null
+            }
+        )
+
+        val storedEncrypted = stringResource(R.string.label_stored_encrypted)
+        when (authType) {
+            AuthType.BASIC -> {
+                DialogTextField(
+                    value = username,
+                    onValueChange = {
+                        username = it
+                        usernameError = null
+                    },
+                    label = stringResource(R.string.label_auth_username),
+                    error = usernameError
+                )
+                DialogSecureField(passwordState, stringResource(R.string.label_auth_password), error = passwordError, supporting = storedEncrypted)
+            }
+            AuthType.BEARER -> {
+                DialogSecureField(tokenState, stringResource(R.string.label_auth_token), error = tokenError, supporting = storedEncrypted)
+            }
+            AuthType.BROWSER -> {
+                Text(
+                    text = stringResource(R.string.label_auth_browser_info),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AuthType.NONE -> Unit
+        }
+    }
 }
