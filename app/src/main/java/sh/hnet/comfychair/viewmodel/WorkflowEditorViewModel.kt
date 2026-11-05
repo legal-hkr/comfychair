@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.viewmodel
 
-import sh.hnet.comfychair.workflow.FieldMappingState
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -30,6 +29,7 @@ import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.DiscardAction
+import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputDefinition
@@ -84,7 +84,10 @@ class WorkflowEditorViewModel : ViewModel() {
     val events: SharedFlow<WorkflowEditorEvent> = _events.asSharedFlow()
 
     private val parser = WorkflowParser()
-    private val layoutEngine = WorkflowLayoutEngine()
+    // Laid out for the proportions of the free canvas area (a phone held upright), once the screen gives them
+    private var layoutAspect: Float? = null
+    private val layoutEngine: WorkflowLayoutEngine
+        get() = WorkflowLayoutEngine(layoutAspect)
 
     // Use shared NodeTypeRegistry from ConnectionManager (populated on connection)
     private val nodeTypeRegistry: NodeTypeRegistry
@@ -92,6 +95,13 @@ class WorkflowEditorViewModel : ViewModel() {
 
     private var canvasWidth: Float = 0f
     private var canvasHeight: Float = 0f
+    // What floats over the canvas (the top row, the toolbar) and the margin at the sides, in px
+    private var chromeTop: Float = 0f
+    private var chromeBottom: Float = 0f
+    private var sideMargin: Float = 0f
+    // Until the user moves the view, it follows the layout: a graph laid out again as it settles (notes measured when
+    // first drawn, the screen's proportions arriving) is fitted again
+    private var viewFollowsLayout = true
     // Node values: the canvas area left free by the top row and the values sheet, in px
     private var valuesViewportTop: Float = 0f
     private var valuesSheetHeight: Float = 0f
@@ -1192,17 +1202,49 @@ class WorkflowEditorViewModel : ViewModel() {
         if (canvasWidth != width || canvasHeight != height) {
             canvasWidth = width
             canvasHeight = height
-            // Auto-fit on first load
-            if (_uiState.value.scale == 1f && _uiState.value.offset == Offset.Zero) {
-                fitToScreen()
-            }
+            // Fitted on first load, and again while the view still follows the layout
+            if (viewFollowsLayout) fitToScreen()
         }
     }
+
+    /**
+     * What floats over the canvas and the side margin (px), and the proportions of the area left free, known from the
+     * window before the canvas exists. A graph laid out automatically before they came, and not shown yet, is laid out
+     * again for them.
+     */
+    fun setViewport(topInset: Float, bottomInset: Float, sideMargin: Float, freeAspect: Float) {
+        chromeTop = topInset
+        chromeBottom = bottomInset
+        this.sideMargin = sideMargin
+        if (freeAspect <= 0f) return
+        val previous = layoutAspect
+        if (previous != null && kotlin.math.abs(previous - freeAspect) / freeAspect < 0.02f) return
+        layoutAspect = freeAspect
+        val graph = _uiState.value.graph ?: return
+        if (graph.isManualPlacementMode || mutableGraph != null || !viewFollowsLayout) return
+        val layouted = layoutEngine.layoutGraph(graph)
+        _uiState.value = _uiState.value.copy(graph = layouted, graphBounds = layoutEngine.calculateBounds(layouted))
+        refitIfFollowing()
+    }
+
+    /** Fit the graph again after it was laid out anew, unless the user has moved the view since it opened. */
+    private fun refitIfFollowing() {
+        if (viewFollowsLayout && canvasWidth > 0f && canvasHeight > 0f) fitToScreen()
+    }
+
+    /** The canvas less what floats over it and the side margins: where fitting puts the graph. */
+    private fun freeArea() = GraphViewportCalculator.FreeArea(
+        left = sideMargin,
+        top = chromeTop,
+        right = canvasWidth - sideMargin,
+        bottom = canvasHeight - chromeBottom
+    )
 
     /**
      * Update scale and offset from pan/zoom gestures
      */
     fun onTransform(scale: Float, offset: Offset) {
+        viewFollowsLayout = false
         _uiState.value = _uiState.value.copy(
             scale = scale.coerceIn(0.2f, 3f),
             offset = offset
@@ -1253,6 +1295,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Zoom by a factor while keeping the canvas center stationary
      */
     private fun zoomTowardCenter(zoomFactor: Float) {
+        viewFollowsLayout = false
         val center = Offset(canvasWidth / 2, canvasHeight / 2)
         val transform = GraphViewportCalculator.zoomTowardPoint(
             focusPoint = center,
@@ -1267,14 +1310,10 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Fit the entire graph to the screen (both width and height)
+     * Fit the entire graph into the free area, centred
      */
     private fun fitToScreen() {
-        val transform = GraphViewportCalculator.fitToScreen(
-            bounds = _uiState.value.graphBounds,
-            canvasWidth = canvasWidth,
-            canvasHeight = canvasHeight
-        ) ?: return
+        val transform = GraphViewportCalculator.fitToScreen(_uiState.value.graphBounds, freeArea()) ?: return
 
         _uiState.value = _uiState.value.copy(
             scale = transform.scale,
@@ -1284,14 +1323,10 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Fit the graph width to the screen, showing the top of the graph
+     * Fit the graph width to the free area, showing the top of the graph when it's taller
      */
     private fun fitToWidth() {
-        val transform = GraphViewportCalculator.fitToWidth(
-            bounds = _uiState.value.graphBounds,
-            canvasWidth = canvasWidth,
-            canvasHeight = canvasHeight
-        ) ?: return
+        val transform = GraphViewportCalculator.fitToWidth(_uiState.value.graphBounds, freeArea()) ?: return
 
         _uiState.value = _uiState.value.copy(
             scale = transform.scale,
@@ -1301,14 +1336,10 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Fit the graph height to the screen, showing the left side of the graph
+     * Fit the graph height to the free area, showing the left side of the graph when it's wider
      */
     private fun fitToHeight() {
-        val transform = GraphViewportCalculator.fitToHeight(
-            bounds = _uiState.value.graphBounds,
-            canvasWidth = canvasWidth,
-            canvasHeight = canvasHeight
-        ) ?: return
+        val transform = GraphViewportCalculator.fitToHeight(_uiState.value.graphBounds, freeArea()) ?: return
 
         _uiState.value = _uiState.value.copy(
             scale = transform.scale,
@@ -1322,6 +1353,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Initial view is "fit all", then toggles between height and width.
      */
     fun resetView() {
+        viewFollowsLayout = false
         when (lastFitMode) {
             FitMode.FIT_ALL -> fitToHeight()
             FitMode.FIT_HEIGHT -> fitToWidth()
@@ -1375,6 +1407,8 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Don't allow editing in mapping mode
         if (state.isFieldMappingMode) return
+        // The view moves to the node: from now on the user's
+        viewFollowsLayout = false
 
         // Only save current scale and offset if NOT already editing
         // This preserves the original view state when switching between nodes
@@ -2142,6 +2176,7 @@ class WorkflowEditorViewModel : ViewModel() {
             graph = layoutedGraph,
             graphBounds = newBounds
         )
+        refitIfFollowing()
     }
 
     // ========== Manual Placement Mode ==========
@@ -2323,7 +2358,6 @@ class WorkflowEditorViewModel : ViewModel() {
         graph.nodes.add(newNode)
 
         // Re-layout the entire graph (orphan nodes will be placed at the end)
-        val layoutEngine = WorkflowLayoutEngine()
         val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
 
         // Update mutable graph from layouted result
@@ -2742,7 +2776,6 @@ class WorkflowEditorViewModel : ViewModel() {
         DebugLogger.d(TAG, "completeReverseConnection: added edge: ${newEdge.sourceNodeId}:${newEdge.sourceOutputIndex} -> ${newEdge.targetNodeId}:${newEdge.targetInputName}")
 
         // 8. Re-layout the graph (single pass)
-        val layoutEngine = WorkflowLayoutEngine()
         val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
         mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
 
@@ -2872,7 +2905,6 @@ class WorkflowEditorViewModel : ViewModel() {
         DebugLogger.d(TAG, "completeConnection: total edges: ${graph.edges.size}")
 
         // 6. Re-layout the graph (single pass)
-        val layoutEngine = WorkflowLayoutEngine()
         val layoutedGraph = layoutEngine.layoutGraph(graph.toImmutable())
         mutableGraph = MutableWorkflowGraph.fromImmutable(layoutedGraph)
 

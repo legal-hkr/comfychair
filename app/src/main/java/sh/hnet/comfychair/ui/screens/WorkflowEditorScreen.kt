@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -235,6 +236,21 @@ fun WorkflowEditorScreen(
     val sheetMaxHeight = with(density) { (windowHeight * 0.55f).toDp() }
     LaunchedEffect(windowHeight) {
         with(density) { viewModel.setValuesViewport(64.dp.toPx(), windowHeight * 0.55f) }
+    }
+    // The free canvas area (spec §12): below the top row (8 dp above it, 48 dp, 8 dp below) and above the toolbar
+    // (the canvas ends 16 dp above the bottom; the toolbar, 64 dp, 16 dp above the navigation bar, and 8 dp gap),
+    // with 16 dp at the sides; the layout is made for its proportions
+    val windowSize = LocalWindowInfo.current.containerSize
+    val statusBarHeight = WindowInsets.statusBars.getTop(density)
+    val navigationBarHeight = WindowInsets.navigationBars.getBottom(density)
+    LaunchedEffect(windowSize, statusBarHeight, navigationBarHeight) {
+        with(density) {
+            val top = 64.dp.toPx()
+            val bottom = navigationBarHeight + 72.dp.toPx()
+            val side = 16.dp.toPx()
+            val canvasHeight = windowSize.height - statusBarHeight - 16.dp.toPx()
+            viewModel.setViewport(top, bottom, side, (windowSize.width - 2 * side) / (canvasHeight - top - bottom))
+        }
     }
 
     BottomSheetScaffold(

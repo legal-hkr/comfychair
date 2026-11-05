@@ -60,112 +60,53 @@ object GraphViewportCalculator {
     }
 
     /**
-     * Calculate viewport to fit the entire graph on screen.
-     * Centers the graph horizontally and anchors to top vertically.
-     *
-     * @param bounds Graph bounds
-     * @param canvasWidth Available canvas width
-     * @param canvasHeight Available canvas height
-     * @param topPadding Padding from top of canvas
-     * @param bottomPadding Padding from bottom (e.g., for toolbar)
-     * @return ViewportTransform to fit the graph, or null if bounds/canvas are invalid
+     * The part of the canvas the graph can use: the canvas less what floats over it (the editor's top row and
+     * toolbar) and a margin at the sides, in pixels.
      */
-    fun fitToScreen(
-        bounds: GraphBounds,
-        canvasWidth: Float,
-        canvasHeight: Float,
-        topPadding: Float = 8f,
-        bottomPadding: Float = 100f
-    ): ViewportTransform? {
-        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
-            return null
-        }
+    data class FreeArea(val left: Float, val top: Float, val right: Float, val bottom: Float) {
+        val width get() = right - left
+        val height get() = bottom - top
+        val valid get() = width > 0 && height > 0
+    }
 
-        val availableHeight = canvasHeight - topPadding - bottomPadding
-
-        // Calculate scale to fit in available area
-        val scaleX = canvasWidth / bounds.width
-        val scaleY = availableHeight / bounds.height
-        val scale = minOf(scaleX, scaleY, MAX_FIT_SCALE) * 0.95f // 95% of fit
-
-        // Center horizontally, anchor to top vertically
-        val scaledWidth = bounds.width * scale
-        val offsetX = (canvasWidth - scaledWidth) / 2 - bounds.minX * scale
-        val offsetY = topPadding - bounds.minY * scale
-
-        return ViewportTransform(scale, Offset(offsetX, offsetY))
+    /** The whole graph in the free area, centred in both directions. */
+    fun fitToScreen(bounds: GraphBounds, area: FreeArea): ViewportTransform? {
+        if (bounds.width <= 0 || bounds.height <= 0 || !area.valid) return null
+        val scale = minOf(area.width / bounds.width, area.height / bounds.height, MAX_FIT_SCALE)
+        return centred(bounds, area, scale)
     }
 
     /**
-     * Calculate viewport to fit the graph width on screen.
-     * Shows the full width and top of the graph.
-     *
-     * @param bounds Graph bounds
-     * @param canvasWidth Available canvas width
-     * @param canvasHeight Available canvas height
-     * @param horizontalPadding Padding on left and right sides
-     * @param topPadding Padding from top of canvas
-     * @return ViewportTransform to fit width, or null if bounds/canvas are invalid
+     * The graph's width in the free area: centred when its height fits too, otherwise its top at the top of the free
+     * area.
      */
-    fun fitToWidth(
-        bounds: GraphBounds,
-        canvasWidth: Float,
-        canvasHeight: Float,
-        horizontalPadding: Float = 16f,
-        topPadding: Float = 8f
-    ): ViewportTransform? {
-        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
-            return null
-        }
-
-        val availableWidth = canvasWidth - horizontalPadding * 2
-
-        // Calculate scale to fit width only
-        val scale = minOf(availableWidth / bounds.width, MAX_FIT_SCALE)
-
-        // Center horizontally, anchor to top vertically
-        val scaledWidth = bounds.width * scale
-        val offsetX = (canvasWidth - scaledWidth) / 2 - bounds.minX * scale
-        val offsetY = topPadding - bounds.minY * scale
-
-        return ViewportTransform(scale, Offset(offsetX, offsetY))
+    fun fitToWidth(bounds: GraphBounds, area: FreeArea): ViewportTransform? {
+        if (bounds.width <= 0 || bounds.height <= 0 || !area.valid) return null
+        val scale = minOf(area.width / bounds.width, MAX_FIT_SCALE)
+        val transform = centred(bounds, area, scale)
+        return if (bounds.height * scale <= area.height) transform
+        else transform.copy(offset = Offset(transform.offset.x, area.top - bounds.minY * scale))
     }
 
     /**
-     * Calculate viewport to fit the graph height on screen.
-     * Shows the full height and left side of the graph.
-     *
-     * @param bounds Graph bounds
-     * @param canvasWidth Available canvas width
-     * @param canvasHeight Available canvas height
-     * @param leftPadding Padding from left of canvas
-     * @param topPadding Padding from top of canvas
-     * @param bottomPadding Padding from bottom (e.g., for toolbar)
-     * @return ViewportTransform to fit height, or null if bounds/canvas are invalid
+     * The graph's height in the free area: centred when its width fits too, otherwise its left side at the left of
+     * the free area.
      */
-    fun fitToHeight(
-        bounds: GraphBounds,
-        canvasWidth: Float,
-        canvasHeight: Float,
-        leftPadding: Float = 16f,
-        topPadding: Float = 8f,
-        bottomPadding: Float = 100f
-    ): ViewportTransform? {
-        if (bounds.width <= 0 || bounds.height <= 0 || canvasWidth <= 0 || canvasHeight <= 0) {
-            return null
-        }
-
-        val availableHeight = canvasHeight - topPadding - bottomPadding
-
-        // Calculate scale to fit height only
-        val scale = minOf(availableHeight / bounds.height, MAX_FIT_SCALE)
-
-        // Anchor to left horizontally, anchor to top vertically
-        val offsetX = leftPadding - bounds.minX * scale
-        val offsetY = topPadding - bounds.minY * scale
-
-        return ViewportTransform(scale, Offset(offsetX, offsetY))
+    fun fitToHeight(bounds: GraphBounds, area: FreeArea): ViewportTransform? {
+        if (bounds.width <= 0 || bounds.height <= 0 || !area.valid) return null
+        val scale = minOf(area.height / bounds.height, MAX_FIT_SCALE)
+        val transform = centred(bounds, area, scale)
+        return if (bounds.width * scale <= area.width) transform
+        else transform.copy(offset = Offset(area.left - bounds.minX * scale, transform.offset.y))
     }
+
+    private fun centred(bounds: GraphBounds, area: FreeArea, scale: Float): ViewportTransform = ViewportTransform(
+        scale,
+        Offset(
+            x = area.left + (area.width - bounds.width * scale) / 2 - bounds.minX * scale,
+            y = area.top + (area.height - bounds.height * scale) / 2 - bounds.minY * scale
+        )
+    )
 
     /**
      * Constrain a scale value to the allowed range.

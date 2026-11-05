@@ -620,6 +620,14 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
             maxY = maxOf(maxY, note.y + note.height)
         }
 
+        // Include groups, which reach beyond their members (the label chip above them)
+        calculateRenderedGroups(graph.groups, graph.nodes, graph.notes).forEach { group ->
+            minX = minOf(minX, group.x)
+            minY = minOf(minY, group.y)
+            maxX = maxOf(maxX, group.x + group.width)
+            maxY = maxOf(maxY, group.y + group.height)
+        }
+
         return GraphBounds(
             minX = minX - NODE_PADDING,
             minY = minY - NODE_PADDING,
