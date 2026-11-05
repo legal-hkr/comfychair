@@ -128,6 +128,17 @@ fun ImageToImageScreen(
         }
     }
 
+    // Secondary pick through the system file API (DocumentsUI): covers Downloads, file managers and
+    // cloud providers that the photo picker may not expose; the grant is taken for later reads
+    val documentPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            runCatching { context.contentResolver.takePersistableUriPermission(it, takeFlags) }
+            imageToImageViewModel.onSourceImageChange(context, it)
+            imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
+        }
+    }
+
     // UI composition
     // Opens the mask editor on the current source; its edits come back through the ViewModel
     fun openMaskEditor(sourceImage: Bitmap) {
@@ -257,13 +268,17 @@ fun ImageToImageScreen(
                                 )
                             }
                         } else {
-                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
+                            EmptySourcePicker(
+                                onPick = { imagePickerLauncher.launch("image/*") },
+                                onPickFromFiles = { documentPickerLauncher.launch(arrayOf("image/*")) }
+                            )
                         }
                         // Tools appear once the swap animation is done
                         if (!inTransition) {
                             if (sourceImage != null) {
                                 SourceToolbar(
                                     onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onReplaceFromFiles = { documentPickerLauncher.launch(arrayOf("image/*")) },
                                     onRemove = imageToImageViewModel::clearSourceImage,
                                     maskTools = if (inpainting) MaskTools(
                                         hasMask = hasMask,

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Brush
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.HideImage
 import androidx.compose.material.icons.rounded.LayersClear
 import androidx.compose.material.icons.rounded.Visibility
@@ -36,6 +38,7 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -92,13 +95,18 @@ class MaskTools(
 fun BoxScope.SourceToolbar(
     onReplace: () -> Unit,
     onRemove: () -> Unit,
-    maskTools: MaskTools? = null
+    maskTools: MaskTools? = null,
+    // Secondary replace through the system file API (DocumentsUI), covering Downloads and file managers
+    onReplaceFromFiles: (() -> Unit)? = null
 ) {
     val modifier = Modifier
         .align(Alignment.BottomCenter)
         .padding(bottom = 12.dp)
     val replace: @Composable () -> Unit = {
         TooltipIconButton(Icons.Rounded.AddPhotoAlternate, stringResource(R.string.content_description_replace_source), onReplace)
+    }
+    val replaceFromFiles: (@Composable () -> Unit)? = onReplaceFromFiles?.let {
+        { TooltipIconButton(Icons.Rounded.FolderOpen, stringResource(R.string.content_description_replace_source_from_files), it) }
     }
 
     // The toolbar's container in the same role as the frames of thumbnails over the preview and empty reference slots
@@ -108,6 +116,7 @@ fun BoxScope.SourceToolbar(
     if (maskTools == null) {
         HorizontalFloatingToolbar(expanded = true, modifier = modifier, colors = colors) {
             replace()
+            replaceFromFiles?.invoke()
             TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
         }
     } else {
@@ -129,6 +138,7 @@ fun BoxScope.SourceToolbar(
             }
         ) {
             replace()
+            replaceFromFiles?.invoke()
             TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
             TooltipIconButton(
                 Icons.Rounded.LayersClear,
@@ -169,7 +179,7 @@ fun BoxScope.MaskLabel() {
  * Empty source: the preview itself is the picker – a dashed outline and one large button.
  */
 @Composable
-fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
+fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier, onPickFromFiles: (() -> Unit)? = null) {
     val outline = MaterialTheme.colorScheme.outline
     Box(
         modifier
@@ -196,10 +206,19 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
                 modifier = Modifier.size(64.dp)
             )
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onPick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
-                Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                Text(stringResource(R.string.button_pick_source_image))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onPick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+                    Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.button_pick_source_image))
+                }
+                if (onPickFromFiles != null) {
+                    OutlinedButton(onClick = onPickFromFiles, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+                        Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.button_pick_source_image_from_files))
+                    }
+                }
             }
         }
     }

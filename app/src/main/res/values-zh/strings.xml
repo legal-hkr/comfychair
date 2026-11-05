@@ -534,7 +534,9 @@
     <string name="label_pip_source">源图</string>
     <string name="msg_results_appear_here">生成结果将显示在这里</string>
     <string name="button_pick_source_image">选择源图像</string>
+    <string name="button_pick_source_image_from_files">从文件选择</string>
     <string name="content_description_replace_source">替换源图像</string>
+    <string name="content_description_replace_source_from_files">从文件替换源图像</string>
     <string name="content_description_remove_source">移除源图像</string>
     <string name="content_description_show_mask">显示蒙版</string>
     <string name="content_description_hide_mask">隐藏蒙版</string>

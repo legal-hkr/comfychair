@@ -128,6 +128,17 @@ fun ImageToVideoScreen(
         }
     }
 
+    // Secondary pick through the system file API (DocumentsUI): covers Downloads, file managers and
+    // cloud providers that the photo picker may not expose; the grant is taken for later reads
+    val documentPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            runCatching { context.contentResolver.takePersistableUriPermission(it, takeFlags) }
+            imageToVideoViewModel.onSourceImageChange(context, it)
+            imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.SOURCE)
+        }
+    }
+
     val mediaViewer = LocalMediaViewer.current
 
     // Generate from the dock and from the prompt editor
@@ -206,11 +217,15 @@ fun ImageToVideoScreen(
                             if (!inTransition) {
                                 SourceToolbar(
                                     onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onReplaceFromFiles = { documentPickerLauncher.launch(arrayOf("image/*")) },
                                     onRemove = imageToVideoViewModel::clearSourceImage
                                 )
                             }
                         } else {
-                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
+                            EmptySourcePicker(
+                                onPick = { imagePickerLauncher.launch("image/*") },
+                                onPickFromFiles = { documentPickerLauncher.launch(arrayOf("image/*")) }
+                            )
                         }
                     },
                     // The video surface can't follow the swap animation, so a still stands in meanwhile
