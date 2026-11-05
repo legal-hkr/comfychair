@@ -283,9 +283,8 @@
     <!-- Workflow editor menu strings -->
     <string name="menu_enable_manual_placement">Enable manual placement</string>
     <string name="menu_disable_manual_placement">Disable manual placement</string>
-    <string name="title_disable_manual_placement">Disable Manual Placement?</string>
-    <string name="msg_disable_manual_placement">This will auto-arrange all nodes and clear custom positions. This cannot be undone.</string>
-    <string name="button_disable">Disable</string>
+    <string name="title_disable_manual_placement">Turn off manual placement?</string>
+    <string name="msg_disable_manual_placement">All nodes will be arranged automatically and their own positions lost.</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Not a ComfyUI server</string>
@@ -503,7 +502,11 @@
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
     <string name="node_editor_image_load_error">Failed to load image</string>
-    <string name="title_node_editor_rename">Rename Node</string>
+    <string name="button_rename">Rename</string>
+    <string name="hint_node_name_empty">Empty: %1$s</string>
+    <string name="button_turn_off">Turn off</string>
+    <string name="msg_workflow_saved">Workflow saved</string>
+    <string name="title_node_editor_rename">Rename node</string>
     <string name="label_node_editor_rename">Node name</string>
     <string name="node_editor_bypass">Bypass</string>
 
@@ -734,18 +737,17 @@
     <string name="workflow_editor_cleanup">Cleanup</string>
     <string name="workflow_editor_group">Group</string>
     <string name="workflow_editor_ungroup">Ungroup</string>
-    <string name="title_workflow_editor_rename_group">Rename Group</string>
+    <string name="title_workflow_editor_rename_group">Rename group</string>
     <string name="label_workflow_editor_rename_group">Group name</string>
     <string name="workflow_editor_add_note">Add note</string>
     <string name="label_workflow_editor_rename_note">Note title</string>
     <string name="workflow_editor_edit_note_content">Edit note</string>
     <string name="label_workflow_editor_note_content">Content (Markdown)</string>
-    <string name="title_workflow_editor_discard">Discard Workflow?</string>
-    <string name="msg_workflow_editor_discard">You have unsaved changes. Are you sure you want to discard this workflow?</string>
-    <string name="title_workflow_editor_select_input">Connect to Input</string>
-    <string name="msg_workflow_editor_select_input">Select which input on %1$s to connect:</string>
-    <string name="title_workflow_editor_select_output">Connect from Output</string>
-    <string name="msg_workflow_editor_select_output">Select which output on %1$s to connect:</string>
+    <string name="msg_workflow_editor_discard">Your edits to this workflow will be lost.</string>
+    <string name="title_workflow_editor_select_input">Connect to which input?</string>
+    <string name="msg_workflow_editor_select_input">%1$s has several matching inputs.</string>
+    <string name="title_workflow_editor_select_output">Connect from which output?</string>
+    <string name="msg_workflow_editor_select_output">%1$s has several matching outputs.</string>
     <string name="workflow_editor_edit_mode_hint">Tap socket to connect, hold for node browser</string>
 
     <!-- Node browser bottom sheet strings -->

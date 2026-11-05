@@ -188,6 +188,8 @@ fun WorkflowsSettingsScreen(
         if (result.resultCode == Activity.RESULT_OK) {
             // Reload from disk and refresh UI - workflow was saved by WorkflowEditorViewModel
             viewModel.reloadAndRefreshWorkflows()
+            // The new workflow's page opens
+            result.data?.getStringExtra(WorkflowEditorActivity.EXTRA_RESULT_WORKFLOW_ID)?.let(onOpenDetails)
         }
     }
 
@@ -750,7 +752,10 @@ fun WorkflowDetailPage(
 
     val editLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         // The editor saved the workflow's structure
-        if (result.resultCode == Activity.RESULT_OK) viewModel.reloadAndRefreshWorkflows()
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.reloadAndRefreshWorkflows()
+            snackbar?.let { host -> scope.launch { host.showSnackbar(context.getString(R.string.msg_workflow_saved)) } }
+        }
     }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) viewModel.performExport(context, uri) else viewModel.cancelExport()

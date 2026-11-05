@@ -264,9 +264,8 @@
     <!-- Workflow editor menu strings -->
     <string name="menu_enable_manual_placement">启用手动放置</string>
     <string name="menu_disable_manual_placement">禁用手动放置</string>
-    <string name="title_disable_manual_placement">禁用手动放置？</string>
-    <string name="msg_disable_manual_placement">这将自动排列所有节点并清除自定义位置。此操作无法撤消。</string>
-    <string name="button_disable">禁用</string>
+    <string name="title_disable_manual_placement">关闭手动放置？</string>
+    <string name="msg_disable_manual_placement">所有节点将自动排列，其自定义位置将丢失。</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">不是 ComfyUI 服务器</string>
@@ -425,6 +424,10 @@
     <string name="node_editor_range_max">最大：%1$s</string>
     <string name="node_editor_ui_field_prefix">界面：%1$s</string>
     <string name="node_editor_image_load_error">加载图片失败</string>
+    <string name="button_rename">重命名</string>
+    <string name="hint_node_name_empty">留空：%1$s</string>
+    <string name="button_turn_off">关闭</string>
+    <string name="msg_workflow_saved">工作流已保存</string>
     <string name="title_node_editor_rename">重命名节点</string>
     <string name="label_node_editor_rename">节点名称</string>
     <string name="node_editor_bypass">跳过</string>
@@ -745,12 +748,11 @@
     <string name="label_workflow_editor_rename_note">备注标题</string>
     <string name="workflow_editor_edit_note_content">编辑备注</string>
     <string name="label_workflow_editor_note_content">内容 (Markdown)</string>
-    <string name="title_workflow_editor_discard">放弃工作流？</string>
-    <string name="msg_workflow_editor_discard">您有未保存的更改。确定要放弃此工作流吗？</string>
-    <string name="title_workflow_editor_select_input">连接到输入</string>
-    <string name="msg_workflow_editor_select_input">选择要连接到 %1$s 的哪个输入：</string>
-    <string name="title_workflow_editor_select_output">从输出连接</string>
-    <string name="msg_workflow_editor_select_output">选择要从 %1$s 连接的哪个输出：</string>
+    <string name="msg_workflow_editor_discard">对此工作流的修改将丢失。</string>
+    <string name="title_workflow_editor_select_input">连接到哪个输入？</string>
+    <string name="msg_workflow_editor_select_input">%1$s 有多个匹配的输入。</string>
+    <string name="title_workflow_editor_select_output">从哪个输出连接？</string>
+    <string name="msg_workflow_editor_select_output">%1$s 有多个匹配的输出。</string>
     <string name="workflow_editor_edit_mode_hint">点击接口连接，长按打开节点浏览器</string>
 
     <!-- Field display names for workflow editor -->

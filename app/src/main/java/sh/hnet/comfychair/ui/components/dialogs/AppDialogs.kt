@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
@@ -43,6 +44,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -321,6 +324,53 @@ fun InfoDialog(
         dismissButton = if (helperLabel != null && onHelper != null) {
             { TextButton(onClick = onHelper) { Text(helperLabel) } }
         } else null,
+        modifier = Modifier.semantics { paneTitle = title }
+    )
+}
+
+/** An option of a [ChoiceDialog]: its label and a second line (e.g. the slot type). */
+class DialogChoice<T>(val value: T, val label: String, val supporting: String? = null)
+
+/**
+ * C · Choice: a question, one line of context and radio rows. Choosing is the action, so a tap commits and closes; the
+ * only button is Cancel.
+ */
+@Composable
+fun <T> ChoiceDialog(
+    title: String,
+    text: String,
+    choices: List<DialogChoice<T>>,
+    onChoose: (T) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(text, modifier = Modifier.padding(bottom = 8.dp))
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    choices.forEach { choice ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .selectable(selected = false, role = Role.RadioButton, onClick = { onChoose(choice.value) })
+                        ) {
+                            RadioButton(selected = false, onClick = null)
+                            Column(Modifier.padding(start = 16.dp)) {
+                                Text(choice.label, style = MaterialTheme.typography.bodyLarge)
+                                choice.supporting?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.button_cancel)) } },
         modifier = Modifier.semantics { paneTitle = title }
     )
 }

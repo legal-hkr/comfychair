@@ -32,26 +32,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -90,6 +85,11 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.NodeValuesSheetContent
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
+import sh.hnet.comfychair.ui.components.dialogs.ChoiceDialog
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
+import sh.hnet.comfychair.ui.components.dialogs.DialogChoice
+import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
+import sh.hnet.comfychair.ui.components.dialogs.FormDialog
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
 import sh.hnet.comfychair.ui.components.workflow.EditorMode
@@ -103,8 +103,6 @@ import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.FieldMappingState
-import sh.hnet.comfychair.workflow.InputDefinition
-import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
@@ -464,38 +462,10 @@ fun WorkflowEditorScreen(
                                     else -> viewModel.enterReverseConnectionMode(inputSlot)
                                 }
                             },
-                            onRenameNodeTapped = { nodeId ->
-                                // Find the node and open rename dialog
-                                val node = uiState.graph?.nodes?.find { it.id == nodeId }
-                                if (node != null) {
-                                    renamingNodeId = nodeId
-                                    renameDialogText = node.title
-                                    showRenameDialog = true
-                                }
-                            },
-                            onRenameGroupTapped = { groupId ->
-                                // Find the group and open rename dialog
-                                val group = uiState.graph?.groups?.find { it.id == groupId }
-                                if (group != null) {
-                                    renamingGroupId = groupId
-                                    groupRenameDialogText = group.title
-                                    showGroupRenameDialog = true
-                                }
-                            },
                             notes = uiState.graph?.notes ?: emptyList(),
                             selectedNoteIds = uiState.selectedNoteIds,
                             onNoteTapped = { noteId ->
                                 viewModel.toggleNoteSelection(noteId)
-                            },
-                            onRenameNoteTapped = { noteId ->
-                                // Find the note and open combined edit dialog
-                                val note = viewModel.getNote(noteId)
-                                if (note != null) {
-                                    editingNoteId = noteId
-                                    editNoteDialogTitle = note.title
-                                    editNoteDialogContent = note.content
-                                    showEditNoteDialog = true
-                                }
                             },
                             onNoteHeightsChanged = {
                                 // Note heights were measured during drawing, trigger relayout
@@ -644,6 +614,35 @@ fun WorkflowEditorScreen(
                     },
                     onGroup = { viewModel.createGroupFromSelection() },
                     onUngroup = { viewModel.ungroupSelectedNode() },
+                    onRenameNode = uiState.selectedNodeIds.singleOrNull()?.takeIf { uiState.selectedNoteIds.isEmpty() }?.let { nodeId ->
+                        {
+                            uiState.graph?.nodes?.find { it.id == nodeId }?.let { node ->
+                                renamingNodeId = nodeId
+                                renameDialogText = node.title
+                                showRenameDialog = true
+                            }
+                        }
+                    },
+                    onEditNote = uiState.selectedNoteIds.singleOrNull()?.takeIf { uiState.selectedNodeIds.isEmpty() }?.let { noteId ->
+                        {
+                            viewModel.getNote(noteId)?.let { note ->
+                                editingNoteId = noteId
+                                editNoteDialogTitle = note.title
+                                editNoteDialogContent = note.content
+                                showEditNoteDialog = true
+                            }
+                        }
+                    },
+                    // The group holding the whole selection
+                    onRenameGroup = uiState.graph?.groups?.find { group ->
+                        uiState.selectedNodeIds.isNotEmpty() && group.memberNodeIds.containsAll(uiState.selectedNodeIds)
+                    }?.let { group ->
+                        {
+                            renamingGroupId = group.id
+                            groupRenameDialogText = group.title
+                            showGroupRenameDialog = true
+                        }
+                    },
                     onDelete = { viewModel.deleteSelectedNodes() },
                     onSave = { viewModel.showSaveDialog(context) }
                 ) else null,
@@ -713,219 +712,145 @@ fun WorkflowEditorScreen(
             )
         }
 
-        // Input selection dialog (when multiple compatible inputs exist)
+        // Several compatible inputs or outputs: which one (a tap connects)
         if (uiState.showInputSelectionDialog) {
-            val nodeTypeName = uiState.inputSelectionNodeType?.displayName
-                ?: uiState.inputSelectionNodeType?.classType ?: ""
-
-            InputSelectionDialog(
-                nodeTypeName = nodeTypeName,
-                compatibleInputs = uiState.inputSelectionCompatibleInputs,
-                onInputSelected = { input ->
-                    viewModel.selectInputForConnection(input)
-                },
-                onDismiss = {
-                    viewModel.cancelLongPressConnection()
-                }
+            val nodeTypeName = uiState.inputSelectionNodeType?.displayName ?: uiState.inputSelectionNodeType?.classType ?: ""
+            ChoiceDialog(
+                title = stringResource(R.string.title_workflow_editor_select_input),
+                text = stringResource(R.string.msg_workflow_editor_select_input, nodeTypeName),
+                choices = uiState.inputSelectionCompatibleInputs.map { DialogChoice(it, it.name, it.type) },
+                onChoose = { viewModel.selectInputForConnection(it) },
+                onDismiss = { viewModel.cancelLongPressConnection() }
             )
         }
-
-        // Output selection dialog (when multiple compatible outputs exist - reverse connection)
         if (uiState.showOutputSelectionDialog) {
-            val nodeTypeName = uiState.outputSelectionNodeType?.displayName
-                ?: uiState.outputSelectionNodeType?.classType ?: ""
-
-            OutputSelectionDialog(
-                nodeTypeName = nodeTypeName,
-                compatibleOutputs = uiState.outputSelectionCompatibleOutputs,
-                onOutputSelected = { output ->
-                    viewModel.selectOutputForConnection(output)
-                },
-                onDismiss = {
-                    viewModel.cancelLongPressConnection()
-                }
+            val nodeTypeName = uiState.outputSelectionNodeType?.displayName ?: uiState.outputSelectionNodeType?.classType ?: ""
+            ChoiceDialog(
+                title = stringResource(R.string.title_workflow_editor_select_output),
+                text = stringResource(R.string.msg_workflow_editor_select_output, nodeTypeName),
+                choices = uiState.outputSelectionCompatibleOutputs.map { DialogChoice(it, it.name, it.type) },
+                onChoose = { viewModel.selectOutputForConnection(it) },
+                onDismiss = { viewModel.cancelLongPressConnection() }
             )
         }
 
-        // Create mode dialogs
 
-        // Discard confirmation dialog
         if (uiState.showDiscardConfirmation) {
-            DiscardConfirmationDialog(
+            ConfirmDialog(
+                title = stringResource(R.string.title_discard_changes),
+                text = stringResource(R.string.msg_workflow_editor_discard),
+                confirmLabel = stringResource(R.string.button_discard),
+                dismissLabel = stringResource(R.string.button_keep_editing),
+                icon = Icons.Rounded.Warning,
+                destructive = true,
                 onConfirm = { viewModel.confirmDiscard() },
                 onDismiss = { viewModel.dismissDiscardConfirmation() }
             )
         }
 
-        // Disable manual placement confirmation dialog
+        // Turning manual placement off drops the nodes' own positions
         if (uiState.showDisableManualPlacementConfirmation) {
-            AlertDialog(
-                onDismissRequest = { viewModel.cancelDisableManualPlacement() },
-                title = { Text(stringResource(R.string.title_disable_manual_placement)) },
-                text = { Text(stringResource(R.string.msg_disable_manual_placement)) },
-                confirmButton = {
-                    Button(onClick = { viewModel.confirmDisableManualPlacement() }) {
-                        Text(stringResource(R.string.button_disable))
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { viewModel.cancelDisableManualPlacement() }) {
-                        Text(stringResource(R.string.button_cancel))
-                    }
-                }
+            ConfirmDialog(
+                title = stringResource(R.string.title_disable_manual_placement),
+                text = stringResource(R.string.msg_disable_manual_placement),
+                confirmLabel = stringResource(R.string.button_turn_off),
+                icon = Icons.Rounded.GridView,
+                destructive = true,
+                onConfirm = { viewModel.confirmDisableManualPlacement() },
+                onDismiss = { viewModel.cancelDisableManualPlacement() }
             )
         }
 
-        // Node rename dialog
+        // Rename node: an empty name goes back to the node's class name
         if (showRenameDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showRenameDialog = false
-                    renamingNodeId = null
-                },
-                title = { Text(stringResource(R.string.title_node_editor_rename)) },
-                text = {
-                    OutlinedTextField(
-                        value = renameDialogText,
-                        onValueChange = { renameDialogText = it },
-                        label = { Text(stringResource(R.string.label_node_editor_rename)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val nodeId = renamingNodeId
-                            if (nodeId != null && renameDialogText.isNotBlank()) {
-                                viewModel.renameNode(nodeId, renameDialogText.trim())
-                                showRenameDialog = false
-                                renamingNodeId = null
-                            }
-                        },
-                        enabled = renameDialogText.isNotBlank()
-                    ) {
-                        Text(stringResource(R.string.button_save))
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = {
-                            showRenameDialog = false
-                            renamingNodeId = null
-                        }
-                    ) {
-                        Text(stringResource(R.string.button_cancel))
-                    }
-                }
-            )
+            val node = uiState.graph?.nodes?.find { it.id == renamingNodeId }
+            val close = {
+                showRenameDialog = false
+                renamingNodeId = null
+            }
+            val rename = {
+                val nodeId = renamingNodeId
+                if (nodeId != null) viewModel.renameNode(nodeId, renameDialogText.trim().ifEmpty { node?.classType ?: "" })
+                close()
+            }
+            FormDialog(
+                title = stringResource(R.string.title_node_editor_rename),
+                confirmLabel = stringResource(R.string.button_rename),
+                onConfirm = rename,
+                onDismiss = close
+            ) {
+                DialogTextField(
+                    value = renameDialogText,
+                    onValueChange = { renameDialogText = it },
+                    label = stringResource(R.string.label_node_editor_rename),
+                    supporting = node?.let { stringResource(R.string.hint_node_name_empty, it.classType) },
+                    onDone = rename
+                )
+            }
         }
 
-        // Group rename dialog
         if (showGroupRenameDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showGroupRenameDialog = false
-                    renamingGroupId = null
-                },
-                title = { Text(stringResource(R.string.title_workflow_editor_rename_group)) },
-                text = {
-                    OutlinedTextField(
-                        value = groupRenameDialogText,
-                        onValueChange = { groupRenameDialogText = it },
-                        label = { Text(stringResource(R.string.label_workflow_editor_rename_group)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val groupId = renamingGroupId
-                            if (groupId != null && groupRenameDialogText.isNotBlank()) {
-                                viewModel.renameGroup(groupId, groupRenameDialogText.trim())
-                                showGroupRenameDialog = false
-                                renamingGroupId = null
-                            }
-                        },
-                        enabled = groupRenameDialogText.isNotBlank()
-                    ) {
-                        Text(stringResource(R.string.button_save))
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = {
-                            showGroupRenameDialog = false
-                            renamingGroupId = null
-                        }
-                    ) {
-                        Text(stringResource(R.string.button_cancel))
-                    }
+            val close = {
+                showGroupRenameDialog = false
+                renamingGroupId = null
+            }
+            val rename = {
+                val groupId = renamingGroupId
+                if (groupId != null && groupRenameDialogText.isNotBlank()) {
+                    viewModel.renameGroup(groupId, groupRenameDialogText.trim())
+                    close()
                 }
-            )
+            }
+            FormDialog(
+                title = stringResource(R.string.title_workflow_editor_rename_group),
+                confirmLabel = stringResource(R.string.button_rename),
+                confirmEnabled = groupRenameDialogText.isNotBlank(),
+                onConfirm = rename,
+                onDismiss = close
+            ) {
+                DialogTextField(
+                    value = groupRenameDialogText,
+                    onValueChange = { groupRenameDialogText = it },
+                    label = stringResource(R.string.label_workflow_editor_rename_group),
+                    onDone = rename
+                )
+            }
         }
 
-        // Note edit dialog (combined title + content)
+        // Note: its title and its text (Markdown)
         if (showEditNoteDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showEditNoteDialog = false
-                    editingNoteId = null
-                },
-                title = { Text(stringResource(R.string.workflow_editor_edit_note_content)) },
-                text = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = editNoteDialogTitle,
-                            onValueChange = { editNoteDialogTitle = it },
-                            label = { Text(stringResource(R.string.label_workflow_editor_rename_note)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = editNoteDialogContent,
-                            onValueChange = { editNoteDialogContent = it },
-                            label = { Text(stringResource(R.string.label_workflow_editor_note_content)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(250.dp),
-                            maxLines = 15
-                        )
+            val close = {
+                showEditNoteDialog = false
+                editingNoteId = null
+            }
+            FormDialog(
+                title = stringResource(R.string.workflow_editor_edit_note_content),
+                confirmLabel = stringResource(R.string.button_save),
+                confirmEnabled = editNoteDialogTitle.isNotBlank(),
+                onConfirm = {
+                    val noteId = editingNoteId
+                    if (noteId != null && editNoteDialogTitle.isNotBlank()) {
+                        viewModel.renameNote(noteId, editNoteDialogTitle.trim())
+                        viewModel.updateNoteContent(noteId, editNoteDialogContent)
+                        close()
                     }
                 },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val noteId = editingNoteId
-                            if (noteId != null && editNoteDialogTitle.isNotBlank()) {
-                                viewModel.renameNote(noteId, editNoteDialogTitle.trim())
-                                viewModel.updateNoteContent(noteId, editNoteDialogContent)
-                                showEditNoteDialog = false
-                                editingNoteId = null
-                            }
-                        },
-                        enabled = editNoteDialogTitle.isNotBlank()
-                    ) {
-                        Text(stringResource(R.string.button_save))
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = {
-                            showEditNoteDialog = false
-                            editingNoteId = null
-                        }
-                    ) {
-                        Text(stringResource(R.string.button_cancel))
-                    }
-                }
-            )
+                onDismiss = close
+            ) {
+                DialogTextField(
+                    value = editNoteDialogTitle,
+                    onValueChange = { editNoteDialogTitle = it },
+                    label = stringResource(R.string.label_workflow_editor_rename_note)
+                )
+                DialogTextField(
+                    value = editNoteDialogContent,
+                    onValueChange = { editNoteDialogContent = it },
+                    label = stringResource(R.string.label_workflow_editor_note_content),
+                    multiLine = true
+                )
+            }
         }
 
-        // Save new workflow dialog
         if (uiState.showSaveDialog) {
             WorkflowDetailsDialog(
                 titleRes = R.string.title_save_workflow,
@@ -1186,186 +1111,4 @@ private fun FieldMappingRow(
             }
         }
     }
-}
-
-@Composable
-private fun DiscardConfirmationDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_workflow_editor_discard)) },
-        text = { Text(stringResource(R.string.msg_workflow_editor_discard)) },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(stringResource(R.string.button_discard))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-/**
- * Dialog for selecting which input to connect to when multiple compatible inputs exist.
- * Used in long-press connection flow when the target node has multiple valid inputs.
- */
-@Composable
-private fun InputSelectionDialog(
-    nodeTypeName: String,
-    compatibleInputs: List<InputDefinition>,
-    onInputSelected: (InputDefinition) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var selectedInput by remember { mutableStateOf<InputDefinition?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(stringResource(R.string.title_workflow_editor_select_input))
-        },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.msg_workflow_editor_select_input, nodeTypeName),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                compatibleInputs.forEach { input ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = selectedInput == input,
-                                onClick = { selectedInput = input }
-                            )
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selectedInput == input,
-                            onClick = { selectedInput = input }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = input.name,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                text = input.type,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { selectedInput?.let(onInputSelected) },
-                enabled = selectedInput != null
-            ) {
-                Text(stringResource(R.string.button_connect))
-            }
-        },
-        dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
-}
-
-/**
- * Dialog for selecting which output to connect from when multiple compatible outputs exist.
- * Used in reverse connection flow when the source node has multiple valid outputs.
- */
-@Composable
-private fun OutputSelectionDialog(
-    nodeTypeName: String,
-    compatibleOutputs: List<OutputSlot>,
-    onOutputSelected: (OutputSlot) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var selectedOutput by remember { mutableStateOf<OutputSlot?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(stringResource(R.string.title_workflow_editor_select_output))
-        },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.msg_workflow_editor_select_output, nodeTypeName),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                compatibleOutputs.forEach { output ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = selectedOutput == output,
-                                onClick = { selectedOutput = output }
-                            )
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selectedOutput == output,
-                            onClick = { selectedOutput = output }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = output.name,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                text = output.type,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { selectedOutput?.let(onOutputSelected) },
-                enabled = selectedOutput != null
-            ) {
-                Text(stringResource(R.string.button_connect))
-            }
-        },
-        dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
 }

@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.ui.components.workflow
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -255,6 +258,10 @@ class EditorEditActions(
     val onGroup: () -> Unit,
     val onUngroup: () -> Unit,
     val onDelete: () -> Unit,
+    // In the ⋮ menu with a selection, each only when it applies: one node, one note, a selection inside a group
+    val onRenameNode: (() -> Unit)? = null,
+    val onEditNote: (() -> Unit)? = null,
+    val onRenameGroup: (() -> Unit)? = null,
     val onSave: () -> Unit
 )
 
@@ -292,29 +299,34 @@ fun EditorToolbar(
             }
         ) {
             Row(Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()), verticalAlignment = Alignment.CenterVertically) {
+                // The whole graph's actions: in ⋮ with or without a selection, so the menu is always there
+                val graphActions = buildList {
+                    if (!edit.placement) add(MenuAction(R.string.workflow_editor_cleanup, Icons.Rounded.AutoFixHigh, edit.onCleanUp))
+                    add(
+                        MenuAction(
+                            if (edit.placement) R.string.menu_disable_manual_placement else R.string.menu_enable_manual_placement,
+                            Icons.Rounded.GridView,
+                            edit.onTogglePlacement
+                        )
+                    )
+                }
                 if (edit.selectedItems == 0) {
                     TooltipIconButton(Icons.Rounded.Add, stringResource(R.string.workflow_editor_add_node), edit.onAddNode)
                     TooltipIconButton(Icons.Rounded.StickyNote2, stringResource(R.string.workflow_editor_add_note), edit.onAddNote)
-                    EditMoreMenu(
-                        buildList {
-                            if (!edit.placement) add(MenuAction(R.string.workflow_editor_cleanup, Icons.Rounded.AutoFixHigh, edit.onCleanUp))
-                            add(
-                                MenuAction(
-                                    if (edit.placement) R.string.menu_disable_manual_placement else R.string.menu_enable_manual_placement,
-                                    Icons.Rounded.GridView,
-                                    edit.onTogglePlacement
-                                )
-                            )
-                        }
-                    )
+                    EditMoreMenu(listOf(graphActions))
                 } else {
                     val nodes = edit.selectedNodes > 0
                     TooltipIconButton(Icons.Rounded.ContentCopy, stringResource(R.string.workflow_editor_duplicate_node), edit.onDuplicate, enabled = nodes)
                     TooltipIconButton(Icons.Rounded.DoNotDisturbOn, stringResource(R.string.node_editor_bypass), edit.onBypass, enabled = nodes)
                     TooltipIconButton(Icons.Rounded.SelectAll, stringResource(R.string.workflow_editor_group), edit.onGroup)
-                    if (edit.canUngroup) {
-                        EditMoreMenu(listOf(MenuAction(R.string.workflow_editor_ungroup, Icons.Rounded.ViewModule, edit.onUngroup)))
-                    }
+                    val more = listOfNotNull(
+                        edit.onRenameNode?.let { MenuAction(R.string.title_node_editor_rename, Icons.Rounded.DriveFileRenameOutline, it) },
+                        edit.onEditNote?.let { MenuAction(R.string.workflow_editor_edit_note_content, Icons.Rounded.EditNote, it) },
+                        edit.onRenameGroup?.let { MenuAction(R.string.title_workflow_editor_rename_group, Icons.Rounded.DriveFileRenameOutline, it) },
+                        MenuAction(R.string.workflow_editor_ungroup, Icons.Rounded.ViewModule, edit.onUngroup).takeIf { edit.canUngroup }
+                    )
+                    // The selection's actions first, then the graph's
+                    EditMoreMenu(listOf(more, graphActions).filter { it.isNotEmpty() })
                     TooltipIconButton(
                         Icons.Rounded.Delete,
                         stringResource(R.string.workflow_editor_delete_node),
@@ -356,24 +368,28 @@ private fun ZoomGroup(zoom: EditorToolbarActions) {
 
 private class MenuAction(val labelRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector, val onClick: () -> Unit)
 
+/** ⋮ with its actions in groups (Expressive grouped menu). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun EditMoreMenu(actions: List<MenuAction>) {
+private fun EditMoreMenu(groups: List<List<MenuAction>>) {
     var open by remember { mutableStateOf(false) }
     Box {
         TooltipIconButton(Icons.Rounded.MoreVert, stringResource(R.string.workflow_editor_more), { open = true })
         DropdownMenuPopup(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
-                actions.forEachIndexed { index, action ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(action.labelRes)) },
-                        leadingIcon = { Icon(action.icon, contentDescription = null) },
-                        shape = MenuDefaults.itemShape(index, actions.size).shape,
-                        onClick = {
-                            open = false
-                            action.onClick()
-                        }
-                    )
+            groups.forEachIndexed { groupIndex, actions ->
+                if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, groups.size)) {
+                    actions.forEachIndexed { index, action ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(action.labelRes)) },
+                            leadingIcon = { Icon(action.icon, contentDescription = null) },
+                            shape = MenuDefaults.itemShape(index, actions.size).shape,
+                            onClick = {
+                                open = false
+                                action.onClick()
+                            }
+                        )
+                    }
                 }
             }
         }

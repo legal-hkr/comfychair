@@ -272,9 +272,8 @@
     <!-- Workflow editor menu strings -->
     <string name="menu_enable_manual_placement">Activar colocación manual</string>
     <string name="menu_disable_manual_placement">Desactivar colocación manual</string>
-    <string name="title_disable_manual_placement">¿Desactivar colocación manual?</string>
-    <string name="msg_disable_manual_placement">Esto reorganizará automáticamente todos los nodos y borrará las posiciones personalizadas. Esta acción no se puede deshacer.</string>
-    <string name="button_disable">Desactivar</string>
+    <string name="title_disable_manual_placement">¿Desactivar la colocación manual?</string>
+    <string name="msg_disable_manual_placement">Todos los nodos se colocarán automáticamente y se perderán sus posiciones.</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">No es un servidor ComfyUI</string>
@@ -449,6 +448,10 @@
     <string name="node_editor_range_max">Máx: %1$s</string>
     <string name="node_editor_ui_field_prefix">IU: %1$s</string>
     <string name="node_editor_image_load_error">Error al cargar imagen</string>
+    <string name="button_rename">Renombrar</string>
+    <string name="hint_node_name_empty">Vacío: %1$s</string>
+    <string name="button_turn_off">Desactivar</string>
+    <string name="msg_workflow_saved">Flujo de trabajo guardado</string>
     <string name="title_node_editor_rename">Renombrar nodo</string>
     <string name="label_node_editor_rename">Nombre del nodo</string>
     <string name="node_editor_bypass">Omitir</string>
@@ -785,12 +788,11 @@
     <string name="label_workflow_editor_rename_note">Título de la nota</string>
     <string name="workflow_editor_edit_note_content">Editar nota</string>
     <string name="label_workflow_editor_note_content">Contenido (Markdown)</string>
-    <string name="title_workflow_editor_discard">¿Descartar flujo de trabajo?</string>
-    <string name="msg_workflow_editor_discard">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>
-    <string name="title_workflow_editor_select_input">Conectar a entrada</string>
-    <string name="msg_workflow_editor_select_input">Selecciona qué entrada de %1$s conectar:</string>
-    <string name="title_workflow_editor_select_output">Conectar desde salida</string>
-    <string name="msg_workflow_editor_select_output">Selecciona qué salida de %1$s conectar:</string>
+    <string name="msg_workflow_editor_discard">Se perderán los cambios en este flujo de trabajo.</string>
+    <string name="title_workflow_editor_select_input">¿Conectar a qué entrada?</string>
+    <string name="msg_workflow_editor_select_input">%1$s tiene varias entradas compatibles.</string>
+    <string name="title_workflow_editor_select_output">¿Conectar desde qué salida?</string>
+    <string name="msg_workflow_editor_select_output">%1$s tiene varias salidas compatibles.</string>
     <string name="workflow_editor_edit_mode_hint">Toca el conector para conectar, mantén para explorador</string>
 
     <!-- Field display names for workflow editor -->

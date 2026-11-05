@@ -273,8 +273,7 @@
     <string name="menu_enable_manual_placement">Activer le placement manuel</string>
     <string name="menu_disable_manual_placement">Désactiver le placement manuel</string>
     <string name="title_disable_manual_placement">Désactiver le placement manuel ?</string>
-    <string name="msg_disable_manual_placement">Cela réarrangera automatiquement tous les nœuds et effacera les positions personnalisées. Cette action est irréversible.</string>
-    <string name="button_disable">Désactiver</string>
+    <string name="msg_disable_manual_placement">Tous les nœuds seront disposés automatiquement et leurs positions perdues.</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Ce n\'est pas un serveur ComfyUI</string>
@@ -449,6 +448,10 @@
     <string name="node_editor_range_max">Max : %1$s</string>
     <string name="node_editor_ui_field_prefix">IU : %1$s</string>
     <string name="node_editor_image_load_error">Échec du chargement de l\'image</string>
+    <string name="button_rename">Renommer</string>
+    <string name="hint_node_name_empty">Vide : %1$s</string>
+    <string name="button_turn_off">Désactiver</string>
+    <string name="msg_workflow_saved">Workflow enregistré</string>
     <string name="title_node_editor_rename">Renommer le nœud</string>
     <string name="label_node_editor_rename">Nom du nœud</string>
     <string name="node_editor_bypass">Contourner</string>
@@ -785,12 +788,11 @@
     <string name="label_workflow_editor_rename_note">Titre de la note</string>
     <string name="workflow_editor_edit_note_content">Modifier la note</string>
     <string name="label_workflow_editor_note_content">Contenu (Markdown)</string>
-    <string name="title_workflow_editor_discard">Abandonner le workflow ?</string>
-    <string name="msg_workflow_editor_discard">Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir abandonner ce workflow ?</string>
-    <string name="title_workflow_editor_select_input">Connecter à l\'entrée</string>
-    <string name="msg_workflow_editor_select_input">Sélectionnez l\'entrée de %1$s à connecter :</string>
-    <string name="title_workflow_editor_select_output">Connecter depuis la sortie</string>
-    <string name="msg_workflow_editor_select_output">Sélectionnez la sortie de %1$s à connecter :</string>
+    <string name="msg_workflow_editor_discard">Vos modifications de ce workflow seront perdues.</string>
+    <string name="title_workflow_editor_select_input">Connecter à quelle entrée ?</string>
+    <string name="msg_workflow_editor_select_input">%1$s a plusieurs entrées compatibles.</string>
+    <string name="title_workflow_editor_select_output">Connecter depuis quelle sortie ?</string>
+    <string name="msg_workflow_editor_select_output">%1$s a plusieurs sorties compatibles.</string>
     <string name="workflow_editor_edit_mode_hint">Appuyez sur une prise pour connecter, maintenez pour l\'explorateur</string>
 
     <!-- Field display names for workflow editor -->

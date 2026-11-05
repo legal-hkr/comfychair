@@ -1,54 +1,50 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.FiniteAnimationSpec
 import android.graphics.Paint
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.DrawableCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -61,24 +57,23 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.workflow.ConnectionDirection
+import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.MarkdownParser
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
-import sh.hnet.comfychair.workflow.getEffectiveDefault
+import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.SlotColors
-import sh.hnet.comfychair.workflow.ConnectionDirection
-import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
-import sh.hnet.comfychair.workflow.RenderedGroup
-import sh.hnet.comfychair.workflow.WorkflowGroup
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowNote
+import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.routing.EdgeRouter
 import sh.hnet.comfychair.workflow.routing.RouterProvider
 
@@ -215,10 +210,7 @@ fun WorkflowGraphCanvas(
     onTapOutsideNodes: (() -> Unit)? = null,
     onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
     onInputSlotTapped: ((SlotPosition) -> Unit)? = null,
-    onRenameNodeTapped: ((String) -> Unit)? = null,
-    onRenameGroupTapped: ((Int) -> Unit)? = null,
     onNoteTapped: ((Int) -> Unit)? = null,
-    onRenameNoteTapped: ((Int) -> Unit)? = null,
     onNoteHeightsChanged: (() -> Unit)? = null,
     longPressSourceSlot: SlotPosition? = null,
     onOutputSlotLongPressed: ((SlotPosition) -> Unit)? = null,
@@ -289,11 +281,6 @@ fun WorkflowGraphCanvas(
 
     // Get the edge router from settings
     val edgeRouter = remember { RouterProvider.getActiveRouter(context) }
-
-    // Load edit icon drawable
-    val editIconDrawable = remember(context) {
-        ContextCompat.getDrawable(context, R.drawable.edit_24px)
-    }
 
     // TextMeasurer for markdown rendering in notes
     val textMeasurer = rememberTextMeasurer()
@@ -724,10 +711,6 @@ fun WorkflowGraphCanvas(
         }
     }
 
-    // Edit icon hit area constants
-    val editIconSize = 32f
-    val editIconPadding = 12f
-
     Canvas(
         modifier = modifier
             // Node/Note drag gesture handler for manual placement (custom implementation that consumes events)
@@ -1013,8 +996,8 @@ fun WorkflowGraphCanvas(
                     }
                 }
             }
-            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onRenameNodeTapped, onRenameGroupTapped, onNoteTapped, onRenameNoteTapped) {
-                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onRenameNodeTapped != null || onRenameGroupTapped != null || onNoteTapped != null || onRenameNoteTapped != null) {
+            .pointerInput(onNodeTapped, onTapOutsideNodes, onOutputSlotTapped, onInputSlotTapped, onNoteTapped) {
+                if (onNodeTapped != null || onTapOutsideNodes != null || onOutputSlotTapped != null || onInputSlotTapped != null || onNoteTapped != null) {
                     detectTapGestures { tapOffset ->
                         // Transform tap position to graph coordinates
                         val graphX = (tapOffset.x - currentOffsetState.value.x) / currentScaleState.value
@@ -1085,64 +1068,6 @@ fun WorkflowGraphCanvas(
                             if (tappedInputSlot != null) {
                                 onInputSlotTapped(tappedInputSlot)
                                 return@detectTapGestures
-                            }
-                        }
-
-                        // In edit mode, check for taps on header icons
-                        if (inEditMode) {
-                            val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
-                            for (node in graph.nodes) {
-                                val iconTop = node.y + 8f
-                                val iconBottom = node.y + headerHeight - 8f
-
-                                // Edit icon is in the top-right corner of the header
-                                val editIconRight = node.x + node.width - 8f
-                                val editIconLeft = editIconRight - 32f
-
-                                if (graphX >= editIconLeft && graphX <= editIconRight &&
-                                    graphY >= iconTop && graphY <= iconBottom
-                                ) {
-                                    if (onRenameNodeTapped != null) {
-                                        onRenameNodeTapped(node.id)
-                                        return@detectTapGestures
-                                    }
-                                }
-                            }
-
-                            // Check for taps on group edit icon (top-right corner, same as nodes)
-                            for (group in currentRenderedGroups.value) {
-                                // Edit icon is in the top-right corner (same positioning as nodes)
-                                val editIconRight = group.x + group.width - 8f
-                                val editIconLeft = editIconRight - 32f
-                                val iconTop = group.y + 8f
-                                val iconBottom = group.y + WorkflowLayoutEngine.GROUP_HEADER_HEIGHT + 12f
-
-                                if (graphX >= editIconLeft && graphX <= editIconRight &&
-                                    graphY >= iconTop && graphY <= iconBottom
-                                ) {
-                                    if (onRenameGroupTapped != null) {
-                                        onRenameGroupTapped(group.id)
-                                        return@detectTapGestures
-                                    }
-                                }
-                            }
-
-                            // Check for taps on note edit icon (header)
-                            for (note in currentNotes.value) {
-                                val noteHeaderHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
-                                val editIconRight = note.x + note.width - 8f
-                                val editIconLeft = editIconRight - 32f
-                                val noteIconTop = note.y + 8f
-                                val noteIconBottom = note.y + noteHeaderHeight - 8f
-
-                                if (graphX >= editIconLeft && graphX <= editIconRight &&
-                                    graphY >= noteIconTop && graphY <= noteIconBottom
-                                ) {
-                                    if (onRenameNoteTapped != null) {
-                                        onRenameNoteTapped(note.id)
-                                        return@detectTapGestures
-                                    }
-                                }
                             }
                         }
 
@@ -1266,8 +1191,6 @@ fun WorkflowGraphCanvas(
                         group = group,
                         colors = colors,
                         alpha = alpha,
-                        showEditIcon = isEditMode,
-                        editIconDrawable = editIconDrawable
                     )
                 }
             }
@@ -1358,8 +1281,6 @@ fun WorkflowGraphCanvas(
                                 uiFieldPrefix = uiFieldPrefix,
                                 displayNameResolver = displayNameResolver,
                                 inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
-                                showEditIcon = isEditMode,
-                                editIconDrawable = editIconDrawable,
                                 mappedFields = graph.mappedFields
                             )
                         }
@@ -1376,8 +1297,6 @@ fun WorkflowGraphCanvas(
                             uiFieldPrefix = uiFieldPrefix,
                             displayNameResolver = displayNameResolver,
                             inputWireColors = nodeInputColors[node.id] ?: emptyMap(),
-                            showEditIcon = isEditMode,
-                            editIconDrawable = editIconDrawable,
                             mappedFields = graph.mappedFields
                         )
                     }
@@ -1410,8 +1329,6 @@ fun WorkflowGraphCanvas(
                                 colors = colors,
                                 alpha = alpha,
                                 isSelected = isSelected,
-                                showEditIcon = isEditMode,
-                                editIconDrawable = editIconDrawable,
                                 textMeasurer = textMeasurer,
                                 density = density
                             )
@@ -1422,8 +1339,6 @@ fun WorkflowGraphCanvas(
                             colors = colors,
                             alpha = alpha,
                             isSelected = isSelected,
-                            showEditIcon = isEditMode,
-                            editIconDrawable = editIconDrawable,
                             textMeasurer = textMeasurer,
                             density = density
                         )
@@ -1705,8 +1620,6 @@ private fun DrawScope.drawNode(
     uiFieldPrefix: String = "UI: %1\$s",
     displayNameResolver: (String) -> String = { it },
     inputWireColors: Map<String, Int> = emptyMap(),
-    showEditIcon: Boolean = false,
-    editIconDrawable: Drawable? = null,
     mappedFields: Map<Pair<String, String>, String> = emptyMap()
 ) {
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
@@ -1814,8 +1727,7 @@ private fun DrawScope.drawNode(
     val drawableAlpha = (alpha * 255).toInt()
 
     drawContext.canvas.nativeCanvas.apply {
-        // Title text - leave space for icons if shown (edit + bypass = 2 icons)
-        val titleMaxWidth = if (showEditIcon) node.width - 104f else node.width - 32f
+        val titleMaxWidth = node.width - 32f
         val titlePaint = Paint().apply {
             color = textPrimaryArgb
             textSize = 24f
@@ -1824,24 +1736,6 @@ private fun DrawScope.drawNode(
         }
         val title = truncateText(node.title, titleMaxWidth, titlePaint)
         drawText(title, node.x + 16f, node.y + 40f, titlePaint)
-
-        // Draw icons in top-right corner of header when in edit mode
-        if (showEditIcon) {
-            val iconSize = 40
-            val iconTop = (node.y + 12f).toInt()
-
-            // Edit icon (rightmost)
-            if (editIconDrawable != null) {
-                val editIconLeft = (node.x + node.width - 48f).toInt()
-                val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
-                if (iconCopy != null) {
-                    DrawableCompat.setTint(iconCopy, textSecondaryArgb)
-                    iconCopy.alpha = drawableAlpha
-                    iconCopy.setBounds(editIconLeft, iconTop, editIconLeft + iconSize, iconTop + iconSize)
-                    iconCopy.draw(this)
-                }
-            }
-        }
 
         // Input labels
         val inputPaint = Paint().apply {
@@ -2213,14 +2107,11 @@ private fun DrawScope.drawGroup(
     group: RenderedGroup,
     colors: CanvasColors,
     alpha: Float = 1f,
-    showEditIcon: Boolean = false,
-    editIconDrawable: Drawable? = null
 ) {
     val groupColor = colors.groupColor
 
     val cornerRadius = 16f
     val fontSize = WorkflowLayoutEngine.GROUP_HEADER_HEIGHT
-    val drawableAlpha = (alpha * 255).toInt()
 
     // Draw semi-transparent background (0.15 base alpha * fade alpha)
     drawRoundRect(
@@ -2252,20 +2143,6 @@ private fun DrawScope.drawGroup(
         val titleY = group.y + 12f + fontSize
         drawText(group.title, group.x + 16f, titleY, titlePaint)
 
-        // Draw edit icon in top-right corner (same as nodes) when in edit mode
-        if (showEditIcon && editIconDrawable != null) {
-            val iconSize = 40
-            val iconLeft = (group.x + group.width - 48f).toInt()
-            val iconTop = (group.y + 12f).toInt()
-
-            val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
-            if (iconCopy != null) {
-                DrawableCompat.setTint(iconCopy, titleColorArgb)
-                iconCopy.alpha = drawableAlpha
-                iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
-                iconCopy.draw(this)
-            }
-        }
     }
 }
 
@@ -2302,8 +2179,6 @@ private fun DrawScope.drawNote(
     colors: CanvasColors,
     alpha: Float = 1f,
     isSelected: Boolean = false,
-    showEditIcon: Boolean = false,
-    editIconDrawable: Drawable? = null,
     textMeasurer: TextMeasurer? = null,
     density: androidx.compose.ui.unit.Density? = null
 ) {
@@ -2314,7 +2189,6 @@ private fun DrawScope.drawNote(
     val noteColor = (if (colors.isDarkTheme) NoteColors.NoteDark else NoteColors.NoteLight).withAlpha()
     val textColor = (if (colors.isDarkTheme) NoteColors.TextDark else NoteColors.TextLight).withAlpha()
     val noteBorderColor = (if (colors.isDarkTheme) NoteColors.BorderDark else NoteColors.BorderLight).withAlpha()
-    val drawableAlpha = (alpha * 255).toInt()
 
     val cornerRadius = 16f
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
@@ -2382,7 +2256,7 @@ private fun DrawScope.drawNote(
     // Draw title using native canvas
     val textColorArgb = textColor.toArgb()
     drawContext.canvas.nativeCanvas.apply {
-        val titleMaxWidth = if (showEditIcon) note.width - 104f else note.width - 32f
+        val titleMaxWidth = note.width - 32f
         val titlePaint = android.graphics.Paint().apply {
             color = textColorArgb
             textSize = 24f
@@ -2392,20 +2266,6 @@ private fun DrawScope.drawNote(
         val title = truncateText(note.title, titleMaxWidth, titlePaint)
         drawText(title, note.x + 16f, note.y + 40f, titlePaint)
 
-        // Draw edit icon when in edit mode
-        if (showEditIcon && editIconDrawable != null) {
-            val iconSize = 40
-            val iconLeft = (note.x + note.width - 48f).toInt()
-            val iconTop = (note.y + 12f).toInt()
-
-            val iconCopy = editIconDrawable.mutate().constantState?.newDrawable()?.mutate()
-            if (iconCopy != null) {
-                DrawableCompat.setTint(iconCopy, textColorArgb)
-                iconCopy.alpha = drawableAlpha
-                iconCopy.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
-                iconCopy.draw(this)
-            }
-        }
     }
 
     // Draw markdown content with alpha

@@ -284,9 +284,8 @@
     <!-- Workflow editor menu strings -->
     <string name="menu_enable_manual_placement">Manuelle Platzierung aktivieren</string>
     <string name="menu_disable_manual_placement">Manuelle Platzierung deaktivieren</string>
-    <string name="title_disable_manual_placement">Manuelle Platzierung deaktivieren?</string>
-    <string name="msg_disable_manual_placement">Alle Knoten werden automatisch angeordnet und benutzerdefinierte Positionen gelöscht. Dies kann nicht rückgängig gemacht werden.</string>
-    <string name="button_disable">Deaktivieren</string>
+    <string name="title_disable_manual_placement">Manuelle Platzierung ausschalten?</string>
+    <string name="msg_disable_manual_placement">Alle Knoten werden automatisch angeordnet, ihre eigenen Positionen gehen verloren.</string>
 
     <!-- Error and status messages -->
     <string name="error_not_comfyui_server">Kein ComfyUI-Server</string>
@@ -451,7 +450,11 @@
     <string name="node_editor_range_max">Max: %1$s</string>
     <string name="node_editor_ui_field_prefix">UI: %1$s</string>
     <string name="node_editor_image_load_error">Bild konnte nicht geladen werden</string>
-    <string name="title_node_editor_rename">Node umbenennen</string>
+    <string name="button_rename">Umbenennen</string>
+    <string name="hint_node_name_empty">Leer: %1$s</string>
+    <string name="button_turn_off">Ausschalten</string>
+    <string name="msg_workflow_saved">Workflow gespeichert</string>
+    <string name="title_node_editor_rename">Knoten umbenennen</string>
     <string name="label_node_editor_rename">Node-Name</string>
     <string name="node_editor_bypass">Umgehen</string>
 
@@ -763,12 +766,11 @@
     <string name="label_workflow_editor_rename_note">Notiztitel</string>
     <string name="workflow_editor_edit_note_content">Notiz bearbeiten</string>
     <string name="label_workflow_editor_note_content">Inhalt (Markdown)</string>
-    <string name="title_workflow_editor_discard">Workflow verwerfen?</string>
-    <string name="msg_workflow_editor_discard">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>
-    <string name="title_workflow_editor_select_input">Mit Eingang verbinden</string>
-    <string name="msg_workflow_editor_select_input">Wähle einen Eingang auf %1$s:</string>
-    <string name="title_workflow_editor_select_output">Von Ausgang verbinden</string>
-    <string name="msg_workflow_editor_select_output">Wähle einen Ausgang auf %1$s:</string>
+    <string name="msg_workflow_editor_discard">Deine Änderungen an diesem Workflow gehen verloren.</string>
+    <string name="title_workflow_editor_select_input">Mit welchem Eingang verbinden?</string>
+    <string name="msg_workflow_editor_select_input">%1$s hat mehrere passende Eingänge.</string>
+    <string name="title_workflow_editor_select_output">Von welchem Ausgang verbinden?</string>
+    <string name="msg_workflow_editor_select_output">%1$s hat mehrere passende Ausgänge.</string>
     <string name="workflow_editor_edit_mode_hint">Tippe auf Anschluss zum Verbinden, halte für Knotenbrowser</string>
 
     <!-- Field display names for workflow editor -->
