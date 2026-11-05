@@ -176,6 +176,11 @@ private class GraphIcons(
     val link: VectorPainter
 )
 
+/** The soft shadow of elevation 1 (light theme: white nodes and sockets on the light canvas), in graph units. */
+private fun Paint.setElevationShadow(colors: CanvasColors, alpha: Float, scale: Float = 1f) {
+    setShadowLayer(4f * scale, 0f, 2f * scale, colors.shadow.copy(alpha = 0.3f * alpha).toArgb())
+}
+
 /** Baseline that centres a single line of [paint]'s text on [centerY]. */
 private fun Paint.baselineFor(centerY: Float): Float {
     val metrics = fontMetrics
@@ -1390,6 +1395,7 @@ fun WorkflowGraphCanvas(
                         color = if (isSource) colors.primary else colors.slot(output.type),
                         connected = isSource || (node.id to outputIndex) in connectedOutputs,
                         colors = colors,
+                        paints = paints,
                         alpha = nodeAlpha,
                         scale = scaleMultiplier
                     )
@@ -1416,6 +1422,7 @@ fun WorkflowGraphCanvas(
                         color = if (isSource) colors.primary else typeColor,
                         connected = isSource || inputValue is InputValue.Connection,
                         colors = colors,
+                        paints = paints,
                         alpha = nodeAlpha,
                         scale = scaleMultiplier
                     )
@@ -1560,7 +1567,7 @@ private fun DrawScope.drawNode(
         )
     } else {
         paints.shadow.color = colors.nodeBody.faded().toArgb()
-        paints.shadow.setShadowLayer(4f, 0f, 2f, colors.shadow.copy(alpha = 0.3f * alpha).toArgb())
+        paints.shadow.setElevationShadow(colors, alpha)
         drawContext.canvas.nativeCanvas.drawRoundRect(
             left, top, right, bottom, NodeStyle.CORNER, NodeStyle.CORNER, paints.shadow
         )
@@ -1704,18 +1711,27 @@ private fun DrawScope.drawNode(
 
 /**
  * A socket centred on a node's edge: filled in its slot colour when connected, a ring around the node's body colour
- * when free, with a halo in the canvas colour that separates it from wires.
+ * when free, with a halo in the canvas colour that separates it from wires (in the light theme lifted by a shadow).
  */
 private fun DrawScope.drawSocket(
     center: Offset,
     color: Color,
     connected: Boolean,
     colors: CanvasColors,
+    paints: GraphPaints,
     alpha: Float,
     scale: Float = 1f
 ) {
     val radius = NodeStyle.SOCKET_RADIUS * scale
-    drawCircle(color = colors.canvas.copy(alpha = alpha), radius = radius + NodeStyle.SOCKET_HALO * scale, center = center)
+    val haloRadius = radius + NodeStyle.SOCKET_HALO * scale
+    if (colors.isDark) {
+        drawCircle(color = colors.canvas.copy(alpha = alpha), radius = haloRadius, center = center)
+    } else {
+        // Lifted like the nodes, so a socket stands out on a white node and on the light canvas alike
+        paints.shadow.color = colors.canvas.copy(alpha = alpha).toArgb()
+        paints.shadow.setElevationShadow(colors, alpha, scale)
+        drawContext.canvas.nativeCanvas.drawCircle(center.x, center.y, haloRadius, paints.shadow)
+    }
     if (connected) {
         drawCircle(color = color.copy(alpha = alpha), radius = radius, center = center)
     } else {
