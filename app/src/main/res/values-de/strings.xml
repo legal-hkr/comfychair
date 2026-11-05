@@ -530,7 +530,6 @@
     <string name="label_pip_source">Quelle</string>
     <string name="msg_results_appear_here">Hier erscheinen deine Ergebnisse</string>
     <string name="button_pick_source_image">Quellbild auswählen</string>
-    <string name="msg_source_hint">oder sende ein Ergebnis mit %1$s hierher</string>
     <string name="content_description_replace_source">Quellbild ersetzen</string>
     <string name="content_description_remove_source">Quellbild entfernen</string>
     <string name="content_description_show_mask">Maske einblenden</string>

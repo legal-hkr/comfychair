@@ -527,7 +527,6 @@
     <string name="label_pip_source">Source</string>
     <string name="msg_results_appear_here">Vos résultats apparaîtront ici</string>
     <string name="button_pick_source_image">Choisir l\'image source</string>
-    <string name="msg_source_hint">ou envoyez ici un résultat avec %1$s</string>
     <string name="content_description_replace_source">Remplacer l\'image source</string>
     <string name="content_description_remove_source">Retirer l\'image source</string>
     <string name="content_description_show_mask">Afficher le masque</string>

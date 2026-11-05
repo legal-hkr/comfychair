@@ -629,7 +629,6 @@
     <string name="label_pip_source">Source</string>
     <string name="msg_results_appear_here">Your results appear here</string>
     <string name="button_pick_source_image">Pick source image</string>
-    <string name="msg_source_hint">or send a result here with %1$s</string>
     <string name="content_description_replace_source">Replace source image</string>
     <string name="content_description_remove_source">Remove source image</string>
     <string name="content_description_show_mask">Show mask overlay</string>

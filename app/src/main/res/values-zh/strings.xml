@@ -503,7 +503,6 @@
     <string name="label_pip_source">源图</string>
     <string name="msg_results_appear_here">生成结果将显示在这里</string>
     <string name="button_pick_source_image">选择源图像</string>
-    <string name="msg_source_hint">或在任意结果上点按 %1$s 发送到这里</string>
     <string name="content_description_replace_source">替换源图像</string>
     <string name="content_description_remove_source">移除源图像</string>
     <string name="content_description_show_mask">显示蒙版</string>

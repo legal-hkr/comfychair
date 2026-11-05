@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components.generation
 
-import sh.hnet.comfychair.ui.components.thumbnailRing
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -18,15 +17,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.HideImage
 import androidx.compose.material.icons.rounded.LayersClear
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
@@ -60,14 +56,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.Placeholder
-import androidx.compose.ui.text.PlaceholderVerticalAlign
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.ui.components.thumbnailRing
 
 private val ReferenceSlotSize = 52.dp
 /**
@@ -167,8 +159,7 @@ fun BoxScope.MaskLabel() {
 }
 
 /**
- * Empty source: the preview itself is the picker – a dashed outline, one large button and a hint that results can be
- * sent here from their action menu.
+ * Empty source: the preview itself is the picker – a dashed outline and one large button.
  */
 @Composable
 fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
@@ -202,36 +193,8 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
                 Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.button_pick_source_image))
             }
-            Spacer(Modifier.height(12.dp))
-            SourceHint()
         }
     }
-}
-
-/** "or send a result here with ⋯", with the result menu's icon inline. */
-@Composable
-private fun SourceHint() {
-    val marker = "\u0000"
-    val parts = stringResource(R.string.msg_source_hint, marker).split(marker)
-    val text = buildAnnotatedString {
-        append(parts.first())
-        if (parts.size > 1) {
-            appendInlineContent("icon", "⋯")
-            append(parts[1])
-        }
-    }
-    val inline = mapOf(
-        "icon" to InlineTextContent(Placeholder(1.3.em, 1.3.em, PlaceholderVerticalAlign.TextCenter)) {
-            Icon(Icons.Rounded.MoreHoriz, contentDescription = null, modifier = Modifier.fillMaxSize())
-        }
-    )
-    Text(
-        text = text,
-        inlineContent = inline,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center
-    )
 }
 
 /** One reference image slot of an Editing workflow. */
