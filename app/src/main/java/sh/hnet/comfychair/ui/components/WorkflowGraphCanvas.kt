@@ -127,11 +127,15 @@ private data class CanvasColors(
     fun slot(type: String?): Color = palette.slot(type) ?: onSurfaceVariant
 }
 
-/** The graph canvas's background (spec §12.2), also for what surrounds the canvas, so there's no seam. */
+/**
+ * The graph canvas's background, also for what surrounds the canvas, so there's no seam. Deeper than the spec's
+ * (surface, surfaceContainerLow), so the editor's top row and toolbar (surfaceContainer and up) stand out from it:
+ * the dimmest surface in the light theme, the lowest container in the dark one.
+ */
 @Composable
 fun graphCanvasColor(): Color {
     val scheme = MaterialTheme.colorScheme
-    return if (scheme.surface.luminance() < 0.5f) scheme.surface else scheme.surfaceContainerLow
+    return if (scheme.surface.luminance() < 0.5f) scheme.surfaceContainerLowest else scheme.surfaceDim
 }
 
 /** Node geometry in graph units: twice the spec's dp, as the layout's rows (40) are twice the spec's (20). */
