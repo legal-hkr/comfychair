@@ -185,7 +185,8 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
                 Icons.Rounded.AddPhotoAlternate,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(48.dp)
+                // The drawing (about 5/6 of the icon) matches the height of the logo in the empty results state
+                modifier = Modifier.size(64.dp)
             )
             Spacer(Modifier.height(16.dp))
             Button(onClick = onPick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
