@@ -17,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
-import sh.hnet.comfychair.ui.components.settings.SettingsChoiceRow
 import sh.hnet.comfychair.ui.components.settings.SettingsDescription
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsPage
@@ -207,15 +206,17 @@ fun WorkflowEditorSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () 
     val routerId by viewModel.edgeRouterId.collectAsState()
 
     SettingsPage(stringResource(R.string.title_settings_workflow_editor), onNavigateBack) {
-        SettingsGroup {
-            row { shapes ->
-                SettingsChoiceRow(
-                    shapes = shapes,
-                    title = stringResource(R.string.label_edge_style),
-                    options = edgeRouters.map { (id, label) -> id to stringResource(label) },
-                    selected = routerId,
-                    onSelect = { viewModel.setEdgeRouterId(context, it) }
-                )
+        // How connections are drawn: one choice
+        SettingsGroup(stringResource(R.string.label_edge_style)) {
+            edgeRouters.forEach { (id, label) ->
+                row { shapes ->
+                    SettingsRadioRow(
+                        shapes = shapes,
+                        title = stringResource(label),
+                        selected = id == routerId,
+                        onSelect = { viewModel.setEdgeRouterId(context, id) }
+                    )
+                }
             }
         }
     }

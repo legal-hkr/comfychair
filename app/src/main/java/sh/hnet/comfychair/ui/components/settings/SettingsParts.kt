@@ -2,19 +2,16 @@
 
 package sh.hnet.comfychair.ui.components.settings
 
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.ListItemColors
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -24,13 +21,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.RadioButton
@@ -39,7 +37,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -133,10 +130,32 @@ fun SettingsGroup(title: String? = null, content: SettingsGroupScope.() -> Unit)
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             scope.rows.forEachIndexed { index, row ->
-                row(ListItemDefaults.segmentedShapes(index, scope.rows.size))
+                row(groupShapes(index, scope.rows.size))
             }
         }
     }
+}
+
+/**
+ * Shapes of a row by its place in the group. A group of one row would get the library's single-item shape, with small
+ * corners; it gets the group's outer corners instead, taken from the library's own first and last segments, and keeps
+ * the library's pressed and focused shapes.
+ */
+@Composable
+private fun groupShapes(index: Int, count: Int): ListItemShapes {
+    val segmented = ListItemDefaults.segmentedShapes(index, count)
+    if (count > 1) return segmented
+    val first = ListItemDefaults.segmentedShapes(0, 2).shape as? CornerBasedShape ?: return segmented
+    val last = ListItemDefaults.segmentedShapes(1, 2).shape as? CornerBasedShape ?: return segmented
+    val outer = first.copy(bottomStart = last.bottomStart, bottomEnd = last.bottomEnd)
+    return ListItemDefaults.shapes(
+        shape = outer,
+        selectedShape = outer,
+        pressedShape = segmented.pressedShape,
+        focusedShape = segmented.focusedShape,
+        hoveredShape = segmented.hoveredShape,
+        draggedShape = segmented.draggedShape
+    )
 }
 
 /** Explanation under the top bar of a page, before its groups. */
@@ -312,52 +331,6 @@ fun SettingsInfoRow(shapes: ListItemShapes, title: String, value: String) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-/**
- * A short choice (up to three options) as connected toggle buttons, under its title, in a row of the group.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun <T> SettingsChoiceRow(
-    shapes: ListItemShapes,
-    title: String,
-    options: List<Pair<T, String>>,
-    selected: T,
-    onSelect: (T) -> Unit,
-    supporting: String? = null
-) {
-    // Not a button itself: only the toggle buttons react
-    Surface(
-        shape = shapes.shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            supporting?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                options.forEachIndexed { index, (value, label) ->
-                    ToggleButton(
-                        checked = value == selected,
-                        onCheckedChange = { if (it) onSelect(value) },
-                        shapes = when (index) {
-                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                            options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) { Text(label) }
-                }
-            }
         }
     }
 }
