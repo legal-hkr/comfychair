@@ -657,14 +657,6 @@ object WorkflowManager {
     }
 
     /**
-     * Validate workflow description format
-     * @return error message if invalid, null if valid
-     */
-    fun validateWorkflowDescription(description: String): String? {
-        return ValidationUtils.validateWorkflowDescription(description, applicationContext)
-    }
-
-    /**
      * Add a user workflow with explicit type and field mappings
      * This is used for the new upload flow where the user selects the type
      */

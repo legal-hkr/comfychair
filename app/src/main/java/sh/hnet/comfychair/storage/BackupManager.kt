@@ -2,18 +2,16 @@ package sh.hnet.comfychair.storage
 
 import android.content.Context
 import android.content.pm.PackageManager
-import org.json.JSONArray
-import org.json.JSONObject
-import sh.hnet.comfychair.R
-import sh.hnet.comfychair.model.Server
-import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.Obfuscator
-import sh.hnet.comfychair.util.UuidUtils
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import org.json.JSONArray
+import org.json.JSONObject
+import sh.hnet.comfychair.R
+import sh.hnet.comfychair.model.Server
+import sh.hnet.comfychair.util.DebugLogger
 
 /**
  * Result of a restore operation.
@@ -619,7 +617,6 @@ class BackupManager(private val context: Context) {
 
                 // Validate
                 if (!validator.validateWorkflowName(name) ||
-                    !validator.validateWorkflowDescription(description) ||
                     !validator.validateWorkflowType(typeStr)) {
                     skipped++
                     continue

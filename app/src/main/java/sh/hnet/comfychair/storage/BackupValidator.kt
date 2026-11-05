@@ -29,7 +29,6 @@ class BackupValidator {
         // Max lengths for strings
         const val MAX_PROMPT_LENGTH = 10000
         val MAX_WORKFLOW_NAME_LENGTH = ValidationUtils.MAX_WORKFLOW_NAME_LENGTH
-        val MAX_WORKFLOW_DESCRIPTION_LENGTH = ValidationUtils.MAX_WORKFLOW_DESCRIPTION_LENGTH
 
         // Numeric ranges
         const val MIN_PORT = 1
@@ -216,13 +215,6 @@ class BackupValidator {
      */
     fun validateWorkflowName(name: String): Boolean {
         return name.isNotBlank() && name.length <= MAX_WORKFLOW_NAME_LENGTH
-    }
-
-    /**
-     * Validate workflow description.
-     */
-    fun validateWorkflowDescription(description: String): Boolean {
-        return description.length <= MAX_WORKFLOW_DESCRIPTION_LENGTH
     }
 
     /**

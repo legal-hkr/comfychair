@@ -120,7 +120,7 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
-import sh.hnet.comfychair.ui.components.WorkflowThumbnail
+import sh.hnet.comfychair.ui.components.WorkflowGraphPreview
 import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
 import sh.hnet.comfychair.ui.components.settings.SettingsActionRow
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
@@ -305,7 +305,6 @@ fun WorkflowsSettingsScreen(
             nameError = uiState.importNameError,
             description = uiState.importDescription,
             onDescriptionChange = viewModel::onImportDescriptionChange,
-            descriptionError = uiState.importDescriptionError,
             isValidating = uiState.isValidatingNodes,
             onConfirm = { viewModel.proceedWithImport(context, ConnectionManager.client) },
             onDismiss = viewModel::cancelImport
@@ -733,11 +732,9 @@ fun WorkflowDetailPage(
     }
     val builtIn = workflow.isBuiltIn
     val enabled = workflow.id !in uiState.disabledWorkflowIds
-    val graphLabel = stringResource(if (builtIn) R.string.button_view_graph else R.string.button_edit_graph)
-    val openGraph = {
-        if (builtIn) context.startActivity(WorkflowEditorActivity.createIntent(context, workflow.id))
-        else editLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, workflow.id))
-    }
+    val viewLabel = stringResource(R.string.button_view_graph)
+    // The card shows the graph full screen, only to look at; editing (own workflows) is a row below
+    val viewGraph = { context.startActivity(WorkflowEditorActivity.createIntent(context, workflow.id, readOnly = true)) }
 
     SettingsPage(
         title = workflow.name,
@@ -748,19 +745,24 @@ fun WorkflowDetailPage(
             stringResource(if (builtIn) R.string.label_workflow_kind_builtin else R.string.label_workflow_kind_yours)
         )
     ) {
-        // The graph, large; the whole card opens it
+        // The whole graph as the editor draws it; the whole card opens it
         Surface(
-            onClick = openGraph,
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(188.dp)
-                .semantics { contentDescription = graphLabel }
         ) {
             Box {
-                WorkflowThumbnail(jsonContent = workflow.jsonContent, modifier = Modifier.fillMaxSize().padding(12.dp))
+                WorkflowGraphPreview(
+                    jsonContent = workflow.jsonContent,
+                    description = viewLabel,
+                    onClick = viewGraph,
+                    modifier = Modifier.fillMaxSize()
+                )
+                // A button itself: a plain surface here would swallow the tap
                 Surface(
+                    onClick = viewGraph,
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     contentColor = MaterialTheme.colorScheme.onSurface,
@@ -774,7 +776,7 @@ fun WorkflowDetailPage(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(Icons.Rounded.OpenInFull, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text(graphLabel, style = MaterialTheme.typography.labelLarge)
+                        Text(viewLabel, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -807,15 +809,16 @@ fun WorkflowDetailPage(
         }
 
         SettingsGroup(stringResource(R.string.label_workflow)) {
-            row { shapes ->
-                SettingsActionRow(
-                    shapes = shapes,
-                    icon = if (builtIn) Icons.Rounded.AccountTree else Icons.Rounded.Edit,
-                    title = graphLabel,
-                    onClick = openGraph
-                )
-            }
+            // Own workflows only: the card above already shows the graph
             if (!builtIn) {
+                row { shapes ->
+                    SettingsActionRow(
+                        shapes = shapes,
+                        icon = Icons.Rounded.Edit,
+                        title = stringResource(R.string.button_edit_graph),
+                        onClick = { editLauncher.launch(WorkflowEditorActivity.createIntentForEditingExisting(context, workflow.id)) }
+                    )
+                }
                 row { shapes ->
                     SettingsActionRow(
                         shapes = shapes,
@@ -890,7 +893,6 @@ fun WorkflowDetailPage(
             nameError = uiState.editNameError,
             description = uiState.editDescription,
             onDescriptionChange = viewModel::onEditDescriptionChange,
-            descriptionError = uiState.editDescriptionError,
             onConfirm = viewModel::confirmEdit,
             onDismiss = viewModel::cancelEdit
         )
@@ -905,7 +907,6 @@ fun WorkflowDetailPage(
             nameError = uiState.duplicateNameError,
             description = uiState.duplicateDescription,
             onDescriptionChange = viewModel::onDuplicateDescriptionChange,
-            descriptionError = uiState.duplicateDescriptionError,
             onConfirm = viewModel::confirmDuplicate,
             onDismiss = viewModel::cancelDuplicate
         )
@@ -920,7 +921,6 @@ private fun EditWorkflowDialog(
     nameError: String?,
     description: String,
     onDescriptionChange: (String) -> Unit,
-    descriptionError: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -944,8 +944,6 @@ private fun EditWorkflowDialog(
                     onValueChange = onDescriptionChange,
                     label = { Text(stringResource(R.string.label_workflow_description)) },
                     maxLines = 3,
-                    isError = descriptionError != null,
-                    supportingText = descriptionError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -953,7 +951,7 @@ private fun EditWorkflowDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                enabled = name.isNotBlank() && nameError == null && descriptionError == null
+                enabled = name.isNotBlank() && nameError == null
             ) {
                 Text(stringResource(R.string.button_save))
             }
@@ -973,7 +971,6 @@ private fun DuplicateWorkflowDialog(
     nameError: String?,
     description: String,
     onDescriptionChange: (String) -> Unit,
-    descriptionError: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -997,8 +994,6 @@ private fun DuplicateWorkflowDialog(
                     onValueChange = onDescriptionChange,
                     label = { Text(stringResource(R.string.label_workflow_description)) },
                     maxLines = 3,
-                    isError = descriptionError != null,
-                    supportingText = descriptionError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1006,7 +1001,7 @@ private fun DuplicateWorkflowDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                enabled = name.isNotBlank() && nameError == null && descriptionError == null
+                enabled = name.isNotBlank() && nameError == null
             ) {
                 Text(stringResource(R.string.button_save))
             }

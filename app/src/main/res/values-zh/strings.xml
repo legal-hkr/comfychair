@@ -597,7 +597,6 @@
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">获取服务器节点失败</string>
     <string name="error_workflow_name_too_long">名称不能超过 40 个字符</string>
-    <string name="error_workflow_description_too_long">描述不能超过 120 个字符</string>
 
     <!-- Metadata viewer strings -->
     <string name="button_show_metadata">详情</string>

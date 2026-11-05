@@ -72,7 +72,6 @@ data class WorkflowManagementUiState(
     val importName: String = "",
     val importDescription: String = "",
     val importNameError: String? = null,
-    val importDescriptionError: String? = null,
 
     // Validation state
     val isValidatingNodes: Boolean = false,
@@ -94,7 +93,6 @@ data class WorkflowManagementUiState(
     val editName: String = "",
     val editDescription: String = "",
     val editNameError: String? = null,
-    val editDescriptionError: String? = null,
 
     // Duplicate dialog state
     val showDuplicateDialog: Boolean = false,
@@ -102,7 +100,6 @@ data class WorkflowManagementUiState(
     val duplicateName: String = "",
     val duplicateDescription: String = "",
     val duplicateNameError: String? = null,
-    val duplicateDescriptionError: String? = null,
 
     // Export state
     val exportingWorkflow: WorkflowManager.Workflow? = null,
@@ -239,7 +236,6 @@ class WorkflowManagementViewModel : ViewModel() {
                     importName = "",
                     importDescription = "",
                     importNameError = null,
-                    importDescriptionError = null
                 )
             } catch (e: Exception) {
                 _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_import))
@@ -272,13 +268,7 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     fun onImportDescriptionChange(description: String) {
-        val error = if (description.length > ValidationUtils.MAX_WORKFLOW_DESCRIPTION_LENGTH) {
-            applicationContext?.getString(R.string.error_workflow_description_too_long)
-        } else null
-        _uiState.value = _uiState.value.copy(
-            importDescription = ValidationUtils.truncateWorkflowDescription(description),
-            importDescriptionError = error
-        )
+        _uiState.value = _uiState.value.copy(importDescription = description)
     }
 
     /**
@@ -298,12 +288,6 @@ class WorkflowManagementViewModel : ViewModel() {
             return
         }
 
-        // Validate description format
-        val descError = WorkflowManager.validateWorkflowDescription(description)
-        if (descError != null) {
-            _uiState.value = _uiState.value.copy(importDescriptionError = descError)
-            return
-        }
 
         // Check for duplicate name
         if (WorkflowManager.isWorkflowNameTaken(name)) {
@@ -761,7 +745,6 @@ class WorkflowManagementViewModel : ViewModel() {
             importName = "",
             importDescription = "",
             importNameError = null,
-            importDescriptionError = null,
             pendingWorkflowForMapping = null,
             pendingImportWarnings = emptyList()
         )
@@ -849,7 +832,6 @@ class WorkflowManagementViewModel : ViewModel() {
             editName = workflow.name,
             editDescription = workflow.description,
             editNameError = null,
-            editDescriptionError = null
         )
     }
 
@@ -864,13 +846,7 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     fun onEditDescriptionChange(description: String) {
-        val error = if (description.length > ValidationUtils.MAX_WORKFLOW_DESCRIPTION_LENGTH) {
-            applicationContext?.getString(R.string.error_workflow_description_too_long)
-        } else null
-        _uiState.value = _uiState.value.copy(
-            editDescription = ValidationUtils.truncateWorkflowDescription(description),
-            editDescriptionError = error
-        )
+        _uiState.value = _uiState.value.copy(editDescription = description)
     }
 
     fun confirmEdit() {
@@ -887,12 +863,6 @@ class WorkflowManagementViewModel : ViewModel() {
             return
         }
 
-        // Validate description format
-        val descError = WorkflowManager.validateWorkflowDescription(description)
-        if (descError != null) {
-            _uiState.value = _uiState.value.copy(editDescriptionError = descError)
-            return
-        }
 
         // Check for duplicate name (excluding current workflow)
         if (WorkflowManager.isWorkflowNameTaken(name, excludeWorkflowId = workflow.id)) {
@@ -923,7 +893,6 @@ class WorkflowManagementViewModel : ViewModel() {
                 editName = "",
                 editDescription = "",
                 editNameError = null,
-                editDescriptionError = null
             )
         }
     }
@@ -935,7 +904,6 @@ class WorkflowManagementViewModel : ViewModel() {
             editName = "",
             editDescription = "",
             editNameError = null,
-            editDescriptionError = null
         )
     }
 
@@ -984,13 +952,7 @@ class WorkflowManagementViewModel : ViewModel() {
     }
 
     fun onDuplicateDescriptionChange(description: String) {
-        val error = if (description.length > ValidationUtils.MAX_WORKFLOW_DESCRIPTION_LENGTH) {
-            applicationContext?.getString(R.string.error_workflow_description_too_long)
-        } else null
-        _uiState.value = _uiState.value.copy(
-            duplicateDescription = ValidationUtils.truncateWorkflowDescription(description),
-            duplicateDescriptionError = error
-        )
+        _uiState.value = _uiState.value.copy(duplicateDescription = description)
     }
 
     fun confirmDuplicate() {
@@ -1007,12 +969,6 @@ class WorkflowManagementViewModel : ViewModel() {
             return
         }
 
-        // Validate description
-        val descError = WorkflowManager.validateWorkflowDescription(description)
-        if (descError != null) {
-            _uiState.value = _uiState.value.copy(duplicateDescriptionError = descError)
-            return
-        }
 
         // Check for duplicate name
         if (WorkflowManager.isWorkflowNameTaken(name)) {
@@ -1045,7 +1001,6 @@ class WorkflowManagementViewModel : ViewModel() {
                 duplicateName = "",
                 duplicateDescription = "",
                 duplicateNameError = null,
-                duplicateDescriptionError = null
             )
         }
     }
@@ -1057,7 +1012,6 @@ class WorkflowManagementViewModel : ViewModel() {
             duplicateName = "",
             duplicateDescription = "",
             duplicateNameError = null,
-            duplicateDescriptionError = null
         )
     }
 

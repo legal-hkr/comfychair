@@ -34,6 +34,7 @@ class WorkflowEditorActivity : ComponentActivity() {
     companion object {
         private const val TAG = "WorkflowEditor"
         private const val EXTRA_WORKFLOW_ID = "workflow_id"
+        private const val EXTRA_READ_ONLY = "read_only"
         private const val EXTRA_WORKFLOW_JSON = "workflow_json"
         private const val EXTRA_IS_MAPPING_MODE = "is_mapping_mode"
         private const val EXTRA_IS_CREATE_MODE = "is_create_mode"
@@ -47,10 +48,13 @@ class WorkflowEditorActivity : ComponentActivity() {
 
         /**
          * Create intent to preview a workflow by ID
+         *
+         * @param readOnly Only to look at: no way into edit mode, even for the user's own workflows
          */
-        fun createIntent(context: Context, workflowId: String): Intent {
+        fun createIntent(context: Context, workflowId: String, readOnly: Boolean = false): Intent {
             return Intent(context, WorkflowEditorActivity::class.java).apply {
                 putExtra(EXTRA_WORKFLOW_ID, workflowId)
+                putExtra(EXTRA_READ_ONLY, readOnly)
             }
         }
 
@@ -116,6 +120,7 @@ class WorkflowEditorActivity : ComponentActivity() {
         val mappingStateJson = intent.getStringExtra(EXTRA_MAPPING_STATE_JSON)
         val workflowName = intent.getStringExtra(EXTRA_WORKFLOW_NAME) ?: ""
         val workflowDescription = intent.getStringExtra(EXTRA_WORKFLOW_DESCRIPTION) ?: ""
+        val readOnly = intent.getBooleanExtra(EXTRA_READ_ONLY, false)
 
         // Initialize ViewModel based on mode
         when {
@@ -192,6 +197,7 @@ class WorkflowEditorActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     WorkflowEditorScreen(
                         viewModel = viewModel,
+                        readOnly = readOnly,
                         onClose = {
                             when {
                                 isEditExistingMode -> viewModel.handleEditExistingModeClose()

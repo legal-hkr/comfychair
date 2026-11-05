@@ -333,7 +333,6 @@ data class WorkflowEditorUiState(
     val saveDialogName: String = "",
     val saveDialogDescription: String = "",
     val saveDialogNameError: String? = null,
-    val saveDialogDescriptionError: String? = null,
     val isSaveValidating: Boolean = false,
 
     // Error dialogs for save validation

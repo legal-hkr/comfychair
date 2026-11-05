@@ -627,7 +627,6 @@
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Error al obtener los nodos del servidor</string>
     <string name="error_workflow_name_too_long">El nombre debe tener 40 caracteres o menos</string>
-    <string name="error_workflow_description_too_long">La descripción debe tener 120 caracteres o menos</string>
 
     <!-- Metadata viewer strings -->
     <string name="button_show_metadata">Info</string>

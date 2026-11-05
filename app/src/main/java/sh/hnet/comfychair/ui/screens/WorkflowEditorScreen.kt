@@ -128,7 +128,9 @@ import sh.hnet.comfychair.workflow.WorkflowMappingState
 @Composable
 fun WorkflowEditorScreen(
     viewModel: WorkflowEditorViewModel,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    // Opened only to look at (the workflows page's graph card): no way into edit mode
+    readOnly: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val density = LocalDensity.current
@@ -546,7 +548,7 @@ fun WorkflowEditorScreen(
                 isFieldMappingMode = uiState.isFieldMappingMode,
                 canConfirmMapping = uiState.canConfirmMapping,
                 isEditMode = uiState.isEditMode,
-                viewingWorkflowIsBuiltIn = uiState.viewingWorkflowIsBuiltIn,
+                canEnterEditMode = !uiState.viewingWorkflowIsBuiltIn && !readOnly,
                 hasSelection = uiState.selectedNodeIds.isNotEmpty() || uiState.selectedNoteIds.isNotEmpty(),
                 selectedCount = uiState.selectedNodeIds.size + uiState.selectedNoteIds.size,
                 scale = uiState.scale,
@@ -940,7 +942,6 @@ fun WorkflowEditorScreen(
                 nameError = uiState.saveDialogNameError,
                 description = uiState.saveDialogDescription,
                 onDescriptionChange = { viewModel.onSaveDialogDescriptionChange(it) },
-                descriptionError = uiState.saveDialogDescriptionError,
                 isValidating = uiState.isSaveValidating,
                 onConfirm = {
                     viewModel.proceedWithSave(context)
@@ -985,7 +986,7 @@ private fun WorkflowEditorFloatingToolbar(
     isFieldMappingMode: Boolean,
     canConfirmMapping: Boolean,
     isEditMode: Boolean,
-    viewingWorkflowIsBuiltIn: Boolean,
+    canEnterEditMode: Boolean,
     hasSelection: Boolean,
     selectedCount: Int,
     scale: Float,
@@ -1303,8 +1304,8 @@ private fun WorkflowEditorFloatingToolbar(
                         }
                     }
 
-                    // Enter edit mode button (only when not in field mapping mode and not built-in)
-                    if (!isFieldMappingMode && !viewingWorkflowIsBuiltIn) {
+                    // Enter edit mode button (not in field mapping mode, not for built-in workflows, not read-only)
+                    if (!isFieldMappingMode && canEnterEditMode) {
                         // Divider before Tune button
                         VerticalDivider(
                             modifier = Modifier.fillMaxHeight(),

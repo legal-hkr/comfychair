@@ -365,7 +365,6 @@ object ValidationUtils {
     const val MAX_WORKFLOW_NAME_LENGTH = 40
 
     /** Maximum length for workflow descriptions */
-    const val MAX_WORKFLOW_DESCRIPTION_LENGTH = 80
 
     /**
      * Validate workflow name format.
@@ -388,26 +387,7 @@ object ValidationUtils {
     }
 
     /**
-     * Validate workflow description format.
-     * @param description The workflow description to validate
-     * @param context Optional context for localized error messages
-     * @return Error message if invalid, null if valid
-     */
-    fun validateWorkflowDescription(description: String, context: Context? = null): String? {
-        if (description.length > MAX_WORKFLOW_DESCRIPTION_LENGTH) {
-            return context?.getString(R.string.error_workflow_description_too_long)
-                ?: "Description too long (max $MAX_WORKFLOW_DESCRIPTION_LENGTH characters)"
-        }
-        return null
-    }
-
-    /**
      * Truncate workflow name to maximum allowed length.
      */
     fun truncateWorkflowName(name: String): String = name.take(MAX_WORKFLOW_NAME_LENGTH)
-
-    /**
-     * Truncate workflow description to maximum allowed length.
-     */
-    fun truncateWorkflowDescription(description: String): String = description.take(MAX_WORKFLOW_DESCRIPTION_LENGTH)
 }

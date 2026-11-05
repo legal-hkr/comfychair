@@ -627,7 +627,6 @@
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Server-Nodes konnten nicht abgerufen werden</string>
     <string name="error_workflow_name_too_long">Name darf maximal 40 Zeichen haben</string>
-    <string name="error_workflow_description_too_long">Beschreibung darf maximal 120 Zeichen haben</string>
 
     <!-- Metadata viewer strings -->
     <string name="button_show_metadata">Info</string>

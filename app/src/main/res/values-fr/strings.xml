@@ -627,7 +627,6 @@
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Échec de la récupération des nœuds du serveur</string>
     <string name="error_workflow_name_too_long">Le nom doit contenir 40 caractères maximum</string>
-    <string name="error_workflow_description_too_long">La description doit contenir 120 caractères maximum</string>
 
     <!-- Metadata viewer strings -->
     <string name="button_show_metadata">Info</string>

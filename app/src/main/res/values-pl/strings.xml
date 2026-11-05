@@ -642,7 +642,6 @@
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Nie udało się pobrać węzłów z serwera</string>
     <string name="error_workflow_name_too_long">Nazwa może mieć maksymalnie 40 znaków</string>
-    <string name="error_workflow_description_too_long">Opis może mieć maksymalnie 120 znaków</string>
 
     <!-- Metadata viewer strings -->
     <string name="button_show_metadata">Info</string>

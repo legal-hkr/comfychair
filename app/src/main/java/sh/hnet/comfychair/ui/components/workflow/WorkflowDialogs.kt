@@ -59,7 +59,6 @@ fun WorkflowDetailsDialog(
     nameError: String?,
     description: String,
     onDescriptionChange: (String) -> Unit,
-    descriptionError: String?,
     isValidating: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
@@ -128,8 +127,6 @@ fun WorkflowDetailsDialog(
                     onValueChange = onDescriptionChange,
                     label = { Text(stringResource(R.string.label_workflow_description)) },
                     maxLines = 3,
-                    isError = descriptionError != null,
-                    supportingText = descriptionError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isValidating
                 )

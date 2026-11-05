@@ -20,40 +20,39 @@ import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.Obfuscator
-import sh.hnet.comfychair.util.PrivacyUtils
 import sh.hnet.comfychair.util.FieldMappingAnalyzer
 import sh.hnet.comfychair.util.GraphMutationUtils
 import sh.hnet.comfychair.util.GraphViewportCalculator
+import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.util.PrivacyUtils
 import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.DiscardAction
-import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.InputValue
-import sh.hnet.comfychair.workflow.NoteManager
-import sh.hnet.comfychair.workflow.getEffectiveDefault
-import sh.hnet.comfychair.workflow.sortInputsForLayout
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeCategory
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
 import sh.hnet.comfychair.workflow.WorkflowGraph
-import sh.hnet.comfychair.workflow.WorkflowGroup
+import sh.hnet.comfychair.workflow.WorkflowGraphPreparation
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.WorkflowNote
 import sh.hnet.comfychair.workflow.WorkflowParser
 import sh.hnet.comfychair.workflow.WorkflowSerializer
+import sh.hnet.comfychair.workflow.getEffectiveDefault
+import sh.hnet.comfychair.workflow.sortInputsForLayout
 
 /**
  * Events emitted by the Workflow Editor
@@ -726,7 +725,6 @@ class WorkflowEditorViewModel : ViewModel() {
             saveDialogName = "",
             saveDialogDescription = "",
             saveDialogNameError = null,
-            saveDialogDescriptionError = null,
             isSaveValidating = false
         )
     }
@@ -741,7 +739,6 @@ class WorkflowEditorViewModel : ViewModel() {
             saveDialogName = "",
             saveDialogDescription = "",
             saveDialogNameError = null,
-            saveDialogDescriptionError = null
         )
     }
 
@@ -780,7 +777,6 @@ class WorkflowEditorViewModel : ViewModel() {
     fun onSaveDialogDescriptionChange(description: String) {
         _uiState.value = _uiState.value.copy(
             saveDialogDescription = description,
-            saveDialogDescriptionError = null
         )
     }
 
@@ -848,16 +844,6 @@ class WorkflowEditorViewModel : ViewModel() {
             DebugLogger.w(TAG, "proceedWithSave: Name validation failed: $nameError")
             _uiState.value = _uiState.value.copy(
                 saveDialogNameError = nameError
-            )
-            return
-        }
-
-        // Validate description
-        val descError = WorkflowManager.validateWorkflowDescription(description)
-        if (descError != null) {
-            DebugLogger.w(TAG, "proceedWithSave: Description validation failed: $descError")
-            _uiState.value = _uiState.value.copy(
-                saveDialogDescriptionError = descError
             )
             return
         }
@@ -1161,37 +1147,15 @@ class WorkflowEditorViewModel : ViewModel() {
      * Resolve edge types using the node type registry.
      * Adds slotType to each edge based on the source node's output type.
      */
-    private fun resolveEdgeTypes(graph: WorkflowGraph): WorkflowGraph {
-        if (!nodeTypeRegistry.isPopulated()) {
-            return graph
-        }
-
-        val resolvedEdges = graph.edges.map { edge ->
-            val sourceNode = graph.nodes.find { it.id == edge.sourceNodeId }
-            val slotType = sourceNode?.let {
-                nodeTypeRegistry.getOutputType(it.classType, edge.sourceOutputIndex)
-            }
-            edge.copy(slotType = slotType)
-        }
-        return graph.copy(edges = resolvedEdges)
-    }
+    private fun resolveEdgeTypes(graph: WorkflowGraph): WorkflowGraph =
+        WorkflowGraphPreparation.resolveEdgeTypes(graph, nodeTypeRegistry)
 
     /**
      * Populate node outputs using the node type registry.
      * Adds output types to each node based on its class type.
      */
-    private fun populateNodeOutputs(graph: WorkflowGraph): WorkflowGraph {
-        if (!nodeTypeRegistry.isPopulated()) {
-            return graph
-        }
-
-        val nodesWithOutputs = graph.nodes.map { node ->
-            val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
-            val outputs = definition?.outputs ?: emptyList()
-            node.copy(outputs = outputs)
-        }
-        return graph.copy(nodes = nodesWithOutputs)
-    }
+    private fun populateNodeOutputs(graph: WorkflowGraph): WorkflowGraph =
+        WorkflowGraphPreparation.populateNodeOutputs(graph, nodeTypeRegistry)
 
     /**
      * Set the canvas size for proper centering calculations
@@ -1344,17 +1308,8 @@ class WorkflowEditorViewModel : ViewModel() {
     /**
      * Build a map of classType -> NodeTypeDefinition for all nodes in the graph.
      */
-    private fun buildNodeDefinitionsMap(graph: WorkflowGraph): Map<String, NodeTypeDefinition> {
-        val definitions = mutableMapOf<String, NodeTypeDefinition>()
-        graph.nodes.forEach { node ->
-            if (node.classType !in definitions) {
-                nodeTypeRegistry.getNodeDefinition(node.classType)?.let {
-                    definitions[node.classType] = it
-                }
-            }
-        }
-        return definitions
-    }
+    private fun buildNodeDefinitionsMap(graph: WorkflowGraph): Map<String, NodeTypeDefinition> =
+        WorkflowGraphPreparation.nodeDefinitions(graph, nodeTypeRegistry)
 
     /**
      * Load node attribute edits from storage.
