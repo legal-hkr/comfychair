@@ -138,7 +138,6 @@
     <string name="msg_clear_queue_own">这会移除你所有等待中的任务。正在运行的任务不会被中断。</string>
     <string name="button_clear">清空</string>
     <string name="error_queue_action">无法更改队列</string>
-    <string name="menu_show_queue">显示队列</string>
     <string name="content_description_open_queue">打开队列</string>
     <plurals name="msg_clear_queue_others">
         <item quantity="other">这也会移除其他客户端的 %d 个任务。</item>

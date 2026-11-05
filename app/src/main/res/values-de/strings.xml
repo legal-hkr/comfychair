@@ -138,7 +138,6 @@
     <string name="msg_clear_queue_own">Damit werden alle deine wartenden Aufträge entfernt. Ein laufender Auftrag wird nicht abgebrochen.</string>
     <string name="button_clear">Leeren</string>
     <string name="error_queue_action">Die Warteschlange konnte nicht geändert werden</string>
-    <string name="menu_show_queue">Warteschlange anzeigen</string>
     <string name="content_description_open_queue">Warteschlange öffnen</string>
     <plurals name="msg_clear_queue_others">
         <item quantity="one">Damit wird auch %d Auftrag eines anderen Clients entfernt.</item>

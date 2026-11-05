@@ -138,7 +138,6 @@
     <string name="msg_clear_queue_own">Se quitarán todos tus trabajos en espera. Un trabajo en curso no se detiene.</string>
     <string name="button_clear">Vaciar</string>
     <string name="error_queue_action">No se pudo cambiar la cola</string>
-    <string name="menu_show_queue">Mostrar la cola</string>
     <string name="content_description_open_queue">Abrir la cola</string>
     <plurals name="msg_clear_queue_others">
         <item quantity="one">También se quita %d trabajo de otro cliente.</item>

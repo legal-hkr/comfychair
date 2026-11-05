@@ -117,7 +117,6 @@
     <string name="msg_clear_queue_own">This removes all your waiting jobs. A running job is not stopped.</string>
     <string name="button_clear">Clear</string>
     <string name="error_queue_action">The queue couldn\'t be changed</string>
-    <string name="menu_show_queue">Show queue</string>
     <string name="content_description_open_queue">Open queue</string>
     <plurals name="msg_clear_queue_others">
         <item quantity="one">This also removes %d job from another client.</item>

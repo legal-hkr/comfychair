@@ -484,9 +484,6 @@ fun GenerationControls(
                 }
             },
             onAddToFrontOfQueue = { submit(true) },
-            ownJobs = queueState.ownActiveJobCount,
-            otherJobs = queueState.otherJobCount,
-            onShowQueue = { QueueSheetController.visible = true },
             modifier = Modifier.weight(1f)
         )
 

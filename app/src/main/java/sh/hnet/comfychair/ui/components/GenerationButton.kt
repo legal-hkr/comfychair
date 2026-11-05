@@ -14,9 +14,6 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Cancel
-import androidx.compose.material.icons.rounded.Group
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -36,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalFocusManager
@@ -65,9 +61,6 @@ import sh.hnet.comfychair.R
  * @param onGenerate Callback when Generate/Add to queue is clicked
  * @param onCancelOwnJob Cancels this app's running job
  * @param onAddToFrontOfQueue Callback to add to front of queue
- * @param ownJobs Your jobs waiting or running, shown next to "Show queue"
- * @param otherJobs Other clients' jobs, shown next to "Show queue"
- * @param onShowQueue Opens the queue sheet (where the queue can also be cleared)
  * @param modifier Modifier for the button layout
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -82,9 +75,6 @@ fun GenerationButton(
     onGenerate: () -> Unit,
     onCancelOwnJob: () -> Unit,
     onAddToFrontOfQueue: () -> Unit = {},
-    ownJobs: Int,
-    otherJobs: Int,
-    onShowQueue: () -> Unit,
     modifier: Modifier = Modifier,
     disabledReason: String? = null
 ) {
@@ -164,39 +154,15 @@ fun GenerationButton(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                val placementCount = 2
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, if (canCancelOwnJob) 2 else 1)) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.menu_add_to_front_of_queue)) },
-                        shape = MenuDefaults.itemShape(0, placementCount).shape,
+                        shape = MenuDefaults.itemShape(0, 1).shape,
                         onClick = {
                             showMenu = false
                             onAddToFrontOfQueue()
                         },
                         leadingIcon = { Icon(Icons.Rounded.VerticalAlignTop, contentDescription = null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_show_queue)) },
-                        shape = MenuDefaults.itemShape(1, placementCount).shape,
-                        onClick = {
-                            showMenu = false
-                            onShowQueue()
-                        },
-                        leadingIcon = { Icon(Icons.Rounded.Queue, contentDescription = null) },
-                        // Your jobs and other clients' jobs, as on the queue chip
-                        trailingIcon = if (ownJobs + otherJobs > 0) ({
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (ownJobs > 0) {
-                                    Icon(Icons.Rounded.Person, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Text(ownJobs.toString(), style = MaterialTheme.typography.labelMedium)
-                                }
-                                if (ownJobs > 0 && otherJobs > 0) Spacer(Modifier.width(6.dp))
-                                if (otherJobs > 0) {
-                                    Icon(Icons.Rounded.Group, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Text(otherJobs.toString(), style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }) else null
                     )
                 }
                 // Only when the running job is yours: another client's job isn't yours to stop

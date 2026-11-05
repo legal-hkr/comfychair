@@ -138,7 +138,6 @@
     <string name="msg_clear_queue_own">Usunie to wszystkie Twoje czekające zadania. Trwające zadanie nie zostanie przerwane.</string>
     <string name="button_clear">Wyczyść</string>
     <string name="error_queue_action">Nie udało się zmienić kolejki</string>
-    <string name="menu_show_queue">Pokaż kolejkę</string>
     <string name="content_description_open_queue">Otwórz kolejkę</string>
     <plurals name="msg_clear_queue_others">
         <item quantity="one">Usunie to też %d zadanie innego klienta.</item>
