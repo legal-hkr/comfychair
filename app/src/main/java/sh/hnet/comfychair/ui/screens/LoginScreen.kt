@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import android.net.Uri
 import android.app.Activity
 import android.content.Intent
 import android.widget.Toast
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
@@ -84,6 +86,8 @@ import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsRadioRow
+import sh.hnet.comfychair.storage.BackupManager
+import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.util.ServerUrlUtils
 
@@ -134,6 +138,13 @@ fun LoginScreen() {
     // Trust decisions waiting for the user: an untrusted or changed certificate, or HTTP for a server that used HTTPS
     var pendingCertificateTrust by remember { mutableStateOf<Pair<Server, PendingCertificate>?>(null) }
     var pendingHttpFallbackServer by remember { mutableStateOf<Server?>(null) }
+
+    // Restore from backup: the picked file waits in state until the user confirms the overwrite
+    var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
+    var restoringBackup by remember { mutableStateOf(false) }
+    val backupRestoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> if (uri != null) pendingRestoreUri = uri }
 
     // Browser auth state:
     // - pendingBrowserAuthServer: the server whose cookies are being captured
@@ -314,6 +325,52 @@ fun LoginScreen() {
         }
     }
 
+    // Restore configuration from the backup picked on this screen. Runs outside the connection flow; on success the
+    // server list reloads in place (auto-connect is skipped: the user just chose what to restore).
+    fun restoreBackupFromLogin(uri: Uri) {
+        restoringBackup = true
+        scope.launch {
+            val json = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (json == null) {
+                restoringBackup = false
+                Toast.makeText(context, R.string.error_backup_restore, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                BackupManager(context.applicationContext).restoreBackup(json)
+            }
+            restoringBackup = false
+            when (result) {
+                is RestoreResult.Success -> {
+                    if (result.serversChanged) {
+                        // Caches belong to the old servers; disconnect if one is somehow still up
+                        ConnectionManager.invalidateForRestore()
+                    }
+                    // Reload the list and selection in place; the restore toast comes from here
+                    servers = serverStorage.getServers()
+                    selectedServer = serverStorage.getSelectedServerId()
+                        ?.let { id -> servers.find { it.id == id } }
+                        ?: servers.firstOrNull()
+                    selectedServer?.let { serverStorage.setSelectedServerId(it.id) }
+                    if (result.skippedWorkflows > 0) {
+                        Toast.makeText(context, R.string.msg_backup_restore_partial, Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, R.string.msg_backup_restore_success, Toast.LENGTH_LONG).show()
+                    }
+                }
+                is RestoreResult.Failure -> {
+                    Toast.makeText(context, result.errorMessageResId, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
     // Reset state when activity resumes (e.g., after logout or back navigation)
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -466,6 +523,22 @@ fun LoginScreen() {
         )
     }
 
+    // Backup restore confirmation - shown after the user picks a backup file
+    pendingRestoreUri?.let { uri ->
+        ConfirmDialog(
+            title = stringResource(R.string.title_backup_restore_confirm),
+            text = stringResource(R.string.msg_backup_restore_confirm),
+            confirmLabel = stringResource(R.string.button_backup_restore),
+            icon = Icons.Rounded.SettingsBackupRestore,
+            destructive = true,
+            onDismiss = { pendingRestoreUri = null },
+            onConfirm = {
+                pendingRestoreUri = null
+                restoreBackupFromLogin(uri)
+            }
+        )
+    }
+
     // Offline prompt dialog - shown when connection fails but cache exists
     if (showOfflinePrompt && offlinePromptServer != null) {
         ConfirmDialog(
@@ -589,6 +662,22 @@ fun LoginScreen() {
                 Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.button_server_add))
+            }
+            Spacer(Modifier.height(12.dp))
+            FilledTonalButton(
+                onClick = { backupRestoreLauncher.launch("application/json") },
+                enabled = !busy && !restoringBackup,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.SettingsBackupRestore,
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.IconSize)
+                )
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(stringResource(R.string.button_backup_restore_login))
             }
         }
 

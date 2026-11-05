@@ -243,6 +243,7 @@
     <string name="desc_backup_restore">Export or import your app configuration</string>
     <string name="button_backup_create">Create Backup</string>
     <string name="button_backup_restore">Restore from Backup</string>
+    <string name="button_backup_restore_login">Restore from backup file</string>
     <string name="msg_backup_created_success">Backup created successfully</string>
     <string name="error_backup_create">Failed to create backup</string>
     <string name="msg_backup_restore_success">Settings restored successfully</string>

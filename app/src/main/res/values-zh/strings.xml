@@ -684,6 +684,7 @@
     <string name="desc_backup_restore">导出或导入应用配置</string>
     <string name="button_backup_create">创建备份</string>
     <string name="button_backup_restore">从备份恢复</string>
+    <string name="button_backup_restore_login">从备份文件恢复</string>
     <string name="msg_backup_created_success">备份创建成功</string>
     <string name="error_backup_create">创建备份失败</string>
     <string name="msg_backup_restore_success">设置恢复成功</string>
