@@ -237,7 +237,13 @@ fun GenerationTopBar(
         title = { SourceSwitch(screen) },
         windowInsets = WindowInsets(0, 0, 0, 0),
         actions = {
-            QueueChip(queueChipState, onClick = if (isOfflineMode) null else ({ QueueSheetController.visible = true }))
+            // The bar leaves 4 dp at the end for icon buttons, which bring their own inset; the chip doesn't, so it gets
+            // the rest of the 16 dp the dock below keeps from the edge
+            QueueChip(
+                queueChipState,
+                modifier = Modifier.padding(end = 12.dp),
+                onClick = if (isOfflineMode) null else ({ QueueSheetController.visible = true })
+            )
             actions()
         }
     )
