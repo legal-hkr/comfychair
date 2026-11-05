@@ -3,10 +3,10 @@
 package sh.hnet.comfychair.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,12 +14,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,37 +37,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.FitScreen
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.ViewModule
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingToolbarColors
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -80,7 +56,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -109,6 +84,12 @@ import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
+import sh.hnet.comfychair.ui.components.workflow.EditorMode
+import sh.hnet.comfychair.ui.components.workflow.EditorStatus
+import sh.hnet.comfychair.ui.components.workflow.EditorToolbar
+import sh.hnet.comfychair.ui.components.workflow.EditorToolbarActions
+import sh.hnet.comfychair.ui.components.workflow.EditorTopRow
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
@@ -172,6 +153,38 @@ fun WorkflowEditorScreen(
 
     // Node browser bottom sheet state (hoisted outside conditional for animation stability)
     val nodeBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val mode = when {
+        uiState.isFieldMappingMode -> EditorMode.MAPPING
+        uiState.isEditMode -> EditorMode.EDIT
+        readOnly -> EditorMode.GRAPH
+        else -> EditorMode.NODE_VALUES
+    }
+    val connection = uiState.connectionModeState
+    val status = when {
+        connection != null -> EditorStatus.Connecting(
+            connection.sourceSlot.slotType ?: "",
+            fromOutput = connection.direction == ConnectionDirection.OUTPUT_TO_INPUT
+        )
+        mode == EditorMode.MAPPING -> EditorStatus.Mapping
+        mode == EditorMode.EDIT -> EditorStatus.Editing(uiState.hasUnsavedChanges, uiState.isManualPlacementMode)
+        mode == EditorMode.GRAPH -> EditorStatus.Graph
+        else -> EditorStatus.NodeValues(uiState.nodeAttributeEdits.values.sumOf { it.size })
+    }
+
+    // Back by mode (spec §10.2): a waiting connection or the values of a node first; structure editing asks before
+    // dropping changes. The system Back and the Back button do the same.
+    val goBack = {
+        when {
+            connection != null -> viewModel.exitConnectionMode()
+            uiState.isEditingNode -> viewModel.dismissNodeEditor()
+            uiState.isFieldMappingMode -> viewModel.cancelMapping()
+            uiState.isCreateMode -> viewModel.handleCreateModeClose()
+            uiState.isEditMode -> viewModel.handleEditExistingModeClose()
+            else -> onClose()
+        }
+    }
+    BackHandler(onBack = goBack)
 
     Box(
         modifier = Modifier
@@ -486,6 +499,21 @@ fun WorkflowEditorScreen(
                                     }
                                 }
                         )
+
+                        EditorTopRow(
+                            workflowName = uiState.workflowName,
+                            status = status,
+                            onBack = goBack,
+                            onCancelConnection = { viewModel.exitConnectionMode() },
+                            onEditStructure = if (mode == EditorMode.NODE_VALUES && !uiState.viewingWorkflowIsBuiltIn) {
+                                { viewModel.enterEditMode() }
+                            } else null,
+                            selectedCount = if (mode == EditorMode.EDIT) uiState.selectedNodeIds.size + uiState.selectedNoteIds.size else 0,
+                            onClearSelection = { viewModel.clearSelection() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, end = 12.dp, top = 8.dp)
+                        )
                     }
 
                     // Side sheet for node attribute editing
@@ -531,37 +559,18 @@ fun WorkflowEditorScreen(
             )
         }
 
-        // Bottom padding for toolbar and FAB alignment
-        val toolbarBottomPadding = 32.dp
-        val fabBottomPadding = toolbarBottomPadding + 4.dp // FAB is 8dp smaller, so offset by 4dp
-
-        // Floating toolbar - centered at bottom, hides when side sheet opens
+        // One floating toolbar, centred above the navigation bar; hidden while a node's values are open
         AnimatedVisibility(
             visible = !uiState.isEditingNode,
-            enter = fadeIn(animationSpec = tween(250)),
-            exit = fadeOut(animationSpec = tween(250)),
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = toolbarBottomPadding)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
-            WorkflowEditorFloatingToolbar(
-                expanded = true,
-                isFieldMappingMode = uiState.isFieldMappingMode,
-                canConfirmMapping = uiState.canConfirmMapping,
-                isEditMode = uiState.isEditMode,
-                canEnterEditMode = !uiState.viewingWorkflowIsBuiltIn && !readOnly,
-                hasSelection = uiState.selectedNodeIds.isNotEmpty() || uiState.selectedNoteIds.isNotEmpty(),
-                selectedCount = uiState.selectedNodeIds.size + uiState.selectedNoteIds.size,
+            val zoom = EditorToolbarActions(
                 scale = uiState.scale,
-                onConfirmMapping = {
-                    // If we have a workflow ID (existing or in edit mode), save directly
-                    // Otherwise (upload mode), return mappings to calling activity
-                    if (uiState.editingWorkflowId != null || uiState.isCreateMode) {
-                        viewModel.confirmMappingAndSave(context)
-                    } else {
-                        viewModel.confirmMapping()
-                    }
-                },
                 onZoomIn = {
                     shouldAnimateZoomChange.value = true
                     viewModel.zoomIn()
@@ -570,97 +579,52 @@ fun WorkflowEditorScreen(
                     shouldAnimateZoomChange.value = true
                     viewModel.zoomOut()
                 },
-                onSetZoom100 = {
+                onZoom100 = {
                     shouldAnimateZoomChange.value = true
                     viewModel.setZoom100()
                 },
-                onResetZoom = {
+                onFit = {
                     shouldAnimateZoomChange.value = true
                     viewModel.resetView()
-                },
-                onEnterEditMode = { viewModel.enterEditMode() },
-                onExitEditMode = {
-                    if (uiState.isCreateMode) {
-                        viewModel.handleCreateModeClose()
-                    } else {
-                        viewModel.handleExitEditModeWithConfirmation()
-                    }
-                },
-                onDeleteSelected = { viewModel.deleteSelectedNodes() },
-                onDuplicateSelected = { viewModel.duplicateSelectedNodes() },
-                onAddNode = {
-                    // Calculate center of canvas in graph coordinates for node insertion
-                    val centerX = (uiState.graphBounds.minX + uiState.graphBounds.maxX) / 2
-                    val centerY = (uiState.graphBounds.minY + uiState.graphBounds.maxY) / 2
-                    viewModel.showNodeBrowser(Offset(centerX, centerY))
-                },
-                onAddNote = {
-                    // Use manual placement if enabled, otherwise standard auto-layout
-                    if (uiState.isManualPlacementMode) {
-                        viewModel.addNoteManual()
-                    } else {
-                        viewModel.addNote()
-                    }
-                },
-                onBypassSelected = {
-                    // Toggle bypass for all selected nodes
-                    uiState.selectedNodeIds.forEach { nodeId ->
-                        val node = uiState.graph?.nodes?.find { it.id == nodeId }
-                        if (node != null) {
-                            viewModel.toggleNodeBypass(nodeId, !node.isBypassed)
+                }
+            )
+            EditorToolbar(
+                zoom = zoom,
+                // While a connection waits, only the zoom group
+                edit = if (mode == EditorMode.EDIT && connection == null) EditorEditActions(
+                    selectedNodes = uiState.selectedNodeIds.size,
+                    selectedItems = uiState.selectedNodeIds.size + uiState.selectedNoteIds.size,
+                    canUngroup = viewModel.isSelectedNodeInGroup(),
+                    placement = uiState.isManualPlacementMode,
+                    onAddNode = {
+                        // Centre of the graph in graph coordinates
+                        val centerX = (uiState.graphBounds.minX + uiState.graphBounds.maxX) / 2
+                        val centerY = (uiState.graphBounds.minY + uiState.graphBounds.maxY) / 2
+                        viewModel.showNodeBrowser(Offset(centerX, centerY))
+                    },
+                    onAddNote = { if (uiState.isManualPlacementMode) viewModel.addNoteManual() else viewModel.addNote() },
+                    onCleanUp = { viewModel.relayoutGraph() },
+                    onTogglePlacement = { viewModel.toggleManualPlacementMode() },
+                    onDuplicate = { viewModel.duplicateSelectedNodes() },
+                    onBypass = {
+                        uiState.selectedNodeIds.forEach { nodeId ->
+                            uiState.graph?.nodes?.find { it.id == nodeId }?.let { viewModel.toggleNodeBypass(nodeId, !it.isBypassed) }
                         }
+                    },
+                    onGroup = { viewModel.createGroupFromSelection() },
+                    onUngroup = { viewModel.ungroupSelectedNode() },
+                    onDelete = { viewModel.deleteSelectedNodes() },
+                    onSave = { viewModel.showSaveDialog(context) }
+                ) else null,
+                onFinishMapping = if (mode == EditorMode.MAPPING) {
+                    {
+                        // A workflow being created or edited saves here; an import returns the mapping to the caller
+                        if (uiState.editingWorkflowId != null || uiState.isCreateMode) viewModel.confirmMappingAndSave(context)
+                        else viewModel.confirmMapping()
                     }
-                },
-                onGroupSelected = { viewModel.createGroupFromSelection() },
-                onUngroupSelected = { viewModel.ungroupSelectedNode() },
-                canUngroup = viewModel.isSelectedNodeInGroup(),
-                onCleanup = { viewModel.relayoutGraph() },
-                onDone = { viewModel.showSaveDialog(context) },
-                isManualPlacementEnabled = uiState.isManualPlacementMode,
-                onToggleManualPlacement = { viewModel.toggleManualPlacementMode() }
+                } else null,
+                canFinishMapping = uiState.canConfirmMapping
             )
-        }
-
-        // FAB - right side normally, moves to canvas center when side sheet opens
-        BoxWithConstraints(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = fabBottomPadding)
-        ) {
-            // When editing, FAB moves left to be 16dp from the side sheet edge
-            // Side sheet takes 60% on the right, so FAB should be at (40% - 16dp - fabRadius)
-            // Currently FAB is at (100% - 16dp - fabRadius), so offset = 60% of width
-            val sideSheetWidthFraction = 0.6f
-            val fabOffset = if (uiState.isEditingNode) {
-                maxWidth * sideSheetWidthFraction + 8.dp
-            } else {
-                0.dp
-            }
-            val animatedFabOffset by animateDpAsState(
-                targetValue = fabOffset,
-                animationSpec = tween(durationMillis = 250),
-                label = "fabOffset"
-            )
-
-            FloatingActionButton(
-                onClick = {
-                    when {
-                        uiState.isEditingNode -> viewModel.dismissNodeEditor()
-                        uiState.isFieldMappingMode -> viewModel.cancelMapping()
-                        uiState.isCreateMode -> viewModel.handleCreateModeClose()
-                        uiState.isEditMode -> viewModel.handleEditExistingModeClose()
-                        else -> onClose()
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.offset(x = -animatedFabOffset)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.content_description_back)
-                )
-            }
         }
 
         // Node browser bottom sheet
@@ -967,356 +931,6 @@ fun WorkflowEditorScreen(
             )
         }
     }
-}
-
-/**
- * Floating toolbar for the workflow editor with zoom controls and mode-specific actions.
- * This toolbar does NOT include the FAB - the FAB is rendered separately to maintain its size.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun WorkflowEditorFloatingToolbar(
-    expanded: Boolean,
-    isFieldMappingMode: Boolean,
-    canConfirmMapping: Boolean,
-    isEditMode: Boolean,
-    canEnterEditMode: Boolean,
-    hasSelection: Boolean,
-    selectedCount: Int,
-    scale: Float,
-    onConfirmMapping: () -> Unit,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit,
-    onSetZoom100: () -> Unit,
-    onResetZoom: () -> Unit,
-    onEnterEditMode: () -> Unit,
-    onExitEditMode: () -> Unit,
-    onDeleteSelected: () -> Unit,
-    onDuplicateSelected: () -> Unit,
-    onAddNode: () -> Unit,
-    onAddNote: () -> Unit,
-    onBypassSelected: () -> Unit,
-    onGroupSelected: () -> Unit,
-    onUngroupSelected: () -> Unit,
-    canUngroup: Boolean,
-    onCleanup: () -> Unit,
-    onDone: () -> Unit,
-    isManualPlacementEnabled: Boolean = false,
-    onToggleManualPlacement: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    // Custom colors that properly follow the system theme
-    val toolbarColors = FloatingToolbarColors(
-        toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        toolbarContentColor = MaterialTheme.colorScheme.onSurface,
-        fabContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-        fabContentColor = MaterialTheme.colorScheme.onSecondaryContainer
-    )
-
-    HorizontalFloatingToolbar(
-        expanded = expanded,
-        modifier = modifier,
-        colors = toolbarColors,
-        content = {
-            // Edit mode controls
-            if (isEditMode) {
-                // State for "More" dropdown menu
-                var showMoreMenu by remember { mutableStateOf(false) }
-
-                // Wrap in Row with IntrinsicSize.Min so VerticalDivider sizes correctly
-                Row(
-                    modifier = Modifier.height(IntrinsicSize.Min),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Add node
-                    IconButton(onClick = onAddNode) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.workflow_editor_add_node)
-                        )
-                    }
-
-                    // More menu button
-                    Box {
-                        IconButton(onClick = { showMoreMenu = true }) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.workflow_editor_more)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = showMoreMenu,
-                            onDismissRequest = { showMoreMenu = false }
-                        ) {
-                            // Manual placement mode toggle
-                            DropdownMenuItem(
-                                text = {
-                                    Text(stringResource(
-                                        if (isManualPlacementEnabled) R.string.menu_disable_manual_placement
-                                        else R.string.menu_enable_manual_placement
-                                    ))
-                                },
-                                onClick = {
-                                    onToggleManualPlacement()
-                                    showMoreMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.GridView,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-
-                            HorizontalDivider()
-
-                            // Clone (enabled when nodes selected)
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workflow_editor_duplicate_node)) },
-                                onClick = {
-                                    onDuplicateSelected()
-                                    showMoreMenu = false
-                                },
-                                enabled = hasSelection,
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.ContentCopy,
-                                        contentDescription = null,
-                                        tint = if (hasSelection)
-                                            MaterialTheme.colorScheme.onSurface
-                                        else
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    )
-                                }
-                            )
-
-                            // Bypass (enabled when nodes selected)
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.node_editor_bypass)) },
-                                onClick = {
-                                    onBypassSelected()
-                                    showMoreMenu = false
-                                },
-                                enabled = hasSelection,
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.VisibilityOff,
-                                        contentDescription = null,
-                                        tint = if (hasSelection)
-                                            MaterialTheme.colorScheme.onSurface
-                                        else
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    )
-                                }
-                            )
-
-                            HorizontalDivider()
-
-                            // Group (enabled when 1+ items selected)
-                            val canGroup = hasSelection && selectedCount >= 1
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workflow_editor_group)) },
-                                onClick = {
-                                    onGroupSelected()
-                                    showMoreMenu = false
-                                },
-                                enabled = canGroup,
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Filled.GridView,
-                                        contentDescription = null,
-                                        tint = if (canGroup)
-                                            MaterialTheme.colorScheme.onSurface
-                                        else
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    )
-                                }
-                            )
-
-                            // Ungroup (enabled when selected node is in a group)
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workflow_editor_ungroup)) },
-                                onClick = {
-                                    onUngroupSelected()
-                                    showMoreMenu = false
-                                },
-                                enabled = canUngroup,
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Filled.ViewModule,
-                                        contentDescription = null,
-                                        tint = if (canUngroup)
-                                            MaterialTheme.colorScheme.onSurface
-                                        else
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    )
-                                }
-                            )
-
-                            HorizontalDivider()
-
-                            // Add note (always enabled)
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workflow_editor_add_note)) },
-                                onClick = {
-                                    onAddNote()
-                                    showMoreMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.EditNote,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-
-                            // Cleanup (hidden in manual placement mode)
-                            if (!isManualPlacementEnabled) {
-                                HorizontalDivider()
-
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.workflow_editor_cleanup)) },
-                                    onClick = {
-                                        onCleanup()
-                                        showMoreMenu = false
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.AutoFixHigh,
-                                            contentDescription = null
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Delete last among the node actions (enabled when nodes selected)
-                    IconButton(
-                        onClick = onDeleteSelected,
-                        enabled = hasSelection
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.workflow_editor_delete_node),
-                            tint = if (hasSelection)
-                                MaterialTheme.colorScheme.error
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-
-                    // Divider between node actions and workflow actions
-                    VerticalDivider(
-                        modifier = Modifier.fillMaxHeight(),
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-
-                    // Cancel / Exit edit mode
-                    IconButton(onClick = onExitEditMode) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = stringResource(R.string.workflow_editor_exit_edit_mode),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    // Done button
-                    IconButton(onClick = onDone) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = stringResource(R.string.workflow_editor_done),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            } else {
-                // Normal mode controls
-                // Wrap in Row with IntrinsicSize.Min so VerticalDivider sizes correctly
-                Row(
-                    modifier = Modifier.height(IntrinsicSize.Min),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Zoom out (tonal button)
-                    FilledTonalIconButton(onClick = onZoomOut) {
-                        Icon(
-                            Icons.Default.Remove,
-                            contentDescription = stringResource(R.string.workflow_editor_zoom_out)
-                        )
-                    }
-
-                    // Zoom percentage (tappable to reset to 100%)
-                    Text(
-                        text = stringResource(R.string.workflow_editor_zoom_percentage, (scale * 100).toInt()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() },
-                                onClick = onSetZoom100
-                            )
-                            .padding(horizontal = 4.dp)
-                    )
-
-                    // Zoom in (tonal button)
-                    FilledTonalIconButton(onClick = onZoomIn) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.workflow_editor_zoom_in)
-                        )
-                    }
-
-                    // Fit to screen
-                    IconButton(onClick = onResetZoom) {
-                        Icon(
-                            Icons.Default.FitScreen,
-                            contentDescription = stringResource(R.string.workflow_editor_reset_zoom)
-                        )
-                    }
-
-                    // Confirm mapping button (only in field mapping mode)
-                    if (isFieldMappingMode) {
-                        // Divider before confirm button
-                        VerticalDivider(
-                            modifier = Modifier.fillMaxHeight(),
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-
-                        IconButton(
-                            onClick = onConfirmMapping,
-                            enabled = canConfirmMapping
-                        ) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = stringResource(R.string.button_confirm),
-                                tint = if (canConfirmMapping)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            )
-                        }
-                    }
-
-                    // Enter edit mode button (not in field mapping mode, not for built-in workflows, not read-only)
-                    if (!isFieldMappingMode && canEnterEditMode) {
-                        // Divider before Tune button
-                        VerticalDivider(
-                            modifier = Modifier.fillMaxHeight(),
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-
-                        IconButton(onClick = onEnterEditMode) {
-                            Icon(
-                                Icons.Default.Tune,
-                                contentDescription = stringResource(R.string.workflow_editor_enter_edit_mode)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    )
 }
 
 @Composable

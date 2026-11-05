@@ -382,7 +382,6 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Edycja</string>
     <string name="label_workflow">Przepływ pracy</string>
-    <string name="menu_open_in_editor">Otwórz w edytorze</string>
     <string name="content_description_workflow_chip">Workflow: %1$s</string>
     <string name="label_section_quick">Szybkie</string>
     <string name="label_section_sampling">Próbkowanie</string>
@@ -609,9 +608,32 @@
     <string name="media_viewer_next">Następny</string>
 
     <!-- Workflow editor strings -->
+    <string name="menu_node_values">Wartości węzłów</string>
+    <string name="label_all_node_values">Wszystkie wartości węzłów</string>
+    <string name="desc_all_node_values">Wartości, których nie ma wyżej</string>
+    <string name="label_new_workflow">Nowy przepływ pracy</string>
+    <string name="label_editor_mode_graph">Graf – tylko do odczytu</string>
+    <string name="label_editor_mode_node_values">Wartości węzłów</string>
+    <string name="label_editor_mode_editing">Edycja</string>
+    <string name="label_editor_mode_editing_unsaved">Edycja – niezapisane zmiany</string>
+    <string name="label_editor_mode_placement">Edycja – rozmieszczanie</string>
+    <string name="label_editor_mode_mapping">Import – przypisywanie pól</string>
+    <string name="label_editor_connecting">Łączenie: %1$s</string>
+    <string name="hint_editor_tap_input">Dotknij podświetlonego wejścia</string>
+    <string name="hint_editor_tap_output">Dotknij podświetlonego wyjścia</string>
+    <string name="content_description_cancel_connection">Anuluj łączenie</string>
+    <string name="button_edit_structure">Edytuj strukturę</string>
+    <string name="content_description_clear_selection">Wyczyść zaznaczenie</string>
+    <string name="content_description_zoom_level">Powiększenie %1$d procent, dotknij, aby ustawić 100 procent</string>
+    <plurals name="label_editor_mode_node_values_changed">
+        <item quantity="one">Wartości węzłów – %d zmieniona</item>
+        <item quantity="few">Wartości węzłów – %d zmienione</item>
+        <item quantity="many">Wartości węzłów – %d zmienionych</item>
+        <item quantity="other">Wartości węzłów – %d zmienionej</item>
+    </plurals>
     <string name="workflow_editor_zoom_in">Powiększ</string>
     <string name="workflow_editor_zoom_out">Pomniejsz</string>
-    <string name="workflow_editor_reset_zoom">Resetuj widok</string>
+    <string name="workflow_editor_reset_zoom">Dopasuj graf do ekranu</string>
     <string name="workflow_editor_error_loading">Nie udało się załadować przepływu pracy</string>
 
     <!-- Workflow import dialog strings -->
@@ -760,8 +782,6 @@
     <string name="node_browser_accepts_input">Przyjmuje wejście %1$s</string>
     <string name="node_browser_provides_output">Dostarcza wyjście %1$s</string>
     <string name="button_clear_search">Wyczyść wyszukiwanie</string>
-    <string name="workflow_editor_enter_edit_mode">Edytuj graf</string>
-    <string name="workflow_editor_exit_edit_mode">Wyjdź z trybu edycji</string>
     <string name="workflow_editor_delete_node">Usuń zaznaczone</string>
     <string name="workflow_editor_duplicate_node">Duplikuj zaznaczone</string>
     <string name="workflow_editor_add_node">Dodaj węzeł</string>
@@ -775,7 +795,6 @@
     <string name="label_workflow_editor_rename_note">Tytuł notatki</string>
     <string name="workflow_editor_edit_note_content">Edytuj notatkę</string>
     <string name="label_workflow_editor_note_content">Treść (Markdown)</string>
-    <string name="workflow_editor_done">Gotowe</string>
     <string name="title_workflow_editor_discard">Odrzucić przepływ pracy?</string>
     <string name="msg_workflow_editor_discard">Masz niezapisane zmiany. Czy na pewno chcesz odrzucić ten przepływ pracy?</string>
     <string name="title_workflow_editor_select_input">Połącz z wejściem</string>

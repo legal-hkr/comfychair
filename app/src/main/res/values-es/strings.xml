@@ -375,7 +375,6 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Edición</string>
     <string name="label_workflow">Workflow</string>
-    <string name="menu_open_in_editor">Abrir en el editor</string>
     <string name="content_description_workflow_chip">Flujo de trabajo: %1$s</string>
     <string name="label_section_quick">Rápido</string>
     <string name="label_section_sampling">Muestreo</string>
@@ -594,9 +593,31 @@
     <string name="media_viewer_next">Siguiente</string>
 
     <!-- Workflow editor strings -->
+    <string name="menu_node_values">Valores de nodos</string>
+    <string name="label_all_node_values">Todos los valores de nodos</string>
+    <string name="desc_all_node_values">Valores que no aparecen arriba</string>
+    <string name="label_new_workflow">Nuevo flujo de trabajo</string>
+    <string name="label_editor_mode_graph">Grafo – solo lectura</string>
+    <string name="label_editor_mode_node_values">Valores de nodos</string>
+    <string name="label_editor_mode_editing">Edición</string>
+    <string name="label_editor_mode_editing_unsaved">Edición – cambios sin guardar</string>
+    <string name="label_editor_mode_placement">Edición – colocación</string>
+    <string name="label_editor_mode_mapping">Importación – asignar campos</string>
+    <string name="label_editor_connecting">Conectando %1$s</string>
+    <string name="hint_editor_tap_input">Toca una entrada resaltada</string>
+    <string name="hint_editor_tap_output">Toca una salida resaltada</string>
+    <string name="content_description_cancel_connection">Cancelar conexión</string>
+    <string name="button_edit_structure">Editar estructura</string>
+    <string name="content_description_clear_selection">Borrar selección</string>
+    <string name="content_description_zoom_level">Zoom %1$d por ciento, toca para 100 por ciento</string>
+    <plurals name="label_editor_mode_node_values_changed">
+        <item quantity="one">Valores de nodos – %d cambiado</item>
+        <item quantity="many">Valores de nodos – %d cambiados</item>
+        <item quantity="other">Valores de nodos – %d cambiados</item>
+    </plurals>
     <string name="workflow_editor_zoom_in">Acercar</string>
     <string name="workflow_editor_zoom_out">Alejar</string>
-    <string name="workflow_editor_reset_zoom">Restablecer vista</string>
+    <string name="workflow_editor_reset_zoom">Ajustar el grafo a la pantalla</string>
     <string name="workflow_editor_error_loading">Error al cargar el workflow</string>
 
     <!-- Workflow import dialog strings -->
@@ -742,8 +763,6 @@
     <string name="node_browser_accepts_input">Acepta entrada %1$s</string>
     <string name="node_browser_provides_output">Proporciona salida %1$s</string>
     <string name="button_clear_search">Borrar búsqueda</string>
-    <string name="workflow_editor_enter_edit_mode">Editar gráfico</string>
-    <string name="workflow_editor_exit_edit_mode">Salir del modo edición</string>
     <string name="workflow_editor_delete_node">Eliminar seleccionado</string>
     <string name="workflow_editor_duplicate_node">Duplicar seleccionado</string>
     <string name="workflow_editor_add_node">Agregar nodo</string>
@@ -757,7 +776,6 @@
     <string name="label_workflow_editor_rename_note">Título de la nota</string>
     <string name="workflow_editor_edit_note_content">Editar nota</string>
     <string name="label_workflow_editor_note_content">Contenido (Markdown)</string>
-    <string name="workflow_editor_done">Listo</string>
     <string name="title_workflow_editor_discard">¿Descartar flujo de trabajo?</string>
     <string name="msg_workflow_editor_discard">Tiene cambios sin guardar. ¿Está seguro de que desea descartar este flujo de trabajo?</string>
     <string name="title_workflow_editor_select_input">Conectar a entrada</string>

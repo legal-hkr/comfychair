@@ -375,7 +375,6 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Édition</string>
     <string name="label_workflow">Workflow</string>
-    <string name="menu_open_in_editor">Ouvrir dans l\'éditeur</string>
     <string name="content_description_workflow_chip">Workflow : %1$s</string>
     <string name="label_section_quick">Rapide</string>
     <string name="label_section_sampling">Échantillonnage</string>
@@ -594,9 +593,31 @@
     <string name="media_viewer_next">Suivant</string>
 
     <!-- Workflow editor strings -->
+    <string name="menu_node_values">Valeurs des nœuds</string>
+    <string name="label_all_node_values">Toutes les valeurs des nœuds</string>
+    <string name="desc_all_node_values">Valeurs absentes ci-dessus</string>
+    <string name="label_new_workflow">Nouveau workflow</string>
+    <string name="label_editor_mode_graph">Graphe – lecture seule</string>
+    <string name="label_editor_mode_node_values">Valeurs des nœuds</string>
+    <string name="label_editor_mode_editing">Modification</string>
+    <string name="label_editor_mode_editing_unsaved">Modification – non enregistrée</string>
+    <string name="label_editor_mode_placement">Modification – placement</string>
+    <string name="label_editor_mode_mapping">Import – associer les champs</string>
+    <string name="label_editor_connecting">Connexion %1$s</string>
+    <string name="hint_editor_tap_input">Touchez une entrée en surbrillance</string>
+    <string name="hint_editor_tap_output">Touchez une sortie en surbrillance</string>
+    <string name="content_description_cancel_connection">Annuler la connexion</string>
+    <string name="button_edit_structure">Modifier la structure</string>
+    <string name="content_description_clear_selection">Effacer la sélection</string>
+    <string name="content_description_zoom_level">Zoom %1$d pour cent, touchez pour 100 pour cent</string>
+    <plurals name="label_editor_mode_node_values_changed">
+        <item quantity="one">Valeurs des nœuds – %d modifiée</item>
+        <item quantity="many">Valeurs des nœuds – %d modifiées</item>
+        <item quantity="other">Valeurs des nœuds – %d modifiées</item>
+    </plurals>
     <string name="workflow_editor_zoom_in">Zoom avant</string>
     <string name="workflow_editor_zoom_out">Zoom arrière</string>
-    <string name="workflow_editor_reset_zoom">Réinitialiser la vue</string>
+    <string name="workflow_editor_reset_zoom">Ajuster le graphe à l’écran</string>
     <string name="workflow_editor_error_loading">Échec du chargement du workflow</string>
 
     <!-- Workflow import dialog strings -->
@@ -742,8 +763,6 @@
     <string name="node_browser_accepts_input">Accepte entrée %1$s</string>
     <string name="node_browser_provides_output">Fournit une sortie %1$s</string>
     <string name="button_clear_search">Effacer la recherche</string>
-    <string name="workflow_editor_enter_edit_mode">Modifier le graphe</string>
-    <string name="workflow_editor_exit_edit_mode">Quitter le mode édition</string>
     <string name="workflow_editor_delete_node">Supprimer la sélection</string>
     <string name="workflow_editor_duplicate_node">Dupliquer la sélection</string>
     <string name="workflow_editor_add_node">Ajouter un nœud</string>
@@ -757,7 +776,6 @@
     <string name="label_workflow_editor_rename_note">Titre de la note</string>
     <string name="workflow_editor_edit_note_content">Modifier la note</string>
     <string name="label_workflow_editor_note_content">Contenu (Markdown)</string>
-    <string name="workflow_editor_done">Terminé</string>
     <string name="title_workflow_editor_discard">Abandonner le workflow ?</string>
     <string name="msg_workflow_editor_discard">Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir abandonner ce workflow ?</string>
     <string name="title_workflow_editor_select_input">Connecter à l\'entrée</string>

@@ -361,7 +361,6 @@
     <string name="option_mode_inpainting">修复</string>
     <string name="option_mode_editing">编辑</string>
     <string name="label_workflow">工作流</string>
-    <string name="menu_open_in_editor">在编辑器中打开</string>
     <string name="content_description_workflow_chip">工作流：%1$s</string>
     <string name="label_section_quick">常用</string>
     <string name="label_section_sampling">采样</string>
@@ -564,9 +563,29 @@
     <string name="media_viewer_next">下一个</string>
 
     <!-- Workflow editor strings -->
+    <string name="menu_node_values">节点值</string>
+    <string name="label_all_node_values">所有节点值</string>
+    <string name="desc_all_node_values">上方未显示的值</string>
+    <string name="label_new_workflow">新工作流</string>
+    <string name="label_editor_mode_graph">图 – 只读</string>
+    <string name="label_editor_mode_node_values">节点值</string>
+    <string name="label_editor_mode_editing">编辑</string>
+    <string name="label_editor_mode_editing_unsaved">编辑 – 未保存的更改</string>
+    <string name="label_editor_mode_placement">编辑 – 摆放</string>
+    <string name="label_editor_mode_mapping">导入 – 映射字段</string>
+    <string name="label_editor_connecting">正在连接 %1$s</string>
+    <string name="hint_editor_tap_input">点按高亮的输入</string>
+    <string name="hint_editor_tap_output">点按高亮的输出</string>
+    <string name="content_description_cancel_connection">取消连接</string>
+    <string name="button_edit_structure">编辑结构</string>
+    <string name="content_description_clear_selection">清除选择</string>
+    <string name="content_description_zoom_level">缩放 %1$d%%，点按设为 100%%</string>
+    <plurals name="label_editor_mode_node_values_changed">
+        <item quantity="other">节点值 – 已更改 %d 项</item>
+    </plurals>
     <string name="workflow_editor_zoom_in">放大</string>
     <string name="workflow_editor_zoom_out">缩小</string>
-    <string name="workflow_editor_reset_zoom">重置视图</string>
+    <string name="workflow_editor_reset_zoom">使图适应屏幕</string>
     <string name="workflow_editor_error_loading">加载工作流失败</string>
 
     <!-- Workflow import dialog strings -->
@@ -706,8 +725,6 @@
     <string name="node_browser_accepts_input">接受 %1$s 输入</string>
     <string name="node_browser_provides_output">提供 %1$s 输出</string>
     <string name="button_clear_search">清除搜索</string>
-    <string name="workflow_editor_enter_edit_mode">编辑图表</string>
-    <string name="workflow_editor_exit_edit_mode">退出编辑模式</string>
     <string name="workflow_editor_delete_node">删除所选</string>
     <string name="workflow_editor_duplicate_node">复制所选</string>
     <string name="workflow_editor_add_node">添加节点</string>
@@ -721,7 +738,6 @@
     <string name="label_workflow_editor_rename_note">备注标题</string>
     <string name="workflow_editor_edit_note_content">编辑备注</string>
     <string name="label_workflow_editor_note_content">内容 (Markdown)</string>
-    <string name="workflow_editor_done">完成</string>
     <string name="title_workflow_editor_discard">放弃工作流？</string>
     <string name="msg_workflow_editor_discard">您有未保存的更改。确定要放弃此工作流吗？</string>
     <string name="title_workflow_editor_select_input">连接到输入</string>

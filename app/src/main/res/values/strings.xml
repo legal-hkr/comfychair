@@ -381,7 +381,6 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Editing</string>
     <string name="label_workflow">Workflow</string>
-    <string name="menu_open_in_editor">Open in editor</string>
     <string name="content_description_workflow_chip">Workflow: %1$s</string>
     <string name="label_section_quick">Quick</string>
     <string name="label_section_sampling">Sampling</string>
@@ -693,14 +692,33 @@
     <string name="media_viewer_next">Next</string>
 
     <!-- Workflow editor strings -->
+    <string name="menu_node_values">Node values</string>
+    <string name="label_all_node_values">All node values</string>
+    <string name="desc_all_node_values">Values not shown above</string>
+    <string name="label_new_workflow">New workflow</string>
+    <string name="label_editor_mode_graph">Graph – read-only</string>
+    <string name="label_editor_mode_node_values">Node values</string>
+    <string name="label_editor_mode_editing">Editing</string>
+    <string name="label_editor_mode_editing_unsaved">Editing – unsaved changes</string>
+    <string name="label_editor_mode_placement">Editing – placement</string>
+    <string name="label_editor_mode_mapping">Import – map fields</string>
+    <string name="label_editor_connecting">Connecting %1$s</string>
+    <string name="hint_editor_tap_input">Tap a highlighted input</string>
+    <string name="hint_editor_tap_output">Tap a highlighted output</string>
+    <string name="content_description_cancel_connection">Cancel connection</string>
+    <string name="button_edit_structure">Edit structure</string>
+    <string name="content_description_clear_selection">Clear selection</string>
+    <string name="content_description_zoom_level">Zoom %1$d percent, tap for 100 percent</string>
+    <plurals name="label_editor_mode_node_values_changed">
+        <item quantity="one">Node values – %d changed</item>
+        <item quantity="other">Node values – %d changed</item>
+    </plurals>
     <string name="workflow_editor_zoom_in">Zoom in</string>
     <string name="workflow_editor_zoom_out">Zoom out</string>
-    <string name="workflow_editor_reset_zoom">Reset view</string>
+    <string name="workflow_editor_reset_zoom">Fit graph to screen</string>
     <string name="workflow_editor_error_loading">Failed to load workflow</string>
     <string name="workflow_editor_zoom_percentage" translatable="false">%1$d%%</string>
     <string name="workflow_editor_node_info" translatable="false">%1$s (%2$s)</string>
-    <string name="workflow_editor_enter_edit_mode">Edit graph</string>
-    <string name="workflow_editor_exit_edit_mode">Exit edit mode</string>
     <string name="workflow_editor_delete_node">Delete selected</string>
     <string name="workflow_editor_duplicate_node">Duplicate selected</string>
     <string name="workflow_editor_add_node">Add node</string>
@@ -714,7 +732,6 @@
     <string name="label_workflow_editor_rename_note">Note title</string>
     <string name="workflow_editor_edit_note_content">Edit note</string>
     <string name="label_workflow_editor_note_content">Content (Markdown)</string>
-    <string name="workflow_editor_done">Done</string>
     <string name="title_workflow_editor_discard">Discard Workflow?</string>
     <string name="msg_workflow_editor_discard">You have unsaved changes. Are you sure you want to discard this workflow?</string>
     <string name="title_workflow_editor_select_input">Connect to Input</string>

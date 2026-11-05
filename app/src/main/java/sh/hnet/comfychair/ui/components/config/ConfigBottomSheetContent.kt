@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.ui.components.config
 
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Tune
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -81,7 +83,9 @@ fun ConfigBottomSheetContent(
     config: BottomSheetConfig,
     layout: OptionsLayout,
     workflowId: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Opens the workflow's node values in the editor: the last row, for values the sheet doesn't show
+    onOpenNodeValues: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -154,6 +158,28 @@ fun ConfigBottomSheetContent(
                 }
             }
         }
+        onOpenNodeValues?.let { open ->
+            item(key = "node-values") { NodeValuesRow(open) }
+        }
+    }
+}
+
+/** "All node values": the workflow's other values, in the editor. */
+@Composable
+private fun NodeValuesRow(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.label_all_node_values)) },
+            supportingContent = { Text(stringResource(R.string.desc_all_node_values)) },
+            leadingContent = { Icon(Icons.Rounded.Tune, contentDescription = null) },
+            trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        )
     }
 }
 

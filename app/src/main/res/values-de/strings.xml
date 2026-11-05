@@ -382,7 +382,6 @@
     <string name="option_mode_inpainting">Inpainting</string>
     <string name="option_mode_editing">Bearbeitung</string>
     <string name="label_workflow">Workflow</string>
-    <string name="menu_open_in_editor">Im Editor öffnen</string>
     <string name="content_description_workflow_chip">Workflow: %1$s</string>
     <string name="label_section_quick">Schnell</string>
     <string name="label_section_sampling">Sampling</string>
@@ -593,9 +592,30 @@
     <string name="media_viewer_next">Weiter</string>
 
     <!-- Workflow editor strings -->
+    <string name="menu_node_values">Knotenwerte</string>
+    <string name="label_all_node_values">Alle Knotenwerte</string>
+    <string name="desc_all_node_values">Werte, die oben fehlen</string>
+    <string name="label_new_workflow">Neuer Workflow</string>
+    <string name="label_editor_mode_graph">Graph – nur lesen</string>
+    <string name="label_editor_mode_node_values">Knotenwerte</string>
+    <string name="label_editor_mode_editing">Bearbeitung</string>
+    <string name="label_editor_mode_editing_unsaved">Bearbeitung – nicht gespeichert</string>
+    <string name="label_editor_mode_placement">Bearbeitung – Anordnen</string>
+    <string name="label_editor_mode_mapping">Import – Felder zuordnen</string>
+    <string name="label_editor_connecting">Verbinde %1$s</string>
+    <string name="hint_editor_tap_input">Tippe auf einen hervorgehobenen Eingang</string>
+    <string name="hint_editor_tap_output">Tippe auf einen hervorgehobenen Ausgang</string>
+    <string name="content_description_cancel_connection">Verbindung abbrechen</string>
+    <string name="button_edit_structure">Struktur bearbeiten</string>
+    <string name="content_description_clear_selection">Auswahl aufheben</string>
+    <string name="content_description_zoom_level">Zoom %1$d Prozent, tippen für 100 Prozent</string>
+    <plurals name="label_editor_mode_node_values_changed">
+        <item quantity="one">Knotenwerte – %d geändert</item>
+        <item quantity="other">Knotenwerte – %d geändert</item>
+    </plurals>
     <string name="workflow_editor_zoom_in">Vergrößern</string>
     <string name="workflow_editor_zoom_out">Verkleinern</string>
-    <string name="workflow_editor_reset_zoom">Ansicht zurücksetzen</string>
+    <string name="workflow_editor_reset_zoom">Graph an Bildschirm anpassen</string>
     <string name="workflow_editor_error_loading">Workflow konnte nicht geladen werden</string>
 
     <!-- Workflow import dialog strings -->
@@ -722,8 +742,6 @@
     <string name="node_browser_accepts_input">Akzeptiert %1$s-Eingang</string>
     <string name="node_browser_provides_output">Liefert %1$s-Ausgang</string>
     <string name="button_clear_search">Suche löschen</string>
-    <string name="workflow_editor_enter_edit_mode">Graph bearbeiten</string>
-    <string name="workflow_editor_exit_edit_mode">Bearbeitungsmodus beenden</string>
     <string name="workflow_editor_delete_node">Ausgewähltes löschen</string>
     <string name="workflow_editor_duplicate_node">Ausgewähltes duplizieren</string>
     <string name="workflow_editor_add_node">Knoten hinzufügen</string>
@@ -737,7 +755,6 @@
     <string name="label_workflow_editor_rename_note">Notiztitel</string>
     <string name="workflow_editor_edit_note_content">Notiz bearbeiten</string>
     <string name="label_workflow_editor_note_content">Inhalt (Markdown)</string>
-    <string name="workflow_editor_done">Fertig</string>
     <string name="title_workflow_editor_discard">Workflow verwerfen?</string>
     <string name="msg_workflow_editor_discard">Sie haben ungespeicherte Änderungen. Möchten Sie diesen Workflow wirklich verwerfen?</string>
     <string name="title_workflow_editor_select_input">Mit Eingang verbinden</string>

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.rounded.ArrowDropUp
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -117,9 +118,9 @@ fun WorkflowMenu(
         }
         DropdownMenuGroup(shapes = MenuDefaults.groupShape(count - 1, count)) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.menu_open_in_editor)) },
+                text = { Text(stringResource(R.string.menu_node_values)) },
                 shape = MenuDefaults.itemShape(0, 1).shape,
-                leadingIcon = { Icon(Icons.Rounded.AccountTree, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
                 onClick = {
                     onDismiss()
                     onOpenEditor()

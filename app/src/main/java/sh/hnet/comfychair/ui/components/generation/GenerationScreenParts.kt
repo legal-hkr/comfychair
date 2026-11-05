@@ -597,15 +597,13 @@ fun GenerationOptionsSheet(
     val context = LocalContext.current
     // Read when tapped, so the editor opens the workflow selected at that moment
     val selectedWorkflowId by rememberUpdatedState(state.selectedWorkflowId)
-    val callbacks = remember(viewModel) {
-        extraCallbacks(
-            generationCallbacks(viewModel) {
-                selectedWorkflowId.takeIf { it.isNotEmpty() }?.let { workflowId ->
-                    context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
-                }
-            }
-        )
+    val openNodeValues = {
+        selectedWorkflowId.takeIf { it.isNotEmpty() }?.let { workflowId ->
+            context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
+        }
+        Unit
     }
+    val callbacks = remember(viewModel) { extraCallbacks(generationCallbacks(viewModel, openNodeValues)) }
     val config = remember(state, callbacks) { buildConfig(callbacks) }
     val layout = remember(state.capabilities, config.itiConfig?.mode) {
         val iti = config.itiConfig
@@ -635,7 +633,8 @@ fun GenerationOptionsSheet(
             config = config,
             layout = layout,
             workflowId = state.selectedWorkflowId,
-            modifier = Modifier.navigationBarsPadding()
+            modifier = Modifier.navigationBarsPadding(),
+            onOpenNodeValues = openNodeValues
         )
     }
 }
