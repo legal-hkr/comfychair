@@ -661,6 +661,7 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">Typ przepływu pracy</string>
     <string name="button_continue">Kontynuuj</string>
+    <string name="title_whats_new">Co nowego w %1$s</string>
     <string name="button_dismiss">Zamknij</string>
     <string name="button_done">Gotowe</string>
 

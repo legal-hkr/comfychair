@@ -607,6 +607,7 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">工作流类型</string>
     <string name="button_continue">继续</string>
+    <string name="title_whats_new">%1$s 新功能</string>
     <string name="button_dismiss">关闭</string>
     <string name="button_done">完成</string>
 

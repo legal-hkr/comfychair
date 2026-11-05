@@ -1,5 +1,6 @@
 package sh.hnet.comfychair
 
+import sh.hnet.comfychair.ui.components.WhatsNewDialog
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     LoginScreen()
                 }
+                WhatsNewDialog()
             }
         }
     }

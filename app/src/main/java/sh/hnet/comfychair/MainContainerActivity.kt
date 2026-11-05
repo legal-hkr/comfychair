@@ -1,5 +1,6 @@
 package sh.hnet.comfychair
 
+import sh.hnet.comfychair.ui.components.WhatsNewDialog
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -201,6 +202,7 @@ class MainContainerActivity : ComponentActivity() {
                         startDestination = startDestination
                     )
                 }
+                WhatsNewDialog()
 
                 // Session-expired dialog for browser-based (Cookie) authentication.
                 // Shown when the AuthInterceptor detects a 401/403 or SSO redirect.

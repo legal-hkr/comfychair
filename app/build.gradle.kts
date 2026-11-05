@@ -104,3 +104,35 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
+
+/**
+ * Copies this version's F-Droid changelog (metadata/en-US/changelogs/<versionCode>.txt) into the app's assets as
+ * whats_new.txt, for the "What's new" dialog. English only, from the file written for the release anyway; without one,
+ * the app shows no dialog.
+ */
+abstract class WhatsNewAssetTask : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val changelog: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val dir = outputDir.get().asFile
+        dir.deleteRecursively()
+        dir.mkdirs()
+        changelog.files.firstOrNull { it.isFile }?.copyTo(File(dir, "whats_new.txt"))
+    }
+}
+
+val whatsNewAsset = tasks.register<WhatsNewAssetTask>("whatsNewAsset") {
+    changelog.from(rootProject.file("metadata/en-US/changelogs/${android.defaultConfig.versionCode}.txt"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(whatsNewAsset, WhatsNewAssetTask::outputDir)
+    }
+}

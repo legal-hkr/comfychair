@@ -784,6 +784,7 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">Workflow type</string>
     <string name="button_continue">Continue</string>
+    <string name="title_whats_new">What’s new in %1$s</string>
     <string name="button_dismiss">Dismiss</string>
     <string name="button_done">Done</string>
 

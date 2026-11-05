@@ -643,6 +643,7 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">Tipo de workflow</string>
     <string name="button_continue">Continuar</string>
+    <string name="title_whats_new">Novedades de la %1$s</string>
     <string name="button_dismiss">Cerrar</string>
     <string name="button_done">Hecho</string>
 
