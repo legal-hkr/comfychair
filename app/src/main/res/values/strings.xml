@@ -558,16 +558,37 @@
     <string name="workflow_section_ttv">Text to Video</string>
     <string name="workflow_section_itv">Image to Video</string>
     <string name="workflow_section_empty">No workflows</string>
-    <string name="label_workflow_built_in">Built-in</string>
     <string name="label_workflows_enabled_count">%1$d of %2$d enabled</string>
-    <string name="content_description_workflow_enabled">Enable %1$s</string>
+    <string name="label_workflows_filter_all">All</string>
+    <string name="label_workflows_filter_iti">Image to Image</string>
+    <string name="content_description_workflows_filter">Show</string>
+    <string name="menu_switch_all_on">Switch all on</string>
+    <string name="menu_switch_all_off">Switch all off</string>
+    <string name="label_workflows_yours">Yours</string>
+    <string name="label_workflows_builtin">Built-in</string>
+    <string name="content_description_workflow_details">%1$s, details</string>
+    <string name="msg_workflows_none_on">The “%1$s” screen has no workflow switched on and can’t generate.</string>
+    <string name="content_description_section_actions">%1$s. Section actions</string>
+    <string name="msg_needs_server">Needs a server connection</string>
+    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_kind_builtin">built-in</string>
+    <string name="label_workflow_kind_yours">yours</string>
+    <string name="label_show_in_screens">Show in generation screens</string>
+    <string name="button_view_graph">View graph</string>
+    <string name="button_edit_graph">Edit graph</string>
+    <string name="button_name_and_description">Name and description</string>
+    <string name="desc_duplicate_builtin">Make an editable copy</string>
+    <string name="title_workflow_export">Export</string>
+    <string name="button_export_app">Export for ComfyChair</string>
+    <string name="button_export_api">Export in ComfyUI API format</string>
+    <string name="button_delete_workflow">Delete workflow</string>
+    <string name="title_delete_workflow_named">Delete “%1$s”?</string>
+    <string name="msg_delete_workflow_device">It will be removed from this device. Files you exported are not affected.</string>
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Description</string>
     <string name="title_import_workflow">Import Workflow</string>
     <string name="title_save_workflow">Save New Workflow</string>
     <string name="title_edit_workflow">Edit Workflow</string>
-    <string name="title_delete_workflow">Delete Workflow</string>
-    <string name="msg_delete_workflow">Are you sure you want to delete \"%s\"?</string>
     <string name="button_import">Import</string>
     <string name="button_create_workflow">Create new</string>
     <string name="content_description_add_workflow">Add a workflow</string>
@@ -584,12 +605,7 @@
     <string name="msg_workflow_update_success">Workflow updated</string>
     <string name="error_workflow_update">Failed to update workflow</string>
     <string name="msg_workflow_duplicate_success">Workflow duplicated</string>
-    <string name="workflow_menu_edit_structure">Edit workflow</string>
-    <string name="workflow_menu_rename">Rename</string>
     <string name="workflow_menu_duplicate">Duplicate</string>
-    <string name="workflow_menu_delete">Delete</string>
-    <string name="workflow_menu_export">Export</string>
-    <string name="workflow_menu_export_api">Export (API Format)</string>
     <string name="title_duplicate_workflow">Duplicate Workflow</string>
     <string name="msg_workflow_export_success">Workflow exported</string>
     <string name="error_workflow_export">Failed to export workflow</string>
@@ -599,7 +615,6 @@
     </plurals>
 
     <!-- Content descriptions for accessibility -->
-    <string name="content_description_menu">Menu</string>
     <string name="content_description_back">Back</string>
     <string name="content_description_close">Close</string>
     <string name="content_description_video">Video</string>

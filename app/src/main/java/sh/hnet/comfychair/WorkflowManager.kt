@@ -174,6 +174,15 @@ object WorkflowManager {
         _workflowsVersion.value++
     }
 
+    /** Switches several workflows on or off at once (a section of the workflows page), with one write. */
+    fun setWorkflowsEnabled(workflowIds: Collection<String>, enabled: Boolean) {
+        val updated = if (enabled) disabledWorkflowIds - workflowIds.toSet() else disabledWorkflowIds + workflowIds
+        if (updated == disabledWorkflowIds) return
+        disabledWorkflowIds = updated
+        AppSettings.setDisabledWorkflowIds(applicationContext, updated)
+        _workflowsVersion.value++
+    }
+
     /**
      * Reload all workflows (call after adding/deleting user workflows)
      */

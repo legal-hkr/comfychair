@@ -20,17 +20,17 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.WorkflowValidationResult
+import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.LiteGraphConverter
+import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.FieldCandidate
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.PendingWorkflowUpload
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
-import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.LiteGraphConverter
-import sh.hnet.comfychair.util.ValidationUtils
-import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 
 /**
  * Export format options
@@ -38,6 +38,15 @@ import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 enum class ExportFormat {
     INTERNAL,  // Full internal format with placeholders, groups, notes
     API        // Raw ComfyUI API format with placeholders replaced
+}
+
+/** Which types the workflows page shows; Image to Image covers both of its modes. */
+enum class WorkflowFilter(val types: Set<WorkflowType>) {
+    ALL(WorkflowType.entries.toSet()),
+    TTI(setOf(WorkflowType.TTI)),
+    ITI(setOf(WorkflowType.ITI_EDITING, WorkflowType.ITI_INPAINTING)),
+    TTV(setOf(WorkflowType.TTV)),
+    ITV(setOf(WorkflowType.ITV))
 }
 
 /**
@@ -52,6 +61,8 @@ data class WorkflowManagementUiState(
     val itvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     // Workflows switched off by the user (not offered on the generation screens)
     val disabledWorkflowIds: Set<String> = emptySet(),
+    // Types shown; kept while the app runs (the view model belongs to the activity), not saved
+    val filter: WorkflowFilter = WorkflowFilter.ALL,
 
     // Import dialog state
     val showImportDialog: Boolean = false,
@@ -85,10 +96,6 @@ data class WorkflowManagementUiState(
     val editNameError: String? = null,
     val editDescriptionError: String? = null,
 
-    // Delete confirmation dialog
-    val showDeleteDialog: Boolean = false,
-    val workflowToDelete: WorkflowManager.Workflow? = null,
-
     // Duplicate dialog state
     val showDuplicateDialog: Boolean = false,
     val duplicatingWorkflow: WorkflowManager.Workflow? = null,
@@ -114,6 +121,10 @@ sealed class WorkflowManagementEvent {
     data class LaunchEditor(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
     data class LaunchExportFilePicker(val suggestedFilename: String) : WorkflowManagementEvent()
     object WorkflowsChanged : WorkflowManagementEvent()
+    /** A copy was created; its details open. */
+    data class DuplicateCreated(val workflowId: String) : WorkflowManagementEvent()
+    /** The workflow shown was deleted; the page returns to the list. */
+    object WorkflowDeleted : WorkflowManagementEvent()
 }
 
 /**
@@ -167,6 +178,16 @@ class WorkflowManagementViewModel : ViewModel() {
     fun onWorkflowEnabledChange(workflow: WorkflowManager.Workflow, enabled: Boolean) {
         WorkflowManager.setWorkflowEnabled(workflow.id, enabled)
         _uiState.value = _uiState.value.copy(disabledWorkflowIds = WorkflowManager.getDisabledWorkflowIds())
+    }
+
+    /** Switch all workflows of a type on or off (built-in and own). */
+    fun onSectionEnabledChange(type: WorkflowType, enabled: Boolean) {
+        WorkflowManager.setWorkflowsEnabled(WorkflowManager.getWorkflowsByType(type).map { it.id }, enabled)
+        _uiState.value = _uiState.value.copy(disabledWorkflowIds = WorkflowManager.getDisabledWorkflowIds())
+    }
+
+    fun onFilterChange(filter: WorkflowFilter) {
+        _uiState.value = _uiState.value.copy(filter = filter)
     }
 
     /**
@@ -920,42 +941,21 @@ class WorkflowManagementViewModel : ViewModel() {
 
     // Delete flow
 
-    fun onDeleteWorkflow(workflow: WorkflowManager.Workflow) {
+    /**
+     * Delete an own workflow (the detail page confirms first). On success the page returns to the list
+     * ([WorkflowManagementEvent.WorkflowDeleted]).
+     */
+    fun deleteWorkflow(workflow: WorkflowManager.Workflow) {
         if (workflow.isBuiltIn) return
-
-        _uiState.value = _uiState.value.copy(
-            showDeleteDialog = true,
-            workflowToDelete = workflow
-        )
-    }
-
-    fun confirmDelete() {
-        val state = _uiState.value
-        val workflow = state.workflowToDelete ?: return
-
         viewModelScope.launch {
-            val success = WorkflowManager.deleteUserWorkflow(workflow.id)
-
-            if (success) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_delete_success))
+            if (WorkflowManager.deleteUserWorkflow(workflow.id)) {
                 _events.emit(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
+                _events.emit(WorkflowManagementEvent.WorkflowDeleted)
             } else {
                 _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_delete))
             }
-
-            _uiState.value = _uiState.value.copy(
-                showDeleteDialog = false,
-                workflowToDelete = null
-            )
         }
-    }
-
-    fun cancelDelete() {
-        _uiState.value = _uiState.value.copy(
-            showDeleteDialog = false,
-            workflowToDelete = null
-        )
     }
 
     // Duplicate flow
@@ -1027,10 +1027,12 @@ class WorkflowManagementViewModel : ViewModel() {
                 newDescription = description
             )
 
-            if (result.isSuccess) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_duplicate_success))
+            val copy = result.getOrNull()
+            if (copy != null) {
                 _events.emit(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
+                // The detail page opens the copy's details
+                _events.emit(WorkflowManagementEvent.DuplicateCreated(copy.id))
             } else {
                 _events.emit(WorkflowManagementEvent.ShowToastMessage(
                     result.exceptionOrNull()?.message ?: "Duplicate failed"

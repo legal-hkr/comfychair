@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.navigation
 
+import android.net.Uri
+
 /**
  * Navigation routes of the main activity: the generation screens and the Gallery and Settings tabs.
  */
@@ -19,6 +21,11 @@ sealed class SettingsRoute(val route: String) {
     // Server
     data object Server : SettingsRoute("server_settings")
     data object Workflows : SettingsRoute("workflows_settings")
+    /** A workflow's details, from the Workflows page. */
+    data object WorkflowDetail : SettingsRoute("workflow_detail/{workflowId}") {
+        const val ARG = "workflowId"
+        fun of(workflowId: String): String = "workflow_detail/${Uri.encode(workflowId)}"
+    }
 
     // App
     data object Connection : SettingsRoute("connection_settings")
@@ -38,7 +45,7 @@ sealed class SettingsRoute(val route: String) {
     companion object {
         val all: List<SettingsRoute>
             get() = listOf(
-                Server, Workflows, Connection, Generation, MediaPrivacy, Language, WorkflowEditor,
+                Server, Workflows, WorkflowDetail, Connection, Generation, MediaPrivacy, Language, WorkflowEditor,
                 Backup, Cache, DebugLog, Reset, About
             )
     }

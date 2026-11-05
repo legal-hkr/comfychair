@@ -45,16 +45,19 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.JobStatus
+import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.LocalCoveredByMediaViewer
 import sh.hnet.comfychair.ui.components.LocalMediaOrigins
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
@@ -71,6 +74,7 @@ import sh.hnet.comfychair.ui.screens.ServerSettingsScreen
 import sh.hnet.comfychair.ui.screens.SettingsRootScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
+import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.CacheSettingsPage
@@ -203,7 +207,11 @@ fun MainNavHost(
     val galleryState by galleryViewModel.uiState.collectAsState()
     val gallerySelecting = currentScreen == MainRoute.Gallery && galleryState.isSelectionMode
 
-    CompositionLocalProvider(LocalMediaViewer provides mediaViewer, LocalMediaOrigins provides mediaOrigins) {
+    CompositionLocalProvider(
+        LocalMediaViewer provides mediaViewer,
+        LocalMediaOrigins provides mediaOrigins,
+        LocalAppSnackbarHostState provides snackbarHostState
+    ) {
         Box(Modifier.fillMaxSize()) {
             // Video players under the viewer step aside while it's open (the player is shared)
             CompositionLocalProvider(LocalCoveredByMediaViewer provides viewerOpen) {
@@ -289,7 +297,24 @@ fun MainNavHost(
                             composable(SettingsRoute.Workflows.route) {
                                 WorkflowsSettingsScreen(
                                     viewModel = workflowManagementViewModel,
-                                    onNavigateBack = { navController.popBackStack() }
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) }
+                                )
+                            }
+                            composable(
+                                SettingsRoute.WorkflowDetail.route,
+                                arguments = listOf(navArgument(SettingsRoute.WorkflowDetail.ARG) { type = NavType.StringType })
+                            ) { entry ->
+                                WorkflowDetailPage(
+                                    viewModel = workflowManagementViewModel,
+                                    workflowId = entry.arguments?.getString(SettingsRoute.WorkflowDetail.ARG).orEmpty(),
+                                    onNavigateBack = { navController.popBackStack() },
+                                    // A copy replaces this page, so Back returns to the list
+                                    onOpenDetails = { id ->
+                                        navController.navigate(SettingsRoute.WorkflowDetail.of(id)) {
+                                            popUpTo(SettingsRoute.WorkflowDetail.route) { inclusive = true }
+                                        }
+                                    }
                                 )
                             }
                             // The app's and the data's topic pages

@@ -471,15 +471,36 @@
     <string name="workflow_section_ttv">Tekst na wideo</string>
     <string name="workflow_section_itv">Obraz na wideo</string>
     <string name="workflow_section_empty">Brak przepływów pracy</string>
-    <string name="label_workflow_built_in">Wbudowany</string>
     <string name="label_workflows_enabled_count">Włączone: %1$d z %2$d</string>
-    <string name="content_description_workflow_enabled">Włącz %1$s</string>
+    <string name="label_workflows_filter_all">Wszystkie</string>
+    <string name="label_workflows_filter_iti">Obraz na obraz</string>
+    <string name="content_description_workflows_filter">Pokaż</string>
+    <string name="menu_switch_all_on">Włącz wszystkie</string>
+    <string name="menu_switch_all_off">Wyłącz wszystkie</string>
+    <string name="label_workflows_yours">Twoje</string>
+    <string name="label_workflows_builtin">Wbudowane</string>
+    <string name="content_description_workflow_details">%1$s, szczegóły</string>
+    <string name="msg_workflows_none_on">Ekran „%1$s” nie ma żadnego włączonego przepływu pracy i nie może generować.</string>
+    <string name="content_description_section_actions">%1$s. Akcje sekcji</string>
+    <string name="msg_needs_server">Wymaga połączenia z serwerem</string>
+    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_kind_builtin">wbudowany</string>
+    <string name="label_workflow_kind_yours">twój</string>
+    <string name="label_show_in_screens">Pokazuj na ekranach generowania</string>
+    <string name="button_view_graph">Pokaż graf</string>
+    <string name="button_edit_graph">Edytuj graf</string>
+    <string name="button_name_and_description">Nazwa i opis</string>
+    <string name="desc_duplicate_builtin">Utwórz kopię, którą można edytować</string>
+    <string name="title_workflow_export">Eksport</string>
+    <string name="button_export_app">Eksportuj dla ComfyChair</string>
+    <string name="button_export_api">Eksportuj w formacie API ComfyUI</string>
+    <string name="button_delete_workflow">Usuń przepływ pracy</string>
+    <string name="title_delete_workflow_named">Usunąć „%1$s”?</string>
+    <string name="msg_delete_workflow_device">Zniknie z tego urządzenia. Wyeksportowane pliki zostaną nietknięte.</string>
     <string name="label_workflow_name">Nazwa</string>
     <string name="label_workflow_description">Opis</string>
     <string name="title_import_workflow">Importuj przepływ pracy</string>
     <string name="title_edit_workflow">Edytuj przepływ pracy</string>
-    <string name="title_delete_workflow">Usuń przepływ pracy</string>
-    <string name="msg_delete_workflow">Czy na pewno chcesz usunąć \"%s\"?</string>
     <string name="button_import">Importuj</string>
     <string name="button_save">Zapisz</string>
     <string name="button_delete">Usuń</string>
@@ -493,12 +514,7 @@
     <string name="msg_workflow_update_success">Przepływ pracy zaktualizowany</string>
     <string name="error_workflow_update">Nie udało się zaktualizować przepływu pracy</string>
     <string name="msg_workflow_duplicate_success">Przepływ pracy zduplikowany</string>
-    <string name="workflow_menu_edit_structure">Edytuj przepływ pracy</string>
-    <string name="workflow_menu_rename">Zmień nazwę</string>
     <string name="workflow_menu_duplicate">Duplikuj</string>
-    <string name="workflow_menu_delete">Usuń</string>
-    <string name="workflow_menu_export">Eksportuj</string>
-    <string name="workflow_menu_export_api">Eksportuj (format API)</string>
     <string name="title_duplicate_workflow">Duplikuj przepływ pracy</string>
     <string name="msg_workflow_export_success">Przepływ pracy wyeksportowany</string>
     <string name="error_workflow_export">Nie udało się wyeksportować przepływu pracy</string>
@@ -510,7 +526,6 @@
     </plurals>
 
     <!-- Content descriptions for accessibility -->
-    <string name="content_description_menu">Menu</string>
     <string name="content_description_back">Wstecz</string>
     <string name="content_description_close">Zamknij</string>
     <string name="content_description_video">Wideo</string>

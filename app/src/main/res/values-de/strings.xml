@@ -464,15 +464,36 @@
     <string name="workflow_section_ttv">Text zu Video</string>
     <string name="workflow_section_itv">Bild zu Video</string>
     <string name="workflow_section_empty">Keine Workflows</string>
-    <string name="label_workflow_built_in">Eingebaut</string>
     <string name="label_workflows_enabled_count">%1$d von %2$d aktiviert</string>
-    <string name="content_description_workflow_enabled">%1$s aktivieren</string>
+    <string name="label_workflows_filter_all">Alle</string>
+    <string name="label_workflows_filter_iti">Bild zu Bild</string>
+    <string name="content_description_workflows_filter">Anzeigen</string>
+    <string name="menu_switch_all_on">Alle einschalten</string>
+    <string name="menu_switch_all_off">Alle ausschalten</string>
+    <string name="label_workflows_yours">Eigene</string>
+    <string name="label_workflows_builtin">Integriert</string>
+    <string name="content_description_workflow_details">%1$s, Details</string>
+    <string name="msg_workflows_none_on">Der Bildschirm „%1$s“ hat keinen eingeschalteten Workflow und kann nicht generieren.</string>
+    <string name="content_description_section_actions">%1$s. Abschnittsaktionen</string>
+    <string name="msg_needs_server">Erfordert eine Serververbindung</string>
+    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_kind_builtin">integriert</string>
+    <string name="label_workflow_kind_yours">eigener</string>
+    <string name="label_show_in_screens">In Generierungsbildschirmen anzeigen</string>
+    <string name="button_view_graph">Graph ansehen</string>
+    <string name="button_edit_graph">Graph bearbeiten</string>
+    <string name="button_name_and_description">Name und Beschreibung</string>
+    <string name="desc_duplicate_builtin">Eine bearbeitbare Kopie erstellen</string>
+    <string name="title_workflow_export">Export</string>
+    <string name="button_export_app">Für ComfyChair exportieren</string>
+    <string name="button_export_api">Im ComfyUI-API-Format exportieren</string>
+    <string name="button_delete_workflow">Workflow löschen</string>
+    <string name="title_delete_workflow_named">„%1$s“ löschen?</string>
+    <string name="msg_delete_workflow_device">Er wird von diesem Gerät entfernt. Exportierte Dateien sind nicht betroffen.</string>
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Beschreibung</string>
     <string name="title_import_workflow">Workflow importieren</string>
     <string name="title_edit_workflow">Workflow bearbeiten</string>
-    <string name="title_delete_workflow">Workflow löschen</string>
-    <string name="msg_delete_workflow">Möchten Sie \"%s\" wirklich löschen?</string>
     <string name="button_import">Importieren</string>
     <string name="button_save">Speichern</string>
     <string name="button_delete">Löschen</string>
@@ -486,12 +507,7 @@
     <string name="msg_workflow_update_success">Workflow aktualisiert</string>
     <string name="error_workflow_update">Workflow konnte nicht aktualisiert werden</string>
     <string name="msg_workflow_duplicate_success">Workflow dupliziert</string>
-    <string name="workflow_menu_edit_structure">Workflow bearbeiten</string>
-    <string name="workflow_menu_rename">Umbenennen</string>
     <string name="workflow_menu_duplicate">Duplizieren</string>
-    <string name="workflow_menu_delete">Löschen</string>
-    <string name="workflow_menu_export">Exportieren</string>
-    <string name="workflow_menu_export_api">Exportieren (API-Format)</string>
     <string name="title_duplicate_workflow">Workflow duplizieren</string>
     <string name="msg_workflow_export_success">Workflow exportiert</string>
     <string name="error_workflow_export">Workflow konnte nicht exportiert werden</string>
@@ -501,7 +517,6 @@
     </plurals>
 
     <!-- Content descriptions for accessibility -->
-    <string name="content_description_menu">Menü</string>
     <string name="content_description_back">Zurück</string>
     <string name="content_description_close">Schließen</string>
     <string name="content_description_video">Video</string>

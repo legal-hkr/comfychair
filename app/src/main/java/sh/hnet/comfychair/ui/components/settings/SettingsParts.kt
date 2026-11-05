@@ -114,19 +114,21 @@ class SettingsGroupScope internal constructor() {
 
 /**
  * A group of segmented rows, 2 dp apart, with round outer and small inner corners; optionally titled.
+ *
+ * @param subordinate A small title in onSurfaceVariant, for groups under a section heading (e.g. Yours, Built-in)
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SettingsGroup(title: String? = null, content: SettingsGroupScope.() -> Unit) {
+fun SettingsGroup(title: String? = null, subordinate: Boolean = false, content: SettingsGroupScope.() -> Unit) {
     val scope = SettingsGroupScope().apply(content)
     if (scope.rows.isEmpty()) return
     Column(Modifier.fillMaxWidth()) {
         title?.let {
             Text(
                 text = it,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+                style = if (subordinate) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                color = if (subordinate) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, bottom = if (subordinate) 6.dp else 8.dp)
             )
         }
         // Rows that come and go (shown only in some states) resize the group smoothly

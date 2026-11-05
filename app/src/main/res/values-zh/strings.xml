@@ -438,15 +438,36 @@
     <string name="workflow_section_ttv">文生视频</string>
     <string name="workflow_section_itv">图生视频</string>
     <string name="workflow_section_empty">暂无工作流</string>
-    <string name="label_workflow_built_in">内置</string>
     <string name="label_workflows_enabled_count">已启用 %1$d/%2$d</string>
-    <string name="content_description_workflow_enabled">启用 %1$s</string>
+    <string name="label_workflows_filter_all">全部</string>
+    <string name="label_workflows_filter_iti">图生图</string>
+    <string name="content_description_workflows_filter">显示</string>
+    <string name="menu_switch_all_on">全部开启</string>
+    <string name="menu_switch_all_off">全部关闭</string>
+    <string name="label_workflows_yours">我的</string>
+    <string name="label_workflows_builtin">内置</string>
+    <string name="content_description_workflow_details">%1$s，详情</string>
+    <string name="msg_workflows_none_on">“%1$s”屏幕没有开启的工作流，无法生成。</string>
+    <string name="content_description_section_actions">%1$s。分区操作</string>
+    <string name="msg_needs_server">需要连接服务器</string>
+    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_kind_builtin">内置</string>
+    <string name="label_workflow_kind_yours">我的</string>
+    <string name="label_show_in_screens">在生成屏幕中显示</string>
+    <string name="button_view_graph">查看图</string>
+    <string name="button_edit_graph">编辑图</string>
+    <string name="button_name_and_description">名称和描述</string>
+    <string name="desc_duplicate_builtin">创建可编辑的副本</string>
+    <string name="title_workflow_export">导出</string>
+    <string name="button_export_app">为 ComfyChair 导出</string>
+    <string name="button_export_api">以 ComfyUI API 格式导出</string>
+    <string name="button_delete_workflow">删除工作流</string>
+    <string name="title_delete_workflow_named">删除“%1$s”？</string>
+    <string name="msg_delete_workflow_device">它将从此设备中移除。已导出的文件不受影响。</string>
     <string name="label_workflow_name">名称</string>
     <string name="label_workflow_description">描述</string>
     <string name="title_import_workflow">导入工作流</string>
     <string name="title_edit_workflow">编辑工作流</string>
-    <string name="title_delete_workflow">删除工作流</string>
-    <string name="msg_delete_workflow">确定要删除"%s"吗？</string>
     <string name="button_import">导入</string>
     <string name="button_save">保存</string>
     <string name="button_delete">删除</string>
@@ -460,12 +481,7 @@
     <string name="msg_workflow_update_success">工作流已更新</string>
     <string name="error_workflow_update">更新工作流失败</string>
     <string name="msg_workflow_duplicate_success">工作流已复制</string>
-    <string name="workflow_menu_edit_structure">编辑工作流</string>
-    <string name="workflow_menu_rename">重命名</string>
     <string name="workflow_menu_duplicate">复制</string>
-    <string name="workflow_menu_delete">删除</string>
-    <string name="workflow_menu_export">导出</string>
-    <string name="workflow_menu_export_api">导出 (API 格式)</string>
     <string name="title_duplicate_workflow">复制工作流</string>
     <string name="msg_workflow_export_success">工作流已导出</string>
     <string name="error_workflow_export">导出工作流失败</string>
@@ -474,7 +490,6 @@
     </plurals>
 
     <!-- Content descriptions for accessibility -->
-    <string name="content_description_menu">菜单</string>
     <string name="content_description_back">返回</string>
     <string name="content_description_close">关闭</string>
     <string name="content_description_video">视频</string>
