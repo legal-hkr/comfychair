@@ -323,6 +323,13 @@
     </plurals>
     <string name="button_select_all">Tout sélectionner</string>
     <string name="title_delete_selected">Supprimer du serveur ?</string>
+    <string name="label_deleted_with_selection">Supprimé avec la sélection</string>
+    <string name="msg_delete_job_results">Le serveur supprime des tâches entières : tous les résultats générés avec celui-ci disparaissent aussi.</string>
+    <plurals name="title_delete_job_results">
+        <item quantity="one">Supprimer %d résultat de cette tâche ?</item>
+        <item quantity="many">Supprimer %d résultats de cette tâche ?</item>
+        <item quantity="other">Supprimer %d résultats de cette tâche ?</item>
+    </plurals>
     <plurals name="msg_delete_selected">
         <item quantity="one">L’élément sélectionné sera supprimé de l’historique du serveur.</item>
         <item quantity="many">%d éléments sélectionnés seront supprimés de l’historique du serveur.</item>

@@ -2,6 +2,8 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.material.icons.rounded.Link
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -304,11 +306,17 @@ fun GalleryScreen(
                                 }
                             }
                         } else {
+                            // Jobs of the selected items: the server deletes whole jobs, so their other results go too
+                            val selectedJobs = uiState.items
+                                .filter { "${it.promptId}_${it.filename}" in uiState.selectedItems }
+                                .mapTo(HashSet()) { it.promptId }
                             items(uiState.items, key = { item -> "${item.promptId}_${item.filename}" }) { item ->
+                                val selected = "${item.promptId}_${item.filename}" in uiState.selectedItems
                                 GalleryTile(
                                     item = item,
                                     selecting = uiState.isSelectionMode,
-                                    isSelected = "${item.promptId}_${item.filename}" in uiState.selectedItems,
+                                    isSelected = selected,
+                                    goesWithSelection = !selected && item.promptId in selectedJobs,
                                     isOfflineMode = isOfflineMode,
                                     onTap = {
                                         if (uiState.isSelectionMode) {
@@ -433,6 +441,8 @@ private fun GalleryTile(
     item: GalleryItem,
     selecting: Boolean,
     isSelected: Boolean,
+    // Not selected, but from the same job as a selected item: deleted with it
+    goesWithSelection: Boolean = false,
     isOfflineMode: Boolean = false,
     onTap: () -> Unit,
     onLongPress: () -> Unit
@@ -446,9 +456,11 @@ private fun GalleryTile(
         type = item.type
     )
     val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Dp>()
-    val inset by animateDpAsState(if (isSelected) 10.dp else 0.dp, spec, label = "tile inset")
-    val outerCorner by animateDpAsState(if (isSelected) 20.dp else 6.dp, spec, label = "tile corner")
-    val innerCorner by animateDpAsState(if (isSelected) 12.dp else 6.dp, spec, label = "image corner")
+    val marked = isSelected || goesWithSelection
+    val inset by animateDpAsState(if (marked) 10.dp else 0.dp, spec, label = "tile inset")
+    val outerCorner by animateDpAsState(if (marked) 20.dp else 6.dp, spec, label = "tile corner")
+    val innerCorner by animateDpAsState(if (marked) 12.dp else 6.dp, spec, label = "image corner")
+    val withSelection = stringResource(R.string.label_deleted_with_selection)
 
     Box(
         modifier = Modifier
@@ -457,9 +469,14 @@ private fun GalleryTile(
             // The viewer flies the medium out of the tile and back
             .mediaOrigin(mediaOriginKey(item.promptId, item.filename), fit = false, corner = 6.dp, still = bitmap)
             .clip(RoundedCornerShape(outerCorner.coerceAtLeast(0.dp)))
-            .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+            .background(if (marked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
             .combinedClickable(onClick = onTap, onLongClick = onLongPress)
-            .then(if (selecting) Modifier.semantics { selected = isSelected } else Modifier)
+            .then(
+                if (selecting) Modifier.semantics {
+                    selected = isSelected
+                    if (goesWithSelection) stateDescription = withSelection
+                } else Modifier
+            )
             // The spring overshoots a little: on the way back to 0 it would go negative
             .padding(inset.coerceAtLeast(0.dp))
             .clip(RoundedCornerShape(innerCorner.coerceAtLeast(0.dp)))
@@ -518,7 +535,7 @@ private fun GalleryTile(
                 }
             }
 
-            // Selection mark: a check when selected, an empty circle otherwise
+            // Selection mark: a check when selected, a link when deleted with a selected item, an empty circle otherwise
             if (selecting) {
                 Box(
                     modifier = Modifier
@@ -526,16 +543,28 @@ private fun GalleryTile(
                         .padding(8.dp)
                         .size(24.dp)
                         .background(
-                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            when {
+                                isSelected -> MaterialTheme.colorScheme.primary
+                                goesWithSelection -> MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isSelected) Icons.Rounded.Check else Icons.Rounded.RadioButtonUnchecked,
+                        imageVector = when {
+                            isSelected -> Icons.Rounded.Check
+                            goesWithSelection -> Icons.Rounded.Link
+                            else -> Icons.Rounded.RadioButtonUnchecked
+                        },
                         contentDescription = if (isSelected) stringResource(R.string.label_item_selected) else null,
-                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(if (isSelected) 18.dp else 22.dp)
+                        tint = when {
+                            isSelected -> MaterialTheme.colorScheme.onPrimary
+                            goesWithSelection -> MaterialTheme.colorScheme.onSecondary
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.size(if (isSelected || goesWithSelection) 18.dp else 22.dp)
                     )
                 }
             }

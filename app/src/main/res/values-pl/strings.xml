@@ -329,6 +329,14 @@
     </plurals>
     <string name="button_select_all">Zaznacz wszystko</string>
     <string name="title_delete_selected">Usunąć z serwera?</string>
+    <string name="label_deleted_with_selection">Zniknie razem z zaznaczonymi</string>
+    <string name="msg_delete_job_results">Serwer usuwa całe zadania, więc znikną wszystkie wyniki wygenerowane razem z tym.</string>
+    <plurals name="title_delete_job_results">
+        <item quantity="one">Usunąć %d wynik tego zadania?</item>
+        <item quantity="few">Usunąć %d wyniki tego zadania?</item>
+        <item quantity="many">Usunąć %d wyników tego zadania?</item>
+        <item quantity="other">Usunąć %d wyniku tego zadania?</item>
+    </plurals>
     <plurals name="msg_delete_selected">
         <item quantity="one">Zaznaczony element zniknie z historii serwera.</item>
         <item quantity="few">%d zaznaczone elementy znikną z historii serwera.</item>

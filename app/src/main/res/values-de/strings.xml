@@ -331,6 +331,12 @@
     </plurals>
     <string name="button_select_all">Alle auswählen</string>
     <string name="title_delete_selected">Vom Server löschen?</string>
+    <string name="label_deleted_with_selection">Wird mit der Auswahl gelöscht</string>
+    <string name="msg_delete_job_results">Der Server löscht ganze Aufträge, also verschwinden alle zusammen erzeugten Ergebnisse.</string>
+    <plurals name="title_delete_job_results">
+        <item quantity="one">%d Ergebnis dieses Auftrags löschen?</item>
+        <item quantity="other">%d Ergebnisse dieses Auftrags löschen?</item>
+    </plurals>
     <plurals name="msg_delete_selected">
         <item quantity="one">Das ausgewählte Element wird aus dem Serververlauf gelöscht.</item>
         <item quantity="other">%d ausgewählte Elemente werden aus dem Serververlauf gelöscht.</item>

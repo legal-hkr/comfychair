@@ -330,6 +330,12 @@
     </plurals>
     <string name="button_select_all">Select all</string>
     <string name="title_delete_selected">Delete from the server?</string>
+    <string name="label_deleted_with_selection">Deleted with the selected items</string>
+    <string name="msg_delete_job_results">The server deletes whole jobs, so every result generated together with this one goes too.</string>
+    <plurals name="title_delete_job_results">
+        <item quantity="one">Delete %d result of this job?</item>
+        <item quantity="other">Delete %d results of this job?</item>
+    </plurals>
     <plurals name="msg_delete_selected">
         <item quantity="one">The selected item will be deleted from the server history.</item>
         <item quantity="other">%d selected items will be deleted from the server history.</item>

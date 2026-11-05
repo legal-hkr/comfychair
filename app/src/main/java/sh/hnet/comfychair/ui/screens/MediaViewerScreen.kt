@@ -2,6 +2,8 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import androidx.compose.ui.res.pluralStringResource
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.ViewerCloseFrom
 import androidx.compose.ui.platform.LocalDensity
 import android.content.Context
@@ -133,6 +135,8 @@ fun MediaViewerScreen(
     // Metadata bottom sheet state
     var showMetadataSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    // Results of the job about to be deleted, while asking (only when there's more than the one shown)
+    var confirmJobDeletion by remember { mutableStateOf<Int?>(null) }
     val resources = LocalResources.current
 
     // Load metadata when sheet is shown
@@ -412,7 +416,12 @@ fun MediaViewerScreen(
                 canUseAsSource = uiState.currentItem?.isVideo == false,
                 // Gallery items only (a result on a generation screen isn't deleted from here)
                 onDelete = if (uiState.mode == ViewerMode.GALLERY) {
-                    { viewModel.deleteCurrentItem() }
+                    {
+                        // The server deletes whole jobs: with more results than this one, ask first
+                        val job = uiState.currentItem?.promptId
+                        val count = uiState.items.count { it.promptId == job }
+                        if (count > 1) confirmJobDeletion = count else viewModel.deleteCurrentItem()
+                    }
                 } else null,
                 onSave = { viewModel.saveCurrentItem() },
                 onShare = { viewModel.shareCurrentItem() },
@@ -450,6 +459,20 @@ fun MediaViewerScreen(
                 onDismiss = { showMetadataSheet = false }
             )
         }
+    }
+    confirmJobDeletion?.let { count ->
+        ConfirmDialog(
+            title = pluralStringResource(R.plurals.title_delete_job_results, count, count),
+            text = stringResource(R.string.msg_delete_job_results),
+            confirmLabel = stringResource(R.string.button_delete),
+            icon = Icons.Rounded.Delete,
+            destructive = true,
+            onConfirm = {
+                confirmJobDeletion = null
+                viewModel.deleteCurrentItem()
+            },
+            onDismiss = { confirmJobDeletion = null }
+        )
     }
 }
 

@@ -311,6 +311,11 @@
     </plurals>
     <string name="button_select_all">全选</string>
     <string name="title_delete_selected">从服务器删除？</string>
+    <string name="label_deleted_with_selection">将随所选项一起删除</string>
+    <string name="msg_delete_job_results">服务器会删除整个任务，因此与此结果一同生成的所有结果都会被删除。</string>
+    <plurals name="title_delete_job_results">
+        <item quantity="other">删除此任务的 %d 个结果？</item>
+    </plurals>
     <plurals name="msg_delete_selected">
         <item quantity="other">将从服务器历史中删除 %d 个所选项目。</item>
     </plurals>
