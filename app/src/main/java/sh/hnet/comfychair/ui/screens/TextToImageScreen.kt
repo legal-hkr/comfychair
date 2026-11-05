@@ -218,7 +218,7 @@ fun TextToImageScreen(
         state = uiState
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
-    PromptPresetDialogs(presetViewModel, presetUiState)
+    PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)
 }
 
 /** Media origin of this screen's single result in the preview. */

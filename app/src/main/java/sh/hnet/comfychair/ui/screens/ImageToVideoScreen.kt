@@ -330,7 +330,7 @@ fun ImageToVideoScreen(
         state = uiState
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
-    PromptPresetDialogs(presetViewModel, presetUiState)
+    PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)
 }
 
 /** Media origin of this screen's source image in the preview. */

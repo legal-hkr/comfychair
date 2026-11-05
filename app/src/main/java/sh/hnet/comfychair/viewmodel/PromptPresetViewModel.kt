@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.viewmodel
 
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.Job
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -64,7 +66,15 @@ class PromptPresetViewModel : ViewModel() {
         storage = PromptPresetStorage(context)
         currentScreenType = screenType
         refreshPresets()
+        // Writes from elsewhere in the app (a result's details save to any screen's library)
+        if (changesJob == null) {
+            changesJob = viewModelScope.launch {
+                PromptPresetStorage.changes.drop(1).collect { refreshPresets() }
+            }
+        }
     }
+
+    private var changesJob: Job? = null
 
     /**
      * Refresh presets from storage.

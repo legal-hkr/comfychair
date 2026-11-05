@@ -606,7 +606,6 @@
     <string name="button_continue">Continuer</string>
     <string name="button_dismiss">Fermer</string>
     <string name="button_confirm">Confirmer</string>
-    <string name="button_apply">Appliquer</string>
     <string name="button_done">Terminé</string>
 
     <!-- Workflow validation error dialogs -->
@@ -700,7 +699,8 @@
     <string name="button_debug_logging_view">Afficher les journaux</string>
     <string name="title_debug_log">Journal de débogage</string>
     <string name="msg_debug_log_empty">Aucune entrée de journal</string>
-    <string name="debug_log_save">Save</string>
+    <string name="debug_log_save">Enregistrer dans un fichier</string>
+    <string name="button_copy">Copier</string>
     <string name="debug_log_follow">Suivre</string>
     <string name="msg_debug_log_saved">Journal enregistré avec succès</string>
     <string name="error_debug_log_save">Échec de l\'enregistrement du journal</string>
@@ -821,7 +821,10 @@
     <string name="title_prompt_library">Bibliothèque de prompts</string>
     <string name="placeholder_prompt_library_search">Rechercher des prompts…</string>
     <string name="msg_prompt_library_empty">Aucun prompt enregistré</string>
-    <string name="prompt_library_filter_favorites">Afficher uniquement les favoris</string>
+    <string name="msg_delete_prompt">Il sera supprimé de la bibliothèque de prompts.</string>
+    <string name="msg_prompt_library_no_match">Aucun prompt ne correspond</string>
+    <string name="button_save_current_prompt">Enregistrer le prompt actuel</string>
+    <string name="prompt_library_filter_favorites">Favoris</string>
     <string name="prompt_preset_toggle_favorite">Basculer le favori</string>
     <string name="prompt_preset_edit">Modifier</string>
     <string name="prompt_preset_duplicate">Dupliquer</string>

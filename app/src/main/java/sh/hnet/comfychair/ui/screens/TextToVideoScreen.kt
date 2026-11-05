@@ -236,5 +236,5 @@ fun TextToVideoScreen(
         state = uiState
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
-    PromptPresetDialogs(presetViewModel, presetUiState)
+    PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)
 }

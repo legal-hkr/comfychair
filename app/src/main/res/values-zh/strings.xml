@@ -576,7 +576,6 @@
     <string name="button_continue">继续</string>
     <string name="button_dismiss">关闭</string>
     <string name="button_confirm">确认</string>
-    <string name="button_apply">应用</string>
     <string name="button_done">完成</string>
 
     <!-- Workflow validation error dialogs -->
@@ -668,7 +667,8 @@
     <string name="button_debug_logging_view">查看日志</string>
     <string name="title_debug_log">调试日志</string>
     <string name="msg_debug_log_empty">无日志条目</string>
-    <string name="debug_log_save">Save</string>
+    <string name="debug_log_save">保存到文件</string>
+    <string name="button_copy">复制</string>
     <string name="debug_log_follow">跟随</string>
     <string name="msg_debug_log_saved">日志保存成功</string>
     <string name="error_debug_log_save">保存日志失败</string>
@@ -785,7 +785,10 @@
     <string name="title_prompt_library">提示词库</string>
     <string name="placeholder_prompt_library_search">搜索提示词…</string>
     <string name="msg_prompt_library_empty">暂无保存的提示词</string>
-    <string name="prompt_library_filter_favorites">仅显示收藏</string>
+    <string name="msg_delete_prompt">它将从提示词库中移除。</string>
+    <string name="msg_prompt_library_no_match">没有匹配的提示词</string>
+    <string name="button_save_current_prompt">保存当前提示词</string>
+    <string name="prompt_library_filter_favorites">收藏</string>
     <string name="prompt_preset_toggle_favorite">切换收藏</string>
     <string name="prompt_preset_edit">编辑</string>
     <string name="prompt_preset_duplicate">复制</string>

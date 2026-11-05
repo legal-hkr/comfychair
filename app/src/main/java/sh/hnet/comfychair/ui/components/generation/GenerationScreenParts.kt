@@ -646,7 +646,9 @@ fun GenerationOptionsSheet(
 @Composable
 fun PromptPresetDialogs(
     presetViewModel: PromptPresetViewModel,
-    presetUiState: PromptPresetUiState
+    presetUiState: PromptPresetUiState,
+    // The screen's prompt, offered for saving when the library is empty
+    currentPrompt: String = ""
 ) {
     if (presetUiState.showLibrarySideSheet) {
         PromptLibraryDialog(
@@ -655,7 +657,6 @@ fun PromptPresetDialogs(
             searchQuery = presetUiState.searchQuery,
             selectedTags = presetUiState.selectedTags,
             filterFavoritesOnly = presetUiState.filterFavoritesOnly,
-            activePresetId = presetUiState.activePresetId,
             onSearchQueryChange = { presetViewModel.onSearchQueryChange(it) },
             onTagToggle = { presetViewModel.onTagToggle(it) },
             onToggleFavoritesFilter = { presetViewModel.onToggleFavoritesFilter() },
@@ -664,7 +665,8 @@ fun PromptPresetDialogs(
             onEditPreset = { presetViewModel.showEditDialog(it) },
             onDuplicatePreset = { presetViewModel.onDuplicatePreset(it) },
             onDeletePreset = { presetViewModel.onDeletePreset(it) },
-            onDismiss = { presetViewModel.dismissLibrary() }
+            onDismiss = { presetViewModel.dismissLibrary() },
+            onSaveCurrent = currentPrompt.takeIf { it.isNotBlank() }?.let { prompt -> { presetViewModel.showSaveDialog(prompt) } }
         )
     }
 

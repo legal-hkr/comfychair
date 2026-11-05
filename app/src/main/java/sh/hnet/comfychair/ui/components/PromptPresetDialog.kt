@@ -6,25 +6,16 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
@@ -45,6 +36,9 @@ import sh.hnet.comfychair.model.PromptPreset
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.model.displayName
 import sh.hnet.comfychair.storage.PromptPresetStorage
+import sh.hnet.comfychair.ui.components.dialogs.DialogDropdownField
+import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
+import sh.hnet.comfychair.ui.components.dialogs.FullScreenFormDialog
 
 /**
  * Dialog for saving or editing a prompt preset.
@@ -82,7 +76,6 @@ fun PromptPresetDialog(
 
     // Screen type selector state (only used when showScreenTypeSelector = true)
     var selectedScreenType by remember { mutableStateOf(ScreenType.TEXT_TO_IMAGE) }
-    var screenTypeExpanded by remember { mutableStateOf(false) }
 
     // When showing screen type selector, derive tags from storage based on selected type
     val effectiveExistingTags = if (showScreenTypeSelector && storage != null) {
@@ -136,183 +129,101 @@ fun PromptPresetDialog(
         nameFocusRequester.requestFocus()
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(
-                    if (isEditMode) R.string.title_prompt_preset_edit
-                    else R.string.title_prompt_preset_save
-                )
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Screen type selector (only shown when showScreenTypeSelector = true)
-                if (showScreenTypeSelector) {
-                    ExposedDropdownMenuBox(
-                        expanded = screenTypeExpanded,
-                        onExpandedChange = { screenTypeExpanded = it }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedScreenType.displayName(),
-                            onValueChange = { },
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.label_prompt_preset_screen_type)) },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = screenTypeExpanded)
-                            },
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        )
-                        ExposedDropdownMenu(
-                            expanded = screenTypeExpanded,
-                            onDismissRequest = { screenTypeExpanded = false }
-                        ) {
-                            ScreenType.entries.forEach { screenType ->
-                                DropdownMenuItem(
-                                    text = { Text(screenType.displayName()) },
-                                    onClick = {
-                                        selectedScreenType = screenType
-                                        screenTypeExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+    // What was there when the form opened, to ask before throwing edits away
+    val initial = remember { Triple(name, prompt, tags) }
+    val hasChanges = Triple(name, prompt, tags) != initial || tagInput.isNotBlank()
+
+    // Full screen: the prompt is long text and the keyboard takes half the screen
+    FullScreenFormDialog(
+        title = stringResource(if (isEditMode) R.string.title_prompt_preset_edit else R.string.title_prompt_preset_save),
+        confirmLabel = stringResource(R.string.button_save),
+        hasChanges = hasChanges,
+        onDismiss = onDismiss,
+        onConfirm = {
+            // A tag still being typed counts
+            if (tagInput.isNotBlank()) addTag(tagInput)
+            if (validate()) {
+                if (showScreenTypeSelector && onSaveWithScreenType != null) {
+                    onSaveWithScreenType(name.trim(), prompt.trim(), tags, selectedScreenType)
+                } else {
+                    onSave(name.trim(), prompt.trim(), tags)
                 }
-
-                // Name field
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = {
-                        name = it
-                        nameError = null
-                    },
-                    label = { Text(stringResource(R.string.label_prompt_preset_name)) },
-                    isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(nameFocusRequester)
-                )
-
-                // Prompt field
-                OutlinedTextField(
-                    value = prompt,
-                    onValueChange = { prompt = it },
-                    label = { Text(stringResource(R.string.hint_prompt)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3,
-                    maxLines = 5
-                )
-
-                // Tags section
-                Text(
-                    text = stringResource(R.string.label_prompt_preset_tags),
-                    style = MaterialTheme.typography.labelMedium
-                )
-
-                // Tag input with comma-to-chip behavior
-                OutlinedTextField(
-                    value = tagInput,
-                    onValueChange = { newValue ->
-                        if (newValue.endsWith(",") || newValue.endsWith("\n")) {
-                            addTag(newValue.dropLast(1))
-                        } else {
-                            tagInput = newValue
-                        }
-                    },
-                    label = { Text(stringResource(R.string.hint_prompt_preset_add_tag)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (tagInput.isNotBlank()) {
-                                addTag(tagInput)
-                            }
-                        }
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Current tags as removable chips
-                if (tags.isNotEmpty()) {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        tags.forEach { tag ->
-                            InputChip(
-                                selected = true,
-                                onClick = { /* no-op, use trailing icon to remove */ },
-                                label = { Text(tag) },
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { tags = tags - tag },
-                                        modifier = Modifier.size(InputChipDefaults.IconSize)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.prompt_preset_remove_tag),
-                                            modifier = Modifier.size(InputChipDefaults.IconSize)
-                                        )
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Suggested tags from existing presets
-                val suggestedTags = effectiveExistingTags - tags.map { it.lowercase() }.toSet()
-                if (suggestedTags.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.prompt_preset_suggested_tags),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        suggestedTags.take(10).forEach { tag ->
-                            SuggestionChip(
-                                onClick = { tags = tags + tag },
-                                label = { Text(tag) }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (validate()) {
-                        if (showScreenTypeSelector && onSaveWithScreenType != null) {
-                            onSaveWithScreenType(name.trim(), prompt.trim(), tags, selectedScreenType)
-                        } else {
-                            onSave(name.trim(), prompt.trim(), tags)
-                        }
-                    }
-                }
-            ) {
-                Text(stringResource(R.string.button_save))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_cancel))
             }
         }
-    )
+    ) {
+        // Which screen's library (only when saving from outside a screen, e.g. a result's details)
+        if (showScreenTypeSelector) {
+            DialogDropdownField(
+                label = stringResource(R.string.label_prompt_preset_screen_type),
+                options = ScreenType.entries.map { it to it.displayName() },
+                selected = selectedScreenType,
+                onSelect = { selectedScreenType = it }
+            )
+        }
+
+        DialogTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                nameError = null
+            },
+            label = stringResource(R.string.label_prompt_preset_name),
+            error = nameError,
+            modifier = Modifier.focusRequester(nameFocusRequester)
+        )
+
+        DialogTextField(
+            value = prompt,
+            onValueChange = { prompt = it },
+            label = stringResource(R.string.hint_prompt),
+            multiLine = true
+        )
+
+        // Tags: typed, a comma or Enter turns them into chips; existing tags suggested below
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = tagInput,
+                onValueChange = { newValue ->
+                    if (newValue.endsWith(",") || newValue.endsWith("\n")) addTag(newValue.dropLast(1)) else tagInput = newValue
+                },
+                label = { Text(stringResource(R.string.label_prompt_preset_tags)) },
+                placeholder = { Text(stringResource(R.string.hint_prompt_preset_add_tag)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (tagInput.isNotBlank()) addTag(tagInput) }),
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (tags.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    tags.forEach { tag ->
+                        InputChip(
+                            selected = false,
+                            onClick = { tags = tags - tag },
+                            label = { Text(tag) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.prompt_preset_remove_tag),
+                                    modifier = Modifier.size(InputChipDefaults.IconSize)
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+            val suggestedTags = effectiveExistingTags - tags.map { it.lowercase() }.toSet()
+            if (suggestedTags.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.prompt_preset_suggested_tags),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    suggestedTags.take(10).forEach { tag ->
+                        SuggestionChip(onClick = { tags = tags + tag }, label = { Text(tag) })
+                    }
+                }
+            }
+        }
+    }
 }

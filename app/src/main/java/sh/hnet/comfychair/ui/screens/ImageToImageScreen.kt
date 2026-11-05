@@ -414,7 +414,7 @@ fun ImageToImageScreen(
         }
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
-    PromptPresetDialogs(presetViewModel, presetUiState)
+    PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)
 }
 
 /** Media origins of this screen's single result and its source in the preview. */

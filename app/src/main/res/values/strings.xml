@@ -753,7 +753,6 @@
     <string name="button_continue">Continue</string>
     <string name="button_dismiss">Dismiss</string>
     <string name="button_confirm">Confirm</string>
-    <string name="button_apply">Apply</string>
     <string name="button_done">Done</string>
 
     <!-- Workflow validation error dialogs -->
@@ -820,7 +819,8 @@
     <string name="button_debug_logging_view">View logs</string>
     <string name="title_debug_log">Debug log</string>
     <string name="msg_debug_log_empty">No log entries</string>
-    <string name="debug_log_save">Save</string>
+    <string name="debug_log_save">Save to file</string>
+    <string name="button_copy">Copy</string>
     <string name="debug_log_follow">Follow</string>
     <string name="msg_debug_log_saved">Log saved successfully</string>
     <string name="error_debug_log_save">Failed to save log</string>
@@ -834,7 +834,10 @@
     <string name="title_prompt_library">Prompt Library</string>
     <string name="placeholder_prompt_library_search">Search prompts…</string>
     <string name="msg_prompt_library_empty">No saved prompts</string>
-    <string name="prompt_library_filter_favorites">Show favorites only</string>
+    <string name="msg_delete_prompt">It will be removed from the prompt library.</string>
+    <string name="msg_prompt_library_no_match">No prompts match</string>
+    <string name="button_save_current_prompt">Save the current prompt</string>
+    <string name="prompt_library_filter_favorites">Favorites</string>
     <string name="prompt_preset_toggle_favorite">Toggle favorite</string>
     <string name="prompt_preset_edit">Edit</string>
     <string name="prompt_preset_duplicate">Duplicate</string>

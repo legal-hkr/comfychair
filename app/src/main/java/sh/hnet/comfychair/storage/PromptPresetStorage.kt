@@ -1,5 +1,9 @@
 package sh.hnet.comfychair.storage
 
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.content.Context
 import org.json.JSONArray
 import sh.hnet.comfychair.model.PromptPreset
@@ -16,6 +20,11 @@ class PromptPresetStorage(context: Context) {
         const val PREFS_NAME = "PromptPresetPrefs"
         private const val KEY_PRESETS_JSON = "presets_json"
         const val MAX_FAVORITES_PER_SCREEN = 8
+
+        private val _changes = MutableStateFlow(0)
+
+        /** Bumped on every write, wherever it comes from (e.g. saving a prompt from a result's details), so open screens refresh. */
+        val changes: StateFlow<Int> = _changes.asStateFlow()
     }
 
     /**
@@ -69,6 +78,7 @@ class PromptPresetStorage(context: Context) {
         val array = JSONArray()
         presets.forEach { array.put(it.toJson()) }
         prefs.edit().putString(KEY_PRESETS_JSON, array.toString()).apply()
+        _changes.update { it + 1 }
     }
 
     /**
@@ -104,6 +114,7 @@ class PromptPresetStorage(context: Context) {
      */
     fun clearAll() {
         prefs.edit().remove(KEY_PRESETS_JSON).apply()
+        _changes.update { it + 1 }
     }
 
     /**
