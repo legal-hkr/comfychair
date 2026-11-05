@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.ui.components.config
 
-import android.graphics.Bitmap
-import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.vector.ImageVector
 import sh.hnet.comfychair.model.LoraSelection
@@ -36,20 +34,12 @@ data class WorkflowConfig(
 )
 
 /**
- * ITI-specific configuration (mode selector and reference images)
+ * ITI-specific configuration: the mode (reference images are set on the source image, not in the sheet)
  */
 @Stable
 data class ItiConfig(
     val mode: ImageToImageMode,
-    val onModeChange: (ImageToImageMode) -> Unit,
-    val referenceImage1: Bitmap? = null,
-    val onReferenceImage1Change: (Uri) -> Unit,
-    val onClearReferenceImage1: () -> Unit,
-    val hasReferenceImage1: Boolean = false,
-    val referenceImage2: Bitmap? = null,
-    val onReferenceImage2Change: (Uri) -> Unit,
-    val onClearReferenceImage2: () -> Unit,
-    val hasReferenceImage2: Boolean = false
+    val onModeChange: (ImageToImageMode) -> Unit
 )
 
 /**

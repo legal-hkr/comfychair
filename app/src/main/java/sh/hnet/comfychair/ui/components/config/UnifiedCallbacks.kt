@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components.config
 
-import android.net.Uri
 import androidx.compose.runtime.Stable
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 
@@ -77,10 +76,4 @@ data class UnifiedCallbacks(
 
     // === ITI-Specific: Mode Switching ===
     val onModeChange: ((ImageToImageMode) -> Unit)? = null,
-
-    // === ITI-Specific: Reference Images (editing mode) ===
-    val onReferenceImage1Change: ((Uri) -> Unit)? = null,
-    val onClearReferenceImage1: (() -> Unit)? = null,
-    val onReferenceImage2Change: ((Uri) -> Unit)? = null,
-    val onClearReferenceImage2: (() -> Unit)? = null,
 )

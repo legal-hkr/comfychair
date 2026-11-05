@@ -71,12 +71,6 @@ class OptionsLayoutTest {
         assertTrue(optionsLayout(eight.copy(hasBatchSize = true)).sectioned)
     }
 
-    @Test
-    fun referenceImagesJoinTheWorkflowSectionWithoutCounting() {
-        val layout = optionsLayout(WorkflowCapabilities(hasSeed = true), setOf(REFERENCE_IMAGES))
-        assertEquals(listOf(listOf(WORKFLOW), listOf(REFERENCE_IMAGES)), layout.sections[0].rows)
-        assertEquals(1, layout.fieldCount)
-    }
 
     @Test
     fun aLoneHalfFieldStaysAlone() {

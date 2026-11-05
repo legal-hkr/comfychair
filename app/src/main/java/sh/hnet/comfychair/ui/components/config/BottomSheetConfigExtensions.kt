@@ -190,14 +190,6 @@ fun ImageToImageUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): Bottom
         workflowIcon = workflowIcon,
         itiConfig = ItiConfig(
             mode = mode,
-            onModeChange = callbacks.onModeChange ?: {},
-            referenceImage1 = referenceImage1,
-            onReferenceImage1Change = callbacks.onReferenceImage1Change ?: {},
-            onClearReferenceImage1 = callbacks.onClearReferenceImage1 ?: {},
-            referenceImage2 = referenceImage2,
-            onReferenceImage2Change = callbacks.onReferenceImage2Change ?: {},
-            onClearReferenceImage2 = callbacks.onClearReferenceImage2 ?: {},
-            hasReferenceImage1 = capabilities.hasReferenceImage1,
-            hasReferenceImage2 = capabilities.hasReferenceImage2
+            onModeChange = callbacks.onModeChange ?: {}
         )
     )

@@ -80,13 +80,11 @@ import sh.hnet.comfychair.ui.components.PromptPresetDialog
 import sh.hnet.comfychair.ui.components.config.BottomSheetConfig
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
-import sh.hnet.comfychair.ui.components.config.OptionField
 import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.optionsLayout
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
-import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.PromptPresetEvent
 import sh.hnet.comfychair.viewmodel.PromptPresetUiState
 import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
@@ -600,17 +598,7 @@ fun GenerationOptionsSheet(
     }
     val callbacks = remember(viewModel) { extraCallbacks(generationCallbacks(viewModel)) }
     val config = remember(state, callbacks) { buildConfig(callbacks) }
-    val layout = remember(state.capabilities, config.itiConfig?.mode) {
-        val iti = config.itiConfig
-        optionsLayout(
-            state.capabilities,
-            setOfNotNull(
-                OptionField.REFERENCE_IMAGES.takeIf {
-                    iti != null && iti.mode == ImageToImageMode.EDITING && (iti.hasReferenceImage1 || iti.hasReferenceImage2)
-                }
-            )
-        )
-    }
+    val layout = remember(state.capabilities) { optionsLayout(state.capabilities) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = layout.sectioned)
     LaunchedEffect(visible) {
         if (!visible) {

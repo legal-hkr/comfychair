@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.mediaOrigin
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -74,6 +73,7 @@ import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.mediaOrigin
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -402,16 +402,8 @@ fun ImageToImageScreen(
         onDismiss = { showOptionsSheet = false },
         viewModel = imageToImageViewModel,
         state = uiState,
-        // Mode and reference images; the ViewModel applies every other change to the current mode
-        extraCallbacks = { callbacks ->
-            callbacks.copy(
-                onModeChange = imageToImageViewModel::onModeChange,
-                onReferenceImage1Change = { uri -> imageToImageViewModel.onReferenceImage1Change(context, uri) },
-                onClearReferenceImage1 = imageToImageViewModel::onClearReferenceImage1,
-                onReferenceImage2Change = { uri -> imageToImageViewModel.onReferenceImage2Change(context, uri) },
-                onClearReferenceImage2 = imageToImageViewModel::onClearReferenceImage2
-            )
-        }
+        // The mode; the ViewModel applies every other change to the current mode
+        extraCallbacks = { callbacks -> callbacks.copy(onModeChange = imageToImageViewModel::onModeChange) }
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
     PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)

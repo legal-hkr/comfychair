@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.ui.components.config
 
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Tune
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,8 +12,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -46,10 +46,8 @@ import sh.hnet.comfychair.ui.components.generation.WorkflowRow
 import sh.hnet.comfychair.ui.components.shared.ChoiceRow
 import sh.hnet.comfychair.ui.components.shared.ConstrainedNumberField
 import sh.hnet.comfychair.ui.components.shared.NumberParameter
-import sh.hnet.comfychair.ui.components.shared.ReferenceImageThumbnail
 import sh.hnet.comfychair.ui.components.shared.SeedRow
 import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
-import sh.hnet.comfychair.viewmodel.ImageToImageMode
 
 /** One line of the sheet's list. */
 private sealed interface SheetItem {
@@ -255,7 +253,6 @@ private fun Field(
 
     when (field) {
         OptionField.WORKFLOW -> WorkflowSection(config.workflow)
-        OptionField.REFERENCE_IMAGES -> config.itiConfig?.let { ReferenceImagesSection(it) }
         OptionField.SEED -> params.seed?.let { seed ->
             SeedRow(
                 workflowName = workflowName,
@@ -400,36 +397,6 @@ object OptionsSectionPrefs {
 
     fun clearAll(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
-    }
-}
-
-@Composable
-private fun ReferenceImagesSection(itiConfig: ItiConfig) {
-    val hasAnyReferenceImages = itiConfig.hasReferenceImage1 || itiConfig.hasReferenceImage2
-    if (itiConfig.mode == ImageToImageMode.EDITING && hasAnyReferenceImages) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            if (itiConfig.hasReferenceImage1) {
-                ReferenceImageThumbnail(
-                    image = itiConfig.referenceImage1,
-                    contentDescription = stringResource(R.string.content_description_reference_image_1),
-                    onImageSelected = itiConfig.onReferenceImage1Change,
-                    onClear = itiConfig.onClearReferenceImage1,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            if (itiConfig.hasReferenceImage2) {
-                ReferenceImageThumbnail(
-                    image = itiConfig.referenceImage2,
-                    contentDescription = stringResource(R.string.content_description_reference_image_2),
-                    onImageSelected = itiConfig.onReferenceImage2Change,
-                    onClear = itiConfig.onClearReferenceImage2,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
     }
 }
 
