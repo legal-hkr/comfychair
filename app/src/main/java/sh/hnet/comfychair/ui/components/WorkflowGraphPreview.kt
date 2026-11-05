@@ -99,6 +99,8 @@ fun WorkflowGraphPreview(
                 offset = offset,
                 onTransform = { _, _ -> },
                 enableManualTransform = false,
+                // Shown when ready, all at once: the loading indicator covers the wait
+                animateChanges = false,
                 renderedGroups = current.renderedGroups,
                 notes = current.graph.notes,
                 nodeDefinitions = current.nodeDefinitions,

@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.FiniteAnimationSpec
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -237,7 +239,9 @@ fun WorkflowGraphCanvas(
     onNoteDragStart: ((Int) -> Unit)? = null,
     onNoteDragEnd: (() -> Unit)? = null,
     justDroppedNoteId: Int? = null,
-    onJustDroppedNoteRendered: (() -> Unit)? = null
+    onJustDroppedNoteRendered: (() -> Unit)? = null,
+    // Nodes, notes, groups and connections move and fade in on changes; off, they're drawn in place at once (a preview)
+    animateChanges: Boolean = true
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -340,11 +344,10 @@ fun WorkflowGraphCanvas(
     // Animation state for edges (alpha only)
     val animatedEdgeStates = remember { mutableStateMapOf<EdgeKey, AnimatedEdgeState>() }
 
-    // Animation spec for smooth transitions
-    val animationSpec = tween<Float>(
-        durationMillis = 350,
-        easing = FastOutSlowInEasing
-    )
+    // Animation spec for smooth transitions (none when changes aren't animated)
+    val animationSpec: FiniteAnimationSpec<Float> = if (animateChanges) {
+        tween(durationMillis = 350, easing = FastOutSlowInEasing)
+    } else snap()
 
     // Pulsing glow animation for valid input sockets - only runs when in connection mode
     val glowPulse = remember { Animatable(0f) }
