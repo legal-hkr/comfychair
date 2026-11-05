@@ -213,7 +213,12 @@ fun WorkflowEditorScreen(
             else -> onClose()
         }
     }
-    BackHandler(onBack = goBack)
+    // Taken over only when Back has something to do first or might not leave (unsaved changes ask); otherwise it's the
+    // system's, with its predictive animation back to the previous screen (goBack would only close the editor too)
+    val backHasWork = connection != null || uiState.isEditingNode || uiState.isFieldMappingMode ||
+        ((uiState.isCreateMode || uiState.isEditMode) &&
+            (uiState.hasUnsavedChanges || (uiState.isCreateMode && uiState.graph?.nodes?.isNotEmpty() == true)))
+    BackHandler(enabled = backHasWork, onBack = goBack)
 
     // Node values: a standard (non-modal) bottom sheet, so the graph stays pannable; swiping it down closes the node
     val valuesSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.Hidden, skipHiddenState = false)
