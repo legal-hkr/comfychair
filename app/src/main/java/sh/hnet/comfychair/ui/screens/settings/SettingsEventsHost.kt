@@ -32,7 +32,9 @@ fun SettingsEventsHost(viewModel: SettingsViewModel) {
             when (event) {
                 is SettingsEvent.ShowToast -> Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                 is SettingsEvent.ShowRestoreDialog -> pendingRestore = event.uri
-                is SettingsEvent.RefreshNeeded, is SettingsEvent.NavigateToLogin -> Unit
+                is SettingsEvent.SavedStateChanged, is SettingsEvent.MediaCleared, is SettingsEvent.MediaStorageChanged,
+                is SettingsEvent.RestartNeeded,
+                is SettingsEvent.NavigateToLogin -> Unit
             }
         }
     }

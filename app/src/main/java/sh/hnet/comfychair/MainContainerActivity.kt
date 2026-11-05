@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.cache.ResultThumbnails
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.navigation.MainRoute
@@ -44,7 +45,6 @@ import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
-import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
 /**
@@ -70,9 +70,9 @@ class MainContainerActivity : ComponentActivity() {
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val workflowManagementViewModel: WorkflowManagementViewModel by viewModels()
 
-    // Set by a change in Settings that needs the generation screens reloaded (restored backup, cleared data,
-    // changed workflows); applied when the user leaves the Settings tab
-    private var reloadPending = false
+    // Set by turning offline mode on or off, the one Settings change that needs a restart (the connection itself
+    // changes); applied when the user leaves the Settings tab. Everything else reaches the screens in place
+    private var restartPending = false
 
     // Credential storage — used to persist refreshed browser-session cookies
     private val credentialStorage by lazy { CredentialStorage(applicationContext) }
@@ -166,19 +166,22 @@ class MainContainerActivity : ComponentActivity() {
                 val isReconnecting by ConnectionManager.isReconnecting.collectAsState()
                 val sessionExpired by ConnectionManager.sessionExpired.collectAsState()
 
-                // Settings changes that need a reload, or a return to login
+                // Settings changes reach the screens in place (workflows by themselves, through WorkflowManager);
+                // only offline mode, a change of the connection, restarts when leaving the Settings tab
                 LaunchedEffect(Unit) {
+                    val screens = listOf(textToImageViewModel, imageToImageViewModel, textToVideoViewModel, imageToVideoViewModel)
                     settingsViewModel.events.collect { event ->
                         when (event) {
-                            is SettingsEvent.RefreshNeeded -> reloadPending = true
+                            is SettingsEvent.SavedStateChanged -> screens.forEach { it.reloadSavedState() }
+                            is SettingsEvent.MediaCleared -> {
+                                ResultThumbnails.clear()
+                                screens.forEach { it.clearShownMedia() }
+                            }
+                            is SettingsEvent.MediaStorageChanged -> screens.forEach { it.onMediaStorageChanged() }
+                            is SettingsEvent.RestartNeeded -> restartPending = true
                             is SettingsEvent.NavigateToLogin -> returnToLogin()
                             else -> Unit // Toasts and dialogs are handled by the settings pages
                         }
-                    }
-                }
-                LaunchedEffect(Unit) {
-                    workflowManagementViewModel.events.collect { event ->
-                        if (event is WorkflowManagementEvent.WorkflowsChanged) reloadPending = true
                     }
                 }
 
@@ -194,7 +197,7 @@ class MainContainerActivity : ComponentActivity() {
                         settingsViewModel = settingsViewModel,
                         workflowManagementViewModel = workflowManagementViewModel,
                         onLogout = { logout() },
-                        onLeftSettings = { route -> if (reloadPending) reloadAt(route) },
+                        onLeftSettings = { route -> if (restartPending) reloadAt(route) },
                         startDestination = startDestination
                     )
                 }

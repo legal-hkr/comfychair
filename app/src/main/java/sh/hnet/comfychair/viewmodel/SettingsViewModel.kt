@@ -81,7 +81,14 @@ data class GpuInfo(
  */
 sealed class SettingsEvent {
     data class ShowToast(val messageResId: Int) : SettingsEvent()
-    data object RefreshNeeded : SettingsEvent()
+    /** The screens' saved choices changed (prompts, selected workflows, values): they read them again in place */
+    data object SavedStateChanged : SettingsEvent()
+    /** Generated and chosen media were deleted: the screens stop showing them */
+    data object MediaCleared : SettingsEvent()
+    /** Media moved between RAM and the device: the screens take again what they play from the old place */
+    data object MediaStorageChanged : SettingsEvent()
+    /** A change only a restart applies (offline mode: the connection itself changes) */
+    data object RestartNeeded : SettingsEvent()
     data class ShowRestoreDialog(val uri: Uri) : SettingsEvent()
     data object NavigateToLogin : SettingsEvent()
 }
@@ -362,7 +369,7 @@ class SettingsViewModel : ViewModel() {
             MediaStateHolder.clearAll()
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.msg_cache_cleared_success))
-            _events.emit(SettingsEvent.RefreshNeeded)
+            _events.emit(SettingsEvent.MediaCleared)
         }
     }
 
@@ -376,7 +383,7 @@ class SettingsViewModel : ViewModel() {
     fun restoreDefaults(context: Context) {
         viewModelScope.launch {
             // Memory only is the default: switching first deletes the media stored on the device
-            applyMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY)
+            if (applyMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY)) _events.emit(SettingsEvent.MediaStorageChanged)
             withContext(Dispatchers.IO) {
                 // App settings, then each workflow's values and each screen's choices
                 AppSettings.clearAll(context)
@@ -402,7 +409,7 @@ class SettingsViewModel : ViewModel() {
             reloadAppSettings(context)
 
             _events.emit(SettingsEvent.ShowToast(R.string.msg_defaults_restored_success))
-            _events.emit(SettingsEvent.RefreshNeeded)
+            _events.emit(SettingsEvent.SavedStateChanged)
 
             // Last: a language change recreates the activity
             val localeManager = context.getSystemService(LocaleManager::class.java)
@@ -448,7 +455,7 @@ class SettingsViewModel : ViewModel() {
             }
 
             _events.emit(SettingsEvent.ShowToast(R.string.msg_reset_prompts_and_library_success))
-            _events.emit(SettingsEvent.RefreshNeeded)
+            _events.emit(SettingsEvent.SavedStateChanged)
         }
     }
 
@@ -475,7 +482,7 @@ class SettingsViewModel : ViewModel() {
      */
     fun setMediaStorageMode(context: Context, mode: MediaStorageMode) {
         viewModelScope.launch {
-            if (applyMediaStorageMode(context, mode)) _events.emit(SettingsEvent.RefreshNeeded)
+            if (applyMediaStorageMode(context, mode)) _events.emit(SettingsEvent.MediaStorageChanged)
         }
     }
 
@@ -496,12 +503,17 @@ class SettingsViewModel : ViewModel() {
         // The gallery list is kept only for offline mode, i.e. with storage on the device
         if (mode != MediaStorageMode.DEVICE) GalleryMetadataCache.clearAllCaches(context)
 
+        // As at startup (MainContainerActivity), so the switch needs no restart: the screens' media stay where they are
+        // shown, only where they're kept changes
         if (mode == MediaStorageMode.MEMORY_ONLY) {
             MediaStateHolder.enforceMemoryOnly(context)
             MediaCache.setMemoryFirstMode(true)
             MediaCache.deleteDiskCache(context)
         } else {
             MediaStateHolder.isMemoryOnly = false
+            // Memory first keeps media in RAM (written on onStop); device storage moves them to the device
+            MediaStateHolder.setMemoryFirstMode(mode != MediaStorageMode.DEVICE, context)
+            MediaCache.setMemoryFirstMode(mode != MediaStorageMode.DEVICE)
         }
         return true
     }
@@ -552,7 +564,7 @@ class SettingsViewModel : ViewModel() {
             AppSettings.setOfflineMode(context, true)
             _isOfflineMode.value = true
             viewModelScope.launch {
-                _events.emit(SettingsEvent.RefreshNeeded)
+                _events.emit(SettingsEvent.RestartNeeded)
             }
         } else {
             // Disabling offline mode - check connectivity first
@@ -561,7 +573,7 @@ class SettingsViewModel : ViewModel() {
                 if (isConnected) {
                     AppSettings.setOfflineMode(context, false)
                     _isOfflineMode.value = false
-                    _events.emit(SettingsEvent.RefreshNeeded)
+                    _events.emit(SettingsEvent.RestartNeeded)
                 } else {
                     // Server unreachable, keep offline mode enabled
                     _events.emit(SettingsEvent.ShowToast(R.string.msg_cannot_go_online))
@@ -710,7 +722,10 @@ class SettingsViewModel : ViewModel() {
                     } else {
                         _events.emit(SettingsEvent.ShowToast(R.string.msg_backup_restore_success))
                     }
-                    _events.emit(SettingsEvent.RefreshNeeded)
+                    // Written straight to the preferences: the prompt libraries on the screens refresh
+                    PromptPresetStorage.notifyChanged()
+                    _events.emit(SettingsEvent.SavedStateChanged)
+                    _events.emit(SettingsEvent.MediaCleared)
                     if (result.serversChanged) {
                         _events.emit(SettingsEvent.NavigateToLogin)
                     }

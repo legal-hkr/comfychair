@@ -92,6 +92,27 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
         loadLastGeneratedVideo()
     }
 
+    override fun onReloadSavedState() {
+        _uiState.update { it.withParams(videoScreenDefaults) }
+        loadWorkflows()
+        restorePreferences()
+    }
+
+    /** The video shown is played from where it's kept now (RAM or the device), not from where it was. */
+    override fun onMediaStorageChanged() {
+        val context = applicationContext ?: return
+        val key = videoKey(currentVideoPromptId() ?: return)
+        viewModelScope.launch {
+            val uri = MediaStateHolder.getVideoUri(context, key) ?: return@launch
+            updateVideo { if (it.currentVideoUri != null) it.copy(currentVideoUri = uri) else it }
+        }
+    }
+
+    override fun onClearShownMedia() {
+        lastClearedForPromptId = null
+        updateVideo { VideoResult() }
+    }
+
     // Workflows and preferences
 
     private fun loadWorkflows() {

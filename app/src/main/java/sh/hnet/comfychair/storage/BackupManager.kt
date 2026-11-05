@@ -528,9 +528,11 @@ class BackupManager(private val context: Context) {
                     put("frameRate", it)
                 }
 
-                // Model names - must match WorkflowValues field names exactly
+                // Model names - must match WorkflowValues field names exactly (every model slot: a missing one is
+                // silently dropped on restore)
                 listOf(
-                    "model",  // Unified model (checkpoint or UNET)
+                    "model",  // Checkpoint
+                    "unetModel", "textEncoderModel", "latentUpscaleModel",
                     "loraModel", "vaeModel", "clipModel",
                     "clip1Model", "clip2Model", "clip3Model", "clip4Model",  // All 4 CLIP slots
                     "highnoiseUnetModel", "lownoiseUnetModel",

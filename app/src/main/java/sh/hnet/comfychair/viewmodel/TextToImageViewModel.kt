@@ -450,4 +450,14 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
 
     override fun onStoredMediaAvailable() = restoreLastGeneratedImage()
 
+    override fun onReloadSavedState() {
+        _uiState.update { it.copy(params = GenerationParams()) }
+        loadWorkflows()
+        restorePreferences()
+    }
+
+    override fun onClearShownMedia() {
+        _uiState.update { it.copy(previewBitmap = null, generationOutputs = emptyList(), currentResultIndex = 0) }
+    }
+
 }

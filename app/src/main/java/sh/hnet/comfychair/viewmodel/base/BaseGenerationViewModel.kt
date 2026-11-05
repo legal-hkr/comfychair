@@ -114,6 +114,30 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
     protected abstract fun onInitialize()
 
     /**
+     * The screen's saved choices changed outside it (prompts reset, defaults or a backup restored): read them again,
+     * as when the screen starts. Implementations begin from the screen's initial parameters: a value no longer saved
+     * (e.g. a model after Restore defaults) must return to its default, not keep the current choice.
+     */
+    fun reloadSavedState() {
+        if (isInitialized) onReloadSavedState()
+    }
+
+    protected abstract fun onReloadSavedState()
+
+    /** Generated and chosen media were deleted (cache cleared): nothing of them stays on the screen. */
+    fun clearShownMedia() {
+        if (isInitialized) onClearShownMedia()
+    }
+
+    protected abstract fun onClearShownMedia()
+
+    /**
+     * Media moved between RAM and the device (storage mode switched): what's shown stays, but references into the old
+     * place (a video played from RAM) must be taken again.
+     */
+    open fun onMediaStorageChanged() {}
+
+    /**
      * Stored media (previews, source images, videos) became available after initialization.
      * Screens fill in what they don't show yet; they never replace a newer result.
      */

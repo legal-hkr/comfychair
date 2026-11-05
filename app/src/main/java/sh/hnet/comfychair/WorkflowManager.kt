@@ -184,10 +184,12 @@ object WorkflowManager {
     }
 
     /**
-     * Reload all workflows (call after adding/deleting user workflows)
+     * Reload all workflows from disk (after a backup restore, a reset, or a save in the editor); the screens follow
+     * through [workflowsVersion].
      */
     fun reloadWorkflows() {
         loadAllWorkflows()
+        _workflowsVersion.value++
     }
 
     /**

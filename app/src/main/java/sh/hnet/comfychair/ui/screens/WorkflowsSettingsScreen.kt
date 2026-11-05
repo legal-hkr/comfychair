@@ -257,9 +257,6 @@ fun WorkflowsSettingsScreen(
                 is WorkflowManagementEvent.LaunchExportFilePicker,
                 is WorkflowManagementEvent.DuplicateCreated,
                 is WorkflowManagementEvent.WorkflowDeleted -> Unit
-                is WorkflowManagementEvent.WorkflowsChanged -> {
-                    // Handled by MainContainerActivity (reload when leaving the Settings tab)
-                }
             }
           }
         }
@@ -778,7 +775,7 @@ fun WorkflowDetailPage(
                         onNavigateBack()
                         scope.launch { snackbar?.showSnackbar(resources.getString(R.string.msg_workflow_delete_success)) }
                     }
-                    is WorkflowManagementEvent.LaunchEditor, is WorkflowManagementEvent.WorkflowsChanged,
+                    is WorkflowManagementEvent.LaunchEditor,
                     is WorkflowManagementEvent.WorkflowImported -> Unit
                 }
             }

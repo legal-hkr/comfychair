@@ -25,6 +25,9 @@ class PromptPresetStorage(context: Context) {
 
         /** Bumped on every write, wherever it comes from (e.g. saving a prompt from a result's details), so open screens refresh. */
         val changes: StateFlow<Int> = _changes.asStateFlow()
+
+        /** For writes that bypass this class (a backup restore writes the preferences directly). */
+        fun notifyChanged() = _changes.update { it + 1 }
     }
 
     /**

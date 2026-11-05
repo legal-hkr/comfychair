@@ -88,6 +88,11 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
         loadSavedSourceImage()
     }
 
+    override fun onClearShownMedia() {
+        super.onClearShownMedia()
+        _uiState.update { it.copy(sourceImage = null) }
+    }
+
     override fun hasValidConfiguration(): Boolean =
         _uiState.value.sourceImage != null && isReadyToGenerate(_uiState.value.params)
 

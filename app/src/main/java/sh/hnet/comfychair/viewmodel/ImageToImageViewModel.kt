@@ -304,6 +304,26 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
 
     override fun onStoredMediaAvailable() = loadSavedImages()
 
+    override fun onReloadSavedState() {
+        _uiState.update { it.copy(inpaintingParams = GenerationParams(), editingParams = editingDefaults) }
+        loadWorkflows()
+        restorePreferences()
+    }
+
+    override fun onClearShownMedia() {
+        _uiState.update {
+            it.copy(
+                sourceImage = null,
+                maskPaths = emptyList(),
+                previewImage = null,
+                referenceImage1 = null,
+                referenceImage2 = null,
+                generationOutputs = emptyList(),
+                currentResultIndex = 0
+            )
+        }
+    }
+
 
     // View mode
     fun onViewModeChange(mode: ImageToImageViewMode) {

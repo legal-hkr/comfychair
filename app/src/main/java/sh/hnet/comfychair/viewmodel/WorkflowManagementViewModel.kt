@@ -8,11 +8,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -121,7 +118,6 @@ sealed class WorkflowManagementEvent {
     data class ShowToastMessage(val message: String) : WorkflowManagementEvent()
     data class LaunchEditor(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
     data class LaunchExportFilePicker(val suggestedFilename: String) : WorkflowManagementEvent()
-    object WorkflowsChanged : WorkflowManagementEvent()
     /** A workflow was imported; the list shows it and offers its details. */
     data class WorkflowImported(val workflowId: String) : WorkflowManagementEvent()
     /** A copy was created; its details open. */
@@ -143,17 +139,13 @@ class WorkflowManagementViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(WorkflowManagementUiState())
     val uiState: StateFlow<WorkflowManagementUiState> = _uiState.asStateFlow()
 
-    // Workflows changed: broadcast, for the activity (it reloads the screens when Settings is left)
-    private val _events = MutableSharedFlow<WorkflowManagementEvent>()
-    val events: SharedFlow<WorkflowManagementEvent> = _events.asSharedFlow()
-
     // Everything for the pages (messages, export, import, copy, deletion): queued until the page on top takes it, so
     // nothing is lost on the way back from the editor or between pages, and each event is handled once
     private val _pageEvents = Channel<WorkflowManagementEvent>(Channel.BUFFERED)
     val pageEvents: Flow<WorkflowManagementEvent> = _pageEvents.receiveAsFlow()
 
     private suspend fun emitEvent(event: WorkflowManagementEvent) {
-        if (event is WorkflowManagementEvent.WorkflowsChanged) _events.emit(event) else _pageEvents.send(event)
+        _pageEvents.send(event)
     }
 
     private var applicationContext: Context? = null
@@ -205,15 +197,12 @@ class WorkflowManagementViewModel : ViewModel() {
 
     /**
      * Reload workflows from disk and refresh UI.
-     * Use this when workflows were modified by another component (e.g., WorkflowEditorViewModel).
-     * Also emits WorkflowsChanged to notify parent activities (triggers generation screen refresh).
+     * Use this when workflows were modified by another component (e.g., WorkflowEditorViewModel); the generation screens
+     * follow through WorkflowManager.workflowsVersion.
      */
     fun reloadAndRefreshWorkflows() {
         WorkflowManager.reloadWorkflows()
         loadWorkflows()
-        viewModelScope.launch {
-            emitEvent(WorkflowManagementEvent.WorkflowsChanged)
-        }
     }
 
     // New import flow
@@ -816,7 +805,6 @@ class WorkflowManagementViewModel : ViewModel() {
                     ) ?: "Conversion completed with ${warnings.size} note(s)"
                     emitEvent(WorkflowManagementEvent.ShowToastMessage(warningMessage))
                 }
-                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 // Shown where it now sits; its type may not be the one filtered
                 if (imported.type !in _uiState.value.filter.types) onFilterChange(WorkflowFilter.ALL)
                 loadWorkflows()
@@ -901,7 +889,6 @@ class WorkflowManagementViewModel : ViewModel() {
 
             if (success) {
                 emitEvent(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_update_success))
-                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
             } else {
                 emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_update))
@@ -937,7 +924,6 @@ class WorkflowManagementViewModel : ViewModel() {
         if (workflow.isBuiltIn) return
         viewModelScope.launch {
             if (WorkflowManager.deleteUserWorkflow(workflow.id)) {
-                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
                 emitEvent(WorkflowManagementEvent.WorkflowDeleted)
             } else {
@@ -1005,7 +991,6 @@ class WorkflowManagementViewModel : ViewModel() {
 
             val copy = result.getOrNull()
             if (copy != null) {
-                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
                 // The detail page opens the copy's details
                 emitEvent(WorkflowManagementEvent.DuplicateCreated(copy.id))
