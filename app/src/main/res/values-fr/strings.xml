@@ -636,7 +636,6 @@
     <string name="label_workflow_type">Type de workflow</string>
     <string name="button_continue">Continuer</string>
     <string name="button_dismiss">Fermer</string>
-    <string name="button_confirm">Confirmer</string>
     <string name="button_done">Terminé</string>
 
     <!-- Workflow validation error dialogs -->
@@ -657,13 +656,24 @@
     <string name="title_missing_fields">Champs requis manquants</string>
 
     <!-- Field mapping UI strings -->
-    <string name="title_field_mapping">Mapper les champs</string>
     <string name="button_clear_all_mapping">Tout effacer</string>
+    <string name="label_field_n_of_m">Champ %1$d sur %2$d</string>
+    <string name="button_all_fields">Tous les champs</string>
+    <string name="hint_mapping_required">Touchez le nœud qui le contient – obligatoire</string>
+    <string name="hint_mapping_optional">Touchez le nœud qui le contient – facultatif</string>
+    <string name="content_description_previous_field">Champ précédent</string>
+    <string name="content_description_next_field">Champ suivant</string>
+    <string name="button_finish">Terminer</string>
+    <string name="content_description_finish_blocked">Terminer – associez d’abord les champs obligatoires</string>
+    <string name="title_cancel_import">Annuler l’importation ?</string>
+    <string name="msg_cancel_import">Le workflow ne sera pas ajouté.</string>
+    <string name="button_cancel_import">Annuler l’importation</string>
+    <string name="button_keep_mapping">Continuer</string>
+    <string name="label_editor_mode_mapping_save">Enregistrement – associer les champs</string>
+    <string name="label_not_chosen">Pas encore choisi</string>
     <string name="section_necessary">Nécessaire</string>
     <string name="section_optional">Optionnel</string>
-    <string name="hint_tap_node_to_change">Appuyez sur un nœud en surbrillance pour modifier le mappage</string>
     <string name="msg_no_matching_nodes">Aucun nœud correspondant trouvé</string>
-    <string name="msg_needs_remapping">Sélectionner un nœud</string>
 
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Échec de la récupération des nœuds du serveur</string>

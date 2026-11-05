@@ -636,7 +636,6 @@
     <string name="label_workflow_type">Tipo de workflow</string>
     <string name="button_continue">Continuar</string>
     <string name="button_dismiss">Cerrar</string>
-    <string name="button_confirm">Confirmar</string>
     <string name="button_done">Hecho</string>
 
     <!-- Workflow validation error dialogs -->
@@ -657,13 +656,24 @@
     <string name="title_missing_fields">Campos requeridos faltantes</string>
 
     <!-- Field mapping UI strings -->
-    <string name="title_field_mapping">Mapear campos</string>
     <string name="button_clear_all_mapping">Borrar todo</string>
+    <string name="label_field_n_of_m">Campo %1$d de %2$d</string>
+    <string name="button_all_fields">Todos los campos</string>
+    <string name="hint_mapping_required">Toca el nodo que lo contiene – obligatorio</string>
+    <string name="hint_mapping_optional">Toca el nodo que lo contiene – opcional</string>
+    <string name="content_description_previous_field">Campo anterior</string>
+    <string name="content_description_next_field">Campo siguiente</string>
+    <string name="button_finish">Finalizar</string>
+    <string name="content_description_finish_blocked">Finalizar – asigna primero los campos obligatorios</string>
+    <string name="title_cancel_import">¿Cancelar la importación?</string>
+    <string name="msg_cancel_import">El flujo de trabajo no se añadirá.</string>
+    <string name="button_cancel_import">Cancelar importación</string>
+    <string name="button_keep_mapping">Seguir asignando</string>
+    <string name="label_editor_mode_mapping_save">Guardar – asignar campos</string>
+    <string name="label_not_chosen">Aún sin elegir</string>
     <string name="section_necessary">Necesario</string>
     <string name="section_optional">Opcional</string>
-    <string name="hint_tap_node_to_change">Toque un nodo resaltado para cambiar el mapeo</string>
     <string name="msg_no_matching_nodes">No se encontraron nodos coincidentes</string>
-    <string name="msg_needs_remapping">Seleccionar un nodo</string>
 
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Error al obtener los nodos del servidor</string>

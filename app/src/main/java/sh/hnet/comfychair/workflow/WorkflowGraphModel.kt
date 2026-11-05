@@ -312,6 +312,8 @@ data class WorkflowEditorUiState(
 
     // Field mapping mode
     val isFieldMappingMode: Boolean = false,
+    // Mapping while importing (Back asks to cancel the import); otherwise while saving from the editor (Back returns there)
+    val isImportMapping: Boolean = false,
     val mappingState: WorkflowMappingState? = null,
     val selectedFieldKey: String? = null,
     val highlightedNodeIds: Set<String> = emptySet(),

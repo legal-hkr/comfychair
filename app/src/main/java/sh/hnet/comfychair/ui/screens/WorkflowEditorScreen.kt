@@ -11,8 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,27 +28,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
@@ -59,7 +48,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,15 +57,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -90,21 +75,20 @@ import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.dialogs.DialogChoice
 import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
 import sh.hnet.comfychair.ui.components.dialogs.FormDialog
-import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
+import sh.hnet.comfychair.ui.components.workflow.AllFieldsSheet
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
 import sh.hnet.comfychair.ui.components.workflow.EditorMode
 import sh.hnet.comfychair.ui.components.workflow.EditorStatus
 import sh.hnet.comfychair.ui.components.workflow.EditorToolbar
 import sh.hnet.comfychair.ui.components.workflow.EditorToolbarActions
 import sh.hnet.comfychair.ui.components.workflow.EditorTopRow
+import sh.hnet.comfychair.ui.components.workflow.FieldMappingCard
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
-import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
-import sh.hnet.comfychair.workflow.WorkflowMappingState
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.changedValueCount
 
@@ -177,10 +161,17 @@ fun WorkflowEditorScreen(
             connection.sourceSlot.slotType ?: "",
             fromOutput = connection.direction == ConnectionDirection.OUTPUT_TO_INPUT
         )
-        mode == EditorMode.MAPPING -> EditorStatus.Mapping
+        mode == EditorMode.MAPPING -> EditorStatus.Mapping(import = uiState.isImportMapping)
         mode == EditorMode.EDIT -> EditorStatus.Editing(uiState.hasUnsavedChanges, uiState.isManualPlacementMode)
         mode == EditorMode.GRAPH -> EditorStatus.Graph
         else -> EditorStatus.NodeValues(changedValues)
+    }
+
+    // Map fields: the card starts at the first unmapped field
+    var showAllFields by remember { mutableStateOf(false) }
+    var confirmCancelImport by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isFieldMappingMode) {
+        if (uiState.isFieldMappingMode && uiState.selectedFieldKey == null) viewModel.selectNextUnmappedField()
     }
 
     // Back by mode (spec §10.2): a waiting connection or the values of a node first; structure editing asks before
@@ -189,7 +180,8 @@ fun WorkflowEditorScreen(
         when {
             connection != null -> viewModel.exitConnectionMode()
             uiState.isEditingNode -> viewModel.dismissNodeEditor()
-            uiState.isFieldMappingMode -> viewModel.cancelMapping()
+            // Importing: asks; saving from the editor: back to editing, nothing lost
+            uiState.isFieldMappingMode -> if (uiState.isImportMapping) confirmCancelImport = true else viewModel.returnFromSaveMapping()
             uiState.isCreateMode -> viewModel.handleCreateModeClose()
             uiState.isEditMode -> viewModel.handleEditExistingModeClose()
             else -> onClose()
@@ -546,17 +538,43 @@ fun WorkflowEditorScreen(
         }
 
 
-        // Field mapping panel (only in mapping mode)
+        // Map fields: the current field on a card above the toolbar
         if (uiState.isFieldMappingMode && uiState.mappingState != null) {
-            FieldMappingPanel(
-                mappingState = uiState.mappingState!!,
-                selectedFieldKey = uiState.selectedFieldKey,
-                onFieldSelected = { viewModel.selectFieldForMapping(it) },
-                onClearFieldMapping = { viewModel.clearFieldMapping(it) },
-                onClearAllMappings = { viewModel.clearAllMappings() },
+            FieldMappingCard(
+                fields = viewModel.orderedMappingFields(),
+                currentKey = uiState.selectedFieldKey,
+                onSelectField = { viewModel.selectFieldForMapping(it) },
+                onAllFields = { showAllFields = true },
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 104.dp, end = 16.dp)
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 96.dp)
+            )
+            if (showAllFields) {
+                AllFieldsSheet(
+                    fields = viewModel.allMappingFields(),
+                    onSelectField = {
+                        viewModel.selectFieldForMapping(it)
+                        showAllFields = false
+                    },
+                    onClearField = { viewModel.clearFieldMapping(it) },
+                    onClearAll = { viewModel.clearAllMappings() },
+                    onDismiss = { showAllFields = false }
+                )
+            }
+        }
+        if (confirmCancelImport) {
+            ConfirmDialog(
+                title = stringResource(R.string.title_cancel_import),
+                text = stringResource(R.string.msg_cancel_import),
+                confirmLabel = stringResource(R.string.button_cancel_import),
+                dismissLabel = stringResource(R.string.button_keep_mapping),
+                destructive = true,
+                onConfirm = {
+                    confirmCancelImport = false
+                    viewModel.cancelMapping()
+                },
+                onDismiss = { confirmCancelImport = false }
             )
         }
 
@@ -887,228 +905,5 @@ fun WorkflowEditorScreen(
             )
         }
     }
-    }
-}
-
-@Composable
-private fun FieldMappingPanel(
-    mappingState: WorkflowMappingState,
-    selectedFieldKey: String?,
-    onFieldSelected: (String?) -> Unit,
-    onClearFieldMapping: (String) -> Unit,
-    onClearAllMappings: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val requiredFields = mappingState.fieldMappings.filter { it.isRequiredField }
-    val optionalFields = mappingState.fieldMappings.filter { !it.isRequiredField }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(12.dp),
-        tonalElevation = 2.dp
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Header row with title and clear all button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.title_field_mapping),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                TextButton(onClick = onClearAllMappings) {
-                    Text(
-                        text = stringResource(R.string.button_clear_all_mapping),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-
-            NoOverscrollContainer {
-                LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
-                    // Necessary section
-                    if (requiredFields.isNotEmpty()) {
-                        item(key = "section_necessary") {
-                            Text(
-                                text = stringResource(R.string.section_necessary),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
-                        items(
-                            items = requiredFields,
-                            key = { "req_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
-                        ) { fieldMapping ->
-                            FieldMappingRow(
-                                fieldMapping = fieldMapping,
-                                isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
-                                onSelect = {
-                                    val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
-                                    onFieldSelected(newKey)
-                                },
-                                onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
-                            )
-                        }
-                    }
-
-                    // Optional section
-                    if (optionalFields.isNotEmpty()) {
-                        item(key = "section_optional") {
-                            Text(
-                                text = stringResource(R.string.section_optional),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
-                        }
-                        items(
-                            items = optionalFields,
-                            key = { "opt_${it.field.fieldKey}_${it.selectedCandidateIndex}" }
-                        ) { fieldMapping ->
-                            FieldMappingRow(
-                                fieldMapping = fieldMapping,
-                                isSelected = fieldMapping.field.fieldKey == selectedFieldKey,
-                                onSelect = {
-                                    val newKey = if (fieldMapping.field.fieldKey == selectedFieldKey) null else fieldMapping.field.fieldKey
-                                    onFieldSelected(newKey)
-                                },
-                                onClearMapping = { onClearFieldMapping(fieldMapping.field.fieldKey) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (mappingState.fieldMappings.any { it.hasMultipleCandidates }) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.hint_tap_node_to_change),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FieldMappingRow(
-    fieldMapping: FieldMappingState,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-    onClearMapping: () -> Unit
-) {
-    val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-    } else {
-        Color.Transparent
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(backgroundColor, RoundedCornerShape(8.dp))
-            .clickable(onClick = onSelect)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = fieldMapping.field.displayName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            when {
-                fieldMapping.isMapped -> {
-                    // Mapped: show node info
-                    val selectedCandidate = fieldMapping.selectedCandidate
-                    Text(
-                        text = stringResource(
-                            R.string.workflow_editor_node_info,
-                            selectedCandidate?.nodeName ?: "",
-                            selectedCandidate?.classType ?: ""
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                fieldMapping.candidates.isEmpty() -> {
-                    // No candidates available
-                    Text(
-                        text = stringResource(R.string.msg_no_matching_nodes),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (fieldMapping.isRequiredField) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
-                }
-                fieldMapping.isRequiredField -> {
-                    // Required field not mapped - "Select a node" with error color
-                    Text(
-                        text = stringResource(R.string.msg_needs_remapping),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                else -> {
-                    // Optional field not mapped - "Select a node" with muted color
-                    Text(
-                        text = stringResource(R.string.msg_needs_remapping),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Status icon - clickable to clear mapping
-        IconButton(
-            onClick = onClearMapping,
-            modifier = Modifier.size(28.dp)
-        ) {
-            when {
-                fieldMapping.isMapped -> {
-                    // State 1: Mapped (both required and optional) - green checkmark
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = stringResource(R.string.content_description_clear),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                fieldMapping.isRequiredField -> {
-                    // State 2: Unmapped required - warning triangle with error color
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                else -> {
-                    // State 3: Unmapped optional - outlined circle, no color highlight
-                    Icon(
-                        Icons.Outlined.RadioButtonUnchecked,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
     }
 }

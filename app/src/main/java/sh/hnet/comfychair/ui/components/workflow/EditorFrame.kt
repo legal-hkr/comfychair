@@ -1,8 +1,5 @@
 package sh.hnet.comfychair.ui.components.workflow
 
-import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.rounded.EditNote
-import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -14,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,7 +26,9 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.DriveFileRenameOutline
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.FitScreen
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MoreVert
@@ -63,6 +63,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,7 +93,8 @@ sealed interface EditorStatus {
     data object Graph : EditorStatus
     data class NodeValues(val changed: Int) : EditorStatus
     data class Editing(val unsaved: Boolean, val placement: Boolean) : EditorStatus
-    data object Mapping : EditorStatus
+    /** @param import While importing; otherwise while saving from the editor */
+    data class Mapping(val import: Boolean) : EditorStatus
     /** A connection waits for its other end: the pill turns into a status pill with a way out */
     data class Connecting(val slotType: String, val fromOutput: Boolean) : EditorStatus
 }
@@ -230,7 +232,7 @@ private fun pillLines(workflowName: String, status: EditorStatus): Pair<String, 
                 else -> R.string.label_editor_mode_editing
             }
         )
-        EditorStatus.Mapping -> name to stringResource(R.string.label_editor_mode_mapping)
+        is EditorStatus.Mapping -> name to stringResource(if (status.import) R.string.label_editor_mode_mapping else R.string.label_editor_mode_mapping_save)
     }
 }
 
@@ -336,12 +338,31 @@ fun EditorToolbar(
                 }
             }
         }
+    } else if (onFinishMapping != null) {
+        // Finish waits for the required fields: until then the FAB is shown inactive and says why
+        val label = stringResource(if (canFinishMapping) R.string.button_finish else R.string.content_description_finish_blocked)
+        HorizontalFloatingToolbar(
+            expanded = true,
+            modifier = modifier,
+            floatingActionButton = {
+                FloatingToolbarDefaults.VibrantFloatingActionButton(
+                    onClick = { if (canFinishMapping) onFinishMapping() },
+                    containerColor = if (canFinishMapping) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = if (canFinishMapping) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics {
+                        contentDescription = label
+                        if (!canFinishMapping) disabled()
+                    }
+                ) {
+                    Icon(Icons.Rounded.Check, contentDescription = null)
+                }
+            }
+        ) {
+            ZoomGroup(zoom)
+        }
     } else {
         HorizontalFloatingToolbar(expanded = true, modifier = modifier) {
             ZoomGroup(zoom)
-            onFinishMapping?.let {
-                TooltipIconButton(Icons.Rounded.Check, stringResource(R.string.button_confirm), it, enabled = canFinishMapping)
-            }
         }
     }
 }

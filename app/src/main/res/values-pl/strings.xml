@@ -653,7 +653,6 @@
     <string name="label_workflow_type">Typ przepływu pracy</string>
     <string name="button_continue">Kontynuuj</string>
     <string name="button_dismiss">Zamknij</string>
-    <string name="button_confirm">Potwierdź</string>
     <string name="button_done">Gotowe</string>
 
     <!-- Workflow validation error dialogs -->
@@ -675,13 +674,24 @@
     <string name="title_missing_fields">Brakujące wymagane pola</string>
 
     <!-- Field mapping UI strings -->
-    <string name="title_field_mapping">Mapuj pola</string>
     <string name="button_clear_all_mapping">Wyczyść wszystko</string>
+    <string name="label_field_n_of_m">Pole %1$d z %2$d</string>
+    <string name="button_all_fields">Wszystkie pola</string>
+    <string name="hint_mapping_required">Dotknij węzła, który je zawiera – wymagane</string>
+    <string name="hint_mapping_optional">Dotknij węzła, który je zawiera – opcjonalne</string>
+    <string name="content_description_previous_field">Poprzednie pole</string>
+    <string name="content_description_next_field">Następne pole</string>
+    <string name="button_finish">Zakończ</string>
+    <string name="content_description_finish_blocked">Zakończ – najpierw przypisz wymagane pola</string>
+    <string name="title_cancel_import">Anulować import?</string>
+    <string name="msg_cancel_import">Przepływ pracy nie zostanie dodany.</string>
+    <string name="button_cancel_import">Anuluj import</string>
+    <string name="button_keep_mapping">Przypisuj dalej</string>
+    <string name="label_editor_mode_mapping_save">Zapis – przypisywanie pól</string>
+    <string name="label_not_chosen">Jeszcze nie wybrano</string>
     <string name="section_necessary">Wymagane</string>
     <string name="section_optional">Opcjonalne</string>
-    <string name="hint_tap_node_to_change">Dotknij podświetlony węzeł, aby zmienić mapowanie</string>
     <string name="msg_no_matching_nodes">Nie znaleziono pasujących węzłów</string>
-    <string name="msg_needs_remapping">Wybierz węzeł</string>
 
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Nie udało się pobrać węzłów z serwera</string>

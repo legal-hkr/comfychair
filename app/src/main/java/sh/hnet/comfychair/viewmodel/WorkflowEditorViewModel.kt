@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.viewmodel
 
+import sh.hnet.comfychair.workflow.FieldMappingState
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -265,6 +266,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     errorMessage = null,
                     graphBounds = bounds,
                     isFieldMappingMode = true,
+                    isImportMapping = true,
                     mappingState = mappingState,
                     selectedNodeIds = emptySet(),  // Ensure selection is clear in mapping mode
                     selectedNoteIds = emptySet(),
@@ -435,17 +437,16 @@ class WorkflowEditorViewModel : ViewModel() {
 
         if (affectedMappings.isEmpty()) return
 
-        // If there's a selected field and this node is a candidate for it, select it
+        // With a current field, only its candidates count; assigning one moves on to the next unmapped field
         val selectedFieldKey = state.selectedFieldKey
         if (selectedFieldKey != null) {
-            val matchingField = affectedMappings.find { it.field.fieldKey == selectedFieldKey }
-            if (matchingField != null) {
-                val candidateIndex = matchingField.candidates.indexOfFirst { it.nodeId == nodeId }
-                if (candidateIndex >= 0) {
-                    updateFieldMapping(matchingField.field.fieldKey, candidateIndex)
-                    return
-                }
+            val matchingField = affectedMappings.find { it.field.fieldKey == selectedFieldKey } ?: return
+            val candidateIndex = matchingField.candidates.indexOfFirst { it.nodeId == nodeId }
+            if (candidateIndex >= 0) {
+                updateFieldMapping(matchingField.field.fieldKey, candidateIndex)
+                selectNextUnmappedField()
             }
+            return
         }
 
         // Otherwise, select the first affected field
@@ -530,6 +531,39 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             mappingState = newMappingState,
             canConfirmMapping = newMappingState.allRequiredFieldsMapped
+        )
+    }
+
+    /** All fields, required first (the All fields sheet). */
+    fun allMappingFields(): List<FieldMappingState> =
+        _uiState.value.mappingState?.fieldMappings?.sortedBy { if (it.isRequiredField) 0 else 1 } ?: emptyList()
+
+    /** The fields the mapping card walks: those with a node to choose, required first. */
+    fun orderedMappingFields(): List<FieldMappingState> = allMappingFields().filter { it.candidates.isNotEmpty() }
+
+    /**
+     * Make the next unmapped field current (after the current one, wrapping around); stays put when all are mapped.
+     */
+    fun selectNextUnmappedField() {
+        val fields = orderedMappingFields()
+        if (fields.isEmpty()) return
+        val current = fields.indexOfFirst { it.field.fieldKey == _uiState.value.selectedFieldKey }
+        val next = (1..fields.size).map { fields[(current + it).mod(fields.size)] }.firstOrNull { !it.isMapped }
+        selectFieldForMapping((next ?: fields.getOrNull(current) ?: fields.first()).field.fieldKey)
+    }
+
+    /**
+     * Back while mapping fields during a save from the editor: back to editing the structure, nothing lost.
+     */
+    fun returnFromSaveMapping() {
+        pendingSaveData = null
+        _uiState.value = _uiState.value.copy(
+            isFieldMappingMode = false,
+            mappingState = null,
+            selectedFieldKey = null,
+            highlightedNodeIds = emptySet(),
+            canConfirmMapping = false,
+            isEditMode = true
         )
     }
 

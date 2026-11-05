@@ -633,7 +633,6 @@
     <string name="label_workflow_type">Workflow-Typ</string>
     <string name="button_continue">Fortfahren</string>
     <string name="button_dismiss">Schließen</string>
-    <string name="button_confirm">Bestätigen</string>
     <string name="button_done">Fertig</string>
 
     <!-- Workflow validation error dialogs -->
@@ -653,13 +652,24 @@
     <string name="title_missing_fields">Fehlende Pflichtfelder</string>
 
     <!-- Field mapping UI strings -->
-    <string name="title_field_mapping">Felder zuordnen</string>
     <string name="button_clear_all_mapping">Alle löschen</string>
+    <string name="label_field_n_of_m">Feld %1$d von %2$d</string>
+    <string name="button_all_fields">Alle Felder</string>
+    <string name="hint_mapping_required">Tippe auf den Knoten, der es enthält – erforderlich</string>
+    <string name="hint_mapping_optional">Tippe auf den Knoten, der es enthält – optional</string>
+    <string name="content_description_previous_field">Vorheriges Feld</string>
+    <string name="content_description_next_field">Nächstes Feld</string>
+    <string name="button_finish">Fertig</string>
+    <string name="content_description_finish_blocked">Fertig – zuerst die erforderlichen Felder zuordnen</string>
+    <string name="title_cancel_import">Import abbrechen?</string>
+    <string name="msg_cancel_import">Der Workflow wird nicht hinzugefügt.</string>
+    <string name="button_cancel_import">Import abbrechen</string>
+    <string name="button_keep_mapping">Weiter zuordnen</string>
+    <string name="label_editor_mode_mapping_save">Speichern – Felder zuordnen</string>
+    <string name="label_not_chosen">Noch nicht gewählt</string>
     <string name="section_necessary">Erforderlich</string>
     <string name="section_optional">Optional</string>
-    <string name="hint_tap_node_to_change">Tippen Sie auf einen markierten Node, um die Zuordnung zu ändern</string>
     <string name="msg_no_matching_nodes">Keine passenden Nodes gefunden</string>
-    <string name="msg_needs_remapping">Node auswählen</string>
 
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Server-Nodes konnten nicht abgerufen werden</string>

@@ -729,7 +729,6 @@
     <string name="workflow_editor_reset_zoom">Fit graph to screen</string>
     <string name="workflow_editor_error_loading">Failed to load workflow</string>
     <string name="workflow_editor_zoom_percentage" translatable="false">%1$d%%</string>
-    <string name="workflow_editor_node_info" translatable="false">%1$s (%2$s)</string>
     <string name="workflow_editor_delete_node">Delete selected</string>
     <string name="workflow_editor_duplicate_node">Duplicate selected</string>
     <string name="workflow_editor_add_node">Add node</string>
@@ -779,7 +778,6 @@
     <string name="label_workflow_type">Workflow type</string>
     <string name="button_continue">Continue</string>
     <string name="button_dismiss">Dismiss</string>
-    <string name="button_confirm">Confirm</string>
     <string name="button_done">Done</string>
 
     <!-- Workflow validation error dialogs -->
@@ -799,13 +797,24 @@
     <string name="title_missing_fields">Missing Required Fields</string>
 
     <!-- Field mapping UI strings -->
-    <string name="title_field_mapping">Map Fields</string>
     <string name="button_clear_all_mapping">Clear all</string>
+    <string name="label_field_n_of_m">Field %1$d of %2$d</string>
+    <string name="button_all_fields">All fields</string>
+    <string name="hint_mapping_required">Tap the node that holds it – required</string>
+    <string name="hint_mapping_optional">Tap the node that holds it – optional</string>
+    <string name="content_description_previous_field">Previous field</string>
+    <string name="content_description_next_field">Next field</string>
+    <string name="button_finish">Finish</string>
+    <string name="content_description_finish_blocked">Finish – map the required fields first</string>
+    <string name="title_cancel_import">Cancel import?</string>
+    <string name="msg_cancel_import">The workflow won’t be added.</string>
+    <string name="button_cancel_import">Cancel import</string>
+    <string name="button_keep_mapping">Keep mapping</string>
+    <string name="label_editor_mode_mapping_save">Saving – map fields</string>
+    <string name="label_not_chosen">Not chosen yet</string>
     <string name="section_necessary">Necessary</string>
     <string name="section_optional">Optional</string>
-    <string name="hint_tap_node_to_change">Tap a highlighted node to change mapping</string>
     <string name="msg_no_matching_nodes">No matching nodes found</string>
-    <string name="msg_needs_remapping">Select a node</string>
 
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">Failed to fetch server nodes</string>

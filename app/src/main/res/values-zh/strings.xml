@@ -602,7 +602,6 @@
     <string name="label_workflow_type">工作流类型</string>
     <string name="button_continue">继续</string>
     <string name="button_dismiss">关闭</string>
-    <string name="button_confirm">确认</string>
     <string name="button_done">完成</string>
 
     <!-- Workflow validation error dialogs -->
@@ -621,13 +620,24 @@
     <string name="title_missing_fields">缺少必填字段</string>
 
     <!-- Field mapping UI strings -->
-    <string name="title_field_mapping">映射字段</string>
     <string name="button_clear_all_mapping">清除全部</string>
+    <string name="label_field_n_of_m">第 %1$d 个字段，共 %2$d 个</string>
+    <string name="button_all_fields">所有字段</string>
+    <string name="hint_mapping_required">点按包含它的节点 – 必填</string>
+    <string name="hint_mapping_optional">点按包含它的节点 – 可选</string>
+    <string name="content_description_previous_field">上一个字段</string>
+    <string name="content_description_next_field">下一个字段</string>
+    <string name="button_finish">完成</string>
+    <string name="content_description_finish_blocked">完成 – 请先映射必填字段</string>
+    <string name="title_cancel_import">取消导入？</string>
+    <string name="msg_cancel_import">工作流将不会被添加。</string>
+    <string name="button_cancel_import">取消导入</string>
+    <string name="button_keep_mapping">继续映射</string>
+    <string name="label_editor_mode_mapping_save">保存 – 映射字段</string>
+    <string name="label_not_chosen">尚未选择</string>
     <string name="section_necessary">必需</string>
     <string name="section_optional">可选</string>
-    <string name="hint_tap_node_to_change">点击高亮节点以更改映射</string>
     <string name="msg_no_matching_nodes">未找到匹配的节点</string>
-    <string name="msg_needs_remapping">选择节点</string>
 
     <!-- Workflow validation errors -->
     <string name="error_workflow_fetch_nodes_failed">获取服务器节点失败</string>
