@@ -179,6 +179,7 @@
     <string name="msg_image_ready">Bild fertig</string>
     <string name="msg_video_ready">Video fertig</string>
     <string name="button_view">Anzeigen</string>
+    <string name="button_open">Öffnen</string>
     <string name="content_description_new_result">Neues Ergebnis</string>
 
     <!-- Configuration fragment strings -->

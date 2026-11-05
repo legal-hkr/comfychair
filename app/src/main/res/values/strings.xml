@@ -157,6 +157,7 @@
     <string name="msg_image_ready">Image ready</string>
     <string name="msg_video_ready">Video ready</string>
     <string name="button_view">View</string>
+    <string name="button_open">Open</string>
     <string name="content_description_new_result">New result</string>
 
     <!-- Configuration fragment strings -->

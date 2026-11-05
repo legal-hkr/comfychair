@@ -183,6 +183,7 @@
     <string name="msg_image_ready">Imagen lista</string>
     <string name="msg_video_ready">Vídeo listo</string>
     <string name="button_view">Ver</string>
+    <string name="button_open">Abrir</string>
     <string name="content_description_new_result">Nuevo resultado</string>
 
     <!-- Configuration fragment strings -->

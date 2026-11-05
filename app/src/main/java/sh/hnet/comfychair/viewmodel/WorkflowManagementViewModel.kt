@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.viewmodel
 
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.Channel
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -118,6 +121,8 @@ sealed class WorkflowManagementEvent {
     data class LaunchEditor(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
     data class LaunchExportFilePicker(val suggestedFilename: String) : WorkflowManagementEvent()
     object WorkflowsChanged : WorkflowManagementEvent()
+    /** A workflow was imported; the list shows it and offers its details. */
+    data class WorkflowImported(val workflowId: String) : WorkflowManagementEvent()
     /** A copy was created; its details open. */
     data class DuplicateCreated(val workflowId: String) : WorkflowManagementEvent()
     /** The workflow shown was deleted; the page returns to the list. */
@@ -137,8 +142,18 @@ class WorkflowManagementViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(WorkflowManagementUiState())
     val uiState: StateFlow<WorkflowManagementUiState> = _uiState.asStateFlow()
 
+    // Workflows changed: broadcast, for the activity (it reloads the screens when Settings is left)
     private val _events = MutableSharedFlow<WorkflowManagementEvent>()
     val events: SharedFlow<WorkflowManagementEvent> = _events.asSharedFlow()
+
+    // Everything for the pages (messages, export, import, copy, deletion): queued until the page on top takes it, so
+    // nothing is lost on the way back from the editor or between pages, and each event is handled once
+    private val _pageEvents = Channel<WorkflowManagementEvent>(Channel.BUFFERED)
+    val pageEvents: Flow<WorkflowManagementEvent> = _pageEvents.receiveAsFlow()
+
+    private suspend fun emitEvent(event: WorkflowManagementEvent) {
+        if (event is WorkflowManagementEvent.WorkflowsChanged) _events.emit(event) else _pageEvents.send(event)
+    }
 
     private var applicationContext: Context? = null
 
@@ -196,7 +211,7 @@ class WorkflowManagementViewModel : ViewModel() {
         WorkflowManager.reloadWorkflows()
         loadWorkflows()
         viewModelScope.launch {
-            _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+            emitEvent(WorkflowManagementEvent.WorkflowsChanged)
         }
     }
 
@@ -219,13 +234,15 @@ class WorkflowManagementViewModel : ViewModel() {
                 try {
                     JSONObject(jsonContent)
                 } catch (e: Exception) {
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     return@launch
                 }
 
-                // Auto-detect type as suggestion (user can override)
-                val detectedType = WorkflowManager.detectWorkflowType(jsonContent)
+                // The type picked with the filter, if it names one; otherwise detected from the workflow (user can
+                // override either)
+                val filterTypes = _uiState.value.filter.types
+                val detectedType = filterTypes.singleOrNull() ?: WorkflowManager.detectWorkflowType(jsonContent)
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -238,7 +255,7 @@ class WorkflowManagementViewModel : ViewModel() {
                     importNameError = null,
                 )
             } catch (e: Exception) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_import))
+                emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_import))
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
@@ -302,7 +319,7 @@ class WorkflowManagementViewModel : ViewModel() {
         comfyUIClient.fetchAllNodeTypes { availableNodes ->
             viewModelScope.launch {
                 if (availableNodes == null) {
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_fetch_nodes_failed))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_fetch_nodes_failed))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
                     return@launch
                 }
@@ -326,7 +343,7 @@ class WorkflowManagementViewModel : ViewModel() {
                     }
                 } catch (e: Exception) {
                     DebugLogger.e(TAG, "Import failed: ${e.message}")
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
                     return@launch
                 }
@@ -339,7 +356,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 // Extract class types from workflow
                 val classTypesResult = WorkflowManager.extractClassTypes(jsonContent)
                 if (classTypesResult.isFailure) {
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
                     return@launch
                 }
@@ -405,7 +422,7 @@ class WorkflowManagementViewModel : ViewModel() {
                     pendingWorkflowForMapping = pendingImport
                 )
 
-                _events.emit(WorkflowManagementEvent.LaunchEditor(pendingImport))
+                emitEvent(WorkflowManagementEvent.LaunchEditor(pendingImport))
             }
         }
     }
@@ -788,8 +805,8 @@ class WorkflowManagementViewModel : ViewModel() {
                 fieldMappings = fieldMappings
             )
 
-            if (result.isSuccess) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_import_success))
+            val imported = result.getOrNull()
+            if (imported != null) {
                 // Show conversion warnings if any
                 if (warnings.isNotEmpty()) {
                     val warningMessage = applicationContext?.resources?.getQuantityString(
@@ -797,12 +814,15 @@ class WorkflowManagementViewModel : ViewModel() {
                         warnings.size,
                         warnings.size
                     ) ?: "Conversion completed with ${warnings.size} note(s)"
-                    _events.emit(WorkflowManagementEvent.ShowToastMessage(warningMessage))
+                    emitEvent(WorkflowManagementEvent.ShowToastMessage(warningMessage))
                 }
-                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
+                // Shown where it now sits; its type may not be the one filtered
+                if (imported.type !in _uiState.value.filter.types) onFilterChange(WorkflowFilter.ALL)
                 loadWorkflows()
+                emitEvent(WorkflowManagementEvent.WorkflowImported(imported.id))
             } else {
-                _events.emit(WorkflowManagementEvent.ShowToastMessage(
+                emitEvent(WorkflowManagementEvent.ShowToastMessage(
                     result.exceptionOrNull()?.message ?: "Import failed"
                 ))
             }
@@ -880,11 +900,11 @@ class WorkflowManagementViewModel : ViewModel() {
             )
 
             if (success) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_update_success))
-                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                emitEvent(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_update_success))
+                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
             } else {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_update))
+                emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_update))
             }
 
             _uiState.value = _uiState.value.copy(
@@ -917,11 +937,11 @@ class WorkflowManagementViewModel : ViewModel() {
         if (workflow.isBuiltIn) return
         viewModelScope.launch {
             if (WorkflowManager.deleteUserWorkflow(workflow.id)) {
-                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
-                _events.emit(WorkflowManagementEvent.WorkflowDeleted)
+                emitEvent(WorkflowManagementEvent.WorkflowDeleted)
             } else {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_delete))
+                emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_delete))
             }
         }
     }
@@ -985,12 +1005,12 @@ class WorkflowManagementViewModel : ViewModel() {
 
             val copy = result.getOrNull()
             if (copy != null) {
-                _events.emit(WorkflowManagementEvent.WorkflowsChanged)
+                emitEvent(WorkflowManagementEvent.WorkflowsChanged)
                 loadWorkflows()
                 // The detail page opens the copy's details
-                _events.emit(WorkflowManagementEvent.DuplicateCreated(copy.id))
+                emitEvent(WorkflowManagementEvent.DuplicateCreated(copy.id))
             } else {
-                _events.emit(WorkflowManagementEvent.ShowToastMessage(
+                emitEvent(WorkflowManagementEvent.ShowToastMessage(
                     result.exceptionOrNull()?.message ?: "Duplicate failed"
                 ))
             }
@@ -1026,7 +1046,7 @@ class WorkflowManagementViewModel : ViewModel() {
         )
 
         viewModelScope.launch {
-            _events.emit(WorkflowManagementEvent.LaunchExportFilePicker(suggestedFilename))
+            emitEvent(WorkflowManagementEvent.LaunchExportFilePicker(suggestedFilename))
         }
     }
 
@@ -1054,12 +1074,12 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
 
                 if (writeSuccess) {
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_export_success))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.msg_workflow_export_success))
                 } else {
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_export))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_export))
                 }
             } else {
-                _events.emit(WorkflowManagementEvent.ShowToastMessage(
+                emitEvent(WorkflowManagementEvent.ShowToastMessage(
                     result.exceptionOrNull()?.message ?: "Export failed"
                 ))
             }

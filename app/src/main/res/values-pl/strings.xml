@@ -187,6 +187,7 @@
     <string name="msg_image_ready">Obraz gotowy</string>
     <string name="msg_video_ready">Wideo gotowe</string>
     <string name="button_view">Pokaż</string>
+    <string name="button_open">Otwórz</string>
     <string name="content_description_new_result">Nowy wynik</string>
 
     <!-- Configuration fragment strings -->

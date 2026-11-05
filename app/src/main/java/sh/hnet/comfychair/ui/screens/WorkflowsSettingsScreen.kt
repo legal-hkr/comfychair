@@ -2,6 +2,16 @@
 
 package sh.hnet.comfychair.ui.screens
 
+import androidx.compose.runtime.SideEffect
+import kotlinx.coroutines.delay
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.animateColorAsState
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -188,11 +198,24 @@ fun WorkflowsSettingsScreen(
         viewModel.initialize(context)
     }
 
+    // A just-imported workflow: briefly highlighted, scrolled into view
+    var highlightedId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(highlightedId) {
+        if (highlightedId != null) {
+            delay(HIGHLIGHT_MS)
+            highlightedId = null
+        }
+    }
+    val snackbar = LocalAppSnackbarHostState.current
+    val resources = LocalResources.current
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+
     // Handle events, only while this page is on top (the detail page handles its own)
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-          viewModel.events.collect { event ->
+          viewModel.pageEvents.collect { event ->
             when (event) {
                 is WorkflowManagementEvent.ShowToast -> {
                     Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
@@ -214,6 +237,22 @@ fun WorkflowsSettingsScreen(
                         editorLauncher.launch(intent)
                     }
                 }
+                is WorkflowManagementEvent.WorkflowImported -> {
+                    val id = event.workflowId
+                    highlightedId = id
+                    // Its section's item first, so the row is composed and can bring itself into view
+                    val type = WorkflowManager.getWorkflowById(id)?.type
+                    val sectionIndex = sectionOrder.filter { it in viewModel.uiState.value.filter.types }.indexOf(type)
+                    if (sectionIndex >= 0) listState.scrollToItem(1 + sectionIndex)
+                    scope.launch {
+                        val result = snackbar?.showSnackbar(
+                            message = resources.getString(R.string.msg_workflow_import_success),
+                            actionLabel = resources.getString(R.string.button_open),
+                            duration = SnackbarDuration.Short
+                        )
+                        if (result == SnackbarResult.ActionPerformed) onOpenDetails(id)
+                    }
+                }
                 // From the detail page
                 is WorkflowManagementEvent.LaunchExportFilePicker,
                 is WorkflowManagementEvent.DuplicateCreated,
@@ -227,7 +266,6 @@ fun WorkflowsSettingsScreen(
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val listState = rememberLazyListState()
     // Import and Create need the server: imports are checked against it, and the editor saves through it
     val offline = remember { AppSettings.isOfflineMode(context) }
     val allSections = listOf(
@@ -273,6 +311,7 @@ fun WorkflowsSettingsScreen(
                                 WorkflowSection(
                                     section = section,
                                     disabledWorkflowIds = uiState.disabledWorkflowIds,
+                                    highlightedId = highlightedId,
                                     onOpen = openDetails,
                                     onEnabledChange = { workflow, enabled -> viewModel.onWorkflowEnabledChange(workflow, enabled) },
                                     onSectionEnabledChange = { enabled -> viewModel.onSectionEnabledChange(section.type, enabled) }
@@ -356,6 +395,12 @@ private fun parseMappingsFromJson(jsonString: String): Map<String, Pair<String, 
     return mappings
 }
 
+/** Order of the sections on the list. */
+private val sectionOrder = listOf(WorkflowType.TTI, WorkflowType.ITI_EDITING, WorkflowType.ITI_INPAINTING, WorkflowType.TTV, WorkflowType.ITV)
+
+/** How long a just-imported workflow's row stays highlighted before fading back. */
+private const val HIGHLIGHT_MS = 1000L
+
 /** A type's workflows on the page, with its title. */
 private class WorkflowSectionData(val type: WorkflowType, val titleRes: Int, val workflows: List<WorkflowManager.Workflow>)
 
@@ -407,6 +452,7 @@ private fun WorkflowFilterChips(selected: WorkflowFilter, onSelect: (WorkflowFil
 private fun WorkflowSection(
     section: WorkflowSectionData,
     disabledWorkflowIds: Set<String>,
+    highlightedId: String?,
     onOpen: (WorkflowManager.Workflow) -> Unit,
     onEnabledChange: (WorkflowManager.Workflow, Boolean) -> Unit,
     onSectionEnabledChange: (Boolean) -> Unit
@@ -456,6 +502,7 @@ private fun WorkflowSection(
                                 shapes = shapes,
                                 workflow = workflow,
                                 enabled = workflow.id !in disabledWorkflowIds,
+                                highlighted = workflow.id == highlightedId,
                                 onOpen = { onOpen(workflow) },
                                 onEnabledChange = { onEnabledChange(workflow, it) }
                             )
@@ -542,14 +589,25 @@ private fun WorkflowRow(
     shapes: ListItemShapes,
     workflow: WorkflowManager.Workflow,
     enabled: Boolean,
+    highlighted: Boolean,
     onOpen: () -> Unit,
     onEnabledChange: (Boolean) -> Unit
 ) {
     val details = stringResource(R.string.content_description_workflow_details, workflow.name)
+    // Just imported: at once in the highlight, then fading back to the list's colour
+    val container by animateColorAsState(
+        targetValue = if (highlighted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        animationSpec = if (highlighted) snap() else tween(HIGHLIGHT_MS.toInt(), easing = FastOutSlowInEasing),
+        label = "row highlight"
+    )
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(highlighted) { if (highlighted) bringIntoView.bringIntoView() }
     Surface(
         shape = shapes.shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
+        color = container,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoView)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -687,11 +745,15 @@ fun WorkflowDetailPage(
     val snackbar = LocalAppSnackbarHostState.current
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { viewModel.initialize(context) }
-    val workflow = remember(uiState, workflowId) {
+    val current = remember(uiState, workflowId) {
         listOf(uiState.ttiWorkflows, uiState.itiEditingWorkflows, uiState.itiInpaintingWorkflows, uiState.ttvWorkflows, uiState.itvWorkflows)
             .flatten()
             .firstOrNull { it.id == workflowId }
     }
+    // After deleting, the page goes back to the list and shows the workflow as it was until the transition ends
+    val lastShown = remember { mutableStateOf<WorkflowManager.Workflow?>(null) }
+    SideEffect { if (current != null) lastShown.value = current }
+    val workflow = current ?: lastShown.value
     var confirmDelete by remember { mutableStateOf(false) }
 
     val editLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -706,7 +768,7 @@ fun WorkflowDetailPage(
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            viewModel.events.collect { event ->
+            viewModel.pageEvents.collect { event ->
                 when (event) {
                     is WorkflowManagementEvent.ShowToast -> Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
                     is WorkflowManagementEvent.ShowToastMessage -> Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
@@ -719,17 +781,16 @@ fun WorkflowDetailPage(
                         onNavigateBack()
                         scope.launch { snackbar?.showSnackbar(resources.getString(R.string.msg_workflow_delete_success)) }
                     }
-                    is WorkflowManagementEvent.LaunchEditor, is WorkflowManagementEvent.WorkflowsChanged -> Unit
+                    is WorkflowManagementEvent.LaunchEditor, is WorkflowManagementEvent.WorkflowsChanged,
+                    is WorkflowManagementEvent.WorkflowImported -> Unit
                 }
             }
         }
     }
 
-    // Gone (deleted elsewhere): back to the list
-    if (workflow == null) {
-        LaunchedEffect(Unit) { if (!uiState.isLoading) onNavigateBack() }
-        return
-    }
+    // Not loaded yet (no automatic Back here: after a deletion the page has gone back already, and a second Back
+    // would leave the Workflows page too)
+    if (workflow == null) return
     val builtIn = workflow.isBuiltIn
     val enabled = workflow.id !in uiState.disabledWorkflowIds
     val viewLabel = stringResource(R.string.button_view_graph)
