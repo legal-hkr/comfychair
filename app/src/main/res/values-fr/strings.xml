@@ -490,7 +490,6 @@
     <string name="label_workflow_name">Nom</string>
     <string name="label_workflow_description">Description</string>
     <string name="title_import_workflow">Importer un workflow</string>
-    <string name="title_edit_workflow">Modifier le workflow</string>
     <string name="button_import">Importer</string>
     <string name="button_save">Enregistrer</string>
     <string name="button_delete">Supprimer</string>
@@ -604,17 +603,23 @@
     <string name="button_confirm">Confirmer</string>
     <string name="button_apply">Appliquer</string>
     <string name="button_done">Terminé</string>
-    <string name="button_ok">OK</string>
-    <string name="msg_validating_workflow">Validation du workflow…</string>
 
     <!-- Workflow validation error dialogs -->
     <string name="title_missing_nodes">Nœuds manquants</string>
-    <string name="msg_missing_nodes">Les nœuds suivants ne sont pas disponibles sur votre serveur ComfyUI :</string>
+    <string name="hint_optional">Facultatif</string>
+    <string name="button_copy_names">Copier les noms</string>
+    <string name="title_missing_on_server">Absents du serveur</string>
+    <string name="msg_missing_fields_none">L’écran « %1$s » a besoin de ces champs, mais aucun nœud de ce workflow ne les fournit. Vérifiez le type ou ajoutez les nœuds dans ComfyUI.</string>
+    <string name="label_copy_name">%1$s – copie</string>
+    <string name="label_copy_name_numbered">%1$s – copie %2$d</string>
+    <string name="error_name_taken">Un workflow portant ce nom existe déjà</string>
+    <string name="msg_names_copied">Noms copiés</string>
+    <plurals name="msg_missing_nodes_count">
+        <item quantity="one">Ce workflow utilise un nœud absent de votre serveur. Installez-le dans ComfyUI, puis importez à nouveau.</item>
+        <item quantity="many">Ce workflow utilise %d nœuds absents de votre serveur. Installez-les dans ComfyUI, puis importez à nouveau.</item>
+        <item quantity="other">Ce workflow utilise %d nœuds absents de votre serveur. Installez-les dans ComfyUI, puis importez à nouveau.</item>
+    </plurals>
     <string name="title_missing_fields">Champs requis manquants</string>
-    <string name="msg_missing_fields">Le workflow ne contient pas ces champs requis pour le type sélectionné :</string>
-    <string name="list_item_bullet">- %s</string>
-    <string name="title_duplicate_name">Nom déjà existant</string>
-    <string name="msg_duplicate_name">Un workflow avec ce nom existe déjà. Veuillez choisir un autre nom.</string>
 
     <!-- Field mapping UI strings -->
     <string name="title_field_mapping">Mapper les champs</string>

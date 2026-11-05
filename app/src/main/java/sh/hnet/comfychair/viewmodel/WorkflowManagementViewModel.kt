@@ -1,19 +1,20 @@
 package sh.hnet.comfychair.viewmodel
 
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.channels.Channel
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -71,7 +72,8 @@ data class WorkflowManagementUiState(
     val showImportDialog: Boolean = false,
     val pendingImportJsonContent: String = "",
     val importSelectedType: WorkflowType? = null,
-    val importTypeDropdownExpanded: Boolean = false,
+    // The picked file's name, under the import dialog's headline
+    val importFileName: String? = null,
     val importName: String = "",
     val importDescription: String = "",
     val importNameError: String? = null,
@@ -82,7 +84,6 @@ data class WorkflowManagementUiState(
     val missingNodes: List<String> = emptyList(),
     val showMissingFieldsDialog: Boolean = false,
     val missingFields: List<String> = emptyList(),
-    val showDuplicateNameDialog: Boolean = false,
 
     // Pending workflow for editor
     val pendingWorkflowForMapping: PendingWorkflowUpload? = null,
@@ -225,6 +226,15 @@ class WorkflowManagementViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             try {
+                // The file's display name, to show and to suggest a workflow name
+                val fileName = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                            if (cursor.moveToFirst()) cursor.getString(0) else null
+                        }
+                    }.getOrNull()
+                }
+
                 // Read file content
                 val jsonContent = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
@@ -249,8 +259,9 @@ class WorkflowManagementViewModel : ViewModel() {
                     showImportDialog = true,
                     pendingImportJsonContent = jsonContent,
                     importSelectedType = detectedType,
-                    importTypeDropdownExpanded = false,
-                    importName = "",
+                    importFileName = fileName,
+                    // The file's name as a start; the user can change it
+                    importName = fileName?.substringBeforeLast('.')?.let { ValidationUtils.truncateWorkflowName(it) } ?: "",
                     importDescription = "",
                     importNameError = null,
                 )
@@ -263,14 +274,7 @@ class WorkflowManagementViewModel : ViewModel() {
 
     fun onImportTypeSelected(type: WorkflowType) {
         _uiState.value = _uiState.value.copy(
-            importSelectedType = type,
-            importTypeDropdownExpanded = false
-        )
-    }
-
-    fun onToggleTypeDropdown() {
-        _uiState.value = _uiState.value.copy(
-            importTypeDropdownExpanded = !_uiState.value.importTypeDropdownExpanded
+            importSelectedType = type
         )
     }
 
@@ -308,7 +312,7 @@ class WorkflowManagementViewModel : ViewModel() {
 
         // Check for duplicate name
         if (WorkflowManager.isWorkflowNameTaken(name)) {
-            _uiState.value = _uiState.value.copy(showDuplicateNameDialog = true)
+            _uiState.value = _uiState.value.copy(importNameError = applicationContext?.getString(R.string.error_name_taken))
             return
         }
 
@@ -785,10 +789,6 @@ class WorkflowManagementViewModel : ViewModel() {
         cancelImport()
     }
 
-    fun dismissDuplicateNameDialog() {
-        _uiState.value = _uiState.value.copy(showDuplicateNameDialog = false)
-    }
-
     /**
      * Complete the import after mapping is confirmed in editor
      */
@@ -887,7 +887,7 @@ class WorkflowManagementViewModel : ViewModel() {
         // Check for duplicate name (excluding current workflow)
         if (WorkflowManager.isWorkflowNameTaken(name, excludeWorkflowId = workflow.id)) {
             _uiState.value = _uiState.value.copy(
-                editNameError = applicationContext?.getString(R.string.msg_duplicate_name)
+                editNameError = applicationContext?.getString(R.string.error_name_taken)
             )
             return
         }
@@ -992,7 +992,7 @@ class WorkflowManagementViewModel : ViewModel() {
 
         // Check for duplicate name
         if (WorkflowManager.isWorkflowNameTaken(name)) {
-            _uiState.value = _uiState.value.copy(duplicateNameError = applicationContext?.getString(R.string.msg_duplicate_name))
+            _uiState.value = _uiState.value.copy(duplicateNameError = applicationContext?.getString(R.string.error_name_taken))
             return
         }
 

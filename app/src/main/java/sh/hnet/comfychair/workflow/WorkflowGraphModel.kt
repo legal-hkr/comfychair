@@ -329,7 +329,6 @@ data class WorkflowEditorUiState(
     // Save dialog state (shown when Done is pressed in create mode)
     val showSaveDialog: Boolean = false,
     val saveDialogSelectedType: WorkflowType? = null,
-    val saveDialogTypeDropdownExpanded: Boolean = false,
     val saveDialogName: String = "",
     val saveDialogDescription: String = "",
     val saveDialogNameError: String? = null,
@@ -340,7 +339,6 @@ data class WorkflowEditorUiState(
     val missingNodes: List<String> = emptyList(),
     val showMissingFieldsDialog: Boolean = false,
     val missingFields: List<String> = emptyList(),
-    val showDuplicateNameDialog: Boolean = false,
 
     // Discard confirmation
     val showDiscardConfirmation: Boolean = false,

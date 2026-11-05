@@ -747,17 +747,7 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     fun onSaveDialogTypeSelected(type: WorkflowType) {
         _uiState.value = _uiState.value.copy(
-            saveDialogSelectedType = type,
-            saveDialogTypeDropdownExpanded = false
-        )
-    }
-
-    /**
-     * Toggle save dialog type dropdown
-     */
-    fun onSaveDialogToggleTypeDropdown() {
-        _uiState.value = _uiState.value.copy(
-            saveDialogTypeDropdownExpanded = !_uiState.value.saveDialogTypeDropdownExpanded
+            saveDialogSelectedType = type
         )
     }
 
@@ -778,13 +768,6 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             saveDialogDescription = description,
         )
-    }
-
-    /**
-     * Dismiss duplicate name dialog
-     */
-    fun dismissDuplicateNameDialog() {
-        _uiState.value = _uiState.value.copy(showDuplicateNameDialog = false)
     }
 
     /**
@@ -851,7 +834,7 @@ class WorkflowEditorViewModel : ViewModel() {
         // Check for duplicate name
         if (WorkflowManager.isWorkflowNameTaken(name)) {
             DebugLogger.w(TAG, "proceedWithSave: Duplicate name detected")
-            _uiState.value = _uiState.value.copy(showDuplicateNameDialog = true)
+            _uiState.value = _uiState.value.copy(saveDialogNameError = context.getString(R.string.error_name_taken))
             return
         }
 

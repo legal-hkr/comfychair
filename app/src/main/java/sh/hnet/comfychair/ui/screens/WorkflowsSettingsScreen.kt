@@ -2,22 +2,16 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import androidx.compose.runtime.SideEffect
-import kotlinx.coroutines.delay
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.animateColorAsState
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -39,6 +33,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,7 +60,6 @@ import androidx.compose.material.icons.rounded.ToggleOff
 import androidx.compose.material.icons.rounded.ToggleOn
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -81,8 +76,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -93,6 +88,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -122,6 +118,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
@@ -131,6 +128,8 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.WorkflowGraphPreview
+import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
+import sh.hnet.comfychair.ui.components.dialogs.FormDialog
 import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
 import sh.hnet.comfychair.ui.components.settings.SettingsActionRow
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
@@ -138,7 +137,6 @@ import sh.hnet.comfychair.ui.components.settings.SettingsPage
 import sh.hnet.comfychair.ui.components.settings.SettingsSwitchRow
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
-import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
@@ -335,10 +333,10 @@ fun WorkflowsSettingsScreen(
     if (uiState.showImportDialog) {
         WorkflowDetailsDialog(
             titleRes = R.string.title_import_workflow,
+            confirmLabelRes = R.string.button_continue,
+            fileName = uiState.importFileName,
             selectedType = uiState.importSelectedType,
             onTypeSelected = viewModel::onImportTypeSelected,
-            isTypeDropdownExpanded = uiState.importTypeDropdownExpanded,
-            onToggleTypeDropdown = viewModel::onToggleTypeDropdown,
             name = uiState.importName,
             onNameChange = viewModel::onImportNameChange,
             nameError = uiState.importNameError,
@@ -362,14 +360,8 @@ fun WorkflowsSettingsScreen(
     if (uiState.showMissingFieldsDialog) {
         MissingFieldsDialog(
             missingFields = uiState.missingFields,
+            type = uiState.importSelectedType,
             onDismiss = viewModel::dismissMissingFieldsDialog
-        )
-    }
-
-    // Duplicate name dialog
-    if (uiState.showDuplicateNameDialog) {
-        DuplicateNameDialog(
-            onDismiss = viewModel::dismissDuplicateNameDialog
         )
     }
 
@@ -974,7 +966,7 @@ fun WorkflowDetailPage(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Name and description of an own workflow (form); a name already taken shows as the field's error. */
 @Composable
 private fun EditWorkflowDialog(
     name: String,
@@ -985,46 +977,25 @@ private fun EditWorkflowDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_edit_workflow)) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    label = { Text(stringResource(R.string.label_workflow_name)) },
-                    singleLine = true,
-                    isError = nameError != null || name.isBlank(),
-                    supportingText = nameError?.let { { Text(it) } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = onDescriptionChange,
-                    label = { Text(stringResource(R.string.label_workflow_description)) },
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = name.isNotBlank() && nameError == null
-            ) {
-                Text(stringResource(R.string.button_save))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
+    FormDialog(
+        title = stringResource(R.string.button_name_and_description),
+        confirmLabel = stringResource(R.string.button_save),
+        confirmEnabled = name.isNotBlank() && nameError == null,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    ) {
+        DialogTextField(name, onNameChange, stringResource(R.string.label_workflow_name), error = nameError)
+        DialogTextField(
+            description,
+            onDescriptionChange,
+            stringResource(R.string.label_workflow_description),
+            multiLine = true,
+            optional = true
+        )
+    }
 }
 
+/** A copy of a workflow: its name (suggested as "… copy") and description (form). */
 @Composable
 private fun DuplicateWorkflowDialog(
     name: String,
@@ -1035,42 +1006,20 @@ private fun DuplicateWorkflowDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_duplicate_workflow)) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    label = { Text(stringResource(R.string.label_workflow_name)) },
-                    singleLine = true,
-                    isError = nameError != null,
-                    supportingText = nameError?.let { { Text(it) } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = onDescriptionChange,
-                    label = { Text(stringResource(R.string.label_workflow_description)) },
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = name.isNotBlank() && nameError == null
-            ) {
-                Text(stringResource(R.string.button_save))
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
+    FormDialog(
+        title = stringResource(R.string.title_duplicate_workflow),
+        confirmLabel = stringResource(R.string.workflow_menu_duplicate),
+        confirmEnabled = name.isNotBlank() && nameError == null,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    ) {
+        DialogTextField(name, onNameChange, stringResource(R.string.label_workflow_name), error = nameError)
+        DialogTextField(
+            description,
+            onDescriptionChange,
+            stringResource(R.string.label_workflow_description),
+            multiLine = true,
+            optional = true
+        )
+    }
 }

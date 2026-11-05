@@ -494,7 +494,6 @@
     <string name="label_workflow_name">Name</string>
     <string name="label_workflow_description">Beschreibung</string>
     <string name="title_import_workflow">Workflow importieren</string>
-    <string name="title_edit_workflow">Workflow bearbeiten</string>
     <string name="button_import">Importieren</string>
     <string name="button_save">Speichern</string>
     <string name="button_delete">Löschen</string>
@@ -604,17 +603,22 @@
     <string name="button_confirm">Bestätigen</string>
     <string name="button_apply">Anwenden</string>
     <string name="button_done">Fertig</string>
-    <string name="button_ok">OK</string>
-    <string name="msg_validating_workflow">Workflow wird validiert…</string>
 
     <!-- Workflow validation error dialogs -->
     <string name="title_missing_nodes">Fehlende Nodes</string>
-    <string name="msg_missing_nodes">Die folgenden Nodes sind auf Ihrem ComfyUI-Server nicht verfügbar:</string>
+    <string name="hint_optional">Optional</string>
+    <string name="button_copy_names">Namen kopieren</string>
+    <string name="title_missing_on_server">Fehlt auf dem Server</string>
+    <string name="msg_missing_fields_none">Der Bildschirm „%1$s“ braucht diese Felder, aber kein Knoten dieses Workflows liefert sie. Prüfe den Typ oder füge die Knoten in ComfyUI hinzu.</string>
+    <string name="label_copy_name">%1$s – Kopie</string>
+    <string name="label_copy_name_numbered">%1$s – Kopie %2$d</string>
+    <string name="error_name_taken">Ein Workflow mit diesem Namen existiert bereits</string>
+    <string name="msg_names_copied">Namen kopiert</string>
+    <plurals name="msg_missing_nodes_count">
+        <item quantity="one">Dieser Workflow nutzt einen Knoten, den dein Server nicht hat. Installiere ihn in ComfyUI und importiere erneut.</item>
+        <item quantity="other">Dieser Workflow nutzt %d Knoten, die dein Server nicht hat. Installiere sie in ComfyUI und importiere erneut.</item>
+    </plurals>
     <string name="title_missing_fields">Fehlende Pflichtfelder</string>
-    <string name="msg_missing_fields">Dem Workflow fehlen diese Pflichtfelder für den ausgewählten Typ:</string>
-    <string name="list_item_bullet">- %s</string>
-    <string name="title_duplicate_name">Name existiert bereits</string>
-    <string name="msg_duplicate_name">Ein Workflow mit diesem Namen existiert bereits. Bitte wählen Sie einen anderen Namen.</string>
 
     <!-- Field mapping UI strings -->
     <string name="title_field_mapping">Felder zuordnen</string>

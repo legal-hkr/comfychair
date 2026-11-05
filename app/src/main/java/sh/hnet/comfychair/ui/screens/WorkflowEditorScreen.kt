@@ -109,7 +109,6 @@ import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
-import sh.hnet.comfychair.ui.components.workflow.DuplicateNameDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
@@ -935,10 +934,9 @@ fun WorkflowEditorScreen(
         if (uiState.showSaveDialog) {
             WorkflowDetailsDialog(
                 titleRes = R.string.title_save_workflow,
+                confirmLabelRes = R.string.button_save,
                 selectedType = uiState.saveDialogSelectedType,
                 onTypeSelected = { viewModel.onSaveDialogTypeSelected(it) },
-                isTypeDropdownExpanded = uiState.saveDialogTypeDropdownExpanded,
-                onToggleTypeDropdown = { viewModel.onSaveDialogToggleTypeDropdown() },
                 name = uiState.saveDialogName,
                 onNameChange = { viewModel.onSaveDialogNameChange(it) },
                 nameError = uiState.saveDialogNameError,
@@ -964,14 +962,8 @@ fun WorkflowEditorScreen(
         if (uiState.showMissingFieldsDialog) {
             MissingFieldsDialog(
                 missingFields = uiState.missingFields,
+                type = uiState.saveDialogSelectedType,
                 onDismiss = { viewModel.dismissMissingFieldsDialog() }
-            )
-        }
-
-        // Duplicate name dialog
-        if (uiState.showDuplicateNameDialog) {
-            DuplicateNameDialog(
-                onDismiss = { viewModel.dismissDuplicateNameDialog() }
             )
         }
     }

@@ -490,7 +490,6 @@
     <string name="label_workflow_name">Nombre</string>
     <string name="label_workflow_description">Descripción</string>
     <string name="title_import_workflow">Importar workflow</string>
-    <string name="title_edit_workflow">Editar workflow</string>
     <string name="button_import">Importar</string>
     <string name="button_save">Guardar</string>
     <string name="button_delete">Eliminar</string>
@@ -604,17 +603,23 @@
     <string name="button_confirm">Confirmar</string>
     <string name="button_apply">Aplicar</string>
     <string name="button_done">Hecho</string>
-    <string name="button_ok">OK</string>
-    <string name="msg_validating_workflow">Validando workflow…</string>
 
     <!-- Workflow validation error dialogs -->
     <string name="title_missing_nodes">Nodos faltantes</string>
-    <string name="msg_missing_nodes">Los siguientes nodos no están disponibles en su servidor ComfyUI:</string>
+    <string name="hint_optional">Opcional</string>
+    <string name="button_copy_names">Copiar nombres</string>
+    <string name="title_missing_on_server">Faltan en el servidor</string>
+    <string name="msg_missing_fields_none">La pantalla «%1$s» necesita estos campos, pero ningún nodo de este workflow los proporciona. Revisa el tipo o añade los nodos en ComfyUI.</string>
+    <string name="label_copy_name">%1$s – copia</string>
+    <string name="label_copy_name_numbered">%1$s – copia %2$d</string>
+    <string name="error_name_taken">Ya existe un workflow con este nombre</string>
+    <string name="msg_names_copied">Nombres copiados</string>
+    <plurals name="msg_missing_nodes_count">
+        <item quantity="one">Este workflow usa un nodo que tu servidor no tiene. Instálalo en ComfyUI y vuelve a importar.</item>
+        <item quantity="many">Este workflow usa %d nodos que tu servidor no tiene. Instálalos en ComfyUI y vuelve a importar.</item>
+        <item quantity="other">Este workflow usa %d nodos que tu servidor no tiene. Instálalos en ComfyUI y vuelve a importar.</item>
+    </plurals>
     <string name="title_missing_fields">Campos requeridos faltantes</string>
-    <string name="msg_missing_fields">El workflow no contiene estos campos requeridos para el tipo seleccionado:</string>
-    <string name="list_item_bullet">- %s</string>
-    <string name="title_duplicate_name">Nombre ya existente</string>
-    <string name="msg_duplicate_name">Ya existe un workflow con este nombre. Por favor, elija otro nombre.</string>
 
     <!-- Field mapping UI strings -->
     <string name="title_field_mapping">Mapear campos</string>

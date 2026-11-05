@@ -352,27 +352,30 @@ object WorkflowManager {
     }
 
     /**
-     * Generate a unique name for duplicating a workflow.
-     * Returns "Name (1)", "Name (2)", etc. until a unique name is found.
-     * The original name is kept intact, e.g. "My Workflow (2)" becomes "My Workflow (2) (1)".
+     * A name for a copy of a workflow: "<name> copy", then "<name> copy 2", 3… (in the user's language), the first not
+     * taken. A copy of a copy counts on from the same base name instead of stacking suffixes.
      */
     fun generateUniqueDuplicateName(originalName: String): String {
-        val existingNames = workflows.map { it.name }.toSet()
-
-        // Find all numbers already used with this exact base name
-        val numberPattern = Regex("""^\Q$originalName\E \((\d+)\)$""", RegexOption.IGNORE_CASE)
-        val usedNumbers = existingNames.mapNotNull { name ->
-            numberPattern.matchEntire(name)?.groupValues?.get(1)?.toIntOrNull()
-        }.toSet()
-
-        // Find the next available number starting from 1
-        var nextNumber = 1
-        while (nextNumber in usedNumbers) {
-            nextNumber++
+        val marker = "\u0000"
+        val number = 987654321
+        fun pattern(template: String): Regex {
+            val parts = template.replace(number.toString(), "\u0001").split(marker)
+            val withNumber = parts.joinToString("(.+)") { Regex.escape(it).replace("\u0001", "\\E(\\d+)\\Q") }
+            return Regex("^$withNumber$")
         }
+        val single = pattern(applicationContext.getString(R.string.label_copy_name, marker))
+        val numbered = pattern(applicationContext.getString(R.string.label_copy_name_numbered, marker, number))
+        val base = numbered.matchEntire(originalName)?.groupValues?.get(1)
+            ?: single.matchEntire(originalName)?.groupValues?.get(1)
+            ?: originalName
 
-        return "$originalName ($nextNumber)"
+        val first = applicationContext.getString(R.string.label_copy_name, base)
+        if (!isWorkflowNameTaken(first)) return first
+        var n = 2
+        while (isWorkflowNameTaken(applicationContext.getString(R.string.label_copy_name_numbered, base, n))) n++
+        return applicationContext.getString(R.string.label_copy_name_numbered, base, n)
     }
+
 
     /**
      * Duplicate a workflow (built-in or user) as a new user workflow.

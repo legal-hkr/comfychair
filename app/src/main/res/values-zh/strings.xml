@@ -468,7 +468,6 @@
     <string name="label_workflow_name">名称</string>
     <string name="label_workflow_description">描述</string>
     <string name="title_import_workflow">导入工作流</string>
-    <string name="title_edit_workflow">编辑工作流</string>
     <string name="button_import">导入</string>
     <string name="button_save">保存</string>
     <string name="button_delete">删除</string>
@@ -574,17 +573,21 @@
     <string name="button_confirm">确认</string>
     <string name="button_apply">应用</string>
     <string name="button_done">完成</string>
-    <string name="button_ok">确定</string>
-    <string name="msg_validating_workflow">正在验证工作流…</string>
 
     <!-- Workflow validation error dialogs -->
     <string name="title_missing_nodes">缺少节点</string>
-    <string name="msg_missing_nodes">以下节点在您的 ComfyUI 服务器上不可用：</string>
+    <string name="hint_optional">可选</string>
+    <string name="button_copy_names">复制名称</string>
+    <string name="title_missing_on_server">服务器缺少节点</string>
+    <string name="msg_missing_fields_none">“%1$s”屏幕需要这些字段，但此工作流中没有节点提供它们。请检查类型，或在 ComfyUI 中添加这些节点。</string>
+    <string name="label_copy_name">%1$s 副本</string>
+    <string name="label_copy_name_numbered">%1$s 副本 %2$d</string>
+    <string name="error_name_taken">已存在同名工作流</string>
+    <string name="msg_names_copied">已复制名称</string>
+    <plurals name="msg_missing_nodes_count">
+        <item quantity="other">此工作流使用了 %d 个服务器上没有的节点。请在 ComfyUI 中安装后重新导入。</item>
+    </plurals>
     <string name="title_missing_fields">缺少必填字段</string>
-    <string name="msg_missing_fields">该工作流缺少所选类型的必填字段：</string>
-    <string name="list_item_bullet">- %s</string>
-    <string name="title_duplicate_name">名称已存在</string>
-    <string name="msg_duplicate_name">已存在同名工作流，请选择其他名称。</string>
 
     <!-- Field mapping UI strings -->
     <string name="title_field_mapping">映射字段</string>
