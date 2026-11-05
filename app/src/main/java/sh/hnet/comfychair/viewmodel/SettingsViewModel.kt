@@ -439,7 +439,7 @@ class SettingsViewModel : ViewModel() {
                     val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
                     // Remove keys that start with the server prefix and end with positivePrompt
                     prefs.all.keys
-                        .filter { it.startsWith(serverPrefix) && it.endsWith("positivePrompt") }
+                        .filter { it.startsWith(serverPrefix) && it.endsWith("positivePrompt", ignoreCase = true) }  // editingPositivePrompt too
                         .forEach { key ->
                             prefs.edit().remove(key).apply()
                         }

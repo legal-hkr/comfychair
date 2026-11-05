@@ -125,13 +125,9 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
     override fun ImageToImageUiState.params() =
         if (mode == ImageToImageMode.EDITING) editingParams else inpaintingParams
 
-    // The positive prompt is shared by both modes
+    // Each mode has its own prompt: inpainting describes the result, editing gives an instruction
     override fun ImageToImageUiState.withParams(params: GenerationParams) =
-        if (mode == ImageToImageMode.EDITING) {
-            copy(editingParams = params, inpaintingParams = inpaintingParams.copy(positivePrompt = params.positivePrompt))
-        } else {
-            copy(inpaintingParams = params, editingParams = editingParams.copy(positivePrompt = params.positivePrompt))
-        }
+        if (mode == ImageToImageMode.EDITING) copy(editingParams = params) else copy(inpaintingParams = params)
 
     override fun ImageToImageUiState.mapAllParams(transform: (GenerationParams) -> GenerationParams) =
         copy(inpaintingParams = transform(inpaintingParams), editingParams = transform(editingParams))
@@ -146,7 +142,8 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
         private const val PREFS_NAME = "ImageToImageFragmentPrefs"
 
         // Global preferences (camelCase keys for BackupManager compatibility)
-        private const val PREF_POSITIVE_PROMPT = "positivePrompt"
+        private const val PREF_POSITIVE_PROMPT = "positivePrompt"  // Inpainting (shared by both modes until 0.9.0)
+        private const val PREF_EDITING_POSITIVE_PROMPT = "editingPositivePrompt"
         private const val PREF_SELECTED_WORKFLOW_ID = "selectedWorkflowId"
         private const val PREF_MODE = "mode"
         private const val PREF_SELECTED_EDITING_WORKFLOW_ID = "selectedEditingWorkflowId"
@@ -223,10 +220,13 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
         val serverId = ConnectionManager.currentServerId ?: return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        val defaultPositivePrompt = SeasonalPrompts.getImageToImagePrompt()
-
         // Load global preferences with serverId prefix
-        val positivePrompt = prefs.getString("${serverId}_$PREF_POSITIVE_PROMPT", null) ?: defaultPositivePrompt
+        val savedPrompt = prefs.getString("${serverId}_$PREF_POSITIVE_PROMPT", null)
+        val positivePrompt = savedPrompt ?: SeasonalPrompts.getImageToImagePrompt()
+        // Editing's own prompt; before it had one, the shared prompt counts when the user wrote it (not a default)
+        val editingPrompt = prefs.getString("${serverId}_$PREF_EDITING_POSITIVE_PROMPT", null)
+            ?: savedPrompt?.takeUnless { SeasonalPrompts.isImageToImageDefault(it) }
+            ?: SeasonalPrompts.getImageEditPrompt()
         val savedWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", null)
         val savedMode = prefs.getString("${serverId}_$PREF_MODE", ImageToImageMode.EDITING.name)
         val savedEditingWorkflowId = prefs.getString("${serverId}_$PREF_SELECTED_EDITING_WORKFLOW_ID", null)
@@ -238,12 +238,12 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
             ImageToImageMode.EDITING
         }
 
-        // Mode and the shared positive prompt first
+        // Mode and each mode's prompt first
         _uiState.update {
             it.copy(
                 mode = mode,
                 inpaintingParams = it.inpaintingParams.copy(positivePrompt = positivePrompt),
-                editingParams = it.editingParams.copy(positivePrompt = positivePrompt)
+                editingParams = it.editingParams.copy(positivePrompt = editingPrompt)
             )
         }
 
@@ -267,13 +267,14 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
 
         // Save global preferences with serverId prefix
         prefs.edit()
-            .putString("${serverId}_$PREF_POSITIVE_PROMPT", state.positivePrompt)
+            .putString("${serverId}_$PREF_POSITIVE_PROMPT", state.inpaintingParams.positivePrompt)
+            .putString("${serverId}_$PREF_EDITING_POSITIVE_PROMPT", state.editingParams.positivePrompt)
             .putString("${serverId}_$PREF_MODE", state.mode.name)
             .putString("${serverId}_$PREF_SELECTED_WORKFLOW_ID", state.inpaintingParams.selectedWorkflowId)
             .putString("${serverId}_$PREF_SELECTED_EDITING_WORKFLOW_ID", state.editingParams.selectedWorkflowId)
             .apply()
 
-        // Per-workflow values of both modes' workflows (the positive prompt change touches both)
+        // Per-workflow values of both modes' workflows
         saveWorkflowValues(state.inpaintingParams)
         saveWorkflowValues(state.editingParams)
     }
@@ -620,22 +621,23 @@ class ImageToImageViewModel : BaseGenerationViewModel<ImageToImageUiState>() {
     }
 
     /**
-     * Reset prompt to seasonal default.
-     * Clears saved positive prompt and reloads with seasonal default.
+     * Reset the current mode's prompt to its seasonal default (an instruction in editing, a description in inpainting).
      */
     override fun resetPromptToDefault() {
         val ctx = applicationContext ?: return
         val serverId = ConnectionManager.currentServerId ?: return
+        val editing = _uiState.value.mode == ImageToImageMode.EDITING
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // Clear saved positive prompt
+                // Clear the mode's saved prompt
                 val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit().remove("${serverId}_$PREF_POSITIVE_PROMPT").apply()
+                val key = if (editing) PREF_EDITING_POSITIVE_PROMPT else PREF_POSITIVE_PROMPT
+                prefs.edit().remove("${serverId}_$key").apply()
             }
 
             // Set prompt to seasonal default
-            val defaultPrompt = SeasonalPrompts.getImageToImagePrompt()
+            val defaultPrompt = if (editing) SeasonalPrompts.getImageEditPrompt() else SeasonalPrompts.getImageToImagePrompt()
             updateParams(save = false) { it.copy(positivePrompt = defaultPrompt) }
 
             // Emit toast event

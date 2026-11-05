@@ -243,6 +243,7 @@ class BackupManager(private val context: Context) {
         return JSONObject().apply {
             put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
             put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
+            put("editingPositivePrompt", prefs.getString("${serverId}_editingPositivePrompt", "") ?: "")
             put("mode", prefs.getString("${serverId}_mode", "INPAINTING") ?: "INPAINTING")
             put("selectedEditingWorkflowId", prefs.getString("${serverId}_selectedEditingWorkflowId", "") ?: "")
         }
@@ -422,6 +423,11 @@ class BackupManager(private val context: Context) {
             json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
                 validator.validateAndSanitizePrompt(prompt)?.let {
                     putString("${serverId}_positivePrompt", it)
+                }
+            }
+            json.optString("editingPositivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_editingPositivePrompt", it)
                 }
             }
             json.optString("mode").takeIf { it == "INPAINTING" || it == "EDITING" }?.let {

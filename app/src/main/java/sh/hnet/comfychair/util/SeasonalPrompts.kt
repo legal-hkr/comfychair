@@ -118,6 +118,21 @@ object SeasonalPrompts {
 
     // endregion
 
+    // region Image Edit Prompts (instructions: edit models follow short commands)
+
+    private val imageEditPrompts = mapOf(
+        SeasonalEvent.SPRING to "Change her hair color to green.",
+        SeasonalEvent.EASTER to "Change her hair color to a rainbow mix of soft pastel colors.",
+        SeasonalEvent.APRIL_FOOLS to "Change her hairstyle to a bright red punk mohawk.",
+        SeasonalEvent.SUMMER to "Change her hair color to blue.",
+        SeasonalEvent.AUTUMN to "Change her hair color to red.",
+        SeasonalEvent.HALLOWEEN to "Make her look like a witch with a black pointed hat, dark lipstick and a black cloak.",
+        SeasonalEvent.WINTER to "Change her hair color to violet.",
+        SeasonalEvent.CHRISTMAS to "Put a red Santa hat on her."
+    )
+
+    // endregion
+
     // region Text to Video Prompts
 
     private val textToVideoPrompts = mapOf(
@@ -153,8 +168,16 @@ object SeasonalPrompts {
     fun getTextToImagePrompt(): String =
         textToImagePrompts[getCurrentEvent()] ?: textToImagePrompts[SeasonalEvent.WINTER]!!
 
+    /** Image to Image, inpainting: a description of the result. */
     fun getImageToImagePrompt(): String =
         imageToImagePrompts[getCurrentEvent()] ?: imageToImagePrompts[SeasonalEvent.WINTER]!!
+
+    /** Image to Image, editing: an instruction. */
+    fun getImageEditPrompt(): String =
+        imageEditPrompts[getCurrentEvent()] ?: imageEditPrompts[SeasonalEvent.WINTER]!!
+
+    /** Whether a prompt is one of the inpainting defaults (any season), i.e. not the user's own text. */
+    fun isImageToImageDefault(prompt: String): Boolean = prompt in imageToImagePrompts.values
 
     fun getTextToVideoPrompt(): String =
         textToVideoPrompts[getCurrentEvent()] ?: textToVideoPrompts[SeasonalEvent.WINTER]!!
