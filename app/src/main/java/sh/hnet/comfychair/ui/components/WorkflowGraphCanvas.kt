@@ -58,7 +58,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -69,7 +68,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
@@ -309,7 +307,9 @@ fun WorkflowGraphCanvas(
     // Nodes, notes, groups and connections move and fade in on changes; off, they're drawn in place at once (a preview)
     animateChanges: Boolean = true,
     // Overview level: a tapped block asks to be zoomed to (scale and offset centring it); null: no zooming (a preview)
-    onZoomTo: ((scale: Float, offset: Offset) -> Unit)? = null
+    onZoomTo: ((scale: Float, offset: Offset) -> Unit)? = null,
+    // Always the overview, whatever the zoom (previews: small workflows look like the large ones)
+    forceOverview: Boolean = false
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -451,23 +451,20 @@ fun WorkflowGraphCanvas(
         focusProgress.animateTo(1f, focusSpec)
     }
 
-    // Level of detail (spec §12.6): from the zoom, with hysteresis; a switch crossfades
-    val level = rememberGraphDetailLevel(scale)
-    var shownLevel by remember { mutableStateOf(level) }
-    var previousLevel by remember { mutableStateOf(level) }
-    val levelProgress = remember { Animatable(1f) }
+    // Level of detail (spec §12.6): from the zoom, with hysteresis. Crossing the threshold starts the change at
+    // once and runs it through: title bars spread over their nodes (and back), with standard spatial motion
+    val zoomLevel = rememberGraphDetailLevel(scale)
+    val level = if (forceOverview) GraphDetailLevel.OVERVIEW else zoomLevel
+    val overviewProgress = remember { Animatable(if (level == GraphDetailLevel.OVERVIEW) 1f else 0f) }
+    val spreadSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     LaunchedEffect(level) {
-        if (level == shownLevel) return@LaunchedEffect
-        previousLevel = shownLevel
-        shownLevel = level
-        levelProgress.snapTo(0f)
-        levelProgress.animateTo(1f, focusSpec)
+        val target = if (level == GraphDetailLevel.OVERVIEW) 1f else 0f
+        if (animateChanges) overviewProgress.animateTo(target, spreadSpec) else overviewProgress.snapTo(target)
     }
     val currentLevel = rememberUpdatedState(level)
     val currentOnZoomTo = rememberUpdatedState(onZoomTo)
     // Overview text: one size on screen for every block (smaller only when the zoom leaves no room for it)
     val overviewTitlePx = with(density) { 8.5.sp.toPx() }
-    val noteWord = stringResource(R.string.label_graph_note)
 
     // Long-press feedback: a ring growing around the slot until the press counts
     var longPressSlot by remember { mutableStateOf<SlotPosition?>(null) }
@@ -1260,12 +1257,10 @@ fun WorkflowGraphCanvas(
             animatedNodes.minOfOrNull { it.node.height } ?: Float.MAX_VALUE,
             animatedNotes.minOfOrNull { it.note.height } ?: Float.MAX_VALUE
         )
-        val text = DetailText(minOf(overviewTitlePx / scale, lowestBlock * 0.5f), noteWord)
+        val overviewTitleSize = minOf(overviewTitlePx / scale, lowestBlock * 0.5f)
         val minSelectionWidth = 2f * unitsPerDp
-        // While the level switches, both levels, crossfading
-        val levelFade = levelProgress.value
-        val switching = levelFade < 1f && previousLevel != shownLevel
-        val levelsDrawn = if (switching) listOf(previousLevel to 1f - levelFade, shownLevel to levelFade) else listOf(shownLevel to 1f)
+        // How far the title bars have spread over their nodes (0 full detail, 1 overview); a spring may overshoot
+        val spread = overviewProgress.value.coerceIn(0f, 1f)
 
         // Apply transformation
         withTransform({
@@ -1331,7 +1326,7 @@ fun WorkflowGraphCanvas(
             // Draw groups first (behind everything) with alpha
             animatedGroups.forEach { (group, alpha) ->
                 if (alpha > 0.01f) {
-                    drawGroup(group = group, colors = colors, paints = paints, alpha = alpha, level = shownLevel)
+                    drawGroup(group = group, colors = colors, paints = paints, alpha = alpha, chipAlpha = 1f - spread)
                 }
             }
 
@@ -1404,36 +1399,40 @@ fun WorkflowGraphCanvas(
                     withTransform({
                         scale(nodeScale, nodeScale, Offset(node.x + node.width / 2, node.y + node.height / 2))
                     }) {
-                        levelsDrawn.forEach { (drawnLevel, levelAlpha) ->
-                                when (drawnLevel) {
-                                    GraphDetailLevel.FULL -> drawNode(
-                                        node = node,
-                                        colors = colors,
-                                        paints = paints,
-                                        icons = icons,
-                                        alpha = alpha * levelAlpha,
-                                        highlightState = highlightState,
-                                        isMissing = isMissing,
-                                        nodeEdits = nodeEdits,
-                                        nodeDefinition = nodeDefinition,
-                                        editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
-                                        displayNameResolver = displayNameResolver,
-                                        inputWireColors = inputWireColors[node.id] ?: emptyMap(),
-                                        mappedFields = graph.mappedFields,
-                                        showChangedDot = showChangedDot
-                                    )
-                                    GraphDetailLevel.OVERVIEW -> drawNodeBlock(
-                                        node = node,
-                                        minSelectionWidth = minSelectionWidth,
-                                        colors = colors,
-                                        paints = paints,
-                                        text = text,
-                                        alpha = alpha * levelAlpha,
-                                        highlightState = highlightState,
-                                        isMissing = isMissing
-                                    )
-                                }
+                        // Full detail until the title bar has covered the node; then only the block
+                        if (spread < 1f) {
+                            drawNode(
+                                node = node,
+                                colors = colors,
+                                paints = paints,
+                                icons = icons,
+                                alpha = alpha,
+                                highlightState = highlightState,
+                                isMissing = isMissing,
+                                nodeEdits = nodeEdits,
+                                nodeDefinition = nodeDefinition,
+                                editableInputNames = if (highlightEditableInputs) editableInputNames else emptySet(),
+                                displayNameResolver = displayNameResolver,
+                                inputWireColors = inputWireColors[node.id] ?: emptyMap(),
+                                mappedFields = graph.mappedFields,
+                                showChangedDot = showChangedDot
+                            )
+                        }
+                        if (spread > 0f) {
+                            val (tint, titleColor) = titleBarColors(node, isMissing, colors)
+                            drawTitleSpread(
+                                left = node.x, top = node.y, width = node.width, height = node.height,
+                                title = node.title, tint = tint, titleColor = titleColor,
+                                spread = spread, overviewTitleSize = overviewTitleSize,
+                                colors = colors, paints = paints, alpha = alpha
+                            )
+                            if (spread >= 1f && highlightState != NodeHighlightState.NONE) {
+                                drawBlockSelection(
+                                    node.x, node.y, node.width, node.height, colors, alpha, minSelectionWidth,
+                                    candidate = highlightState == NodeHighlightState.CANDIDATE
+                                )
                             }
+                        }
                     }
                 }
             }
@@ -1452,21 +1451,29 @@ fun WorkflowGraphCanvas(
                     withTransform({
                         scale(noteScale, noteScale, Offset(note.x + note.width / 2, note.y + note.height / 2))
                     }) {
-                        levelsDrawn.forEach { (drawnLevel, levelAlpha) ->
-                                if (drawnLevel == GraphDetailLevel.FULL) {
-                                    drawNote(
-                                        note = note,
-                                        colors = colors,
-                                        paints = paints,
-                                        alpha = alpha * levelAlpha,
-                                        isSelected = isSelected,
-                                        textMeasurer = textMeasurer,
-                                        density = density
-                                    )
-                                } else {
-                                    drawNoteBlock(note, minSelectionWidth, colors, paints, text, alpha * levelAlpha, isSelected)
-                                }
+                        // Full detail (which also measures the note's height) until its title bar has covered it
+                        if (spread < 1f) {
+                            drawNote(
+                                note = note,
+                                colors = colors,
+                                paints = paints,
+                                alpha = alpha,
+                                isSelected = isSelected,
+                                textMeasurer = textMeasurer,
+                                density = density
+                            )
+                        }
+                        if (spread > 0f) {
+                            drawTitleSpread(
+                                left = note.x, top = note.y, width = note.width, height = note.height,
+                                title = note.title, tint = colors.note, titleColor = colors.onNote,
+                                spread = spread, overviewTitleSize = overviewTitleSize,
+                                colors = colors, paints = paints, alpha = alpha
+                            )
+                            if (spread >= 1f && isSelected) {
+                                drawBlockSelection(note.x, note.y, note.width, note.height, colors, alpha, minSelectionWidth, candidate = false)
                             }
+                        }
                     }
 
                     // Copy measured height back to original note for layout
@@ -1480,14 +1487,15 @@ fun WorkflowGraphCanvas(
                 noteHeightsChanged = true
             }
 
-            // Sockets on the nodes' edges, in every mode: filled when connected, a ring when free; none in overview
-            val socketFade = if (switching) levelFade else 1f
-            if (shownLevel != GraphDetailLevel.OVERVIEW) animatedNodes.forEach { (node, nodeAlphaFull) ->
-                val nodeAlpha = nodeAlphaFull * socketFade
+            // Sockets on the nodes' edges, in every mode: filled when connected, a ring when free; those the spreading
+            // title bar has covered are gone, so none in overview
+            if (spread < 1f) animatedNodes.forEach { (node, nodeAlpha) ->
                 if (nodeAlpha <= 0.01f) return@forEach
                 val scaleMultiplier = if (node.id == draggingNodeId) dragScale.value else 1f
+                val coveredTo = WorkflowLayoutEngine.NODE_HEADER_HEIGHT + (node.height - WorkflowLayoutEngine.NODE_HEADER_HEIGHT) * spread
 
                 node.outputs.forEachIndexed { outputIndex, output ->
+                    if (WorkflowLayoutEngine.outputSlotY(node, outputIndex) < coveredTo) return@forEachIndexed
                     val position = scaleSocketPosition(
                         node, node.x + node.width, node.y + WorkflowLayoutEngine.outputSlotY(node, outputIndex),
                         draggingNodeId, dragScale.value
@@ -1512,6 +1520,7 @@ fun WorkflowGraphCanvas(
 
                 node.inputs.forEach { (inputName, inputValue) ->
                     if (inputValue !is InputValue.Connection && inputValue !is InputValue.UnconnectedSlot) return@forEach
+                    if (WorkflowLayoutEngine.inputSlotY(node, inputName) < coveredTo) return@forEach
                     val position = scaleSocketPosition(
                         node, node.x, node.y + WorkflowLayoutEngine.inputSlotY(node, inputName),
                         draggingNodeId, dragScale.value
@@ -1539,7 +1548,7 @@ fun WorkflowGraphCanvas(
             }
 
             // Connection feedback while editing (sockets can be tapped at full detail only)
-            if (isEditMode && shownLevel == GraphDetailLevel.FULL) {
+            if (isEditMode && level == GraphDetailLevel.FULL) {
                 // Compatible slots of a pending connection: a ring in primary around the socket
                 val ringRadius = NodeStyle.SOCKET_RADIUS + NodeStyle.SOCKET_HALO + NodeStyle.SELECTION_WIDTH / 2
                 connectionModeState?.validTargetSlots?.forEach { slot ->
@@ -1577,112 +1586,99 @@ fun rememberGraphDetailLevel(scale: Float): GraphDetailLevel {
     return GraphDetailLevel.next(GraphDetailLevel.specZoom(scale, density), previous[0]).also { previous[0] = it }
 }
 
-/** Overview text: the title size in graph units (the same for every block), the word for notes. */
-private class DetailText(val titleSize: Float, val noteWord: String)
+/** A node's title bar colours: its tint (neutral when muted or bypassed, error when the server lacks it) and text. */
+private fun titleBarColors(node: WorkflowNode, isMissing: Boolean, colors: CanvasColors): Pair<Color, Color> = when {
+    isMissing -> colors.errorContainer to colors.onErrorContainer
+    node.isMuted || node.isBypassed -> colors.neutralTint to colors.onSurface
+    else -> (colors.palette.titleTintOf(node) ?: colors.neutralTint) to colors.onSurface
+}
 
 /**
- * A node in overview (spec §12.6): its full shape filled with the title tint, the title on up to two lines in the
- * middle, in one size for all blocks. No rows or sockets; wires end at the block's edges.
+ * The title bar of a node or note spreading over all of it toward the overview (spec §12.6), and back. Its title
+ * (the one the user gave it) follows: from the top to the middle, from its own size to the overview's, on two lines
+ * once the bar has room for them. [spread] 0 is full detail (nothing drawn here), 1 the overview block, which then
+ * carries the light theme's shadow instead of the node.
  */
-private fun DrawScope.drawNodeBlock(
-    node: WorkflowNode,
-    minSelectionWidth: Float,
+private fun DrawScope.drawTitleSpread(
+    left: Float,
+    top: Float,
+    width: Float,
+    height: Float,
+    title: String,
+    tint: Color,
+    titleColor: Color,
+    spread: Float,
+    overviewTitleSize: Float,
     colors: CanvasColors,
     paints: GraphPaints,
-    text: DetailText,
-    alpha: Float,
-    highlightState: NodeHighlightState,
-    isMissing: Boolean
+    alpha: Float
 ) {
     if (alpha <= 0.01f) return
-    fun Color.faded() = copy(alpha = this.alpha * alpha)
-    val height = node.height
+    val header = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
     val corner = NodeStyle.CORNER
-    val (tint, titleColor) = when {
-        isMissing -> colors.errorContainer to colors.onErrorContainer
-        node.isMuted || node.isBypassed -> colors.neutralTint to colors.onSurface
-        else -> (colors.palette.titleTintOf(node) ?: colors.neutralTint) to colors.onSurface
-    }
-
-    // The block, with the light theme's shadow
-    if (colors.isDark) {
-        drawRoundRect(tint.faded(), Offset(node.x, node.y), Size(node.width, height), CornerRadius(corner))
-    } else {
-        paints.shadow.color = tint.faded().toArgb()
+    val barHeight = header + (height - header) * spread
+    if (spread >= 1f && !colors.isDark) {
+        paints.shadow.color = tint.copy(alpha = alpha).toArgb()
         paints.shadow.setElevationShadow(colors, alpha)
-        drawContext.canvas.nativeCanvas.drawRoundRect(
-            node.x, node.y, node.x + node.width, node.y + height, corner, corner, paints.shadow
+        drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + width, top + height, corner, corner, paints.shadow)
+    } else {
+        // The bar's bottom corners round off as it reaches the node's rounded bottom
+        val bottomCorner = CornerRadius((corner - (height - barHeight)).coerceAtLeast(0f))
+        drawPath(
+            path = Path().apply {
+                addRoundRect(
+                    RoundRect(
+                        left = left, top = top, right = left + width, bottom = top + barHeight,
+                        topLeftCornerRadius = CornerRadius(corner), topRightCornerRadius = CornerRadius(corner),
+                        bottomRightCornerRadius = bottomCorner, bottomLeftCornerRadius = bottomCorner
+                    )
+                )
+            },
+            color = tint.copy(alpha = alpha)
         )
     }
 
-    // Title: two lines where the block has room for them, else one
     val padding = NodeStyle.TITLE_PADDING
     val paint = paints.blockTitle.apply {
-        textSize = text.titleSize
-        color = titleColor.faded().toArgb()
+        textSize = NodeStyle.TITLE_TEXT + (overviewTitleSize - NodeStyle.TITLE_TEXT) * spread
+        color = titleColor.copy(alpha = alpha).toArgb()
     }
     val lineHeight = paint.fontSpacing
-    val textWidth = node.width - 2 * padding
-    val lines = if (height - 2 * padding >= 2 * lineHeight) {
-        wrapTwoLines(node.title, textWidth, paint)
+    val textWidth = width - 2 * padding
+    val lines = if (barHeight - 2 * padding >= 2 * lineHeight) {
+        wrapTwoLines(title, textWidth, paint)
     } else {
-        listOf(ellipsizeEnd(node.title, textWidth, paint))
+        listOf(ellipsizeEnd(title, textWidth, paint))
     }
-    val firstCenter = node.y + height / 2 - (lines.size - 1) * lineHeight / 2
+    val firstCenter = top + barHeight / 2 - (lines.size - 1) * lineHeight / 2
     lines.forEachIndexed { index, line ->
-        drawContext.canvas.nativeCanvas.drawText(line, node.x + padding, paint.baselineFor(firstCenter + index * lineHeight), paint)
-    }
-
-    // Selection: as at full detail, at least 2 dp on screen
-    if (highlightState != NodeHighlightState.NONE) {
-        val width = maxOf(NodeStyle.SELECTION_WIDTH, minSelectionWidth)
-        val outset = NodeStyle.SELECTION_GAP + width / 2
-        drawRoundRect(
-            color = colors.primary.faded(),
-            topLeft = Offset(node.x - outset, node.y - outset),
-            size = Size(node.width + 2 * outset, height + 2 * outset),
-            cornerRadius = CornerRadius(corner + outset),
-            style = Stroke(
-                width = width,
-                pathEffect = if (highlightState == NodeHighlightState.CANDIDATE) {
-                    PathEffect.dashPathEffect(floatArrayOf(3 * width, 2 * width))
-                } else null
-            )
-        )
+        drawContext.canvas.nativeCanvas.drawText(line, left + padding, paint.baselineFor(firstCenter + index * lineHeight), paint)
     }
 }
 
-/** A note in overview: its full shape in the note colour, with the word "Note" in the blocks' title size. */
-private fun DrawScope.drawNoteBlock(
-    note: WorkflowNote,
-    minSelectionWidth: Float,
+/** Selection of an overview block: as at full detail, at least 2 dp on screen; candidates dashed. */
+private fun DrawScope.drawBlockSelection(
+    left: Float,
+    top: Float,
+    width: Float,
+    height: Float,
     colors: CanvasColors,
-    paints: GraphPaints,
-    text: DetailText,
     alpha: Float,
-    isSelected: Boolean
+    minWidth: Float,
+    candidate: Boolean
 ) {
-    if (alpha <= 0.01f) return
-    val height = note.height
-    drawRoundRect(colors.note.copy(alpha = alpha), Offset(note.x, note.y), Size(note.width, height), CornerRadius(NodeStyle.CORNER))
-    val padding = NodeStyle.TITLE_PADDING
-    val paint = paints.blockTitle.apply {
-        textSize = text.titleSize
-        color = colors.onNote.copy(alpha = alpha).toArgb()
-    }
-    val label = ellipsizeEnd(text.noteWord, note.width - 2 * padding, paint)
-    drawContext.canvas.nativeCanvas.drawText(label, note.x + padding, paint.baselineFor(note.y + height / 2), paint)
-    if (isSelected) {
-        val width = maxOf(NodeStyle.SELECTION_WIDTH, minSelectionWidth)
-        val outset = NodeStyle.SELECTION_GAP + width / 2
-        drawRoundRect(
-            color = colors.primary.copy(alpha = alpha),
-            topLeft = Offset(note.x - outset, note.y - outset),
-            size = Size(note.width + 2 * outset, height + 2 * outset),
-            cornerRadius = CornerRadius(NodeStyle.CORNER + outset),
-            style = Stroke(width)
+    val strokeWidth = maxOf(NodeStyle.SELECTION_WIDTH, minWidth)
+    val outset = NodeStyle.SELECTION_GAP + strokeWidth / 2
+    drawRoundRect(
+        color = colors.primary.copy(alpha = alpha),
+        topLeft = Offset(left - outset, top - outset),
+        size = Size(width + 2 * outset, height + 2 * outset),
+        cornerRadius = CornerRadius(NodeStyle.CORNER + outset),
+        style = Stroke(
+            width = strokeWidth,
+            pathEffect = if (candidate) PathEffect.dashPathEffect(floatArrayOf(3 * strokeWidth, 2 * strokeWidth)) else null
         )
-    }
+    )
 }
 
 /** [text] on at most two lines of [maxWidth], broken between words, the second cut with "…" when it doesn't fit. */
@@ -1984,7 +1980,8 @@ private fun DrawScope.drawGroup(
     colors: CanvasColors,
     paints: GraphPaints,
     alpha: Float = 1f,
-    level: GraphDetailLevel = GraphDetailLevel.FULL
+    // The label chip fades out toward the overview, which shows the area only
+    chipAlpha: Float = 1f
 ) {
     drawRoundRect(
         color = colors.groupArea.copy(alpha = alpha),
@@ -1993,10 +1990,9 @@ private fun DrawScope.drawGroup(
         cornerRadius = CornerRadius(NodeStyle.GROUP_CORNER)
     )
 
-    // Overview: the area only
-    if (level == GraphDetailLevel.OVERVIEW) return
+    if (chipAlpha <= 0f) return
     val chipHeight = NodeStyle.GROUP_CHIP_HEIGHT
-    val paint = paints.groupLabel.apply { color = colors.onSurface.copy(alpha = alpha).toArgb() }
+    val paint = paints.groupLabel.apply { color = colors.onSurface.copy(alpha = alpha * chipAlpha).toArgb() }
     val inset = NodeStyle.GROUP_CHIP_INSET
     val padding = NodeStyle.GROUP_CHIP_PADDING
     val label = ellipsizeEnd(group.title, group.width - 2 * inset - 2 * padding, paint)
@@ -2004,7 +2000,7 @@ private fun DrawScope.drawGroup(
     val chipLeft = group.x + inset
     val chipTop = group.y + inset
     drawRoundRect(
-        color = colors.groupChip.copy(alpha = alpha),
+        color = colors.groupChip.copy(alpha = alpha * chipAlpha),
         topLeft = Offset(chipLeft, chipTop),
         size = Size(paint.measureText(label) + 2 * padding, chipHeight),
         cornerRadius = CornerRadius(chipHeight / 2)

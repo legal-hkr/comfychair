@@ -42,9 +42,9 @@ private class PreparedGraph(
 }
 
 /**
- * The whole workflow graph as the workflow editor draws it (node headers, colours, connections), arranged for the
- * element's proportions, fitted into it and centred, without gestures. A tap anywhere calls [onClick]. Workflows the
- * user placed by hand keep their own arrangement.
+ * The whole workflow graph as the workflow editor's overview draws it (blocks in their colours, connections),
+ * arranged for the element's proportions, fitted into it and centred, without gestures. A tap anywhere calls
+ * [onClick]. Workflows the user placed by hand keep their own arrangement.
  *
  * @param description What a tap does, for TalkBack
  */
@@ -101,6 +101,8 @@ fun WorkflowGraphPreview(
                 enableManualTransform = false,
                 // Shown when ready, all at once: the loading indicator covers the wait
                 animateChanges = false,
+                // Every workflow as overview blocks, however small it is
+                forceOverview = true,
                 renderedGroups = current.renderedGroups,
                 notes = current.graph.notes,
                 nodeDefinitions = current.nodeDefinitions,

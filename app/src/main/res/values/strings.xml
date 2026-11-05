@@ -719,7 +719,6 @@
     <string name="label_editor_mode_editing_unsaved">Editing – unsaved changes</string>
     <string name="label_editor_mode_placement">Editing – placement</string>
     <string name="label_editor_zoom_in_to_connect">Zoom in to connect</string>
-    <string name="label_graph_note">Note</string>
     <string name="label_editor_mode_mapping">Import – map fields</string>
     <string name="label_editor_connecting">Connecting %1$s</string>
     <string name="hint_editor_tap_input">Tap a highlighted input</string>

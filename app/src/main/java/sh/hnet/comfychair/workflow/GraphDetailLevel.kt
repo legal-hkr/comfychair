@@ -16,7 +16,6 @@ enum class GraphDetailLevel {
         private const val OVERVIEW_BELOW = 0.27f
         /** Back up only 5 % beyond a threshold, so labels don't flicker while zooming around it */
         private const val HYSTERESIS = 1.05f
-
         /**
          * The zoom of the spec: dp on screen per spec unit. Graph units are half the spec's dp (a row is 40 units,
          * the spec's 20 dp), and at [scale] 1 one unit is one pixel.

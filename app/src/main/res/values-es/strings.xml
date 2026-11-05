@@ -622,7 +622,6 @@
     <string name="label_editor_mode_editing_unsaved">Edición – cambios sin guardar</string>
     <string name="label_editor_mode_placement">Edición – colocación</string>
     <string name="label_editor_zoom_in_to_connect">Acerca para conectar</string>
-    <string name="label_graph_note">Nota</string>
     <string name="label_editor_mode_mapping">Importación – asignar campos</string>
     <string name="label_editor_connecting">Conectando %1$s</string>
     <string name="hint_editor_tap_input">Toca una entrada resaltada</string>
