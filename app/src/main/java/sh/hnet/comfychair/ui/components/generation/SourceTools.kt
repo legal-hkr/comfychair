@@ -61,7 +61,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
-import sh.hnet.comfychair.ui.components.thumbnailRing
+import sh.hnet.comfychair.ui.components.thumbnailFrame
 
 private val ReferenceSlotSize = 52.dp
 /**
@@ -101,8 +101,12 @@ fun BoxScope.SourceToolbar(
         TooltipIconButton(Icons.Rounded.AddPhotoAlternate, stringResource(R.string.content_description_replace_source), onReplace)
     }
 
+    // The toolbar's container in the same role as the frames of thumbnails over the preview and empty reference slots
+    val colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
+        toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainer
+    )
     if (maskTools == null) {
-        HorizontalFloatingToolbar(expanded = true, modifier = modifier) {
+        HorizontalFloatingToolbar(expanded = true, modifier = modifier, colors = colors) {
             replace()
             TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
         }
@@ -110,6 +114,7 @@ fun BoxScope.SourceToolbar(
         HorizontalFloatingToolbar(
             expanded = true,
             modifier = modifier,
+            colors = colors,
             floatingActionButton = {
                 val editMask = stringResource(R.string.button_edit_mask)
                 // Same colours as the result action FAB (primary container), so it reads as the main action
@@ -221,7 +226,7 @@ fun BoxScope.ReferenceSlots(slots: List<ReferenceSlot>) {
             .padding(PreviewThumbnailInset),
         // Against the edge, as the result thumbnail on the other side
         horizontalAlignment = Alignment.End,
-        // Each slot's ring reaches 4 dp beyond it, so the rings stay 8 dp apart
+        // Each slot's frame reaches 3 dp beyond it, so the frames stay 10 dp apart
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         slots.forEachIndexed { index, slot -> ReferenceSlotItem(slot, index + 1) }
@@ -255,10 +260,10 @@ private fun ReferenceSlotItem(slot: ReferenceSlot, number: Int) {
         Box(
             Modifier
                 .size(ReferenceSlotSize)
-                // Set apart from the image under it, as the current thumbnail on the results strip
-                .thumbnailRing(ReferenceSlotCorner, MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.surfaceContainer)
+                // Set apart from the image under it; empty, filled with the same colour (that of the source toolbar)
+                .thumbnailFrame(ReferenceSlotCorner, MaterialTheme.colorScheme.surfaceContainer)
                 .clip(ReferenceSlotShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(role = Role.Button, onClickLabel = if (image == null) addLabel else null) {
                     if (image == null) launcher.launch("image/*") else menuOpen = true
                 },

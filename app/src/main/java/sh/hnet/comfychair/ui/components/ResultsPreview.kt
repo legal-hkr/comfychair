@@ -471,28 +471,16 @@ fun rememberResultsViewer(
 }
 
 /**
- * The ring that marks a thumbnail as its own element: a line 2 dp outside it, following its corners, drawn behind it
- * (place before the thumbnail's clip). The current result on the strip has it, as do the source, result and reference
- * thumbnails over the preview.
+ * The ring that marks the current result on the strip: a line 2 dp outside the thumbnail, following its corners,
+ * drawn behind it (place before the thumbnail's clip).
  *
  * @param corner The thumbnail's corner radius
- * @param gapColor Fills the gap between the thumbnail and the ring; over an image the gap would show the image, so
- *   thumbnails there fill it with the strip's background
  * @param width The ring's width, read when drawing (animated on the strip)
  */
-fun Modifier.thumbnailRing(corner: Dp, color: Color, gapColor: Color? = null, width: () -> Dp = { 2.dp }): Modifier = drawBehind {
+fun Modifier.thumbnailRing(corner: Dp, color: Color, width: () -> Dp = { 2.dp }): Modifier = drawBehind {
     val stroke = width().toPx()
     if (stroke > 0f) {
-        val gap = 2.dp.toPx()
-        gapColor?.let {
-            drawRoundRect(
-                color = it,
-                topLeft = Offset(-gap, -gap),
-                size = Size(size.width + 2 * gap, size.height + 2 * gap),
-                cornerRadius = CornerRadius(corner.toPx() + gap)
-            )
-        }
-        val inset = gap + stroke / 2f
+        val inset = 2.dp.toPx() + stroke / 2f
         drawRoundRect(
             color = color,
             topLeft = Offset(-inset, -inset),
@@ -501,6 +489,21 @@ fun Modifier.thumbnailRing(corner: Dp, color: Color, gapColor: Color? = null, wi
             style = Stroke(stroke)
         )
     }
+}
+
+/**
+ * The frame that sets a thumbnail over the preview apart from the image under it (the source or result picture in
+ * picture, reference slots): a band [width] wide around it in [color], following its corners, drawn behind it (place
+ * before the thumbnail's clip).
+ */
+fun Modifier.thumbnailFrame(corner: Dp, color: Color, width: Dp = 3.dp): Modifier = drawBehind {
+    val band = width.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(-band, -band),
+        size = Size(size.width + 2 * band, size.height + 2 * band),
+        cornerRadius = CornerRadius(corner.toPx() + band)
+    )
 }
 
 /** Screens a generated image can be sent to as their source image. */

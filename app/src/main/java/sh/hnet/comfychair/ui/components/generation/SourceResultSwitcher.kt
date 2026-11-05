@@ -1,6 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
-import sh.hnet.comfychair.ui.components.thumbnailRing
+import sh.hnet.comfychair.ui.components.thumbnailFrame
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
@@ -159,8 +159,8 @@ fun SourceResultSwitcher(
                                 zIndexInOverlay = 1f
                             )
                             .size(PipSize)
-                            // Set apart from the image under it, as the current thumbnail on the results strip
-                            .thumbnailRing(PipCorner, MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.surfaceContainer)
+                            // Set apart from the image under it, in the colour of the source toolbar and empty slots
+                            .thumbnailFrame(PipCorner, MaterialTheme.colorScheme.surfaceContainer)
                             .clip(PipShape)
                             .clickable(role = Role.Button, onClickLabel = swapLabel) { onShowSourceChange(!sourceShown) },
                         contentAlignment = Alignment.BottomCenter
