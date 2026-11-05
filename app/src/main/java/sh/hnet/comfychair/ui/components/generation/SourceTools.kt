@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
+import sh.hnet.comfychair.ui.components.thumbnailRing
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -69,7 +70,14 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 
 private val ReferenceSlotSize = 52.dp
-private val ReferenceSlotShape = RoundedCornerShape(12.dp)
+/**
+ * Inset of the thumbnails over the preview (result or source, references) from its edges: their rings, 4 dp beyond
+ * them, stay 16 dp from the edges as the dock does, clear of the empty source's dashed outline at 12 dp.
+ */
+internal val PreviewThumbnailInset = 20.dp
+
+private val ReferenceSlotCorner = 12.dp
+private val ReferenceSlotShape = RoundedCornerShape(ReferenceSlotCorner)
 
 /** Mask tools of the source toolbar, for Inpainting. */
 class MaskTools(
@@ -244,9 +252,11 @@ fun BoxScope.ReferenceSlots(slots: List<ReferenceSlot>) {
     Column(
         modifier = Modifier
             .align(Alignment.TopEnd)
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(PreviewThumbnailInset),
+        // Against the edge, as the result thumbnail on the other side, however wide the label below is
+        horizontalAlignment = Alignment.End,
+        // Each slot's ring reaches 4 dp beyond it, so the rings stay 8 dp apart
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         slots.forEachIndexed { index, slot -> ReferenceSlotItem(slot, index + 1) }
         Surface(
@@ -274,6 +284,8 @@ private fun ReferenceSlotItem(slot: ReferenceSlot, number: Int) {
         Box(
             Modifier
                 .size(ReferenceSlotSize)
+                // Set apart from the image under it, as the current thumbnail on the results strip
+                .thumbnailRing(ReferenceSlotCorner, MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.surfaceContainer)
                 .clip(ReferenceSlotShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .clickable(role = Role.Button, onClickLabel = if (image == null) addLabel else null) {

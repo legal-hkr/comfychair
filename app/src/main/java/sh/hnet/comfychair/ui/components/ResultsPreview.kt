@@ -68,6 +68,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -331,20 +332,7 @@ private fun ResultThumbnail(
         Modifier
             .size(ThumbSize)
             .alpha(alpha.value)
-            .drawBehind {
-                // Current ring, 2 dp outside the thumbnail
-                val width = ringWidth.toPx()
-                if (width > 0f) {
-                    val inset = 2.dp.toPx() + width / 2f
-                    drawRoundRect(
-                        color = ringColor,
-                        topLeft = Offset(-inset, -inset),
-                        size = Size(size.width + 2 * inset, size.height + 2 * inset),
-                        cornerRadius = CornerRadius(ThumbCorner.toPx() + inset),
-                        style = Stroke(width)
-                    )
-                }
-            }
+            .thumbnailRing(ThumbCorner, ringColor) { ringWidth }
             .onFocusChanged { focused = it.isFocused }
             .then(if (focused) Modifier.border(2.dp, focusColor, shape) else Modifier)
             .clip(shape)
@@ -479,6 +467,39 @@ fun rememberResultsViewer(
             val shown = currentResults.indexOfFirst { it.filename == filename }
             if (shown >= 0) currentOnReturn(shown)
         }
+    }
+}
+
+/**
+ * The ring that marks a thumbnail as its own element: a line 2 dp outside it, following its corners, drawn behind it
+ * (place before the thumbnail's clip). The current result on the strip has it, as do the source, result and reference
+ * thumbnails over the preview.
+ *
+ * @param corner The thumbnail's corner radius
+ * @param gapColor Fills the gap between the thumbnail and the ring; over an image the gap would show the image, so
+ *   thumbnails there fill it with the strip's background
+ * @param width The ring's width, read when drawing (animated on the strip)
+ */
+fun Modifier.thumbnailRing(corner: Dp, color: Color, gapColor: Color? = null, width: () -> Dp = { 2.dp }): Modifier = drawBehind {
+    val stroke = width().toPx()
+    if (stroke > 0f) {
+        val gap = 2.dp.toPx()
+        gapColor?.let {
+            drawRoundRect(
+                color = it,
+                topLeft = Offset(-gap, -gap),
+                size = Size(size.width + 2 * gap, size.height + 2 * gap),
+                cornerRadius = CornerRadius(corner.toPx() + gap)
+            )
+        }
+        val inset = gap + stroke / 2f
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(-inset, -inset),
+            size = Size(size.width + 2 * inset, size.height + 2 * inset),
+            cornerRadius = CornerRadius(corner.toPx() + inset),
+            style = Stroke(stroke)
+        )
     }
 }
 

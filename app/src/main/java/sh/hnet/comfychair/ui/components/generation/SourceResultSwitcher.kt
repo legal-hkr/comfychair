@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
+import sh.hnet.comfychair.ui.components.thumbnailRing
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
@@ -54,7 +55,8 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
 
 private val PipSize = 64.dp
-private val PipShape = RoundedCornerShape(18.dp)
+private val PipCorner = 18.dp
+private val PipShape = RoundedCornerShape(PipCorner)
 private const val SOURCE_KEY = "source"
 private const val RESULT_KEY = "result"
 
@@ -145,7 +147,7 @@ fun SourceResultSwitcher(
                     Box(
                         Modifier
                             .align(Alignment.TopStart)
-                            .padding(12.dp)
+                            .padding(PreviewThumbnailInset)
                             .sharedBounds(
                                 rememberSharedContentState(if (sourceShown) RESULT_KEY else SOURCE_KEY),
                                 animatedVisibilityScope = this@AnimatedContent,
@@ -157,6 +159,8 @@ fun SourceResultSwitcher(
                                 zIndexInOverlay = 1f
                             )
                             .size(PipSize)
+                            // Set apart from the image under it, as the current thumbnail on the results strip
+                            .thumbnailRing(PipCorner, MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.surfaceContainer)
                             .clip(PipShape)
                             .clickable(role = Role.Button, onClickLabel = swapLabel) { onShowSourceChange(!sourceShown) },
                         contentAlignment = Alignment.BottomCenter
