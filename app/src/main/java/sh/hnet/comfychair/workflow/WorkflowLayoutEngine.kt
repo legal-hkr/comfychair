@@ -2,8 +2,11 @@ package sh.hnet.comfychair.workflow
 
 /**
  * Computes layout positions for workflow graph nodes using a layered approach
+ *
+ * @param targetAspect Width / height the whole layout should come close to (e.g. a wide preview card); null for the
+ *   editor's layout, which wraps layers into rows for a portrait screen
  */
-class WorkflowLayoutEngine {
+class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
 
     companion object {
         const val NODE_WIDTH = 480f  // 6 grid cells (6 × 80)
@@ -417,9 +420,12 @@ class WorkflowLayoutEngine {
             MemberInfo(node.id, width, height)
         }
 
-        // Calculate grid dimensions: prefer vertical (more rows than columns) for portrait screens
+        // Calculate grid dimensions: prefer vertical (more rows than columns) for portrait screens, horizontal for a
+        // wide target
         val totalCount = allMembers.size
-        val rows = kotlin.math.ceil(kotlin.math.sqrt(totalCount.toDouble())).toInt().coerceAtLeast(1)
+        val side = kotlin.math.ceil(kotlin.math.sqrt(totalCount.toDouble())).toInt().coerceAtLeast(1)
+        val wide = (targetAspect ?: 0f) > 1f
+        val rows = if (wide) kotlin.math.ceil(totalCount.toDouble() / side).toInt().coerceAtLeast(1) else side
         val columns = kotlin.math.ceil(totalCount.toDouble() / rows).toInt().coerceAtLeast(1)
 
         // Calculate row heights (max height of members in each row)
@@ -768,6 +774,23 @@ class WorkflowLayoutEngine {
     }
 
     /**
+     * How many layers to put side by side in a row so the whole layout's width / height comes closest to [aspect].
+     */
+    private fun columnsForAspect(layers: List<List<WorkflowNode>>, aspect: Float): Int {
+        if (layers.isEmpty()) return 1
+        fun layerWidth(layer: List<WorkflowNode>) = layer.maxOfOrNull { if (it.width > 0) it.width else NODE_WIDTH } ?: NODE_WIDTH
+        fun layerHeight(layer: List<WorkflowNode>): Float =
+            layer.sumOf { (if (it.height > 0) it.height else calculateNodeHeight(it)).toDouble() }.toFloat() +
+                (layer.size - 1).coerceAtLeast(0) * VERTICAL_SPACING
+        return (1..layers.size).minByOrNull { columns ->
+            val rows = layers.chunked(columns)
+            val width = rows.maxOf { row -> row.sumOf { layerWidth(it).toDouble() }.toFloat() + (row.size - 1) * HORIZONTAL_SPACING }
+            val height = rows.sumOf { row -> row.maxOf { layerHeight(it) }.toDouble() }.toFloat() + (rows.size - 1) * ROW_SPACING
+            kotlin.math.abs(kotlin.math.ln((width / height) / aspect))
+        } ?: 1
+    }
+
+    /**
      * Calculate final x, y positions for all nodes using serpentine layout.
      * Layers are arranged in rows with dynamic column count based on node count.
      */
@@ -778,8 +801,9 @@ class WorkflowLayoutEngine {
         val updatedNodes = graph.nodes.toMutableList()
         val nodeIndexMap = graph.nodes.mapIndexed { index, node -> node.id to index }.toMap()
 
-        // Calculate columns based on total nodes for optimal readability
-        val columnsPerRow = calculateColumnsForNodeCount(graph.nodes.size)
+        // Calculate columns based on total nodes for optimal readability, or to match the target proportions
+        val columnsPerRow = targetAspect?.let { columnsForAspect(layers, it) }
+            ?: calculateColumnsForNodeCount(graph.nodes.size)
 
         // Group layers into rows
         val rows = layers.chunked(columnsPerRow)

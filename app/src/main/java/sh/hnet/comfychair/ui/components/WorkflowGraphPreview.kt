@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import kotlin.math.roundToInt
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -41,8 +42,9 @@ private class PreparedGraph(
 }
 
 /**
- * The whole workflow graph as the workflow editor draws it (node headers, colours, connections), fitted into the
- * element and centred, without gestures. A tap anywhere calls [onClick].
+ * The whole workflow graph as the workflow editor draws it (node headers, colours, connections), arranged for the
+ * element's proportions, fitted into it and centred, without gestures. A tap anywhere calls [onClick]. Workflows the
+ * user placed by hand keep their own arrangement.
  *
  * @param description What a tap does, for TalkBack
  */
@@ -55,11 +57,19 @@ fun WorkflowGraphPreview(
     modifier: Modifier = Modifier
 ) {
     val registry = ConnectionManager.nodeTypeRegistry
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    val padding = with(LocalDensity.current) { 12.dp.toPx() }
+    // Laid out for the element's proportions (a wide card gets a wide arrangement), once they're known; rounded so
+    // small size changes don't lay it out again
+    val aspect = if (size.width > 0 && size.height > 0) {
+        ((size.width - 2 * padding) / (size.height - 2 * padding) * 10).roundToInt() / 10f
+    } else null
     // Parsing and layout off the main thread; a large graph takes a moment
-    val prepared by produceState<PreparedGraph?>(null, jsonContent) {
+    val prepared by produceState<PreparedGraph?>(null, jsonContent, aspect) {
+        if (aspect == null) return@produceState
         value = withContext(Dispatchers.Default) {
             runCatching {
-                val graph = WorkflowGraphPreparation.prepare(jsonContent, registry)
+                val graph = WorkflowGraphPreparation.prepare(jsonContent, registry, targetAspect = aspect)
                 PreparedGraph(
                     graph,
                     WorkflowLayoutEngine().calculateBounds(graph),
@@ -68,8 +78,6 @@ fun WorkflowGraphPreview(
             }.getOrNull()
         }
     }
-    var size by remember { mutableStateOf(IntSize.Zero) }
-    val padding = with(LocalDensity.current) { 12.dp.toPx() }
 
     Box(modifier.onSizeChanged { size = it }) {
         val current = prepared

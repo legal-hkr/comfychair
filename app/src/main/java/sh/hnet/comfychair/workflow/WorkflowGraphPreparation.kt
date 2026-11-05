@@ -35,11 +35,15 @@ object WorkflowGraphPreparation {
         return definitions
     }
 
-    /** A workflow's JSON parsed, given outputs, laid out and with typed connections: ready to draw. */
-    fun prepare(jsonContent: String, registry: NodeTypeRegistry, name: String = "", description: String = ""): WorkflowGraph {
-        var graph = WorkflowParser(logDetails = false).parse(jsonContent, name, description)
+    /**
+     * A workflow's JSON parsed, given outputs, laid out and with typed connections: ready to draw.
+     *
+     * @param targetAspect Width / height to lay the graph out for (a preview card); null for the editor's layout
+     */
+    fun prepare(jsonContent: String, registry: NodeTypeRegistry, targetAspect: Float? = null): WorkflowGraph {
+        var graph = WorkflowParser(logDetails = false).parse(jsonContent, "", "")
         graph = populateNodeOutputs(graph, registry)
-        graph = WorkflowLayoutEngine().layoutGraph(graph)
+        graph = WorkflowLayoutEngine(targetAspect).layoutGraph(graph)
         return resolveEdgeTypes(graph, registry)
     }
 }
