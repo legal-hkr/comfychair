@@ -412,7 +412,14 @@
     <string name="error_invalid_number">无效的数字</string>
 
     <!-- Node attribute editor -->
-    <string name="node_editor_reset">重置</string>
+    <string name="button_reset_node">重置节点</string>
+    <string name="label_value_changed">已更改 – 默认 %1$s</string>
+    <string name="content_description_reset_value">将 %1$s 重置为 %2$s</string>
+    <string name="title_from_generation_screen">来自生成界面</string>
+    <string name="desc_from_generation_screen">生成时由应用自动填写。</string>
+    <plurals name="label_node_changed_count">
+        <item quantity="other">已更改 %d 项</item>
+    </plurals>
     <string name="node_editor_no_editable_inputs">没有可编辑的输入</string>
     <string name="node_editor_range_min">最小：%1$s</string>
     <string name="node_editor_range_max">最大：%1$s</string>

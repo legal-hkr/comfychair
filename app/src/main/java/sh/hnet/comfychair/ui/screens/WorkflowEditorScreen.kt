@@ -10,8 +10,6 @@ import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +40,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,19 +52,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -74,14 +79,16 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.NodeAttributeSideSheet
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
+import sh.hnet.comfychair.ui.components.NodeValuesSheetContent
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
@@ -100,6 +107,8 @@ import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowMappingState
+import sh.hnet.comfychair.workflow.WorkflowNode
+import sh.hnet.comfychair.workflow.changedValueCount
 
 /**
  * Main screen for the workflow editor
@@ -161,6 +170,10 @@ fun WorkflowEditorScreen(
         else -> EditorMode.NODE_VALUES
     }
     val connection = uiState.connectionModeState
+    // Values that differ from the workflow's (edits that only fill an empty value with the node's default don't count)
+    val changedValues = remember(uiState.graph, uiState.nodeDefinitions, uiState.nodeAttributeEdits) {
+        uiState.graph?.let { changedValueCount(it, uiState.nodeDefinitions, uiState.nodeAttributeEdits) } ?: 0
+    }
     val status = when {
         connection != null -> EditorStatus.Connecting(
             connection.sourceSlot.slotType ?: "",
@@ -169,7 +182,7 @@ fun WorkflowEditorScreen(
         mode == EditorMode.MAPPING -> EditorStatus.Mapping
         mode == EditorMode.EDIT -> EditorStatus.Editing(uiState.hasUnsavedChanges, uiState.isManualPlacementMode)
         mode == EditorMode.GRAPH -> EditorStatus.Graph
-        else -> EditorStatus.NodeValues(uiState.nodeAttributeEdits.values.sumOf { it.size })
+        else -> EditorStatus.NodeValues(changedValues)
     }
 
     // Back by mode (spec §10.2): a waiting connection or the values of a node first; structure editing asks before
@@ -186,6 +199,49 @@ fun WorkflowEditorScreen(
     }
     BackHandler(onBack = goBack)
 
+    // Node values: a standard (non-modal) bottom sheet, so the graph stays pannable; swiping it down closes the node
+    val valuesSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.Hidden, skipHiddenState = false)
+    val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = valuesSheetState)
+    LaunchedEffect(uiState.isEditingNode) {
+        if (uiState.isEditingNode) valuesSheetState.expand() else valuesSheetState.hide()
+    }
+    val editingNode by rememberUpdatedState(uiState.isEditingNode)
+    LaunchedEffect(valuesSheetState) {
+        snapshotFlow { valuesSheetState.currentValue }.drop(1).collect { value ->
+            if (value != SheetValue.Expanded && editingNode) viewModel.dismissNodeEditor()
+        }
+    }
+    // The node stays in the sheet while it slides away
+    val lastSheetNode = remember { mutableStateOf<WorkflowNode?>(null) }
+    SideEffect { uiState.selectedNodeForEditing?.let { lastSheetNode.value = it } }
+    val sheetNode = uiState.selectedNodeForEditing ?: lastSheetNode.value
+    // At most a little over half the screen, so the node stays visible above it
+    val windowHeight = LocalWindowInfo.current.containerSize.height
+    val sheetMaxHeight = with(density) { (windowHeight * 0.55f).toDp() }
+    LaunchedEffect(windowHeight) {
+        with(density) { viewModel.setValuesViewport(64.dp.toPx(), windowHeight * 0.55f) }
+    }
+
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = 0.dp,
+        sheetContent = {
+            sheetNode?.let { node ->
+                NodeValuesSheetContent(
+                    node = node,
+                    nodeDefinition = uiState.nodeDefinitions[node.classType],
+                    currentEdits = uiState.nodeAttributeEdits[node.id] ?: emptyMap(),
+                    onEditChange = { inputName, value -> viewModel.updateNodeAttribute(node.id, inputName, value) },
+                    onResetToDefault = { inputName -> viewModel.resetNodeAttribute(node.id, inputName) },
+                    onResetNode = { viewModel.resetNode(node.id) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = sheetMaxHeight)
+                        .navigationBarsPadding()
+                )
+            }
+        }
+    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -266,7 +322,7 @@ fun WorkflowEditorScreen(
                 // Keep animated values synced in normal mode (for smooth transitions when entering editing)
                 // Also handles animated zoom changes from toolbar buttons
                 LaunchedEffect(uiState.offset, uiState.scale) {
-                    if (!uiState.isEditingNode && !isAnimatingTransition.value) {
+                    if (!isAnimatingTransition.value) {
                         if (shouldAnimateZoomChange.value) {
                             // Toolbar button pressed - animate the change
                             shouldAnimateZoomChange.value = false
@@ -300,7 +356,7 @@ fun WorkflowEditorScreen(
                 // - Normal mode (no transition): raw values for responsive gestures
                 // - Editing mode, during transition, or during zoom animation: animated values
                 // Note: shouldAnimateZoomChange catches the FIRST frame (before LaunchedEffect sets isAnimatingZoom)
-                val useAnimatedValues = uiState.isEditingNode || isStartingTransition ||
+                val useAnimatedValues = isStartingTransition ||
                     isAnimatingTransition.value || isAnimatingZoom.value || shouldAnimateZoomChange.value
                 val displayScale = if (useAnimatedValues) animatedScale.value else uiState.scale
                 val displayOffset = if (useAnimatedValues) animatedOffset.value else uiState.offset
@@ -334,7 +390,7 @@ fun WorkflowEditorScreen(
                             editingNodeId = uiState.selectedNodeForEditing?.id,
                             nodeAttributeEdits = uiState.nodeAttributeEdits,
                             editableInputNames = uiState.editableInputNames,
-                            enableManualTransform = !uiState.isEditingNode && uiState.draggingNodeId == null && uiState.draggingNoteId == null,
+                            enableManualTransform = uiState.draggingNodeId == null && uiState.draggingNoteId == null,
                             isEditMode = uiState.isEditMode,
                             selectedNodeIds = uiState.selectedNodeIds,
                             connectionModeState = uiState.connectionModeState,
@@ -514,31 +570,6 @@ fun WorkflowEditorScreen(
                                 .fillMaxWidth()
                                 .padding(start = 12.dp, end = 12.dp, top = 8.dp)
                         )
-                    }
-
-                    // Side sheet for node attribute editing
-                    AnimatedVisibility(
-                        visible = uiState.isEditingNode && uiState.selectedNodeForEditing != null,
-                        enter = slideInHorizontally(initialOffsetX = { it }),
-                        exit = slideOutHorizontally(targetOffsetX = { it })
-                    ) {
-                        uiState.selectedNodeForEditing?.let { node ->
-                            NodeAttributeSideSheet(
-                                node = node,
-                                nodeDefinition = uiState.nodeDefinitions[node.classType],
-                                currentEdits = uiState.nodeAttributeEdits[node.id] ?: emptyMap(),
-                                onEditChange = { inputName, value ->
-                                    viewModel.updateNodeAttribute(node.id, inputName, value)
-                                },
-                                onResetToDefault = { inputName ->
-                                    viewModel.resetNodeAttribute(node.id, inputName)
-                                },
-                                onDismiss = { viewModel.dismissNodeEditor() },
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(0.6f)
-                            )
-                        }
                     }
                 }
             }
@@ -930,6 +961,7 @@ fun WorkflowEditorScreen(
                 onDismiss = { viewModel.dismissMissingFieldsDialog() }
             )
         }
+    }
     }
 }
 

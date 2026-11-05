@@ -1,5 +1,7 @@
 package sh.hnet.comfychair.viewmodel
 
+import sh.hnet.comfychair.workflow.changedInputNames
+import sh.hnet.comfychair.workflow.workflowValueOf
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -89,6 +91,9 @@ class WorkflowEditorViewModel : ViewModel() {
 
     private var canvasWidth: Float = 0f
     private var canvasHeight: Float = 0f
+    // Node values: the canvas area left free by the top row and the values sheet, in px
+    private var valuesViewportTop: Float = 0f
+    private var valuesSheetHeight: Float = 0f
     private var currentWorkflowId: String? = null
     private var workflowValuesStorage: WorkflowValuesStorage? = null
 
@@ -1143,6 +1148,12 @@ class WorkflowEditorViewModel : ViewModel() {
     /**
      * Set the canvas size for proper centering calculations
      */
+    /** Where a node's values leave the graph visible: below the top row, above the values sheet. */
+    fun setValuesViewport(topPx: Float, sheetHeightPx: Float) {
+        valuesViewportTop = topPx
+        valuesSheetHeight = sheetHeightPx
+    }
+
     fun setCanvasSize(width: Float, height: Float) {
         if (canvasWidth != width || canvasHeight != height) {
             canvasWidth = width
@@ -1336,36 +1347,19 @@ class WorkflowEditorViewModel : ViewModel() {
         val savedScale = if (state.isEditingNode) state.savedScaleBeforeEditing else state.scale
         val savedOffset = if (state.isEditingNode) state.savedOffsetBeforeEditing else state.offset
 
-        // Calculate available space
-        // When already editing, canvasWidth already reflects the reduced size (side sheet is open)
-        // When not editing, we need to account for side sheet that will take ~60% of width
+        // The node goes into the free area above the values sheet (spec: upper part of the screen), fitted to it
         val padding = 48f
-        val availableWidth = if (state.isEditingNode) {
-            // Side sheet already open - canvasWidth is already the visible area
-            canvasWidth - padding * 2
-        } else {
-            // Side sheet will open - account for it taking 60% of screen
-            canvasWidth * 0.4f - padding * 2
-        }
-        val availableHeight = canvasHeight - padding * 2
-
-        // Calculate scale to fit the node in available space
+        val top = valuesViewportTop + padding
+        val bottom = (canvasHeight - valuesSheetHeight - padding).coerceAtLeast(top + 1f)
+        val availableWidth = canvasWidth - padding * 2
+        val availableHeight = bottom - top
         val scaleToFitWidth = if (node.width > 0) availableWidth / node.width else 1f
         val scaleToFitHeight = if (node.height > 0) availableHeight / node.height else 1f
-        val newScale = minOf(scaleToFitWidth, scaleToFitHeight)
-            .coerceIn(0.5f, 2.0f)  // Limit zoom range
+        val newScale = minOf(scaleToFitWidth, scaleToFitHeight).coerceIn(0.5f, 2.0f)
+        val newOffsetX = canvasWidth / 2 - (node.x + node.width / 2) * newScale
+        val newOffsetY = (top + bottom) / 2 - (node.y + node.height / 2) * newScale
 
-        // Calculate new offset to:
-        // - Vertically center the node
-        // - Horizontally align node to left (with padding)
-        val nodeCenterY = node.y + node.height / 2
-        val targetY = canvasHeight / 2
-        val leftPadding = padding
-
-        val newOffsetX = leftPadding - node.x * newScale
-        val newOffsetY = targetY - nodeCenterY * newScale
-
-        // Compute editable input names (same logic as NodeAttributeSideSheet.buildEditableInputs)
+        // Compute editable input names (as editableInputNames() in workflow/NodeValues.kt)
         val nodeDefinition = state.nodeDefinitions[node.classType]
         val editableInputNames = node.inputs.filter { (name, value) ->
             // Skip connections
@@ -1462,40 +1456,28 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Reset a node attribute to its default value.
+     * Reset a node attribute to the workflow's own value (the node's default when the workflow leaves it empty, kept as
+     * an edit so the canvas shows it).
      */
     fun resetNodeAttribute(nodeId: String, inputName: String) {
         val state = _uiState.value
-        val graph = state.graph ?: return
+        val node = state.graph?.nodes?.find { it.id == nodeId } ?: return
+        val definition = state.nodeDefinitions[node.classType]?.inputs?.find { it.name == inputName }
+        val raw = (node.inputs[inputName] as? InputValue.Literal)?.value
+        val nodeEdits = state.nodeAttributeEdits[nodeId]?.toMutableMap() ?: mutableMapOf()
+        val default = workflowValueOf(node, definition, inputName)
+        if ((raw == null || raw == "") && default != null) nodeEdits[inputName] = default else nodeEdits.remove(inputName)
         val currentEdits = state.nodeAttributeEdits.toMutableMap()
-
-        // Find the node to get its class type
-        val node = graph.nodes.find { it.id == nodeId } ?: return
-
-        // Get the node definition to find the effective default
-        val nodeDefinition = state.nodeDefinitions[node.classType]
-        val inputDefinition = nodeDefinition?.inputs?.find { it.name == inputName }
-
-        // Get the effective default value
-        val defaultValue = inputDefinition?.getEffectiveDefault()
-
-        val nodeEdits = currentEdits[nodeId]?.toMutableMap() ?: mutableMapOf()
-
-        if (defaultValue != null) {
-            // Set the edit to the default value (so canvas shows default, not empty)
-            nodeEdits[inputName] = defaultValue
-            currentEdits[nodeId] = nodeEdits
-        } else {
-            // Fallback: remove the edit if no default available
-            nodeEdits.remove(inputName)
-            if (nodeEdits.isEmpty()) {
-                currentEdits.remove(nodeId)
-            } else {
-                currentEdits[nodeId] = nodeEdits
-            }
-        }
-
+        if (nodeEdits.isEmpty()) currentEdits.remove(nodeId) else currentEdits[nodeId] = nodeEdits
         _uiState.value = state.copy(nodeAttributeEdits = currentEdits)
+    }
+
+    /** Reset every changed value of a node to the workflow's. */
+    fun resetNode(nodeId: String) {
+        val state = _uiState.value
+        val node = state.graph?.nodes?.find { it.id == nodeId } ?: return
+        changedInputNames(node, state.nodeDefinitions[node.classType], state.nodeAttributeEdits[nodeId])
+            .forEach { resetNodeAttribute(nodeId, it) }
     }
 
     /**

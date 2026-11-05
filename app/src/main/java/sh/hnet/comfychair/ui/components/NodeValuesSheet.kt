@@ -3,45 +3,41 @@
 package sh.hnet.comfychair.ui.components
 
 import android.graphics.Bitmap
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -56,7 +52,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -64,24 +62,27 @@ import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.ui.components.shared.ExpandableTooltip
 import sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems
 import sh.hnet.comfychair.ui.components.shared.ModelPathText
-import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.ui.components.shared.TooltipLabel
 import sh.hnet.comfychair.ui.components.shared.buildModelTree
 import sh.hnet.comfychair.ui.components.shared.folderPathOf
 import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
+import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputDefinition
-import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
-import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowNode
-import sh.hnet.comfychair.workflow.getEffectiveDefault
+import sh.hnet.comfychair.workflow.appManagedInputs
+import sh.hnet.comfychair.workflow.changedInputNames
+import sh.hnet.comfychair.workflow.editableInputNames
+import sh.hnet.comfychair.workflow.nodeValuesEqual
+import sh.hnet.comfychair.workflow.workflowValueOf
 
 /**
- * Represents an editable input for the side sheet.
+ * An input in the values sheet: its definition, the value shown and the workflow's own value (what Reset goes back to).
  */
 @Stable
 data class EditableInput(
@@ -92,211 +93,117 @@ data class EditableInput(
 )
 
 /**
- * Side sheet for editing node attributes.
+ * A node's values, in the bottom sheet of the Node values mode: the node's title, class and how many values changed,
+ * Reset node, then its values with the same controls as the options sheet (a changed one says so and can be reset),
+ * and last the inputs the generation screen fills in, read-only, so it's clear why they can't be changed here.
  */
 @Composable
-fun NodeAttributeSideSheet(
+fun NodeValuesSheetContent(
     node: WorkflowNode,
     nodeDefinition: NodeTypeDefinition?,
     currentEdits: Map<String, Any>,
     onEditChange: (inputName: String, value: Any) -> Unit,
     onResetToDefault: (inputName: String) -> Unit,
-    onDismiss: () -> Unit,
+    onResetNode: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-
-    // Build list of editable inputs
     val editableInputs = remember(node, nodeDefinition, currentEdits) {
-        buildEditableInputs(node, nodeDefinition, currentEdits)
+        editableInputNames(node, nodeDefinition).map { name ->
+            val definition = nodeDefinition?.inputs?.find { it.name == name }
+            val original = workflowValueOf(node, definition, name)
+            EditableInput(name, definition, currentEdits[name] ?: original, original)
+        }
     }
+    val linked = remember(node) { appManagedInputs(node) }
+    val changed = remember(node, nodeDefinition, currentEdits) { changedInputNames(node, nodeDefinition, currentEdits).size }
 
-    Surface(
-        modifier = modifier,
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surfaceContainerLow
+    LazyColumn(
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(16.dp)
-        ) {
-            // Header
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = node.title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = node.classType,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        item(key = "header") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(node.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        if (changed > 0) "${node.classType} – " + pluralStringResource(R.plurals.label_node_changed_count, changed, changed)
+                        else node.classType,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                TextButton(onClick = onResetNode, enabled = changed > 0) {
+                    Text(stringResource(R.string.button_reset_node))
+                }
             }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-            // Content
-            if (editableInputs.isEmpty()) {
+        }
+        if (editableInputs.isEmpty() && linked.isEmpty()) {
+            item(key = "empty") {
                 Text(
                     text = stringResource(R.string.node_editor_no_editable_inputs),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                NoOverscrollContainer {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(editableInputs, key = { it.name }) { input ->
-                            InputEditor(
-                                input = input,
-                                onValueChange = { value -> onEditChange(input.name, value) },
-                                onReset = { onResetToDefault(input.name) },
-                                context = context
-                            )
-                        }
-                    }
-                }
             }
+        }
+        items(editableInputs, key = { it.name }) { input ->
+            InputEditor(
+                input = input,
+                onValueChange = { value -> onEditChange(input.name, value) },
+                onReset = { onResetToDefault(input.name) },
+                context = context
+            )
+        }
+        if (linked.isNotEmpty()) {
+            item(key = "linked") { LinkedInputs(linked) }
         }
     }
 }
 
-/**
- * Build list of editable inputs from node data and definition.
- *
- * This now iterates over all inputs from the node definition (not just those in the workflow JSON),
- * ensuring inputs with default values are also shown.
- */
-private fun buildEditableInputs(
-    node: WorkflowNode,
-    nodeDefinition: NodeTypeDefinition?,
-    currentEdits: Map<String, Any>
-): List<EditableInput> {
-    val result = mutableListOf<EditableInput>()
-
-    // Get all editable inputs from definition (not just those in node.inputs)
-    val definitionInputs = nodeDefinition?.inputs?.filter { def ->
-        !def.forceInput && isEditableType(def.type)
-    } ?: emptyList()
-
-    // If we have definition inputs, use them as the source of truth
-    if (definitionInputs.isNotEmpty()) {
-        definitionInputs.forEach { definition ->
-            val name = definition.name
-            val nodeValue = node.inputs[name]
-
-            // Skip if it's a connection in the workflow
-            if (nodeValue is InputValue.Connection) return@forEach
-
-            // Skip template variables and other values filled in at generation time
-            if (nodeValue is InputValue.Literal && TemplateKeyRegistry.isAppManagedValue(nodeValue.value)) return@forEach
-
-            // Get value: edit > node value > default (normalize empty to default)
-            val rawValue = when (nodeValue) {
-                is InputValue.Literal -> nodeValue.value
-                else -> null
-            }
-            val originalValue = if (rawValue == null || rawValue == "") {
-                definition.getEffectiveDefault()
-            } else {
-                rawValue
-            }
-            val currentValue = currentEdits[name] ?: originalValue
-
-            result.add(
-                EditableInput(
-                    name = name,
-                    definition = definition,
-                    currentValue = currentValue,
-                    originalValue = originalValue
-                )
-            )
-        }
-    } else {
-        // Fallback: iterate over node.inputs if no definition available
-        node.inputs.forEach { (name, value) ->
-            // Skip connections
-            if (value is InputValue.Connection) return@forEach
-
-            // Skip template variables and other values filled in at generation time
-            if (value is InputValue.Literal && TemplateKeyRegistry.isAppManagedValue(value.value)) return@forEach
-
-            // Get original value from workflow
-            val originalValue = when (value) {
-                is InputValue.Literal -> value.value
-                else -> null
-            }
-
-            // Get current value (edit if exists, otherwise original)
-            val currentValue = currentEdits[name] ?: originalValue
-
-            result.add(
-                EditableInput(
-                    name = name,
-                    definition = null,
-                    currentValue = currentValue,
-                    originalValue = originalValue
-                )
+/** Inputs the generation screen fills in: their name and the app's field, no controls. */
+@Composable
+private fun LinkedInputs(inputs: List<Pair<String, String>>) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            stringResource(R.string.title_from_generation_screen),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        Text(
+            stringResource(R.string.desc_from_generation_screen),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        inputs.forEachIndexed { index, (name, value) ->
+            ListItem(
+                headlineContent = { Text(name) },
+                supportingContent = { Text(appFieldLabel(context, value)) },
+                trailingContent = { Icon(Icons.Rounded.Link, contentDescription = null) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                modifier = Modifier.clip(segmentedItemShape(index, inputs.size))
             )
         }
     }
+}
 
-    return result
+/** The app's field behind a placeholder ("{{seed}}") or an uploaded image marker. */
+private fun appFieldLabel(context: android.content.Context, value: String): String = when {
+    value.startsWith("uploaded_image") -> context.getString(R.string.label_pip_source)
+    value.startsWith("reference_image_1") -> context.getString(R.string.content_description_reference_image_1)
+    value.startsWith("reference_image_2") -> context.getString(R.string.content_description_reference_image_2)
+    else -> Regex("""\{\{(\w+)\}\}""").find(value)?.groupValues?.get(1)
+        ?.let { FieldDisplayRegistry.getDisplayName(context, it) } ?: value
 }
 
 /**
- * Check if a type is editable (not a connection type).
- * Editable types: INT, FLOAT, STRING, BOOLEAN, ENUM
- * Connection types: MODEL, CLIP, VAE, CONDITIONING, LATENT, IMAGE, MASK, etc.
- */
-private fun isEditableType(type: String): Boolean {
-    return type in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
-}
-
-/**
- * Compare two values for equality, handling numeric type mismatches.
- * For example, 8.0 (Double) and 8 (Int) should be considered equal.
- */
-private fun valuesEqual(a: Any?, b: Any?, type: String): Boolean {
-    if (a == b) return true
-    if (a == null || b == null) return false
-
-    return when (type) {
-        "INT" -> {
-            val aInt = when (a) {
-                is Number -> a.toInt()
-                is String -> a.toIntOrNull()
-                else -> null
-            }
-            val bInt = when (b) {
-                is Number -> b.toInt()
-                is String -> b.toIntOrNull()
-                else -> null
-            }
-            aInt != null && bInt != null && aInt == bInt
-        }
-        "FLOAT" -> {
-            val aFloat = when (a) {
-                is Number -> a.toDouble()
-                is String -> a.toDoubleOrNull()
-                else -> null
-            }
-            val bFloat = when (b) {
-                is Number -> b.toDouble()
-                is String -> b.toDoubleOrNull()
-                else -> null
-            }
-            aFloat != null && bFloat != null && aFloat == bFloat
-        }
-        else -> a == b
-    }
-}
-
-/**
- * Editor component for a single input.
+ * Editor for a single input; a changed value says what the workflow's value is and can go back to it.
  */
 @Composable
 private fun InputEditor(
@@ -307,127 +214,88 @@ private fun InputEditor(
 ) {
     val definition = input.definition
     val type = definition?.type ?: guessType(input.currentValue)
-    val showReset = !valuesEqual(input.currentValue, input.originalValue, type)
+    val changed = !nodeValuesEqual(input.currentValue, input.originalValue, type)
 
     // Check for options from definition or fall back to field-name-based defaults
     val effectiveOptions = remember(definition, input.name) {
         definition?.options ?: getDefaultOptionsForField(input.name)
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Editor takes available space
-        Column(modifier = Modifier.weight(1f)) {
-            when {
-                type == "ENUM" || effectiveOptions != null -> {
-                    val options = effectiveOptions ?: emptyList()
-                    val isImageSelector = isImageOptions(options)
-
-                    if (isImageSelector) {
-                        ImageEnumEditor(
-                            label = input.name,
-                            value = input.currentValue?.toString() ?: "",
-                            options = options,
-                            tooltip = definition?.tooltip,
-                            onValueChange = { onValueChange(it) }
-                        )
-                    } else {
-                        EnumEditor(
-                            label = input.name,
-                            value = input.currentValue?.toString() ?: "",
-                            options = options,
-                            tooltip = definition?.tooltip,
-                            onValueChange = { onValueChange(it) }
-                        )
-                    }
-                }
-                type == "BOOLEAN" || input.currentValue is Boolean -> {
-                    BooleanEditor(
+    Column(modifier = Modifier.fillMaxWidth()) {
+        when {
+            type == "ENUM" || effectiveOptions != null -> {
+                val options = effectiveOptions ?: emptyList()
+                if (isImageOptions(options)) {
+                    ImageEnumEditor(
                         label = input.name,
-                        value = (input.currentValue as? Boolean) ?: false,
-                        isModified = showReset,
+                        value = input.currentValue?.toString() ?: "",
+                        options = options,
+                        tooltip = definition?.tooltip,
+                        onValueChange = { onValueChange(it) }
+                    )
+                } else {
+                    EnumEditor(
+                        label = input.name,
+                        value = input.currentValue?.toString() ?: "",
+                        options = options,
                         tooltip = definition?.tooltip,
                         onValueChange = { onValueChange(it) }
                     )
                 }
-                type == "INT" -> {
-                    IntEditor(
-                        label = input.name,
-                        value = input.currentValue?.toString() ?: "",
-                        min = definition?.min?.toInt(),
-                        max = definition?.max?.toInt(),
-                        step = definition?.step?.toInt(),
-                        tooltip = definition?.tooltip,
-                        onValueChange = { onValueChange(it) },
-                        context = context
-                    )
-                }
-                type == "FLOAT" -> {
-                    FloatEditor(
-                        label = input.name,
-                        value = input.currentValue?.toString() ?: "",
-                        min = definition?.min?.toFloat(),
-                        max = definition?.max?.toFloat(),
-                        step = definition?.step?.toFloat(),
-                        tooltip = definition?.tooltip,
-                        onValueChange = { onValueChange(it) },
-                        context = context
-                    )
-                }
-                type == "STRING" -> {
-                    StringEditor(
-                        label = input.name,
-                        value = input.currentValue?.toString() ?: "",
-                        multiline = definition?.multiline ?: false,
-                        tooltip = definition?.tooltip,
-                        onValueChange = { onValueChange(it) },
-                        context = context
-                    )
-                }
-                else -> {
-                    // Fallback: treat as string
-                    StringEditor(
-                        label = input.name,
-                        value = input.currentValue?.toString() ?: "",
-                        multiline = false,
-                        tooltip = null,
-                        onValueChange = { onValueChange(it) },
-                        context = context
-                    )
-                }
             }
+            type == "BOOLEAN" || input.currentValue is Boolean -> BooleanEditor(
+                label = input.name,
+                value = (input.currentValue as? Boolean) ?: false,
+                tooltip = definition?.tooltip,
+                onValueChange = { onValueChange(it) }
+            )
+            type == "INT" -> IntEditor(
+                label = input.name,
+                value = input.currentValue?.toString() ?: "",
+                min = definition?.min?.toInt(),
+                max = definition?.max?.toInt(),
+                step = definition?.step?.toInt(),
+                tooltip = definition?.tooltip,
+                onValueChange = { onValueChange(it) },
+                context = context
+            )
+            type == "FLOAT" -> FloatEditor(
+                label = input.name,
+                value = input.currentValue?.toString() ?: "",
+                min = definition?.min?.toFloat(),
+                max = definition?.max?.toFloat(),
+                step = definition?.step?.toFloat(),
+                tooltip = definition?.tooltip,
+                onValueChange = { onValueChange(it) },
+                context = context
+            )
+            else -> StringEditor(
+                label = input.name,
+                value = input.currentValue?.toString() ?: "",
+                multiline = type == "STRING" && definition?.multiline == true,
+                tooltip = if (type == "STRING") definition?.tooltip else null,
+                onValueChange = { onValueChange(it) },
+                context = context
+            )
         }
 
-        // Reset button inline (always visible, enabled only if value differs from original)
-        // Skip for boolean types - they use switch color to indicate modification
-        val isBoolean = type == "BOOLEAN" || input.currentValue is Boolean
-        if (!isBoolean) {
-            val isModified = showReset
-            val buttonColor = if (isModified) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.outlineVariant
-            }
-            val resetBorderStroke = remember(buttonColor) {
-                BorderStroke(1.dp, buttonColor)
-            }
-            OutlinedIconButton(
-                onClick = onReset,
-                enabled = isModified,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .size(56.dp),
-                shape = CircleShape,
-                border = resetBorderStroke
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.node_editor_reset),
-                    tint = buttonColor
+        if (changed) {
+            val original = input.originalValue?.toString() ?: ""
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp)) {
+                Text(
+                    stringResource(R.string.label_value_changed, original),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+                FilledTonalIconButton(onClick = onReset) {
+                    Icon(
+                        Icons.Rounded.RestartAlt,
+                        contentDescription = stringResource(R.string.content_description_reset_value, input.name, original)
+                    )
+                }
             }
         }
     }
@@ -547,28 +415,15 @@ private fun EnumEditor(
 
 /**
  * Editor for boolean values.
- * When modified from default, the switch uses error colors to indicate the change.
  */
 @Composable
 private fun BooleanEditor(
     label: String,
     value: Boolean,
-    isModified: Boolean,
     tooltip: String?,
     onValueChange: (Boolean) -> Unit
 ) {
     var tooltipExpanded by remember { mutableStateOf(false) }
-
-    val switchColors = if (isModified) {
-        SwitchDefaults.colors(
-            checkedThumbColor = MaterialTheme.colorScheme.onError,
-            checkedTrackColor = MaterialTheme.colorScheme.error,
-            uncheckedThumbColor = MaterialTheme.colorScheme.error,
-            uncheckedTrackColor = MaterialTheme.colorScheme.errorContainer
-        )
-    } else {
-        SwitchDefaults.colors()
-    }
 
     Column {
         Row(
@@ -583,11 +438,7 @@ private fun BooleanEditor(
                 onToggle = { tooltipExpanded = !tooltipExpanded },
                 modifier = Modifier.weight(1f)
             )
-            Switch(
-                checked = value,
-                onCheckedChange = onValueChange,
-                colors = switchColors
-            )
+            Switch(checked = value, onCheckedChange = onValueChange)
         }
 
         ExpandableTooltip(

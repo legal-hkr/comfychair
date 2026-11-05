@@ -434,7 +434,16 @@
     <string name="error_invalid_number">Nombre invalide</string>
 
     <!-- Node attribute editor -->
-    <string name="node_editor_reset">Réinitialiser</string>
+    <string name="button_reset_node">Réinitialiser le nœud</string>
+    <string name="label_value_changed">Modifié – par défaut %1$s</string>
+    <string name="content_description_reset_value">Rétablir %1$s à %2$s</string>
+    <string name="title_from_generation_screen">Depuis l’écran de génération</string>
+    <string name="desc_from_generation_screen">L’app les remplit lors de la génération.</string>
+    <plurals name="label_node_changed_count">
+        <item quantity="one">%d modifiée</item>
+        <item quantity="many">%d modifiées</item>
+        <item quantity="other">%d modifiées</item>
+    </plurals>
     <string name="node_editor_no_editable_inputs">Aucune entrée modifiable</string>
     <string name="node_editor_range_min">Min : %1$s</string>
     <string name="node_editor_range_max">Max : %1$s</string>

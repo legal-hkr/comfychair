@@ -445,7 +445,17 @@
     <string name="error_invalid_number">Nieprawidłowa liczba</string>
 
     <!-- Node attribute editor -->
-    <string name="node_editor_reset">Resetuj</string>
+    <string name="button_reset_node">Resetuj węzeł</string>
+    <string name="label_value_changed">Zmieniono – domyślnie %1$s</string>
+    <string name="content_description_reset_value">Przywróć %1$s do %2$s</string>
+    <string name="title_from_generation_screen">Z ekranu generowania</string>
+    <string name="desc_from_generation_screen">Aplikacja wypełnia je sama przy generowaniu.</string>
+    <plurals name="label_node_changed_count">
+        <item quantity="one">%d zmieniona</item>
+        <item quantity="few">%d zmienione</item>
+        <item quantity="many">%d zmienionych</item>
+        <item quantity="other">%d zmienionej</item>
+    </plurals>
     <string name="node_editor_no_editable_inputs">Brak edytowalnych pól</string>
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>

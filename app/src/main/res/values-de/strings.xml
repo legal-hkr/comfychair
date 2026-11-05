@@ -437,7 +437,15 @@
     <string name="error_invalid_number">Ungültige Zahl</string>
 
     <!-- Node attribute editor -->
-    <string name="node_editor_reset">Zurücksetzen</string>
+    <string name="button_reset_node">Knoten zurücksetzen</string>
+    <string name="label_value_changed">Geändert – Standard %1$s</string>
+    <string name="content_description_reset_value">%1$s auf %2$s zurücksetzen</string>
+    <string name="title_from_generation_screen">Vom Generierungsbildschirm</string>
+    <string name="desc_from_generation_screen">Die App füllt sie beim Generieren aus.</string>
+    <plurals name="label_node_changed_count">
+        <item quantity="one">%d geändert</item>
+        <item quantity="other">%d geändert</item>
+    </plurals>
     <string name="node_editor_no_editable_inputs">Keine bearbeitbaren Eingaben</string>
     <string name="node_editor_range_min">Min: %1$s</string>
     <string name="node_editor_range_max">Max: %1$s</string>
