@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.comfychair.ui.components.generation
 
 import androidx.compose.foundation.layout.Box
@@ -7,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -22,11 +23,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 
 /**
@@ -176,23 +177,20 @@ fun WorkflowRow(
     var expanded by remember { mutableStateOf(false) }
     val role = stringResource(R.string.label_workflow)
     Box(modifier) {
-        Surface(
+        SegmentedListItem(
             onClick = { expanded = true },
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shapes = groupShapes(0, 1),
+            colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            supportingContent = { Text(role) },
+            leadingContent = { Icon(icon, contentDescription = null) },
+            trailingContent = {
+                Icon(if (expanded) Icons.Rounded.ArrowDropUp else Icons.Rounded.ArrowDropDown, contentDescription = null)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = "$role, $workflowName" }
         ) {
-            ListItem(
-                headlineContent = { Text(workflowName.ifEmpty { role }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                supportingContent = { Text(role) },
-                leadingContent = { Icon(icon, contentDescription = null) },
-                trailingContent = {
-                    Icon(if (expanded) Icons.Rounded.ArrowDropUp else Icons.Rounded.ArrowDropDown, contentDescription = null)
-                },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-            )
+            Text(workflowName.ifEmpty { role }, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         WorkflowMenu(expanded, { expanded = false }, groups, workflowName)
     }

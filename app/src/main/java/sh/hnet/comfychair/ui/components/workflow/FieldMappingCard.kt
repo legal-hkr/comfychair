@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.comfychair.ui.components.workflow
 
 import androidx.compose.foundation.layout.Arrangement
@@ -20,23 +22,22 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
+import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.workflow.FieldMappingState
 
 /*
@@ -186,31 +187,27 @@ private fun FieldRow(
     onClearField: (String) -> Unit
 ) {
     val key = field.field.fieldKey
-    Surface(
+    SegmentedListItem(
         onClick = { onSelectField(key) },
-        shape = segmentedItemShape(index, count),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shapes = groupShapes(index, count),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        supportingContent = { MatchText(field) },
+        leadingContent = {
+            when {
+                field.isMapped -> Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                field.isRequiredField -> Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                else -> Icon(Icons.Rounded.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        trailingContent = if (field.isMapped) {
+            {
+                IconButton(onClick = { onClearField(key) }) {
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.content_description_clear))
+                }
+            }
+        } else null,
         modifier = Modifier.fillMaxWidth()
     ) {
-        ListItem(
-            headlineContent = { Text(field.field.displayName) },
-            supportingContent = { MatchText(field) },
-            leadingContent = {
-                when {
-                    field.isMapped -> Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    field.isRequiredField -> Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    else -> Icon(Icons.Rounded.RadioButtonUnchecked, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-            trailingContent = if (field.isMapped) {
-                {
-                    IconButton(onClick = { onClearField(key) }) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.content_description_clear))
-                    }
-                }
-            } else null,
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            modifier = Modifier.clip(segmentedItemShape(index, count))
-        )
+        Text(field.field.displayName)
     }
 }

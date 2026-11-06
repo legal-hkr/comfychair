@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.comfychair.ui.components.config
 
 import android.content.Context
@@ -18,10 +20,9 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,7 +35,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.LoraChainEditor
 import sh.hnet.comfychair.ui.components.generation.WorkflowRow
+import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.ChoiceRow
 import sh.hnet.comfychair.ui.components.shared.ConstrainedNumberField
 import sh.hnet.comfychair.ui.components.shared.NumberParameter
@@ -165,19 +166,16 @@ fun ConfigBottomSheetContent(
 /** "All node values": the workflow's other values, in the editor. */
 @Composable
 private fun NodeValuesRow(onClick: () -> Unit) {
-    Surface(
+    SegmentedListItem(
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shapes = groupShapes(0, 1),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        supportingContent = { Text(stringResource(R.string.desc_all_node_values)) },
+        leadingContent = { Icon(Icons.Rounded.Tune, contentDescription = null) },
+        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
         modifier = Modifier.fillMaxWidth()
     ) {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.label_all_node_values)) },
-            supportingContent = { Text(stringResource(R.string.desc_all_node_values)) },
-            leadingContent = { Icon(Icons.Rounded.Tune, contentDescription = null) },
-            trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-        )
+        Text(stringResource(R.string.label_all_node_values))
     }
 }
 
@@ -365,22 +363,16 @@ private fun SectionSummary(section: OptionsSection, config: BottomSheetConfig, o
     }
     val title = stringResource(sectionTitleRes(section))
     val showLabel = stringResource(R.string.content_description_show_section, title)
-    Surface(
+    SegmentedListItem(
         onClick = onExpand,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shapes = groupShapes(0, 1),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        trailingContent = { Icon(Icons.Rounded.ExpandMore, contentDescription = null) },
         modifier = Modifier
             .fillMaxWidth()
-            .semantics {
-                role = Role.Button
-                stateDescription = showLabel
-            }
+            .semantics { stateDescription = showLabel }
     ) {
-        ListItem(
-            headlineContent = { Text(summary, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            trailingContent = { Icon(Icons.Rounded.ExpandMore, contentDescription = null) },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-        )
+        Text(summary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

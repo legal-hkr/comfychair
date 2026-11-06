@@ -502,6 +502,10 @@
 
     <!-- Node attribute editor -->
     <string name="label_nodes_list">Nodes list</string>
+    <string name="label_node_sockets">Sockets of %1$s</string>
+    <string name="label_connection_targets">Connection targets</string>
+    <string name="label_socket_input">Input</string>
+    <string name="label_socket_output">Output</string>
     <string name="button_reset_node">Reset node</string>
     <string name="label_value_changed">Changed – default %1$s</string>
     <string name="content_description_reset_value">Reset %1$s to %2$s</string>

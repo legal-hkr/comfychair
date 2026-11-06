@@ -449,6 +449,10 @@
 
     <!-- Node attribute editor -->
     <string name="label_nodes_list">Lista de nodos</string>
+    <string name="label_node_sockets">Conectores de %1$s</string>
+    <string name="label_connection_targets">Destinos de la conexión</string>
+    <string name="label_socket_input">Entrada</string>
+    <string name="label_socket_output">Salida</string>
     <string name="button_reset_node">Restablecer nodo</string>
     <string name="label_value_changed">Cambiado – por defecto %1$s</string>
     <string name="content_description_reset_value">Restablecer %1$s a %2$s</string>

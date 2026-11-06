@@ -49,14 +49,13 @@ import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -84,6 +83,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.fromHtml
@@ -104,8 +104,8 @@ import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
 import sh.hnet.comfychair.ui.components.dialogs.FormDialog
 import sh.hnet.comfychair.ui.components.graphCanvasColor
 import sh.hnet.comfychair.ui.components.rememberGraphDetailLevel
+import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.boldNamesResource
-import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.ui.components.workflow.AllFieldsSheet
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
 import sh.hnet.comfychair.ui.components.workflow.EditorMode
@@ -205,9 +205,15 @@ fun WorkflowEditorScreen(
         else -> EditorStatus.NodeValues(changedValues)
     }
 
-    // Accessibility: the graph can't be explored node by node, so a list of its nodes (spec §10.5)
+    // Accessibility: the graph can't be explored node by node, so a list of its nodes (spec §10.5); in Edit structure
+    // the selected node's sockets (each opening its menu, as a tap does) and a pending connection's targets (spec §17.7)
     var showNodeList by remember { mutableStateOf(false) }
     val nodesListLabel = stringResource(R.string.label_nodes_list)
+    var socketListNodeId by remember { mutableStateOf<String?>(null) }
+    var showTargetList by remember { mutableStateOf(false) }
+    val selectedNode = uiState.selectedNodeIds.singleOrNull()?.let { id -> uiState.graph?.nodes?.find { it.id == id } }
+    val socketsLabel = selectedNode?.let { stringResource(R.string.label_node_sockets, it.title) }
+    val targetsLabel = stringResource(R.string.label_connection_targets)
 
     // Map fields: the card starts at the first unmapped field
     var showAllFields by remember { mutableStateOf(false) }
@@ -600,10 +606,15 @@ fun WorkflowEditorScreen(
                                 .fillMaxSize()
                                 .semantics {
                                     if (mode == EditorMode.EDIT || mode == EditorMode.NODE_VALUES) {
-                                        customActions = listOf(CustomAccessibilityAction(nodesListLabel) {
-                                            showNodeList = true
-                                            true
-                                        })
+                                        customActions = buildList {
+                                            add(CustomAccessibilityAction(nodesListLabel) { showNodeList = true; true })
+                                            if (mode == EditorMode.EDIT && connection == null && selectedNode != null && socketsLabel != null) {
+                                                add(CustomAccessibilityAction(socketsLabel) { socketListNodeId = selectedNode.id; true })
+                                            }
+                                            if (connection != null) {
+                                                add(CustomAccessibilityAction(targetsLabel) { showTargetList = true; true })
+                                            }
+                                        }
                                     }
                                 }
                                 .onSizeChanged { size ->
@@ -660,6 +671,37 @@ fun WorkflowEditorScreen(
                     onDismiss = { showAllFields = false }
                 )
             }
+        }
+        socketListNodeId?.let { nodeId ->
+            val node = uiState.graph?.nodes?.find { it.id == nodeId }
+            if (node == null) {
+                socketListNodeId = null
+            } else {
+                SlotListSheet(
+                    title = stringResource(R.string.label_node_sockets, node.title),
+                    slots = socketsOf(node, uiState.nodeDefinitions).map { slot ->
+                        slot to stringResource(if (slot.isOutput) R.string.label_socket_output else R.string.label_socket_input)
+                    },
+                    onPick = { slot ->
+                        socketListNodeId = null
+                        socketMenu = slot
+                    },
+                    onDismiss = { socketListNodeId = null }
+                )
+            }
+        }
+        if (showTargetList && connection != null) {
+            SlotListSheet(
+                title = targetsLabel,
+                slots = connection.validTargetSlots.map { slot ->
+                    slot to uiState.graph?.nodes?.find { it.id == slot.nodeId }?.title.orEmpty()
+                },
+                onPick = { slot ->
+                    showTargetList = false
+                    viewModel.requestConnectToTarget(slot, fieldNameOf)
+                },
+                onDismiss = { showTargetList = false }
+            )
         }
         if (showNodeList) {
             NodeListSheet(
@@ -1053,21 +1095,71 @@ private fun NodeListSheet(nodes: List<WorkflowNode>, onPick: (WorkflowNode) -> U
             modifier = Modifier.navigationBarsPadding()
         ) {
             itemsIndexed(nodes, key = { _, node -> node.id }) { index, node ->
-                Surface(
+                SegmentedListItem(
                     onClick = { onPick(node) },
-                    shape = segmentedItemShape(index, nodes.size),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    shapes = groupShapes(index, nodes.size),
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    supportingContent = if (node.title != node.classType) ({ Text(node.classType) }) else null
                 ) {
-                    ListItem(
-                        headlineContent = { Text(node.title) },
-                        supportingContent = if (node.title != node.classType) ({ Text(node.classType) }) else null,
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                    )
+                    Text(node.title)
                 }
             }
         }
     }
+}
+
+/** Sockets as a list (accessibility): a node's, or a pending connection's targets; [slots] pairs each with its line. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SlotListSheet(title: String, slots: List<Pair<SlotPosition, String>>, onPick: (SlotPosition) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .semantics { heading() }
+        )
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.navigationBarsPadding()
+        ) {
+            itemsIndexed(slots, key = { _, (slot, _) -> "${slot.nodeId}/${slot.isOutput}/${slot.slotName}/${slot.outputIndex}" }) { index, (slot, line) ->
+                SegmentedListItem(
+                    onClick = { onPick(slot) },
+                    shapes = groupShapes(index, slots.size),
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    supportingContent = { Text(line) }
+                ) {
+                    Text(slot.slotName)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A node's sockets in Edit structure, where a tap would find them: connection inputs, value inputs that can take a link,
+ * then the outputs.
+ */
+private fun socketsOf(node: WorkflowNode, definitions: Map<String, NodeTypeDefinition>): List<SlotPosition> {
+    val inputs = node.inputs.mapNotNull { (name, value) ->
+        val type = when (value) {
+            is InputValue.UnconnectedSlot -> value.slotType
+            is InputValue.Connection -> definitions[node.classType]?.inputs?.find { it.name == name }?.type
+            is InputValue.Literal -> definitions[node.classType]?.inputs?.find { it.name == name }?.type?.uppercase()
+                ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES } ?: return@mapNotNull null
+        }
+        SlotPosition(node.id, name, isOutput = false, outputIndex = 0, center = Offset(node.x, node.y + WorkflowLayoutEngine.inputSlotY(node, name)), slotType = type)
+    }
+    val outputs = node.outputs.mapIndexed { index, output ->
+        SlotPosition(
+            node.id, output.name, isOutput = true, outputIndex = index,
+            center = Offset(node.x + node.width, node.y + WorkflowLayoutEngine.outputSlotY(node, index)), slotType = output.type
+        )
+    }
+    return inputs + outputs
 }
 
 /**
