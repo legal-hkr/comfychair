@@ -1,0 +1,227 @@
+{
+  "name": "SeedVR2 Video Upscale",
+  "description": "Video restoration and upscaling with SeedVR2 7B, no prompt needed; frame rate and sound come from the source",
+  "defaults": {
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0,
+    "scale_by": 2.0,
+    "upscale_method": "lanczos"
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Diffusion Model",
+      "member_nodes": ["5", "note:1"]
+    },
+    {
+      "id": 2,
+      "title": "VAE Configuration",
+      "member_nodes": ["6", "note:2"]
+    },
+    {
+      "id": 3,
+      "title": "Upscale Configuration",
+      "member_nodes": ["3", "note:3"]
+    },
+    {
+      "id": 4,
+      "title": "Temporal Chunks",
+      "member_nodes": ["8", "11", "note:4"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Diffusion Model Selection",
+      "content": "### Recommended UNET Model\n\nUse **SeedVR2 7B Int8** for restoration and upscaling in a single step. The **3B Int8** model is faster and needs less VRAM."
+    },
+    {
+      "id": 2,
+      "title": "VAE Selection",
+      "content": "### Recommended VAE\n\nUse the **SeedVR2 EMA** VAE (fp16). It encodes and decodes in tiles, in space and in time, so large and long outputs fit in memory."
+    },
+    {
+      "id": 3,
+      "title": "Upscale Settings",
+      "content": "### Recommended Settings\n\n- **Scale by:** 2 (the output grows with the square of the factor, in every frame)\n- **Upscale method:** lanczos\n- **Denoise:** 1.0\n\n---\n\n*SeedVR2 works in one sampling step and doesn't use a prompt. The result keeps the source's length, frame rate and sound.*"
+    },
+    {
+      "id": 4,
+      "title": "Temporal Chunks",
+      "content": "### Long Videos\n\nThe latent is split into chunks that fit in free VRAM (**auto**) and sampled one at a time; adjacent chunks share one latent frame, crossfaded when merged.\n\n*For a fixed chunk size switch Split Latent to **manual** (frames per chunk: 4n+1).*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "LoadVideo",
+      "inputs": {
+        "file": "{{video_filename}}"
+      },
+      "_meta": {
+        "title": "Source Video"
+      }
+    },
+    "2": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": ["1", 0]
+      },
+      "_meta": {
+        "title": "Get Video Components"
+      }
+    },
+    "3": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": ["2", 0],
+        "resize_type": "scale by multiplier",
+        "resize_type.multiplier": "{{scale_by}}",
+        "scale_method": "{{upscale_method}}"
+      },
+      "_meta": {
+        "title": "Upscale Frames"
+      }
+    },
+    "4": {
+      "class_type": "SeedVR2Preprocess",
+      "inputs": {
+        "resized_images": ["3", 0]
+      },
+      "_meta": {
+        "title": "Preprocess"
+      }
+    },
+    "5": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "6": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load VAE"
+      }
+    },
+    "7": {
+      "class_type": "VAEEncodeTiled",
+      "inputs": {
+        "pixels": ["4", 0],
+        "vae": ["6", 0],
+        "tile_size": 512,
+        "overlap": 128,
+        "temporal_size": 64,
+        "temporal_overlap": 8
+      },
+      "_meta": {
+        "title": "VAE Encode (Tiled)"
+      }
+    },
+    "8": {
+      "class_type": "SeedVR2TemporalChunk",
+      "inputs": {
+        "latent": ["7", 0],
+        "temporal_overlap": 1,
+        "chunking_mode": "auto"
+      },
+      "_meta": {
+        "title": "Split Latent"
+      }
+    },
+    "9": {
+      "class_type": "SeedVR2Conditioning",
+      "inputs": {
+        "model": ["5", 0],
+        "vae_conditioning": ["8", 0]
+      },
+      "_meta": {
+        "title": "Conditioning"
+      }
+    },
+    "10": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{seed}}",
+        "steps": 1,
+        "cfg": 1.0,
+        "sampler_name": "{{sampler_name}}",
+        "scheduler": "{{scheduler}}",
+        "denoise": "{{denoise}}",
+        "model": ["5", 0],
+        "positive": ["9", 0],
+        "negative": ["9", 1],
+        "latent_image": ["8", 0]
+      },
+      "_meta": {
+        "title": "KSampler"
+      }
+    },
+    "11": {
+      "class_type": "SeedVR2TemporalMerge",
+      "inputs": {
+        "latents": ["10", 0],
+        "temporal_overlap": ["8", 1]
+      },
+      "_meta": {
+        "title": "Merge Latents"
+      }
+    },
+    "12": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": ["11", 0],
+        "vae": ["6", 0],
+        "tile_size": 512,
+        "overlap": 128,
+        "temporal_size": 64,
+        "temporal_overlap": 8
+      },
+      "_meta": {
+        "title": "VAE Decode (Tiled)"
+      }
+    },
+    "13": {
+      "class_type": "SeedVR2PostProcessing",
+      "inputs": {
+        "images": ["12", 0],
+        "original_resized_images": ["3", 0],
+        "color_correction_method": "none"
+      },
+      "_meta": {
+        "title": "Post-Process"
+      }
+    },
+    "14": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": ["13", 0],
+        "fps": ["2", 2],
+        "audio": ["2", 1],
+        "bit_depth": ["2", 3]
+      },
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "15": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "codec": "auto",
+        "video": ["14", 0]
+      },
+      "_meta": {
+        "title": "Save Video"
+      }
+    }
+  }
+}
