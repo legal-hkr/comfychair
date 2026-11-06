@@ -17,9 +17,10 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 
 /** The existing MediaViewer loading style, shared rather than a second indicator. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MediaLoadingIndicator() {
-    CircularProgressIndicator(color = Color.White)
+    androidx.compose.material3.ContainedLoadingIndicator()
 }
 
 /** Preserve the grid underneath; no status text or invented byte/percent progress. */

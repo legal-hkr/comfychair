@@ -1835,9 +1835,53 @@ class ComfyUIClient(
         )
     }
 
+    fun deletionCredentialScope(serverId: String): String = org.json.JSONArray(listOf(serverId, getBaseUrl())).toString()
+
+    fun mediaDeletion(secret: String, allowLan: Boolean = false): sh.hnet.comfychair.connection.ServerMediaDelete {
+        val base = getBaseUrl()?.toHttpUrl() ?: throw IOException("Not connected")
+        val frozen = serverTrust.configure(OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(getCredentials(), hostname))).build()
+        return sh.hnet.comfychair.connection.ServerMediaDelete(frozen, base, secret, allowLan)
+    }
+
+    fun invalidateDeletedImages(images: List<sh.hnet.comfychair.model.ServerImage>, epoch: Any) {
+        imageCacheStorage(epoch)?.let { (disk, owner) ->
+            disk.invalidateImages(owner, images)
+        }
+    }
+
+    var mediaExtensionPresent = false
+    private var mediaExtensionChecked = false
+    private var mediaTombstones: Set<sh.hnet.comfychair.model.ServerImage> = emptySet()
+    private suspend fun updateMediaTombstones() {
+        mediaTombstones = try {
+            val server = if (sh.hnet.comfychair.connection.ConnectionManager.clientOrNull === this)
+                sh.hnet.comfychair.connection.ConnectionManager.currentServerId else null
+            val api = if (context != null && server != null) kotlinx.coroutines.withContext(Dispatchers.IO) {
+                runCatching {
+                    val storage = sh.hnet.comfychair.storage.DeletionCredentialStorage(requireNotNull(context))
+                    val scope = deletionCredentialScope(server)
+                    storage.get(scope).takeIf { it.isNotEmpty() }?.let { mediaDeletion(it, storage.lan(scope)) }
+                }.getOrNull() // Keystore failure disables private metadata/deletion, not ordinary browsing.
+            } else null
+            api?.takeIf { it.credentialTransportAllowed }?.missing() ?: emptySet()
+        }
+        catch (e: sh.hnet.comfychair.connection.ServerMediaDelete.HttpFailure) {
+            if (e.status in setOf(403, 404)) emptySet() else throw e
+        }
+    }
+    private fun hideMissing(page: sh.hnet.comfychair.model.ServerImagePage) =
+        page.copy(images = page.images.filter { image -> mediaTombstones.none { it.type == image.type && it.path == image.path } })
+
     suspend fun browseSourceImages(source: sh.hnet.comfychair.model.ServerImageSource,
         query: sh.hnet.comfychair.model.ServerImageQuery): sh.hnet.comfychair.model.ServerImagePage {
         val base = getBaseUrl()?.toHttpUrl() ?: throw IOException("Not connected")
+        if (!mediaExtensionChecked) {
+            try { mediaDeletion("").available(); mediaExtensionPresent = true }
+            catch (e: sh.hnet.comfychair.connection.ServerMediaDelete.HttpFailure) { if (e.status != 404) throw e }
+            mediaExtensionChecked = true
+        }
+        if (mediaExtensionPresent) updateMediaTombstones()
         if (sourceAssetsSupported == null) {
             try {
                 val features = JSONObject(readSourcePickerBytes(base.newBuilder().addPathSegment("api")
@@ -1857,13 +1901,13 @@ class ComfyUIClient(
                 if (query.name.isNotEmpty()) builder.addQueryParameter("name_contains", query.name)
                 query.cursor?.let { builder.addQueryParameter("after", it) }
                 val json = JSONObject(readSourcePickerBytes(builder.build(), 8 * 1024 * 1024).toString(Charsets.UTF_8))
-                return sh.hnet.comfychair.model.ServerAssetDiscovery.page(json, source, base, query.cursor)
+                return hideMissing(sh.hnet.comfychair.model.ServerAssetDiscovery.page(json, source, base, query.cursor))
             } catch (e: PickerHttpError) {
                 if (e.status != 404 && !(e.status == 503 && e.disabled)) throw e
                 sourceAssetsSupported = false
             }
         }
-        return listSourceImagePage(source, query.legacyOffset)
+        return hideMissing(listSourceImagePage(source, query.legacyOffset))
     }
 
     suspend fun downloadSourceImage(image: sh.hnet.comfychair.model.ServerImage): ByteArray {

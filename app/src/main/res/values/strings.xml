@@ -930,6 +930,27 @@
     <string name="server_image_limits">Lists and thumbnails are privately cached for 24 hours; lists refresh in the background. Original: at most 32 MiB / 16 megapixels. Download progress is indeterminate; other previews pause during download. Asset totals include non-images. On failure, check connection and permissions, then retry.</string>
     <string name="server_assets_sort">Sort: %1$s</string>
     <string name="server_gallery_title">Server gallery</string>
+    <string name="server_delete_selected">%1$d selected (maximum 50)</string>
+    <string name="server_delete_loaded">Select loaded (50 max)</string>
+    <string name="server_delete_clear">Clear</string>
+    <string name="server_delete_action">Delete permanently</string>
+    <string name="server_delete_results">Per-file results</string>
+    <string name="server_delete_confirm">Permanently delete %1$d images from %2$s? This cannot be undone. History and shared previews are NOT removed.</string>
+    <string name="server_delete_uncertain">Operation could not be verified. Do not retry blindly; refresh and check the server.</string>
+    <string name="server_delete_credential">Deletion key</string>
+    <string name="server_delete_setup">Companion extension + one dedicated random key (at least 32 characters). Empty value removes the key. For trusted LAN HTTP, enable the switch below and save to consent.</string>
+    <string name="server_delete_lan">Trusted LAN deletion (allow HTTP)</string>
+    <string name="server_delete_lan_warning">Trusted LAN only, never expose to the Internet. HTTP sends the key and operation tokens in plaintext, not encrypted. Anyone who captures the key can delete files. Save only if you accept this risk.</string>
+    <string name="server_delete_store">Store securely</string>
+    <string name="server_delete_credential_saved">Deletion key saved securely</string>
+    <string name="server_delete_success">Deleted</string>
+    <string name="server_delete_not_found">Not found</string>
+    <string name="server_delete_conflict">Changed; not deleted</string>
+    <string name="server_delete_busy">Queue active; not deleted</string>
+    <string name="server_delete_invalid">Invalid or unsupported file</string>
+    <string name="server_delete_failed">Failed; check server</string>
+    <string name="server_delete_available">Deletion available · long press to select</string>
+    <string name="server_delete_unavailable">Deletion unavailable · check key, LAN consent and server capability</string>
 
     <!-- Server image cache settings -->
     <string name="image_cache_title">Server image cache</string>

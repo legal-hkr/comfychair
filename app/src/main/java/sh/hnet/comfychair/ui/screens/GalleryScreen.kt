@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -60,9 +62,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -71,8 +76,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,8 +95,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
@@ -108,6 +120,8 @@ import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
 import sh.hnet.comfychair.viewmodel.ServerGalleryViewModel
+import sh.hnet.comfychair.viewmodel.currentMediaIdentity
+import sh.hnet.comfychair.storage.DeletionCredentialStorage
 import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -474,58 +488,6 @@ private fun GalleryTopBar(
         },
         windowInsets = WindowInsets(0, 0, 0, 0)
     )
-}
-
-/** The server gallery in the gallery tab: tabs over the shared picker, the original in the app's media viewer. */
-@Composable
-private fun ServerGalleryTabContent(viewModel: ServerGalleryViewModel) {
-    val state by viewModel.picker.state.collectAsState()
-    val loading by viewModel.loading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val full by viewModel.viewer.collectAsState()
-    val mediaViewer = LocalMediaViewer.current
-    var source by rememberSaveable { mutableStateOf(ServerImageSource.INPUT) }
-
-    DisposableEffect(Unit) {
-        viewModel.open(ServerImageSource.entries[source.ordinal])
-        onDispose { viewModel.stop() }
-    }
-
-    Column {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-            ServerImageSource.entries.forEachIndexed { index, item ->
-                SegmentedButton(
-                    selected = source == item,
-                    onClick = { source = item; viewModel.open(item) },
-                    shape = SegmentedButtonDefaults.itemShape(index, ServerImageSource.entries.size)
-                ) { Text(item.type.replaceFirstChar { it.uppercase() }) }
-            }
-        }
-        ServerImagePickerPanel(
-            state = state,
-            loadPreview = viewModel::preview,
-            onSelect = viewModel::view,
-            onLoadMore = { viewModel.picker.loadMore() },
-            onRetryMore = { viewModel.picker.loadMore(true) },
-            onRefresh = viewModel.picker::refresh,
-            onQuery = viewModel.picker::changeQuery,
-            onCancelDownload = viewModel::closeViewer,
-            onRetryDownload = viewModel.picker::retryDownload,
-            onClose = {},
-            standalone = true,
-            browsingVisible = !loading && !error
-        )
-    }
-
-    // When the original has landed, hand it to the app's media viewer (Save, Share, Use as source) and release it here
-    if (full != null) {
-        val image = full!!
-        LaunchedEffect(image) {
-            mediaViewer.openImage(image.bitmap, filename = image.image.filename,
-                subfolder = image.image.subfolder, type = image.image.type)
-            viewModel.closeViewer()
-        }
-    }
 }
 
 /**
