@@ -567,6 +567,12 @@
     <string name="button_save_result">Enregistrer</string>
     <string name="content_description_result_actions">Actions du résultat</string>
     <string name="content_description_video_actions">Actions de la vidéo</string>
+    <string name="video_time_display" translatable="false">%1$s / %2$s</string>
+    <string name="video_sound">Son</string>
+    <string name="video_sound_on">Activé</string>
+    <string name="video_sound_off">Désactivé</string>
+    <string name="video_no_sound">Sans son</string>
+    <string name="video_loading">Chargement de la vidéo</string>
     <string name="content_description_play_video">Lire la vidéo</string>
     <string name="content_description_pause_video">Mettre la vidéo en pause</string>
     <string name="content_description_video_position">%1$s sur %2$s</string>

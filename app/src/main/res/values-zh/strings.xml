@@ -539,6 +539,12 @@
     <string name="button_save_result">保存</string>
     <string name="content_description_result_actions">结果操作</string>
     <string name="content_description_video_actions">视频操作</string>
+    <string name="video_time_display" translatable="false">%1$s / %2$s</string>
+    <string name="video_sound">声音</string>
+    <string name="video_sound_on">开</string>
+    <string name="video_sound_off">关</string>
+    <string name="video_no_sound">无声音</string>
+    <string name="video_loading">正在加载视频</string>
     <string name="content_description_play_video">播放视频</string>
     <string name="content_description_pause_video">暂停视频</string>
     <string name="content_description_video_position">%1$s / %2$s</string>

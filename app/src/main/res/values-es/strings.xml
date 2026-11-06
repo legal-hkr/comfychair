@@ -567,6 +567,12 @@
     <string name="button_save_result">Guardar</string>
     <string name="content_description_result_actions">Acciones del resultado</string>
     <string name="content_description_video_actions">Acciones del vídeo</string>
+    <string name="video_time_display" translatable="false">%1$s / %2$s</string>
+    <string name="video_sound">Sonido</string>
+    <string name="video_sound_on">Activado</string>
+    <string name="video_sound_off">Desactivado</string>
+    <string name="video_no_sound">Sin sonido</string>
+    <string name="video_loading">Cargando vídeo</string>
     <string name="content_description_play_video">Reproducir vídeo</string>
     <string name="content_description_pause_video">Pausar vídeo</string>
     <string name="content_description_video_position">%1$s de %2$s</string>

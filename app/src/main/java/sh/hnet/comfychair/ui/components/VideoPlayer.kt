@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.ui.unit.Dp
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -10,23 +9,34 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,16 +54,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.media3.common.C
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.compose.PlayerSurface
 import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
-import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.media3.ui.compose.state.rememberPresentationState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -93,7 +104,7 @@ enum class VideoScaleMode {
  * @param cacheKey Optional cache key to look up pre-fetched metadata from MediaCache
  * @param placeholder A first frame of the video the caller already has (in memory), shown until the video plays and
  *   used for its proportions, so nothing empty flashes when the player appears
- * @param showPlaybackStatus Show the pause/position chip at the top end and a position line at the bottom edge
+ * @param showPlaybackStatus Show the playback group (pause/position and sound) at the top end
  * @param surface Where it's shown, which decides the sound and the looping (the preview: muted, always looping)
  *   (inline results on the generation screens)
  * @param originKey Marks the player as the [mediaOrigin] of the media viewer's flight, with its first frame as the
@@ -307,10 +318,10 @@ fun VideoPlayer(
                                 )
                             }
                         }
-                        // Only once the video shows, so the chip doesn't sit on the thumbnail
-                        if (showPlaybackStatus && !presentationState.coverSurface) {
-                            PlaybackStatus(exoPlayer)
-                        }
+                    }
+                    // Over the whole preview card (the video may be cropped to it): playback at the top end
+                    if (showPlaybackStatus) {
+                        Box(Modifier.fillMaxSize()) { PreviewPlaybackControls() }
                     }
                 } else {
                     // Show placeholder until dimensions are extracted
@@ -343,62 +354,116 @@ fun VideoPlayer(
 }
 
 /**
- * Pause/position chip at the top end (tap toggles pause) over an inline video. Theme colours only. The position is
- * polled only while this is shown.
+ * The preview's playback controls (spec §14.2, without its position line, which the preview had and dropped before): at
+ * the top end one connected group – play/pause with the time, and the sound toggle (muted by default; hidden for a
+ * video without sound, leaving the round chip). Theme colours only. The position is polled only while the video plays.
  */
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BoxScope.PlaybackStatus(player: Player) {
-    val playPause = rememberPlayPauseButtonState(player)
+private fun BoxScope.PreviewPlaybackControls() {
+    val state by SharedVideoPlayer.state.collectAsState()
     var positionMs by remember { mutableLongStateOf(0L) }
-    var durationMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(player) {
-        while (true) {
-            positionMs = player.currentPosition.coerceAtLeast(0L)
-            durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
-            delay(100)
-        }
+    LaunchedEffect(state.isPlaying, state.durationMs) {
+        do {
+            positionMs = SharedVideoPlayer.positionMs()
+            if (state.isPlaying) delay(100)
+        } while (state.isPlaying)
     }
+    val loading = state.isLoading
+    val durationMs = state.durationMs
+    val elapsed = formatPlaybackTime(positionMs)
+    val total = durationMs?.let { formatPlaybackTime(it, roundUp = true) } ?: UNKNOWN_DURATION
+    val withSound = state.hasAudio != false
 
-    val position = formatPlaybackTime(positionMs)
-    val duration = formatPlaybackTime(durationMs)
-    val action = stringResource(if (playPause.showPlay) R.string.content_description_play_video else R.string.content_description_pause_video)
-    val progress = stringResource(R.string.content_description_video_position, position, duration)
-    Surface(
-        onClick = playPause::onClick,
-        enabled = playPause.isEnabled,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    val playLabel = stringResource(if (state.isPlaying) R.string.content_description_pause_video else R.string.content_description_play_video)
+    val positionText = stringResource(R.string.content_description_video_position, elapsed, total)
+    val loadingLabel = stringResource(R.string.video_loading)
+    val restColors = ToggleButtonDefaults.toggleButtonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = MaterialTheme.colorScheme.onSurface,
+        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         modifier = Modifier
             .align(Alignment.TopEnd)
             .padding(12.dp)
-            .clearAndSetSemantics {
-                contentDescription = "$action, $progress"
-                role = Role.Button
-            }
     ) {
-        Row(
-            modifier = Modifier.height(32.dp).padding(start = 8.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        // Play/pause and the time: never shown as checked, only the icon changes
+        ToggleButton(
+            checked = false,
+            onCheckedChange = { SharedVideoPlayer.togglePlayback() },
+            enabled = !loading,
+            shapes = if (withSound) ButtonGroupDefaults.connectedLeadingButtonShapes() else ToggleButtonDefaults.shapes(),
+            colors = restColors,
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier
+                .height(ButtonDefaults.ExtraSmallContainerHeight)
+                .clearAndSetSemantics {
+                    contentDescription = if (loading) loadingLabel else playLabel
+                    stateDescription = positionText
+                    role = Role.Button
+                    if (!loading) onClick { SharedVideoPlayer.togglePlayback(); true }
+                }
         ) {
-            Icon(
-                imageVector = if (playPause.showPlay) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
+            if (loading) {
+                LoadingIndicator(Modifier.size(18.dp))
+            } else {
+                Icon(
+                    imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.width(6.dp))
             Text(
-                text = "$position / $duration",
-                // Tabular digits, so the chip doesn't change width while the time runs
-                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum")
+                text = stringResource(R.string.video_time_display, elapsed, total),
+                // Tabular digits, so the segment doesn't change width while the time runs
+                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
             )
         }
+        if (withSound) {
+            val soundLabel = stringResource(R.string.video_sound)
+            val soundState = stringResource(if (state.muted) R.string.video_sound_off else R.string.video_sound_on)
+            ToggleButton(
+                checked = !state.muted,
+                onCheckedChange = { soundOn -> SharedVideoPlayer.setMuted(!soundOn) },
+                // Until the tracks are known
+                enabled = !loading && state.hasAudio == true,
+                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                colors = restColors,
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier
+                    .height(ButtonDefaults.ExtraSmallContainerHeight)
+                    .width(40.dp)
+                    .semantics {
+                        contentDescription = soundLabel
+                        stateDescription = soundState
+                    }
+            ) {
+                Icon(
+                    imageVector = if (state.muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
-
 }
 
-/** Playback time as m:ss. */
-internal fun formatPlaybackTime(ms: Long): String {
-    val totalSeconds = ms / 1000
-    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+/**
+ * Playback time as m:ss, or h:mm:ss from an hour. The elapsed time is floored; a total is rounded up ([roundUp]), so a
+ * 1.2 s clip shows 0:02 and the elapsed time never passes it.
+ */
+internal fun formatPlaybackTime(ms: Long, roundUp: Boolean = false): String {
+    val totalSeconds = if (roundUp) (ms + 999) / 1000 else ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = totalSeconds % 3600 / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds) else "%d:%02d".format(minutes, seconds)
 }
+
+/** A total time not known yet. */
+internal const val UNKNOWN_DURATION = "–:––"
