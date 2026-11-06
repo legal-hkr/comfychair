@@ -115,6 +115,7 @@
     <string name="state_closed">Fermé</string>
     <string name="state_generate_offline">Mode hors ligne – génération désactivée</string>
     <string name="state_generate_no_source">Choisissez d\'abord une image source</string>
+    <string name="state_generate_no_source_video">Choisissez d\'abord une vidéo source</string>
     <string name="state_generate_invalid">Vérifiez les options – une valeur manque ou n\'est pas valide</string>
     <string name="label_offline">Hors ligne</string>
     <string name="content_description_queue_empty">La file d\'attente est vide</string>
@@ -258,6 +259,7 @@
     <string name="button_edit_mask">Modifier le masque</string>
     <string name="button_clear_mask">Effacer le masque</string>
     <string name="msg_no_source_image">Aucune image source sélectionnée</string>
+    <string name="msg_no_source_video">Aucune vidéo source sélectionnée</string>
 
     <!-- Generation button states -->
     <string name="button_uploading">Téléversement…</string>
@@ -292,6 +294,9 @@
     <string name="msg_image_saved_to_gallery">Image enregistrée dans la galerie</string>
     <string name="msg_video_saved_to_gallery">Vidéo enregistrée dans la galerie</string>
     <string name="error_save_image">Échec de l\'enregistrement de l\'image</string>
+    <string name="error_upload_source_video">La vidéo n\'a pas pu être envoyée au serveur</string>
+    <string name="error_source_video_unreadable">La vidéo n\'a pas pu être lue</string>
+    <string name="error_source_video_too_large">La vidéo dépasse 100 Mo</string>
     <string name="error_save_video">Échec de l\'enregistrement de la vidéo</string>
     <string name="error_share_image">Échec du partage de l\'image</string>
     <string name="error_failed_load_image">Impossible de charger l’image</string>
@@ -563,8 +568,11 @@
     <string name="label_pip_source">Source</string>
     <string name="msg_results_appear_here">Vos résultats apparaîtront ici</string>
     <string name="button_pick_source_image">Choisir l\'image source</string>
+    <string name="button_pick_source_video">Choisir la vidéo source</string>
     <string name="content_description_replace_source">Remplacer l\'image source</string>
+    <string name="content_description_replace_source_video">Remplacer la vidéo source</string>
     <string name="content_description_remove_source">Retirer l\'image source</string>
+    <string name="content_description_remove_source_video">Retirer la vidéo source</string>
     <string name="content_description_show_mask">Afficher le masque</string>
     <string name="content_description_hide_mask">Cacher le masque</string>
     <string name="label_mask">Masque</string>
@@ -587,6 +595,7 @@
     <string name="content_description_reference_image_1">Image de référence 1</string>
     <string name="content_description_reference_image_2">Image de référence 2</string>
     <string name="content_description_source_image">Image source</string>
+    <string name="content_description_source_video">Vidéo source</string>
     <string name="content_description_decrease">Diminuer la valeur</string>
     <string name="content_description_increase">Augmenter la valeur</string>
 

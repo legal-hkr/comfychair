@@ -115,6 +115,7 @@
     <string name="state_closed">已关闭</string>
     <string name="state_generate_offline">离线模式 – 已停用生成</string>
     <string name="state_generate_no_source">请先选择源图像</string>
+    <string name="state_generate_no_source_video">请先选择源视频</string>
     <string name="state_generate_invalid">请检查选项 – 有值缺失或无效</string>
     <string name="label_offline">离线</string>
     <string name="content_description_queue_empty">队列为空</string>
@@ -250,6 +251,7 @@
     <string name="button_edit_mask">编辑蒙版</string>
     <string name="button_clear_mask">清除蒙版</string>
     <string name="msg_no_source_image">未选择原图</string>
+    <string name="msg_no_source_video">未选择源视频</string>
 
     <!-- Generation button states -->
     <string name="button_uploading">上传中…</string>
@@ -284,6 +286,9 @@
     <string name="msg_image_saved_to_gallery">图片已保存到相册</string>
     <string name="msg_video_saved_to_gallery">视频已保存到相册</string>
     <string name="error_save_image">保存图片失败</string>
+    <string name="error_upload_source_video">无法将视频发送到服务器</string>
+    <string name="error_source_video_unreadable">无法读取视频</string>
+    <string name="error_source_video_too_large">视频超过 100 MB</string>
     <string name="error_save_video">保存视频失败</string>
     <string name="error_share_image">分享图片失败</string>
     <string name="error_failed_load_image">无法加载图像</string>
@@ -535,8 +540,11 @@
     <string name="label_pip_source">源图</string>
     <string name="msg_results_appear_here">生成结果将显示在这里</string>
     <string name="button_pick_source_image">选择源图像</string>
+    <string name="button_pick_source_video">选择源视频</string>
     <string name="content_description_replace_source">替换源图像</string>
+    <string name="content_description_replace_source_video">替换源视频</string>
     <string name="content_description_remove_source">移除源图像</string>
+    <string name="content_description_remove_source_video">移除源视频</string>
     <string name="content_description_show_mask">显示蒙版</string>
     <string name="content_description_hide_mask">隐藏蒙版</string>
     <string name="label_mask">蒙版</string>
@@ -555,6 +563,7 @@
     <string name="content_description_reference_image_1">参考图像 1</string>
     <string name="content_description_reference_image_2">参考图像 2</string>
     <string name="content_description_source_image">源图像</string>
+    <string name="content_description_source_video">源视频</string>
     <string name="content_description_decrease">减少值</string>
     <string name="content_description_increase">增加值</string>
 

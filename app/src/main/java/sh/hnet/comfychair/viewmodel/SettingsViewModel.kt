@@ -394,7 +394,8 @@ class SettingsViewModel : ViewModel() {
                     "TextToImageFragmentPrefs",
                     "ImageToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
-                    "ImageToVideoFragmentPrefs"
+                    "ImageToVideoFragmentPrefs",
+                    "VideoToVideoFragmentPrefs"
                 ).forEach { prefsName ->
                     context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit().clear().commit()
                 }
@@ -435,7 +436,8 @@ class SettingsViewModel : ViewModel() {
                     "TextToImageFragmentPrefs",
                     "ImageToImageFragmentPrefs",
                     "TextToVideoFragmentPrefs",
-                    "ImageToVideoFragmentPrefs"
+                    "ImageToVideoFragmentPrefs",
+                    "VideoToVideoFragmentPrefs"
                 )
 
                 for (prefName in prefNames) {

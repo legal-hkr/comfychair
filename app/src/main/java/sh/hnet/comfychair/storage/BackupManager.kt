@@ -49,6 +49,7 @@ class BackupManager(private val context: Context) {
         private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
         private const val PREFS_TEXT_TO_VIDEO = "TextToVideoFragmentPrefs"
         private const val PREFS_IMAGE_TO_VIDEO = "ImageToVideoFragmentPrefs"
+        private const val PREFS_VIDEO_TO_VIDEO = "VideoToVideoFragmentPrefs"
         private const val PREFS_WORKFLOW_VALUES = "WorkflowValuesPrefs"
         private const val PREFS_USER_WORKFLOWS = "UserWorkflowsPrefs"
         private const val PREFS_PROMPT_PRESETS = "PromptPresetPrefs"
@@ -225,6 +226,7 @@ class BackupManager(private val context: Context) {
                 put("imageToImage", readImageToImagePrefs(server.id))
                 put("textToVideo", readTextToVideoPrefs(server.id))
                 put("imageToVideo", readImageToVideoPrefs(server.id))
+                put("videoToVideo", readVideoScreenPrefs(PREFS_VIDEO_TO_VIDEO, server.id))
             })
         }
         return result
@@ -251,6 +253,15 @@ class BackupManager(private val context: Context) {
 
     private fun readTextToVideoPrefs(serverId: String): JSONObject {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
+        return JSONObject().apply {
+            put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
+            put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
+        }
+    }
+
+    /** A video screen's own choices: the selected workflow and the prompt (Video to Video). */
+    private fun readVideoScreenPrefs(prefsName: String, serverId: String): JSONObject {
+        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         return JSONObject().apply {
             put("selectedWorkflowId", prefs.getString("${serverId}_selectedWorkflowId", "") ?: "")
             put("positivePrompt", prefs.getString("${serverId}_positivePrompt", "") ?: "")
@@ -396,6 +407,9 @@ class BackupManager(private val context: Context) {
             serverPrefs.optJSONObject("imageToVideo")?.let {
                 restoreImageToVideoPrefs(it, actualServerId)
             }
+            serverPrefs.optJSONObject("videoToVideo")?.let {
+                restoreVideoScreenPrefs(PREFS_VIDEO_TO_VIDEO, it, actualServerId)
+            }
         }
     }
 
@@ -442,6 +456,22 @@ class BackupManager(private val context: Context) {
 
     private fun restoreTextToVideoPrefs(json: JSONObject, serverId: String) {
         val prefs = context.getSharedPreferences(PREFS_TEXT_TO_VIDEO, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
+                putString("${serverId}_selectedWorkflowId", it)
+            }
+            json.optString("positivePrompt").takeIf { it.isNotEmpty() }?.let { prompt ->
+                validator.validateAndSanitizePrompt(prompt)?.let {
+                    putString("${serverId}_positivePrompt", it)
+                }
+            }
+            apply()
+        }
+    }
+
+    /** A video screen's own choices back: the selected workflow and the prompt (Video to Video). */
+    private fun restoreVideoScreenPrefs(prefsName: String, json: JSONObject, serverId: String) {
+        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         prefs.edit().apply {
             json.optString("selectedWorkflowId").takeIf { it.isNotEmpty() }?.let {
                 putString("${serverId}_selectedWorkflowId", it)

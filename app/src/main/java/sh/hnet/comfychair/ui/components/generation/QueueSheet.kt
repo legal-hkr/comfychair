@@ -75,6 +75,7 @@ private fun ownerInfo(ownerId: String?): OwnerInfo? = when (ownerId) {
     "IMAGE_TO_IMAGE" -> OwnerInfo(R.string.nav_image_to_image, R.drawable.image_to_image_24px)
     "TEXT_TO_VIDEO" -> OwnerInfo(R.string.nav_text_to_video, R.drawable.text_to_video_24px)
     "IMAGE_TO_VIDEO" -> OwnerInfo(R.string.nav_image_to_video, R.drawable.image_to_video_24px)
+    "VIDEO_TO_VIDEO" -> OwnerInfo(R.string.nav_video_to_video, R.drawable.video_to_video_24px)
     else -> null
 }
 

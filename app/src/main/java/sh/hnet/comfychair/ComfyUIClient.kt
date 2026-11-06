@@ -1649,6 +1649,8 @@ class ComfyUIClient(
         filename: String,
         subfolder: String = "",
         overwrite: Boolean = true,
+        // ComfyUI's /upload/image takes any input file, a source video too (Video to Video)
+        mimeType: String = "image/png",
         callback: (success: Boolean, filename: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
     ) {
         DebugLogger.i(TAG, "Uploading image: ${Obfuscator.filename(filename)} (${imageData.size} bytes)")
@@ -1666,7 +1668,7 @@ class ComfyUIClient(
             .addFormDataPart(
                 "image",
                 filename,
-                imageData.toRequestBody("image/png".toMediaType())
+                imageData.toRequestBody(mimeType.toMediaType())
             )
             .addFormDataPart("subfolder", subfolder)
             .addFormDataPart("overwrite", overwrite.toString())

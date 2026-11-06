@@ -60,10 +60,14 @@ object MediaStateHolder {
         data object ItiPreview : MediaKey("iti_last_preview.png")
         data object TtvPreview : MediaKey("ttv_last_preview.png")
         data object ItvPreview : MediaKey("itv_last_preview.png")
+        data object V2vPreview : MediaKey("v2v_last_preview.png")
 
         // Source images (user-selected images for Image-to-X workflows)
         data object ItiSource : MediaKey("iti_last_source.png")
         data object ItvSource : MediaKey("itv_last_source.png")
+
+        // Source video of Video to Video (video bytes, stored like the generated videos)
+        data object V2vSource : MediaKey("v2v_last_source.mp4")
 
         // Reference images for ITE (Image Editing) workflow
         data object IteReferenceImage1 : MediaKey("ite_reference_1.png")
@@ -72,6 +76,7 @@ object MediaStateHolder {
         // Generated videos (with prompt ID for uniqueness)
         data class TtvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.TEXT_TO_VIDEO}$promptId.mp4")
         data class ItvVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}$promptId.mp4")
+        data class V2vVideo(val promptId: String) : MediaKey("${VideoUtils.FilePrefix.VIDEO_TO_VIDEO}$promptId.mp4")
 
         /**
          * Get the full filename including server ID prefix.
@@ -83,6 +88,7 @@ object MediaStateHolder {
             get() = when (this) {
                 is TtvVideo -> "${VideoUtils.FilePrefix.TEXT_TO_VIDEO}${Obfuscator.promptId(promptId)}"
                 is ItvVideo -> "${VideoUtils.FilePrefix.IMAGE_TO_VIDEO}${Obfuscator.promptId(promptId)}"
+                is V2vVideo -> "${VideoUtils.FilePrefix.VIDEO_TO_VIDEO}${Obfuscator.promptId(promptId)}"
                 else -> baseFilename
             }
     }
@@ -120,6 +126,8 @@ object MediaStateHolder {
     private var currentTtvPromptId: String? = null
     @Volatile
     private var currentItvPromptId: String? = null
+    @Volatile
+    private var currentV2vPromptId: String? = null
 
     // Serializes everything that reads, writes or deletes media files, so a background persist
     // never overlaps a load, a mode switch or the memory-only cleanup
@@ -303,6 +311,8 @@ object MediaStateHolder {
             MediaKey.TtvPreview,
             MediaKey.ItvPreview,
             MediaKey.ItvSource,
+            MediaKey.V2vPreview,
+            MediaKey.V2vSource,
             MediaKey.IteReferenceImage1,
             MediaKey.IteReferenceImage2
         )
@@ -325,6 +335,7 @@ object MediaStateHolder {
                 file.name.startsWith(prefix) && (
                     file.name.contains(VideoUtils.FilePrefix.TEXT_TO_VIDEO) ||
                     file.name.contains(VideoUtils.FilePrefix.IMAGE_TO_VIDEO) ||
+                    file.name.contains(VideoUtils.FilePrefix.VIDEO_TO_VIDEO) ||
                     file.name.endsWith(OUTPUTS_FILE_SUFFIX)
                 )
             }?.forEach { file ->
@@ -421,6 +432,7 @@ object MediaStateHolder {
         when (key) {
             is MediaKey.TtvVideo -> currentTtvPromptId = key.promptId
             is MediaKey.ItvVideo -> currentItvPromptId = key.promptId
+            is MediaKey.V2vVideo -> currentV2vPromptId = key.promptId
             else -> { }
         }
 
@@ -429,6 +441,7 @@ object MediaStateHolder {
         val prefix = when (key) {
             is MediaKey.TtvVideo -> VideoUtils.FilePrefix.TEXT_TO_VIDEO
             is MediaKey.ItvVideo -> VideoUtils.FilePrefix.IMAGE_TO_VIDEO
+            is MediaKey.V2vVideo -> VideoUtils.FilePrefix.VIDEO_TO_VIDEO
             else -> null
         }
         if (prefix != null) {
@@ -652,6 +665,7 @@ object MediaStateHolder {
                 MediaKey.TtvPreview,
                 MediaKey.ItvPreview,
                 MediaKey.ItvSource,
+                MediaKey.V2vPreview,
                 MediaKey.IteReferenceImage1,
                 MediaKey.IteReferenceImage2
             )
@@ -698,6 +712,22 @@ object MediaStateHolder {
                 DebugLogger.d(TAG, "loadFromDisk: ITV video -> LOADED (promptId: ${promptId.take(8)}...)")
             }
 
+            if (dirtyVideos.none { it is MediaKey.V2vVideo }) loadLatestVideoFile(context, serverPrefix, VideoUtils.FilePrefix.VIDEO_TO_VIDEO) { promptId, bytes ->
+                videoBytes[MediaKey.V2vVideo(promptId)] = bytes
+                currentV2vPromptId = promptId
+                DebugLogger.d(TAG, "loadFromDisk: V2V video -> LOADED (promptId: ${promptId.take(8)}...)")
+            }
+
+            // Video to Video's source video
+            if (MediaKey.V2vSource !in dirtyVideos) {
+                try {
+                    val file = context.getFileStreamPath(MediaKey.V2vSource.filename(serverId))
+                    if (file.exists()) videoBytes[MediaKey.V2vSource] = file.readBytes()
+                } catch (e: Exception) {
+                    DebugLogger.e(TAG, "loadFromDisk: V2V source -> ERROR: ${e.message}")
+                }
+            }
+
             DebugLogger.i(TAG, "loadFromDisk DONE (loaded: $bitmapsLoaded bitmaps, not found: $bitmapsNotFound)")
         }
     }
@@ -738,6 +768,7 @@ object MediaStateHolder {
         when (key) {
             is MediaKey.TtvVideo -> if (key.promptId == currentTtvPromptId) currentTtvPromptId = null
             is MediaKey.ItvVideo -> if (key.promptId == currentItvPromptId) currentItvPromptId = null
+            is MediaKey.V2vVideo -> if (key.promptId == currentV2vPromptId) currentV2vPromptId = null
             else -> { }
         }
     }
@@ -773,6 +804,7 @@ object MediaStateHolder {
         dirtyVideos.clear()
         currentTtvPromptId = null
         currentItvPromptId = null
+        currentV2vPromptId = null
     }
 
     /**
@@ -784,6 +816,9 @@ object MediaStateHolder {
      * Get the current Image-to-Video prompt ID (if any video is loaded).
      */
     fun getCurrentItvPromptId(): String? = currentItvPromptId
+
+    /** The current Video-to-Video prompt ID (if any video is loaded). */
+    fun getCurrentV2vPromptId(): String? = currentV2vPromptId
 
     /**
      * Clear the current Text-to-Video prompt ID tracking.
@@ -799,6 +834,11 @@ object MediaStateHolder {
      */
     fun clearCurrentItvPromptId() {
         currentItvPromptId = null
+    }
+
+    /** Clear the current Video-to-Video prompt ID tracking. */
+    fun clearCurrentV2vPromptId() {
+        currentV2vPromptId = null
     }
 
     /**
@@ -834,6 +874,21 @@ object MediaStateHolder {
                 ?.maxByOrNull { it.lastModified() }
                 ?.let { file ->
                     currentItvPromptId = file.name
+                        .removePrefix(fullPrefix)
+                        .removeSuffix(".mp4")
+                }
+        } catch (_: Exception) {
+            // Ignore discovery failures
+        }
+
+        // Discover V2V video
+        try {
+            val fullPrefix = "$serverPrefix${VideoUtils.FilePrefix.VIDEO_TO_VIDEO}"
+            context.filesDir.listFiles()
+                ?.filter { it.name.startsWith(fullPrefix) && it.name.endsWith(".mp4") }
+                ?.maxByOrNull { it.lastModified() }
+                ?.let { file ->
+                    currentV2vPromptId = file.name
                         .removePrefix(fullPrefix)
                         .removeSuffix(".mp4")
                 }

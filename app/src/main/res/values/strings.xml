@@ -94,6 +94,7 @@
     <string name="state_closed">Closed</string>
     <string name="state_generate_offline">Offline mode – generating is off</string>
     <string name="state_generate_no_source">Pick a source image first</string>
+    <string name="state_generate_no_source_video">Pick a source video first</string>
     <string name="state_generate_invalid">Check the options – a value is missing or invalid</string>
     <string name="label_offline">Offline</string>
     <string name="content_description_queue_empty">Queue is empty</string>
@@ -269,6 +270,7 @@
     <string name="button_edit_mask">Edit Mask</string>
     <string name="button_clear_mask">Clear Mask</string>
     <string name="msg_no_source_image">No source image selected</string>
+    <string name="msg_no_source_video">No source video selected</string>
 
     <!-- Generation button states -->
     <string name="button_uploading">Uploading…</string>
@@ -303,6 +305,9 @@
     <string name="msg_image_saved_to_gallery">Image saved to gallery</string>
     <string name="msg_video_saved_to_gallery">Video saved to gallery</string>
     <string name="error_save_image">Failed to save image</string>
+    <string name="error_upload_source_video">The video couldn\'t be sent to the server</string>
+    <string name="error_source_video_unreadable">The video couldn\'t be read</string>
+    <string name="error_source_video_too_large">The video is larger than 100 MB</string>
     <string name="error_save_video">Failed to save video</string>
     <string name="error_share_image">Failed to share image</string>
     <string name="error_failed_load_image">Couldn’t load the image</string>
@@ -664,8 +669,11 @@
     <string name="label_pip_source">Source</string>
     <string name="msg_results_appear_here">Your results appear here</string>
     <string name="button_pick_source_image">Pick source image</string>
+    <string name="button_pick_source_video">Pick source video</string>
     <string name="content_description_replace_source">Replace source image</string>
+    <string name="content_description_replace_source_video">Replace source video</string>
     <string name="content_description_remove_source">Remove source image</string>
+    <string name="content_description_remove_source_video">Remove source video</string>
     <string name="content_description_show_mask">Show mask overlay</string>
     <string name="content_description_hide_mask">Hide mask overlay</string>
     <string name="label_mask">Mask</string>
@@ -686,6 +694,7 @@
     <string name="content_description_reference_image_1">Reference image 1</string>
     <string name="content_description_reference_image_2">Reference image 2</string>
     <string name="content_description_source_image">Source image</string>
+    <string name="content_description_source_video">Source video</string>
     <string name="content_description_decrease">Decrease value</string>
     <string name="content_description_increase">Increase value</string>
     <string name="content_description_show_help">Show help</string>

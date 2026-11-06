@@ -430,6 +430,7 @@ fun RecipeChips(
  * @param generationBlocker Message shown instead of generating, e.g. a missing mask; null to generate
  * @param hasPositivePrompt Without the prompt field above, the controls keep the gap it provided
  * @param missingSource The screen needs a source image it doesn't have yet (the reason given for a disabled button)
+ * @param sourceIsVideo The missing source is a video (Video to Video)
  * @param describeJob What the queue sheet shows for a submitted job (prompt and workflow), read when submitting
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -444,7 +445,8 @@ fun GenerationControls(
     onOpenOptions: () -> Unit,
     submit: (front: Boolean) -> Unit,
     isUploading: Boolean = false,
-    missingSource: Boolean = false
+    missingSource: Boolean = false,
+    sourceIsVideo: Boolean = false
 ) {
     val context = LocalContext.current
     val queueState by JobRegistry.queueState.collectAsState()
@@ -461,7 +463,7 @@ fun GenerationControls(
         GenerationButton(
             disabledReason = when {
                 isOfflineMode -> stringResource(R.string.state_generate_offline)
-                missingSource -> stringResource(R.string.state_generate_no_source)
+                missingSource -> stringResource(if (sourceIsVideo) R.string.state_generate_no_source_video else R.string.state_generate_no_source)
                 !isEnabled -> stringResource(R.string.state_generate_invalid)
                 else -> null
             },

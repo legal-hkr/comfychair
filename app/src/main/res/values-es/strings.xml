@@ -115,6 +115,7 @@
     <string name="state_closed">Cerrado</string>
     <string name="state_generate_offline">Modo sin conexión – la generación está desactivada</string>
     <string name="state_generate_no_source">Elige primero una imagen de origen</string>
+    <string name="state_generate_no_source_video">Elige primero un vídeo de origen</string>
     <string name="state_generate_invalid">Revisa las opciones – falta un valor o no es válido</string>
     <string name="label_offline">Sin conexión</string>
     <string name="content_description_queue_empty">La cola está vacía</string>
@@ -258,6 +259,7 @@
     <string name="button_edit_mask">Editar máscara</string>
     <string name="button_clear_mask">Borrar máscara</string>
     <string name="msg_no_source_image">No hay imagen origen seleccionada</string>
+    <string name="msg_no_source_video">No hay vídeo de origen seleccionado</string>
 
     <!-- Generation button states -->
     <string name="button_uploading">Subiendo…</string>
@@ -292,6 +294,9 @@
     <string name="msg_image_saved_to_gallery">Imagen guardada en la galería</string>
     <string name="msg_video_saved_to_gallery">Vídeo guardado en la galería</string>
     <string name="error_save_image">Error al guardar la imagen</string>
+    <string name="error_upload_source_video">No se pudo enviar el vídeo al servidor</string>
+    <string name="error_source_video_unreadable">No se pudo leer el vídeo</string>
+    <string name="error_source_video_too_large">El vídeo supera los 100 MB</string>
     <string name="error_save_video">Error al guardar el vídeo</string>
     <string name="error_share_image">Error al compartir la imagen</string>
     <string name="error_failed_load_image">No se pudo cargar la imagen</string>
@@ -563,8 +568,11 @@
     <string name="label_pip_source">Origen</string>
     <string name="msg_results_appear_here">Tus resultados aparecerán aquí</string>
     <string name="button_pick_source_image">Elegir imagen de origen</string>
+    <string name="button_pick_source_video">Elegir vídeo de origen</string>
     <string name="content_description_replace_source">Reemplazar imagen de origen</string>
+    <string name="content_description_replace_source_video">Reemplazar vídeo de origen</string>
     <string name="content_description_remove_source">Quitar imagen de origen</string>
+    <string name="content_description_remove_source_video">Quitar vídeo de origen</string>
     <string name="content_description_show_mask">Mostrar máscara</string>
     <string name="content_description_hide_mask">Ocultar máscara</string>
     <string name="label_mask">Máscara</string>
@@ -587,6 +595,7 @@
     <string name="content_description_reference_image_1">Imagen de referencia 1</string>
     <string name="content_description_reference_image_2">Imagen de referencia 2</string>
     <string name="content_description_source_image">Imagen de origen</string>
+    <string name="content_description_source_video">Vídeo de origen</string>
     <string name="content_description_decrease">Disminuir valor</string>
     <string name="content_description_increase">Aumentar valor</string>
 

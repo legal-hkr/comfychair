@@ -41,6 +41,7 @@ import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
@@ -66,6 +67,7 @@ class MainContainerActivity : ComponentActivity() {
     private val imageToImageViewModel: ImageToImageViewModel by viewModels()
     private val textToVideoViewModel: TextToVideoViewModel by viewModels()
     private val imageToVideoViewModel: ImageToVideoViewModel by viewModels()
+    private val videoToVideoViewModel: VideoToVideoViewModel by viewModels()
     private val galleryViewModel: GalleryViewModel by viewModels()
     private val mediaViewerViewModel: MediaViewerViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
@@ -156,6 +158,7 @@ class MainContainerActivity : ComponentActivity() {
             ImageToImageViewModel.OWNER_ID -> MainRoute.ImageToImage.route
             TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo.route
             ImageToVideoViewModel.OWNER_ID -> MainRoute.ImageToVideo.route
+            VideoToVideoViewModel.OWNER_ID -> MainRoute.VideoToVideo.route
             else -> MainRoute.TextToImage.route
         }
 
@@ -170,7 +173,7 @@ class MainContainerActivity : ComponentActivity() {
                 // Settings changes reach the screens in place (workflows by themselves, through WorkflowManager);
                 // only offline mode, a change of the connection, restarts when leaving the Settings tab
                 LaunchedEffect(Unit) {
-                    val screens = listOf(textToImageViewModel, imageToImageViewModel, textToVideoViewModel, imageToVideoViewModel)
+                    val screens = listOf(textToImageViewModel, imageToImageViewModel, textToVideoViewModel, imageToVideoViewModel, videoToVideoViewModel)
                     settingsViewModel.events.collect { event ->
                         when (event) {
                             is SettingsEvent.SavedStateChanged -> screens.forEach { it.reloadSavedState() }
@@ -193,6 +196,7 @@ class MainContainerActivity : ComponentActivity() {
                         imageToImageViewModel = imageToImageViewModel,
                         textToVideoViewModel = textToVideoViewModel,
                         imageToVideoViewModel = imageToVideoViewModel,
+                        videoToVideoViewModel = videoToVideoViewModel,
                         galleryViewModel = galleryViewModel,
                         mediaViewerViewModel = mediaViewerViewModel,
                         settingsViewModel = settingsViewModel,

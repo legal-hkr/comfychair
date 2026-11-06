@@ -8,6 +8,7 @@ import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
 import sh.hnet.comfychair.viewmodel.ImageToImageMode
 import sh.hnet.comfychair.viewmodel.ImageToImageUiState
 import sh.hnet.comfychair.viewmodel.ImageToVideoUiState
+import sh.hnet.comfychair.viewmodel.VideoToVideoUiState
 import sh.hnet.comfychair.viewmodel.TextToImageUiState
 import sh.hnet.comfychair.viewmodel.TextToVideoUiState
 
@@ -146,6 +147,9 @@ fun TextToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomS
     toBottomSheetConfig(availableWorkflows, callbacks)
 
 fun ImageToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomSheetConfig =
+    toBottomSheetConfig(availableWorkflows, callbacks)
+
+fun VideoToVideoUiState.toBottomSheetConfig(callbacks: UnifiedCallbacks): BottomSheetConfig =
     toBottomSheetConfig(availableWorkflows, callbacks)
 
 /** The workflow menu of a screen with one kind of workflow: one untitled group. */

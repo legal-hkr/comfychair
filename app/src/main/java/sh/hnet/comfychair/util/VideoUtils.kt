@@ -63,6 +63,7 @@ object VideoUtils {
                 val mediaKey = when (filePrefix) {
                     FilePrefix.TEXT_TO_VIDEO -> MediaStateHolder.MediaKey.TtvVideo(promptId)
                     FilePrefix.IMAGE_TO_VIDEO -> MediaStateHolder.MediaKey.ItvVideo(promptId)
+                    FilePrefix.VIDEO_TO_VIDEO -> MediaStateHolder.MediaKey.V2vVideo(promptId)
                     else -> null
                 }
 
@@ -89,6 +90,7 @@ object VideoUtils {
     object FilePrefix {
         const val TEXT_TO_VIDEO = "last_generated_video_"
         const val IMAGE_TO_VIDEO = "image_to_video_last_generated_"
+        const val VIDEO_TO_VIDEO = "video_to_video_last_generated_"
     }
 
     /**
@@ -97,5 +99,6 @@ object VideoUtils {
     object GalleryPrefix {
         const val TEXT_TO_VIDEO = "ComfyChair"
         const val IMAGE_TO_VIDEO = "ComfyChair_ITV"
+        const val VIDEO_TO_VIDEO = "ComfyChair_V2V"
     }
 }

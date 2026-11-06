@@ -24,6 +24,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.HideImage
+import androidx.compose.material.icons.rounded.VideocamOff
+import androidx.compose.material.icons.rounded.VideoCall
 import androidx.compose.material.icons.rounded.LayersClear
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -92,13 +94,27 @@ class MaskTools(
 fun BoxScope.SourceToolbar(
     onReplace: () -> Unit,
     onRemove: () -> Unit,
-    maskTools: MaskTools? = null
+    maskTools: MaskTools? = null,
+    // Video to Video: the source is a video
+    isVideo: Boolean = false
 ) {
     val modifier = Modifier
         .align(Alignment.BottomCenter)
         .padding(bottom = 12.dp)
     val replace: @Composable () -> Unit = {
-        TooltipIconButton(Icons.Rounded.AddPhotoAlternate, stringResource(R.string.content_description_replace_source), onReplace)
+        if (isVideo) {
+            TooltipIconButton(Icons.Rounded.VideoCall, stringResource(R.string.content_description_replace_source_video), onReplace)
+        } else {
+            TooltipIconButton(Icons.Rounded.AddPhotoAlternate, stringResource(R.string.content_description_replace_source), onReplace)
+        }
+    }
+
+    val removeSource: @Composable () -> Unit = {
+        if (isVideo) {
+            TooltipIconButton(Icons.Rounded.VideocamOff, stringResource(R.string.content_description_remove_source_video), onRemove)
+        } else {
+            TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
+        }
     }
 
     // The toolbar's container in the same role as the frames of thumbnails over the preview and empty reference slots
@@ -108,7 +124,7 @@ fun BoxScope.SourceToolbar(
     if (maskTools == null) {
         HorizontalFloatingToolbar(expanded = true, modifier = modifier, colors = colors) {
             replace()
-            TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
+            removeSource()
         }
     } else {
         HorizontalFloatingToolbar(
@@ -129,7 +145,7 @@ fun BoxScope.SourceToolbar(
             }
         ) {
             replace()
-            TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
+            removeSource()
             TooltipIconButton(
                 Icons.Rounded.LayersClear,
                 stringResource(R.string.button_clear_mask),
@@ -169,7 +185,9 @@ fun BoxScope.MaskLabel() {
  * Empty source: the preview itself is the picker – a dashed outline and one large button.
  */
 @Composable
-fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
+fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier, isVideo: Boolean = false) {
+    // Video to Video picks a source video
+    val pickIcon = if (isVideo) Icons.Rounded.VideoCall else Icons.Rounded.AddPhotoAlternate
     val outline = MaterialTheme.colorScheme.outline
     Box(
         modifier
@@ -189,7 +207,7 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
             Icon(
-                Icons.Rounded.AddPhotoAlternate,
+                pickIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 // The drawing (about 5/6 of the icon) matches the height of the logo in the empty results state
@@ -197,9 +215,9 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(16.dp))
             Button(onClick = onPick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
-                Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Icon(pickIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                Text(stringResource(R.string.button_pick_source_image))
+                Text(stringResource(if (isVideo) R.string.button_pick_source_video else R.string.button_pick_source_image))
             }
         }
     }

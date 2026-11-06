@@ -9,6 +9,7 @@ import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 
 /**
  * Navigation by what is made: an Image tab and a Video tab, each holding the screens for its sources. The screens stay
@@ -27,7 +28,8 @@ val OutputTab.sources: List<ScreenSource>
         )
         OutputTab.VIDEO -> listOf(
             ScreenSource(R.string.label_source_text, MainRoute.TextToVideo),
-            ScreenSource(R.string.label_source_image, MainRoute.ImageToVideo)
+            ScreenSource(R.string.label_source_image, MainRoute.ImageToVideo),
+            ScreenSource(R.string.label_source_video, MainRoute.VideoToVideo)
         )
     }
 
@@ -40,6 +42,7 @@ fun mainRouteOf(route: String?): MainRoute? = when (route) {
     MainRoute.ImageToImage.route -> MainRoute.ImageToImage
     MainRoute.TextToVideo.route -> MainRoute.TextToVideo
     MainRoute.ImageToVideo.route -> MainRoute.ImageToVideo
+    MainRoute.VideoToVideo.route -> MainRoute.VideoToVideo
     MainRoute.Gallery.route -> MainRoute.Gallery
     MainRoute.Settings.route -> MainRoute.Settings
     else -> null
@@ -51,6 +54,7 @@ fun routeForOwner(ownerId: String?): MainRoute? = when (ownerId) {
     ImageToImageViewModel.OWNER_ID -> MainRoute.ImageToImage
     TextToVideoViewModel.OWNER_ID -> MainRoute.TextToVideo
     ImageToVideoViewModel.OWNER_ID -> MainRoute.ImageToVideo
+    VideoToVideoViewModel.OWNER_ID -> MainRoute.VideoToVideo
     else -> null
 }
 

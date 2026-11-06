@@ -21,6 +21,7 @@ object PreferencesMaintenance {
     private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
     private const val PREFS_TEXT_TO_VIDEO = "TextToVideoFragmentPrefs"
     private const val PREFS_IMAGE_TO_VIDEO = "ImageToVideoFragmentPrefs"
+    private const val PREFS_VIDEO_TO_VIDEO = "VideoToVideoFragmentPrefs"
 
     // Credential key prefixes
     private const val KEY_USERNAME_PREFIX = "username_"
@@ -229,7 +230,8 @@ object PreferencesMaintenance {
             PREFS_TEXT_TO_IMAGE,
             PREFS_IMAGE_TO_IMAGE,
             PREFS_TEXT_TO_VIDEO,
-            PREFS_IMAGE_TO_VIDEO
+            PREFS_IMAGE_TO_VIDEO,
+            PREFS_VIDEO_TO_VIDEO
         )
 
         var totalRemoved = 0

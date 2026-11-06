@@ -70,6 +70,7 @@ import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
+import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
 import sh.hnet.comfychair.ui.screens.ServerSettingsScreen
 import sh.hnet.comfychair.ui.screens.SettingsRootScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
@@ -90,6 +91,7 @@ import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
@@ -110,6 +112,7 @@ fun MainNavHost(
     imageToImageViewModel: ImageToImageViewModel,
     textToVideoViewModel: TextToVideoViewModel,
     imageToVideoViewModel: ImageToVideoViewModel,
+    videoToVideoViewModel: VideoToVideoViewModel,
     galleryViewModel: GalleryViewModel,
     mediaViewerViewModel: MediaViewerViewModel,
     settingsViewModel: SettingsViewModel,
@@ -336,6 +339,14 @@ fun MainNavHost(
                                 ImageToVideoScreen(
                                     generationViewModel = generationViewModel,
                                     imageToVideoViewModel = imageToVideoViewModel,
+                                    onUseAsSource = useAsSource
+                                )
+                            }
+
+                            composable(MainRoute.VideoToVideo.route) {
+                                VideoToVideoScreen(
+                                    generationViewModel = generationViewModel,
+                                    videoToVideoViewModel = videoToVideoViewModel,
                                     onUseAsSource = useAsSource
                                 )
                             }
