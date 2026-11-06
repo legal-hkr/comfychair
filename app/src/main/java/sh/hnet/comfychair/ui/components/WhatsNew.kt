@@ -40,11 +40,18 @@ import sh.hnet.comfychair.util.Changelog
 object WhatsNew {
     private const val PREFS = "WhatsNewPrefs"
     private const val KEY_SHOWN = "shownVersionCode"
+    private const val KEY_SEEN = "seenVersionCode"
     private const val ASSET_DIR = "whats_new"
     private const val DEFAULT_LOCALE = "en-US"
 
+    /** Release notes as written ([text]) and as read ([changelog]). */
+    class Notes(val text: String, val changelog: Changelog) {
+        /** The version they name, else the app's. */
+        val version: String get() = changelog.version ?: BuildConfig.VERSION_NAME.removePrefix("v")
+    }
+
     /** This version's notes, or null when the build has none. */
-    fun changelog(context: Context): Changelog? {
+    fun notes(context: Context): Notes? {
         val files = try {
             context.assets.list(ASSET_DIR)?.map { it.removeSuffix(".txt") }.orEmpty()
         } catch (_: IOException) {
@@ -57,7 +64,8 @@ object WhatsNew {
             ?: files.firstOrNull { it.substringBefore('-').equals(locale.language, ignoreCase = true) }
             ?: DEFAULT_LOCALE
         return try {
-            context.assets.open("$ASSET_DIR/$name.txt").bufferedReader().use { Changelog.parse(it.readText()) }
+            val text = context.assets.open("$ASSET_DIR/$name.txt").bufferedReader().use { it.readText() }
+            Notes(text, Changelog.parse(text))
         } catch (_: IOException) {
             null
         }
@@ -67,7 +75,15 @@ object WhatsNew {
     fun pending(context: Context): Changelog? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (prefs.getInt(KEY_SHOWN, 0) == BuildConfig.VERSION_CODE) return null
-        return changelog(context)?.takeIf { it.sections.isNotEmpty() }
+        return notes(context)?.changelog?.takeIf { it.sections.isNotEmpty() }
+    }
+
+    /** Whether the What's new page was opened for this version (the About row's New badge until then). */
+    fun isSeen(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_SEEN, 0) == BuildConfig.VERSION_CODE
+
+    fun markSeen(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_SEEN, BuildConfig.VERSION_CODE).apply()
     }
 
     fun markShown(context: Context) {

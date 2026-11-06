@@ -71,6 +71,7 @@ import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
+import sh.hnet.comfychair.ui.screens.WhatsNewSettingsScreen
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
@@ -366,8 +367,12 @@ fun MainNavHost(
                             composable(SettingsRoute.DebugLog.route) { DebugLogSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.Reset.route) { ResetSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.About.route) {
-                                AboutSettingsScreen(onNavigateBack = { navController.popBackStack() })
+                                AboutSettingsScreen(
+                                    onNavigateBack = back,
+                                    onOpenWhatsNew = { navController.navigate(SettingsRoute.WhatsNew.route) }
+                                )
                             }
+                            composable(SettingsRoute.WhatsNew.route) { WhatsNewSettingsScreen(back) }
 
                             composable(MainRoute.ImageToVideo.route) {
                                 ImageToVideoScreen(

@@ -939,4 +939,14 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Zapisz prompt do biblioteki</string>
+    <string name="whats_new_title">Co nowego</string>
+    <plurals name="whats_new_row_supporting">
+        <item quantity="one">Wersja %1$s, %2$d zmiana</item>
+        <item quantity="few">Wersja %1$s, %2$d zmiany</item>
+        <item quantity="many">Wersja %1$s, %2$d zmian</item>
+        <item quantity="other">Wersja %1$s, %2$d zmiany</item>
+    </plurals>
+    <string name="whats_new_badge">Nowe</string>
+    <string name="whats_new_all_releases">Wszystkie wydania</string>
+    <string name="whats_new_on_github">Na GitHubie</string>
 </resources>

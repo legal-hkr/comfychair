@@ -873,4 +873,11 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">保存提示词到库</string>
+    <string name="whats_new_title">新功能</string>
+    <plurals name="whats_new_row_supporting">
+        <item quantity="other">版本 %1$s，%2$d 项更改</item>
+    </plurals>
+    <string name="whats_new_badge">新</string>
+    <string name="whats_new_all_releases">所有版本</string>
+    <string name="whats_new_on_github">在 GitHub 上</string>
 </resources>

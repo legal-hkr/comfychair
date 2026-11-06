@@ -21,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -221,7 +223,11 @@ private fun RowIcon(icon: ImageVector) {
     }
 }
 
-/** A row opening a page. */
+/**
+ * A row opening a page.
+ *
+ * @param badge A short label before the arrow (e.g. New), in a badge
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsNavigationRow(
@@ -229,6 +235,7 @@ fun SettingsNavigationRow(
     icon: ImageVector,
     title: String,
     supporting: String? = null,
+    badge: String? = null,
     onClick: () -> Unit
 ) {
     SegmentedListItem(
@@ -236,7 +243,19 @@ fun SettingsNavigationRow(
         shapes = shapes,
         colors = rowColors(),
         leadingContent = { RowIcon(icon) },
-        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                badge?.let {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Text(it, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
+                }
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
+            }
+        },
         supportingContent = supporting?.let { { Text(it) } }
     ) {
         Text(title)
@@ -330,18 +349,51 @@ fun SettingsActionRow(
     }
 }
 
-/** A value to read (e.g. a version): not a button, in a segment of the group. */
+/**
+ * A value to read (e.g. a version): not a button, in a segment of the group.
+ *
+ * @param icon In the same tonal container as the other rows' icons, so a group with icons lines up
+ */
 @Composable
-fun SettingsInfoRow(shapes: ListItemShapes, title: String, value: String) {
+fun SettingsInfoRow(shapes: ListItemShapes, title: String, value: String, icon: ImageVector? = null) {
     Surface(
         shape = shapes.shape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            icon?.let { RowIcon(it) }
+            Column {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
+    }
+}
+
+/** A row opening a web page in the browser: the topic's icon first, the open-in-new mark last. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun SettingsLinkRow(
+    shapes: ListItemShapes,
+    icon: ImageVector,
+    title: String,
+    supporting: String? = null,
+    onClick: () -> Unit
+) {
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = shapes,
+        colors = rowColors(),
+        leadingContent = { RowIcon(icon) },
+        trailingContent = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null) },
+        supportingContent = supporting?.let { { Text(it) } }
+    ) {
+        Text(title)
     }
 }
 

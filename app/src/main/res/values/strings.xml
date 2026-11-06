@@ -925,4 +925,12 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Save prompt to library</string>
+    <string name="whats_new_title">What’s new</string>
+    <plurals name="whats_new_row_supporting">
+        <item quantity="one">Version %1$s, %2$d change</item>
+        <item quantity="other">Version %1$s, %2$d changes</item>
+    </plurals>
+    <string name="whats_new_badge">New</string>
+    <string name="whats_new_all_releases">All releases</string>
+    <string name="whats_new_on_github">On GitHub</string>
 </resources>

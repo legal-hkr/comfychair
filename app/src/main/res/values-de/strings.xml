@@ -893,4 +893,12 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Prompt in Bibliothek speichern</string>
+    <string name="whats_new_title">Neuigkeiten</string>
+    <plurals name="whats_new_row_supporting">
+        <item quantity="one">Version %1$s, %2$d Änderung</item>
+        <item quantity="other">Version %1$s, %2$d Änderungen</item>
+    </plurals>
+    <string name="whats_new_badge">Neu</string>
+    <string name="whats_new_all_releases">Alle Versionen</string>
+    <string name="whats_new_on_github">Auf GitHub</string>
 </resources>
