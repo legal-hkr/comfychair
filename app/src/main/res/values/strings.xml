@@ -800,7 +800,6 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">Workflow type</string>
     <string name="button_continue">Continue</string>
-    <string name="title_whats_new">What’s new in %1$s</string>
     <string name="button_dismiss">Dismiss</string>
     <string name="button_done">Done</string>
 
@@ -930,6 +929,7 @@
         <item quantity="one">Version %1$s, %2$d change</item>
         <item quantity="other">Version %1$s, %2$d changes</item>
     </plurals>
+    <string name="whats_new_updated_snackbar">Updated to %1$s</string>
     <string name="whats_new_badge">New</string>
     <string name="whats_new_all_releases">All releases</string>
     <string name="whats_new_on_github">On GitHub</string>

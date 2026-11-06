@@ -1,6 +1,5 @@
 package sh.hnet.comfychair
 
-import sh.hnet.comfychair.ui.components.WhatsNewDialog
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -30,6 +29,7 @@ import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.ui.components.ConnectionAlertDialog
+import sh.hnet.comfychair.ui.components.WhatsNew
 import sh.hnet.comfychair.ui.components.dialogs.ActionDialog
 import sh.hnet.comfychair.ui.components.dialogs.DialogAction
 import sh.hnet.comfychair.ui.navigation.MainNavHost
@@ -41,12 +41,12 @@ import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
-import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
 /**
@@ -104,6 +104,8 @@ class MainContainerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Before anything is shown: after an update, the main screens offer What's new once
+        WhatsNew.recordStart(this)
 
         // Guard check - redirect to login if not connected (unless in offline mode)
         val isOfflineMode = AppSettings.isOfflineMode(this)
@@ -206,7 +208,6 @@ class MainContainerActivity : ComponentActivity() {
                         startDestination = startDestination
                     )
                 }
-                WhatsNewDialog()
 
                 // Session-expired dialog for browser-based (Cookie) authentication.
                 // Shown when the AuthInterceptor detects a 401/403 or SSO redirect.

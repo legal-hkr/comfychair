@@ -70,8 +70,8 @@ import sh.hnet.comfychair.ui.components.MediaViewerOverlay
 import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.UseAsSource
+import sh.hnet.comfychair.ui.components.WhatsNew
 import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
-import sh.hnet.comfychair.ui.screens.WhatsNewSettingsScreen
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
@@ -80,6 +80,7 @@ import sh.hnet.comfychair.ui.screens.SettingsRootScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
 import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
+import sh.hnet.comfychair.ui.screens.WhatsNewSettingsScreen
 import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
@@ -238,6 +239,21 @@ fun MainNavHost(
                 )
                 if (result == SnackbarResult.ActionPerformed) navController.navigateToScreen(route)
             }
+        }
+    }
+
+    // After an update, once: the new version, with What's new (Settings › About › What's new, Back retraces them)
+    LaunchedEffect(Unit) {
+        val version = WhatsNew.takeUpdateNotice(context) ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = resources.getString(R.string.whats_new_updated_snackbar, version),
+            actionLabel = resources.getString(R.string.whats_new_title),
+            duration = SnackbarDuration.Long
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            navController.navigateToScreen(MainRoute.Settings)
+            navController.navigate(SettingsRoute.About.route)
+            navController.navigate(SettingsRoute.WhatsNew.route)
         }
     }
 

@@ -1,6 +1,5 @@
 package sh.hnet.comfychair
 
-import sh.hnet.comfychair.ui.components.WhatsNewDialog
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.storage.PreferencesMaintenance
+import sh.hnet.comfychair.ui.components.WhatsNew
 import sh.hnet.comfychair.ui.screens.LoginScreen
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 
@@ -29,6 +29,8 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Before anything is shown: after an update, the main screens offer What's new once
+        WhatsNew.recordStart(this)
 
         // Run preferences maintenance in background to clean up stale entries, and remove
         // media files left in the cache directory (share files, pre-in-memory playback files)
@@ -42,7 +44,6 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     LoginScreen()
                 }
-                WhatsNewDialog()
             }
         }
     }

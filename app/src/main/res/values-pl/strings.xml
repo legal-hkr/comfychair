@@ -673,7 +673,6 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">Typ przepływu pracy</string>
     <string name="button_continue">Kontynuuj</string>
-    <string name="title_whats_new">Co nowego w %1$s</string>
     <string name="button_dismiss">Zamknij</string>
     <string name="button_done">Gotowe</string>
 
@@ -946,6 +945,7 @@
         <item quantity="many">Wersja %1$s, %2$d zmian</item>
         <item quantity="other">Wersja %1$s, %2$d zmiany</item>
     </plurals>
+    <string name="whats_new_updated_snackbar">Zaktualizowano do %1$s</string>
     <string name="whats_new_badge">Nowe</string>
     <string name="whats_new_all_releases">Wszystkie wydania</string>
     <string name="whats_new_on_github">Na GitHubie</string>

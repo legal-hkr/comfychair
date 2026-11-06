@@ -619,7 +619,6 @@
     <!-- Workflow import dialog strings -->
     <string name="label_workflow_type">工作流类型</string>
     <string name="button_continue">继续</string>
-    <string name="title_whats_new">%1$s 新功能</string>
     <string name="button_dismiss">关闭</string>
     <string name="button_done">完成</string>
 
@@ -877,6 +876,7 @@
     <plurals name="whats_new_row_supporting">
         <item quantity="other">版本 %1$s，%2$d 项更改</item>
     </plurals>
+    <string name="whats_new_updated_snackbar">已更新至 %1$s</string>
     <string name="whats_new_badge">新</string>
     <string name="whats_new_all_releases">所有版本</string>
     <string name="whats_new_on_github">在 GitHub 上</string>
