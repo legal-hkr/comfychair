@@ -63,8 +63,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -80,7 +79,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -224,9 +222,7 @@ fun GalleryScreen(
     val gridColumns by remember {
         derivedStateOf { (gridState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 1) + 1 }
     }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var confirmDelete by remember { mutableStateOf(false) }
-
     // A selection doesn't outlive the tab: the navigation bar is hidden while selecting
     DisposableEffect(Unit) { onDispose { galleryViewModel.clearSelection() } }
 
@@ -284,8 +280,6 @@ fun GalleryScreen(
             GalleryTopBar(
                 selecting = uiState.isSelectionMode,
                 selectedCount = uiState.selectedItems.size,
-                itemCount = uiState.items.size,
-                scrollBehavior = scrollBehavior,
                 showServer = showServer,
                 onToggleServer = { showServer = !showServer },
                 onSelect = { galleryViewModel.enterSelectionMode() },
@@ -314,9 +308,6 @@ fun GalleryScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            // The top bar sees the grid's scrolling before pull to refresh: at the top, a pull down
-                            // first expands the bar, and only then refreshes
-                            .nestedScroll(scrollBehavior.nestedScrollConnection)
                             .padding(horizontal = 12.dp)
                             // The grid is one block with rounded top corners, as the generation preview
                             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
@@ -445,22 +436,20 @@ fun GalleryScreen(
 }
 
 /**
- * The gallery's top bar, large like the Settings tab's: the title and the number of items, collapsing on scroll; while selecting, Close, the number
- * selected and Select all.
+ * The gallery's top bar, one line like the generation screens': the title with the toggle and select actions beside it;
+ * while selecting, Close and the number selected with Select all.
  */
 @Composable
 private fun GalleryTopBar(
     selecting: Boolean,
     selectedCount: Int,
-    itemCount: Int,
-    scrollBehavior: TopAppBarScrollBehavior,
     showServer: Boolean,
     onToggleServer: () -> Unit,
     onSelect: () -> Unit,
     onSelectAll: () -> Unit,
     onCloseSelection: () -> Unit
 ) {
-    LargeFlexibleTopAppBar(
+    TopAppBar(
         title = {
             Text(
                 if (showServer) stringResource(R.string.server_gallery_title)
@@ -468,9 +457,6 @@ private fun GalleryTopBar(
                 else stringResource(R.string.title_gallery)
             )
         },
-        subtitle = if (!showServer && !selecting && itemCount > 0) {
-            { Text(pluralStringResource(R.plurals.label_gallery_subtitle, itemCount, itemCount)) }
-        } else null,
         navigationIcon = {
             if (selecting) TooltipIconButton(Icons.Rounded.Close, stringResource(R.string.button_cancel_selection), onCloseSelection)
         },
@@ -486,8 +472,7 @@ private fun GalleryTopBar(
                 TooltipIconButton(Icons.Rounded.Checklist, stringResource(R.string.button_gallery_select), onSelect)
             }
         },
-        windowInsets = WindowInsets(0, 0, 0, 0),
-        scrollBehavior = scrollBehavior
+        windowInsets = WindowInsets(0, 0, 0, 0)
     )
 }
 
