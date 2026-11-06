@@ -213,6 +213,19 @@ private fun steadyShapes(shapes: ListItemShapes): ListItemShapes = ListItemDefau
     draggedShape = shapes.draggedShape
 )
 
+/** A short line under a row's description, in primary, with an optional small icon. */
+@Composable
+private fun RowNote(text: String, icon: ImageVector?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(top = 2.dp)
+    ) {
+        icon?.let { Icon(it, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)) }
+        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
 /** The tonal leading icon of a row. */
 @Composable
 private fun RowIcon(icon: ImageVector) {
@@ -302,6 +315,8 @@ fun SettingsRadioRow(
     onSelect: () -> Unit,
     supporting: String? = null,
     enabled: Boolean = true,
+    note: String? = null,
+    noteIcon: ImageVector? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
     SegmentedListItem(
@@ -313,7 +328,15 @@ fun SettingsRadioRow(
         colors = rowColors(highlightSelected = true),
         leadingContent = { RadioButton(selected = selected, onClick = null, enabled = enabled) },
         trailingContent = trailing,
-        supportingContent = supporting?.let { { Text(it) } }
+        supportingContent = if (supporting == null && note == null) null else {
+            {
+                Column {
+                    supporting?.let { Text(it) }
+                    // Something to do before the option works, in primary, under its description
+                    note?.let { RowNote(it, noteIcon) }
+                }
+            }
+        }
     ) {
         Text(title)
     }

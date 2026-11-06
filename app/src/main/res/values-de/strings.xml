@@ -937,6 +937,9 @@
     <string name="title_welcome_restore">Aus Sicherung wiederherstellen</string>
     <string name="button_backup_choose_file">Sicherungsdatei wählen</string>
     <string name="label_backup_unnamed_file">Diese Datei</string>
+    <string name="label_server_credentials_missing_basic">Benutzername und Passwort eingeben, um zu verbinden</string>
+    <string name="label_server_credentials_missing_token">Token eingeben, um zu verbinden</string>
+    <string name="label_credentials_not_in_backup">Sicherungen enthalten keine Anmeldedaten. Gib sie erneut ein.</string>
     <string name="label_backup_brings_back">Wähle eine aus ComfyChair exportierte Sicherungsdatei. Sie stellt wieder her:</string>
     <string name="label_backup_item_servers">Server</string>
     <string name="desc_backup_item_servers">Name, Adresse und Anmeldeart</string>

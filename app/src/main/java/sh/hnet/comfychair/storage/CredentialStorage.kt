@@ -128,6 +128,13 @@ class CredentialStorage(context: Context) {
     }
 
     /**
+     * Whether a server signs in with a username and password or a token that this device doesn't have: restored from a
+     * backup or moved to a new phone, which carry no credentials. Browser sign-in isn't counted: Connect signs in.
+     */
+    fun isMissingCredentials(serverId: String, authType: AuthType): Boolean =
+        (authType == AuthType.BASIC || authType == AuthType.BEARER) && !hasCredentials(serverId, authType)
+
+    /**
      * Check if credentials exist for a server.
      */
     fun hasCredentials(serverId: String, authType: AuthType): Boolean {

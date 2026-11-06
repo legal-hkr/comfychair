@@ -969,6 +969,9 @@
     <string name="title_welcome_restore">Restore from a backup</string>
     <string name="button_backup_choose_file">Choose backup file</string>
     <string name="label_backup_unnamed_file">This file</string>
+    <string name="label_server_credentials_missing_basic">Enter username and password to connect</string>
+    <string name="label_server_credentials_missing_token">Enter token to connect</string>
+    <string name="label_credentials_not_in_backup">Backups don’t include sign-in details. Enter them again.</string>
     <string name="label_backup_brings_back">Pick a backup file you exported from ComfyChair. It brings back:</string>
     <string name="label_backup_item_servers">Servers</string>
     <string name="desc_backup_item_servers">Name, address and sign-in type</string>

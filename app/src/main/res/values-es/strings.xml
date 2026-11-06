@@ -962,6 +962,9 @@
     <string name="title_welcome_restore">Restaurar una copia de seguridad</string>
     <string name="button_backup_choose_file">Elegir archivo de copia</string>
     <string name="label_backup_unnamed_file">Este archivo</string>
+    <string name="label_server_credentials_missing_basic">Introduce usuario y contraseña para conectar</string>
+    <string name="label_server_credentials_missing_token">Introduce el token para conectar</string>
+    <string name="label_credentials_not_in_backup">Las copias no incluyen los datos de inicio de sesión. Vuelve a introducirlos.</string>
     <string name="label_backup_brings_back">Elige un archivo de copia exportado desde ComfyChair. Recupera:</string>
     <string name="label_backup_item_servers">Servidores</string>
     <string name="desc_backup_item_servers">Nombre, dirección y tipo de inicio de sesión</string>

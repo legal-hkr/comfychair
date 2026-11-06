@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -125,6 +126,12 @@ fun LoginScreen() {
 
     // Dialog state
     var showServerDialog by remember { mutableStateOf(false) }
+    // Connect on a server whose credentials are missing opens its form first, and connects once it's saved
+    var connectAfterSave by remember { mutableStateOf(false) }
+    // Servers whose credentials aren't on this device (restored from a backup)
+    val missingCredentials = remember(servers) {
+        servers.filter { credentialStorage.isMissingCredentials(it.id, it.authType) }.map { it.id }.toSet()
+    }
     var serverToEdit by remember { mutableStateOf<Server?>(null) }
     var serverToDelete by remember { mutableStateOf<Server?>(null) }
     var showOfflinePrompt by remember { mutableStateOf(false) }
@@ -339,7 +346,8 @@ fun LoginScreen() {
         val shouldAutoConnect = isAutoConnectEnabled && !ConnectionManager.isUserInitiatedLogout && !isOfflineMode
         ConnectionManager.clearLogoutFlag()
 
-        if (!hasAutoConnected && shouldAutoConnect && selectedServer != null) {
+        // Not without the credentials: the row asks for them, Connect opens the form
+        if (!hasAutoConnected && shouldAutoConnect && selectedServer != null && selectedServer!!.id !in missingCredentials) {
             hasAutoConnected = true
             delay(500)
             if (connectionState == ConnectionState.IDLE) {
@@ -367,12 +375,14 @@ fun LoginScreen() {
         ServerDialog(
             server = serverToEdit,
             existingCredentials = existingCredentials,
+            missingCredentials = serverToEdit?.id in missingCredentials,
             isNameTaken = { name, excludeServerId ->
                 serverStorage.isServerNameTaken(name, excludeServerId)
             },
             onDismiss = {
                 showServerDialog = false
                 serverToEdit = null
+                connectAfterSave = false
             },
             onSave = { name, hostname, port, authType, credentials ->
                 if (serverToEdit != null) {
@@ -394,6 +404,8 @@ fun LoginScreen() {
                     if (selectedServer?.id == updatedServer.id) {
                         selectedServer = updatedServer
                     }
+                    // Opened by Connect for the missing credentials: connect as Connect would have
+                    if (connectAfterSave) attemptConnection(updatedServer)
                 } else {
                     // Add new server
                     val newServer = Server.create(name, hostname, port, authType)
@@ -410,6 +422,7 @@ fun LoginScreen() {
                 }
                 showServerDialog = false
                 serverToEdit = null
+                connectAfterSave = false
             }
         )
     }
@@ -533,6 +546,13 @@ fun LoginScreen() {
                                 shapes = shapes,
                                 title = server.name,
                                 supporting = "${server.hostname}:${server.port}",
+                                note = if (server.id in missingCredentials) {
+                                    stringResource(
+                                        if (server.authType == AuthType.BASIC) R.string.label_server_credentials_missing_basic
+                                        else R.string.label_server_credentials_missing_token
+                                    )
+                                } else null,
+                                noteIcon = Icons.Rounded.Key,
                                 selected = server.id == selectedServer?.id,
                                 enabled = !busy,
                                 onSelect = {
@@ -579,7 +599,15 @@ fun LoginScreen() {
             canConnectOffline = canConnectOffline,
             onConnect = {
                 selectedServer?.let { server ->
-                    if (isOfflineMode) attemptOfflineConnection(server) else attemptConnection(server)
+                    when {
+                        isOfflineMode -> attemptOfflineConnection(server)
+                        server.id in missingCredentials -> {
+                            serverToEdit = server
+                            connectAfterSave = true
+                            showServerDialog = true
+                        }
+                        else -> attemptConnection(server)
+                    }
                 }
             },
             onConnectOffline = {

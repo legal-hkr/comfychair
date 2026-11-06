@@ -137,16 +137,19 @@ fun rememberServerFormMessages() = ServerFormMessages(
  * The server form's fields: name, hostname and port, the authentication and its fields. The same in the server dialog
  * and the welcome wizard.
  *
- * @param focusName Put the cursor in the name field when the form appears
+ * @param missingCredentials The server's credentials aren't on this device (restored from a backup): the cursor starts
+ *     in the first credential field, which says why it's empty; otherwise in the name field
  */
 @Composable
-fun ColumnScope.ServerFormFields(state: ServerFormState, focusName: Boolean = true) {
+fun ColumnScope.ServerFormFields(state: ServerFormState, missingCredentials: Boolean = false) {
     val messages = rememberServerFormMessages()
     // Editing a secure field clears its error, as the other fields do in onValueChange
     LaunchedEffect(state.passwordState) { snapshotFlow { state.passwordState.text.toString() }.drop(1).collect { state.passwordError = null } }
     LaunchedEffect(state.tokenState) { snapshotFlow { state.tokenState.text.toString() }.drop(1).collect { state.tokenError = null } }
     val nameFocusRequester = remember { FocusRequester() }
-    if (focusName) LaunchedEffect(Unit) { nameFocusRequester.requestFocus() }
+    val credentialFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { (if (missingCredentials) credentialFocusRequester else nameFocusRequester).requestFocus() }
+    val notInBackup = if (missingCredentials) stringResource(R.string.label_credentials_not_in_backup) else null
 
     DialogTextField(
         value = state.name,
@@ -218,12 +221,20 @@ fun ColumnScope.ServerFormFields(state: ServerFormState, focusName: Boolean = tr
                     state.usernameError = null
                 },
                 label = stringResource(R.string.label_auth_username),
-                error = state.usernameError
+                error = state.usernameError,
+                supporting = notInBackup,
+                modifier = Modifier.focusRequester(credentialFocusRequester)
             )
             DialogSecureField(state.passwordState, stringResource(R.string.label_auth_password), error = state.passwordError, supporting = storedEncrypted)
         }
         AuthType.BEARER -> {
-            DialogSecureField(state.tokenState, stringResource(R.string.label_auth_token), error = state.tokenError, supporting = storedEncrypted)
+            DialogSecureField(
+                state.tokenState,
+                stringResource(R.string.label_auth_token),
+                error = state.tokenError,
+                supporting = notInBackup ?: storedEncrypted,
+                modifier = Modifier.focusRequester(credentialFocusRequester)
+            )
         }
         AuthType.BROWSER -> {
             Text(
@@ -244,12 +255,14 @@ fun ColumnScope.ServerFormFields(state: ServerFormState, focusName: Boolean = tr
  * @param isNameTaken Function to check if a name is already taken (excluding current server)
  * @param onDismiss Called when the dialog should be dismissed
  * @param onSave Called with the server data and credentials when save is confirmed
+ * @param missingCredentials The server's credentials aren't on this device (see [ServerFormFields])
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ServerDialog(
     server: Server?,
     existingCredentials: AuthCredentials = AuthCredentials.None,
+    missingCredentials: Boolean = false,
     isNameTaken: (name: String, excludeServerId: String?) -> Boolean,
     onDismiss: () -> Unit,
     onSave: (name: String, hostname: String, port: Int, authType: AuthType, credentials: AuthCredentials) -> Unit
@@ -267,6 +280,6 @@ fun ServerDialog(
             }
         }
     ) {
-        ServerFormFields(state)
+        ServerFormFields(state, missingCredentials)
     }
 }
