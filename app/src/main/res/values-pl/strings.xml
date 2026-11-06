@@ -574,6 +574,9 @@
     <string name="button_animate_it">Animuj</string>
     <string name="button_edit_this_video">Edytuj to wideo</string>
     <string name="button_animate_last_frame">Animuj ostatnią klatkę</string>
+    <string name="button_edit_this_frame">Edytuj tę klatkę</string>
+    <string name="button_animate_this_frame">Animuj tę klatkę</string>
+    <string name="error_frame_unreadable">Nie udało się odczytać tej klatki</string>
     <string name="error_last_frame_unreadable">Nie udało się odczytać ostatniej klatki</string>
     <string name="button_use_as_reference">Dodaj jako referencję</string>
     <string name="button_details">Szczegóły</string>

@@ -560,6 +560,9 @@
     <string name="button_animate_it">Animar</string>
     <string name="button_edit_this_video">Editar este vídeo</string>
     <string name="button_animate_last_frame">Animar el último fotograma</string>
+    <string name="button_edit_this_frame">Editar este fotograma</string>
+    <string name="button_animate_this_frame">Animar este fotograma</string>
+    <string name="error_frame_unreadable">No se pudo leer este fotograma</string>
     <string name="error_last_frame_unreadable">No se pudo leer el último fotograma</string>
     <string name="button_use_as_reference">Usar como referencia</string>
     <string name="button_details">Detalles</string>

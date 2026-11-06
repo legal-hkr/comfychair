@@ -532,6 +532,9 @@
     <string name="button_animate_it">制作动画</string>
     <string name="button_edit_this_video">编辑此视频</string>
     <string name="button_animate_last_frame">为最后一帧制作动画</string>
+    <string name="button_edit_this_frame">编辑此帧</string>
+    <string name="button_animate_this_frame">为此帧制作动画</string>
+    <string name="error_frame_unreadable">无法读取此帧</string>
     <string name="error_last_frame_unreadable">无法读取最后一帧</string>
     <string name="button_use_as_reference">用作参考图</string>
     <string name="button_details">详情</string>

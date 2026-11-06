@@ -560,6 +560,9 @@
     <string name="button_animate_it">Animieren</string>
     <string name="button_edit_this_video">Dieses Video bearbeiten</string>
     <string name="button_animate_last_frame">Letztes Bild animieren</string>
+    <string name="button_edit_this_frame">Dieses Bild bearbeiten</string>
+    <string name="button_animate_this_frame">Dieses Bild animieren</string>
+    <string name="error_frame_unreadable">Dieses Bild konnte nicht gelesen werden</string>
     <string name="error_last_frame_unreadable">Letztes Bild konnte nicht gelesen werden</string>
     <string name="button_use_as_reference">Als Referenz verwenden</string>
     <string name="button_details">Details</string>

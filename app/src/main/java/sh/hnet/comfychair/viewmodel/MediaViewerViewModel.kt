@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
@@ -30,6 +31,8 @@ import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.GenerationMetadataLoader
 import sh.hnet.comfychair.util.MediaExport
+import sh.hnet.comfychair.util.VideoFrames
+import sh.hnet.comfychair.ui.components.SharedVideoPlayer
 
 /**
  * Viewer mode
@@ -630,6 +633,15 @@ class MediaViewerViewModel : ViewModel() {
         val item = state.currentItem ?: return null
         if (state.mode != ViewerMode.GALLERY) return null
         return MediaCache.fetchVideoBytes(item.toCacheKey(), item.subfolder, item.type)?.let { SourceMedia.Video(it) }
+    }
+
+    /** The frame of the video shown at [positionMs] (Use as source with this frame); null for an image or unreadable. */
+    suspend fun currentFrame(positionMs: Long, frameRate: Float?): Bitmap? {
+        val context = applicationContext ?: return null
+        val uri = _uiState.value.currentVideoUri ?: return null
+        return withContext(Dispatchers.IO) {
+            VideoFrames.frameAt(context, uri, positionMs, frameRate, SharedVideoPlayer::frameIndexAt)
+        }
     }
 
     override fun onCleared() {

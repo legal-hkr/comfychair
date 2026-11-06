@@ -139,7 +139,7 @@ fun ViewerPlaybackCard(
                     dragPosition = value
                 },
                 onValueChangeFinished = {
-                    dragPosition?.let { SharedVideoPlayer.seekTo(it.toLong(), exact = true) }
+                    dragPosition?.let { SharedVideoPlayer.seekToFrameAt(it.toLong()) }
                     dragPosition = null
                     onDraggingChange(false)
                     act {}

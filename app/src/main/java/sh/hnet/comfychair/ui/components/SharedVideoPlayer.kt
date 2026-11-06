@@ -246,11 +246,27 @@ object SharedVideoPlayer {
     fun stepFrame(direction: Int) {
         val player = exoPlayer ?: return
         if (player.isPlaying) player.pause()
-        val frameMs = 1000.0 / (_state.value.frameRate?.toDouble() ?: DEFAULT_FRAME_RATE)
+        val fps = _state.value.frameRate?.toDouble() ?: DEFAULT_FRAME_RATE
         val duration = _state.value.durationMs ?: return
-        val target = (player.currentPosition + direction * frameMs).toLong().coerceIn(0L, duration)
+        val target = frameStartMs(frameIndexAt(player.currentPosition, fps) + direction, fps).coerceIn(0L, duration)
         seekTo(target, exact = true)
     }
+
+    /** Seek with the slider: to the start of the frame at [positionMs], so the frame shown is exactly that frame. */
+    fun seekToFrameAt(positionMs: Long) {
+        val fps = _state.value.frameRate?.toDouble() ?: DEFAULT_FRAME_RATE
+        seekTo(frameStartMs(frameIndexAt(positionMs, fps), fps), exact = true)
+    }
+
+    /**
+     * The frame shown at [positionMs]: the one started by then. Positions are whole milliseconds, floored from a
+     * frame's start when seeking ([frameStartMs]), so up to 1 ms before a frame counts as that frame.
+     */
+    fun frameIndexAt(positionMs: Long, fps: Double): Int = kotlin.math.floor((positionMs + 1) * fps / 1000.0).toInt().coerceAtLeast(0)
+
+    // A frame's start in whole milliseconds, floored: the exact seek then shows that very frame (the first starting
+    // at or after the position)
+    private fun frameStartMs(index: Int, fps: Double): Long = kotlin.math.floor(index.coerceAtLeast(0) * 1000.0 / fps).toLong()
 
     // Mute by volume (instant, no rebuffering); only a video with sound takes the audio focus, so a muted preview
     // never interrupts another app's audio

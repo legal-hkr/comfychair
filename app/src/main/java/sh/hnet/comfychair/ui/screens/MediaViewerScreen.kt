@@ -482,10 +482,20 @@ fun MediaViewerScreen(
                     } else null,
                     onSave = { viewModel.saveCurrentItem() },
                     onShare = { viewModel.shareCurrentItem() },
-                    onUseAsSource = { target ->
+                    onUseAsSource = { target, currentFrame ->
                         scope.launch {
                             // Read before closing: the viewer's state is cleared on close
-                            val media = viewModel.currentSourceMedia()
+                            val media = if (currentFrame) {
+                                // The frame on screen (playback paused when the menu opened)
+                                viewModel.currentFrame(SharedVideoPlayer.positionMs(), SharedVideoPlayer.state.value.frameRate)
+                                    ?.let { SourceMedia.Image(it) }
+                                    ?: run {
+                                        AppErrors.report(context, R.string.error_frame_unreadable)
+                                        return@launch
+                                    }
+                            } else {
+                                viewModel.currentSourceMedia()
+                            }
                             if (media != null) {
                                 onUseAsSource(target, media)
                                 onClose()
@@ -500,7 +510,11 @@ fun MediaViewerScreen(
                         }
                     },
                     onInfo = { showMetadataSheet = true },
-                    onMenuOpenChange = { toolbarMenuOpen = it }
+                    // A video stops on the frame shown, which Edit/Animate this frame take
+                    onMenuOpenChange = { open ->
+                        toolbarMenuOpen = open
+                        if (open && currentIsVideo) SharedVideoPlayer.pause()
+                    }
                 )
             }
         }
@@ -544,7 +558,8 @@ fun MediaViewerScreen(
 /**
  * The viewer's actions, in the same order as everywhere: Save, Share, Use as source, Details, then Delete last.
  * Use as source opens a small menu upward with the screens that take the medium: for an image Image to Image and
- * Image to Video, for a video Video to Video and Image to Video (its last frame).
+ * Image to Video; for a video Video to Video, Image to Video from its last frame, and the frame shown to Image to Image
+ * or Image to Video.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -553,7 +568,7 @@ private fun MediaViewerFloatingToolbar(
     onDelete: (() -> Unit)?,
     onSave: () -> Unit,
     onShare: () -> Unit,
-    onUseAsSource: (SourceTarget) -> Unit,
+    onUseAsSource: (target: SourceTarget, currentFrame: Boolean) -> Unit,
     onInfo: () -> Unit,
     onMenuOpenChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
@@ -573,23 +588,25 @@ private fun MediaViewerFloatingToolbar(
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
                     val targets = if (isVideo) {
                         listOf(
-                            Triple(SourceTarget.VIDEO_TO_VIDEO, R.string.button_edit_this_video, Icons.Rounded.MovieFilter),
-                            Triple(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_last_frame, Icons.Rounded.Animation)
+                            SourceChoice(SourceTarget.IMAGE_TO_IMAGE, R.string.button_edit_this_frame, Icons.Rounded.Edit, currentFrame = true),
+                            SourceChoice(SourceTarget.VIDEO_TO_VIDEO, R.string.button_edit_this_video, Icons.Rounded.MovieFilter),
+                            SourceChoice(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_this_frame, Icons.Rounded.Animation, currentFrame = true),
+                            SourceChoice(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_last_frame, Icons.Rounded.Animation)
                         )
                     } else {
                         listOf(
-                            Triple(SourceTarget.IMAGE_TO_IMAGE, R.string.button_edit_this_image, Icons.Rounded.Edit),
-                            Triple(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_it, Icons.Rounded.Animation)
+                            SourceChoice(SourceTarget.IMAGE_TO_IMAGE, R.string.button_edit_this_image, Icons.Rounded.Edit),
+                            SourceChoice(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_it, Icons.Rounded.Animation)
                         )
                     }
-                    targets.forEachIndexed { index, (target, label, icon) ->
+                    targets.forEachIndexed { index, (target, label, icon, currentFrame) ->
                         DropdownMenuItem(
                             text = { Text(stringResource(label)) },
                             shape = MenuDefaults.itemShape(index, targets.size).shape,
                             leadingIcon = { Icon(icon, contentDescription = null) },
                             onClick = {
                                 sourceMenuOpen = false
-                                onUseAsSource(target)
+                                onUseAsSource(target, currentFrame)
                             }
                         )
                     }
@@ -675,3 +692,10 @@ private fun resumeVideo(context: Context) {
 // Overlays hide after this long of playback without interaction (adjusted by the system's accessibility timeout)
 private const val AUTO_HIDE_MS = 3000
 
+/** An entry of the viewer's Use as source menu: the screen, its label and icon, and whether it takes the frame shown. */
+private data class SourceChoice(
+    val target: SourceTarget,
+    val label: Int,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val currentFrame: Boolean = false
+)

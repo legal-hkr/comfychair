@@ -80,6 +80,29 @@ object VideoFrames {
         }
     }
 
+    /**
+     * The frame shown at [positionMs] (e.g. where playback stopped or a frame step landed), at full size: by its
+     * number where the frame rate is known, counted as the player does ([frameIndex]), otherwise the frame closest in
+     * time. Read from RAM where the video is kept there.
+     *
+     * @param frameIndex Number of the frame shown at a position for a frame rate (the player's own count)
+     */
+    fun frameAt(
+        context: Context,
+        uri: Uri,
+        positionMs: Long,
+        frameRate: Float?,
+        frameIndex: (positionMs: Long, fps: Double) -> Int
+    ): Bitmap? = withRetriever {
+        InMemoryVideo.setDataSource(it, context, uri)
+        val frameCount = it.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)?.toIntOrNull() ?: 0
+        val byIndex = if (frameRate != null && frameCount > 0) {
+            val index = frameIndex(positionMs, frameRate.toDouble()).coerceIn(0, frameCount - 1)
+            runCatching { it.getFrameAtIndex(index) }.getOrNull()
+        } else null
+        byIndex ?: it.getFrameAtTime(positionMs.coerceAtLeast(0) * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
+    }
+
     private fun withRetriever(block: (MediaMetadataRetriever) -> Bitmap?): Bitmap? = try {
         val retriever = MediaMetadataRetriever()
         try {
