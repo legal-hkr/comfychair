@@ -210,7 +210,6 @@
     <string name="error_queue_clear">Error al vaciar la cola</string>
     <string name="msg_history_cleared_success">Historial borrado correctamente</string>
     <string name="error_history_clear">Error al borrar el historial</string>
-    <string name="msg_history_item_deleted_success">Elemento eliminado correctamente</string>
     <string name="error_history_item_delete">Error al eliminar el elemento</string>
     <string name="msg_cache_cleared_success">Caché vaciada correctamente</string>
     <string name="msg_defaults_restored_success">Valores predeterminados restaurados correctamente</string>
@@ -341,7 +340,6 @@
     <string name="msg_items_saved_to_gallery">Elementos guardados en galería</string>
     <string name="msg_some_items_failed_to_save">Algunos elementos no se pudieron guardar</string>
     <string name="error_share_items">Error al compartir elementos</string>
-    <string name="msg_items_deleted_success">Elementos eliminados correctamente</string>
     <string name="msg_some_items_failed_to_delete">Algunos elementos no se pudieron eliminar</string>
 
     <!-- Mask editor strings -->

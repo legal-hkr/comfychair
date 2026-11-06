@@ -202,7 +202,6 @@
     <string name="error_queue_clear">清空队列失败</string>
     <string name="msg_history_cleared_success">历史记录已清空</string>
     <string name="error_history_clear">清空历史记录失败</string>
-    <string name="msg_history_item_deleted_success">项目已删除</string>
     <string name="error_history_item_delete">删除项目失败</string>
     <string name="msg_cache_cleared_success">缓存已清空</string>
     <string name="msg_defaults_restored_success">已恢复默认设置</string>
@@ -325,7 +324,6 @@
     <string name="msg_items_saved_to_gallery">项目已保存到相册</string>
     <string name="msg_some_items_failed_to_save">部分项目保存失败</string>
     <string name="error_share_items">分享项目失败</string>
-    <string name="msg_items_deleted_success">项目已删除</string>
     <string name="msg_some_items_failed_to_delete">部分项目删除失败</string>
 
     <!-- Mask editor strings -->

@@ -3,8 +3,6 @@ package sh.hnet.comfychair.viewmodel
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.widget.Toast
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -201,10 +199,13 @@ class MediaViewerViewModel : ViewModel() {
         _isOpen.value = true
     }
 
-    /** Close the viewer: a deletion waiting for Undo goes to the server, and the opener learns what was shown last. */
+    /**
+     * Close the viewer: a deletion waiting for Undo moves to the gallery, which offers the Undo instead, and the opener
+     * learns what was shown last.
+     */
     fun close() {
         if (!_isOpen.value) return
-        commitPendingDeletion()
+        handOverPendingDeletion()
         val lastShown = _uiState.value.currentItem?.filename
         val deleted = _hasDeletedItems.value
         _isOpen.value = false
@@ -522,7 +523,8 @@ class MediaViewerViewModel : ViewModel() {
         pendingDeletion = deletion
 
         if (remaining.isEmpty()) {
-            commitPendingDeletion()
+            // Nothing left to show: the viewer closes and the gallery offers the Undo
+            handOverPendingDeletion()
             viewModelScope.launch { _events.emit(MediaViewerEvent.Close) }
             return
         }
@@ -547,29 +549,25 @@ class MediaViewerViewModel : ViewModel() {
         if (pendingDeletion?.id == id) commitPendingDeletion()
     }
 
-    /** Send the waiting deletion, if any, to the server (also when the viewer closes). */
+    /** Send the waiting deletion, if any, to the server: its Undo is over (or a new session starts). */
     fun commitPendingDeletion() {
         val deletion = pendingDeletion ?: return
         pendingDeletion = null
-        val context = applicationContext
-        val client = ConnectionManager.clientOrNull
-        if (client == null) {
-            // No connection: nothing reaches the server, so say so rather than let the items come back unannounced
-            context?.let { Toast.makeText(it, R.string.error_history_item_delete, Toast.LENGTH_SHORT).show() }
-            return
-        }
+        if (ConnectionManager.clientOrNull == null) return reportNoConnection()
         _hasDeletedItems.value = true
-        deletion.removed.forEach { MediaCache.evict(it.value.toCacheKey()) }
-        // Sync deletion to GalleryRepository so Gallery UI updates immediately
-        GalleryRepository.getInstance().removeItemLocally(deletion.promptId)
-        // The viewer may be closed by the time the server answers
-        client.deleteHistoryItem(deletion.promptId) { success ->
-            if (!success && context != null) {
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, R.string.error_history_item_delete, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        GalleryRepository.getInstance().deleteNow(setOf(deletion.promptId))
+    }
+
+    /** The waiting deletion, if any, to the gallery: it leaves the gallery and its Undo is offered there. */
+    private fun handOverPendingDeletion() {
+        val deletion = pendingDeletion ?: return
+        pendingDeletion = null
+        if (!GalleryRepository.getInstance().deleteWithUndo(setOf(deletion.promptId))) reportNoConnection()
+    }
+
+    /** No connection: nothing reaches the server, so say so rather than let the items come back unannounced. */
+    private fun reportNoConnection() {
+        applicationContext?.let { Toast.makeText(it, R.string.error_history_item_delete, Toast.LENGTH_SHORT).show() }
     }
 
     private fun showItems(items: List<MediaViewerItem>, index: Int) {

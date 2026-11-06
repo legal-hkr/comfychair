@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.repository
 
 import android.content.Context
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
+import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
@@ -290,100 +292,109 @@ class GalleryRepository private constructor() {
      */
     fun hasData(): Boolean = hasLoadedOnce && _galleryItems.value.isNotEmpty()
 
+    // Deletions: jobs leave the gallery at once; one deletion at a time waits for its Undo before reaching the server
+
+    /** A deletion waiting for its Undo, for the gallery's snackbar. */
+    data class UndoableDeletion(val id: Long, val itemCount: Int)
+
+    private class PendingRemoval(val id: Long, val promptIds: Set<String>, val removed: List<IndexedValue<GalleryItem>>)
+
+    private var pendingRemoval: PendingRemoval? = null
+    private var nextRemovalId = 0L
+    private val _undoableDeletion = MutableStateFlow<UndoableDeletion?>(null)
+    val undoableDeletion: StateFlow<UndoableDeletion?> = _undoableDeletion.asStateFlow()
+
     /**
-     * Remove an item from the local gallery list only (server deletion already done).
-     * Used by MediaViewerViewModel to sync after it deletes on server.
-     *
-     * @param promptId The prompt ID of the item to remove
+     * Take jobs out of the gallery, to be deleted on the server once their Undo is over ([commitDeletion], or the next
+     * deletion). A deletion still waiting is sent first. False without a connection: nothing could reach the server.
      */
-    fun removeItemLocally(promptId: String) {
-        val currentItems = _galleryItems.value.toMutableList()
-        currentItems.removeAll { it.promptId == promptId }
-        _galleryItems.value = currentItems
+    @Synchronized
+    fun deleteWithUndo(promptIds: Set<String>): Boolean {
+        if (promptIds.isEmpty()) return true
+        if (comfyUIClient == null) return false
+        commitPendingDeletion()
+        val removed = takeOut(promptIds)
+        val removal = PendingRemoval(++nextRemovalId, promptIds, removed)
+        pendingRemoval = removal
+        _undoableDeletion.value = UndoableDeletion(removal.id, removed.size.coerceAtLeast(promptIds.size))
+        return true
+    }
+
+    /** Bring back the items of a deletion that hasn't reached the server yet, where they were. */
+    @Synchronized
+    fun undoDeletion(id: Long) {
+        val removal = pendingRemoval?.takeIf { it.id == id } ?: return
+        pendingRemoval = null
+        _undoableDeletion.value = null
+        synchronized(pendingDeletions) { pendingDeletions.removeAll(removal.promptIds) }
+        val items = _galleryItems.value.toMutableList()
+        // In ascending order, each goes back to its old position
+        removal.removed.forEach { items.add(it.index.coerceAtMost(items.size), it.value) }
+        _galleryItems.value = items
+    }
+
+    /** A deletion's Undo is over: send it to the server. */
+    @Synchronized
+    fun commitDeletion(id: Long) {
+        if (pendingRemoval?.id == id) commitPendingDeletion()
+    }
+
+    /** Send the deletion waiting for its Undo, if any, to the server. */
+    @Synchronized
+    fun commitPendingDeletion() {
+        val removal = pendingRemoval ?: return
+        pendingRemoval = null
+        _undoableDeletion.value = null
+        deleteOnServer(removal.promptIds, removal.removed.map { it.value })
+    }
+
+    /** Delete jobs on the server now (their Undo, if any, was offered elsewhere); they leave the gallery at once. */
+    fun deleteNow(promptIds: Set<String>) {
+        if (promptIds.isEmpty()) return
+        deleteOnServer(promptIds, takeOut(promptIds).map { it.value })
+    }
+
+    /** Jobs out of the gallery, kept out of refreshes until their deletion is settled; returns what was removed. */
+    private fun takeOut(promptIds: Set<String>): List<IndexedValue<GalleryItem>> {
+        synchronized(pendingDeletions) { pendingDeletions.addAll(promptIds) }
+        val items = _galleryItems.value
+        _galleryItems.value = items.filter { it.promptId !in promptIds }
+        return items.withIndex().filter { it.value.promptId in promptIds }
     }
 
     /**
-     * Delete an item from the gallery
+     * Delete jobs on the server and drop their media from the cache. Jobs that couldn't be deleted are still on the
+     * server: the user is told and the gallery is refreshed, so they come back.
      */
-    suspend fun deleteItem(item: GalleryItem): Boolean {
-        val client = comfyUIClient ?: return false
-
-        // Add to pending deletions to prevent reappearing during concurrent refresh
-        synchronized(pendingDeletions) {
-            pendingDeletions.add(item.promptId)
-        }
-
-        // Remove from local list immediately for responsive UI
-        val currentItems = _galleryItems.value.toMutableList()
-        currentItems.removeAll { it.promptId == item.promptId }
-        _galleryItems.value = currentItems
-
-        try {
-            val success = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.deleteHistoryItem(item.promptId) { success ->
-                        continuation.resumeWith(Result.success(success))
-                    }
-                }
-            }
-
-            if (success) {
-                // Evict from media cache
-                MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
-            }
-
-            return success
-        } finally {
-            // Always remove from pending deletions to prevent memory leak
-            synchronized(pendingDeletions) {
-                pendingDeletions.remove(item.promptId)
-            }
-        }
-    }
-
-    /**
-     * Delete multiple items by prompt IDs
-     */
-    suspend fun deleteItems(promptIds: Set<String>): Int {
-        val client = comfyUIClient ?: return 0
-
-        // Find items to be deleted for cache eviction
-        val itemsToDelete = _galleryItems.value.filter { it.promptId in promptIds }
-
-        // Add to pending deletions to prevent reappearing during concurrent refresh
-        synchronized(pendingDeletions) {
-            pendingDeletions.addAll(promptIds)
-        }
-
-        // Remove from local list immediately for responsive UI
-        val currentItems = _galleryItems.value.toMutableList()
-        currentItems.removeAll { it.promptId in promptIds }
-        _galleryItems.value = currentItems
-
-        try {
-            var successCount = 0
-            for (promptId in promptIds) {
-                val success = withContext(Dispatchers.IO) {
-                    kotlin.coroutines.suspendCoroutine { continuation ->
-                        client.deleteHistoryItem(promptId) { success ->
-                            continuation.resumeWith(Result.success(success))
+    private fun deleteOnServer(promptIds: Set<String>, items: List<GalleryItem>) {
+        scope.launch {
+            val client = comfyUIClient
+            var failed = 0
+            try {
+                for (promptId in promptIds) {
+                    val success = client != null && withContext(Dispatchers.IO) {
+                        kotlin.coroutines.suspendCoroutine { continuation ->
+                            client.deleteHistoryItem(promptId) { continuation.resumeWith(Result.success(it)) }
                         }
                     }
-                }
-                if (success) {
-                    successCount++
-                    // Evict from media cache
-                    itemsToDelete.filter { it.promptId == promptId }.forEach { item ->
-                        MediaCache.evict(MediaCacheKey(item.promptId, item.filename))
+                    if (success) {
+                        items.filter { it.promptId == promptId }.forEach { MediaCache.evict(MediaCacheKey(it.promptId, it.filename)) }
+                    } else {
+                        failed++
                     }
                 }
+            } finally {
+                synchronized(pendingDeletions) { pendingDeletions.removeAll(promptIds) }
             }
-
-            return successCount
-        } finally {
-            // Always remove from pending deletions to prevent memory leak
-            synchronized(pendingDeletions) {
-                pendingDeletions.removeAll(promptIds)
+            if (failed > 0) {
+                DebugLogger.w(TAG, "$failed of ${promptIds.size} deletions failed")
+                applicationContext?.let { context ->
+                    withContext(Dispatchers.Main) {
+                        val message = if (promptIds.size == 1) R.string.error_history_item_delete else R.string.msg_some_items_failed_to_delete
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                refresh()
             }
         }
     }
@@ -400,6 +411,11 @@ class GalleryRepository private constructor() {
         hasLoadedOnce = false
         synchronized(pendingDeletions) {
             pendingDeletions.clear()
+        }
+        // A deletion waiting for Undo belongs to the session that ends: dropped, not sent
+        synchronized(this) {
+            pendingRemoval = null
+            _undoableDeletion.value = null
         }
         stopPeriodicRefresh()
         // Clear media cache (preserves disk cache for offline mode)

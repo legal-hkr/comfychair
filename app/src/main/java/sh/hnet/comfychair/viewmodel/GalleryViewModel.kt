@@ -150,19 +150,14 @@ class GalleryViewModel : ViewModel() {
         repository.refresh()
     }
 
-    fun deleteItem(item: GalleryItem) {
-        DebugLogger.i(TAG, "Deleting item: ${item.promptId}")
-        viewModelScope.launch {
-            val success = repository.deleteItem(item)
-            if (success) {
-                DebugLogger.d(TAG, "Delete successful")
-                _events.emit(GalleryEvent.ShowToast(R.string.msg_history_item_deleted_success))
-            } else {
-                DebugLogger.w(TAG, "Delete failed")
-                _events.emit(GalleryEvent.ShowToast(R.string.error_history_item_delete))
-            }
-        }
-    }
+    /** A deletion waiting for its Undo (the gallery's snackbar), or null. */
+    val undoableDeletion: StateFlow<GalleryRepository.UndoableDeletion?> = repository.undoableDeletion
+
+    fun undoDeletion(id: Long) = repository.undoDeletion(id)
+
+    fun commitDeletion(id: Long) = repository.commitDeletion(id)
+
+    fun commitPendingDeletion() = repository.commitPendingDeletion()
 
     // Selection mode functions
 
@@ -210,26 +205,18 @@ class GalleryViewModel : ViewModel() {
         return uiState.value.items.count { it.promptId in jobs } > selected.size
     }
 
+    /**
+     * Delete the selected items' jobs (the server deletes whole jobs): they leave the gallery at once and reach the
+     * server when their Undo is over.
+     */
     fun deleteSelected() {
         val selectedItems = getSelectedItems()
         if (selectedItems.isEmpty()) return
-
-        viewModelScope.launch {
-            // Get unique prompt IDs (multiple items can share the same promptId)
-            val promptIds = selectedItems.map { it.promptId }.distinct().toSet()
-            val successCount = repository.deleteItems(promptIds)
-            val failCount = promptIds.size - successCount
-
-            // Show result toast
-            if (failCount == 0) {
-                _events.emit(GalleryEvent.ShowToast(R.string.msg_items_deleted_success))
-            } else {
-                _events.emit(GalleryEvent.ShowToast(R.string.msg_some_items_failed_to_delete))
-            }
-
-            // Clear selection after delete
-            clearSelection()
+        val promptIds = selectedItems.map { it.promptId }.toSet()
+        if (!repository.deleteWithUndo(promptIds)) {
+            viewModelScope.launch { _events.emit(GalleryEvent.ShowToast(R.string.error_history_item_delete)) }
         }
+        clearSelection()
     }
 
     fun getSelectedItems(): List<GalleryItem> {

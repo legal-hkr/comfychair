@@ -184,7 +184,6 @@
     <string name="error_queue_clear">Failed to clear queue</string>
     <string name="msg_history_cleared_success">History cleared successfully</string>
     <string name="error_history_clear">Failed to clear history</string>
-    <string name="msg_history_item_deleted_success">Item deleted successfully</string>
     <string name="error_history_item_delete">Failed to delete item</string>
     <string name="msg_cache_cleared_success">Cache cleared successfully</string>
     <string name="msg_defaults_restored_success">Defaults restored successfully</string>
@@ -346,7 +345,6 @@
     <string name="msg_items_saved_to_gallery">Items saved to gallery</string>
     <string name="msg_some_items_failed_to_save">Some items failed to save</string>
     <string name="error_share_items">Failed to share items</string>
-    <string name="msg_items_deleted_success">Items deleted successfully</string>
     <string name="msg_some_items_failed_to_delete">Some items failed to delete</string>
 
     <!-- Mask editor strings -->

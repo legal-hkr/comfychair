@@ -2,8 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.material.icons.rounded.Link
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -47,6 +45,7 @@ import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Share
@@ -56,6 +55,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -76,17 +77,20 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.PlayBadge
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
@@ -125,6 +129,32 @@ fun GalleryScreen(
 
     // Back first leaves selection mode
     BackHandler(enabled = uiState.isSelectionMode) { galleryViewModel.clearSelection() }
+
+    // A deletion waiting for its Undo: the app's snackbar offers it; when it goes (timeout, swipe, or the gallery left),
+    // the deletion reaches the server
+    val undoableDeletion by galleryViewModel.undoableDeletion.collectAsState()
+    val snackbar = LocalAppSnackbarHostState.current
+    val resources = LocalResources.current
+    LaunchedEffect(undoableDeletion?.id) {
+        val deletion = undoableDeletion ?: return@LaunchedEffect
+        val host = snackbar ?: return@LaunchedEffect galleryViewModel.commitDeletion(deletion.id)
+        var undone = false
+        try {
+            val result = host.showSnackbar(
+                message = resources.getQuantityString(R.plurals.msg_deleted_from_history, deletion.itemCount, deletion.itemCount),
+                actionLabel = resources.getString(R.string.button_undo),
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                undone = true
+                galleryViewModel.undoDeletion(deletion.id)
+            }
+        } finally {
+            if (!undone) galleryViewModel.commitDeletion(deletion.id)
+        }
+    }
+    // Leaving the gallery before its snackbar showed (e.g. Use as source from the viewer): no late Undo elsewhere
+    DisposableEffect(Unit) { onDispose { galleryViewModel.commitPendingDeletion() } }
 
     // Load gallery when connected
     LaunchedEffect(connectionStatus) {

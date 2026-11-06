@@ -206,7 +206,6 @@
     <string name="error_queue_clear">Warteschlange konnte nicht geleert werden</string>
     <string name="msg_history_cleared_success">Verlauf erfolgreich gelöscht</string>
     <string name="error_history_clear">Verlauf konnte nicht gelöscht werden</string>
-    <string name="msg_history_item_deleted_success">Element erfolgreich gelöscht</string>
     <string name="error_history_item_delete">Element konnte nicht gelöscht werden</string>
     <string name="msg_cache_cleared_success">Cache erfolgreich geleert</string>
     <string name="msg_defaults_restored_success">Standardeinstellungen erfolgreich wiederhergestellt</string>
@@ -347,7 +346,6 @@
     <string name="msg_items_saved_to_gallery">Elemente in Galerie gespeichert</string>
     <string name="msg_some_items_failed_to_save">Einige Elemente konnten nicht gespeichert werden</string>
     <string name="error_share_items">Elemente konnten nicht geteilt werden</string>
-    <string name="msg_items_deleted_success">Elemente erfolgreich gelöscht</string>
     <string name="msg_some_items_failed_to_delete">Einige Elemente konnten nicht gelöscht werden</string>
 
     <!-- Mask editor strings -->

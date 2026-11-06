@@ -214,7 +214,6 @@
     <string name="error_queue_clear">Nie udało się wyczyścić kolejki</string>
     <string name="msg_history_cleared_success">Historia wyczyszczona pomyślnie</string>
     <string name="error_history_clear">Nie udało się wyczyścić historii</string>
-    <string name="msg_history_item_deleted_success">Element usunięty pomyślnie</string>
     <string name="error_history_item_delete">Nie udało się usunąć elementu</string>
     <string name="msg_cache_cleared_success">Pamięć podręczna wyczyszczona pomyślnie</string>
     <string name="msg_defaults_restored_success">Ustawienia domyślne przywrócone pomyślnie</string>
@@ -349,7 +348,6 @@
     <string name="msg_items_saved_to_gallery">Elementy zapisane do galerii</string>
     <string name="msg_some_items_failed_to_save">Niektóre elementy nie zostały zapisane</string>
     <string name="error_share_items">Nie udało się udostępnić elementów</string>
-    <string name="msg_items_deleted_success">Elementy usunięte pomyślnie</string>
     <string name="msg_some_items_failed_to_delete">Niektóre elementy nie zostały usunięte</string>
 
     <!-- Mask editor strings -->

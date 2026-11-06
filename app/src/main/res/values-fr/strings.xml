@@ -210,7 +210,6 @@
     <string name="error_queue_clear">Échec du vidage de la file d\'attente</string>
     <string name="msg_history_cleared_success">Historique effacé avec succès</string>
     <string name="error_history_clear">Échec de l\'effacement de l\'historique</string>
-    <string name="msg_history_item_deleted_success">Élément supprimé avec succès</string>
     <string name="error_history_item_delete">Échec de la suppression de l\'élément</string>
     <string name="msg_cache_cleared_success">Cache vidé avec succès</string>
     <string name="msg_defaults_restored_success">Paramètres par défaut restaurés avec succès</string>
@@ -341,7 +340,6 @@
     <string name="msg_items_saved_to_gallery">Éléments enregistrés dans la galerie</string>
     <string name="msg_some_items_failed_to_save">Certains éléments n\'ont pas pu être enregistrés</string>
     <string name="error_share_items">Échec du partage des éléments</string>
-    <string name="msg_items_deleted_success">Éléments supprimés avec succès</string>
     <string name="msg_some_items_failed_to_delete">Certains éléments n\'ont pas pu être supprimés</string>
 
     <!-- Mask editor strings -->
