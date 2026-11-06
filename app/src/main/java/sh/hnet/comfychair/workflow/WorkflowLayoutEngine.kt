@@ -451,9 +451,11 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
             (startIdx until endIdx).maxOfOrNull { allMembers[it].height } ?: NODE_MIN_HEIGHT
         }
 
-        // Position all members in grid pattern
-        // Members start at (0,0) relative to virtual node position - this keeps them
-        // aligned with ungrouped nodes. The group background will extend outward.
+        // Position all members in grid pattern. The group's frame (its label above the members, its margin below) is
+        // part of the block the layout places, so the usual spacing separates frames as it separates nodes: members
+        // start below the label. Sideways they start at the block's edge, in line with ungrouped nodes in the same
+        // column; the frame's side margins fit in the horizontal spacing.
+        val frameTop = GROUP_PADDING_TOP + GROUP_HEADER_HEIGHT
         val memberPositions = mutableMapOf<String, RelativePosition>()
 
         allMembers.forEachIndexed { index, member ->
@@ -461,7 +463,7 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
             val row = index / columns
 
             val x = col * (NODE_WIDTH + HORIZONTAL_SPACING)
-            val y = (0 until row).sumOf { rowHeights[it].toDouble() + VERTICAL_SPACING }.toFloat()
+            val y = frameTop + (0 until row).sumOf { rowHeights[it].toDouble() + VERTICAL_SPACING }.toFloat()
 
             memberPositions[member.id] = RelativePosition(
                 x = x,
@@ -473,7 +475,7 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
 
         // Calculate total dimensions
         val totalWidth = columns * NODE_WIDTH + (columns - 1) * HORIZONTAL_SPACING
-        val totalHeight = rowHeights.sum() + (rows - 1) * VERTICAL_SPACING
+        val totalHeight = frameTop + rowHeights.sum() + (rows - 1) * VERTICAL_SPACING + GROUP_PADDING_BOTTOM
 
         return GroupInternalLayout(
             groupId = groupId,
