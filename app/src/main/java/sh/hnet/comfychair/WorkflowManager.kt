@@ -7,6 +7,7 @@ import sh.hnet.comfychair.viewmodel.base.GenerationParams
 import sh.hnet.comfychair.viewmodel.base.ModelSlot
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.NodeAttributeEdits
+import sh.hnet.comfychair.util.WorkflowPromptFinalizer
 import sh.hnet.comfychair.model.WorkflowDefaults
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.DebugLogger
@@ -1494,42 +1495,7 @@ object WorkflowManager {
     fun applyNodeAttributeEdits(
         workflowJson: String,
         edits: Map<String, Map<String, Any>>
-    ): String {
-        if (edits.isEmpty()) return workflowJson
-
-        return try {
-            val json = JSONObject(workflowJson)
-            val nodes = json.optJSONObject("nodes") ?: json
-
-            for ((nodeId, nodeEdits) in edits) {
-                val node = nodes.optJSONObject(nodeId) ?: continue
-                val inputs = node.optJSONObject("inputs") ?: continue
-
-                for ((inputName, value) in nodeEdits) {
-                    // Only update if the input exists and is not a connection
-                    if (inputs.has(inputName)) {
-                        val currentValue = inputs.opt(inputName)
-                        // Don't overwrite connections (JSONArray format)
-                        if (currentValue !is JSONArray) {
-                            when (value) {
-                                is String -> inputs.put(inputName, value)
-                                is Int -> inputs.put(inputName, value)
-                                is Long -> inputs.put(inputName, value)
-                                is Float -> inputs.put(inputName, value.toDouble())
-                                is Double -> inputs.put(inputName, value)
-                                is Boolean -> inputs.put(inputName, value)
-                                else -> inputs.put(inputName, value.toString())
-                            }
-                        }
-                    }
-                }
-            }
-
-            json.toString()
-        } catch (e: Exception) {
-            workflowJson
-        }
-    }
+    ): String = WorkflowPromptFinalizer.applyNodeAttributeEdits(workflowJson, edits)
 
     // Bypass handling - delegates to BypassNodeResolver
 
@@ -1742,7 +1708,7 @@ object WorkflowManager {
         if (params.lownoiseLoraChain.isNotEmpty()) {
             json = injectAdditionalVideoLoras(json, params.lownoiseLoraChain, isHighNoise = false)
         }
-        return json
+        return WorkflowPromptFinalizer.fillMissingPngSaveInputs(json)
     }
 
     /**
