@@ -20,8 +20,8 @@ The app stores the following data locally on your device:
 - **Credentials**: Passwords, tokens and sign-in cookies for your servers, encrypted with a key kept in the Android Keystore
 - **App Preferences**: UI settings such as live preview, media storage, and debug logging
 - **Generation Parameters**: Your workflow selections, prompts, and generation settings (dimensions, steps, CFG, etc.)
-- **Generated Media**: Controlled by the "Media storage" setting. By default ("Memory only") generated images and videos are kept only in the phone's RAM and are never written to its storage; switching to this mode deletes any media stored earlier. The other options keep the latest results on the device when the app goes to the background ("Memory, saved on exit") or store them as they arrive ("On the device"). When you share a result, a copy is written to the app's private cache for the receiving app and deleted the next time ComfyChair starts. Media you save to the gallery is managed by you
-- **Debug Log**: Kept in memory only while debug logging is enabled. Prompts, file names, job IDs, server addresses and workflow names are recorded as placeholders, so an exported log does not reveal them
+- **Generated Media and Sources**: Controlled by the "Media storage" setting, which applies equally to the source images and videos you pick. By default ("Memory only") generated images and videos are kept only in the phone's RAM and are never written to its storage; switching to this mode deletes any media stored earlier. The other options keep the latest results on the device when the app goes to the background ("Memory, saved on exit") or store them as they arrive ("On the device"). When you share a result, a copy is written to the app's private cache for the receiving app and deleted the next time ComfyChair starts. Media you save to the gallery is managed by you
+- **Debug Log**: Kept in memory only while debug logging is enabled. Prompts, file names, job IDs, server addresses, workflow names and the titles you give to groups, notes and nodes are recorded as placeholders; node values, server responses and error messages (which can quote addresses, paths or prompts) are not recorded at all, so an exported log does not reveal them
 - **Custom Workflows**: Any workflows you import into the app
 - **Queue**: The IDs of your queued jobs and a random client ID for each server, so jobs you submitted are still recognized as yours after the app restarts. Descriptions of your queued jobs (prompt and workflow) shown in the queue are kept in memory only
 
@@ -33,7 +33,7 @@ When you use ComfyChair, the app communicates directly with your configured Comf
 
 - Text prompts for image/video generation
 - Generation parameters (dimensions, steps, seed, etc.)
-- Source images for image-to-image or image-to-video generation
+- Source images for image-to-image or image-to-video generation, and source videos for video-to-video generation
 - Workflow configurations
 
 **This data is sent only to the server you configure.** ComfyChair does not route your data through any intermediary servers.
@@ -56,7 +56,7 @@ ComfyChair does not integrate any third-party services such as:
 - All local data is stored using Android's private storage mechanisms
 - Network communication supports both HTTP and HTTPS; HTTPS is tried first, and a server that used HTTPS is never switched to unencrypted HTTP without your consent
 - Certificates not trusted by Android (self-signed or issued by a private CA) are accepted only after you confirm their SHA-256 fingerprint, and from then on only that certificate is accepted for the server
-- Copied generation metadata is marked as sensitive, so Android does not show it in the clipboard preview
+- Copied generation metadata and error details are marked as sensitive, so Android does not show them in the clipboard preview
 - In "Memory only" mode the app is hidden from the recents screen preview, so the system does not store a screenshot of generated media
 
 ## Data Backup

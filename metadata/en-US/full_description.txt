@@ -3,13 +3,14 @@ ComfyChair brings the power of ComfyUI to your Android device with a native Mate
 What you can do:
 - Generate images from text prompts with live progress updates
 - Transform existing images or use inpainting with a built-in mask editor
-- Create AI videos from text or animate still images
+- Create AI videos from text, animate still images, or restyle and upscale videos
+- Continue a video from its last frame, or send a result straight to another screen
 - Follow your jobs in the queue, cancel them, move them to the front, or clear the queue
 - Browse all your creations in the gallery, with Undo for every deletion
 - Work offline with cached data when your server is unavailable (with media stored on the device)
 
 Flexible workflow support:
-- Works with both traditional Checkpoint and modern UNET workflows (Flux, Z-Image, and more)
+- Works with both traditional Checkpoint and modern UNET workflows (Flux, Z-Image, Wan, LTX-2, MiniMax H3 and more)
 - Stack up to 5 LoRAs with individual strength controls
 - Create new workflows from scratch or import existing ones from ComfyUI
 - Full node graph visualization and editing with a searchable node browser, and an overview of large graphs when zoomed out
@@ -22,6 +23,7 @@ Built for mobile:
 - HTTP Basic Auth, API key and browser SSO sign-in for secured servers
 - Private by default: generated media stays in memory, no analytics, no cloud backup
 - Pinch-to-zoom media viewer with swipe navigation
+- Clear error messages, with the full details from the server one tap away
 - Batch operations for saving, sharing, or deleting multiple items
 - Backup and restore your configuration across devices
 - Available in English, German, French, Polish, Spanish, and Chinese

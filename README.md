@@ -38,13 +38,14 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **LoRA chain support**:
   - Add up to 5 LoRAs per chain with individual strength from -100 to 100 (coarse stepper plus fine slider)
   - Text to Image and Image to Image: Separate LoRA chains for Checkpoint and UNET modes
-  - Text to Video and Image to Video: Separate High Noise and Low Noise LoRA chains
+  - Video workflows: Separate High Noise and Low Noise LoRA chains
   - LoRAs are dynamically injected into workflows at generation time, including workflows with non-core model loaders such as GGUF
 - **Prompt Library**:
   - Save prompts as reusable presets with custom names and tags
   - Organize presets with favorites and tag-based filtering
   - Search presets by name, prompt text, or tags
-- **What's new**: The release notes are shown once after an install or update
+- **What's new**: This version's release notes under Settings -> About, and a one-time notice after an update
+- **Errors**: Every error appears as a snackbar; Show opens the whole error (the node that failed with the server's message and traceback, the inputs a server refused, the reason a connection failed) to read or copy
 - **Localization**: Available in English (default), German, French, Polish, Spanish, and Chinese with per-app language selection
 - **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
 
@@ -56,13 +57,15 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Options sheet**: Only the fields the workflow uses, in sections (workflow, quick, sampling, LoRA, models); large workflows get collapsible sections
 - **Generate button**: Generate, or add to the front of the queue and cancel your running job from its menu
 - **Progress**: A status card on the preview shows the step and elapsed time, with live preview images when the server sends them
-- **Results**: Jobs with several results get a pager with a thumbnail strip; videos play inline with a pause and position chip; one menu on the result saves, shares, shows details and sends it to another screen as its source
+- **Results**: Jobs with several results get a pager with a thumbnail strip; videos play inline with a pause and position chip; one menu on the result saves, shares, shows details and sends it to another screen as its source: an image to edit or animate, a video to edit in Video to Video, or its last frame to animate on from where it ends
 - **Text to Image** and **Text to Video**: From a prompt, with High Noise / Low Noise UNET and LoRA selection for video
 - **Image to Image**:
   - Two modes: **Editing** (transformation, with its own prompt and up to 2 reference images) and **Inpainting** (mask-based, with a mask editor with adjustable brush size and feathered edges)
   - The source and the result swap through a picture-in-picture thumbnail; the source has its own toolbar (replace, remove, mask tools)
 - **Image to Video**: Animate a still image with adjustable length and frame rate
-- **Validation feedback**: Readable messages when ComfyUI rejects a workflow, and a warning when it skips outputs instead of silently delivering an incomplete result
+- **Video to Video**: Restyle, restore or upscale a video, from your files or from a result (up to 100 MB, kept like the results: in memory only by default); the source video plays in the preview and swaps with the result
+- **Video length**: Checked against the frame grid of the workflow's own nodes (e.g. 4n+1 for Wan, 17n+5 for MiniMax H3), with no upper limit of the app's own
+- **Validation feedback**: The inputs ComfyUI refused, and a warning when it skips outputs instead of silently delivering an incomplete result
 
 ### Media
 
@@ -72,7 +75,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Media viewer**:
   - Opens out of the tile or preview and returns into it; swipe down or use predictive back to close
   - Swipe between items, pinch to zoom, double tap to switch between fit and fill, single tap to hide the controls
-  - Save, share, use as source, details (generation parameters such as prompt, model, seed and steps) and delete
+  - Save, share, use as source (images and videos), details (generation parameters such as prompt, model, seed and steps) and delete
 - **Undo**: Every deletion of media can be undone for a few seconds before it reaches the server
 - **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
 - **Media storage**: Generated media is kept in memory only by default and never written to the device; optionally it can be saved on exit or stored on the device. In memory-only mode the app is also hidden from the recents screen preview
@@ -91,17 +94,18 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Long-press an output socket to open the node browser filtered by compatible types
   - Delete, duplicate, bypass and rename nodes; clean up disconnected nodes
   - Connect by tapping an output socket and then an input socket (or vice versa); compatible sockets are ringed while a connection waits
-  - Organize nodes into groups and add notes with Markdown support
+  - Organize nodes into groups and add notes with Markdown support; groups are laid out apart like nodes
 - **Field mapping**: When importing, the app's fields are assigned one at a time on a card, with a list of all fields; no field is required except the source image for image workflows, and workflows without a prompt (e.g. upscalers) are supported
 - **Workflow management**:
   - Create workflows from scratch or import existing ones from ComfyUI
   - Supported formats:
-    - ComfyUI LiteGraph (import only) - native ComfyUI workflow format with subgraph support
+    - ComfyUI LiteGraph (import only) - native ComfyUI workflow format with subgraph support; widget values are read as ComfyUI lays them out, dynamic inputs and extensions' named values included
     - ComfyUI API JSON (import/export) - workflow format used by the ComfyUI API
     - ComfyChair JSON (import/export) - preserves field mappings and app settings
   - A list of workflows with filters and a switch for each, so the generation screens offer only the ones you use; each workflow's page shows its graph and description
   - Prompts can be mapped to primitive String nodes, so one prompt can feed several text encoders
-  - Built-in templates include SD, SDXL, Flux, HiDream, Qwen Image (generation and editing), Z-Image, Krea-2 (generation, editing, identity editing and LanPaint inpainting), SeedVR2 upscaling, Wan 2.2 and LTX-2
+  - Video to Video workflows read the source with ComfyUI's LoadVideo or VideoHelperSuite's Load Video. VideoHelperSuite's node fails on a video without sound when its audio output is connected; LoadVideo with Get Video Components handles such videos
+  - Built-in templates include SD, SDXL, Flux, HiDream, Qwen Image (generation and editing), Z-Image, Krea-2 (generation, editing, identity editing and LanPaint inpainting), SeedVR2 image and video upscaling, Wan 2.2, LTX-2 and MiniMax H3 (text, image and video to video with sound, full and Turbo LoRA)
   - Dynamic parameter constraints based on workflow node definitions; each workflow remembers its own generation settings
 
 ### Settings
