@@ -225,9 +225,6 @@ private fun Hero(
                     )
                 }
                 .clickable(onClickLabel = openLabel) { onOpenViewer(page) }
-                // The viewer flies the result out of the preview and back; an image page marks itself, with the image it
-                // shows (ResultHeroImage), a video page here
-                .mediaOrigin(mediaOriginKey(output.promptId, output.filename).takeIf { output.isVideo }, corner = 28.dp)
         ) {
             // Only the settled page counts as current, so a single player is swapped, not duplicated
             hero(output, page == pagerState.settledPage)
@@ -414,7 +411,7 @@ fun ResultHeroImage(output: GenerationOutput, preloaded: Bitmap? = null) {
         Modifier
             .fillMaxSize()
             // The origin of the viewer's flight, with the image shown here: the viewer may not have it at hand
-            // (a video's first frame shown here leaves the origin to its page)
+            // (a video's first frame shown here leaves the origin to its player)
             .mediaOrigin(
                 mediaOriginKey(output.promptId, output.filename).takeIf { !output.isVideo },
                 corner = 28.dp,
@@ -453,7 +450,10 @@ fun ResultHeroVideo(output: GenerationOutput, isCurrent: Boolean, isActive: Bool
                 modifier = Modifier.fillMaxSize(),
                 isActive = isActive,
                 cacheKey = key,
-                showPlaybackStatus = true
+                showPlaybackStatus = true,
+                // The viewer flies the video's first frame out of the preview and back
+                originKey = mediaOriginKey(output.promptId, output.filename),
+                originCorner = 28.dp
             )
         }
     }

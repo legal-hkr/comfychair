@@ -173,7 +173,7 @@ fun ImageToVideoScreen(
                         onClick = {
                             when (uiState.viewMode) {
                                 ImageToVideoViewMode.PREVIEW -> {
-                                    videoUri?.let { uri -> mediaViewer.openVideo(uri) }
+                                    videoUri?.let { uri -> mediaViewer.openVideo(uri, originKey = VIDEO_ORIGIN) }
                                 }
                                 ImageToVideoViewMode.SOURCE -> {
                                     // Source image is user-provided, no ComfyUI metadata
@@ -268,7 +268,10 @@ fun ImageToVideoScreen(
                                     isActive = isScreenVisible && !inTransition,
                                     showPlaybackStatus = true,
                                     // The frame that stood in during the swap, so the player shows it right away
-                                    placeholder = videoFrame?.asAndroidBitmap()
+                                    placeholder = videoFrame?.asAndroidBitmap(),
+                                    // The viewer flies the video's first frame out of the preview and back
+                                    originKey = VIDEO_ORIGIN,
+                                    originCorner = 28.dp
                                 )
                                 ResultActionsMenu(
                                     media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
@@ -334,3 +337,4 @@ fun ImageToVideoScreen(
 
 /** Media origin of this screen's source image in the preview. */
 private const val SOURCE_ORIGIN = "itv_source"
+private const val VIDEO_ORIGIN = "itv_video"

@@ -129,7 +129,7 @@ fun TextToVideoScreen(
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(enabled = videoUri != null && !showResults) {
                         // Open the single video in the media viewer
-                        videoUri?.let { uri -> mediaViewer.openVideo(uri) }
+                        videoUri?.let { uri -> mediaViewer.openVideo(uri, originKey = VIDEO_ORIGIN) }
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -180,7 +180,15 @@ fun TextToVideoScreen(
                         )
                     }
                     videoUri != null -> {
-                        VideoPlayer(videoUri = videoUri, modifier = Modifier.fillMaxSize(), isActive = isScreenVisible, showPlaybackStatus = true)
+                        VideoPlayer(
+                            videoUri = videoUri,
+                            modifier = Modifier.fillMaxSize(),
+                            isActive = isScreenVisible,
+                            showPlaybackStatus = true,
+                            // The viewer flies the video's first frame out of the preview and back
+                            originKey = VIDEO_ORIGIN,
+                            originCorner = 28.dp
+                        )
                         ResultActionsMenu(
                             media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO),
                             sendActions = emptyList()
@@ -238,3 +246,6 @@ fun TextToVideoScreen(
 
     PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)
 }
+
+/** Origin of the single video in the preview, for the media viewer's flight. */
+private const val VIDEO_ORIGIN = "ttv_video"

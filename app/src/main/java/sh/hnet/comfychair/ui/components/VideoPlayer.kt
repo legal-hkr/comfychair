@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.ui.unit.Dp
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -94,6 +95,12 @@ enum class VideoScaleMode {
  *   used for its proportions, so nothing empty flashes when the player appears
  * @param showPlaybackStatus Show the pause/position chip at the top end and a position line at the bottom edge
  *   (inline results on the generation screens)
+ * @param originKey Marks the player as the [mediaOrigin] of the media viewer's flight, with its first frame as the
+ *   image that flies (the video itself draws on a surface the flight can't take)
+ * @param originCorner Corner radius of the player's place, for the flight
+ *
+ * Inside the media viewer, playback waits while the viewer's medium is still flying in ([LocalMediaViewerLanding]), so
+ * the video starts from its first frame once the flight has landed.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -106,8 +113,11 @@ fun VideoPlayer(
     onSingleTap: () -> Unit = {},
     cacheKey: MediaCacheKey? = null,
     showPlaybackStatus: Boolean = false,
-    placeholder: Bitmap? = null
+    placeholder: Bitmap? = null,
+    originKey: String? = null,
+    originCorner: Dp = 0.dp
 ) {
+    val playbackHeld = LocalMediaViewerLanding.current
     val coveredByViewer = LocalCoveredByMediaViewer.current
     val context = LocalContext.current
 
@@ -173,6 +183,7 @@ fun VideoPlayer(
 
     Box(
         modifier = modifier
+            .mediaOrigin(originKey, originCorner, still = thumbnail)
             .clipToBounds()
             .onSizeChanged { containerSize = it }
     ) {
@@ -212,8 +223,9 @@ fun VideoPlayer(
 
                 // Start playback only when surface is ready (first frame can be rendered)
                 // This ensures video starts from frame 0 when thumbnail is replaced
-                LaunchedEffect(presentationState.coverSurface) {
-                    if (!presentationState.coverSurface) {
+                // (in the viewer, not before the flight in has landed)
+                LaunchedEffect(presentationState.coverSurface, playbackHeld) {
+                    if (!presentationState.coverSurface && !playbackHeld) {
                         SharedVideoPlayer.startPlayback()
                     }
                 }

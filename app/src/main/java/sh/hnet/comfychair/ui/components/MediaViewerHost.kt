@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -101,6 +102,12 @@ val LocalMediaViewer = staticCompositionLocalOf<MediaViewerOpener> { error("No m
  * and draws on one surface at a time, so the viewer gets it while open and the screen gets it back after.
  */
 val LocalCoveredByMediaViewer = compositionLocalOf { false }
+
+/**
+ * True inside the viewer while its medium is still flying in from its origin: a video waits on its first frame and
+ * starts once the flight has landed, rather than being somewhere into it by then.
+ */
+val LocalMediaViewerLanding = compositionLocalOf { false }
 
 /** The medium flying between its origin and the viewer: a still, cropped to a moving rect, over a fading backdrop. */
 private class MediaFlight(
@@ -224,12 +231,14 @@ fun MediaViewerOverlay(
         if (isOpen) {
             ViewerSystemBars(uiState.isUiVisible)
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (shown) 1f else 0f }) {
-                MediaViewerScreen(
-                    viewModel = viewModel,
-                    onClose = { viewModel.close() },
-                    onUseAsSource = onUseAsSource,
-                    onRequestClose = requestClose
-                )
+                CompositionLocalProvider(LocalMediaViewerLanding provides !shown) {
+                    MediaViewerScreen(
+                        viewModel = viewModel,
+                        onClose = { viewModel.close() },
+                        onUseAsSource = onUseAsSource,
+                        onRequestClose = requestClose
+                    )
+                }
             }
         }
         flight?.let { MediaFlightLayer(it) }
