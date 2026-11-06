@@ -454,7 +454,7 @@ class WorkflowEditorViewModel : ViewModel() {
             val candidateIndex = matchingField.candidates.indexOfFirst { it.nodeId == nodeId }
             if (candidateIndex >= 0) {
                 updateFieldMapping(matchingField.field.fieldKey, candidateIndex)
-                selectNextUnmappedField()
+                selectNextField()
             }
             return
         }
@@ -468,26 +468,27 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Update the selected candidate for a field.
-     * If the selected node was previously mapped to another field, clears that field's mapping.
+     * Update the selected candidate for a field. An input fills one field: another field mapped to the same input
+     * (node and input) is cleared. Other inputs of the same node keep their fields (width and height of one node).
      */
     fun updateFieldMapping(fieldKey: String, candidateIndex: Int) {
         val state = _uiState.value
         val mappingState = state.mappingState ?: return
 
-        // Get the node being selected
+        // The input being selected
         val targetField = mappingState.fieldMappings.find { it.field.fieldKey == fieldKey }
-        val selectedNodeId = targetField?.candidates?.getOrNull(candidateIndex)?.nodeId
+        val selected = targetField?.candidates?.getOrNull(candidateIndex)
 
         val updatedMappings = mappingState.fieldMappings.map { fieldMapping ->
+            val other = fieldMapping.selectedCandidate
             when {
                 // Update the target field with new selection
                 fieldMapping.field.fieldKey == fieldKey -> {
                     fieldMapping.copy(selectedCandidateIndex = candidateIndex)
                 }
-                // Clear other field if it had this same node selected (set to -1 = unmapped)
-                selectedNodeId != null &&
-                fieldMapping.selectedCandidate?.nodeId == selectedNodeId -> {
+                // Clear another field mapped to this same input (set to -1 = unmapped)
+                selected != null && other != null &&
+                    other.nodeId == selected.nodeId && other.inputKey == selected.inputKey -> {
                     fieldMapping.copy(selectedCandidateIndex = -1)
                 }
                 else -> fieldMapping
@@ -554,6 +555,18 @@ class WorkflowEditorViewModel : ViewModel() {
     /**
      * Make the next unmapped field current (after the current one, wrapping around); stays put when all are mapped.
      */
+    /**
+     * After assigning a field: the next one in the list, mapped or not (the user goes through them in order; jumping
+     * to the next unmapped one skipped the fields mapped on import). The last field stays selected.
+     */
+    fun selectNextField() {
+        val fields = orderedMappingFields()
+        val current = fields.indexOfFirst { it.field.fieldKey == _uiState.value.selectedFieldKey }
+        val next = fields.getOrNull(current + 1) ?: return
+        selectFieldForMapping(next.field.fieldKey)
+    }
+
+    /** Where mapping starts: the first field that still needs an input. */
     fun selectNextUnmappedField() {
         val fields = orderedMappingFields()
         if (fields.isEmpty()) return
