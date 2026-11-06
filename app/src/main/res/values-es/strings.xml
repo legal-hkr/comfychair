@@ -568,6 +568,15 @@
     <string name="content_description_result_actions">Acciones del resultado</string>
     <string name="content_description_video_actions">Acciones del vídeo</string>
     <string name="video_time_display" translatable="false">%1$s / %2$s</string>
+    <string name="video_previous_frame">Fotograma anterior</string>
+    <string name="video_next_frame">Fotograma siguiente</string>
+    <string name="video_loop">Repetir</string>
+    <string name="video_loop_on">Activado</string>
+    <string name="video_loop_off">Desactivado</string>
+    <string name="video_position">Posición</string>
+    <string name="video_back_5s">Atrás 5 segundos</string>
+    <string name="video_forward_5s">Adelante 5 segundos</string>
+    <string name="video_playback_controls">Reproducción</string>
     <string name="video_sound">Sonido</string>
     <string name="video_sound_on">Activado</string>
     <string name="video_sound_off">Desactivado</string>

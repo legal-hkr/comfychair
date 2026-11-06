@@ -253,6 +253,11 @@ class MediaViewerViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(isUiVisible = !_uiState.value.isUiVisible)
     }
 
+    /** Show or hide the overlays (the playback card's auto-hide, and a video ending). */
+    fun setUiVisible(visible: Boolean) {
+        if (_uiState.value.isUiVisible != visible) _uiState.value = _uiState.value.copy(isUiVisible = visible)
+    }
+
     fun setCurrentIndex(index: Int) {
         val state = _uiState.value
         if (index < 0 || index >= state.items.size) return

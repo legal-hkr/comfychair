@@ -68,6 +68,8 @@ object SharedVideoPlayer {
     private var previewSoundUri: Uri? = null
     // The viewer's sound for this viewer session (on when it opens)
     private var viewerMuted = false
+    // Where each video was left in this viewer session, to resume it there after swiping back to its page
+    private val viewerPositions = HashMap<Uri, Long>()
 
     private var exoPlayer: ExoPlayer? = null
     private var currentUri: Uri? = null
@@ -123,6 +125,7 @@ object SharedVideoPlayer {
             pendingStopRunnable?.let { handler.removeCallbacks(it) }
             pendingStopRunnable = Runnable {
                 if (consumerCount == 0) {
+                    rememberViewerPosition()
                     // Stop (not pause) so video resets to beginning on next play
                     exoPlayer?.stop()
                     currentUri = null  // Clear URI so prepareVideo will reload
@@ -147,6 +150,7 @@ object SharedVideoPlayer {
         pendingStopRunnable = null
 
         val player = getPlayer(context)
+        if (uri != currentUri) rememberViewerPosition()
         this.surface = surface
         // Another preview video starts muted again (a new result, another page of results)
         if (surface == Surface.PREVIEW && uri != previewSoundUri) previewSoundUri = null
@@ -177,7 +181,9 @@ object SharedVideoPlayer {
      */
     fun startPlayback() {
         exoPlayer?.let { player ->
-            player.seekTo(0)
+            // In the viewer, a video swiped back to resumes where it was left
+            val resumeAt = if (surface == Surface.VIEWER) currentUri?.let { viewerPositions.remove(it) } else null
+            player.seekTo(resumeAt ?: 0)
             player.playWhenReady = true
             player.play()
         }
@@ -196,6 +202,14 @@ object SharedVideoPlayer {
     /** A new viewer session: sound on until the user mutes it. */
     fun startViewerSession() {
         viewerMuted = false
+        viewerPositions.clear()
+    }
+
+    private fun rememberViewerPosition() {
+        val player = exoPlayer ?: return
+        val uri = currentUri ?: return
+        // One that ended starts over
+        if (surface == Surface.VIEWER) viewerPositions[uri] = if (player.playbackState == Player.STATE_ENDED) 0L else player.currentPosition
     }
 
     /** The viewer's loop toggle: remembered app-wide, applied at once when the viewer shows the video. */

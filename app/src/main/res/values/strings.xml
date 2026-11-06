@@ -671,6 +671,15 @@
     <string name="content_description_result_actions">Result actions</string>
     <string name="content_description_video_actions">Video actions</string>
     <string name="video_time_display" translatable="false">%1$s / %2$s</string>
+    <string name="video_previous_frame">Previous frame</string>
+    <string name="video_next_frame">Next frame</string>
+    <string name="video_loop">Loop</string>
+    <string name="video_loop_on">On</string>
+    <string name="video_loop_off">Off</string>
+    <string name="video_position">Position</string>
+    <string name="video_back_5s">Back 5 seconds</string>
+    <string name="video_forward_5s">Forward 5 seconds</string>
+    <string name="video_playback_controls">Playback</string>
     <string name="video_sound">Sound</string>
     <string name="video_sound_on">On</string>
     <string name="video_sound_off">Off</string>

@@ -540,6 +540,15 @@
     <string name="content_description_result_actions">结果操作</string>
     <string name="content_description_video_actions">视频操作</string>
     <string name="video_time_display" translatable="false">%1$s / %2$s</string>
+    <string name="video_previous_frame">上一帧</string>
+    <string name="video_next_frame">下一帧</string>
+    <string name="video_loop">循环</string>
+    <string name="video_loop_on">开</string>
+    <string name="video_loop_off">关</string>
+    <string name="video_position">位置</string>
+    <string name="video_back_5s">后退 5 秒</string>
+    <string name="video_forward_5s">前进 5 秒</string>
+    <string name="video_playback_controls">播放</string>
     <string name="video_sound">声音</string>
     <string name="video_sound_on">开</string>
     <string name="video_sound_off">关</string>
