@@ -106,12 +106,15 @@ class WorkflowPreparationGoldenTest {
     /** The workflow JSON the app sends for a template; variants where inputs differ. */
     private fun prepare(workflow: WorkflowManager.Workflow): List<Pair<String?, String>> {
         val id = workflow.id
-        val isVideo = workflow.type == WorkflowType.TTV || workflow.type == WorkflowType.ITV
+        val isVideo = workflow.type == WorkflowType.TTV || workflow.type == WorkflowType.ITV || workflow.type == WorkflowType.V2V
         val p = params(if (isVideo) "480" else "1216")
         val source = WorkflowManager.WorkflowImages(source = "source_upload.png")
         return when (workflow.type) {
             WorkflowType.TTI, WorkflowType.TTV -> listOf(null to WorkflowManager.prepareWorkflow(id, p)!!)
             WorkflowType.ITI_INPAINTING, WorkflowType.ITV -> listOf(null to WorkflowManager.prepareWorkflow(id, p, source)!!)
+            WorkflowType.V2V -> listOf(
+                null to WorkflowManager.prepareWorkflow(id, p, WorkflowManager.WorkflowImages(video = "source_upload.mp4"))!!
+            )
             WorkflowType.ITI_EDITING -> listOf(
                 "no_refs" to WorkflowManager.prepareWorkflow(id, p, source)!!,
                 "two_refs" to WorkflowManager.prepareWorkflow(

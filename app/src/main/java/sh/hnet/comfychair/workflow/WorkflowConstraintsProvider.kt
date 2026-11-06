@@ -33,7 +33,8 @@ object WorkflowConstraintsProvider {
         "cfg" to NumericConstraints(0f, 100f, 0.1f, 1),
         "width" to NumericConstraints(16f, 16384f, 8f, 0),
         "height" to NumericConstraints(16f, 16384f, 8f, 0),
-        "length" to NumericConstraints(1f, 1024f, 4f, 0),
+        // ComfyUI's video latent nodes allow up to 16384 frames
+        "length" to NumericConstraints(1f, 16384f, 4f, 0),
         "frame_rate" to NumericConstraints(1f, 60f, 1f, 0),
         "fps" to NumericConstraints(1f, 60f, 1f, 0),
         "megapixels" to NumericConstraints(0.01f, 16f, 0.01f, 2),

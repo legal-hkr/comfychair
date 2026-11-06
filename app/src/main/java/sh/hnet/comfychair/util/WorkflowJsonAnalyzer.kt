@@ -30,8 +30,13 @@ internal object WorkflowJsonAnalyzer {
         "iti_inpainting_" to WorkflowType.ITI_INPAINTING,
         "iti_editing_" to WorkflowType.ITI_EDITING,
         "ttv_" to WorkflowType.TTV,
-        "itv_" to WorkflowType.ITV
+        "itv_" to WorkflowType.ITV,
+        "v2v_" to WorkflowType.V2V
     )
+
+    /** A node that loads a video file: ComfyUI's LoadVideo or VideoHelperSuite's VHS_LoadVideo (and its FFmpeg variant). */
+    fun isVideoLoader(classType: String): Boolean =
+        classType == "LoadVideo" || classType == "VHS_LoadVideo" || classType == "VHS_LoadVideoFFmpeg"
 
     /**
      * Parse workflow type from filename prefix
@@ -137,6 +142,9 @@ internal object WorkflowJsonAnalyzer {
 
         // Detection rules (order matters - most specific first):
         return when {
+            // Video-to-video: loads a video (most specific: such workflows also have video nodes)
+            classTypes.any { isVideoLoader(it) } -> WorkflowType.V2V
+
             // Image-to-video: has both LoadImage and video nodes
             hasLoadImage && hasVideoNodes -> WorkflowType.ITV
 
@@ -186,6 +194,9 @@ internal object WorkflowJsonAnalyzer {
         val hasUNETLoader = classTypes.any { it.equals("UNETLoader", ignoreCase = true) }
 
         return when {
+            // Video-to-video: loads a video (most specific: such workflows also have video nodes)
+            classTypes.any { isVideoLoader(it) } -> WorkflowType.V2V
+
             // Image-to-video: has both LoadImage and video nodes
             hasLoadImage && hasVideoNodes -> WorkflowType.ITV
 
@@ -269,9 +280,9 @@ internal object WorkflowJsonAnalyzer {
         // 1. The actual JSON key is present (mapped via PLACEHOLDER_TO_KEY), or
         // 2. The placeholder is present in values (for specific placeholders like highnoise_unet_name)
         val missingKeys = requiredKeys.filter { requiredKey ->
-            val jsonKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(requiredKey)
-            val hasJsonKey = jsonKey in presentKeys
-            val hasPlaceholder = requiredKey in presentPlaceholders
+            val hasJsonKey = TemplateKeyRegistry.inputKeysForField(requiredKey).any { it in presentKeys }
+            val hasPlaceholder = requiredKey in presentPlaceholders ||
+                TemplateKeyRegistry.getPlaceholderForKey(requiredKey) in presentPlaceholders
             !hasJsonKey && !hasPlaceholder
         }
 

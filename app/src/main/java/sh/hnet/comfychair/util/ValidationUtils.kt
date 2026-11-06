@@ -94,6 +94,18 @@ object ValidationUtils {
     }
 
     /**
+     * Validate a length: a whole number of at least 1, with no upper limit of the app's own (the workflow's nodes have
+     * theirs, which the server checks).
+     */
+    fun validateLength(value: String, context: Context? = null): String? {
+        if (value.isEmpty()) return null
+        val intValue = value.toIntOrNull()
+        return if (intValue == null || intValue < 1) {
+            context?.getString(R.string.error_length_range) ?: "Must be at least 1"
+        } else null
+    }
+
+    /**
      * Validate video length in frames.
      * @param value The length value as string
      * @param context Optional context for localized error message
@@ -115,14 +127,15 @@ object ValidationUtils {
     }
 
     /**
-     * Validate video length in frames: 1-129 in steps of 4 (1, 5, 9, 13...), as video latents require.
+     * Validate video length in frames: 1, 5, 9, 13... (steps of 4 from 1), as video latents require, with no upper limit
+     * of the app's own (the workflow's nodes have theirs, which the server checks).
      */
     fun validateVideoLength(value: String, context: Context? = null): String? {
         val num = value.toIntOrNull()
         return when {
             value.isEmpty() -> context?.getString(R.string.error_required) ?: "Required"
             num == null -> context?.getString(R.string.error_invalid_number) ?: "Invalid number"
-            num !in 1..129 -> context?.getString(R.string.error_length_range) ?: "Must be 1-129"
+            num < 1 -> context?.getString(R.string.error_length_range) ?: "Must be at least 1"
             (num - 1) % 4 != 0 -> context?.getString(R.string.error_length_step) ?: "Must be 1, 5, 9, 13... (steps of 4)"
             else -> null
         }

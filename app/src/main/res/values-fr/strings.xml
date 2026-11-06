@@ -175,6 +175,7 @@
     <string name="nav_tab_video">Vidéo</string>
     <string name="label_source_text">Texte</string>
     <string name="label_source_image">Image</string>
+    <string name="label_source_video">Vidéo</string>
     <string name="content_description_source_switch">Générer à partir de</string>
     <string name="msg_image_ready">Image prête</string>
     <string name="msg_video_ready">Vidéo prête</string>
@@ -245,6 +246,7 @@
 
     <!-- Image to Video fragment strings -->
     <string name="nav_image_to_video">Image vers vidéo</string>
+    <string name="nav_video_to_video">Vidéo vers vidéo</string>
     <string name="label_highnoise_unet">UNET bruit haut</string>
     <string name="label_lownoise_unet">UNET bruit bas</string>
     <string name="label_highnoise_lora">LoRA bruit haut</string>
@@ -431,7 +433,7 @@
     <string name="error_steps_range">Doit être entre 1 et 255</string>
     <string name="error_cfg_range">Doit être entre 0,0 et 100,0</string>
     <string name="error_megapixels_range">Doit être entre 0,1 et 8,3</string>
-    <string name="error_length_range">Doit être entre 1 et 129</string>
+    <string name="error_length_range">Doit être au moins 1</string>
     <string name="error_length_step">Doit être 1, 5, 9, 13… (pas de 4)</string>
     <string name="error_fps_range">Doit être entre 1 et 120</string>
     <string name="error_invalid_number">Nombre invalide</string>
@@ -472,6 +474,7 @@
     <string name="workflow_section_iti_editing">Image vers image : Édition</string>
     <string name="workflow_section_ttv">Texte vers vidéo</string>
     <string name="workflow_section_itv">Image vers vidéo</string>
+    <string name="workflow_section_v2v">Vidéo vers vidéo</string>
     <string name="workflow_section_empty">Aucun workflow</string>
     <string name="label_workflows_enabled_count">Activés : %1$d sur %2$d</string>
     <string name="label_workflows_filter_all">Tous</string>
@@ -820,6 +823,7 @@
     <string name="field_cfg_scale">Échelle CFG</string>
     <string name="field_unet_model">Modèle UNET</string>
     <string name="field_input_image">Image d\'entrée</string>
+    <string name="field_input_video">Vidéo d\'entrée</string>
     <string name="field_frame_rate">Fréquence d\'images</string>
 
     <!-- Field descriptions for workflow editor -->
@@ -844,6 +848,7 @@
     <string name="field_desc_length">Durée de la vidéo en images</string>
     <string name="field_desc_frame_rate">Images par seconde de la vidéo</string>
     <string name="field_desc_image">Image source pour la génération</string>
+    <string name="field_desc_video">Vidéo source pour la génération</string>
     <string name="field_desc_seed">Seed aléatoire pour la génération</string>
     <string name="field_desc_denoise">Force de débruitage (0,0–1,0)</string>
     <string name="field_desc_batch_size">Nombre d\'images par lot</string>
@@ -893,6 +898,7 @@
     <string name="screen_type_image_to_image">Image vers image</string>
     <string name="screen_type_text_to_video">Texte vers vidéo</string>
     <string name="screen_type_image_to_video">Image vers vidéo</string>
+    <string name="screen_type_video_to_video">Vidéo vers vidéo</string>
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Enregistrer le prompt dans la bibliothèque</string>

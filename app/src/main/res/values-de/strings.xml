@@ -171,6 +171,7 @@
     <string name="nav_tab_video">Video</string>
     <string name="label_source_text">Text</string>
     <string name="label_source_image">Bild</string>
+    <string name="label_source_video">Video</string>
     <string name="content_description_source_switch">Generieren aus</string>
     <string name="msg_image_ready">Bild fertig</string>
     <string name="msg_video_ready">Video fertig</string>
@@ -257,6 +258,7 @@
 
     <!-- Image to Video fragment strings -->
     <string name="nav_image_to_video">Bild zu Video</string>
+    <string name="nav_video_to_video">Video zu Video</string>
     <string name="label_highnoise_unet">High Noise UNET</string>
     <string name="label_lownoise_unet">Low Noise UNET</string>
     <string name="label_highnoise_lora">High Noise LoRA</string>
@@ -433,7 +435,7 @@
     <string name="error_steps_range">Muss 1–255 sein</string>
     <string name="error_cfg_range">Muss 0,0–100,0 sein</string>
     <string name="error_megapixels_range">Muss 0,1–8,3 sein</string>
-    <string name="error_length_range">Muss 1–129 sein</string>
+    <string name="error_length_range">Muss mindestens 1 sein</string>
     <string name="error_length_step">Muss 1, 5, 9, 13… sein (4er-Schritte)</string>
     <string name="error_fps_range">Muss 1–120 sein</string>
     <string name="error_invalid_number">Ungültige Zahl</string>
@@ -473,6 +475,7 @@
     <string name="workflow_section_iti_editing">Bild zu Bild: Bearbeitung</string>
     <string name="workflow_section_ttv">Text zu Video</string>
     <string name="workflow_section_itv">Bild zu Video</string>
+    <string name="workflow_section_v2v">Video zu Video</string>
     <string name="workflow_section_empty">Keine Workflows</string>
     <string name="label_workflows_enabled_count">%1$d von %2$d aktiviert</string>
     <string name="label_workflows_filter_all">Alle</string>
@@ -796,6 +799,7 @@
     <string name="field_cfg_scale">CFG-Skala</string>
     <string name="field_unet_model">UNET-Modell</string>
     <string name="field_input_image">Eingabebild</string>
+    <string name="field_input_video">Eingabevideo</string>
     <string name="field_frame_rate">Bildrate</string>
 
     <!-- Field descriptions for workflow editor -->
@@ -820,6 +824,7 @@
     <string name="field_desc_length">Videolänge in Frames</string>
     <string name="field_desc_frame_rate">Video-Frames pro Sekunde</string>
     <string name="field_desc_image">Quellbild für die Generierung</string>
+    <string name="field_desc_video">Quellvideo für die Generierung</string>
     <string name="field_desc_seed">Zufälliger Seed für die Generierung</string>
     <string name="field_desc_denoise">Entrauschungsstärke (0,0–1,0)</string>
     <string name="field_desc_batch_size">Anzahl der Bilder pro Stapel</string>
@@ -869,6 +874,7 @@
     <string name="screen_type_image_to_image">Bild zu Bild</string>
     <string name="screen_type_text_to_video">Text zu Video</string>
     <string name="screen_type_image_to_video">Bild zu Video</string>
+    <string name="screen_type_video_to_video">Video zu Video</string>
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Prompt in Bibliothek speichern</string>

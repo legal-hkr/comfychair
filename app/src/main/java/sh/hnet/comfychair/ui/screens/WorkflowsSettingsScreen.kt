@@ -270,7 +270,8 @@ fun WorkflowsSettingsScreen(
         WorkflowSectionData(WorkflowType.ITI_EDITING, R.string.workflow_section_iti_editing, uiState.itiEditingWorkflows),
         WorkflowSectionData(WorkflowType.ITI_INPAINTING, R.string.workflow_section_iti_inpainting, uiState.itiInpaintingWorkflows),
         WorkflowSectionData(WorkflowType.TTV, R.string.workflow_section_ttv, uiState.ttvWorkflows),
-        WorkflowSectionData(WorkflowType.ITV, R.string.workflow_section_itv, uiState.itvWorkflows)
+        WorkflowSectionData(WorkflowType.ITV, R.string.workflow_section_itv, uiState.itvWorkflows),
+        WorkflowSectionData(WorkflowType.V2V, R.string.workflow_section_v2v, uiState.v2vWorkflows)
     )
     val allWorkflows = allSections.flatMap { it.workflows }
     val enabledTotal = allWorkflows.count { it.id !in uiState.disabledWorkflowIds }
@@ -387,7 +388,9 @@ private fun parseMappingsFromJson(jsonString: String): Map<String, Pair<String, 
 }
 
 /** Order of the sections on the list. */
-private val sectionOrder = listOf(WorkflowType.TTI, WorkflowType.ITI_EDITING, WorkflowType.ITI_INPAINTING, WorkflowType.TTV, WorkflowType.ITV)
+private val sectionOrder = listOf(
+    WorkflowType.TTI, WorkflowType.ITI_EDITING, WorkflowType.ITI_INPAINTING, WorkflowType.TTV, WorkflowType.ITV, WorkflowType.V2V
+)
 
 /** How long a just-imported workflow's row stays highlighted before fading back. */
 private const val HIGHLIGHT_MS = 1000L
@@ -400,7 +403,8 @@ private val filterLabels = listOf(
     WorkflowFilter.TTI to R.string.workflow_section_tti,
     WorkflowFilter.ITI to R.string.label_workflows_filter_iti,
     WorkflowFilter.TTV to R.string.workflow_section_ttv,
-    WorkflowFilter.ITV to R.string.workflow_section_itv
+    WorkflowFilter.ITV to R.string.workflow_section_itv,
+    WorkflowFilter.V2V to R.string.workflow_section_v2v
 )
 
 /** Which types the page shows: one choice, scrolled into view when picked. */
@@ -706,6 +710,7 @@ private fun WorkflowType.titleRes(): Int = when (this) {
     WorkflowType.ITI_INPAINTING -> R.string.workflow_section_iti_inpainting
     WorkflowType.TTV -> R.string.workflow_section_ttv
     WorkflowType.ITV -> R.string.workflow_section_itv
+    WorkflowType.V2V -> R.string.workflow_section_v2v
 }
 
 /** The generation screen that offers workflows of a type. */
@@ -714,6 +719,7 @@ private fun WorkflowType.screenRes(): Int = when (this) {
     WorkflowType.ITI_EDITING, WorkflowType.ITI_INPAINTING -> R.string.nav_image_to_image
     WorkflowType.TTV -> R.string.nav_text_to_video
     WorkflowType.ITV -> R.string.nav_image_to_video
+    WorkflowType.V2V -> R.string.nav_video_to_video
 }
 
 /**
@@ -737,8 +743,10 @@ fun WorkflowDetailPage(
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { viewModel.initialize(context) }
     val current = remember(uiState, workflowId) {
-        listOf(uiState.ttiWorkflows, uiState.itiEditingWorkflows, uiState.itiInpaintingWorkflows, uiState.ttvWorkflows, uiState.itvWorkflows)
-            .flatten()
+        listOf(
+            uiState.ttiWorkflows, uiState.itiEditingWorkflows, uiState.itiInpaintingWorkflows, uiState.ttvWorkflows,
+            uiState.itvWorkflows, uiState.v2vWorkflows
+        ).flatten()
             .firstOrNull { it.id == workflowId }
     }
     // After deleting, the page goes back to the list and shows the workflow as it was until the transition ends

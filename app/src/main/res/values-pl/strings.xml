@@ -179,6 +179,7 @@
     <string name="nav_tab_video">Wideo</string>
     <string name="label_source_text">Tekst</string>
     <string name="label_source_image">Obraz</string>
+    <string name="label_source_video">Wideo</string>
     <string name="content_description_source_switch">Generuj z</string>
     <string name="msg_image_ready">Obraz gotowy</string>
     <string name="msg_video_ready">Wideo gotowe</string>
@@ -249,6 +250,7 @@
 
     <!-- Image to Video fragment strings -->
     <string name="nav_image_to_video">Obraz na wideo</string>
+    <string name="nav_video_to_video">Wideo na wideo</string>
     <string name="label_highnoise_unet">UNET wysokiego szumu</string>
     <string name="label_lownoise_unet">UNET niskiego szumu</string>
     <string name="label_highnoise_lora">LoRA wysokiego szumu</string>
@@ -443,7 +445,7 @@
     <string name="error_steps_range">Musi być 1–255</string>
     <string name="error_cfg_range">Musi być 0,0–100,0</string>
     <string name="error_megapixels_range">Musi być 0,1–8,3</string>
-    <string name="error_length_range">Musi być 1–129</string>
+    <string name="error_length_range">Musi wynosić co najmniej 1</string>
     <string name="error_length_step">Musi być 1, 5, 9, 13… (co 4)</string>
     <string name="error_fps_range">Musi być 1–120</string>
     <string name="error_invalid_number">Nieprawidłowa liczba</string>
@@ -485,6 +487,7 @@
     <string name="workflow_section_iti_editing">Obraz na obraz: Edycja</string>
     <string name="workflow_section_ttv">Tekst na wideo</string>
     <string name="workflow_section_itv">Obraz na wideo</string>
+    <string name="workflow_section_v2v">Wideo na wideo</string>
     <string name="workflow_section_empty">Brak przepływów pracy</string>
     <string name="label_workflows_enabled_count">Włączone: %1$d z %2$d</string>
     <string name="label_workflows_filter_all">Wszystkie</string>
@@ -842,6 +845,7 @@
     <string name="field_cfg_scale">Skala CFG</string>
     <string name="field_unet_model">Model UNET</string>
     <string name="field_input_image">Obraz wejściowy</string>
+    <string name="field_input_video">Wideo wejściowe</string>
     <string name="field_frame_rate">Liczba klatek</string>
 
     <!-- Field descriptions for workflow editor -->
@@ -866,6 +870,7 @@
     <string name="field_desc_length">Długość wideo w klatkach</string>
     <string name="field_desc_frame_rate">Klatki na sekundę wideo</string>
     <string name="field_desc_image">Obraz źródłowy do generowania</string>
+    <string name="field_desc_video">Wideo źródłowe do generowania</string>
     <string name="field_desc_seed">Losowy seed do generowania</string>
     <string name="field_desc_denoise">Siła odszumiania (0,0–1,0)</string>
     <string name="field_desc_batch_size">Liczba obrazów w partii</string>
@@ -915,6 +920,7 @@
     <string name="screen_type_image_to_image">Obraz na obraz</string>
     <string name="screen_type_text_to_video">Tekst na wideo</string>
     <string name="screen_type_image_to_video">Obraz na wideo</string>
+    <string name="screen_type_video_to_video">Wideo na wideo</string>
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Zapisz prompt do biblioteki</string>

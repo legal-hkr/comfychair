@@ -47,7 +47,8 @@ enum class WorkflowFilter(val types: Set<WorkflowType>) {
     TTI(setOf(WorkflowType.TTI)),
     ITI(setOf(WorkflowType.ITI_EDITING, WorkflowType.ITI_INPAINTING)),
     TTV(setOf(WorkflowType.TTV)),
-    ITV(setOf(WorkflowType.ITV))
+    ITV(setOf(WorkflowType.ITV)),
+    V2V(setOf(WorkflowType.V2V))
 }
 
 /**
@@ -60,6 +61,7 @@ data class WorkflowManagementUiState(
     val itiEditingWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val ttvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     val itvWorkflows: List<WorkflowManager.Workflow> = emptyList(),
+    val v2vWorkflows: List<WorkflowManager.Workflow> = emptyList(),
     // Workflows switched off by the user (not offered on the generation screens)
     val disabledWorkflowIds: Set<String> = emptySet(),
     // Types shown; kept while the app runs (the view model belongs to the activity), not saved
@@ -172,7 +174,8 @@ class WorkflowManagementViewModel : ViewModel() {
             itiInpaintingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_INPAINTING),
             itiEditingWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITI_EDITING),
             ttvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.TTV),
-            itvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV)
+            itvWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.ITV),
+            v2vWorkflows = WorkflowManager.getWorkflowsByType(WorkflowType.V2V)
         )
     }
 
@@ -459,33 +462,29 @@ class WorkflowManagementViewModel : ViewModel() {
             } else {
                 val candidates = mutableListOf<FieldCandidate>()
 
-                // Get the actual JSON input key for this placeholder
-                // e.g., "highnoise_unet_name" -> "unet_name", "lownoise_lora_name" -> "lora_name"
-                val jsonInputKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(fieldKey)
+                // Every node input that can hold the field: its JSON key and the alternatives
+                // (e.g. "highnoise_unet_name" -> "unet_name"; "video" -> also LoadVideo's "file")
+                val inputKeys = TemplateKeyRegistry.inputKeysForField(fieldKey)
 
-                // Find all nodes that have this input key
                 for (nodeId in nodesJson.keys()) {
                     val node = nodesJson.optJSONObject(nodeId) ?: continue
                     val inputs = node.optJSONObject("inputs") ?: continue
 
-                    if (inputs.has(jsonInputKey)) {
-                        val currentValue = inputs.opt(jsonInputKey)
-
-                        if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
-                            val classType = node.optString("class_type", "Unknown")
-                            val meta = node.optJSONObject("_meta")
-                            val title = meta?.optString("title") ?: classType
-
-                            candidates.add(
-                                FieldCandidate(
-                                    nodeId = nodeId,
-                                    nodeName = title,
-                                    classType = classType,
-                                    inputKey = jsonInputKey,
-                                    currentValue = currentValue
-                                )
+                    for (inputKey in inputKeys) {
+                        if (!inputs.has(inputKey)) continue
+                        val currentValue = inputs.opt(inputKey)
+                        if (!TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) continue
+                        val classType = node.optString("class_type", "Unknown")
+                        val title = node.optJSONObject("_meta")?.optString("title") ?: classType
+                        candidates.add(
+                            FieldCandidate(
+                                nodeId = nodeId,
+                                nodeName = title,
+                                classType = classType,
+                                inputKey = inputKey,
+                                currentValue = currentValue
                             )
-                        }
+                        )
                     }
                 }
 

@@ -38,6 +38,7 @@ object TemplateKeyRegistry {
         "length" to "length",
         "frame_rate" to "fps",
         "image_filename" to "image",
+        "video_filename" to "video",
         "seed" to "seed",
         "denoise" to "denoise",
         "batch_size" to "batch_size",
@@ -76,6 +77,7 @@ object TemplateKeyRegistry {
         "length" to "length",
         "fps" to "frame_rate",
         "image" to "image_filename",
+        "video" to "video_filename",
         "seed" to "seed",
         "denoise" to "denoise",
         "batch_size" to "batch_size",
@@ -106,7 +108,8 @@ object TemplateKeyRegistry {
         WorkflowType.ITI_INPAINTING to setOf("image"),
         WorkflowType.ITI_EDITING to setOf("image"),
         WorkflowType.TTV to emptySet(),
-        WorkflowType.ITV to setOf("image")
+        WorkflowType.ITV to setOf("image"),
+        WorkflowType.V2V to setOf("video")
     )
 
     /**
@@ -134,7 +137,8 @@ object TemplateKeyRegistry {
         WorkflowType.ITI_INPAINTING to UNIVERSAL_OPTIONAL_KEYS,
         WorkflowType.ITI_EDITING to UNIVERSAL_OPTIONAL_KEYS,
         WorkflowType.TTV to UNIVERSAL_OPTIONAL_KEYS,
-        WorkflowType.ITV to UNIVERSAL_OPTIONAL_KEYS
+        WorkflowType.ITV to UNIVERSAL_OPTIONAL_KEYS,
+        WorkflowType.V2V to UNIVERSAL_OPTIONAL_KEYS
     )
 
     /**
@@ -320,7 +324,9 @@ object TemplateKeyRegistry {
      * This supports nodes like RandomNoise that use "noise_seed" instead of "seed".
      */
     private val ALTERNATIVE_INPUT_KEYS: Map<String, Set<String>> = mapOf(
-        "seed" to setOf("seed", "noise_seed")
+        "seed" to setOf("seed", "noise_seed"),
+        // VHS_LoadVideo's file is "video", ComfyUI's LoadVideo's "file"
+        "video" to setOf("video", "file")
     )
 
     /**
@@ -332,6 +338,10 @@ object TemplateKeyRegistry {
      * @param inputKey The actual input key from the node (e.g., "unet_name")
      * @return true if the input key corresponds to this field
      */
+    /** Every node input name that can hold a field: its own and the alternatives (e.g. LoadVideo's "file"). */
+    fun inputKeysForField(fieldKey: String): Set<String> =
+        setOf(getJsonKeyForPlaceholder(fieldKey)) + ALTERNATIVE_INPUT_KEYS[fieldKey].orEmpty()
+
     fun doesInputKeyMatchField(fieldKey: String, inputKey: String): Boolean {
         val expectedJsonKey = getJsonKeyForPlaceholder(fieldKey)
         // Check primary key match
@@ -357,6 +367,8 @@ object TemplateKeyRegistry {
                 val placeholderPattern = "{{$fieldKey}}"
                 inputValue?.toString()?.contains(placeholderPattern) ?: false
             }
+            // The source video is a file name: "video" is also the name of VIDEO links between nodes
+            fieldKey == "video" -> inputValue is String
             // For all other fields, accept any node with the correct JSON input key
             else -> true
         }

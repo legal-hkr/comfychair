@@ -149,6 +149,7 @@
     <string name="nav_tab_video">Video</string>
     <string name="label_source_text">Text</string>
     <string name="label_source_image">Image</string>
+    <string name="label_source_video">Video</string>
     <string name="content_description_source_switch">Generate from</string>
     <string name="msg_image_ready">Image ready</string>
     <string name="msg_video_ready">Video ready</string>
@@ -261,6 +262,7 @@
 
     <!-- Image to Video fragment strings (ITV-specific) -->
     <string name="nav_image_to_video">Image to Video</string>
+    <string name="nav_video_to_video">Video to Video</string>
 
     <!-- Image-to-image fragment strings -->
     <string name="label_megapixels">Megapixels</string>
@@ -472,7 +474,7 @@
     <string name="error_steps_range">Must be 1–255</string>
     <string name="error_cfg_range">Must be 0.0–100.0</string>
     <string name="error_megapixels_range">Must be 0.1–8.3</string>
-    <string name="error_length_range">Must be 1–129</string>
+    <string name="error_length_range">Must be at least 1</string>
     <string name="error_length_step">Must be 1, 5, 9, 13… (steps of 4)</string>
     <string name="error_fps_range">Must be 1–120</string>
     <string name="error_invalid_number">Invalid number</string>
@@ -519,6 +521,7 @@
     <string name="field_cfg_scale">CFG Scale</string>
     <string name="field_unet_model">UNET Model</string>
     <string name="field_input_image">Input Image</string>
+    <string name="field_input_video">Input Video</string>
     <string name="field_frame_rate">Frame Rate</string>
 
     <!-- Field descriptions for workflow editor -->
@@ -543,6 +546,7 @@
     <string name="field_desc_length">Video length in frames</string>
     <string name="field_desc_frame_rate">Video frames per second</string>
     <string name="field_desc_image">Source image for generation</string>
+    <string name="field_desc_video">Source video for generation</string>
     <string name="field_desc_seed">Random seed for generation</string>
     <string name="field_desc_denoise">Denoising strength (0.0–1.0)</string>
     <string name="field_desc_batch_size">Number of images per batch</string>
@@ -567,6 +571,7 @@
     <string name="workflow_section_iti_editing">Image to Image: Editing</string>
     <string name="workflow_section_ttv">Text to Video</string>
     <string name="workflow_section_itv">Image to Video</string>
+    <string name="workflow_section_v2v">Video to Video</string>
     <string name="workflow_section_empty">No workflows</string>
     <string name="label_workflows_enabled_count">%1$d of %2$d enabled</string>
     <string name="label_workflows_filter_all">All</string>
@@ -901,6 +906,7 @@
     <string name="screen_type_image_to_image">Image to Image</string>
     <string name="screen_type_text_to_video">Text to Video</string>
     <string name="screen_type_image_to_video">Image to Video</string>
+    <string name="screen_type_video_to_video">Video to Video</string>
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Save prompt to library</string>

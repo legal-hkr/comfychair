@@ -175,6 +175,7 @@
     <string name="nav_tab_video">Vídeo</string>
     <string name="label_source_text">Texto</string>
     <string name="label_source_image">Imagen</string>
+    <string name="label_source_video">Vídeo</string>
     <string name="content_description_source_switch">Generar a partir de</string>
     <string name="msg_image_ready">Imagen lista</string>
     <string name="msg_video_ready">Vídeo listo</string>
@@ -245,6 +246,7 @@
 
     <!-- Image to Video fragment strings -->
     <string name="nav_image_to_video">Imagen a vídeo</string>
+    <string name="nav_video_to_video">Vídeo a vídeo</string>
     <string name="label_highnoise_unet">UNET de ruido alto</string>
     <string name="label_lownoise_unet">UNET de ruido bajo</string>
     <string name="label_highnoise_lora">LoRA de ruido alto</string>
@@ -431,7 +433,7 @@
     <string name="error_steps_range">Debe ser 1–255</string>
     <string name="error_cfg_range">Debe ser 0,0–100,0</string>
     <string name="error_megapixels_range">Debe ser 0,1–8,3</string>
-    <string name="error_length_range">Debe ser 1–129</string>
+    <string name="error_length_range">Debe ser al menos 1</string>
     <string name="error_length_step">Debe ser 1, 5, 9, 13… (pasos de 4)</string>
     <string name="error_fps_range">Debe ser 1–120</string>
     <string name="error_invalid_number">Número inválido</string>
@@ -472,6 +474,7 @@
     <string name="workflow_section_iti_editing">Imagen a imagen: Edición</string>
     <string name="workflow_section_ttv">Texto a vídeo</string>
     <string name="workflow_section_itv">Imagen a vídeo</string>
+    <string name="workflow_section_v2v">Vídeo a vídeo</string>
     <string name="workflow_section_empty">Sin workflows</string>
     <string name="label_workflows_enabled_count">Activados: %1$d de %2$d</string>
     <string name="label_workflows_filter_all">Todos</string>
@@ -820,6 +823,7 @@
     <string name="field_cfg_scale">Escala CFG</string>
     <string name="field_unet_model">Modelo UNET</string>
     <string name="field_input_image">Imagen de entrada</string>
+    <string name="field_input_video">Vídeo de entrada</string>
     <string name="field_frame_rate">Velocidad de fotogramas</string>
 
     <!-- Field descriptions for workflow editor -->
@@ -844,6 +848,7 @@
     <string name="field_desc_length">Duración del video en fotogramas</string>
     <string name="field_desc_frame_rate">Fotogramas por segundo del video</string>
     <string name="field_desc_image">Imagen fuente para la generación</string>
+    <string name="field_desc_video">Vídeo fuente para la generación</string>
     <string name="field_desc_seed">Seed aleatorio para la generación</string>
     <string name="field_desc_denoise">Fuerza de reducción de ruido (0,0–1,0)</string>
     <string name="field_desc_batch_size">Número de imágenes por lote</string>
@@ -893,6 +898,7 @@
     <string name="screen_type_image_to_image">Imagen a imagen</string>
     <string name="screen_type_text_to_video">Texto a vídeo</string>
     <string name="screen_type_image_to_video">Imagen a vídeo</string>
+    <string name="screen_type_video_to_video">Vídeo a vídeo</string>
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Guardar prompt en la biblioteca</string>

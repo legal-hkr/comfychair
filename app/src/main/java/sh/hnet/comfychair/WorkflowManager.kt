@@ -32,7 +32,8 @@ enum class WorkflowType {
     ITI_INPAINTING,   // Image-to-Image Inpainting
     ITI_EDITING,      // Image-to-Image Editing
     TTV,              // Text-to-Video
-    ITV               // Image-to-Video
+    ITV,              // Image-to-Video
+    V2V               // Video-to-Video
 }
 
 /**
@@ -49,7 +50,8 @@ object WorkflowTypeDisplay {
         WorkflowType.ITI_INPAINTING to R.string.workflow_section_iti_inpainting,
         WorkflowType.ITI_EDITING to R.string.workflow_section_iti_editing,
         WorkflowType.TTV to R.string.workflow_section_ttv,
-        WorkflowType.ITV to R.string.workflow_section_itv
+        WorkflowType.ITV to R.string.workflow_section_itv,
+        WorkflowType.V2V to R.string.workflow_section_v2v
     )
 
     /**
@@ -1655,7 +1657,9 @@ object WorkflowManager {
     data class WorkflowImages(
         val source: String? = null,
         val reference1: String? = null,
-        val reference2: String? = null
+        val reference2: String? = null,
+        /** The uploaded source video (Video to Video) */
+        val video: String? = null
     )
 
     /**
@@ -1706,6 +1710,9 @@ object WorkflowManager {
             val annotated = "${escapeForJson(name)} [input]"
             json = json.replace("{{reference_image_2}}", annotated)
             json = json.replace("reference_image_2.png [input]", annotated)
+        }
+        images.video?.let { name ->
+            json = json.replace("{{video_filename}}", "${escapeForJson(name)} [input]")
         }
 
         // Parameters

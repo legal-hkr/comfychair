@@ -167,6 +167,7 @@
     <string name="nav_tab_video">视频</string>
     <string name="label_source_text">文本</string>
     <string name="label_source_image">图像</string>
+    <string name="label_source_video">视频</string>
     <string name="content_description_source_switch">生成来源</string>
     <string name="msg_image_ready">图像已生成</string>
     <string name="msg_video_ready">视频已生成</string>
@@ -237,6 +238,7 @@
 
     <!-- Image to Video fragment strings -->
     <string name="nav_image_to_video">图生视频</string>
+    <string name="nav_video_to_video">视频生视频</string>
     <string name="label_highnoise_unet">高噪声 UNET</string>
     <string name="label_lownoise_unet">低噪声 UNET</string>
     <string name="label_highnoise_lora">高噪声 LoRA</string>
@@ -407,7 +409,7 @@
     <string name="error_steps_range">必须在 1–255 之间</string>
     <string name="error_cfg_range">必须在 0.0–100.0 之间</string>
     <string name="error_megapixels_range">必须在 0.1–8.3 之间</string>
-    <string name="error_length_range">必须在 1–129 之间</string>
+    <string name="error_length_range">必须至少为 1</string>
     <string name="error_length_step">必须为 1、5、9、13…（间隔为 4）</string>
     <string name="error_fps_range">必须在 1–120 之间</string>
     <string name="error_invalid_number">无效的数字</string>
@@ -446,6 +448,7 @@
     <string name="workflow_section_iti_editing">图生图：编辑</string>
     <string name="workflow_section_ttv">文生视频</string>
     <string name="workflow_section_itv">图生视频</string>
+    <string name="workflow_section_v2v">视频生视频</string>
     <string name="workflow_section_empty">暂无工作流</string>
     <string name="label_workflows_enabled_count">已启用 %1$d/%2$d</string>
     <string name="label_workflows_filter_all">全部</string>
@@ -776,6 +779,7 @@
     <string name="field_cfg_scale">CFG 比例</string>
     <string name="field_unet_model">UNET 模型</string>
     <string name="field_input_image">输入图像</string>
+    <string name="field_input_video">输入视频</string>
     <string name="field_frame_rate">帧率</string>
 
     <!-- Field descriptions for workflow editor -->
@@ -800,6 +804,7 @@
     <string name="field_desc_length">视频长度（帧数）</string>
     <string name="field_desc_frame_rate">视频每秒帧数</string>
     <string name="field_desc_image">用于生成的源图像</string>
+    <string name="field_desc_video">用于生成的源视频</string>
     <string name="field_desc_seed">用于生成的随机种子</string>
     <string name="field_desc_denoise">降噪强度（0.0–1.0）</string>
     <string name="field_desc_batch_size">每批图像数量</string>
@@ -849,6 +854,7 @@
     <string name="screen_type_image_to_image">图生图</string>
     <string name="screen_type_text_to_video">文生视频</string>
     <string name="screen_type_image_to_video">图生视频</string>
+    <string name="screen_type_video_to_video">视频生视频</string>
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">保存提示词到库</string>
