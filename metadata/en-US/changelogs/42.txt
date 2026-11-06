@@ -1,0 +1,14 @@
+v0.9.1
+
+New:
+- Video to Video screen, with SeedVR2 video upscaling
+- MiniMax H3 workflows for text, image and video, with sound
+- Edit a video result or animate its last frame
+- What's new page under Settings -> About
+- Full error details behind Show
+
+Bug fixes:
+- Long values shortened on import (#61)
+- Values shifted when importing from ComfyUI (#58)
+- Groups overlapping in the workflow editor
+- Wrong credentials reported as an unreachable server
