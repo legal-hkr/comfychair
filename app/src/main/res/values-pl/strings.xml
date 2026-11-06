@@ -737,6 +737,21 @@
     <string name="desc_backup_restore">Eksportuj lub importuj konfigurację aplikacji</string>
     <string name="button_backup_create">Utwórz kopię zapasową</string>
     <string name="button_backup_restore">Przywróć z kopii zapasowej</string>
+
+    <string name="server_workflow_import">Importuj z serwera</string>
+    <string name="server_workflow_refresh">Odśwież zapisane workflows</string>
+    <string name="server_workflow_search">Szukaj zapisanych workflow</string>
+    <string name="server_workflow_loading">Wczytywanie zapisanych workflow…</string>
+    <string name="server_workflow_downloading">Pobieranie workflow…</string>
+    <string name="server_workflow_empty">Nie znaleziono zapisanych workflow JSON</string>
+    <string name="server_workflow_disconnected">Połącz się z serwerem, aby przeglądać workflows</string>
+    <string name="server_workflow_unauthorized">Serwer odmówił dostępu (401/403)</string>
+    <string name="server_workflow_network_error">Nie udało się wczytać workflow z serwera</string>
+    <string name="server_workflow_invalid">Nieprawidłowa odpowiedź workflow lub ścieżka</string>
+    <string name="server_workflow_too_large">Workflow przekracza limit 8 MB</string>
+    <string name="server_workflow_metadata">%1$d KB · %2$s</string>
+    <string name="server_workflow_conversion_notes">Uwagi konwersji (sprawdź przed kontynuowaniem; niektóre wejścia mogą wymagać ręcznej poprawki):</string>
+    <string name="server_workflow_multiuser_unsupported">Ten serwer używa wielu użytkowników. Import workflow z serwera wymaga jawnie skonfigurowanej tożsamości użytkownika i jest tu niedostępny.</string>
     <string name="msg_backup_created_success">Kopia zapasowa utworzona pomyślnie</string>
     <string name="error_backup_create">Nie udało się utworzyć kopii zapasowej</string>
     <string name="msg_backup_restore_success">Ustawienia przywrócone pomyślnie</string>

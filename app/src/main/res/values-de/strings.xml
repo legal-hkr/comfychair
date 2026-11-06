@@ -237,6 +237,21 @@
     <string name="desc_backup_restore">App-Konfiguration exportieren oder importieren</string>
     <string name="button_backup_create">Sicherung erstellen</string>
     <string name="button_backup_restore">Aus Sicherung wiederherstellen</string>
+
+    <string name="server_workflow_import">Aus Server importieren</string>
+    <string name="server_workflow_refresh">Gespeicherte Workflows aktualisieren</string>
+    <string name="server_workflow_search">Gespeicherte Workflows durchsuchen</string>
+    <string name="server_workflow_loading">Gespeicherte Workflows werden geladen…</string>
+    <string name="server_workflow_downloading">Workflow wird geladen…</string>
+    <string name="server_workflow_empty">Keine gespeicherten JSON-Workflows gefunden</string>
+    <string name="server_workflow_disconnected">Verbinde dich mit einem Server, um Workflows zu durchsuchen</string>
+    <string name="server_workflow_unauthorized">Zugriff vom Server verweigert (401/403)</string>
+    <string name="server_workflow_network_error">Workflow konnte nicht vom Server geladen werden</string>
+    <string name="server_workflow_invalid">Ungültige Workflow-Antwort oder Pfad</string>
+    <string name="server_workflow_too_large">Workflow überschreitet das 8-MB-Limit</string>
+    <string name="server_workflow_metadata">%1$d KB · %2$s</string>
+    <string name="server_workflow_conversion_notes">Hinweise zur Konvertierung (vor dem Fortfahren prüfen; einige Eingaben müssen eventuell manuell korrigiert werden):</string>
+    <string name="server_workflow_multiuser_unsupported">Dieser Server verwendet mehrere Benutzer. Der Import von Server-Workflows erfordert eine explizit konfigurierte Benutzeridentität und ist hier nicht verfügbar.</string>
     <string name="msg_backup_created_success">Sicherung erfolgreich erstellt</string>
     <string name="error_backup_create">Sicherung konnte nicht erstellt werden</string>
     <string name="msg_backup_restore_success">Einstellungen erfolgreich wiederhergestellt</string>

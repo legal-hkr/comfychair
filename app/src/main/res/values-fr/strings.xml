@@ -718,6 +718,21 @@
     <string name="desc_backup_restore">Exporter ou importer la configuration de l\'application</string>
     <string name="button_backup_create">Créer une sauvegarde</string>
     <string name="button_backup_restore">Restaurer depuis une sauvegarde</string>
+
+    <string name="server_workflow_import">Importer du serveur</string>
+    <string name="server_workflow_refresh">Actualiser les workflows enregistrés</string>
+    <string name="server_workflow_search">Rechercher les workflows enregistrés</string>
+    <string name="server_workflow_loading">Chargement des workflows enregistrés…</string>
+    <string name="server_workflow_downloading">Téléchargement du workflow…</string>
+    <string name="server_workflow_empty">Aucun workflow JSON enregistré trouvé</string>
+    <string name="server_workflow_disconnected">Connectez-vous à un serveur pour parcourir les workflows</string>
+    <string name="server_workflow_unauthorized">Accès refusé par le serveur (401/403)</string>
+    <string name="server_workflow_network_error">Impossible de charger le workflow depuis le serveur</string>
+    <string name="server_workflow_invalid">Réponse de workflow ou chemin non valide</string>
+    <string name="server_workflow_too_large">Le workflow dépasse la limite de 8 Mo</string>
+    <string name="server_workflow_metadata">%1$d Ko · %2$s</string>
+    <string name="server_workflow_conversion_notes">Notes de conversion (à vérifier avant de continuer ; certaines entrées peuvent nécessiter une correction manuelle) :</string>
+    <string name="server_workflow_multiuser_unsupported">Ce serveur utilise plusieurs utilisateurs. L’import de workflows du serveur nécessite une identité utilisateur explicitement configurée et n’est pas disponible ici.</string>
     <string name="msg_backup_created_success">Sauvegarde créée avec succès</string>
     <string name="error_backup_create">Échec de la création de la sauvegarde</string>
     <string name="msg_backup_restore_success">Paramètres restaurés avec succès</string>

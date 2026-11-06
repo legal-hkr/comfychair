@@ -350,7 +350,7 @@ class WorkflowManagementViewModel : ViewModel() {
         if (!stillCurrent()) return false
         if (!valid) {
             if (suggestedName == null) {
-                _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+                emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
             }
             _uiState.value = _uiState.value.copy(isLoading = false)
             return false
@@ -362,7 +362,7 @@ class WorkflowManagementViewModel : ViewModel() {
         }
         if (!stillCurrent()) return false
         if (converted == null) {
-            if (suggestedName == null) _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+            if (suggestedName == null) emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
             _uiState.value = _uiState.value.copy(isLoading = false)
             return false
         }
@@ -467,7 +467,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 }
                 val workflowClassTypes = classTypesResult.getOrThrow()
                 if (workflowClassTypes.isEmpty()) {
-                    _events.emit(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
+                    emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
                     return@launch
                 }
