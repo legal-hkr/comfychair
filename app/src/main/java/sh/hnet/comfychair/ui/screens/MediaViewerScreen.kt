@@ -78,6 +78,7 @@ import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
+import sh.hnet.comfychair.ui.components.ErrorSnackbars
 import sh.hnet.comfychair.ui.components.ImageViewer
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.SharedVideoPlayer
@@ -136,6 +137,8 @@ fun MediaViewerScreen(
     // Metadata bottom sheet state
     var showMetadataSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    // The app's errors while the viewer is open (the main screens' snackbars are under it)
+    ErrorSnackbars(snackbarHostState)
     // Results of the job about to be deleted, while asking (only when there's more than the one shown)
     var confirmJobDeletion by remember { mutableStateOf<Int?>(null) }
     val resources = LocalResources.current

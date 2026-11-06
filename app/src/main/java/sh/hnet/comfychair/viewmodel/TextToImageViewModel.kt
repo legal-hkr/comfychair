@@ -4,9 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -16,14 +16,14 @@ import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
-import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
+import sh.hnet.comfychair.viewmodel.base.GenerationParams
 
 /**
  * UI state for the Text-to-Image screen.
@@ -290,12 +290,6 @@ class TextToImageViewModel : BaseGenerationViewModel<TextToImageUiState>() {
                     val message = applicationContext?.getString(R.string.msg_connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
                     _events.emit(GenerationScreenEvent.ShowToastMessage(message))
-                }
-            }
-            is GenerationEvent.Error -> {
-                DebugLogger.e(TAG, "Generation error")
-                viewModelScope.launch {
-                    _events.emit(GenerationScreenEvent.ShowToastMessage(event.message))
                 }
             }
             is GenerationEvent.ClearPreviewForResume -> {

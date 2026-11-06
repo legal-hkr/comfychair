@@ -18,12 +18,12 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
-import sh.hnet.comfychair.workflow.WorkflowConstraintsProvider
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.WorkflowItem
+import sh.hnet.comfychair.workflow.WorkflowConstraintsProvider
 
 /** Fallback values of the video screens; a workflow's saved values and template defaults come first. */
 val videoScreenDefaults = GenerationParams(width = "848", height = "480")
@@ -317,13 +317,6 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
                     val message = applicationContext?.getString(R.string.msg_connection_lost_generation_may_continue)
                         ?: "Connection lost. Will check for completion when reconnected."
                     _events.emit(GenerationScreenEvent.ShowToastMessage(message))
-                }
-            }
-            is GenerationEvent.Error -> {
-                // DON'T complete the generation - this may just be a connection error and the
-                // server might still finish it
-                viewModelScope.launch {
-                    _events.emit(GenerationScreenEvent.ShowToastMessage(event.message))
                 }
             }
             is GenerationEvent.ClearPreviewForResume -> {

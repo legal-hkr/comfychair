@@ -59,6 +59,7 @@ import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.navigation.SettingsRoute
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.JobStatus
+import sh.hnet.comfychair.ui.components.ErrorSnackbars
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.LocalCoveredByMediaViewer
 import sh.hnet.comfychair.ui.components.LocalMediaOrigins
@@ -256,6 +257,9 @@ fun MainNavHost(
             navController.navigate(SettingsRoute.WhatsNew.route)
         }
     }
+
+    // The app's errors, here unless the media viewer covers this screen (it shows them itself)
+    ErrorSnackbars(snackbarHostState, active = !viewerOpen)
 
     // The gallery's selection toolbar takes the navigation bar's place
     val galleryState by galleryViewModel.uiState.collectAsState()

@@ -82,6 +82,8 @@ import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
 import sh.hnet.comfychair.ui.components.config.optionsLayout
+import sh.hnet.comfychair.util.AppError
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.ContentType
 import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -372,18 +374,20 @@ fun rememberJobSubmitter(
                 }
                 val workflowJson = prepare()
                 if (workflowJson == null) {
-                    Toast.makeText(context, resources.getString(R.string.error_failed_load_workflow), Toast.LENGTH_SHORT).show()
+                    AppErrors.report(context, R.string.error_failed_load_workflow)
                     return@launch
                 }
                 val description = describe()
                 generationViewModel.startGeneration(workflowJson, ownerId, contentType, front) { success, promptId, errorMessage ->
                     if (success && promptId != null && description != null) JobRegistry.describeJob(promptId, description)
                     if (!success) {
-                        Toast.makeText(
-                            context,
-                            errorMessage ?: resources.getString(R.string.error_generation_failed),
-                            Toast.LENGTH_LONG
-                        ).show()
+                        // The server's reasons (e.g. the inputs that failed validation) behind Show
+                        AppErrors.report(
+                            AppError(
+                                message = resources.getString(R.string.error_submit_failed),
+                                details = errorMessage?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+                            )
+                        )
                     }
                 }
             }

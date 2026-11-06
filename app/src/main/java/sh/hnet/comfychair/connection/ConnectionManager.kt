@@ -765,7 +765,17 @@ object ConnectionManager {
                     if (!promptId.isNullOrEmpty()) {
                         JobRegistry.markFailed(promptId)
                     }
-                    WebSocketMessage.ExecutionError(promptId, errorMsg)
+                    val traceback = data?.optJSONArray("traceback")?.let { lines ->
+                        (0 until lines.length()).map { lines.optString(it) }
+                    }.orEmpty()
+                    WebSocketMessage.ExecutionError(
+                        promptId = promptId,
+                        message = errorMsg,
+                        nodeType = data?.optString("node_type")?.takeIf { it.isNotEmpty() },
+                        nodeId = data?.optString("node_id")?.takeIf { it.isNotEmpty() },
+                        exceptionType = data?.optString("exception_type")?.takeIf { it.isNotEmpty() },
+                        traceback = traceback
+                    )
                 }
                 "execution_success" -> {
                     val data = message.optJSONObject("data")

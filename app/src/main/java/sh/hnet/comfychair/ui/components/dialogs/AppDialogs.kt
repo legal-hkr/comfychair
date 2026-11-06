@@ -289,7 +289,7 @@ fun InfoDialog(
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(text)
+                if (text.isNotEmpty()) Text(text)
                 if (details.isNotEmpty()) {
                     SelectionContainer {
                         Column(

@@ -281,6 +281,8 @@
     <string name="error_not_comfyui_server">No es un servidor ComfyUI</string>
     <string name="error_invalid_server_response">Respuesta del servidor inválida</string>
     <string name="error_failed_load_workflow">Error al cargar el workflow</string>
+    <string name="error_submit_failed">El servidor no aceptó la tarea</string>
+    <string name="error_node_failed">Error en el nodo %1$s</string>
     <string name="error_generation_failed">La generación falló</string>
     <string name="msg_outputs_skipped">El servidor omitió parte del flujo de trabajo: %1$s</string>
     <string name="msg_outputs_skipped_more">El servidor omitió parte del flujo de trabajo: %1$s (y %2$d más)</string>

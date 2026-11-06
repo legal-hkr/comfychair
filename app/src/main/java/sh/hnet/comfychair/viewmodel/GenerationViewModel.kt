@@ -29,6 +29,8 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.JobStatus
 import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.util.AppError
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.Obfuscator
@@ -72,7 +74,6 @@ sealed class GenerationEvent {
     data class ImageGenerated(val promptId: String) : GenerationEvent()
     data class VideoGenerated(val promptId: String) : GenerationEvent()
     data class PreviewImage(val bitmap: Bitmap) : GenerationEvent()
-    data class Error(val message: String) : GenerationEvent()
     data object GenerationCancelled : GenerationEvent()
     data object ConnectionLostDuringGeneration : GenerationEvent()
     data object ClearPreviewForResume : GenerationEvent()
@@ -274,11 +275,7 @@ class GenerationViewModel : ViewModel() {
             }
             is WebSocketMessage.ExecutionError -> {
                 if (message.promptId == currentState.promptId || message.promptId == null) {
-                    // Dispatch error event BEFORE resetting state, so ownerId is still available
-                    // for handler matching in dispatchEvent()
-                    val errorMessage = applicationContext?.getString(R.string.error_generation_failed)
-                        ?: "Generation failed"
-                    dispatchEvent(GenerationEvent.Error(errorMessage))
+                    applicationContext?.let { reportExecutionError(it, message) }
                     resetGenerationState()
                 }
             }
@@ -640,6 +637,21 @@ class GenerationViewModel : ViewModel() {
         }
     }
 
+    /** The failed job's error, with the node and the server's message and traceback behind Show. */
+    private fun reportExecutionError(context: Context, error: WebSocketMessage.ExecutionError) {
+        val node = error.nodeType?.let { type ->
+            context.getString(R.string.error_node_failed, error.nodeId?.let { "$type (#$it)" } ?: type)
+        }
+        val message = error.exceptionType?.let { "$it: ${error.message}" } ?: error.message
+        AppErrors.report(
+            AppError(
+                message = context.getString(R.string.error_generation_failed),
+                text = node,
+                details = listOfNotNull(message.trim().takeIf { it.isNotEmpty() }, error.traceback.joinToString("").trim().takeIf { it.isNotEmpty() })
+            )
+        )
+    }
+
     /**
      * Submit workflow to server
      */
@@ -657,17 +669,15 @@ class GenerationViewModel : ViewModel() {
                 DebugLogger.i(TAG, "Workflow submitted successfully (promptId: ${Obfuscator.promptId(promptId)})")
 
                 // ComfyUI queued the job but dropped outputs that failed validation; tell the user
-                // instead of silently delivering an incomplete result (full list in the debug log)
+                // instead of silently delivering an incomplete result (the full list behind Show)
                 if (skippedOutputs.isNotEmpty()) {
-                    mainHandler.post {
-                        applicationContext?.let { ctx ->
-                            val message = if (skippedOutputs.size == 1) {
-                                ctx.getString(R.string.msg_outputs_skipped, skippedOutputs.first())
-                            } else {
-                                ctx.getString(R.string.msg_outputs_skipped_more, skippedOutputs.first(), skippedOutputs.size - 1)
-                            }
-                            Toast.makeText(ctx, message, Toast.LENGTH_LONG).show()
+                    applicationContext?.let { ctx ->
+                        val message = if (skippedOutputs.size == 1) {
+                            ctx.getString(R.string.msg_outputs_skipped, skippedOutputs.first())
+                        } else {
+                            ctx.getString(R.string.msg_outputs_skipped_more, skippedOutputs.first(), skippedOutputs.size - 1)
                         }
+                        AppErrors.report(AppError(message, details = skippedOutputs))
                     }
                 }
 
