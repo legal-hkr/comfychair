@@ -20,7 +20,7 @@ private val noOpIntFloat: (Int, Float) -> Unit = { _, _ -> }
 /**
  * Build the common ModelConfig from CommonGenerationState.
  *
- * Handles: checkpoint, unet, vae, clip, clip1-4, textEncoder, latentUpscaleModel
+ * Handles: checkpoint, unet, vae, audio VAE, clip, clip1-4, textEncoder, latentUpscaleModel
  * Does NOT handle: highnoise/lownoise variants (video-specific)
  */
 internal fun buildCommonModelConfig(
@@ -116,6 +116,15 @@ internal fun buildCommonModelConfig(
             options = state.availableLatentUpscaleModels,
             filteredOptions = state.filteredLatentUpscaleModels,
             onValueChange = callbacks.onLatentUpscaleModelChange ?: noOpString,
+            isVisible = true
+        ) else null,
+
+        audioVae = if (caps.hasAudioVaeName) ModelField(
+            label = R.string.label_audio_vae,
+            selectedValue = state.selectedAudioVae,
+            options = state.availableVaes,
+            filteredOptions = state.filteredAudioVaes,
+            onValueChange = callbacks.onAudioVaeChange ?: noOpString,
             isVisible = true
         ) else null
     )

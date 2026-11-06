@@ -18,6 +18,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.workflow.WorkflowConstraintsProvider
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.GenerationEvent
 import sh.hnet.comfychair.viewmodel.GenerationScreenEvent
@@ -55,7 +56,13 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
 
     override val fallbackParams: GenerationParams get() = videoScreenDefaults
 
-    override fun validateLength(length: String) = ValidationUtils.validateVideoLength(length, applicationContext)
+    /** On the frame grid of the selected workflow's latent node (its minimum and step, e.g. 17k+5 for MiniMax H3). */
+    override fun validateLength(length: String): String? {
+        val constraints = WorkflowConstraintsProvider.getConstraints("length", currentParams.selectedWorkflow)
+        return ValidationUtils.validateVideoLength(
+            length, applicationContext, min = constraints.min.toInt().coerceAtLeast(1), step = constraints.step.toInt()
+        )
+    }
 
     private fun updateVideo(transform: (VideoResult) -> VideoResult) {
         _uiState.update { it.withVideo(transform(it.video())) }

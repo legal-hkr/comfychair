@@ -415,7 +415,8 @@
     <string name="error_cfg_range">必须在 0.0–100.0 之间</string>
     <string name="error_megapixels_range">必须在 0.1–8.3 之间</string>
     <string name="error_length_range">必须至少为 1</string>
-    <string name="error_length_step">必须为 1、5、9、13…（间隔为 4）</string>
+    <string name="error_length_min">必须至少为 %1$d</string>
+    <string name="error_length_step">必须为 %1$d、%2$d、%3$d…（间隔为 %4$d）</string>
     <string name="error_fps_range">必须在 1–120 之间</string>
     <string name="error_invalid_number">无效的数字</string>
 
@@ -799,6 +800,8 @@
     <string name="field_desc_negative_prompt">描述要避免内容的文本</string>
     <string name="field_desc_checkpoint">要使用的检查点模型</string>
     <string name="field_desc_unet">扩散模型</string>
+    <string name="label_audio_vae">音频 VAE</string>
+    <string name="field_desc_audio_vae">用于解码声音的 VAE</string>
     <string name="field_desc_vae">VAE 编码器/解码器</string>
     <string name="field_desc_clip">CLIP 文本编码器</string>
     <string name="field_desc_clip1">第一个 CLIP 文本编码器</string>

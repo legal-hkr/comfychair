@@ -523,6 +523,7 @@ fun generationCallbacks(viewModel: BaseGenerationViewModel<*>) = UnifiedCallback
     onClip4Change = viewModel::onClip4Change,
     onTextEncoderChange = viewModel::onTextEncoderChange,
     onLatentUpscaleModelChange = viewModel::onLatentUpscaleModelChange,
+    onAudioVaeChange = viewModel::onAudioVaeChange,
     onMandatoryLoraChange = viewModel::onMandatoryLoraChange,
     onHighnoiseUnetChange = viewModel::onHighnoiseUnetChange,
     onLownoiseUnetChange = viewModel::onLownoiseUnetChange,

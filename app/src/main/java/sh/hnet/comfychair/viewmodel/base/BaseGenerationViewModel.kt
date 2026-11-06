@@ -283,6 +283,7 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
     fun onClip4Change(clip: String) = onModelChange(ModelSlot.CLIP4, clip)
     fun onTextEncoderChange(textEncoder: String) = onModelChange(ModelSlot.TEXT_ENCODER, textEncoder)
     fun onLatentUpscaleModelChange(model: String) = onModelChange(ModelSlot.LATENT_UPSCALE_MODEL, model)
+    fun onAudioVaeChange(vae: String) = onModelChange(ModelSlot.AUDIO_VAE, vae)
     fun onMandatoryLoraChange(loraName: String) = onModelChange(ModelSlot.LORA, loraName)
     fun onHighnoiseUnetChange(unet: String) = onModelChange(ModelSlot.HIGHNOISE_UNET, unet)
     fun onLownoiseUnetChange(unet: String) = onModelChange(ModelSlot.LOWNOISE_UNET, unet)

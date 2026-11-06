@@ -19,6 +19,7 @@ object TemplateKeyRegistry {
         "ckpt_name" to "ckpt_name",
         "unet_name" to "unet_name",
         "vae_name" to "vae_name",
+        "audio_vae_name" to "vae_name",
         "clip_name" to "clip_name",
         "clip_name1" to "clip_name1",
         "clip_name2" to "clip_name2",
@@ -125,7 +126,7 @@ object TemplateKeyRegistry {
         "highnoise_lora_name", "lownoise_lora_name",
         "length", "fps",
         "seed", "denoise", "batch_size", "upscale_method", "scale_by", "stop_at_clip_layer",
-        "text_encoder_name", "latent_upscale_model"
+        "text_encoder_name", "latent_upscale_model", "audio_vae_name"
     )
 
     /**
@@ -363,7 +364,8 @@ object TemplateKeyRegistry {
         // For highnoise/lownoise variants, we need to check the specific placeholder
         // to distinguish between them (both map to the same JSON key like "unet_name")
         return when {
-            fieldKey.startsWith("highnoise_") || fieldKey.startsWith("lownoise_") -> {
+            // Likewise the audio VAE, a second "vae_name" next to the video VAE
+            fieldKey.startsWith("highnoise_") || fieldKey.startsWith("lownoise_") || fieldKey == "audio_vae_name" -> {
                 val placeholderPattern = "{{$fieldKey}}"
                 inputValue?.toString()?.contains(placeholderPattern) ?: false
             }

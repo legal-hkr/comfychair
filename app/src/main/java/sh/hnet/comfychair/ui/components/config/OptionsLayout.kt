@@ -25,7 +25,7 @@ enum class OptionField(val half: Boolean = false) {
     LORA_NAME, HIGHNOISE_LORA_NAME, LOWNOISE_LORA_NAME, LORA_CHAIN, HIGHNOISE_LORA_CHAIN, LOWNOISE_LORA_CHAIN,
 
     // Models
-    CHECKPOINT, UNET, HIGHNOISE_UNET, LOWNOISE_UNET, VAE, CLIP, CLIP1, CLIP2, CLIP3, CLIP4, TEXT_ENCODER,
+    CHECKPOINT, UNET, HIGHNOISE_UNET, LOWNOISE_UNET, VAE, AUDIO_VAE, CLIP, CLIP1, CLIP2, CLIP3, CLIP4, TEXT_ENCODER,
     LATENT_UPSCALE_MODEL
 }
 
@@ -74,7 +74,7 @@ private val templates: Map<OptionsSection, List<List<OptionField>>> = mapOf(
     OptionsSection.MODELS to listOf(
         listOf(OptionField.CHECKPOINT), listOf(OptionField.UNET),
         listOf(OptionField.HIGHNOISE_UNET), listOf(OptionField.LOWNOISE_UNET),
-        listOf(OptionField.VAE), listOf(OptionField.CLIP),
+        listOf(OptionField.VAE), listOf(OptionField.AUDIO_VAE), listOf(OptionField.CLIP),
         listOf(OptionField.CLIP1), listOf(OptionField.CLIP2), listOf(OptionField.CLIP3), listOf(OptionField.CLIP4),
         listOf(OptionField.TEXT_ENCODER), listOf(OptionField.LATENT_UPSCALE_MODEL)
     )
@@ -109,6 +109,7 @@ private fun WorkflowCapabilities.has(field: OptionField): Boolean = when (field)
     OptionField.HIGHNOISE_UNET -> hasHighnoiseUnetName
     OptionField.LOWNOISE_UNET -> hasLownoiseUnetName
     OptionField.VAE -> hasVaeName
+    OptionField.AUDIO_VAE -> hasAudioVaeName
     OptionField.CLIP -> hasClipName
     OptionField.CLIP1 -> hasClipName1
     OptionField.CLIP2 -> hasClipName2

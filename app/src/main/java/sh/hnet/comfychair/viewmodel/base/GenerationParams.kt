@@ -24,6 +24,8 @@ enum class ModelSlot(
     // Older Text/Image to Image versions kept the UNET in `model`; the name check keeps a checkpoint name from being taken
     UNET("unet_name", { it.unets }, { it.unetModel ?: it.model }),
     VAE("vae_name", { it.vaes }, { it.vaeModel }),
+    // A second VAE for models that decode sound separately (e.g. MiniMax H3)
+    AUDIO_VAE("audio_vae_name", { it.vaes }, { it.audioVaeModel }),
     CLIP("clip_name", { it.clips }, { it.clipModel }),
     CLIP1("clip_name1", { it.clips }, { it.clip1Model }),
     CLIP2("clip_name2", { it.clips }, { it.clip2Model }),
@@ -117,6 +119,7 @@ data class GenerationParams(
     override val selectedClip4: String get() = selection(ModelSlot.CLIP4)
     override val selectedTextEncoder: String get() = selection(ModelSlot.TEXT_ENCODER)
     override val selectedLatentUpscaleModel: String get() = selection(ModelSlot.LATENT_UPSCALE_MODEL)
+    override val selectedAudioVae: String get() = selection(ModelSlot.AUDIO_VAE)
     override val selectedLoraName: String get() = selection(ModelSlot.LORA)
     override val selectedHighnoiseUnet: String get() = selection(ModelSlot.HIGHNOISE_UNET)
     override val selectedLownoiseUnet: String get() = selection(ModelSlot.LOWNOISE_UNET)
@@ -146,6 +149,7 @@ data class GenerationParams(
     override val filteredClips4: List<String>? get() = filteredOptions[ModelSlot.CLIP4]
     override val filteredTextEncoders: List<String>? get() = filteredOptions[ModelSlot.TEXT_ENCODER]
     override val filteredLatentUpscaleModels: List<String>? get() = filteredOptions[ModelSlot.LATENT_UPSCALE_MODEL]
+    override val filteredAudioVaes: List<String>? get() = filteredOptions[ModelSlot.AUDIO_VAE]
     override val filteredLoras: List<String>? get() = filteredOptions[ModelSlot.LORA]
 
     /** A model chosen by the user; it wins over a saved one still waiting for the server's lists. */
@@ -284,6 +288,7 @@ data class GenerationParams(
         clip4Model = stored(ModelSlot.CLIP4),
         textEncoderModel = stored(ModelSlot.TEXT_ENCODER),
         latentUpscaleModel = stored(ModelSlot.LATENT_UPSCALE_MODEL),
+        audioVaeModel = stored(ModelSlot.AUDIO_VAE),
         highnoiseUnetModel = stored(ModelSlot.HIGHNOISE_UNET),
         lownoiseUnetModel = stored(ModelSlot.LOWNOISE_UNET),
         highnoiseLoraModel = stored(ModelSlot.HIGHNOISE_LORA),

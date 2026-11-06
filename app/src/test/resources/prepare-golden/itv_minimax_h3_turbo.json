@@ -1,0 +1,238 @@
+{
+  "defaults": {
+    "length": 124,
+    "megapixels": 0.4,
+    "sampler_name": "res_multistep",
+    "scheduler": "simple",
+    "steps": 8
+  },
+  "description": "Workflow for MiniMax H3 image to video with native stereo sound (8-step Turbo LoRA)",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["10", "11", "12", "13", "note:1"],
+    "title": "Model Loaders"
+  }, {
+    "id": 2,
+    "member_nodes": ["14", "note:2"],
+    "title": "Turbo LoRA"
+  }, {
+    "id": 3,
+    "member_nodes": ["2", "4", "note:3"],
+    "title": "Video Settings"
+  }],
+  "name": "MiniMax H3 (Turbo LoRA)",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Source Image"
+      },
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "source_upload.png [input]"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["10", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "Load Text Encoder"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "minimax"
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "Load Video VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "13": {
+      "_meta": {
+        "title": "Load Audio VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "audio_vae.safetensors"
+      }
+    },
+    "14": {
+      "_meta": {
+        "title": "Turbo LoRA"
+      },
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "mandatory_lora.safetensors",
+        "model": ["100", 0],
+        "strength_model": 1
+      }
+    },
+    "2": {
+      "_meta": {
+        "title": "Scale to Megapixels"
+      },
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": ["1", 0],
+        "megapixels": "1.5",
+        "resolution_steps": 32,
+        "upscale_method": "lanczos"
+      }
+    },
+    "20": {
+      "_meta": {
+        "title": "Noise"
+      },
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "1234567890123"
+      }
+    },
+    "21": {
+      "_meta": {
+        "title": "Guider"
+      },
+      "class_type": "BasicGuider",
+      "inputs": {
+        "conditioning": ["4", 0],
+        "model": ["14", 0]
+      }
+    },
+    "22": {
+      "_meta": {
+        "title": "Sampler"
+      },
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "dpmpp_2m"
+      }
+    },
+    "23": {
+      "_meta": {
+        "title": "Scheduler"
+      },
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "denoise": 1,
+        "model": ["14", 0],
+        "scheduler": "karras",
+        "steps": "28"
+      }
+    },
+    "24": {
+      "_meta": {
+        "title": "Sample"
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "guider": ["21", 0],
+        "latent_image": ["4", 1],
+        "noise": ["20", 0],
+        "sampler": ["22", 0],
+        "sigmas": ["23", 0]
+      }
+    },
+    "25": {
+      "_meta": {
+        "title": "Decode Video"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["24", 0],
+        "vae": ["12", 0]
+      }
+    },
+    "26": {
+      "_meta": {
+        "title": "Decode Audio"
+      },
+      "class_type": "VAEDecodeAudio",
+      "inputs": {
+        "samples": ["24", 0],
+        "vae": ["13", 0]
+      }
+    },
+    "27": {
+      "_meta": {
+        "title": "Create Video"
+      },
+      "class_type": "CreateVideo",
+      "inputs": {
+        "audio": ["26", 0],
+        "fps": 24,
+        "images": ["25", 0]
+      }
+    },
+    "28": {
+      "_meta": {
+        "title": "Save Video"
+      },
+      "class_type": "SaveVideo",
+      "inputs": {
+        "codec": "auto",
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "video": ["27", 0]
+      }
+    },
+    "3": {
+      "_meta": {
+        "title": "Video Size"
+      },
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": ["2", 0]
+      }
+    },
+    "4": {
+      "_meta": {
+        "title": "Image to Video"
+      },
+      "class_type": "MiniMaxH3ImageToVideo",
+      "inputs": {
+        "clip": ["11", 0],
+        "first_frame": ["2", 0],
+        "height": ["3", 1],
+        "length": "49",
+        "prompt": "A \"red\" fox\nin snow \\ test",
+        "vae": ["12", 0],
+        "width": ["3", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended Models\n\n- **Diffusion model:** **MiniMax H3 FL2VA** (first/last frame to video, Int8)\n- **Text encoder:** **Qwen3-VL 32B** for MiniMax H3 (NVFP4 AWQ)\n- **VAE:** the MiniMax H3 **video** VAE\n- **Audio VAE:** the MiniMax H3 **audio** VAE\n\n---\n\n*MiniMax H3 generates the picture and its stereo sound together, at 24 fps.*",
+    "id": 1,
+    "title": "Model Selection"
+  }, {
+    "content": "### Recommended LoRA\n\nUse **FL2V Turbo 8-step** at strength 1.0.\n\n- **Steps:** 8\n- **Sampler:** res_multistep\n- **Scheduler:** simple",
+    "id": 2,
+    "title": "Turbo LoRA"
+  }, {
+    "content": "### Recommended Settings\n\n- **Megapixels:** 0.4 for speed, up to ~1.0 (768p); the source image's aspect ratio is kept\n- **Length:** 124 frames (~5 s at 24 fps); 5 + 17n, trained on ~124-362\n\n---\n\n*The source image is the first frame. Describe the motion and the sound in the prompt. MiniMax H3 uses no negative prompt.*",
+    "id": 3,
+    "title": "Video Settings"
+  }]
+}

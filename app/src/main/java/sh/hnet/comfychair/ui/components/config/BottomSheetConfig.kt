@@ -51,6 +51,7 @@ data class ModelConfig(
     val unet: ModelField? = null,
     val latentUpscaleModel: ModelField? = null,
     val vae: ModelField? = null,
+    val audioVae: ModelField? = null,
     val clip: ModelField? = null,
     val clip1: ModelField? = null,
     val clip2: ModelField? = null,

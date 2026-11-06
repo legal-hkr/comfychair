@@ -185,7 +185,7 @@ private fun NodeValuesRow(onClick: () -> Unit) {
 private val choiceFields = setOf(
     OptionField.SAMPLER, OptionField.SCHEDULER, OptionField.UPSCALE_METHOD,
     OptionField.LORA_NAME, OptionField.HIGHNOISE_LORA_NAME, OptionField.LOWNOISE_LORA_NAME,
-    OptionField.CHECKPOINT, OptionField.UNET, OptionField.HIGHNOISE_UNET, OptionField.LOWNOISE_UNET, OptionField.VAE,
+    OptionField.CHECKPOINT, OptionField.UNET, OptionField.HIGHNOISE_UNET, OptionField.LOWNOISE_UNET, OptionField.VAE, OptionField.AUDIO_VAE,
     OptionField.CLIP, OptionField.CLIP1, OptionField.CLIP2, OptionField.CLIP3, OptionField.CLIP4,
     OptionField.TEXT_ENCODER, OptionField.LATENT_UPSCALE_MODEL
 )
@@ -289,6 +289,7 @@ private fun Field(
         OptionField.HIGHNOISE_UNET -> model(models.highnoiseUnet)()
         OptionField.LOWNOISE_UNET -> model(models.lownoiseUnet)()
         OptionField.VAE -> model(models.vae)()
+        OptionField.AUDIO_VAE -> model(models.audioVae)()
         OptionField.CLIP -> model(models.clip)()
         OptionField.CLIP1 -> model(models.clip1)()
         OptionField.CLIP2 -> model(models.clip2)()
@@ -315,7 +316,7 @@ private fun loraCount(config: BottomSheetConfig): Int =
             .filter { it.isVisible }.sumOf { it.chain.size }
 
 private fun modelCount(config: BottomSheetConfig): Int = with(config.models) {
-    listOfNotNull(checkpoint, unet, highnoiseUnet, lownoiseUnet, vae, clip, clip1, clip2, clip3, clip4, textEncoder, latentUpscaleModel)
+    listOfNotNull(checkpoint, unet, highnoiseUnet, lownoiseUnet, vae, audioVae, clip, clip1, clip2, clip3, clip4, textEncoder, latentUpscaleModel)
         .count { it.isVisible }
 }
 

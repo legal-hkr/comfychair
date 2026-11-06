@@ -569,7 +569,7 @@ class BackupManager(private val context: Context) {
                 listOf(
                     "model",  // Checkpoint
                     "unetModel", "textEncoderModel", "latentUpscaleModel",
-                    "loraModel", "vaeModel", "clipModel",
+                    "loraModel", "vaeModel", "audioVaeModel", "clipModel",
                     "clip1Model", "clip2Model", "clip3Model", "clip4Model",  // All 4 CLIP slots
                     "highnoiseUnetModel", "lownoiseUnetModel",
                     "highnoiseLoraModel", "lownoiseLoraModel"

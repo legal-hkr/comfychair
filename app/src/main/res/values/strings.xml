@@ -480,7 +480,8 @@
     <string name="error_cfg_range">Must be 0.0–100.0</string>
     <string name="error_megapixels_range">Must be 0.1–8.3</string>
     <string name="error_length_range">Must be at least 1</string>
-    <string name="error_length_step">Must be 1, 5, 9, 13… (steps of 4)</string>
+    <string name="error_length_min">Must be at least %1$d</string>
+    <string name="error_length_step">Must be %1$d, %2$d, %3$d… (steps of %4$d)</string>
     <string name="error_fps_range">Must be 1–120</string>
     <string name="error_invalid_number">Invalid number</string>
     <string name="error_invalid_integer">Must be a whole number</string>
@@ -534,6 +535,8 @@
     <string name="field_desc_negative_prompt">Text describing what to avoid</string>
     <string name="field_desc_checkpoint">The checkpoint model to use</string>
     <string name="field_desc_unet">The diffusion model to use</string>
+    <string name="label_audio_vae">Audio VAE</string>
+    <string name="field_desc_audio_vae">The VAE that decodes the sound</string>
     <string name="field_desc_vae">The VAE encoder/decoder</string>
     <string name="field_desc_clip">The CLIP text encoder</string>
     <string name="field_desc_clip1">First CLIP text encoder</string>

@@ -24,6 +24,7 @@ interface CommonGenerationState {
     val selectedClip4: String
     val selectedTextEncoder: String
     val selectedLatentUpscaleModel: String
+    val selectedAudioVae: String
     val selectedLoraName: String  // Mandatory LoRA (single selection)
 
     // Available model lists (from server)
@@ -49,6 +50,7 @@ interface CommonGenerationState {
     val filteredClips4: List<String>?
     val filteredTextEncoders: List<String>?
     val filteredLatentUpscaleModels: List<String>?
+    val filteredAudioVaes: List<String>?
     val filteredLoras: List<String>?
     /** Options of the node that holds {{upscale_method}}; the server-wide list mixes in custom nodes' values */
     val filteredUpscaleMethods: List<String>?

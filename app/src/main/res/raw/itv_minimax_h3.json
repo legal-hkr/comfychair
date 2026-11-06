@@ -1,0 +1,217 @@
+{
+  "name": "MiniMax H3",
+  "description": "Workflow for MiniMax H3 image to video with native stereo sound",
+  "defaults": {
+    "steps": 20,
+    "sampler_name": "res_multistep",
+    "scheduler": "simple",
+    "megapixels": 0.4,
+    "length": 124
+  },
+  "groups": [
+    {
+      "id": 1,
+      "title": "Model Loaders",
+      "member_nodes": ["10", "11", "12", "13", "note:1"]
+    },
+    {
+      "id": 3,
+      "title": "Video Settings",
+      "member_nodes": ["2", "4", "note:2"]
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "title": "Model Selection",
+      "content": "### Recommended Models\n\n- **Diffusion model:** **MiniMax H3 FL2VA** (first/last frame to video, Int8)\n- **Text encoder:** **Qwen3-VL 32B** for MiniMax H3 (NVFP4 AWQ)\n- **VAE:** the MiniMax H3 **video** VAE\n- **Audio VAE:** the MiniMax H3 **audio** VAE\n\n---\n\n*MiniMax H3 generates the picture and its stereo sound together, at 24 fps.*"
+    },
+    {
+      "id": 2,
+      "title": "Video Settings",
+      "content": "### Recommended Settings\n\n- **Megapixels:** 0.4 for speed, up to ~1.0 (768p); the source image's aspect ratio is kept\n- **Length:** 124 frames (~5 s at 24 fps); 5 + 17n, trained on ~124-362\n\n---\n\n*The source image is the first frame. Describe the motion and the sound in the prompt. MiniMax H3 uses no negative prompt.*"
+    }
+  ],
+  "nodes": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "{{image_filename}}"
+      },
+      "_meta": {
+        "title": "Source Image"
+      }
+    },
+    "2": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": ["1", 0],
+        "upscale_method": "lanczos",
+        "megapixels": "{{megapixels}}",
+        "resolution_steps": 32
+      },
+      "_meta": {
+        "title": "Scale to Megapixels"
+      }
+    },
+    "3": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": ["2", 0]
+      },
+      "_meta": {
+        "title": "Video Size"
+      }
+    },
+    "4": {
+      "class_type": "MiniMaxH3ImageToVideo",
+      "inputs": {
+        "clip": ["11", 0],
+        "vae": ["12", 0],
+        "prompt": "{{positive_prompt}}",
+        "width": ["3", 0],
+        "height": ["3", 1],
+        "length": "{{length}}",
+        "first_frame": ["2", 0]
+      },
+      "_meta": {
+        "title": "Image to Video"
+      }
+    },
+    "10": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "{{unet_name}}",
+        "weight_dtype": "default"
+      },
+      "_meta": {
+        "title": "Load Diffusion Model"
+      }
+    },
+    "11": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "{{clip_name}}",
+        "type": "minimax",
+        "device": "default"
+      },
+      "_meta": {
+        "title": "Load Text Encoder"
+      }
+    },
+    "12": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{vae_name}}"
+      },
+      "_meta": {
+        "title": "Load Video VAE"
+      }
+    },
+    "13": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "{{audio_vae_name}}"
+      },
+      "_meta": {
+        "title": "Load Audio VAE"
+      }
+    },
+    "20": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "{{seed}}"
+      },
+      "_meta": {
+        "title": "Noise"
+      }
+    },
+    "21": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": ["10", 0],
+        "conditioning": ["4", 0]
+      },
+      "_meta": {
+        "title": "Guider"
+      }
+    },
+    "22": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "{{sampler_name}}"
+      },
+      "_meta": {
+        "title": "Sampler"
+      }
+    },
+    "23": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": ["10", 0],
+        "scheduler": "{{scheduler}}",
+        "steps": "{{steps}}",
+        "denoise": 1.0
+      },
+      "_meta": {
+        "title": "Scheduler"
+      }
+    },
+    "24": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["20", 0],
+        "guider": ["21", 0],
+        "sampler": ["22", 0],
+        "sigmas": ["23", 0],
+        "latent_image": ["4", 1]
+      },
+      "_meta": {
+        "title": "Sample"
+      }
+    },
+    "25": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["24", 0],
+        "vae": ["12", 0]
+      },
+      "_meta": {
+        "title": "Decode Video"
+      }
+    },
+    "26": {
+      "class_type": "VAEDecodeAudio",
+      "inputs": {
+        "samples": ["24", 0],
+        "vae": ["13", 0]
+      },
+      "_meta": {
+        "title": "Decode Audio"
+      }
+    },
+    "27": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": ["25", 0],
+        "audio": ["26", 0],
+        "fps": 24
+      },
+      "_meta": {
+        "title": "Create Video"
+      }
+    },
+    "28": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "codec": "auto",
+        "video": ["27", 0]
+      },
+      "_meta": {
+        "title": "Save Video"
+      }
+    }
+  }
+}

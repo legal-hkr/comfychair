@@ -31,6 +31,7 @@ data class UnifiedCallbacks(
     val onClip4Change: ((String) -> Unit)? = null,
     val onTextEncoderChange: ((String) -> Unit)? = null,
     val onLatentUpscaleModelChange: ((String) -> Unit)? = null,
+    val onAudioVaeChange: ((String) -> Unit)? = null,
     val onMandatoryLoraChange: ((String) -> Unit)? = null,
 
     // === Dual-Model Patterns (e.g. Wan 2.2) ===

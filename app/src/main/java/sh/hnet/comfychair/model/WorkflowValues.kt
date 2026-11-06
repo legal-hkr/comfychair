@@ -38,6 +38,7 @@ data class WorkflowValues(
     val clip4Model: String? = null,  // For multi-CLIP slot 4
     val textEncoderModel: String? = null,  // Text encoder ({{text_encoder_name}})
     val latentUpscaleModel: String? = null,  // Latent upscale model ({{latent_upscale_model}})
+    val audioVaeModel: String? = null,  // Audio VAE ({{audio_vae_name}})
     val highnoiseUnetModel: String? = null,
     val lownoiseUnetModel: String? = null,
     val highnoiseLoraModel: String? = null,
@@ -85,6 +86,7 @@ data class WorkflowValues(
                 clip4Model = json.optString("clip4Model").takeIf { it.isNotEmpty() },
                 textEncoderModel = json.optString("textEncoderModel").takeIf { it.isNotEmpty() },
                 latentUpscaleModel = json.optString("latentUpscaleModel").takeIf { it.isNotEmpty() },
+                audioVaeModel = json.optString("audioVaeModel").takeIf { it.isNotEmpty() },
                 highnoiseUnetModel = json.optString("highnoiseUnetModel").takeIf { it.isNotEmpty() },
                 lownoiseUnetModel = json.optString("lownoiseUnetModel").takeIf { it.isNotEmpty() },
                 highnoiseLoraModel = json.optString("highnoiseLoraModel").takeIf { it.isNotEmpty() },
@@ -126,6 +128,7 @@ data class WorkflowValues(
                 values.clip4Model?.let { put("clip4Model", it) }
                 values.textEncoderModel?.let { put("textEncoderModel", it) }
                 values.latentUpscaleModel?.let { put("latentUpscaleModel", it) }
+                values.audioVaeModel?.let { put("audioVaeModel", it) }
                 values.highnoiseUnetModel?.let { put("highnoiseUnetModel", it) }
                 values.lownoiseUnetModel?.let { put("lownoiseUnetModel", it) }
                 values.highnoiseLoraModel?.let { put("highnoiseLoraModel", it) }

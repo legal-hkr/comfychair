@@ -1,0 +1,189 @@
+{
+  "defaults": {
+    "height": 864,
+    "length": 124,
+    "sampler_name": "res_multistep",
+    "scheduler": "simple",
+    "steps": 20,
+    "width": 480
+  },
+  "description": "Workflow for MiniMax H3 text to video with native stereo sound",
+  "groups": [{
+    "id": 1,
+    "member_nodes": ["10", "11", "12", "13", "note:1"],
+    "title": "Model Loaders"
+  }, {
+    "id": 3,
+    "member_nodes": ["1", "note:2"],
+    "title": "Video Settings"
+  }],
+  "name": "MiniMax H3",
+  "nodes": {
+    "1": {
+      "_meta": {
+        "title": "Text to Video"
+      },
+      "class_type": "MiniMaxH3ImageToVideo",
+      "inputs": {
+        "clip": ["11", 0],
+        "height": "480",
+        "length": "49",
+        "prompt": "A \"red\" fox\nin snow \\ test",
+        "vae": ["12", 0],
+        "width": "832"
+      }
+    },
+    "10": {
+      "_meta": {
+        "title": "Load Diffusion Model"
+      },
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "unet.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "100": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "main_lora.safetensors",
+        "model": ["10", 0],
+        "strength_model": 0.800000011920929
+      }
+    },
+    "11": {
+      "_meta": {
+        "title": "Load Text Encoder"
+      },
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "clip.safetensors",
+        "device": "default",
+        "type": "minimax"
+      }
+    },
+    "12": {
+      "_meta": {
+        "title": "Load Video VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "vae.safetensors"
+      }
+    },
+    "13": {
+      "_meta": {
+        "title": "Load Audio VAE"
+      },
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "audio_vae.safetensors"
+      }
+    },
+    "20": {
+      "_meta": {
+        "title": "Noise"
+      },
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "1234567890123"
+      }
+    },
+    "21": {
+      "_meta": {
+        "title": "Guider"
+      },
+      "class_type": "BasicGuider",
+      "inputs": {
+        "conditioning": ["1", 0],
+        "model": ["100", 0]
+      }
+    },
+    "22": {
+      "_meta": {
+        "title": "Sampler"
+      },
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "dpmpp_2m"
+      }
+    },
+    "23": {
+      "_meta": {
+        "title": "Scheduler"
+      },
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "denoise": 1,
+        "model": ["100", 0],
+        "scheduler": "karras",
+        "steps": "28"
+      }
+    },
+    "24": {
+      "_meta": {
+        "title": "Sample"
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "guider": ["21", 0],
+        "latent_image": ["1", 1],
+        "noise": ["20", 0],
+        "sampler": ["22", 0],
+        "sigmas": ["23", 0]
+      }
+    },
+    "25": {
+      "_meta": {
+        "title": "Decode Video"
+      },
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["24", 0],
+        "vae": ["12", 0]
+      }
+    },
+    "26": {
+      "_meta": {
+        "title": "Decode Audio"
+      },
+      "class_type": "VAEDecodeAudio",
+      "inputs": {
+        "samples": ["24", 0],
+        "vae": ["13", 0]
+      }
+    },
+    "27": {
+      "_meta": {
+        "title": "Create Video"
+      },
+      "class_type": "CreateVideo",
+      "inputs": {
+        "audio": ["26", 0],
+        "fps": 24,
+        "images": ["25", 0]
+      }
+    },
+    "28": {
+      "_meta": {
+        "title": "Save Video"
+      },
+      "class_type": "SaveVideo",
+      "inputs": {
+        "codec": "auto",
+        "filename_prefix": "video/ComfyChair",
+        "format": "auto",
+        "video": ["27", 0]
+      }
+    }
+  },
+  "notes": [{
+    "content": "### Recommended Models\n\n- **Diffusion model:** **MiniMax H3 FL2VA** (first/last frame to video, Int8)\n- **Text encoder:** **Qwen3-VL 32B** for MiniMax H3 (NVFP4 AWQ)\n- **VAE:** the MiniMax H3 **video** VAE\n- **Audio VAE:** the MiniMax H3 **audio** VAE\n\n---\n\n*MiniMax H3 generates the picture and its stereo sound together, at 24 fps.*",
+    "id": 1,
+    "title": "Model Selection"
+  }, {
+    "content": "### Recommended Settings\n\n- **Size:** 480 x 864 for speed, up to 768 x 1344 (the native canvas; multiples of 32)\n- **Length:** 124 frames (~5 s at 24 fps); 5 + 17n, trained on ~124-362\n\n---\n\n*Describe the shots, the motion and the sound (dialogue, effects, music) in one prompt. MiniMax H3 uses no negative prompt.*",
+    "id": 2,
+    "title": "Video Settings"
+  }]
+}
