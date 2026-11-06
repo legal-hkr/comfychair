@@ -722,6 +722,7 @@
     <string name="desc_backup_restore">Exportar o importar la configuración de la aplicación</string>
     <string name="button_backup_create">Crear copia de seguridad</string>
     <string name="button_backup_restore">Restaurar desde copia de seguridad</string>
+    <string name="button_backup_restore_login">Restaurar desde archivo de copia de seguridad</string>
     <string name="msg_backup_created_success">Copia de seguridad creada correctamente</string>
     <string name="error_backup_create">Error al crear la copia de seguridad</string>
     <string name="msg_backup_restore_success">Configuración restaurada correctamente</string>

@@ -239,6 +239,7 @@
     <string name="desc_backup_restore">App-Konfiguration exportieren oder importieren</string>
     <string name="button_backup_create">Sicherung erstellen</string>
     <string name="button_backup_restore">Aus Sicherung wiederherstellen</string>
+    <string name="button_backup_restore_login">Aus Sicherungsdatei wiederherstellen</string>
     <string name="msg_backup_created_success">Sicherung erfolgreich erstellt</string>
     <string name="error_backup_create">Sicherung konnte nicht erstellt werden</string>
     <string name="msg_backup_restore_success">Einstellungen erfolgreich wiederhergestellt</string>
