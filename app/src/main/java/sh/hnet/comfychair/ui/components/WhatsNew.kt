@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,67 +25,53 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import java.io.IOException
 import sh.hnet.comfychair.BuildConfig
 import sh.hnet.comfychair.R
-import java.io.IOException
+import sh.hnet.comfychair.util.Changelog
 
 /**
  * The release notes of this version, shown once on the first start after an install or update. They come from the
- * F-Droid changelog written for the release (copied into the assets at build time, see app/build.gradle.kts), so
- * they're in English. Remembered in their own preferences, so Restore defaults doesn't show them again.
+ * F-Droid changelogs written for the release (copied into the assets at build time, see app/build.gradle.kts): in the
+ * phone's language where one was written, otherwise in English. Remembered in their own preferences, so Restore
+ * defaults doesn't show them again.
  */
 object WhatsNew {
     private const val PREFS = "WhatsNewPrefs"
     private const val KEY_SHOWN = "shownVersionCode"
-    private const val ASSET = "whats_new.txt"
+    private const val ASSET_DIR = "whats_new"
+    private const val DEFAULT_LOCALE = "en-US"
 
-    /** A part of the notes: its heading ("New features") and its lines, bulleted ("- …") or plain. */
-    data class Section(val title: String?, val lines: List<Line>)
-    data class Line(val text: String, val bullet: Boolean)
-
-    /** This version's notes, or null when they were shown already or the build has none. */
-    fun pending(context: Context): List<Section>? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getInt(KEY_SHOWN, 0) == BuildConfig.VERSION_CODE) return null
-        val text = try {
-            context.assets.open(ASSET).bufferedReader().use { it.readText() }
+    /** This version's notes, or null when the build has none. */
+    fun changelog(context: Context): Changelog? {
+        val files = try {
+            context.assets.list(ASSET_DIR)?.map { it.removeSuffix(".txt") }.orEmpty()
         } catch (_: IOException) {
             return null
         }
-        return parse(text).takeIf { it.isNotEmpty() }
+        if (DEFAULT_LOCALE !in files) return null
+        val locale = context.resources.configuration.locales[0]
+        // The exact language and region (pt-BR), else the language in any region (pl for pl-PL), else English
+        val name = files.firstOrNull { it.equals(locale.toLanguageTag(), ignoreCase = true) }
+            ?: files.firstOrNull { it.substringBefore('-').equals(locale.language, ignoreCase = true) }
+            ?: DEFAULT_LOCALE
+        return try {
+            context.assets.open("$ASSET_DIR/$name.txt").bufferedReader().use { Changelog.parse(it.readText()) }
+        } catch (_: IOException) {
+            null
+        }
+    }
+
+    /** This version's notes, or null when they were shown already or the build has none. */
+    fun pending(context: Context): Changelog? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getInt(KEY_SHOWN, 0) == BuildConfig.VERSION_CODE) return null
+        return changelog(context)?.takeIf { it.sections.isNotEmpty() }
     }
 
     fun markShown(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_SHOWN, BuildConfig.VERSION_CODE).apply()
-    }
-
-    /**
-     * The changelog's format: the version on the first line (the dialog's title has it already), then sections, each a
-     * line ending in a colon followed by "- " items.
-     */
-    fun parse(text: String): List<Section> {
-        val lines = text.lines().map { it.trim() }.dropWhile { it.isEmpty() }.drop(1)
-        val sections = mutableListOf<Section>()
-        var title: String? = null
-        var current = mutableListOf<Line>()
-        fun close() {
-            if (title != null || current.isNotEmpty()) sections += Section(title, current)
-            title = null
-            current = mutableListOf()
-        }
-        for (line in lines) {
-            when {
-                line.isEmpty() -> Unit
-                line.startsWith("- ") || line.startsWith("* ") -> current += Line(line.drop(2).trim(), bullet = true)
-                line.endsWith(":") -> {
-                    close()
-                    title = line.dropLast(1)
-                }
-                else -> current += Line(line, bullet = false)
-            }
-        }
-        close()
-        return sections
     }
 }
 
@@ -98,9 +83,9 @@ object WhatsNew {
 @Composable
 fun WhatsNewDialog() {
     val context = LocalContext.current
-    var sections by remember { mutableStateOf<List<WhatsNew.Section>?>(null) }
+    var sections by remember { mutableStateOf<List<Changelog.Section>?>(null) }
     LifecycleResumeEffect(Unit) {
-        sections = WhatsNew.pending(context)
+        sections = WhatsNew.pending(context)?.sections
         onPauseOrDispose { }
     }
     val shown = sections ?: return
@@ -123,14 +108,13 @@ fun WhatsNewDialog() {
                         section.title?.let {
                             Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                         }
-                        section.lines.forEach { line ->
-                            if (line.bullet) {
-                                Row {
+                        section.blocks.forEach { block ->
+                            when (block) {
+                                is Changelog.Block.Item -> Row {
                                     Text("•", modifier = Modifier.padding(end = 8.dp))
-                                    Text(line.text)
+                                    Text(block.text)
                                 }
-                            } else {
-                                Text(line.text)
+                                is Changelog.Block.Paragraph -> Text(block.text)
                             }
                         }
                     }
