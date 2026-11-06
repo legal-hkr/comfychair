@@ -186,9 +186,12 @@ private class GraphIcons(
     val link: VectorPainter
 )
 
-/** The soft shadow of elevation 1 (light theme: white nodes and sockets on the light canvas), in graph units. */
-private fun Paint.setElevationShadow(colors: CanvasColors, alpha: Float, scale: Float = 1f) {
-    setShadowLayer(4f * scale, 0f, 2f * scale, colors.shadow.copy(alpha = 0.3f * alpha).toArgb())
+/**
+ * The soft shadow of elevation 1 (light theme: white nodes, sockets, notes and group labels on the light canvas), in
+ * graph units; [level] below 1 for what lies lower (a group's area, under its nodes).
+ */
+private fun Paint.setElevationShadow(colors: CanvasColors, alpha: Float, scale: Float = 1f, level: Float = 1f) {
+    setShadowLayer(4f * scale * level, 0f, 2f * scale * level, colors.shadow.copy(alpha = 0.3f * alpha * level).toArgb())
 }
 
 /** Baseline that centres a single line of [paint]'s text on [centerY]. */
@@ -1327,11 +1330,9 @@ fun WorkflowGraphCanvas(
                 drawPoints(dots, PointMode.Points, colors.outlineVariant, strokeWidth = unitsPerDp, cap = StrokeCap.Round)
             }
 
-            // Draw groups first (behind everything) with alpha
+            // Groups' areas first (behind everything) with alpha; their labels go above the wires, further down
             animatedGroups.forEach { (group, alpha) ->
-                if (alpha > 0.01f) {
-                    drawGroup(group = group, colors = colors, paints = paints, alpha = alpha, chipAlpha = 1f - spread)
-                }
+                if (alpha > 0.01f) drawGroupArea(group = group, colors = colors, paints = paints, alpha = alpha)
             }
 
             // Build node positions map for edge drawing
@@ -1368,6 +1369,11 @@ fun WorkflowGraphCanvas(
                 }
             }
             val connectedOutputs: Set<Pair<String, Int>> = graph.edges.mapTo(HashSet()) { it.sourceNodeId to it.sourceOutputIndex }
+
+            // Groups' labels over the wires, so a wire never runs across one
+            animatedGroups.forEach { (group, alpha) ->
+                if (alpha > 0.01f) drawGroupLabel(group = group, colors = colors, paints = paints, alpha = alpha, chipAlpha = 1f - spread)
+            }
 
             // Draw nodes with alpha - sort by ID for consistent z-order (higher IDs on top)
             val sortedAnimatedNodes = animatedNodes.sortedBy { it.node.id }
@@ -1979,7 +1985,27 @@ private fun DrawScope.drawEdge(
 /**
  * A group (spec §12.4): a filled rounded area beneath its nodes, its name in a chip at the top start.
  */
-private fun DrawScope.drawGroup(
+/** A group's area: the lowest level above the canvas, in the light theme with half a node's shadow. */
+private fun DrawScope.drawGroupArea(group: RenderedGroup, colors: CanvasColors, paints: GraphPaints, alpha: Float = 1f) {
+    if (colors.isDark) {
+        drawRoundRect(
+            color = colors.groupArea.copy(alpha = alpha),
+            topLeft = Offset(group.x, group.y),
+            size = Size(group.width, group.height),
+            cornerRadius = CornerRadius(NodeStyle.GROUP_CORNER)
+        )
+    } else {
+        paints.shadow.color = colors.groupArea.copy(alpha = alpha).toArgb()
+        paints.shadow.setElevationShadow(colors, alpha, level = 0.5f)
+        drawContext.canvas.nativeCanvas.drawRoundRect(
+            group.x, group.y, group.x + group.width, group.y + group.height,
+            NodeStyle.GROUP_CORNER, NodeStyle.GROUP_CORNER, paints.shadow
+        )
+    }
+}
+
+/** A group's label chip, at a node's level above the wires (in the light theme with a node's shadow). */
+private fun DrawScope.drawGroupLabel(
     group: RenderedGroup,
     colors: CanvasColors,
     paints: GraphPaints,
@@ -1987,13 +2013,6 @@ private fun DrawScope.drawGroup(
     // The label chip fades out toward the overview, which shows the area only
     chipAlpha: Float = 1f
 ) {
-    drawRoundRect(
-        color = colors.groupArea.copy(alpha = alpha),
-        topLeft = Offset(group.x, group.y),
-        size = Size(group.width, group.height),
-        cornerRadius = CornerRadius(NodeStyle.GROUP_CORNER)
-    )
-
     if (chipAlpha <= 0f) return
     val chipHeight = NodeStyle.GROUP_CHIP_HEIGHT
     val paint = paints.groupLabel.apply { color = colors.onSurface.copy(alpha = alpha * chipAlpha).toArgb() }
@@ -2003,12 +2022,21 @@ private fun DrawScope.drawGroup(
     if (label.isEmpty()) return
     val chipLeft = group.x + inset
     val chipTop = group.y + inset
-    drawRoundRect(
-        color = colors.groupChip.copy(alpha = alpha * chipAlpha),
-        topLeft = Offset(chipLeft, chipTop),
-        size = Size(paint.measureText(label) + 2 * padding, chipHeight),
-        cornerRadius = CornerRadius(chipHeight / 2)
-    )
+    val chipWidth = paint.measureText(label) + 2 * padding
+    if (colors.isDark) {
+        drawRoundRect(
+            color = colors.groupChip.copy(alpha = alpha * chipAlpha),
+            topLeft = Offset(chipLeft, chipTop),
+            size = Size(chipWidth, chipHeight),
+            cornerRadius = CornerRadius(chipHeight / 2)
+        )
+    } else {
+        paints.shadow.color = colors.groupChip.copy(alpha = alpha * chipAlpha).toArgb()
+        paints.shadow.setElevationShadow(colors, alpha * chipAlpha)
+        drawContext.canvas.nativeCanvas.drawRoundRect(
+            chipLeft, chipTop, chipLeft + chipWidth, chipTop + chipHeight, chipHeight / 2, chipHeight / 2, paints.shadow
+        )
+    }
     drawContext.canvas.nativeCanvas.drawText(label, chipLeft + padding, paint.baselineFor(chipTop + chipHeight / 2), paint)
 }
 
@@ -2100,13 +2128,21 @@ private fun DrawScope.drawNote(
         }
     }
 
-    // Draw single-color sticky note background
-    drawRoundRect(
-        color = noteColor,
-        topLeft = Offset(note.x, note.y),
-        size = Size(note.width, effectiveHeight),
-        cornerRadius = CornerRadius(cornerRadius)
-    )
+    // Single-colour sticky note background; at a node's level (in the light theme with a node's shadow)
+    if (colors.isDark) {
+        drawRoundRect(
+            color = noteColor,
+            topLeft = Offset(note.x, note.y),
+            size = Size(note.width, effectiveHeight),
+            cornerRadius = CornerRadius(cornerRadius)
+        )
+    } else {
+        paints.shadow.color = noteColor.toArgb()
+        paints.shadow.setElevationShadow(colors, alpha)
+        drawContext.canvas.nativeCanvas.drawRoundRect(
+            note.x, note.y, note.x + note.width, note.y + effectiveHeight, cornerRadius, cornerRadius, paints.shadow
+        )
+    }
 
     // Selection: an outline in primary just outside the shape, as on nodes
     if (isSelected) {
