@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -244,7 +244,7 @@ private fun MediaFlightLayer(flight: MediaFlight) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = lerp(flight.fromBackdrop, flight.toBackdrop, progress)))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = lerp(flight.fromBackdrop, flight.toBackdrop, progress)))
     )
     Image(
         bitmap = flight.image,

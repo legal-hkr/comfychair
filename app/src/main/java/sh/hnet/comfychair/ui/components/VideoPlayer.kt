@@ -34,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -286,7 +285,7 @@ fun VideoPlayer(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black)
+                                        .background(MaterialTheme.colorScheme.scrim)
                                 )
                             }
                         }
@@ -308,7 +307,7 @@ fun VideoPlayer(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black)
+                                .background(MaterialTheme.colorScheme.scrim)
                         )
                     }
                 }

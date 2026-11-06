@@ -2,10 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import androidx.compose.ui.res.pluralStringResource
-import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
-import sh.hnet.comfychair.ui.components.ViewerCloseFrom
-import androidx.compose.ui.platform.LocalDensity
 import android.content.Context
 import android.graphics.Bitmap
 import android.widget.Toast
@@ -68,11 +64,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -86,6 +83,8 @@ import sh.hnet.comfychair.ui.components.SharedVideoPlayer
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.VideoScaleMode
+import sh.hnet.comfychair.ui.components.ViewerCloseFrom
+import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.rememberViewerDismissState
 import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
@@ -196,7 +195,7 @@ fun MediaViewerScreen(
         modifier = modifier
             .fillMaxSize()
             // Fades out while swiping down, revealing the screen underneath (the window is translucent)
-            .background(Color.Black.copy(alpha = dismiss.backdropAlpha))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = dismiss.backdropAlpha))
             .onSizeChanged { dismiss.containerHeight = it.height }
             .viewerSwipeToDismiss(
                 state = dismiss,

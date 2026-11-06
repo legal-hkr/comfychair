@@ -21,11 +21,11 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.ui.components.mediaOriginKey
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.ui.components.mediaOriginKey
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.GenerationMetadataLoader
@@ -551,12 +551,17 @@ class MediaViewerViewModel : ViewModel() {
     fun commitPendingDeletion() {
         val deletion = pendingDeletion ?: return
         pendingDeletion = null
-        val client = ConnectionManager.clientOrNull ?: return
+        val context = applicationContext
+        val client = ConnectionManager.clientOrNull
+        if (client == null) {
+            // No connection: nothing reaches the server, so say so rather than let the items come back unannounced
+            context?.let { Toast.makeText(it, R.string.error_history_item_delete, Toast.LENGTH_SHORT).show() }
+            return
+        }
         _hasDeletedItems.value = true
         deletion.removed.forEach { MediaCache.evict(it.value.toCacheKey()) }
         // Sync deletion to GalleryRepository so Gallery UI updates immediately
         GalleryRepository.getInstance().removeItemLocally(deletion.promptId)
-        val context = applicationContext
         // The viewer may be closed by the time the server answers
         client.deleteHistoryItem(deletion.promptId) { success ->
             if (!success && context != null) {
