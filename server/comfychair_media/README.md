@@ -4,6 +4,8 @@ This is a **ComfyUI `custom_nodes` backend route plugin**, not a workflow node. 
 
 ## Installation (administrator, separate approval required)
 
+See **[INSTALL.md](INSTALL.md)** for a step-by-step Chinese installation guide (installing into `custom_nodes/`, environment variables, LAN mode, Android key setup, verification, uninstall). The English summary below is normative.
+
 **This implementation task does not install/restart the live service or delete live files.** Back up files first. Extract the ZIP's `comfychair_media` directory into the actual ComfyUI `custom_nodes/` directory. The investigated deployment uses `/default-comfyui-bundle/ComfyUI`; verify this again at installation time. Python runtime dependencies are ComfyUI's existing `aiohttp` and stdlib. Linux only.
 
 Configure the service process environment using a root/service-readable secret mechanism (not shell history, CLI arguments, logs or this document):
