@@ -965,6 +965,7 @@
     <string name="label_server_credentials_missing_basic">Saisissez l’utilisateur et le mot de passe pour vous connecter</string>
     <string name="label_server_credentials_missing_token">Saisissez le jeton pour vous connecter</string>
     <string name="label_credentials_not_in_backup">Les sauvegardes ne contiennent pas les identifiants. Saisissez-les à nouveau.</string>
+    <string name="button_save_and_connect">Enregistrer et se connecter</string>
     <string name="label_backup_brings_back">Choisissez un fichier de sauvegarde exporté depuis ComfyChair. Il restaure :</string>
     <string name="label_backup_item_servers">Serveurs</string>
     <string name="desc_backup_item_servers">Nom, adresse et mode de connexion</string>

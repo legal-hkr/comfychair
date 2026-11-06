@@ -988,6 +988,7 @@
     <string name="label_server_credentials_missing_basic">Wpisz nazwę użytkownika i hasło, aby się połączyć</string>
     <string name="label_server_credentials_missing_token">Wpisz token, aby się połączyć</string>
     <string name="label_credentials_not_in_backup">Kopie zapasowe nie zawierają danych logowania – trzeba je wpisać ponownie.</string>
+    <string name="button_save_and_connect">Zapisz i połącz</string>
     <string name="label_backup_brings_back">Wybierz plik kopii zapasowej wyeksportowany z ComfyChair. Przywrócone zostaną:</string>
     <string name="label_backup_item_servers">Serwery</string>
     <string name="desc_backup_item_servers">Nazwa, adres i sposób logowania</string>

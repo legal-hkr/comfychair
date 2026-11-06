@@ -48,6 +48,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import sh.hnet.comfychair.ui.components.ServerFormError
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -126,10 +128,14 @@ fun LoginScreen() {
 
     // Dialog state
     var showServerDialog by remember { mutableStateOf(false) }
-    // Connect on a server whose credentials are missing opens its form first, and connects once it's saved
+    // The form of a server whose credentials are missing (opened by Connect or Edit) saves and connects: it stays open
+    // until connected, showing a failure in its fields
     var connectAfterSave by remember { mutableStateOf(false) }
-    // Servers whose credentials aren't on this device (restored from a backup)
-    val missingCredentials = remember(servers) {
+    var serverFormError by remember { mutableStateOf<ServerFormError?>(null) }
+    // Servers whose credentials aren't on this device (restored from a backup); recounted when credentials are saved,
+    // which leaves the server list as it was
+    var credentialsVersion by remember { mutableIntStateOf(0) }
+    val missingCredentials = remember(servers, credentialsVersion) {
         servers.filter { credentialStorage.isMissingCredentials(it.id, it.authType) }.map { it.id }.toSet()
     }
     var serverToEdit by remember { mutableStateOf<Server?>(null) }
@@ -219,6 +225,11 @@ fun LoginScreen() {
                 connectionState = ConnectionState.IDLE
             } else if (success) {
                 connectionState = ConnectionState.CONNECTED
+                if (connectAfterSave) {
+                    showServerDialog = false
+                    serverToEdit = null
+                    connectAfterSave = false
+                }
 
                 delay(500L)
 
@@ -254,7 +265,12 @@ fun LoginScreen() {
                 // A server that doesn't answer can wait: offer what's kept on this device. One that answered (refused
                 // the credentials, or isn't ComfyUI) needs fixing first, so say why.
                 val unreachable = failureType == ConnectionFailure.NETWORK || failureType == ConnectionFailure.STALLED
-                if (unreachable && ConnectionManager.hasOfflineCache(context, server.id)) {
+                if (connectAfterSave && showServerDialog) {
+                    // Saved from the form: it stays open, the failure in the field to fix
+                    serverFormError = ServerFormError.of(context, failureType, attempt = (serverFormError?.attempt ?: 0) + 1)
+                    connectionState = ConnectionState.IDLE
+                    return@launch
+                } else if (unreachable && ConnectionManager.hasOfflineCache(context, server.id)) {
                     offlinePromptServer = server
                     showOfflinePrompt = true
                 } else {
@@ -376,6 +392,9 @@ fun LoginScreen() {
             server = serverToEdit,
             existingCredentials = existingCredentials,
             missingCredentials = serverToEdit?.id in missingCredentials,
+            connect = connectAfterSave,
+            busy = connectAfterSave && connectionState != ConnectionState.IDLE,
+            error = serverFormError,
             isNameTaken = { name, excludeServerId ->
                 serverStorage.isServerNameTaken(name, excludeServerId)
             },
@@ -383,6 +402,7 @@ fun LoginScreen() {
                 showServerDialog = false
                 serverToEdit = null
                 connectAfterSave = false
+                serverFormError = null
             },
             onSave = { name, hostname, port, authType, credentials ->
                 if (serverToEdit != null) {
@@ -397,6 +417,7 @@ fun LoginScreen() {
 
                     // Save credentials
                     credentialStorage.saveCredentials(updatedServer.id, credentials)
+                    credentialsVersion++
 
                     servers = serverStorage.getServers()
 
@@ -404,8 +425,14 @@ fun LoginScreen() {
                     if (selectedServer?.id == updatedServer.id) {
                         selectedServer = updatedServer
                     }
-                    // Opened by Connect for the missing credentials: connect as Connect would have
-                    if (connectAfterSave) attemptConnection(updatedServer)
+                    // Credentials entered after a restore: connect, the form open until connected
+                    if (connectAfterSave) {
+                        selectedServer = updatedServer
+                        serverStorage.setSelectedServerId(updatedServer.id)
+                        serverFormError = null
+                        attemptConnection(updatedServer)
+                        return@ServerDialog
+                    }
                 } else {
                     // Add new server
                     val newServer = Server.create(name, hostname, port, authType)
@@ -564,6 +591,7 @@ fun LoginScreen() {
                                         enabled = !busy,
                                         onEdit = {
                                             serverToEdit = server
+                                            connectAfterSave = server.id in missingCredentials
                                             showServerDialog = true
                                         },
                                         onDelete = { serverToDelete = server }

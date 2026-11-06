@@ -919,6 +919,7 @@
     <string name="label_server_credentials_missing_basic">输入用户名和密码以连接</string>
     <string name="label_server_credentials_missing_token">输入令牌以连接</string>
     <string name="label_credentials_not_in_backup">备份不包含登录信息，请重新输入。</string>
+    <string name="button_save_and_connect">保存并连接</string>
     <string name="label_backup_brings_back">选择从 ComfyChair 导出的备份文件。它将恢复：</string>
     <string name="label_backup_item_servers">服务器</string>
     <string name="desc_backup_item_servers">名称、地址和登录方式</string>

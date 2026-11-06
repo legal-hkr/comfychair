@@ -17,6 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import sh.hnet.comfychair.connection.ConnectionFailure
+import android.content.Context
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
@@ -119,6 +121,20 @@ class ServerFormState(private val server: Server?, existingCredentials: AuthCred
             Regex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
 
         fun isValidHostname(value: String): Boolean = ipAddressPattern.matches(value) || hostnamePattern.matches(value)
+    }
+}
+
+/**
+ * A failed connection from a form that saves and connects, shown in the field to fix: refused credentials in the
+ * password or token, anything else in the hostname. [attempt] tells repeated failures apart.
+ */
+data class ServerFormError(val onCredentials: Boolean, val message: String, val attempt: Int) {
+    companion object {
+        fun of(context: Context, failure: ConnectionFailure, attempt: Int) = when (failure) {
+            ConnectionFailure.AUTHENTICATION -> ServerFormError(true, context.getString(R.string.error_auth_unauthorized), attempt)
+            ConnectionFailure.INVALID_SERVER -> ServerFormError(false, context.getString(R.string.error_not_comfyui_server), attempt)
+            else -> ServerFormError(false, context.getString(R.string.error_connection_failed), attempt)
+        }
     }
 }
 
@@ -256,6 +272,8 @@ fun ColumnScope.ServerFormFields(state: ServerFormState, missingCredentials: Boo
  * @param onDismiss Called when the dialog should be dismissed
  * @param onSave Called with the server data and credentials when save is confirmed
  * @param missingCredentials The server's credentials aren't on this device (see [ServerFormFields])
+ * @param connect The confirming button saves and connects ("Save and connect"); the caller keeps the dialog open
+ *     until connected, with [busy] while connecting and a failure as [error]
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -263,16 +281,29 @@ fun ServerDialog(
     server: Server?,
     existingCredentials: AuthCredentials = AuthCredentials.None,
     missingCredentials: Boolean = false,
+    connect: Boolean = false,
+    busy: Boolean = false,
+    error: ServerFormError? = null,
     isNameTaken: (name: String, excludeServerId: String?) -> Boolean,
     onDismiss: () -> Unit,
     onSave: (name: String, hostname: String, port: Int, authType: AuthType, credentials: AuthCredentials) -> Unit
 ) {
     val state = remember { ServerFormState(server, existingCredentials) }
     val messages = rememberServerFormMessages()
+    LaunchedEffect(error) {
+        if (error == null) return@LaunchedEffect
+        when {
+            !error.onCredentials -> state.hostnameError = error.message
+            state.authType == AuthType.BASIC -> state.passwordError = error.message
+            state.authType == AuthType.BEARER -> state.tokenError = error.message
+            else -> state.hostnameError = error.message
+        }
+    }
     FullScreenFormDialog(
         title = stringResource(if (state.isEditMode) R.string.title_server_edit else R.string.title_server_add),
-        confirmLabel = stringResource(R.string.button_save),
+        confirmLabel = stringResource(if (connect) R.string.button_save_and_connect else R.string.button_save),
         hasChanges = state.hasChanges,
+        busy = busy,
         onDismiss = onDismiss,
         onConfirm = {
             if (state.validate(messages, isNameTaken)) {
