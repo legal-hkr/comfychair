@@ -16,8 +16,8 @@ object ConnectionValidator {
 
     /**
      * Calculate all valid input slots that can receive a connection from the given output.
-     * Returns slots on OTHER nodes that are type-compatible with the output.
-     * Only connection-type inputs (Connection or UnconnectedSlot) are valid targets.
+     * Returns slots on OTHER nodes that are type-compatible with the output: connection-type inputs (Connection or
+     * UnconnectedSlot), and value rows that ComfyUI lets take a link of their type ([acceptsValueLink]).
      *
      * @param graph The workflow graph to search
      * @param sourceNodeId ID of the node with the output
@@ -45,7 +45,19 @@ object ConnectionValidator {
                 val isConnectionInput = inputValue is InputValue.Connection ||
                     inputValue is InputValue.UnconnectedSlot
 
-                if (isConnectionInput) {
+                val valueType = if (inputValue is InputValue.Literal) linkableValueType(node.classType, inputName, nodeTypeRegistry) else null
+                if (valueType != null && acceptsValueLink(outputType, valueType)) {
+                    validSlots.add(
+                        SlotPosition(
+                            nodeId = node.id,
+                            slotName = inputName,
+                            isOutput = false,
+                            outputIndex = 0,
+                            center = Offset(node.x, node.y + WorkflowLayoutEngine.rowCenterY(inputIndex)),
+                            slotType = valueType
+                        )
+                    )
+                } else if (isConnectionInput) {
                     // Get input type - prefer from UnconnectedSlot, fallback to registry
                     val inputType = when (inputValue) {
                         is InputValue.UnconnectedSlot -> inputValue.slotType
@@ -122,6 +134,21 @@ object ConnectionValidator {
 
         return validSlots
     }
+
+    /** Value types (ComfyUI widgets) that can take a link of their own type instead of a typed value. */
+    val LINKABLE_VALUE_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN")
+
+    /** The type of a value input that can take a link, or null (lists, connection types, unknown nodes). */
+    fun linkableValueType(classType: String, inputName: String, nodeTypeRegistry: NodeTypeRegistry): String? =
+        nodeTypeRegistry.getNodeDefinition(classType)?.inputs?.find { it.name == inputName }?.type?.uppercase()
+            ?.takeIf { it in LINKABLE_VALUE_TYPES }
+
+    /**
+     * Whether a value input of [valueType] takes a link from an output of [outputType]: the same type (INT and FLOAT
+     * don't mix, as in ComfyUI) or a wildcard output. Unlike connection inputs, an unknown output type doesn't count.
+     */
+    fun acceptsValueLink(outputType: String?, valueType: String): Boolean =
+        outputType != null && (outputType == "*" || outputType.equals(valueType, ignoreCase = true))
 
     /**
      * Check if an output type is compatible with an input type.

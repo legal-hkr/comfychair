@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.util.ConnectionValidator
 
 /*
  * The workflow editor's frame (spec §10.2): Back and a title pill at the top, one floating toolbar at the bottom whose
@@ -97,7 +98,17 @@ sealed interface EditorStatus {
     /** @param import While importing; otherwise while saving from the editor */
     data class Mapping(val import: Boolean) : EditorStatus
     /** A connection waits for its other end: the pill turns into a status pill with a way out */
-    data class Connecting(val slotType: String, val fromOutput: Boolean) : EditorStatus
+    /**
+     * @param inputName The input a connection starts from (linking a value or an input), shown instead of the type
+     * @param noTargets Nothing in the graph takes the connection
+     */
+    data class Connecting(
+        val slotType: String,
+        val fromOutput: Boolean,
+        val inputName: String? = null,
+        val noTargets: Boolean = false,
+        val zoomInToConnect: Boolean = false
+    ) : EditorStatus
 }
 
 /**
@@ -219,8 +230,20 @@ private fun TitlePill(workflowName: String, status: EditorStatus, onCancelConnec
 private fun pillLines(workflowName: String, status: EditorStatus): Pair<String, String> {
     val name = workflowName.ifEmpty { stringResource(R.string.label_new_workflow) }
     return when (status) {
-        is EditorStatus.Connecting -> stringResource(R.string.label_editor_connecting, status.slotType) to
-            stringResource(if (status.fromOutput) R.string.hint_editor_tap_input else R.string.hint_editor_tap_output)
+        is EditorStatus.Connecting -> {
+            val title = status.inputName?.let { stringResource(R.string.label_editor_linking, it) }
+                ?: stringResource(R.string.label_editor_connecting, status.slotType)
+            val hint = when {
+                status.zoomInToConnect -> stringResource(R.string.label_editor_zoom_in_to_connect)
+                status.noTargets -> stringResource(R.string.hint_editor_no_target, status.slotType)
+                // An output a value can take: values are targets too
+                status.fromOutput && status.slotType.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES ->
+                    stringResource(R.string.hint_editor_tap_input_or_value)
+                status.fromOutput -> stringResource(R.string.hint_editor_tap_input)
+                else -> stringResource(R.string.hint_editor_tap_output)
+            }
+            title to hint
+        }
         EditorStatus.Graph -> name to stringResource(R.string.label_editor_mode_graph)
         is EditorStatus.NodeValues -> name to (
             if (status.changed > 0) pluralStringResource(R.plurals.label_editor_mode_node_values_changed, status.changed, status.changed)

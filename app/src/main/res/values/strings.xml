@@ -760,6 +760,20 @@
     <string name="label_editor_connecting">Connecting %1$s</string>
     <string name="hint_editor_tap_input">Tap a highlighted input</string>
     <string name="hint_editor_tap_output">Tap a highlighted output</string>
+    <string name="label_editor_linking">Linking %1$s</string>
+    <string name="hint_editor_tap_input_or_value">Tap a highlighted input or value</string>
+    <string name="hint_editor_no_target">Nothing in this graph takes %1$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – from %2$s</string>
+    <string name="menu_editor_connect">Connect</string>
+    <string name="menu_editor_disconnect">Disconnect</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – not connected</string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – to %2$s</string>
+    <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b></string>
+    <string name="menu_editor_add_node">Add a node</string>
+    <string name="msg_editor_link_mapped_new_node">Once linked, &lt;b>%1$s&lt;/b> takes its value from the new node, and the &lt;b>%2$s&lt;/b> field no longer changes it.</string>
+    <string name="title_editor_link_mapped">Link %1$s?</string>
+    <string name="msg_editor_link_mapped">Once linked, &lt;b>%1$s&lt;/b> takes its value from node &lt;b>%3$s&lt;/b>, and the &lt;b>%2$s&lt;/b> field no longer changes it.</string>
+    <string name="button_link">Link</string>
     <string name="content_description_cancel_connection">Cancel connection</string>
     <string name="button_edit_structure">Edit structure</string>
     <string name="content_description_clear_selection">Clear selection</string>
@@ -791,7 +805,6 @@
     <string name="msg_workflow_editor_select_input">%1$s has several matching inputs.</string>
     <string name="title_workflow_editor_select_output">Connect from which output?</string>
     <string name="msg_workflow_editor_select_output">%1$s has several matching outputs.</string>
-    <string name="workflow_editor_edit_mode_hint">Tap socket to connect, hold for node browser</string>
 
     <!-- Node browser bottom sheet strings -->
     <string name="node_browser_no_match">No nodes match “%1$s”</string>

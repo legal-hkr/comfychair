@@ -659,6 +659,20 @@
     <string name="label_editor_connecting">Conectando %1$s</string>
     <string name="hint_editor_tap_input">Toca una entrada resaltada</string>
     <string name="hint_editor_tap_output">Toca una salida resaltada</string>
+    <string name="label_editor_linking">Conectando %1$s</string>
+    <string name="hint_editor_tap_input_or_value">Toca una entrada o un valor resaltados</string>
+    <string name="hint_editor_no_target">Nada en este flujo de trabajo acepta %1$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – desde %2$s</string>
+    <string name="menu_editor_connect">Conectar</string>
+    <string name="menu_editor_disconnect">Desconectar</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – sin conectar</string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – hacia %2$s</string>
+    <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> en &lt;b>%2$s&lt;/b></string>
+    <string name="menu_editor_add_node">Añadir un nodo</string>
+    <string name="msg_editor_link_mapped_new_node">Una vez conectado, &lt;b>%1$s&lt;/b> tomará su valor del nuevo nodo y el campo &lt;b>%2$s&lt;/b> dejará de cambiarlo.</string>
+    <string name="title_editor_link_mapped">¿Conectar %1$s?</string>
+    <string name="msg_editor_link_mapped">Una vez conectado, &lt;b>%1$s&lt;/b> tomará su valor del nodo &lt;b>%3$s&lt;/b> y el campo &lt;b>%2$s&lt;/b> dejará de cambiarlo.</string>
+    <string name="button_link">Conectar</string>
     <string name="content_description_cancel_connection">Cancelar conexión</string>
     <string name="button_edit_structure">Editar estructura</string>
     <string name="content_description_clear_selection">Borrar selección</string>
@@ -848,7 +862,6 @@
     <string name="msg_workflow_editor_select_input">%1$s tiene varias entradas compatibles.</string>
     <string name="title_workflow_editor_select_output">¿Conectar desde qué salida?</string>
     <string name="msg_workflow_editor_select_output">%1$s tiene varias salidas compatibles.</string>
-    <string name="workflow_editor_edit_mode_hint">Toca el conector para conectar, mantén para explorador</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Prompt positivo</string>

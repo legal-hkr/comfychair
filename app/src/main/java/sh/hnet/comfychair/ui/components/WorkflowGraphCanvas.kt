@@ -73,8 +73,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.lerp
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
@@ -1066,7 +1068,8 @@ fun WorkflowGraphCanvas(
                         graphY = graphY,
                         nodes = currentGraphState.value.nodes,
                         slotHitRadius = socketRadius(currentScaleState.value),
-                        nodeDefinitions = currentNodeDefinitions.value
+                        nodeDefinitions = currentNodeDefinitions.value,
+                        valueSockets = currentConnectionModeState.value == null
                     )
                     if (hitSlot == null) {
                         return@awaitEachGesture
@@ -1163,6 +1166,13 @@ fun WorkflowGraphCanvas(
                             val tappedTargetSlot = connectionState.validTargetSlots
                                 .filter { distance(it) <= radius * radius }
                                 .minByOrNull { distance(it) }
+                                // A value row that can take the link counts anywhere on its row (a bigger target)
+                                ?: connectionState.validTargetSlots.firstOrNull { slot ->
+                                    val node = graph.nodes.find { it.id == slot.nodeId }
+                                    node != null && node.inputs[slot.slotName] is InputValue.Literal &&
+                                        graphX in node.x..(node.x + node.width) &&
+                                        abs(graphY - slot.center.y) <= WorkflowLayoutEngine.INPUT_ROW_HEIGHT / 2
+                                }
                             if (tappedTargetSlot != null) {
                                 // Call appropriate callback based on direction
                                 when (connectionState.direction) {
@@ -1188,7 +1198,8 @@ fun WorkflowGraphCanvas(
                                 graphY = graphY,
                                 nodes = graph.nodes,
                                 slotHitRadius = radius,
-                                nodeDefinitions = currentNodeDefinitions.value
+                                nodeDefinitions = currentNodeDefinitions.value,
+                                valueSockets = true
                             )
                             if (tappedInputSlot != null) {
                                 onInputSlotTapped(tappedInputSlot)
@@ -1447,7 +1458,8 @@ fun WorkflowGraphCanvas(
                         // Mapping mode selection
                         isFieldMappingMode && node.id in mappingSelectedNodeIds -> NodeHighlightState.SELECTED
                         isFieldMappingMode && node.id in highlightedNodeIds -> NodeHighlightState.CANDIDATE
-                        // Connection mode - highlight valid target nodes
+                        // Connection mode - the node it starts from (findable when zoomed out), and valid target nodes
+                        inConnectionMode && node.id == connectionModeState?.sourceSlot?.nodeId -> NodeHighlightState.SELECTED
                         inConnectionMode && node.id in connectionCandidateNodeIds -> NodeHighlightState.CANDIDATE
                         // Edit mode selection
                         isEditMode && node.id in selectedNodeIds -> NodeHighlightState.SELECTED
@@ -1593,7 +1605,16 @@ fun WorkflowGraphCanvas(
                 }
 
                 node.inputs.forEach { (inputName, inputValue) ->
-                    if (inputValue !is InputValue.Connection && inputValue !is InputValue.UnconnectedSlot) return@forEach
+                    // In Edit structure every value row that can take a link has a socket, as in ComfyUI (the owner's
+                    // choice over the spec's selected nodes only); while a connection waits, only its targets and source
+                    val valueSocketType = if (inputValue is InputValue.Literal && isEditMode && level == GraphDetailLevel.FULL) {
+                        linkableValueType(node, inputName, nodeDefinitions)?.takeIf {
+                            val isTarget = connectionModeState?.validTargetSlots?.any { slot -> slot.nodeId == node.id && slot.slotName == inputName } == true
+                            val isValueSource = connectionModeState?.sourceSlot?.let { slot -> !slot.isOutput && slot.nodeId == node.id && slot.slotName == inputName } == true
+                            isTarget || isValueSource || connectionModeState == null
+                        }
+                    } else null
+                    if (inputValue !is InputValue.Connection && inputValue !is InputValue.UnconnectedSlot && valueSocketType == null) return@forEach
                     if (WorkflowLayoutEngine.inputSlotY(node, inputName) < coveredTo) return@forEach
                     val position = scaleSocketPosition(
                         node, node.x, node.y + WorkflowLayoutEngine.inputSlotY(node, inputName),
@@ -1605,8 +1626,9 @@ fun WorkflowGraphCanvas(
                         connectionModeState.sourceSlot.slotName == inputName) ||
                         (longPressSourceSlot?.nodeId == node.id && !longPressSourceSlot.isOutput &&
                             longPressSourceSlot.slotName == inputName)
-                    val typeColor = when (inputValue) {
-                        is InputValue.UnconnectedSlot -> colors.slot(inputValue.slotType)
+                    val typeColor = when {
+                        valueSocketType != null -> colors.slot(valueSocketType)
+                        inputValue is InputValue.UnconnectedSlot -> colors.slot(inputValue.slotType)
                         else -> inputWireColors[node.id]?.get(inputName) ?: colors.onSurfaceVariant
                     }
                     drawSocket(
@@ -2384,8 +2406,8 @@ private fun findOutputSlotAt(
 }
 
 /**
- * Find an input slot at the given graph coordinates.
- * Only returns connection-type inputs (Connection or UnconnectedSlot).
+ * Find an input slot at the given graph coordinates: connection-type inputs (Connection or UnconnectedSlot), and with
+ * [valueSockets] the value rows that can take a link.
  * Returns the SlotPosition if found within the hit radius, null otherwise.
  */
 private fun findInputSlotAt(
@@ -2393,7 +2415,8 @@ private fun findInputSlotAt(
     graphY: Float,
     nodes: List<WorkflowNode>,
     slotHitRadius: Float,
-    nodeDefinitions: Map<String, NodeTypeDefinition>
+    nodeDefinitions: Map<String, NodeTypeDefinition>,
+    valueSockets: Boolean = false
 ): SlotPosition? {
     var best: SlotPosition? = null
     var bestDistance = slotHitRadius * slotHitRadius
@@ -2403,9 +2426,12 @@ private fun findInputSlotAt(
         var inputIndex = 0
 
         for ((inputName, inputValue) in node.inputs) {
-            // Only check connection-type inputs
+            // Connection-type inputs, and (with [valueSockets]) the value rows that can take a link
+            val valueType = if (inputValue is InputValue.Literal && valueSockets) {
+                linkableValueType(node, inputName, nodeDefinitions)
+            } else null
             val isConnectionInput = inputValue is InputValue.Connection ||
-                inputValue is InputValue.UnconnectedSlot
+                inputValue is InputValue.UnconnectedSlot || valueType != null
 
             if (isConnectionInput) {
                 val inputY = node.y + WorkflowLayoutEngine.rowCenterY(inputIndex)
@@ -2416,6 +2442,7 @@ private fun findInputSlotAt(
                     bestDistance = dx * dx + dy * dy
                     // Resolve slot type - for connected inputs, look up from node definition
                     val slotType = when (inputValue) {
+                        is InputValue.Literal -> valueType
                         is InputValue.UnconnectedSlot -> inputValue.slotType
                         is InputValue.Connection -> {
                             nodeDefinitions[node.classType]?.inputs
@@ -2438,3 +2465,8 @@ private fun findInputSlotAt(
     }
     return best
 }
+
+/** The type of a value row that can take a link (INT, FLOAT, STRING, BOOLEAN), or null. */
+private fun linkableValueType(node: WorkflowNode, inputName: String, nodeDefinitions: Map<String, NodeTypeDefinition>): String? =
+    nodeDefinitions[node.classType]?.inputs?.find { it.name == inputName }?.type?.uppercase()
+        ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES }

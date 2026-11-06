@@ -659,6 +659,20 @@
     <string name="label_editor_connecting">Connexion %1$s</string>
     <string name="hint_editor_tap_input">Touchez une entrée en surbrillance</string>
     <string name="hint_editor_tap_output">Touchez une sortie en surbrillance</string>
+    <string name="label_editor_linking">Liaison de %1$s</string>
+    <string name="hint_editor_tap_input_or_value">Touchez une entrée ou une valeur en surbrillance</string>
+    <string name="hint_editor_no_target">Rien dans ce workflow n’accepte %1$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – depuis %2$s</string>
+    <string name="menu_editor_connect">Connecter</string>
+    <string name="menu_editor_disconnect">Déconnecter</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – non connecté</string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – vers %2$s</string>
+    <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> dans &lt;b>%2$s&lt;/b></string>
+    <string name="menu_editor_add_node">Ajouter un nœud</string>
+    <string name="msg_editor_link_mapped_new_node">Une fois liée, la valeur &lt;b>%1$s&lt;/b> viendra du nouveau nœud et le champ &lt;b>%2$s&lt;/b> ne la modifiera plus.</string>
+    <string name="title_editor_link_mapped">Lier %1$s ?</string>
+    <string name="msg_editor_link_mapped">Une fois liée, la valeur &lt;b>%1$s&lt;/b> viendra du nœud &lt;b>%3$s&lt;/b> et le champ &lt;b>%2$s&lt;/b> ne la modifiera plus.</string>
+    <string name="button_link">Lier</string>
     <string name="content_description_cancel_connection">Annuler la connexion</string>
     <string name="button_edit_structure">Modifier la structure</string>
     <string name="content_description_clear_selection">Effacer la sélection</string>
@@ -848,7 +862,6 @@
     <string name="msg_workflow_editor_select_input">%1$s a plusieurs entrées compatibles.</string>
     <string name="title_workflow_editor_select_output">Connecter depuis quelle sortie ?</string>
     <string name="msg_workflow_editor_select_output">%1$s a plusieurs sorties compatibles.</string>
-    <string name="workflow_editor_edit_mode_hint">Appuyez sur une prise pour connecter, maintenez pour l\'explorateur</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Prompt positif</string>

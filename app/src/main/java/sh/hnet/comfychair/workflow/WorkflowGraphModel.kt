@@ -223,8 +223,8 @@ data class MutableWorkflowGraph(
     val groups: MutableList<WorkflowGroup>,
     val notes: MutableList<WorkflowNote>,
     val templateVariables: MutableSet<String>,
-    /** Immutable - original workflow mappings don't change during editing */
-    val mappedFields: Map<Pair<String, String>, String> = emptyMap(),
+    /** The workflow's mappings; linking a mapped value removes its mapping (spec §17.2.3) */
+    var mappedFields: Map<Pair<String, String>, String> = emptyMap(),
     /** Whether manual placement mode is enabled for this workflow */
     var isManualPlacementMode: Boolean = false
 ) {
@@ -338,6 +338,8 @@ data class WorkflowEditorUiState(
 
     // Connection mode (tap-based connection editing)
     val connectionModeState: ConnectionModeState? = null,
+    /** A pending connection's target is a value the app fills: the editor asks before linking it (spec §17.2.3). */
+    val pendingMappedLink: PendingMappedLink? = null,
 
     // Long-press connection mode (filtered node browser)
     val longPressSourceSlot: SlotPosition? = null,
@@ -419,3 +421,19 @@ data class GraphBounds(
     val width: Float get() = maxX - minX
     val height: Float get() = maxY - minY
 }
+
+/**
+ * Linking a value the app fills from a generation-screen field asks first: linking ends that mapping.
+ *
+ * @param target The slot that completes the connection (an input, or an output when linking from the value)
+ * @param inputName The value's input name; [fieldName] the app's field; [sourceTitle] the node it will come from
+ */
+@Immutable
+data class PendingMappedLink(
+    val target: SlotPosition,
+    val inputName: String,
+    val fieldName: String,
+    val sourceTitle: String,
+    /** Linking to a node not added yet (Add a node, from the socket's menu) */
+    val addNode: Boolean = false
+)

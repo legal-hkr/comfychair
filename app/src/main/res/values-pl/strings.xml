@@ -676,6 +676,20 @@
     <string name="label_editor_connecting">Łączenie: %1$s</string>
     <string name="hint_editor_tap_input">Dotknij podświetlonego wejścia</string>
     <string name="hint_editor_tap_output">Dotknij podświetlonego wyjścia</string>
+    <string name="label_editor_linking">Podłączanie %1$s</string>
+    <string name="hint_editor_tap_input_or_value">Dotknij podświetlonego wejścia lub wartości</string>
+    <string name="hint_editor_no_target">Nic w tym przepływie nie przyjmuje %1$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – z %2$s</string>
+    <string name="menu_editor_connect">Połącz</string>
+    <string name="menu_editor_disconnect">Rozłącz</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – niepodłączone</string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – do %2$s</string>
+    <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> w &lt;b>%2$s&lt;/b></string>
+    <string name="menu_editor_add_node">Dodaj węzeł</string>
+    <string name="msg_editor_link_mapped_new_node">Po podłączeniu wartość &lt;b>%1$s&lt;/b> przyjdzie z nowego węzła, a pole &lt;b>%2$s&lt;/b> przestanie ją zmieniać.</string>
+    <string name="title_editor_link_mapped">Podłączyć %1$s?</string>
+    <string name="msg_editor_link_mapped">Po podłączeniu wartość &lt;b>%1$s&lt;/b> przyjdzie z węzła &lt;b>%3$s&lt;/b>, a pole &lt;b>%2$s&lt;/b> przestanie ją zmieniać.</string>
+    <string name="button_link">Podłącz</string>
     <string name="content_description_cancel_connection">Anuluj łączenie</string>
     <string name="button_edit_structure">Edytuj strukturę</string>
     <string name="content_description_clear_selection">Wyczyść zaznaczenie</string>
@@ -870,7 +884,6 @@
     <string name="msg_workflow_editor_select_input">%1$s ma kilka pasujących wejść.</string>
     <string name="title_workflow_editor_select_output">Z którego wyjścia połączyć?</string>
     <string name="msg_workflow_editor_select_output">%1$s ma kilka pasujących wyjść.</string>
-    <string name="workflow_editor_edit_mode_hint">Dotknij gniazda, aby połączyć, przytrzymaj dla przeglądarki</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Pozytywny prompt</string>

@@ -656,6 +656,20 @@
     <string name="label_editor_connecting">Verbinde %1$s</string>
     <string name="hint_editor_tap_input">Tippe auf einen hervorgehobenen Eingang</string>
     <string name="hint_editor_tap_output">Tippe auf einen hervorgehobenen Ausgang</string>
+    <string name="label_editor_linking">%1$s verbinden</string>
+    <string name="hint_editor_tap_input_or_value">Tippe auf einen markierten Eingang oder Wert</string>
+    <string name="hint_editor_no_target">Nichts in diesem Workflow nimmt %1$s an</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – von %2$s</string>
+    <string name="menu_editor_connect">Verbinden</string>
+    <string name="menu_editor_disconnect">Trennen</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – nicht verbunden</string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – zu %2$s</string>
+    <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b></string>
+    <string name="menu_editor_add_node">Knoten hinzufügen</string>
+    <string name="msg_editor_link_mapped_new_node">Nach dem Verbinden kommt &lt;b>%1$s&lt;/b> vom neuen Knoten, und das Feld &lt;b>%2$s&lt;/b> ändert den Wert nicht mehr.</string>
+    <string name="title_editor_link_mapped">%1$s verbinden?</string>
+    <string name="msg_editor_link_mapped">Nach dem Verbinden kommt &lt;b>%1$s&lt;/b> vom Knoten &lt;b>%3$s&lt;/b>, und das Feld &lt;b>%2$s&lt;/b> ändert den Wert nicht mehr.</string>
+    <string name="button_link">Verbinden</string>
     <string name="content_description_cancel_connection">Verbindung abbrechen</string>
     <string name="button_edit_structure">Struktur bearbeiten</string>
     <string name="content_description_clear_selection">Auswahl aufheben</string>
@@ -824,7 +838,6 @@
     <string name="msg_workflow_editor_select_input">%1$s hat mehrere passende Eingänge.</string>
     <string name="title_workflow_editor_select_output">Von welchem Ausgang verbinden?</string>
     <string name="msg_workflow_editor_select_output">%1$s hat mehrere passende Ausgänge.</string>
-    <string name="workflow_editor_edit_mode_hint">Tippe auf Anschluss zum Verbinden, halte für Knotenbrowser</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Positiver Prompt</string>

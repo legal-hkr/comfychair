@@ -58,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -110,6 +111,20 @@ private fun DialogIcon(icon: ImageVector, risky: Boolean) {
 fun ConfirmDialog(
     title: String,
     text: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    icon: ImageVector? = null,
+    destructive: Boolean = false,
+    dismissLabel: String = stringResource(R.string.button_cancel),
+    content: (@Composable () -> Unit)? = null
+) = ConfirmDialog(title, AnnotatedString(text), confirmLabel, onConfirm, onDismiss, icon, destructive, dismissLabel, content)
+
+/** [ConfirmDialog] with styled text, e.g. names in bold ([sh.hnet.comfychair.ui.components.shared.boldNamesResource]). */
+@Composable
+fun ConfirmDialog(
+    title: String,
+    text: AnnotatedString,
     confirmLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,

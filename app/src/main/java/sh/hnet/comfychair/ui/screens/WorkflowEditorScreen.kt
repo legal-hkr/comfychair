@@ -2,7 +2,7 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import android.widget.Toast
+import android.text.TextUtils
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -36,15 +36,24 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.AddCircleOutline
+import androidx.compose.material.icons.rounded.Cable
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -66,6 +75,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,7 +85,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
@@ -89,6 +103,7 @@ import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
 import sh.hnet.comfychair.ui.components.dialogs.FormDialog
 import sh.hnet.comfychair.ui.components.graphCanvasColor
 import sh.hnet.comfychair.ui.components.rememberGraphDetailLevel
+import sh.hnet.comfychair.ui.components.shared.boldNamesResource
 import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.ui.components.workflow.AllFieldsSheet
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
@@ -103,7 +118,11 @@ import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
+import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.GraphDetailLevel
+import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.changedValueCount
@@ -123,19 +142,6 @@ fun WorkflowEditorScreen(
     val density = LocalDensity.current
     val context = LocalContext.current
     val resources = LocalResources.current
-
-    // Show hint Toast when entering edit mode
-    val wasEditMode = remember { mutableStateOf(false) }
-    LaunchedEffect(uiState.isEditMode) {
-        if (uiState.isEditMode && !wasEditMode.value) {
-            Toast.makeText(
-                context,
-                resources.getString(R.string.workflow_editor_edit_mode_hint),
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-        wasEditMode.value = uiState.isEditMode
-    }
 
     // Flag to trigger toolbar-initiated zoom animation (vs instant gesture updates)
     val shouldAnimateZoomChange = remember { mutableStateOf(false) }
@@ -168,6 +174,9 @@ fun WorkflowEditorScreen(
         else -> EditorMode.NODE_VALUES
     }
     val connection = uiState.connectionModeState
+    // A linked input socket's menu (Disconnect, Change source), and the app's field names for the linking question
+    var socketMenu by remember { mutableStateOf<SlotPosition?>(null) }
+    val fieldNameOf: (String) -> String = remember(context) { { key -> FieldDisplayRegistry.getDisplayName(context, key) } }
     // Values that differ from the workflow's (edits that only fill an empty value with the node's default don't count)
     val changedValues = remember(uiState.graph, uiState.nodeDefinitions, uiState.nodeAttributeEdits) {
         uiState.graph?.let { changedValueCount(it, uiState.nodeDefinitions, uiState.nodeAttributeEdits) } ?: 0
@@ -176,7 +185,11 @@ fun WorkflowEditorScreen(
     val status = when {
         connection != null -> EditorStatus.Connecting(
             connection.sourceSlot.slotType ?: "",
-            fromOutput = connection.direction == ConnectionDirection.OUTPUT_TO_INPUT
+            fromOutput = connection.direction == ConnectionDirection.OUTPUT_TO_INPUT,
+            inputName = connection.sourceSlot.slotName.takeIf { connection.direction == ConnectionDirection.INPUT_TO_OUTPUT },
+            noTargets = connection.validTargetSlots.isEmpty(),
+            // Zoomed out, sockets can't be tapped: the connection waits until zoomed in
+            zoomInToConnect = detailLevel != GraphDetailLevel.FULL
         )
         mode == EditorMode.MAPPING -> EditorStatus.Mapping(import = uiState.isImportMapping)
         mode == EditorMode.EDIT -> EditorStatus.Editing(
@@ -415,6 +428,26 @@ fun WorkflowEditorScreen(
                             .windowInsetsPadding(WindowInsets.statusBars)
                             .padding(bottom = 16.dp)
                     ) {
+                        // A socket's menu, anchored at the socket
+                        socketMenu?.let { slot ->
+                            SocketMenu(
+                                slot = slot,
+                                graph = uiState.graph,
+                                anchor = IntOffset(
+                                    (slot.center.x * displayScale + displayOffset.x).roundToInt(),
+                                    (slot.center.y * displayScale + displayOffset.y).roundToInt()
+                                ),
+                                onDismiss = { socketMenu = null },
+                                onConnect = {
+                                    if (slot.isOutput) viewModel.enterConnectionMode(slot) else viewModel.enterReverseConnectionMode(slot)
+                                },
+                                onAddNode = { viewModel.requestAddNodeFor(slot, fieldNameOf) },
+                                onDisconnect = {
+                                    if (slot.isOutput) viewModel.disconnectOutput(slot.nodeId, slot.outputIndex)
+                                    else viewModel.deleteConnection(slot.nodeId, slot.slotName)
+                                }
+                            )
+                        }
                         WorkflowGraphCanvas(
                             graph = uiState.graph!!,
                             scale = displayScale,
@@ -475,29 +508,32 @@ fun WorkflowEditorScreen(
                             onOutputSlotTapped = { outputSlot ->
                                 val connectionState = uiState.connectionModeState
                                 when {
-                                    // In INPUT_TO_OUTPUT mode: complete connection to this output
+                                    // In INPUT_TO_OUTPUT mode: complete connection to this output (a value the app
+                                    // fills asks first)
                                     connectionState?.direction == ConnectionDirection.INPUT_TO_OUTPUT ->
-                                        viewModel.connectToTarget(outputSlot)
+                                        viewModel.requestConnectToTarget(outputSlot, fieldNameOf)
                                     // Tapping the same output slot exits connection mode
                                     connectionState?.sourceSlot?.nodeId == outputSlot.nodeId &&
                                             connectionState.sourceSlot.outputIndex == outputSlot.outputIndex ->
                                         viewModel.exitConnectionMode()
-                                    // Enter connection mode with this output
-                                    else -> viewModel.enterConnectionMode(outputSlot)
+                                    // Otherwise the output's menu: connect, add a node, disconnect all
+                                    else -> socketMenu = outputSlot
                                 }
                             },
                             onInputSlotTapped = { inputSlot ->
                                 val connectionState = uiState.connectionModeState
                                 when {
-                                    // In OUTPUT_TO_INPUT mode: complete connection to this input
+                                    // In OUTPUT_TO_INPUT mode: complete connection to this input (a value the app fills
+                                    // asks first)
                                     connectionState?.direction == ConnectionDirection.OUTPUT_TO_INPUT ->
-                                        viewModel.connectToTarget(inputSlot)
+                                        viewModel.requestConnectToTarget(inputSlot, fieldNameOf)
                                     // Tapping the same input slot exits reverse connection mode
                                     connectionState?.sourceSlot?.nodeId == inputSlot.nodeId &&
                                             connectionState.sourceSlot.slotName == inputSlot.slotName ->
                                         viewModel.exitConnectionMode()
-                                    // Enter reverse connection mode with this input
-                                    else -> viewModel.enterReverseConnectionMode(inputSlot)
+                                    // Otherwise the input's menu (a socket, linked or free, or a value's): choose or
+                                    // change the source, add a node, disconnect (spec §17.4, extended by the owner)
+                                    else -> socketMenu = inputSlot
                                 }
                             },
                             notes = uiState.graph?.notes ?: emptyList(),
@@ -510,12 +546,9 @@ fun WorkflowEditorScreen(
                                 viewModel.relayoutGraph()
                             },
                             longPressSourceSlot = uiState.longPressSourceSlot,
-                            onOutputSlotLongPressed = { slot ->
-                                viewModel.startLongPressConnection(slot)
-                            },
-                            onInputSlotLongPressed = { slot ->
-                                viewModel.startLongPressConnection(slot)
-                            },
+                            // Pressing a socket grows a ring (the feedback of a press); held, it opens the same menu as a tap
+                            onOutputSlotLongPressed = { slot -> socketMenu = slot },
+                            onInputSlotLongPressed = { slot -> socketMenu = slot },
                             // Manual node placement
                             showGrid = uiState.isManualPlacementMode && uiState.isEditMode,
                             isManualPlacementEnabled = uiState.isManualPlacementMode,
@@ -805,6 +838,22 @@ fun WorkflowEditorScreen(
         }
 
         // Several compatible inputs or outputs: which one (a tap connects)
+        // Linking a value the app fills: what it means, before it's done (spec §17.2.3)
+        uiState.pendingMappedLink?.let { pending ->
+            ConfirmDialog(
+                title = stringResource(R.string.title_editor_link_mapped, pending.inputName),
+                text = if (pending.addNode) {
+                    boldNamesResource(R.string.msg_editor_link_mapped_new_node, pending.inputName, pending.fieldName)
+                } else {
+                    boldNamesResource(R.string.msg_editor_link_mapped, pending.inputName, pending.fieldName, pending.sourceTitle)
+                },
+                confirmLabel = stringResource(R.string.button_link),
+                icon = Icons.Rounded.Link,
+                onConfirm = { viewModel.confirmMappedLink(pending) },
+                onDismiss = viewModel::dismissMappedLink
+            )
+        }
+
         if (uiState.showInputSelectionDialog) {
             val nodeTypeName = uiState.inputSelectionNodeType?.displayName ?: uiState.inputSelectionNodeType?.classType ?: ""
             ChoiceDialog(
@@ -1010,6 +1059,86 @@ private fun NodeListSheet(nodes: List<WorkflowNode>, onPick: (WorkflowNode) -> U
                         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * A socket's menu (Edit structure), the same for inputs and outputs, in the app's menu style: Connect (compatible
+ * sockets at the other end highlighted; an input's new link replaces the one it had, an output gets one more), Add a
+ * node, and Disconnect apart. The label names the socket and the sockets it's linked to.
+ */
+@Composable
+private fun SocketMenu(
+    slot: SlotPosition,
+    graph: WorkflowGraph?,
+    anchor: IntOffset,
+    onDismiss: () -> Unit,
+    onConnect: () -> Unit,
+    onAddNode: () -> Unit,
+    onDisconnect: () -> Unit
+) {
+    val node = graph?.nodes?.find { it.id == slot.nodeId }
+    val link = node?.inputs?.get(slot.slotName) as? InputValue.Connection
+    val connected = if (slot.isOutput) {
+        graph?.edges?.any { it.sourceNodeId == slot.nodeId && it.sourceOutputIndex == slot.outputIndex } == true
+    } else link != null
+    // "model – from MODEL in Load Diffusion Model", "LATENT – to latent_image in KSampler": the sockets at the other
+    // end, each with its node; names bold, escaped before the markup
+    val resources = LocalResources.current
+    fun inNode(socket: String, nodeTitle: String) =
+        resources.getString(R.string.label_editor_socket_in, TextUtils.htmlEncode(socket), TextUtils.htmlEncode(nodeTitle))
+    val otherEnds = if (slot.isOutput) {
+        graph?.edges.orEmpty().filter { it.sourceNodeId == slot.nodeId && it.sourceOutputIndex == slot.outputIndex }
+            .map { edge -> inNode(edge.targetInputName, graph?.nodes?.find { it.id == edge.targetNodeId }?.title.orEmpty()) }
+    } else {
+        listOfNotNull(link?.let { l ->
+            val source = graph?.nodes?.find { it.id == l.sourceNodeId }
+            inNode(source?.outputs?.getOrNull(l.outputIndex)?.name.orEmpty(), source?.title.orEmpty())
+        })
+    }
+    val label = AnnotatedString.fromHtml(
+        when {
+            otherEnds.isEmpty() -> resources.getString(R.string.label_editor_socket_menu_free, TextUtils.htmlEncode(slot.slotName))
+            slot.isOutput -> resources.getString(R.string.label_editor_output_menu_header, TextUtils.htmlEncode(slot.slotName), otherEnds.joinToString(", "))
+            else -> resources.getString(R.string.label_editor_socket_menu_header, TextUtils.htmlEncode(slot.slotName), otherEnds.first())
+        }
+    )
+    data class Item(val labelRes: Int, val icon: ImageVector, val action: () -> Unit)
+    val items = buildList {
+        // Connect, as its opposite Disconnect: the label says which socket and where it's linked
+        add(Item(R.string.menu_editor_connect, Icons.Rounded.Cable, onConnect))
+        add(Item(R.string.menu_editor_add_node, Icons.Rounded.AddCircleOutline, onAddNode))
+    }
+    val disconnect = if (connected) listOf(Item(R.string.menu_editor_disconnect, Icons.Rounded.LinkOff, onDisconnect)) else emptyList()
+    // Disconnect in a group of its own, apart from the actions that add a link (as Delete in the server menu)
+    val groups = listOf(items, disconnect).filter { it.isNotEmpty() }
+    Box(Modifier.offset { anchor }) {
+        DropdownMenuPopup(expanded = true, onDismissRequest = onDismiss) {
+            groups.forEachIndexed { groupIndex, group ->
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, groups.size)) {
+                    if (groupIndex == 0) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+                        )
+                    }
+                    group.forEachIndexed { index, item ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(item.labelRes)) },
+                            leadingIcon = { Icon(item.icon, contentDescription = null) },
+                            shape = MenuDefaults.itemShape(index, group.size).shape,
+                            onClick = {
+                                onDismiss()
+                                item.action()
+                            }
+                        )
+                    }
+                }
+                if (groupIndex < groups.size - 1) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
             }
         }
     }

@@ -10,9 +10,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
@@ -41,6 +41,7 @@ import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
 import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.OutputSlot
+import sh.hnet.comfychair.workflow.PendingMappedLink
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowEdge
@@ -94,6 +95,12 @@ class WorkflowEditorViewModel : ViewModel() {
     // Use shared NodeTypeRegistry from ConnectionManager (populated on connection)
     private val nodeTypeRegistry: NodeTypeRegistry
         get() = ConnectionManager.nodeTypeRegistry
+
+    /**
+     * Values that took a link in this editing session, by node and input: Disconnect brings them back. Not saved – the
+     * workflow's format has no place for a linked input's value – so after saving, Disconnect gives the node's default.
+     */
+    private val keptValues = mutableMapOf<Pair<String, String>, Any>()
 
     init {
         // The server's node definitions load in the background after connecting: a workflow opened before they
@@ -290,6 +297,7 @@ class WorkflowEditorViewModel : ViewModel() {
                     isLoading = false,
                     errorMessage = null,
                     graphBounds = bounds,
+                    nodeDefinitions = buildNodeDefinitionsMap(graph),
                     isFieldMappingMode = true,
                     isImportMapping = true,
                     mappingState = mappingState,
@@ -410,6 +418,8 @@ class WorkflowEditorViewModel : ViewModel() {
                     isLoading = false,
                     errorMessage = null,
                     graphBounds = bounds,
+                    // Every way into the editor needs them: value sockets, dropdowns and missing nodes depend on them
+                    nodeDefinitions = buildNodeDefinitionsMap(graph),
                     // Edit-existing specific flags
                     isEditExistingMode = true,
                     isEditMode = true,  // Start in edit mode
@@ -2522,25 +2532,112 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Update the target node's input to be a Connection type
         val targetNode = graph.nodes.find { it.id == inputSlot.nodeId }
+        val valueTookLink = targetNode?.inputs?.get(inputSlot.slotName) is InputValue.Literal
         if (targetNode != null) {
+            // A value taking a link: its typed value comes back on Disconnect (for this editing session). A value the app
+            // filled ({{placeholder}}) doesn't: linking ends that mapping, and Disconnect gives the node's default
+            (targetNode.inputs[inputSlot.slotName] as? InputValue.Literal)
+                ?.takeUnless { TemplateKeyRegistry.isAppManagedValue(it.value) }
+                ?.let { keptValues[targetNode.id to inputSlot.slotName] = it.value }
             val updatedInputs = targetNode.inputs.toMutableMap()
             updatedInputs[inputSlot.slotName] = InputValue.Connection(
                 sourceNodeId = outputSlot.nodeId,
                 outputIndex = outputSlot.outputIndex
             )
-            // Update the node in place
+            // Update the node in place; a value that took a link moves to the node's linked inputs
             val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
             if (nodeIndex >= 0) {
-                graph.nodes[nodeIndex] = targetNode.copy(inputs = updatedInputs)
+                graph.nodes[nodeIndex] = targetNode.copy(inputs = sortInputsForLayout(updatedInputs))
             }
         }
 
-        // Update UI state
-        updateGraphState()
         _uiState.value = _uiState.value.copy(
             connectionModeState = null,
+            pendingMappedLink = null,
             hasUnsavedChanges = true
         )
+        // A value row that became a link changes the node's rows: sizes and positions follow; a link between sockets
+        // leaves the layout as it was
+        if (valueTookLink) relayoutGraph() else updateGraphState()
+    }
+
+    /**
+     * A tapped target of the pending connection: connects, unless the input is a value the app fills from a
+     * generation-screen field – then the editor asks first ([pendingMappedLink]).
+     */
+    fun requestConnectToTarget(targetSlot: SlotPosition, fieldNameOf: (String) -> String) {
+        val graph = mutableGraph ?: return
+        val connection = _uiState.value.connectionModeState ?: return
+        val (outputSlot, inputSlot) = when (connection.direction) {
+            ConnectionDirection.OUTPUT_TO_INPUT -> connection.sourceSlot to targetSlot
+            ConnectionDirection.INPUT_TO_OUTPUT -> targetSlot to connection.sourceSlot
+        }
+        val fieldKey = mappedFieldOf(inputSlot)
+        if (fieldKey == null) {
+            connectToTarget(targetSlot)
+            return
+        }
+        val sourceTitle = graph.nodes.find { it.id == outputSlot.nodeId }?.title.orEmpty()
+        _uiState.value = _uiState.value.copy(
+            pendingMappedLink = PendingMappedLink(targetSlot, inputSlot.slotName, fieldNameOf(fieldKey), sourceTitle)
+        )
+    }
+
+    /** The app's field a value input is filled from (its `{{placeholder}}` or a kept mapping), or null. */
+    private fun mappedFieldOf(inputSlot: SlotPosition): String? {
+        val graph = mutableGraph ?: return null
+        val value = (graph.nodes.find { it.id == inputSlot.nodeId }?.inputs?.get(inputSlot.slotName) as? InputValue.Literal)?.value
+            ?: return null
+        return (value as? String)?.let { Regex("""\{\{(\w+)\}\}""").matchEntire(it)?.groupValues?.get(1) }
+            ?: graph.mappedFields[inputSlot.nodeId to inputSlot.slotName]
+    }
+
+    /**
+     * Add a node for a socket (its menu): the node browser filtered to nodes that fit it. For a value the app fills,
+     * the editor asks first, as when linking it to an existing node.
+     */
+    fun requestAddNodeFor(slot: SlotPosition, fieldNameOf: (String) -> String) {
+        val fieldKey = if (slot.isOutput) null else mappedFieldOf(slot)
+        if (fieldKey == null) {
+            startLongPressConnection(slot)
+        } else {
+            _uiState.value = _uiState.value.copy(
+                pendingMappedLink = PendingMappedLink(slot, slot.slotName, fieldNameOf(fieldKey), sourceTitle = "", addNode = true)
+            )
+        }
+    }
+
+    /** Disconnect everything an output feeds (its menu). */
+    fun disconnectOutput(nodeId: String, outputIndex: Int) {
+        val graph = mutableGraph ?: return
+        graph.edges.filter { it.sourceNodeId == nodeId && it.sourceOutputIndex == outputIndex }
+            .forEach { deleteConnection(it.targetNodeId, it.targetInputName) }
+    }
+
+    /**
+     * Link after the question: the value stops being filled by the app. Takes the question it answers: the dialog
+     * closes (clearing [pendingMappedLink]) before it confirms.
+     */
+    fun confirmMappedLink(pending: PendingMappedLink) {
+        if (pending.addNode) {
+            // The node browser next; the mapping is removed when the new node is linked
+            _uiState.value = _uiState.value.copy(pendingMappedLink = null)
+            startLongPressConnection(pending.target)
+            return
+        }
+        val graph = mutableGraph
+        // Linking ends a mapping kept apart from the value too
+        graph?.let { g ->
+            val connection = _uiState.value.connectionModeState
+            val inputSlot = if (connection?.direction == ConnectionDirection.INPUT_TO_OUTPUT) connection.sourceSlot else pending.target
+            g.mappedFields = g.mappedFields - (inputSlot.nodeId to inputSlot.slotName)
+        }
+        connectToTarget(pending.target)
+    }
+
+    /** Cancel the question: the connection still waits. */
+    fun dismissMappedLink() {
+        _uiState.value = _uiState.value.copy(pendingMappedLink = null)
     }
 
     /**
@@ -2779,7 +2876,8 @@ class WorkflowEditorViewModel : ViewModel() {
         // 5. Find output index for the selected output
         val outputIndex = nodeType.outputs.indexOfFirst { it.name == sourceOutput.name }
 
-        // 6. Create edge from new node's output TO the target input
+        // 6. Create edge from new node's output TO the target input (replacing the link it had)
+        graph.edges.removeAll { edge -> edge.targetNodeId == targetInputSlot.nodeId && edge.targetInputName == targetInputSlot.slotName }
         val newEdge = WorkflowEdge(
             sourceNodeId = newNodeId,
             sourceOutputIndex = outputIndex,
@@ -2792,6 +2890,11 @@ class WorkflowEditorViewModel : ViewModel() {
         // 7. Update target node's input to be a Connection type
         val targetNode = graph.nodes.find { it.id == targetInputSlot.nodeId }
         if (targetNode != null) {
+            // A value taking the link: kept for Disconnect, as when linking an existing node
+            (targetNode.inputs[targetInputSlot.slotName] as? InputValue.Literal)
+                ?.takeUnless { TemplateKeyRegistry.isAppManagedValue(it.value) }
+                ?.let { keptValues[targetNode.id to targetInputSlot.slotName] = it.value }
+            graph.mappedFields = graph.mappedFields - (targetNode.id to targetInputSlot.slotName)
             val updatedInputs = targetNode.inputs.toMutableMap()
             updatedInputs[targetInputSlot.slotName] = InputValue.Connection(
                 sourceNodeId = newNodeId,
@@ -2799,7 +2902,7 @@ class WorkflowEditorViewModel : ViewModel() {
             )
             val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
             if (nodeIndex >= 0) {
-                graph.nodes[nodeIndex] = targetNode.copy(inputs = updatedInputs)
+                graph.nodes[nodeIndex] = targetNode.copy(inputs = sortInputsForLayout(updatedInputs))
             }
         }
 
@@ -2823,7 +2926,9 @@ class WorkflowEditorViewModel : ViewModel() {
             outputSelectionNodeType = null,
             outputSelectionCompatibleOutputs = emptyList(),
             connectionModeState = null,
-            hasUnsavedChanges = true
+            hasUnsavedChanges = true,
+            // The whole graph's definitions, with the new node's: none of them is "missing"
+            nodeDefinitions = buildNodeDefinitionsMap(layoutedGraph) + (nodeType.classType to nodeType)
         )
 
         DebugLogger.d(TAG, "completeReverseConnection: DONE")
@@ -2961,7 +3066,9 @@ class WorkflowEditorViewModel : ViewModel() {
             inputSelectionNodeType = null,
             inputSelectionCompatibleInputs = emptyList(),
             connectionModeState = null,
-            hasUnsavedChanges = true
+            hasUnsavedChanges = true,
+            // The whole graph's definitions, with the new node's: none of them is "missing"
+            nodeDefinitions = buildNodeDefinitionsMap(layoutedGraph) + (nodeType.classType to nodeType)
         )
 
         DebugLogger.d(TAG, "completeConnection: DONE")
@@ -2975,44 +3082,39 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Delete a connection by removing the edge to a specific input.
+     * Disconnect an input (Edit structure). A value in ComfyUI (INT, FLOAT, STRING, BOOLEAN, a list) becomes a value
+     * row again, with the value it had before it was linked in this session, otherwise the node's default; a
+     * connection-only input (MODEL, IMAGE…) stays as a free socket.
      */
     fun deleteConnection(nodeId: String, inputName: String) {
         val graph = mutableGraph ?: return
-        val state = _uiState.value
-        if (!state.isEditMode) return
+        if (!_uiState.value.isEditMode) return
+        val removed = graph.edges.removeAll { edge -> edge.targetNodeId == nodeId && edge.targetInputName == inputName }
+        val nodeIndex = graph.nodes.indexOfFirst { it.id == nodeId }
+        if (!removed || nodeIndex < 0) return
 
-        // Find and remove the edge
-        val removed = graph.edges.removeAll { edge ->
-            edge.targetNodeId == nodeId && edge.targetInputName == inputName
+        val targetNode = graph.nodes[nodeIndex]
+        val inputDef = nodeTypeRegistry.getNodeDefinition(targetNode.classType)?.inputs?.find { it.name == inputName }
+        val type = inputDef?.type ?: nodeTypeRegistry.getInputType(targetNode.classType, inputName)
+        val isValue = inputDef != null && !inputDef.forceInput && (type?.uppercase() in VALUE_INPUT_TYPES || inputDef.options != null)
+        val restored = if (isValue) {
+            val kept = keptValues.remove(nodeId to inputName)
+            InputValue.Literal(kept ?: inputDef?.default ?: defaultForType(type))
+        } else {
+            InputValue.UnconnectedSlot(type ?: "*")
         }
+        graph.nodes[nodeIndex] = targetNode.copy(inputs = sortInputsForLayout(targetNode.inputs + (inputName to restored)))
 
-        if (removed) {
-            // Revert the input back to a Literal value with default
-            val targetNode = graph.nodes.find { it.id == nodeId }
-            if (targetNode != null) {
-                val nodeDefinition = nodeTypeRegistry.getNodeDefinition(targetNode.classType)
-                val inputDef = nodeDefinition?.inputs?.find { it.name == inputName }
-                val defaultValue = inputDef?.default ?: when (inputDef?.type) {
-                    "INT" -> 0
-                    "FLOAT" -> 0.0
-                    "STRING" -> ""
-                    "BOOLEAN" -> false
-                    else -> ""
-                }
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
+        // A value row back: the node's rows change, sizes and positions follow
+        if (isValue) relayoutGraph() else updateGraphState()
+    }
 
-                val updatedInputs = targetNode.inputs.toMutableMap()
-                updatedInputs[inputName] = InputValue.Literal(defaultValue)
-
-                val nodeIndex = graph.nodes.indexOfFirst { it.id == targetNode.id }
-                if (nodeIndex >= 0) {
-                    graph.nodes[nodeIndex] = targetNode.copy(inputs = updatedInputs)
-                }
-            }
-
-            updateGraphState()
-            _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
-        }
+    private fun defaultForType(type: String?): Any = when (type?.uppercase()) {
+        "INT" -> 0
+        "FLOAT" -> 0.0
+        "BOOLEAN" -> false
+        else -> ""
     }
 
     // ===========================================
@@ -3340,3 +3442,6 @@ class WorkflowEditorViewModel : ViewModel() {
         )
     }
 }
+
+/** Input types that are values (widgets) in ComfyUI, apart from lists. */
+private val VALUE_INPUT_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN")

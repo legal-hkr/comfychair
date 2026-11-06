@@ -625,6 +625,20 @@
     <string name="label_editor_connecting">正在连接 %1$s</string>
     <string name="hint_editor_tap_input">点按高亮的输入</string>
     <string name="hint_editor_tap_output">点按高亮的输出</string>
+    <string name="label_editor_linking">正在连接 %1$s</string>
+    <string name="hint_editor_tap_input_or_value">点按高亮的输入或值</string>
+    <string name="hint_editor_no_target">此工作流中没有节点接受 %1$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – 来自 %2$s</string>
+    <string name="menu_editor_connect">连接</string>
+    <string name="menu_editor_disconnect">断开连接</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – 未连接</string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – 连接到 %2$s</string>
+    <string name="label_editor_socket_in">&lt;b>%2$s&lt;/b> 的 &lt;b>%1$s&lt;/b></string>
+    <string name="menu_editor_add_node">添加节点</string>
+    <string name="msg_editor_link_mapped_new_node">连接后，&lt;b>%1$s&lt;/b> 的值将来自新节点，字段 &lt;b>%2$s&lt;/b> 不再改变它。</string>
+    <string name="title_editor_link_mapped">连接 %1$s？</string>
+    <string name="msg_editor_link_mapped">连接后，&lt;b>%1$s&lt;/b> 的值将来自节点 &lt;b>%3$s&lt;/b>，字段 &lt;b>%2$s&lt;/b> 不再改变它。</string>
+    <string name="button_link">连接</string>
     <string name="content_description_cancel_connection">取消连接</string>
     <string name="button_edit_structure">编辑结构</string>
     <string name="content_description_clear_selection">清除选择</string>
@@ -804,7 +818,6 @@
     <string name="msg_workflow_editor_select_input">%1$s 有多个匹配的输入。</string>
     <string name="title_workflow_editor_select_output">从哪个输出连接？</string>
     <string name="msg_workflow_editor_select_output">%1$s 有多个匹配的输出。</string>
-    <string name="workflow_editor_edit_mode_hint">点击接口连接，长按打开节点浏览器</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">正向提示词</string>
