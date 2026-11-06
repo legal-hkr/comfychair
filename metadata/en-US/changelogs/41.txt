@@ -1,0 +1,18 @@
+v0.9.0
+
+New design:
+- Material 3 Expressive throughout
+- Image, Video, Gallery and Settings tabs
+- Prompt editor, parameter chips, options sheet
+- Queue sheet with your jobs
+- Undo for every deletion
+- What's new after each update
+
+Workflow editor:
+- Graph in theme colors, with an overview when zoomed out
+- Node values in a bottom sheet
+
+Bug fixes:
+- Queue jobs lost when moved or cleared
+- Model choice reverting after reconnecting
+- Settings applied without restarting the app

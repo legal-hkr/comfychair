@@ -25,12 +25,13 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 ### General
 
+- **Material 3 Expressive design**: Image, Video, Gallery and Settings tabs, each generation screen keeping its own state; Back retraces every step with the predictive back animation
 - **Multi-server support**: Save and manage multiple ComfyUI server connections with per-server settings and optional auto-login
 - **Server connection**: Connect to remote or local ComfyUI servers over HTTPS or HTTP, with HTTPS tried first
 - **Certificate trust**: Certificates trusted by Android are accepted as usual; self-signed or private-CA certificates are accepted after you confirm their SHA-256 fingerprint, and from then on only that certificate is accepted for the server. A server that used HTTPS is never switched to unencrypted HTTP without asking
 - **Authentication**: HTTP Basic Auth, API key/Bearer token, and browser-based SSO sign-in for servers behind reverse proxies
-- **Offline mode**: Browse cached data without network connection, with automatic offline prompt when server is unreachable
-- **Queue management**: Submit multiple jobs without waiting, view queue count, cancel current job, add to front of queue, or clear queue entirely
+- **Offline mode**: Browse what is stored on the device without a network connection, offered automatically when the server can't be reached
+- **Queue**: Submit several jobs without waiting. A chip in the top bar counts your jobs and other clients' jobs apart; the queue sheet lists your running and waiting jobs with cancel, move to front and remove, shows other clients' jobs only as a count, and can clear the queue
 - **Dual workflow support**:
   - **Checkpoint mode**: Traditional CheckpointLoaderSimple workflows
   - **UNET mode**: Modern diffusion workflows (Flux, Z-Image, etc.) with separate UNET, VAE, and CLIP model selection
@@ -42,126 +43,72 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Prompt Library**:
   - Save prompts as reusable presets with custom names and tags
   - Organize presets with favorites and tag-based filtering
-  - Quick access via dropdown or full library dialog
   - Search presets by name, prompt text, or tags
+- **What's new**: The release notes are shown once after an install or update
 - **Localization**: Available in English (default), German, French, Polish, Spanish, and Chinese with per-app language selection
 - **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
 
-### Generation Modes
+### Generation
 
-- **Results preview** (all modes): jobs with several results show a pager with a thumbnail strip; videos play inline; any generated image can be sent to Image to Image or Image to Video with "Use as source"
-- **Validation feedback**: readable messages when ComfyUI rejects a workflow, and a warning when it skips outputs instead of silently delivering an incomplete result
-
-- **Text to Image**:
-  - Mobile-optimized interface with live progress updates
-  - Live preview images during generation (when supported by server)
+- **One layout for every mode**: the preview on top, a dock with the prompt, the workflow chip and parameter chips below it, and the Generate button
+- **Prompt editor**: Tapping the prompt opens a full-screen editor with Positive and Negative tabs, the prompt library and its own Generate button
+- **Parameter chips**: Seed, steps, size or megapixels, length and scale one tap away, with the same controls as the options sheet
+- **Options sheet**: Only the fields the workflow uses, in sections (workflow, quick, sampling, LoRA, models); large workflows get collapsible sections
+- **Generate button**: Generate, or add to the front of the queue and cancel your running job from its menu
+- **Progress**: A status card on the preview shows the step and elapsed time, with live preview images when the server sends them
+- **Results**: Jobs with several results get a pager with a thumbnail strip; videos play inline with a pause and position chip; one menu on the result saves, shares, shows details and sends it to another screen as its source
+- **Text to Image** and **Text to Video**: From a prompt, with High Noise / Low Noise UNET and LoRA selection for video
 - **Image to Image**:
-  - Two modes: **Editing** (transformation) and **Inpainting** (mask-based)
-  - **Editing mode**: Transform images with optional reference images (up to 2)
-  - **Inpainting mode**: Mask editor with adjustable brush size and feathered edges
-  - Live progress updates and preview images during generation
-- **Text to Video**:
-  - Generate AI videos with High Noise / Low Noise UNET and LoRA model selection
-  - Live preview during generation
-- **Image to Video**:
-  - Animate still images into videos with adjustable length and frame rate
-  - High Noise / Low Noise UNET and LoRA model selection
-  - Live preview during generation
+  - Two modes: **Editing** (transformation, with its own prompt and up to 2 reference images) and **Inpainting** (mask-based, with a mask editor with adjustable brush size and feathered edges)
+  - The source and the result swap through a picture-in-picture thumbnail; the source has its own toolbar (replace, remove, mask tools)
+- **Image to Video**: Animate a still image with adjustable length and frame rate
+- **Validation feedback**: Readable messages when ComfyUI rejects a workflow, and a warning when it skips outputs instead of silently delivering an incomplete result
 
 ### Media
 
-- **Media viewer**:
-  - Unified fullscreen viewer for images and videos
-  - Material Design 3 Expressive UI with floating toolbar and FAB
-  - Swipe navigation between gallery items with tonal navigation buttons
-  - Pinch-to-zoom and double-tap to toggle between fit and crop zoom
-  - Single-tap to toggle UI visibility (with system bars)
-  - Quick actions: delete, save to gallery, share, view metadata
-  - Metadata viewer showing generation parameters (prompt, model, seed, steps, etc.)
-  - Optimized media caching for smooth transitions between items
 - **Gallery**:
-  - View all generated images and videos with 2-column grid layout
-  - Video indicator on thumbnails
-  - Pull-to-refresh to update gallery
-  - Multi-select mode with dedicated button or long press to select items
-  - Batch operations: save, share, or delete multiple items at once
+  - All generated images and videos in an adaptive grid with a collapsing top bar and pull to refresh
+  - Select items with a long press for saving, sharing or deleting them together; the other results of the selected jobs are marked, as the server deletes whole jobs
+- **Media viewer**:
+  - Opens out of the tile or preview and returns into it; swipe down or use predictive back to close
+  - Swipe between items, pinch to zoom, double tap to switch between fit and fill, single tap to hide the controls
+  - Save, share, use as source, details (generation parameters such as prompt, model, seed and steps) and delete
+- **Undo**: Every deletion of media can be undone for a few seconds before it reaches the server
 - **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
 - **Media storage**: Generated media is kept in memory only by default and never written to the device; optionally it can be saved on exit or stored on the device. In memory-only mode the app is also hidden from the recents screen preview
 
 ### Workflows
 
-- **Full node graph visualization**: Colored nodes and connections matching ComfyUI's visual style with smooth Bezier curves or Hermite splines
+- **Workflow editor** in four modes: Graph (read-only, from a workflow's page), Node values (from the options sheet), Edit structure (your own workflows and new ones) and Map fields (import)
+- **Node graph**:
+  - Nodes and connections in ComfyUI's colors, adapted to the app's light and dark themes, with Bezier curves or Hermite splines
+  - Zoomed out below about 40 %, nodes become blocks with their titles; tap one to zoom in to it
+  - The selected node's connections are emphasized while the others recede
+  - Opens fitted into the free area of the screen, laid out for its proportions
+- **Node values**: A bottom sheet with every editable input of a node (numeric steppers with range hints, switches, image previews, the inputs the generation screen fills in), its changed values marked and resettable one by one or all at once
 - **Node management**:
-  - Add nodes via searchable Node Browser with category filter chips
-  - Human-readable display names shown where available (with class type as subtitle)
-  - Deprecated and experimental nodes clearly marked with warning/science icons
-  - Search by display name, class type, category, or description
-  - Long-press output slots to open Node Browser filtered by compatible types
-  - Delete, duplicate, bypass, and rename nodes
-  - Cleanup tool to remove disconnected nodes
-- **Node groups**:
-  - Organize nodes into collapsible groups with grid layout
-  - Rename groups via context menu
-  - Groups persist across saves and theme changes
-- **Connection management**:
-  - Create connections by tapping an output socket and then an input socket (or vice versa)
-  - Target sockets glow when compatible during connection creation
-  - Delete connections via node context menu or by selecting and deleting
-  - Selected nodes highlight connections with animated flowing segments
-  - Connected slot circles enlarge and color-code when highlighted
-- **Node attribute editing**:
-  - Side sheet editor for node parameters (tap nodes to edit)
-  - All editable inputs shown, including those using default values
-  - Full support for both legacy and new ComfyUI COMBO input formats
-  - Numeric steppers with floating labels, range hints, and increment/decrement buttons
-  - Boolean values displayed as on/off toggles
-  - Image previews for image selector fields
-  - Template values highlighted with "UI:" prefix
-  - Connected inputs styled with wire colors
-  - Edited values highlighted for easy identification
-- **Workflow notes**:
-  - Add notes to workflows with Markdown support
-  - Unified title and text editor
-  - Notes displayed in the workflow graph
-- **Navigation and zoom**:
-  - Material Design 3 Expressive floating toolbar
-  - Zoom controls with percentage display
-  - Fit all / Fit width zoom options
-  - Initial drawing animation when opening workflows
+  - Add nodes via a searchable node browser with category chips, human-readable names, and deprecated and experimental nodes marked
+  - Long-press an output socket to open the node browser filtered by compatible types
+  - Delete, duplicate, bypass and rename nodes; clean up disconnected nodes
+  - Connect by tapping an output socket and then an input socket (or vice versa); compatible sockets are ringed while a connection waits
+  - Organize nodes into groups and add notes with Markdown support
+- **Field mapping**: When importing, the app's fields are assigned one at a time on a card, with a list of all fields; no field is required except the source image for image workflows, and workflows without a prompt (e.g. upscalers) are supported
 - **Workflow management**:
   - Create workflows from scratch or import existing ones from ComfyUI
   - Supported formats:
     - ComfyUI LiteGraph (import only) - native ComfyUI workflow format with subgraph support
     - ComfyUI API JSON (import/export) - workflow format used by the ComfyUI API
     - ComfyChair JSON (import/export) - preserves field mappings and app settings
-  - Dynamic workflow thumbnails showing mini graph previews
-  - Context menus for edit, rename, duplicate, export, and delete
-  - Flexible field mapping: no field is required except the source image for image workflows; workflows without a prompt (e.g. upscalers) are supported
+  - A list of workflows with filters and a switch for each, so the generation screens offer only the ones you use; each workflow's page shows its graph and description
   - Prompts can be mapped to primitive String nodes, so one prompt can feed several text encoders
-  - Every workflow, built-in or custom, can be switched on or off, so the generation screens offer only the ones you use
   - Built-in templates include SD, SDXL, Flux, HiDream, Qwen Image (generation and editing), Z-Image, Krea-2 (generation, editing, identity editing and LanPaint inpainting), SeedVR2 upscaling, Wan 2.2 and LTX-2
-  - Dynamic parameter constraints based on workflow node definitions
-  - Per-workflow generation settings persistence
-  - Workflow Editor returns to view mode after saving for continued editing
+  - Dynamic parameter constraints based on workflow node definitions; each workflow remembers its own generation settings
 
-### Configuration
+### Settings
 
-- **Server configuration**:
-  - View detailed server information (ComfyUI version, OS, Python, PyTorch versions)
-  - Monitor hardware resources (RAM and GPU VRAM usage with free/total display)
-  - Server management actions (clear queue, clear history)
-- **App management**:
-  - Clear local cache (generated images, videos, source images, masks)
-  - Restore default settings
-  - Backup configuration to JSON file (connection settings, workflow values, custom workflows)
-  - Restore configuration from backup
-- **Workflow management**:
-  - View and manage custom workflows with visual thumbnails
-  - Upload custom ComfyUI workflows with automatic validation
-  - Edit workflow name and description
-  - Default generation settings extracted during workflow import
-  - Per-workflow generation settings (each workflow remembers its own configuration)
-- **Configuration persistence**: Automatically saves and restores all settings including prompts, models, workflow selections, and generation parameters on a per-workflow basis
+- **Server**: ComfyUI, OS, Python and PyTorch versions, RAM and VRAM meters, freeing memory and unloading models, clearing the history
+- **App**: Connection, generation, media and privacy, language and workflow editor pages; changes apply at once, without restarting the app
+- **Data**: Backup and restore of the configuration (connections, workflow values, custom workflows), clearing the cache, the debug log, and restoring the app to its installed state while keeping the servers
 
 ## Requirements
 

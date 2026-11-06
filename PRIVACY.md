@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date**: November 3, 2026
+**Effective Date**: November 6, 2026
 **App**: ComfyChair
 **Developer**: Legal HKr
 
@@ -23,6 +23,7 @@ The app stores the following data locally on your device:
 - **Generated Media**: Controlled by the "Media storage" setting. By default ("Memory only") generated images and videos are kept only in the phone's RAM and are never written to its storage; switching to this mode deletes any media stored earlier. The other options keep the latest results on the device when the app goes to the background ("Memory, saved on exit") or store them as they arrive ("On the device"). When you share a result, a copy is written to the app's private cache for the receiving app and deleted the next time ComfyChair starts. Media you save to the gallery is managed by you
 - **Debug Log**: Kept in memory only while debug logging is enabled. Prompts, file names, job IDs, server addresses and workflow names are recorded as placeholders, so an exported log does not reveal them
 - **Custom Workflows**: Any workflows you import into the app
+- **Queue**: The IDs of your queued jobs and a random client ID for each server, so jobs you submitted are still recognized as yours after the app restarts. Descriptions of your queued jobs (prompt and workflow) shown in the queue are kept in memory only
 
 All of this data remains on your device and is never transmitted to the developer or any third party.
 
@@ -36,6 +37,10 @@ When you use ComfyChair, the app communicates directly with your configured Comf
 - Workflow configurations
 
 **This data is sent only to the server you configure.** ComfyChair does not route your data through any intermediary servers.
+
+### Other Users of Your Server
+
+ComfyUI reports every client's queued jobs, including their prompts and workflows. ComfyChair shows other clients' jobs only as a count and their position in the queue; it never displays, stores or logs their contents.
 
 ## Third-Party Services
 
