@@ -26,8 +26,25 @@ data class InputDefinition(
     val forceInput: Boolean = false,    // If true, must be connected (not editable)
     val tooltip: String? = null,        // Help text for the input
     val round: Number? = null,          // Rounding precision for FLOAT
-    val multiselect: Boolean = false    // For COMBO: allow multiple selections
+    val multiselect: Boolean = false,   // For COMBO: allow multiple selections
+    /**
+     * For a dynamic combo (COMFY_DYNAMICCOMBO_V3): each option's own inputs (required, then optional), which the
+     * frontend shows right after the combo as "combo.input" while that option is chosen
+     */
+    val dynamicOptions: Map<String, List<InputDefinition>>? = null
 )
+
+/**
+ * Whether ComfyUI's frontend shows this input as a widget, whose value is saved in a node's widgets_values: the value
+ * types and combos. Anything else is a socket (MODEL, IMAGE, AUDIO, VIDEO, an extension's type), as are the dynamic
+ * sockets (COMFY_MATCHTYPE_V3, COMFY_AUTOGROW_V3, COMFY_DYNAMICGROUP_V3) and inputs forced to be connected.
+ */
+val InputDefinition.isWidget: Boolean
+    get() = !forceInput && type in WIDGET_TYPES
+
+private val WIDGET_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM", "COMBO", DYNAMIC_COMBO_TYPE)
+
+const val DYNAMIC_COMBO_TYPE = "COMFY_DYNAMICCOMBO_V3"
 
 /**
  * Get the effective default value for this input definition.
@@ -367,6 +384,22 @@ class NodeTypeRegistry {
         val forceInput = options?.optBoolean("forceInput", false) ?: false
         val tooltip = (options?.opt("tooltip") as? String)?.takeIf { it.isNotEmpty() }
         val round = options?.opt("round") as? Number
+        // A dynamic combo: its options, each with the inputs it adds
+        val dynamicOptions = if (type == DYNAMIC_COMBO_TYPE) {
+            options?.optJSONArray("options")?.let { array ->
+                val result = LinkedHashMap<String, List<InputDefinition>>()
+                for (i in 0 until array.length()) {
+                    val option = array.optJSONObject(i) ?: continue
+                    val key = option.opt("key") as? String ?: continue
+                    val optionInputs = option.optJSONObject("inputs")
+                    val defs = mutableListOf<InputDefinition>()
+                    parseFullInputDefinitions(optionInputs?.optJSONObject("required"), isRequired = true, defs)
+                    parseFullInputDefinitions(optionInputs?.optJSONObject("optional"), isRequired = false, defs)
+                    result[key] = defs
+                }
+                result
+            }
+        } else null
 
         return InputDefinition(
             name = name,
@@ -379,7 +412,8 @@ class NodeTypeRegistry {
             multiline = multiline,
             forceInput = forceInput,
             tooltip = tooltip,
-            round = round
+            round = round,
+            dynamicOptions = dynamicOptions
         )
     }
 

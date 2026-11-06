@@ -3,6 +3,7 @@ package sh.hnet.comfychair.util
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.workflow.InputDefinition
+import sh.hnet.comfychair.workflow.isWidget
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 
 /**
@@ -786,51 +787,45 @@ class LiteGraphConverter(
         nodeId: Int,
         warnings: MutableList<String>
     ) {
-        // Filter to only editable inputs (not connection-only inputs)
-        val editableInputs = inputDefs.filter { !it.forceInput && !isConnectionOnlyType(it.type) }
-
         var widgetIndex = 0
-        for (inputDef in editableInputs) {
-            if (widgetIndex >= widgetValues.length()) break
 
-            val value = widgetValues.opt(widgetIndex)
+        // The frontend's widget order: the node's widgets in input order, sockets left out; a dynamic combo's chosen
+        // option adds its own widgets right after it, named "combo.input" (and so on, for nested combos)
+        fun mapWidgets(defs: List<InputDefinition>, prefix: String) {
+            for (inputDef in defs) {
+                if (widgetIndex >= widgetValues.length()) return
+                if (!inputDef.isWidget) continue
+                val name = prefix + inputDef.name
 
-            // Skip control widgets defined in server (rare, but handle it)
-            if (inputDef.name == "control_after_generate" ||
-                inputDef.name.startsWith("control_")) {
-                widgetIndex++
-                continue
-            }
+                val value = widgetValues.opt(widgetIndex)
 
-            // Map the value
-            if (value != null && value != JSONObject.NULL) {
-                inputs.put(inputDef.name, value)
-            }
-
-            widgetIndex++
-
-            // After mapping a seed input, check if next widget value is a control value
-            // (control_after_generate is frontend-only and not in server's /object_info)
-            if (inputDef.name in SEED_INPUT_NAMES && widgetIndex < widgetValues.length()) {
-                val nextValue = widgetValues.opt(widgetIndex)
-                if (nextValue is String && nextValue in CONTROL_WIDGET_VALUES) {
+                // Skip control widgets defined in server (rare, but handle it)
+                if (inputDef.name == "control_after_generate" ||
+                    inputDef.name.startsWith("control_")) {
                     widgetIndex++
+                    continue
+                }
+
+                // Map the value
+                if (value != null && value != JSONObject.NULL) {
+                    inputs.put(name, value)
+                }
+
+                widgetIndex++
+
+                inputDef.dynamicOptions?.get(value as? String)?.let { optionInputs -> mapWidgets(optionInputs, "$name.") }
+
+                // After mapping a seed input, check if next widget value is a control value
+                // (control_after_generate is frontend-only and not in server's /object_info)
+                if (inputDef.name in SEED_INPUT_NAMES && widgetIndex < widgetValues.length()) {
+                    val nextValue = widgetValues.opt(widgetIndex)
+                    if (nextValue is String && nextValue in CONTROL_WIDGET_VALUES) {
+                        widgetIndex++
+                    }
                 }
             }
         }
-    }
-
-    /**
-     * Check if an input type is connection-only (not a widget)
-     */
-    private fun isConnectionOnlyType(type: String): Boolean {
-        // Common connection-only types (not widgets)
-        return type in setOf(
-            "MODEL", "CLIP", "VAE", "CONDITIONING", "LATENT", "IMAGE",
-            "MASK", "CONTROL_NET", "STYLE_MODEL", "CLIP_VISION", "CLIP_VISION_OUTPUT",
-            "GLIGEN", "UPSCALE_MODEL", "SAMPLER", "SIGMAS", "NOISE", "GUIDER",
-            "*"  // Wildcard type
-        )
+        mapWidgets(inputDefs, prefix = "")
     }
 
     /**

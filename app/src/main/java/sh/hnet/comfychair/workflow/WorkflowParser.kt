@@ -215,7 +215,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
             val hasMemberNodes = groupJson.has("member_nodes")
             val hasBounding = groupJson.has("bounding")
 
-            logD("parseGroups: entry $i - id=$id, title='$title', has member_nodes=$hasMemberNodes, has bounding=$hasBounding")
+            logD("parseGroups: entry $i - id=$id, title=${Obfuscator.title(title)}, has member_nodes=$hasMemberNodes, has bounding=$hasBounding")
 
             // Parse member node IDs (required for new format)
             val memberNodeIds = groupJson.optJSONArray("member_nodes")?.let { arr ->
@@ -240,7 +240,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
                     memberNodeIds = memberNodeIds
                 )
             )
-            logI("parseGroups: successfully parsed group $id '$title' with ${memberNodeIds.size} members")
+            logI("parseGroups: successfully parsed group $id ${Obfuscator.title(title)} with ${memberNodeIds.size} members")
         }
 
         logI("parseGroups: parsed ${result.size} valid groups out of ${groupsArray.length()} entries")
@@ -289,9 +289,9 @@ class WorkflowParser(private val logDetails: Boolean = true) {
                 )
             )
             if (hasManualPosition) {
-                logD("parseNotes: parsed note id=$id title='$title' with manual position: ($manualX, $manualY)")
+                logD("parseNotes: parsed note id=$id title=${Obfuscator.title(title)} with manual position: ($manualX, $manualY)")
             } else {
-                logD("parseNotes: parsed note id=$id title='$title' (${content.length} chars)")
+                logD("parseNotes: parsed note id=$id title=${Obfuscator.title(title)} (${content.length} chars)")
             }
         }
 
@@ -321,7 +321,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
                         InputValue.Literal(value.toString())
                     }
                 }
-                else -> InputValue.Literal(formatLiteralValue(value))
+                else -> InputValue.Literal(literalValue(value))
             }
         }
 
@@ -329,20 +329,12 @@ class WorkflowParser(private val logDetails: Boolean = true) {
     }
 
     /**
-     * Format a literal value for display
+     * A literal input value, kept whole: the graph is saved back from it (long file names, expressions and prompts
+     * included). The canvas shortens what doesn't fit when it draws it.
      */
-    private fun formatLiteralValue(value: Any): Any {
+    private fun literalValue(value: Any): Any {
         return when (value) {
-            is String -> {
-                // Truncate long strings
-                if (value.length > 30) {
-                    value.take(27) + "..."
-                } else {
-                    value
-                }
-            }
-            is Number -> value
-            is Boolean -> value
+            is String, is Number, is Boolean -> value
             else -> value.toString()
         }
     }
