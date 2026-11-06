@@ -6,7 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Polyline
@@ -115,11 +114,6 @@ fun SettingsRootScreen(viewModel: SettingsViewModel, onOpenPage: (SettingsRoute)
                 SettingsNavigationRow(
                     shapes, Icons.Rounded.SettingsBackupRestore, stringResource(R.string.title_backup_restore)
                 ) { onOpenPage(SettingsRoute.Backup) }
-            }
-            row { shapes ->
-                SettingsNavigationRow(
-                    shapes, Icons.Rounded.Cloud, stringResource(R.string.server_gallery_title)
-                ) { onOpenPage(SettingsRoute.ServerGallery) }
             }
             row { shapes ->
                 SettingsNavigationRow(shapes, Icons.Rounded.DeleteSweep, stringResource(R.string.title_settings_cache_page)) {

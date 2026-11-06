@@ -37,7 +37,6 @@ sealed class SettingsRoute(val route: String) {
     // Data
     data object Backup : SettingsRoute("backup_settings")
     data object Cache : SettingsRoute("cache_settings")
-    data object ServerGallery : SettingsRoute("server_gallery_settings")
     data object DebugLog : SettingsRoute("debug_log_settings")
     data object Reset : SettingsRoute("reset_settings")
 
@@ -47,7 +46,7 @@ sealed class SettingsRoute(val route: String) {
         val all: List<SettingsRoute>
             get() = listOf(
                 Server, Workflows, WorkflowDetail, Connection, Generation, MediaPrivacy, Language, WorkflowEditor,
-                Backup, Cache, ServerGallery, DebugLog, Reset, About
+                Backup, Cache, DebugLog, Reset, About
             )
     }
 }

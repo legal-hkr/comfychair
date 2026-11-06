@@ -4,6 +4,11 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
+
 android {
     namespace = "sh.hnet.comfychair"
     compileSdk = 36
@@ -46,6 +51,32 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+    applicationVariants.all {
+        outputs.all {
+            val output = this as ApkVariantOutputImpl
+            val version = versionName ?: "dev"
+            val buildTimestamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+            val apkSuffix = project.findProperty("apkSuffix")
+                ?.toString()
+                ?.trim()
+                ?.replace(Regex("[^A-Za-z0-9._-]+"), "-")
+                ?.trim('-', '.')
+                ?.takeIf { it.isNotEmpty() }
+            output.outputFileName = buildString {
+                append("comfychair-")
+                append(version)
+                append('-')
+                append(buildType.name)
+                if (apkSuffix != null) {
+                    append('-')
+                    append(apkSuffix)
+                }
+                append('-')
+                append(buildTimestamp)
+                append(".apk")
+            }
         }
     }
 }

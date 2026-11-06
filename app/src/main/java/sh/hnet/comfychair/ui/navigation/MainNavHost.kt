@@ -78,7 +78,7 @@ import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.CacheSettingsPage
-import sh.hnet.comfychair.ui.screens.settings.ServerGalleryPage
+import sh.hnet.comfychair.viewmodel.ServerGalleryViewModel
 import sh.hnet.comfychair.ui.screens.settings.ConnectionSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.DebugLogSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.GenerationSettingsPage
@@ -115,6 +115,7 @@ fun MainNavHost(
     mediaViewerViewModel: MediaViewerViewModel,
     settingsViewModel: SettingsViewModel,
     workflowManagementViewModel: WorkflowManagementViewModel,
+    serverGalleryViewModel: ServerGalleryViewModel,
     onLogout: () -> Unit,
     onLeftSettings: (route: String) -> Unit,
     startDestination: String = MainRoute.TextToImage.route,
@@ -280,7 +281,8 @@ fun MainNavHost(
                             composable(MainRoute.Gallery.route) {
                                 GalleryScreen(
                                     generationViewModel = generationViewModel,
-                                    galleryViewModel = galleryViewModel
+                                    galleryViewModel = galleryViewModel,
+                                    serverGalleryViewModel = serverGalleryViewModel
                                 )
                             }
 
@@ -327,7 +329,6 @@ fun MainNavHost(
                             composable(SettingsRoute.WorkflowEditor.route) { WorkflowEditorSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.Backup.route) { BackupSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.Cache.route) { CacheSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.ServerGallery.route) { ServerGalleryPage(viewModel(), back) }
                             composable(SettingsRoute.DebugLog.route) { DebugLogSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.Reset.route) { ResetSettingsPage(settingsViewModel, back) }
                             composable(SettingsRoute.About.route) {

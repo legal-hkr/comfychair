@@ -37,12 +37,14 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Link
@@ -55,6 +57,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -69,6 +74,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,10 +95,12 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.model.ServerImageSource
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.PlayBadge
+import sh.hnet.comfychair.ui.components.ServerImagePickerPanel
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.mediaOrigin
 import sh.hnet.comfychair.ui.components.mediaOriginKey
@@ -101,6 +109,7 @@ import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
+import sh.hnet.comfychair.viewmodel.ServerGalleryViewModel
 import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -111,11 +120,15 @@ import sh.hnet.comfychair.viewmodel.MediaViewerItem
 fun GalleryScreen(
     generationViewModel: GenerationViewModel,
     galleryViewModel: GalleryViewModel,
+    serverGalleryViewModel: ServerGalleryViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val uiState by galleryViewModel.uiState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
+
+    // Server Input/Output browsing, switched from the gallery's top bar
+    var showServer by rememberSaveable { mutableStateOf(false) }
 
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -273,10 +286,17 @@ fun GalleryScreen(
                 selectedCount = uiState.selectedItems.size,
                 itemCount = uiState.items.size,
                 scrollBehavior = scrollBehavior,
+                showServer = showServer,
+                onToggleServer = { showServer = !showServer },
                 onSelect = { galleryViewModel.enterSelectionMode() },
                 onSelectAll = { galleryViewModel.selectAll() },
                 onCloseSelection = { galleryViewModel.clearSelection() }
             )
+
+            if (showServer) {
+                // Server Input/Output browsing in the gallery tab: the shared picker, originals in the viewer
+                ServerGalleryTabContent(serverGalleryViewModel)
+            } else {
 
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -368,6 +388,7 @@ fun GalleryScreen(
                     }
                 }
             }
+            }
         }
 
         // Selection actions, where the navigation bar was: Delete apart from Save and Share
@@ -433,6 +454,8 @@ private fun GalleryTopBar(
     selectedCount: Int,
     itemCount: Int,
     scrollBehavior: TopAppBarScrollBehavior,
+    showServer: Boolean,
+    onToggleServer: () -> Unit,
     onSelect: () -> Unit,
     onSelectAll: () -> Unit,
     onCloseSelection: () -> Unit
@@ -440,11 +463,12 @@ private fun GalleryTopBar(
     LargeFlexibleTopAppBar(
         title = {
             Text(
-                if (selecting) pluralStringResource(R.plurals.gallery_selected_count, selectedCount, selectedCount)
+                if (showServer) stringResource(R.string.server_gallery_title)
+                else if (selecting) pluralStringResource(R.plurals.gallery_selected_count, selectedCount, selectedCount)
                 else stringResource(R.string.title_gallery)
             )
         },
-        subtitle = if (!selecting && itemCount > 0) {
+        subtitle = if (!showServer && !selecting && itemCount > 0) {
             { Text(pluralStringResource(R.plurals.label_gallery_subtitle, itemCount, itemCount)) }
         } else null,
         navigationIcon = {
@@ -454,12 +478,69 @@ private fun GalleryTopBar(
             if (selecting) {
                 TooltipIconButton(Icons.Rounded.SelectAll, stringResource(R.string.button_select_all), onSelectAll)
             } else {
+                TooltipIconButton(
+                    if (showServer) Icons.Filled.PhotoLibrary else Icons.Rounded.Cloud,
+                    stringResource(if (showServer) R.string.title_gallery else R.string.server_gallery_title),
+                    onToggleServer
+                )
                 TooltipIconButton(Icons.Rounded.Checklist, stringResource(R.string.button_gallery_select), onSelect)
             }
         },
         windowInsets = WindowInsets(0, 0, 0, 0),
         scrollBehavior = scrollBehavior
     )
+}
+
+/** The server gallery in the gallery tab: tabs over the shared picker, the original in the app's media viewer. */
+@Composable
+private fun ServerGalleryTabContent(viewModel: ServerGalleryViewModel) {
+    val state by viewModel.picker.state.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val full by viewModel.viewer.collectAsState()
+    val mediaViewer = LocalMediaViewer.current
+    var source by rememberSaveable { mutableStateOf(ServerImageSource.INPUT) }
+
+    DisposableEffect(Unit) {
+        viewModel.open(ServerImageSource.entries[source.ordinal])
+        onDispose { viewModel.stop() }
+    }
+
+    Column {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            ServerImageSource.entries.forEachIndexed { index, item ->
+                SegmentedButton(
+                    selected = source == item,
+                    onClick = { source = item; viewModel.open(item) },
+                    shape = SegmentedButtonDefaults.itemShape(index, ServerImageSource.entries.size)
+                ) { Text(item.type.replaceFirstChar { it.uppercase() }) }
+            }
+        }
+        ServerImagePickerPanel(
+            state = state,
+            loadPreview = viewModel::preview,
+            onSelect = viewModel::view,
+            onLoadMore = { viewModel.picker.loadMore() },
+            onRetryMore = { viewModel.picker.loadMore(true) },
+            onRefresh = viewModel.picker::refresh,
+            onQuery = viewModel.picker::changeQuery,
+            onCancelDownload = viewModel::closeViewer,
+            onRetryDownload = viewModel.picker::retryDownload,
+            onClose = {},
+            standalone = true,
+            browsingVisible = !loading && !error
+        )
+    }
+
+    // When the original has landed, hand it to the app's media viewer (Save, Share, Use as source) and release it here
+    if (full != null) {
+        val image = full!!
+        LaunchedEffect(image) {
+            mediaViewer.openImage(image.bitmap, filename = image.image.filename,
+                subfolder = image.image.subfolder, type = image.image.type)
+            viewModel.closeViewer()
+        }
+    }
 }
 
 /**
