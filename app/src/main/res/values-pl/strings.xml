@@ -1086,4 +1086,6 @@
         <item quantity="many">%1$d z %2$d przepływów</item>
         <item quantity="other">%1$d z %2$d przepływu</item>
     </plurals>
+    <string name="state_expanded">Rozwinięty</string>
+    <string name="state_collapsed">Zwinięty</string>
 </resources>

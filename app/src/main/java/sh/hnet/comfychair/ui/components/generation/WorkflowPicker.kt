@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.WorkflowItemBase
+import sh.hnet.comfychair.ui.components.shared.rememberMenuScrollModifier
 
 /**
  * A group of the workflow menu. Image to Image has one per mode, so choosing a workflow of the other group switches
@@ -83,7 +84,7 @@ fun WorkflowMenu(
 ) {
     val visibleGroups = groups.filter { it.workflows.isNotEmpty() }
     val count = visibleGroups.size
-    DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismiss) {
+    DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismiss, modifier = rememberMenuScrollModifier()) {
         visibleGroups.forEachIndexed { groupIndex, group ->
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, count)) {
                 group.titleRes?.let {

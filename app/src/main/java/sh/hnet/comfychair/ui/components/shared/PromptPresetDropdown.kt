@@ -70,7 +70,7 @@ fun PromptPresetDropdown(
         }
 
         val groupCount = if (favorites.isNotEmpty()) 3 else 2
-        DropdownMenuPopup(expanded = expanded, onDismissRequest = close) {
+        DropdownMenuPopup(expanded = expanded, onDismissRequest = close, modifier = rememberMenuScrollModifier()) {
             var group = 0
             if (favorites.isNotEmpty()) {
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(group++, groupCount)) {

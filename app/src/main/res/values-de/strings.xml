@@ -1028,4 +1028,6 @@
         <item quantity="one">%1$d von %2$d Workflow</item>
         <item quantity="other">%1$d von %2$d Workflows</item>
     </plurals>
+    <string name="state_expanded">Ausgeklappt</string>
+    <string name="state_collapsed">Eingeklappt</string>
 </resources>

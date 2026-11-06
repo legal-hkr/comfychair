@@ -1058,4 +1058,6 @@
         <item quantity="many">%1$d sur %2$d workflows</item>
         <item quantity="other">%1$d sur %2$d workflows</item>
     </plurals>
+    <string name="state_expanded">Développé</string>
+    <string name="state_collapsed">Réduit</string>
 </resources>

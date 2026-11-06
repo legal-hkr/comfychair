@@ -1060,4 +1060,6 @@
         <item quantity="one">%1$d of %2$d workflow</item>
         <item quantity="other">%1$d of %2$d workflows</item>
     </plurals>
+    <string name="state_expanded">Expanded</string>
+    <string name="state_collapsed">Collapsed</string>
 </resources>

@@ -1058,4 +1058,6 @@
         <item quantity="many">%1$d de %2$d flujos de trabajo</item>
         <item quantity="other">%1$d de %2$d flujos de trabajo</item>
     </plurals>
+    <string name="state_expanded">Expandido</string>
+    <string name="state_collapsed">Contraído</string>
 </resources>
