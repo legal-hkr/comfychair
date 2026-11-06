@@ -47,6 +47,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -205,25 +206,35 @@ private fun WorkflowList(
     val filtering = searchable && query.isNotBlank()
     Column(Modifier.fillMaxSize()) {
         if (searchable) {
-            SearchBarDefaults.InputField(
-                query = query,
-                onQueryChange = onQueryChange,
-                onSearch = { },
+            // The input field gets its container and shape from the (collapsed) search bar
+            SearchBar(
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = query,
+                        onQueryChange = onQueryChange,
+                        onSearch = { },
+                        expanded = false,
+                        onExpandedChange = { },
+                        placeholder = { Text(pluralStringResource(R.plurals.hint_server_import_search, workflows.size, workflows.size)) },
+                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                        trailingIcon = if (query.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { onQueryChange("") }) {
+                                    Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
+                                }
+                            }
+                        } else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
                 expanded = false,
                 onExpandedChange = { },
-                placeholder = { Text(pluralStringResource(R.plurals.hint_server_import_search, workflows.size, workflows.size)) },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                trailingIcon = if (query.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { onQueryChange("") }) {
-                            Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
-                        }
-                    }
-                } else null,
+                // The page already sits below the status bar
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
-            )
+            ) { }
         }
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {

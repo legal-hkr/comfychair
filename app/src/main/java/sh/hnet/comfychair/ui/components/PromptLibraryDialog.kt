@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -51,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -123,26 +124,35 @@ fun PromptLibraryDialog(
                     )
                 }
 
-                SearchBarDefaults.InputField(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChange,
-                    onSearch = { },
+                // The input field gets its container and shape from the (collapsed) search bar
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = searchQuery,
+                            onQueryChange = onSearchQueryChange,
+                            onSearch = { },
+                            expanded = false,
+                            onExpandedChange = { },
+                            placeholder = { Text(stringResource(R.string.placeholder_prompt_library_search)) },
+                            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                            trailingIcon = if (searchQuery.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { onSearchQueryChange("") }) {
+                                        Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
+                                    }
+                                }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
                     expanded = false,
                     onExpandedChange = { },
-                    placeholder = { Text(stringResource(R.string.placeholder_prompt_library_search)) },
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
-                            }
-                        }
-                    } else null,
+                    // The page already sits below the status bar
+                    windowInsets = WindowInsets(0, 0, 0, 0),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .clip(SearchBarDefaults.inputFieldShape)
-                )
+                ) { }
 
                 // Favourites first, then the tags
                 LazyRow(
