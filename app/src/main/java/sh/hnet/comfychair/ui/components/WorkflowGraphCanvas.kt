@@ -36,6 +36,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.DefaultShadowColor
@@ -43,13 +45,17 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.VectorPainter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -65,6 +71,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -158,6 +165,9 @@ private object NodeStyle {
     const val CHANGED_DOT_RADIUS = 6f
     const val BADGE = 28f
     const val GROUP_CORNER = 40f
+    // A group's area is frosted glass: its colour at this opacity over the wires passing under it, blurred by this
+    // radius in graph units
+    const val GLASS_ALPHA = 0.7f
     const val GROUP_CHIP_INSET = 16f
     const val GROUP_CHIP_HEIGHT = 40f
     const val GROUP_CHIP_PADDING = 16f
@@ -185,6 +195,9 @@ private class GraphIcons(
     val missing: VectorPainter,
     val link: VectorPainter
 )
+
+// Blur radius of the wires under a group's frosted area, in graph units
+private const val GLASS_BLUR = 10f
 
 /**
  * The soft shadow of elevation 1 (light theme: white nodes, sockets, notes and group labels on the light canvas), in
@@ -814,6 +827,9 @@ fun WorkflowGraphCanvas(
         }
     }
 
+    // Wires passing through groups, blurred under their frosted areas
+    val glassLayer = rememberGraphicsLayer()
+
     Canvas(
         modifier = modifier
             // Node/Note drag gesture handler for manual placement (custom implementation that consumes events)
@@ -1269,6 +1285,67 @@ fun WorkflowGraphCanvas(
         // How far the title bars have spread over their nodes (0 full detail, 1 overview); a spring may overshoot
         val spread = overviewProgress.value.coerceIn(0f, 1f)
 
+        // Build node positions map for edge drawing
+        val nodePositionsMap = animatedNodes.associate { it.node.id to it.node }
+
+        // Wires: those of focused nodes over the others, which recede
+        val progress = focusProgress.value
+        val (focusedEdges, otherEdges) = animatedEdges.partition { (edge, _) ->
+            edge.sourceNodeId in shownFocus || edge.targetNodeId in shownFocus
+        }
+        val wiresInOrder = (otherEdges + focusedEdges).filter { (_, alpha) -> alpha > 0.01f }
+        fun DrawScope.drawWire(edge: WorkflowEdge, alpha: Float) {
+            val before = wireEmphasis(edge, previousFocus)
+            val after = wireEmphasis(edge, shownFocus)
+            drawEdge(
+                edge = edge,
+                nodesById = nodePositionsMap,
+                colors = colors,
+                router = edgeRouter,
+                alpha = alpha,
+                recede = lerp(before.recede, after.recede, progress),
+                // Scaling with the zoom, but at least 1.5 dp on screen (focused 2.25 dp)
+                width = lerp(before.width, after.width, progress).let { maxOf(it, it * 0.375f * unitsPerDp) },
+                draggingNodeId = draggingNodeId,
+                dragScale = dragScale.value
+            )
+        }
+
+        // Each wire's part under frosted glass: the groups it passes through without reaching one of their members
+        val groupAreas = animatedGroups.filter { (_, alpha) -> alpha > 0.01f }.map { (group, _) ->
+            group to Path().apply {
+                addRoundRect(
+                    RoundRect(
+                        group.x, group.y, group.x + group.width, group.y + group.height,
+                        CornerRadius(NodeStyle.GROUP_CORNER)
+                    )
+                )
+            }
+        }
+        val underGlass: Map<WorkflowEdge, Path> = wiresInOrder.mapNotNull { (edge, _) ->
+            val passed = groupAreas.filter { (group, _) ->
+                edge.sourceNodeId !in group.group.memberNodeIds && edge.targetNodeId !in group.group.memberNodeIds
+            }
+            if (passed.isEmpty()) null else edge to Path().apply { passed.forEach { (_, area) -> addPath(area) } }
+        }.toMap()
+        val anyUnderGlass = underGlass.isNotEmpty()
+
+        // Those parts, drawn on screen into a layer that blurs them (a frosted look, scaling with the zoom)
+        if (anyUnderGlass) {
+            glassLayer.record(this, layoutDirection, size.toIntSize()) {
+                withTransform({
+                    translate(offset.x, offset.y)
+                    scale(scale, scale, Offset.Zero)
+                }) {
+                    wiresInOrder.forEach { (edge, alpha) ->
+                        underGlass[edge]?.let { glass -> clipPath(glass) { drawWire(edge, alpha) } }
+                    }
+                }
+            }
+            val blur = (GLASS_BLUR * scale).coerceAtLeast(0.5f)
+            glassLayer.renderEffect = BlurEffect(blur, blur, TileMode.Decal)
+        }
+
         // Apply transformation
         withTransform({
             translate(offset.x, offset.y)
@@ -1330,36 +1407,23 @@ fun WorkflowGraphCanvas(
                 drawPoints(dots, PointMode.Points, colors.outlineVariant, strokeWidth = unitsPerDp, cap = StrokeCap.Round)
             }
 
-            // Groups' areas first (behind everything) with alpha; their labels go above the wires, further down
+            // The wires that only pass through a group, blurred, under the group's frosted area
+            withTransform({
+                scale(1f / scale, 1f / scale, Offset.Zero)
+                translate(-offset.x, -offset.y)
+            }) {
+                if (anyUnderGlass) drawLayer(glassLayer)
+            }
+
+            // Groups' areas: frosted glass over the wires passing under them; their labels go above the wires
             animatedGroups.forEach { (group, alpha) ->
                 if (alpha > 0.01f) drawGroupArea(group = group, colors = colors, paints = paints, alpha = alpha)
             }
 
-            // Build node positions map for edge drawing
-            val nodePositionsMap = animatedNodes.associate { it.node.id to it.node }
-
-            // Wires: those of focused nodes over the others, which recede
-            val progress = focusProgress.value
-            val (focusedEdges, otherEdges) = animatedEdges.partition { (edge, _) ->
-                edge.sourceNodeId in shownFocus || edge.targetNodeId in shownFocus
-            }
-            (otherEdges + focusedEdges).forEach { (edge, alpha) ->
-                if (alpha > 0.01f) {
-                    val before = wireEmphasis(edge, previousFocus)
-                    val after = wireEmphasis(edge, shownFocus)
-                    drawEdge(
-                        edge = edge,
-                        nodesById = nodePositionsMap,
-                        colors = colors,
-                        router = edgeRouter,
-                        alpha = alpha,
-                        recede = lerp(before.recede, after.recede, progress),
-                        // Scaling with the zoom, but at least 1.5 dp on screen (focused 2.25 dp)
-                        width = lerp(before.width, after.width, progress).let { maxOf(it, it * 0.375f * unitsPerDp) },
-                        draggingNodeId = draggingNodeId,
-                        dragScale = dragScale.value
-                    )
-                }
+            // The wires, sharp outside the groups they pass under (their own groups' wires stay above the glass)
+            wiresInOrder.forEach { (edge, alpha) ->
+                val glass = underGlass[edge]
+                if (glass == null) drawWire(edge, alpha) else clipPath(glass, ClipOp.Difference) { drawWire(edge, alpha) }
             }
 
             // Wire colour of each connected input (its wire's type), and the outputs that have a wire
@@ -1985,17 +2049,21 @@ private fun DrawScope.drawEdge(
 /**
  * A group (spec §12.4): a filled rounded area beneath its nodes, its name in a chip at the top start.
  */
-/** A group's area: the lowest level above the canvas, in the light theme with half a node's shadow. */
+/**
+ * A group's area: the lowest level above the canvas, frosted glass over the wires passing under it (blurred
+ * beneath by the canvas), in the light theme with half a node's shadow.
+ */
 private fun DrawScope.drawGroupArea(group: RenderedGroup, colors: CanvasColors, paints: GraphPaints, alpha: Float = 1f) {
+    val glass = colors.groupArea.copy(alpha = NodeStyle.GLASS_ALPHA * alpha)
     if (colors.isDark) {
         drawRoundRect(
-            color = colors.groupArea.copy(alpha = alpha),
+            color = glass,
             topLeft = Offset(group.x, group.y),
             size = Size(group.width, group.height),
             cornerRadius = CornerRadius(NodeStyle.GROUP_CORNER)
         )
     } else {
-        paints.shadow.color = colors.groupArea.copy(alpha = alpha).toArgb()
+        paints.shadow.color = glass.toArgb()
         paints.shadow.setElevationShadow(colors, alpha, level = 0.5f)
         drawContext.canvas.nativeCanvas.drawRoundRect(
             group.x, group.y, group.x + group.width, group.y + group.height,
