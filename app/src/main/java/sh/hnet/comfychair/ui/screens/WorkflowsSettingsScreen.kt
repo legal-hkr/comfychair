@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.OpenInFull
@@ -123,7 +124,6 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
-import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.WorkflowGraphPreview
@@ -136,9 +136,7 @@ import sh.hnet.comfychair.ui.components.settings.SettingsPage
 import sh.hnet.comfychair.ui.components.settings.SettingsSwitchRow
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
-import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
-import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
-import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
+import sh.hnet.comfychair.ui.components.workflow.WorkflowImportHost
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.ExportFormat
 import sh.hnet.comfychair.viewmodel.WorkflowFilter
@@ -150,7 +148,8 @@ import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 fun WorkflowsSettingsScreen(
     viewModel: WorkflowManagementViewModel,
     onNavigateBack: () -> Unit,
-    onOpenDetails: (workflowId: String) -> Unit
+    onOpenDetails: (workflowId: String) -> Unit,
+    onImportFromServer: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -162,22 +161,6 @@ fun WorkflowsSettingsScreen(
     ) { uri ->
         uri?.let {
             viewModel.onFileSelected(context, it)
-        }
-    }
-
-    // Editor launcher for mapping mode
-    val editorLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val mappingsJson = result.data?.getStringExtra(WorkflowEditorActivity.EXTRA_RESULT_MAPPINGS)
-            if (mappingsJson != null) {
-                // Parse mappings and complete import
-                val mappings = parseMappingsFromJson(mappingsJson)
-                viewModel.completeImport(mappings)
-            }
-        } else {
-            viewModel.cancelMapping()
         }
     }
 
@@ -211,49 +194,21 @@ fun WorkflowsSettingsScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    // Handle events, only while this page is on top (the detail page handles its own)
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-          viewModel.pageEvents.collect { event ->
-            when (event) {
-                is WorkflowManagementEvent.ShowToast -> AppErrors.notify(context, event.messageResId)
-                is WorkflowManagementEvent.LaunchEditor -> {
-                    val pending = event.pendingUpload
-                    val mappingState = pending.mappingState
-                    if (mappingState != null) {
-                        val intent = WorkflowEditorActivity.createIntentForMapping(
-                            context = context,
-                            jsonContent = pending.jsonContent,
-                            name = pending.name,
-                            description = pending.description,
-                            mappingState = mappingState
-                        )
-                        editorLauncher.launch(intent)
-                    }
-                }
-                is WorkflowManagementEvent.WorkflowImported -> {
-                    val id = event.workflowId
-                    highlightedId = id
-                    // Its section's item first, so the row is composed and can bring itself into view
-                    val type = WorkflowManager.getWorkflowById(id)?.type
-                    val sectionIndex = sectionOrder.filter { it in viewModel.uiState.value.filter.types }.indexOf(type)
-                    if (sectionIndex >= 0) listState.scrollToItem(1 + sectionIndex)
-                    scope.launch {
-                        val result = snackbar?.showSnackbar(
-                            message = resources.getString(R.string.msg_workflow_import_success),
-                            actionLabel = resources.getString(R.string.button_open),
-                            duration = SnackbarDuration.Short
-                        )
-                        if (result == SnackbarResult.ActionPerformed) onOpenDetails(id)
-                    }
-                }
-                // From the detail page
-                is WorkflowManagementEvent.LaunchExportFilePicker,
-                is WorkflowManagementEvent.DuplicateCreated,
-                is WorkflowManagementEvent.WorkflowDeleted -> Unit
-            }
-          }
+    // The import's dialogs and the field mapping, shared with the server's list; a finished import is shown in the
+    // list and offered to open
+    WorkflowImportHost(viewModel) { id ->
+        highlightedId = id
+        // Its section's item first, so the row is composed and can bring itself into view
+        val type = WorkflowManager.getWorkflowById(id)?.type
+        val sectionIndex = sectionOrder.filter { it in viewModel.uiState.value.filter.types }.indexOf(type)
+        if (sectionIndex >= 0) listState.scrollToItem(1 + sectionIndex)
+        scope.launch {
+            val result = snackbar?.showSnackbar(
+                message = resources.getString(R.string.msg_workflow_import_success),
+                actionLabel = resources.getString(R.string.button_open),
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) onOpenDetails(id)
         }
     }
 
@@ -320,67 +275,14 @@ fun WorkflowsSettingsScreen(
         AddWorkflowMenu(
             offline = offline,
             onCreate = { createEditorLauncher.launch(WorkflowEditorActivity.createIntentForNewWorkflow(context)) },
-            onImport = { jsonPickerLauncher.launch("application/json") }
+            onImport = { jsonPickerLauncher.launch("application/json") },
+            onImportFromServer = onImportFromServer
         )
     }
 
-    // Import dialog
-    if (uiState.showImportDialog) {
-        WorkflowDetailsDialog(
-            titleRes = R.string.title_import_workflow,
-            confirmLabelRes = R.string.button_continue,
-            fileName = uiState.importFileName,
-            selectedType = uiState.importSelectedType,
-            onTypeSelected = viewModel::onImportTypeSelected,
-            name = uiState.importName,
-            onNameChange = viewModel::onImportNameChange,
-            nameError = uiState.importNameError,
-            description = uiState.importDescription,
-            onDescriptionChange = viewModel::onImportDescriptionChange,
-            isValidating = uiState.isValidatingNodes,
-            onConfirm = { viewModel.proceedWithImport(context, ConnectionManager.client) },
-            onDismiss = viewModel::cancelImport
-        )
-    }
-
-    // Missing nodes dialog
-    if (uiState.showMissingNodesDialog) {
-        MissingNodesDialog(
-            missingNodes = uiState.missingNodes,
-            onDismiss = viewModel::dismissMissingNodesDialog
-        )
-    }
-
-    // Missing fields dialog
-    if (uiState.showMissingFieldsDialog) {
-        MissingFieldsDialog(
-            missingFields = uiState.missingFields,
-            type = uiState.importSelectedType,
-            onDismiss = viewModel::dismissMissingFieldsDialog
-        )
-    }
 
 }
 
-/**
- * Parse field mappings from JSON string
- */
-private fun parseMappingsFromJson(jsonString: String): Map<String, Pair<String, String>> {
-    val mappings = mutableMapOf<String, Pair<String, String>>()
-    try {
-        val json = org.json.JSONObject(jsonString)
-        for (key in json.keys()) {
-            val mapping = json.getJSONObject(key)
-            mappings[key] = Pair(
-                mapping.getString("nodeId"),
-                mapping.getString("inputKey")
-            )
-        }
-    } catch (e: Exception) {
-        // Return empty mappings on error
-    }
-    return mappings
-}
 
 /** Order of the sections on the list. */
 private val sectionOrder = listOf(
@@ -633,7 +535,7 @@ private fun WorkflowRow(
  * and Import upward, over a scrim; tapping the scrim or Back closes it.
  */
 @Composable
-private fun BoxScope.AddWorkflowMenu(offline: Boolean, onCreate: () -> Unit, onImport: () -> Unit) {
+private fun BoxScope.AddWorkflowMenu(offline: Boolean, onCreate: () -> Unit, onImport: () -> Unit, onImportFromServer: () -> Unit) {
     val context = LocalContext.current
     val needsServer = stringResource(R.string.msg_needs_server)
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -691,7 +593,14 @@ private fun BoxScope.AddWorkflowMenu(offline: Boolean, onCreate: () -> Unit, onI
         FloatingActionButtonMenuItem(
             onClick = { act(onImport) },
             icon = { Icon(Icons.Rounded.UploadFile, contentDescription = null) },
-            text = { Text(stringResource(R.string.button_import)) },
+            text = { Text(stringResource(R.string.button_workflow_from_file)) },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        FloatingActionButtonMenuItem(
+            onClick = { act(onImportFromServer) },
+            icon = { Icon(Icons.Rounded.Dns, contentDescription = null) },
+            text = { Text(stringResource(R.string.button_workflow_from_server)) },
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         )

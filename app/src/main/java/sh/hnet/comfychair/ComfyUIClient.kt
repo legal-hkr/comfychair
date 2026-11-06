@@ -9,6 +9,7 @@ import java.io.InputStream
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +17,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -1736,6 +1738,52 @@ class ComfyUIClient(
                 }
             }
         })
+    }
+
+    /** A GET answered as text, read up to a limit. */
+    sealed interface TextResult {
+        data class Ok(val text: String) : TextResult
+        data class HttpError(val code: Int) : TextResult
+        /** The answer is longer than the limit; reading stopped there. */
+        data object TooLarge : TextResult
+        /** No answer (network, TLS); [message] is for the user only, never logged. */
+        data class Failed(val message: String?) : TextResult
+    }
+
+    /**
+     * GETs [pathAndQuery] (starting with "/", already encoded) as text, reading at most [maxBytes]; cancelling the
+     * coroutine cancels the request.
+     */
+    suspend fun getText(pathAndQuery: String, maxBytes: Long): TextResult {
+        val baseUrl = getBaseUrl() ?: return TextResult.Failed(null)
+        val request = Request.Builder().url(baseUrl + pathAndQuery).get().build()
+        val call = httpClient.newCall(request)
+        return suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: IOException) {
+                    if (continuation.isActive) continuation.resume(TextResult.Failed(e.message))
+                }
+
+                override fun onResponse(call: okhttp3.Call, response: Response) {
+                    val result = response.use {
+                        val body = response.body
+                        when {
+                            !response.isSuccessful -> TextResult.HttpError(response.code)
+                            body == null -> TextResult.Failed(null)
+                            else -> try {
+                                val source = body.source()
+                                // More than the limit buffered: too large, without reading the rest
+                                if (source.request(maxBytes + 1)) TextResult.TooLarge else TextResult.Ok(source.readUtf8())
+                            } catch (e: IOException) {
+                                TextResult.Failed(e.message)
+                            }
+                        }
+                    }
+                    if (continuation.isActive) continuation.resume(result)
+                }
+            })
+        }
     }
 
     /**

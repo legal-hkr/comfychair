@@ -527,7 +527,6 @@
     <string name="label_workflow_name">Nazwa</string>
     <string name="label_workflow_description">Opis</string>
     <string name="title_import_workflow">Importuj przepływ pracy</string>
-    <string name="button_import">Importuj</string>
     <string name="button_save">Zapisz</string>
     <string name="button_delete">Usuń</string>
     <string name="button_cancel">Anuluj</string>
@@ -1031,5 +1030,39 @@
         <item quantity="few">%d prompty</item>
         <item quantity="many">%d promptów</item>
         <item quantity="other">%d promptu</item>
+    </plurals>
+
+    <!-- Import from server -->
+    <string name="button_workflow_from_file">Z pliku</string>
+    <string name="button_workflow_from_server">Z serwera</string>
+    <string name="title_server_import">Import z serwera</string>
+    <string name="msg_server_import_no_match">Brak przepływów pasujących do „%1$s”</string>
+    <string name="label_server_workflow_too_large">za duży do importu (%1$s)</string>
+    <string name="label_server_workflow_imported">Zaimportowany</string>
+    <string name="content_description_downloading">Pobieranie</string>
+    <string name="title_server_import_empty">Na serwerze nie ma przepływów</string>
+    <string name="desc_server_import_empty">Zapisz przepływ w ComfyUI (Workflow › Save), a pojawi się tutaj.</string>
+    <string name="button_refresh">Odśwież</string>
+    <string name="button_retry">Ponów</string>
+    <string name="title_server_import_failed">Nie udało się wczytać przepływów</string>
+    <string name="desc_server_import_failed">Serwer nie odpowiedział. Sprawdź, czy działa, i spróbuj ponownie.</string>
+    <string name="title_server_import_multiuser">Ten serwer ma konta użytkowników</string>
+    <string name="desc_server_import_multiuser">Import z serwerów z wieloma użytkownikami nie jest jeszcze obsługiwany. Wyeksportuj przepływ w ComfyUI i zaimportuj plik.</string>
+    <string name="button_import_from_file">Importuj z pliku</string>
+    <string name="error_server_workflows_refresh">Nie udało się odświeżyć listy</string>
+    <string name="error_server_workflow_too_large">Przepływ %1$s jest za duży do importu (limit %2$s)</string>
+    <string name="error_server_workflow_not_workflow">%1$s to nie jest przepływ ComfyUI</string>
+    <string name="error_server_workflow_download">Nie udało się pobrać przepływu %1$s</string>
+    <plurals name="hint_server_import_search">
+        <item quantity="one">Szukaj w %d przepływie</item>
+        <item quantity="few">Szukaj w %d przepływach</item>
+        <item quantity="many">Szukaj w %d przepływach</item>
+        <item quantity="other">Szukaj w %d przepływu</item>
+    </plurals>
+    <plurals name="label_server_import_count">
+        <item quantity="one">%1$d z %2$d przepływu</item>
+        <item quantity="few">%1$d z %2$d przepływów</item>
+        <item quantity="many">%1$d z %2$d przepływów</item>
+        <item quantity="other">%1$d z %2$d przepływu</item>
     </plurals>
 </resources>

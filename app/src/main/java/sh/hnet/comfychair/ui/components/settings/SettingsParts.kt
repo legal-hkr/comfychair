@@ -150,7 +150,7 @@ fun SettingsGroup(title: String? = null, subordinate: Boolean = false, content: 
  * the library's pressed and focused shapes.
  */
 @Composable
-private fun groupShapes(index: Int, count: Int): ListItemShapes {
+internal fun groupShapes(index: Int, count: Int): ListItemShapes {
     val segmented = ListItemDefaults.segmentedShapes(index, count)
     if (count > 1) return segmented
     val first = ListItemDefaults.segmentedShapes(0, 2).shape as? CornerBasedShape ?: return segmented

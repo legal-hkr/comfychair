@@ -82,6 +82,7 @@ import sh.hnet.comfychair.ui.screens.TextToVideoScreen
 import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
 import sh.hnet.comfychair.ui.screens.WhatsNewSettingsScreen
 import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
+import sh.hnet.comfychair.ui.screens.ServerImportScreen
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.CacheSettingsPage
@@ -356,6 +357,15 @@ fun MainNavHost(
                                 WorkflowsSettingsScreen(
                                     viewModel = workflowManagementViewModel,
                                     onNavigateBack = { navController.popBackStack() },
+                                    onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) },
+                                    onImportFromServer = { navController.navigate(SettingsRoute.ServerImport.route) }
+                                )
+                            }
+                            composable(SettingsRoute.ServerImport.route) {
+                                ServerImportScreen(
+                                    viewModel = workflowManagementViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    // Over this page: Back returns here to import the next one
                                     onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) }
                                 )
                             }

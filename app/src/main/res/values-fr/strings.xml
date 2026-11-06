@@ -514,7 +514,6 @@
     <string name="label_workflow_name">Nom</string>
     <string name="label_workflow_description">Description</string>
     <string name="title_import_workflow">Importer un workflow</string>
-    <string name="button_import">Importer</string>
     <string name="button_save">Enregistrer</string>
     <string name="button_delete">Supprimer</string>
     <string name="button_cancel">Annuler</string>
@@ -1005,5 +1004,37 @@
         <item quantity="one">%d prompt</item>
         <item quantity="many">%d prompts</item>
         <item quantity="other">%d prompts</item>
+    </plurals>
+
+    <!-- Import from server -->
+    <string name="button_workflow_from_file">Depuis un fichier</string>
+    <string name="button_workflow_from_server">Depuis le serveur</string>
+    <string name="title_server_import">Importer depuis le serveur</string>
+    <string name="msg_server_import_no_match">Aucun workflow ne correspond à « %1$s »</string>
+    <string name="label_server_workflow_too_large">trop volumineux pour l’import (%1$s)</string>
+    <string name="label_server_workflow_imported">Importé</string>
+    <string name="content_description_downloading">Téléchargement</string>
+    <string name="title_server_import_empty">Aucun workflow sur ce serveur</string>
+    <string name="desc_server_import_empty">Enregistrez un workflow dans ComfyUI (Workflow › Save) et il apparaîtra ici.</string>
+    <string name="button_refresh">Actualiser</string>
+    <string name="button_retry">Réessayer</string>
+    <string name="title_server_import_failed">Impossible de charger les workflows</string>
+    <string name="desc_server_import_failed">Le serveur n’a pas répondu. Vérifiez qu’il fonctionne et réessayez.</string>
+    <string name="title_server_import_multiuser">Ce serveur a des comptes utilisateur</string>
+    <string name="desc_server_import_multiuser">L’import depuis les serveurs multi-utilisateurs n’est pas encore pris en charge. Exportez le workflow dans ComfyUI et importez le fichier.</string>
+    <string name="button_import_from_file">Importer un fichier</string>
+    <string name="error_server_workflows_refresh">Impossible d’actualiser la liste</string>
+    <string name="error_server_workflow_too_large">%1$s est trop volumineux pour l’import (limite %2$s)</string>
+    <string name="error_server_workflow_not_workflow">%1$s n’est pas un workflow ComfyUI</string>
+    <string name="error_server_workflow_download">Impossible de télécharger %1$s</string>
+    <plurals name="hint_server_import_search">
+        <item quantity="one">Rechercher parmi %d workflow</item>
+        <item quantity="many">Rechercher parmi %d workflows</item>
+        <item quantity="other">Rechercher parmi %d workflows</item>
+    </plurals>
+    <plurals name="label_server_import_count">
+        <item quantity="one">%1$d sur %2$d workflow</item>
+        <item quantity="many">%1$d sur %2$d workflows</item>
+        <item quantity="other">%1$d sur %2$d workflows</item>
     </plurals>
 </resources>

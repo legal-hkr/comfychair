@@ -27,6 +27,8 @@ sealed class SettingsRoute(val route: String) {
         const val ARG = "workflowId"
         fun of(workflowId: String): String = "workflow_detail/${Uri.encode(workflowId)}"
     }
+    /** The workflows saved on the connected server, to import one; from the Workflows page's add menu. */
+    data object ServerImport : SettingsRoute("server_workflow_import")
 
     // App
     data object Connection : SettingsRoute("connection_settings")
@@ -47,7 +49,7 @@ sealed class SettingsRoute(val route: String) {
     companion object {
         val all: List<SettingsRoute>
             get() = listOf(
-                Server, Workflows, WorkflowDetail, Connection, Generation, MediaPrivacy, Language, WorkflowEditor,
+                Server, Workflows, WorkflowDetail, ServerImport, Connection, Generation, MediaPrivacy, Language, WorkflowEditor,
                 Backup, Cache, DebugLog, Reset, About, WhatsNew
             )
     }

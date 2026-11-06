@@ -251,27 +251,36 @@ class WorkflowManagementViewModel : ViewModel() {
                     return@launch
                 }
 
-                // The type picked with the filter, if it names one; otherwise detected from the workflow (user can
-                // override either)
-                val filterTypes = _uiState.value.filter.types
-                val detectedType = filterTypes.singleOrNull() ?: WorkflowManager.detectWorkflowType(jsonContent)
-
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    showImportDialog = true,
-                    pendingImportJsonContent = jsonContent,
-                    importSelectedType = detectedType,
-                    importFileName = fileName,
-                    // The file's name as a start; the user can change it
-                    importName = fileName?.substringBeforeLast('.')?.let { ValidationUtils.truncateWorkflowName(it) } ?: "",
-                    importDescription = "",
-                    importNameError = null,
-                )
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                beginImport(jsonContent, source = fileName, suggestedName = fileName?.substringBeforeLast('.'))
             } catch (e: Exception) {
                 emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_import))
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    /**
+     * Opens the Import workflow dialog for a workflow read from a file or downloaded from the server; everything after
+     * it is the same for both.
+     *
+     * @param source Where it came from, shown under the dialog's headline (a file name, or the server and path)
+     * @param suggestedName The name to start from; the user can change it
+     */
+    fun beginImport(jsonContent: String, source: String?, suggestedName: String?) {
+        // The type picked with the filter, if it names one; otherwise detected from the workflow (user can override
+        // either)
+        val filterTypes = _uiState.value.filter.types
+        val detectedType = filterTypes.singleOrNull() ?: WorkflowManager.detectWorkflowType(jsonContent)
+        _uiState.value = _uiState.value.copy(
+            showImportDialog = true,
+            pendingImportJsonContent = jsonContent,
+            importSelectedType = detectedType,
+            importFileName = source,
+            importName = suggestedName?.let { ValidationUtils.truncateWorkflowName(it) } ?: "",
+            importDescription = "",
+            importNameError = null,
+        )
     }
 
     fun onImportTypeSelected(type: WorkflowType) {

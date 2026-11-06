@@ -514,7 +514,6 @@
     <string name="label_workflow_name">Nombre</string>
     <string name="label_workflow_description">Descripción</string>
     <string name="title_import_workflow">Importar workflow</string>
-    <string name="button_import">Importar</string>
     <string name="button_save">Guardar</string>
     <string name="button_delete">Eliminar</string>
     <string name="button_cancel">Cancelar</string>
@@ -1005,5 +1004,37 @@
         <item quantity="one">%d prompt</item>
         <item quantity="many">%d prompts</item>
         <item quantity="other">%d prompts</item>
+    </plurals>
+
+    <!-- Import from server -->
+    <string name="button_workflow_from_file">Desde archivo</string>
+    <string name="button_workflow_from_server">Desde el servidor</string>
+    <string name="title_server_import">Importar desde el servidor</string>
+    <string name="msg_server_import_no_match">Ningún flujo de trabajo coincide con «%1$s»</string>
+    <string name="label_server_workflow_too_large">demasiado grande para importar (%1$s)</string>
+    <string name="label_server_workflow_imported">Importado</string>
+    <string name="content_description_downloading">Descargando</string>
+    <string name="title_server_import_empty">No hay flujos de trabajo en este servidor</string>
+    <string name="desc_server_import_empty">Guarda un flujo de trabajo en ComfyUI (Workflow › Save) y aparecerá aquí.</string>
+    <string name="button_refresh">Actualizar</string>
+    <string name="button_retry">Reintentar</string>
+    <string name="title_server_import_failed">No se pudieron cargar los flujos de trabajo</string>
+    <string name="desc_server_import_failed">El servidor no respondió. Comprueba que está en marcha e inténtalo de nuevo.</string>
+    <string name="title_server_import_multiuser">Este servidor tiene cuentas de usuario</string>
+    <string name="desc_server_import_multiuser">Aún no se puede importar desde servidores multiusuario. Exporta el flujo de trabajo en ComfyUI e importa el archivo.</string>
+    <string name="button_import_from_file">Importar desde archivo</string>
+    <string name="error_server_workflows_refresh">No se pudo actualizar la lista</string>
+    <string name="error_server_workflow_too_large">%1$s es demasiado grande para importar (límite %2$s)</string>
+    <string name="error_server_workflow_not_workflow">%1$s no es un flujo de trabajo de ComfyUI</string>
+    <string name="error_server_workflow_download">No se pudo descargar %1$s</string>
+    <plurals name="hint_server_import_search">
+        <item quantity="one">Buscar en %d flujo de trabajo</item>
+        <item quantity="many">Buscar en %d flujos de trabajo</item>
+        <item quantity="other">Buscar en %d flujos de trabajo</item>
+    </plurals>
+    <plurals name="label_server_import_count">
+        <item quantity="one">%1$d de %2$d flujo de trabajo</item>
+        <item quantity="many">%1$d de %2$d flujos de trabajo</item>
+        <item quantity="other">%1$d de %2$d flujos de trabajo</item>
     </plurals>
 </resources>

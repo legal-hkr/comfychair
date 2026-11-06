@@ -614,7 +614,6 @@
     <string name="label_workflow_description">Description</string>
     <string name="title_import_workflow">Import Workflow</string>
     <string name="title_save_workflow">Save New Workflow</string>
-    <string name="button_import">Import</string>
     <string name="button_create_workflow">Create new</string>
     <string name="content_description_add_workflow">Add a workflow</string>
     <string name="button_save">Save</string>
@@ -1009,5 +1008,35 @@
     <plurals name="label_backup_prompts_count">
         <item quantity="one">%d prompt</item>
         <item quantity="other">%d prompts</item>
+    </plurals>
+
+    <!-- Import from server -->
+    <string name="button_workflow_from_file">From file</string>
+    <string name="button_workflow_from_server">From server</string>
+    <string name="title_server_import">Import from server</string>
+    <string name="msg_server_import_no_match">No workflows match “%1$s”</string>
+    <string name="label_server_workflow_too_large">too large to import (%1$s)</string>
+    <string name="label_server_workflow_imported">Imported</string>
+    <string name="content_description_downloading">Downloading</string>
+    <string name="title_server_import_empty">No workflows on this server</string>
+    <string name="desc_server_import_empty">Save a workflow in ComfyUI (Workflow › Save) and it will show up here.</string>
+    <string name="button_refresh">Refresh</string>
+    <string name="button_retry">Retry</string>
+    <string name="title_server_import_failed">Couldn’t load workflows</string>
+    <string name="desc_server_import_failed">The server didn’t answer. Check that it’s running and try again.</string>
+    <string name="title_server_import_multiuser">This server has user accounts</string>
+    <string name="desc_server_import_multiuser">Importing from multi-user servers isn’t supported yet. Export the workflow in ComfyUI and import the file instead.</string>
+    <string name="button_import_from_file">Import from file</string>
+    <string name="error_server_workflows_refresh">Couldn’t refresh the list</string>
+    <string name="error_server_workflow_too_large">%1$s is too large to import (limit %2$s)</string>
+    <string name="error_server_workflow_not_workflow">%1$s isn’t a ComfyUI workflow</string>
+    <string name="error_server_workflow_download">Couldn’t download %1$s</string>
+    <plurals name="hint_server_import_search">
+        <item quantity="one">Search %d workflow</item>
+        <item quantity="other">Search %d workflows</item>
+    </plurals>
+    <plurals name="label_server_import_count">
+        <item quantity="one">%1$d of %2$d workflow</item>
+        <item quantity="other">%1$d of %2$d workflows</item>
     </plurals>
 </resources>
