@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -18,11 +19,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Brush
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.HideImage
 import androidx.compose.material.icons.rounded.LayersClear
 import androidx.compose.material.icons.rounded.Visibility
@@ -92,6 +95,7 @@ class MaskTools(
 fun BoxScope.SourceToolbar(
     onReplace: () -> Unit,
     onRemove: () -> Unit,
+    onPickFromServer: (() -> Unit)? = null,
     maskTools: MaskTools? = null
 ) {
     val modifier = Modifier
@@ -100,6 +104,9 @@ fun BoxScope.SourceToolbar(
     val replace: @Composable () -> Unit = {
         TooltipIconButton(Icons.Rounded.AddPhotoAlternate, stringResource(R.string.content_description_replace_source), onReplace)
     }
+    val fromServer: (@Composable () -> Unit)? = onPickFromServer?.let { pick -> {
+        TooltipIconButton(Icons.Rounded.Cloud, stringResource(R.string.server_gallery_title), pick)
+    } }
 
     // The toolbar's container in the same role as the frames of thumbnails over the preview and empty reference slots
     val colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
@@ -108,6 +115,7 @@ fun BoxScope.SourceToolbar(
     if (maskTools == null) {
         HorizontalFloatingToolbar(expanded = true, modifier = modifier, colors = colors) {
             replace()
+            fromServer?.invoke()
             TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
         }
     } else {
@@ -129,6 +137,7 @@ fun BoxScope.SourceToolbar(
             }
         ) {
             replace()
+            fromServer?.invoke()
             TooltipIconButton(Icons.Rounded.HideImage, stringResource(R.string.content_description_remove_source), onRemove)
             TooltipIconButton(
                 Icons.Rounded.LayersClear,
@@ -166,10 +175,10 @@ fun BoxScope.MaskLabel() {
 }
 
 /**
- * Empty source: the preview itself is the picker – a dashed outline and one large button.
+ * Empty source: the preview itself is the picker – a dashed outline and one large button, plus a server gallery entry.
  */
 @Composable
-fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
+fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier, onPickFromServer: (() -> Unit)? = null) {
     val outline = MaterialTheme.colorScheme.outline
     Box(
         modifier
@@ -196,10 +205,23 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier) {
                 modifier = Modifier.size(64.dp)
             )
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onPick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
-                Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                Text(stringResource(R.string.button_pick_source_image))
+            androidx.compose.foundation.layout.Row {
+                Button(onClick = onPick, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+                    Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.button_pick_source_image))
+                }
+                if (onPickFromServer != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = onPickFromServer,
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding
+                    ) {
+                        Icon(Icons.Rounded.Cloud, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.server_gallery_title))
+                    }
+                }
             }
         }
     }

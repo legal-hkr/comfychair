@@ -904,4 +904,78 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">Save prompt to library</string>
+
+    <!-- Server gallery (Input/Output browsing) -->
+    <string name="server_image_target">Source image %1$d</string>
+    <string name="server_image_input_scope">Input images exposed by LoadImage (usually top-level files only).</string>
+    <string name="server_image_output_scope">Output execution history, newest first. Scroll down for older records; not the entire output folder.</string>
+    <string name="server_image_loading">Loading images…</string>
+    <string name="server_image_empty">No images available from this source.</string>
+    <string name="server_image_error">Load failed · check connection or limits</string>
+    <string name="server_image_refresh">Refresh / retry</string>
+    <string name="server_image_more_error">Load more failed · list kept</string>
+    <string name="server_image_retry_more">Retry</string>
+    <string name="server_image_end">All available images loaded</string>
+    <string name="server_image_preview_retry">Preview unavailable · tap to retry</string>
+    <string name="server_assets_search">Search names</string>
+    <string name="server_assets_count">%1$d images · %2$d assets</string>
+    <string name="server_assets_scope">Indexed assets, not a live folder listing. Only images with a verified Input/Output namespace are shown.</string>
+    <string name="server_assets_more">Load more</string>
+    <string name="server_assets_newest">Newest first</string>
+    <string name="server_assets_oldest">Oldest first</string>
+    <string name="server_assets_name">Name A–Z</string>
+    <string name="server_assets_size">Largest first</string>
+    <string name="server_image_legacy_count">%1$d images · legacy source</string>
+    <string name="server_image_info">Source scope and image limits</string>
+    <string name="server_image_limits">Lists and thumbnails are privately cached for 24 hours; lists refresh in the background. Original: at most 32 MiB / 16 megapixels. Download progress is indeterminate; other previews pause during download. Asset totals include non-images. On failure, check connection and permissions, then retry.</string>
+    <string name="server_assets_sort">Sort: %1$s</string>
+    <string name="server_gallery_title">Server gallery</string>
+    <string name="server_delete_selected">%1$d selected (maximum 50)</string>
+    <string name="server_delete_loaded">Select loaded (50 max)</string>
+    <string name="server_delete_clear">Clear</string>
+    <string name="server_delete_action">Delete permanently</string>
+    <string name="server_delete_results">Per-file results</string>
+    <string name="server_delete_confirm">Permanently delete %1$d images from %2$s? This cannot be undone. History and shared previews are NOT removed.</string>
+    <string name="server_delete_uncertain">Operation could not be verified. Do not retry blindly; refresh and check the server.</string>
+    <string name="server_delete_credential">Deletion key</string>
+    <string name="server_delete_setup">Companion extension + one dedicated random key (at least 32 characters). Empty value removes the key. For trusted LAN HTTP, enable the switch below and save to consent.</string>
+    <string name="server_delete_lan">Trusted LAN deletion (allow HTTP)</string>
+    <string name="server_delete_lan_warning">Trusted LAN only, never expose to the Internet. HTTP sends the key and operation tokens in plaintext, not encrypted. Anyone who captures the key can delete files. Save only if you accept this risk.</string>
+    <string name="server_delete_store">Store securely</string>
+    <string name="server_delete_credential_saved">Deletion key saved securely</string>
+    <string name="server_delete_success">Deleted</string>
+    <string name="server_delete_not_found">Not found</string>
+    <string name="server_delete_conflict">Changed; not deleted</string>
+    <string name="server_delete_busy">Queue active; not deleted</string>
+    <string name="server_delete_invalid">Invalid or unsupported file</string>
+    <string name="server_delete_failed">Failed; check server</string>
+    <string name="server_delete_available">Deletion available · long press to select</string>
+    <string name="server_delete_unavailable">Deletion unavailable · check key, LAN consent and server capability</string>
+
+    <!-- Server image cache settings -->
+    <string name="image_cache_title">Server image cache</string>
+    <string name="image_cache_scope">Only local Input/Output lists, thumbnails and upload descriptors. Materials, workflows, selected images and server files are not deleted.</string>
+    <string name="image_cache_auto">Automatic cleanup</string>
+    <string name="image_cache_mb">Maximum size (MB, 1–1024)</string>
+    <string name="image_cache_days">Maximum retention (days, 1–365)</string>
+    <string name="image_cache_rules">When enabled: remove entries older than the day limit OR evict oldest-created entries until within the size limit. Applies on cache access and after saving. 1 MB = 1024² bytes. When off: no retention/size cleanup; safety ceiling 1024 MB / 8192 entries still applies. Freshness checks (lists/thumbnails 24h) remain.</string>
+    <string name="image_cache_validation">Enter whole numbers: MB 1–1024; days 1–365.</string>
+    <string name="image_cache_apply">Save and apply limits</string>
+    <string name="image_cache_clear">Clear server image cache</string>
+    <string name="image_cache_saved">Saved; limits applied to the active cache.</string>
+    <string name="image_cache_cleared">Cache cleared. Reopen the picker to refresh images.</string>
+    <string name="image_cache_error">Cache operation failed. Please retry.</string>
+    <string name="image_cache_size">Current cache size: %1$s (%2$d bytes)</string>
+    <string name="image_cache_count">Cache count: %1$d valid entries</string>
+    <string name="image_cache_stats_loading">Loading cache statistics…</string>
+    <string name="image_cache_stats_error">Cannot read cache statistics. Retry refresh.</string>
+    <string name="image_cache_stats_refresh">Refresh cache statistics</string>
+    <!-- Server media deletion (Settings → Server) -->
+    <string name="title_server_media_deletion">Media deletion</string>
+    <string name="label_server_media_deletion_state">Status</string>
+    <string name="desc_server_media_deletion">Physically deletes Input/Output image files on this server, for the gallery\'s long-press selection. Requires the ComfyChair media extension installed on the server; without it the gallery still browses and saves images, only permanent deletion stays unavailable. The key is stored encrypted on this device for this server only.</string>
+    <string name="server_delete_checking">Checking…</string>
+    <string name="server_delete_key_saved">A key is saved (%1$d characters). Enter a new one to replace it, or save empty to remove it.</string>
+    <string name="server_delete_key_empty">No key saved: permanent deletion is unavailable.</string>
+    <string name="hint_media_deletion_setup">Permanent deletion needs a key: Settings → Server → Media deletion</string>
 </resources>

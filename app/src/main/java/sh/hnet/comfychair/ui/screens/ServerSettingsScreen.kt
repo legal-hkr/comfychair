@@ -18,6 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
+import sh.hnet.comfychair.ui.components.settings.SettingsSwitchRow
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -127,6 +131,8 @@ fun ServerSettingsScreen(
             }
         }
 
+        ServerMediaDeletionSection(viewModel)
+
         // Ends the session; the login screen then offers the saved servers (also to switch servers)
         OutlinedButton(
             onClick = onLogout,
@@ -214,5 +220,72 @@ private fun Meter(label: String, usedGB: Double, totalGB: Double) {
             progress = { (usedGB / totalGB).toFloat().coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+/**
+ * Physical deletion of this server's Input/Output image files: the companion extension's capability, the dedicated
+ * key (stored encrypted, never shown again) and the trusted-LAN consent that plain HTTP requires.
+ */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ServerMediaDeletionSection(viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val state by viewModel.mediaDeletion.collectAsState()
+    var key by remember { mutableStateOf("") }
+    var allowLan by remember(state.allowLan) { mutableStateOf(state.allowLan) }
+
+    LaunchedEffect(Unit) { viewModel.refreshMediaDeletion(context) }
+
+    SettingsGroup(stringResource(R.string.title_server_media_deletion)) {
+        row { shapes ->
+            SettingsInfoRow(
+                shapes,
+                stringResource(R.string.label_server_media_deletion_state),
+                stringResource(
+                    when {
+                        !state.probed -> R.string.server_delete_checking
+                        state.available -> R.string.server_delete_available
+                        else -> R.string.server_delete_unavailable
+                    }
+                )
+            )
+        }
+    }
+    Text(stringResource(R.string.desc_server_media_deletion), style = MaterialTheme.typography.bodySmall)
+    OutlinedTextField(
+        value = key,
+        onValueChange = { key = it },
+        label = { Text(stringResource(R.string.server_delete_credential)) },
+        supportingText = {
+            Text(
+                if (state.keyLength > 0) stringResource(R.string.server_delete_key_saved, state.keyLength)
+                else stringResource(R.string.server_delete_key_empty)
+            )
+        },
+        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
+    SettingsGroup {
+        row { shapes ->
+            SettingsSwitchRow(
+                shapes = shapes,
+                title = stringResource(R.string.server_delete_lan),
+                supporting = stringResource(R.string.server_delete_lan_warning),
+                checked = allowLan,
+                onCheckedChange = { allowLan = it }
+            )
+        }
+    }
+    Button(
+        onClick = {
+            viewModel.saveMediaDeletionKey(context, key.trim(), allowLan)
+            key = ""
+        },
+        enabled = !state.saving && (key.isEmpty() || key.trim().length >= 32),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(stringResource(R.string.server_delete_store))
     }
 }

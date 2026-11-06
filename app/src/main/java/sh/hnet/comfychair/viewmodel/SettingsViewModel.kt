@@ -135,6 +135,26 @@ class SettingsViewModel : ViewModel() {
     private val _isPromptSpellCheckEnabled = MutableStateFlow(false)
     val isPromptSpellCheckEnabled: StateFlow<Boolean> = _isPromptSpellCheckEnabled.asStateFlow()
 
+    /** Retention/size limits of the private server image cache (lists, thumbnails, upload descriptors). */
+    private val _imageCachePolicy = MutableStateFlow(sh.hnet.comfychair.cache.ImageCachePolicy())
+    val imageCachePolicy: StateFlow<sh.hnet.comfychair.cache.ImageCachePolicy> = _imageCachePolicy.asStateFlow()
+    private val _imageCacheStats = MutableStateFlow<sh.hnet.comfychair.cache.PrivateImageDiskCache.Stats?>(null)
+    val imageCacheStats: StateFlow<sh.hnet.comfychair.cache.PrivateImageDiskCache.Stats?> = _imageCacheStats.asStateFlow()
+
+    /**
+     * Physical deletion of server media files, as configured for the connected server: whether the companion
+     * extension reports the capability, the saved key's length (never the key itself) and the LAN consent.
+     */
+    data class MediaDeletionState(
+        val available: Boolean = false,
+        val probed: Boolean = false,
+        val keyLength: Int = 0,
+        val allowLan: Boolean = false,
+        val saving: Boolean = false
+    )
+    private val _mediaDeletion = MutableStateFlow(MediaDeletionState())
+    val mediaDeletion: StateFlow<MediaDeletionState> = _mediaDeletion.asStateFlow()
+
 
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
@@ -152,6 +172,7 @@ class SettingsViewModel : ViewModel() {
         _isOfflineMode.value = AppSettings.isOfflineMode(context)
         _edgeRouterId.value = AppSettings.getEdgeRouterId(context)
         _isPromptSpellCheckEnabled.value = AppSettings.isPromptSpellCheckEnabled(context)
+        _imageCachePolicy.value = AppSettings.getImageCachePolicy(context)
 
         // Initialize debug logger with saved state
         DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
@@ -367,9 +388,95 @@ class SettingsViewModel : ViewModel() {
             // Clear in-memory media caches
             MediaCache.clearAll()
             MediaStateHolder.clearAll()
+            sh.hnet.comfychair.cache.PersistentImageCache.clear(context)
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.msg_cache_cleared_success))
             _events.emit(SettingsEvent.MediaCleared)
+        }
+    }
+
+    /** Apply new server image cache limits (saved to AppSettings and enforced immediately). */
+    fun setImageCachePolicy(context: Context, policy: sh.hnet.comfychair.cache.ImageCachePolicy) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { sh.hnet.comfychair.cache.PersistentImageCache.apply(context, policy) }
+                _imageCachePolicy.value = policy
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_saved))
+            } catch (e: Exception) {
+                DebugLogger.w(TAG, "Image cache policy failed: ${e.message}")
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_error))
+            }
+        }
+    }
+
+    /** Read the saved deletion key's state for the connected server and probe the extension's capability. */
+    fun refreshMediaDeletion(context: Context) {
+        viewModelScope.launch {
+            val identity = sh.hnet.comfychair.viewmodel.currentMediaIdentity()
+            if (identity == null) { _mediaDeletion.value = MediaDeletionState(); return@launch }
+            val client = identity.client as ComfyUIClient
+            val scope = client.deletionCredentialScope(identity.serverId)
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    val storage = sh.hnet.comfychair.storage.DeletionCredentialStorage(context)
+                    storage.get(scope) to storage.lan(scope)
+                }.getOrDefault("" to false)
+            }
+            val available = withContext(Dispatchers.IO) {
+                runCatching {
+                    client.mediaDeletion(saved.first, saved.second).available()
+                }.getOrDefault(false)
+            }
+            _mediaDeletion.value = MediaDeletionState(
+                available = available,
+                probed = true,
+                keyLength = saved.first.length,
+                allowLan = saved.second
+            )
+        }
+    }
+
+    /** Save (or clear, with an empty value) the deletion key for the connected server. */
+    fun saveMediaDeletionKey(context: Context, key: String, allowLan: Boolean) {
+        viewModelScope.launch {
+            val identity = sh.hnet.comfychair.viewmodel.currentMediaIdentity()
+            if (identity == null) return@launch
+            _mediaDeletion.value = _mediaDeletion.value.copy(saving = true)
+            val client = identity.client as ComfyUIClient
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    sh.hnet.comfychair.storage.DeletionCredentialStorage(context)
+                        .save(client.deletionCredentialScope(identity.serverId), key, allowLan)
+                }.isSuccess
+            }
+            _events.emit(SettingsEvent.ShowToast(
+                if (saved) R.string.server_delete_credential_saved else R.string.server_delete_failed
+            ))
+            _mediaDeletion.value = _mediaDeletion.value.copy(saving = false)
+            refreshMediaDeletion(context)
+        }
+    }
+
+    /** Read cache statistics on demand (valid entries only). */
+    fun refreshImageCacheStats(context: Context) {
+        viewModelScope.launch {
+            _imageCacheStats.value = withContext(Dispatchers.IO) {
+                runCatching { sh.hnet.comfychair.cache.PersistentImageCache.storage(context).stats() }.getOrNull()
+            }
+        }
+    }
+
+    /** Clear only the server image cache (lists, thumbnails, descriptors); media state stays. */
+    fun clearImageCache(context: Context) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { sh.hnet.comfychair.cache.PersistentImageCache.clear(context) }
+                _imageCacheStats.value = null
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_cleared))
+            } catch (e: Exception) {
+                DebugLogger.w(TAG, "Image cache clear failed: ${e.message}")
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_error))
+            }
         }
     }
 

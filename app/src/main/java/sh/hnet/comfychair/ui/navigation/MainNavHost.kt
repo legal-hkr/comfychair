@@ -78,6 +78,7 @@ import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.CacheSettingsPage
+import sh.hnet.comfychair.viewmodel.ServerGalleryViewModel
 import sh.hnet.comfychair.ui.screens.settings.ConnectionSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.DebugLogSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.GenerationSettingsPage
@@ -114,6 +115,7 @@ fun MainNavHost(
     mediaViewerViewModel: MediaViewerViewModel,
     settingsViewModel: SettingsViewModel,
     workflowManagementViewModel: WorkflowManagementViewModel,
+    serverGalleryViewModel: ServerGalleryViewModel,
     onLogout: () -> Unit,
     onLeftSettings: (route: String) -> Unit,
     startDestination: String = MainRoute.TextToImage.route,
@@ -279,7 +281,8 @@ fun MainNavHost(
                             composable(MainRoute.Gallery.route) {
                                 GalleryScreen(
                                     generationViewModel = generationViewModel,
-                                    galleryViewModel = galleryViewModel
+                                    galleryViewModel = galleryViewModel,
+                                    serverGalleryViewModel = serverGalleryViewModel
                                 )
                             }
 

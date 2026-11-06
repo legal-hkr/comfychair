@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -45,8 +47,10 @@ import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
+import sh.hnet.comfychair.ui.components.ServerImagePickerSheet
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.VideoPlayer
+import sh.hnet.comfychair.viewmodel.ServerGalleryViewModel
 import sh.hnet.comfychair.ui.components.config.singleWorkflowGroup
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.generation.EmptyResultState
@@ -128,6 +132,11 @@ fun ImageToVideoScreen(
         }
     }
 
+    // Server gallery (Input/Output) sheet for the source image
+    var showServerPicker by remember { mutableStateOf(false) }
+    val serverPickerViewModel: ServerGalleryViewModel = viewModel()
+    val pickFromServer: () -> Unit = { showServerPicker = true }
+
     val mediaViewer = LocalMediaViewer.current
 
     // Generate from the dock and from the prompt editor
@@ -205,11 +214,12 @@ fun ImageToVideoScreen(
                             if (!inTransition) {
                                 SourceToolbar(
                                     onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onPickFromServer = pickFromServer,
                                     onRemove = imageToVideoViewModel::clearSourceImage
                                 )
                             }
                         } else {
-                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
+                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") }, onPickFromServer = pickFromServer)
                         }
                     },
                     // The video surface can't follow the swap animation, so a still stands in meanwhile
@@ -333,6 +343,24 @@ fun ImageToVideoScreen(
     ) { callbacks -> uiState.toBottomSheetConfig(callbacks) }
 
     PromptPresetDialogs(presetViewModel, presetUiState, uiState.positivePrompt)
+
+    if (showServerPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showServerPicker = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            // Its content is bounded (tabs + a 520 dp grid), so the sheet stops short of the status bar
+            dragHandle = null
+        ) {
+            ServerImagePickerSheet(
+                viewModel = serverPickerViewModel,
+                onPick = { bitmap ->
+                    showServerPicker = false
+                    imageToVideoViewModel.useAsSource(context, bitmap)
+                },
+                onClose = { showServerPicker = false }
+            )
+        }
+    }
 }
 
 /** Media origin of this screen's source image in the preview. */

@@ -12,6 +12,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -34,15 +37,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Link
@@ -51,15 +58,22 @@ import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -67,14 +81,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -84,11 +100,18 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.ActiveView
 import sh.hnet.comfychair.cache.MediaCache
+import sh.hnet.comfychair.model.ServerImageSource
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
@@ -101,6 +124,9 @@ import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
+import sh.hnet.comfychair.viewmodel.ServerGalleryViewModel
+import sh.hnet.comfychair.viewmodel.currentMediaIdentity
+import sh.hnet.comfychair.storage.DeletionCredentialStorage
 import sh.hnet.comfychair.viewmodel.GalleryItem
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -111,11 +137,22 @@ import sh.hnet.comfychair.viewmodel.MediaViewerItem
 fun GalleryScreen(
     generationViewModel: GenerationViewModel,
     galleryViewModel: GalleryViewModel,
+    serverGalleryViewModel: ServerGalleryViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val uiState by galleryViewModel.uiState.collectAsState()
     val connectionStatus by generationViewModel.connectionStatus.collectAsState()
+
+    // Server Input/Output browsing, switched from the gallery's top bar
+    var showServer by rememberSaveable { mutableStateOf(false) }
+    var serverSourceName by rememberSaveable { mutableStateOf(ServerImageSource.INPUT.name) }
+    val serverSource = ServerImageSource.valueOf(serverSourceName)
+    // The server tab's selection, hoisted so the top bar's select actions route to the right surface
+    var serverSelecting by rememberSaveable { mutableStateOf(false) }
+    var serverSelectedKeys by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var serverSelectAll by remember { mutableStateOf(false) }
+    var serverSelectedCount by remember { mutableStateOf(0) }
 
     // Check offline mode
     val isOfflineMode = remember { AppSettings.isOfflineMode(context) }
@@ -211,9 +248,7 @@ fun GalleryScreen(
     val gridColumns by remember {
         derivedStateOf { (gridState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 1) + 1 }
     }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var confirmDelete by remember { mutableStateOf(false) }
-
     // A selection doesn't outlive the tab: the navigation bar is hidden while selecting
     DisposableEffect(Unit) { onDispose { galleryViewModel.clearSelection() } }
 
@@ -269,14 +304,37 @@ fun GalleryScreen(
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             GalleryTopBar(
-                selecting = uiState.isSelectionMode,
-                selectedCount = uiState.selectedItems.size,
-                itemCount = uiState.items.size,
-                scrollBehavior = scrollBehavior,
-                onSelect = { galleryViewModel.enterSelectionMode() },
-                onSelectAll = { galleryViewModel.selectAll() },
-                onCloseSelection = { galleryViewModel.clearSelection() }
+                selecting = if (showServer) serverSelecting else uiState.isSelectionMode,
+                selectedCount = if (showServer) serverSelectedCount else uiState.selectedItems.size,
+                showServer = showServer,
+                serverSource = serverSource,
+                onViewChange = { server, source ->
+                    showServer = server
+                    serverSourceName = source.name
+                },
+                onSelect = { if (showServer) serverSelecting = true else galleryViewModel.enterSelectionMode() },
+                onSelectAll = { if (showServer) serverSelectAll = true else galleryViewModel.selectAll() },
+                onCloseSelection = {
+                    if (showServer) { serverSelecting = false; serverSelectedKeys = emptySet() }
+                    else galleryViewModel.clearSelection()
+                }
             )
+
+            if (showServer) {
+                // Server Input/Output browsing in the gallery tab: the shared picker, originals in the viewer
+                ServerGalleryTabContent(
+                    viewModel = serverGalleryViewModel,
+                    source = serverSource,
+                    selecting = serverSelecting,
+                    onSelectAll = serverSelectAll,
+                    onSelectionChange = { selectingNow, count, keys ->
+                        serverSelecting = selectingNow
+                        serverSelectedCount = count
+                        serverSelectedKeys = keys
+                    },
+                    onConsumedSelectAll = { serverSelectAll = false }
+                )
+            } else {
 
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -294,9 +352,6 @@ fun GalleryScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            // The top bar sees the grid's scrolling before pull to refresh: at the top, a pull down
-                            // first expands the bar, and only then refreshes
-                            .nestedScroll(scrollBehavior.nestedScrollConnection)
                             .padding(horizontal = 12.dp)
                             // The grid is one block with rounded top corners, as the generation preview
                             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
@@ -368,6 +423,7 @@ fun GalleryScreen(
                     }
                 }
             }
+            }
         }
 
         // Selection actions, where the navigation bar was: Delete apart from Save and Share
@@ -424,29 +480,32 @@ fun GalleryScreen(
 }
 
 /**
- * The gallery's top bar, large like the Settings tab's: the title and the number of items, collapsing on scroll; while selecting, Close, the number
- * selected and Select all.
+ * The gallery's top bar, one line like the generation screens': the title with the toggle and select actions beside it;
+ * while selecting, Close and the number selected with Select all.
  */
 @Composable
 private fun GalleryTopBar(
     selecting: Boolean,
     selectedCount: Int,
-    itemCount: Int,
-    scrollBehavior: TopAppBarScrollBehavior,
+    showServer: Boolean,
+    serverSource: ServerImageSource,
+    onViewChange: (showServer: Boolean, source: ServerImageSource) -> Unit,
     onSelect: () -> Unit,
     onSelectAll: () -> Unit,
     onCloseSelection: () -> Unit
 ) {
-    LargeFlexibleTopAppBar(
+    TopAppBar(
         title = {
-            Text(
-                if (selecting) pluralStringResource(R.plurals.gallery_selected_count, selectedCount, selectedCount)
-                else stringResource(R.string.title_gallery)
+            // One row: a three-way view dropdown (gallery / server Input / server Output) beside the selection actions
+            GalleryViewDropdown(
+                selecting = selecting,
+                selectedCount = selectedCount,
+                showServer = showServer,
+                serverSource = serverSource,
+                onViewChange = onViewChange,
+                enabled = !selecting
             )
         },
-        subtitle = if (!selecting && itemCount > 0) {
-            { Text(pluralStringResource(R.plurals.label_gallery_subtitle, itemCount, itemCount)) }
-        } else null,
         navigationIcon = {
             if (selecting) TooltipIconButton(Icons.Rounded.Close, stringResource(R.string.button_cancel_selection), onCloseSelection)
         },
@@ -457,9 +516,44 @@ private fun GalleryTopBar(
                 TooltipIconButton(Icons.Rounded.Checklist, stringResource(R.string.button_gallery_select), onSelect)
             }
         },
-        windowInsets = WindowInsets(0, 0, 0, 0),
-        scrollBehavior = scrollBehavior
+        windowInsets = WindowInsets(0, 0, 0, 0)
     )
+}
+
+/** The gallery tab's view picker: the local gallery or the server's Input/Output images. */
+@Composable
+private fun GalleryViewDropdown(
+    selecting: Boolean,
+    selectedCount: Int,
+    showServer: Boolean,
+    serverSource: ServerImageSource,
+    onViewChange: (showServer: Boolean, source: ServerImageSource) -> Unit,
+    enabled: Boolean
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val views = listOf(
+        Triple(false, null, stringResource(R.string.title_gallery)),
+        Triple(true, ServerImageSource.INPUT, stringResource(R.string.server_gallery_title) + " · Input"),
+        Triple(true, ServerImageSource.OUTPUT, stringResource(R.string.server_gallery_title) + " · Output")
+    )
+    val current = if (selecting) pluralStringResource(R.plurals.gallery_selected_count, selectedCount, selectedCount)
+        else views.first { it.first == showServer && it.second == if (showServer) serverSource else null }.third
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable(enabled = enabled) { expanded = true }) {
+        Text(current, style = MaterialTheme.typography.titleLarge)
+        Icon(Icons.Rounded.ArrowDropDown, contentDescription = stringResource(R.string.server_image_info),
+            modifier = Modifier.size(28.dp))
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            views.forEach { (server, source, label) ->
+                DropdownMenuItem(
+                    text = { Text(label, fontWeight = if ((showServer == server) && (source == serverSource || !server)) FontWeight.Bold else FontWeight.Normal) },
+                    onClick = {
+                        expanded = false
+                        onViewChange(server, source ?: ServerImageSource.INPUT)
+                    }
+                )
+            }
+        }
+    }
 }
 
 /**
