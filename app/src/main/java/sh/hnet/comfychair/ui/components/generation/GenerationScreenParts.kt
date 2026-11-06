@@ -404,9 +404,7 @@ fun RecipeChips(
     groups: List<WorkflowGroup>
 ) {
     val workflowName = state.selectedWorkflow
-    val workflowId = state.selectedWorkflowId
     val hasPositivePrompt = state.capabilities.hasPositivePrompt
-    val context = LocalContext.current
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -415,9 +413,7 @@ fun RecipeChips(
             .padding(top = if (hasPositivePrompt) 0.dp else 12.dp, bottom = 6.dp)
     ) {
         item(key = "workflow") {
-            WorkflowChip(workflowName, icon, groups, onOpenEditor = {
-                if (workflowId.isNotEmpty()) context.startActivity(WorkflowEditorActivity.createIntent(context, workflowId))
-            })
+            WorkflowChip(workflowName, icon, groups)
         }
         item(key = "parameters") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ParameterChips(state, viewModel) }

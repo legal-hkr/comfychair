@@ -628,7 +628,6 @@
     <string name="media_viewer_next">Następny</string>
 
     <!-- Workflow editor strings -->
-    <string name="menu_node_values">Wartości węzłów</string>
     <string name="label_all_node_values">Wszystkie wartości węzłów</string>
     <string name="desc_all_node_values">Wartości, których nie ma wyżej</string>
     <string name="label_new_workflow">Nowy przepływ pracy</string>

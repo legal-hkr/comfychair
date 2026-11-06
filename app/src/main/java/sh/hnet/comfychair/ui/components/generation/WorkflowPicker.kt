@@ -15,7 +15,6 @@ import androidx.compose.material.icons.rounded.ArrowDropUp
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenuGroup
@@ -70,11 +69,8 @@ object WorkflowIcons {
 }
 
 /**
- * The workflow menu: groups (titled by mode on Image to Image), the selected workflow checked, and "Node values" after a
- * gap.
- *
- * @param onOpenEditor Opens the workflow's node values; null where they're reached another way (the options sheet has
- *   its own row)
+ * The workflow menu: groups (titled by mode on Image to Image), the selected workflow checked. A workflow's node values
+ * are opened from the options sheet only.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -82,11 +78,10 @@ fun WorkflowMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     groups: List<WorkflowGroup>,
-    selectedWorkflow: String,
-    onOpenEditor: (() -> Unit)?
+    selectedWorkflow: String
 ) {
     val visibleGroups = groups.filter { it.workflows.isNotEmpty() }
-    val count = visibleGroups.size + if (onOpenEditor != null) 1 else 0
+    val count = visibleGroups.size
     DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismiss) {
         visibleGroups.forEachIndexed { groupIndex, group ->
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, count)) {
@@ -119,17 +114,6 @@ fun WorkflowMenu(
             }
             if (groupIndex < count - 1) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
         }
-        if (onOpenEditor != null) DropdownMenuGroup(shapes = MenuDefaults.groupShape(count - 1, count)) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.menu_node_values)) },
-                shape = MenuDefaults.itemShape(0, 1).shape,
-                leadingIcon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
-                onClick = {
-                    onDismiss()
-                    onOpenEditor()
-                }
-            )
-        }
     }
 }
 
@@ -142,7 +126,6 @@ fun WorkflowChip(
     workflowName: String,
     icon: ImageVector,
     groups: List<WorkflowGroup>,
-    onOpenEditor: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -175,7 +158,7 @@ fun WorkflowChip(
             border = null,
             modifier = Modifier.semantics { contentDescription = description }
         )
-        WorkflowMenu(expanded, { expanded = false }, groups, workflowName, onOpenEditor)
+        WorkflowMenu(expanded, { expanded = false }, groups, workflowName)
     }
 }
 
@@ -211,6 +194,6 @@ fun WorkflowRow(
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             )
         }
-        WorkflowMenu(expanded, { expanded = false }, groups, workflowName, onOpenEditor = null)
+        WorkflowMenu(expanded, { expanded = false }, groups, workflowName)
     }
 }

@@ -577,7 +577,6 @@
     <string name="media_viewer_next">下一个</string>
 
     <!-- Workflow editor strings -->
-    <string name="menu_node_values">节点值</string>
     <string name="label_all_node_values">所有节点值</string>
     <string name="desc_all_node_values">上方未显示的值</string>
     <string name="label_new_workflow">新工作流</string>

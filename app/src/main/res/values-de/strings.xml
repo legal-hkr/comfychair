@@ -608,7 +608,6 @@
     <string name="media_viewer_next">Weiter</string>
 
     <!-- Workflow editor strings -->
-    <string name="menu_node_values">Knotenwerte</string>
     <string name="label_all_node_values">Alle Knotenwerte</string>
     <string name="desc_all_node_values">Werte, die oben fehlen</string>
     <string name="label_new_workflow">Neuer Workflow</string>

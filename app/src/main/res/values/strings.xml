@@ -708,7 +708,6 @@
     <string name="media_viewer_next">Next</string>
 
     <!-- Workflow editor strings -->
-    <string name="menu_node_values">Node values</string>
     <string name="label_all_node_values">All node values</string>
     <string name="desc_all_node_values">Values not shown above</string>
     <string name="label_new_workflow">New workflow</string>

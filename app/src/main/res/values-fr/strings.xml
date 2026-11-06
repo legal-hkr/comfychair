@@ -611,7 +611,6 @@
     <string name="media_viewer_next">Suivant</string>
 
     <!-- Workflow editor strings -->
-    <string name="menu_node_values">Valeurs des nœuds</string>
     <string name="label_all_node_values">Toutes les valeurs des nœuds</string>
     <string name="desc_all_node_values">Valeurs absentes ci-dessus</string>
     <string name="label_new_workflow">Nouveau workflow</string>
