@@ -18,7 +18,9 @@ sealed class WebSocketMessage {
         val nodeType: String? = null,
         val nodeId: String? = null,
         val exceptionType: String? = null,
-        val traceback: List<String> = emptyList()
+        val traceback: List<String> = emptyList(),
+        /** One of this app's jobs, as known when the error came (the registry forgets it right after) */
+        val isOwn: Boolean = false
     ) : WebSocketMessage()
     data class ExecutionSuccess(val promptId: String) : WebSocketMessage()
     data class Status(val queueRemaining: Int?) : WebSocketMessage()

@@ -239,7 +239,7 @@ class GalleryViewModel : ViewModel() {
                 saved != true
             }
             _events.emit(GalleryEvent.ShowToast(
-                if (failCount == 0) R.string.msg_items_saved_to_gallery else R.string.msg_some_items_failed_to_save
+                if (failCount == 0) R.string.msg_items_saved_to_gallery else R.string.error_some_items_failed_to_save
             ))
             clearSelection()
         }

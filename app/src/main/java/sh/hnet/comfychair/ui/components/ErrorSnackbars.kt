@@ -15,6 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.dialogs.InfoDialog
 import sh.hnet.comfychair.util.AppError
@@ -22,25 +25,29 @@ import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.PrivacyUtils
 
 /**
- * Shows the app's errors ([AppErrors]) in [hostState] while [active], one after another: the message, and Show when
- * there's more to it, which opens the whole error (selectable, with Copy).
+ * Shows the app's errors ([AppErrors]) in [hostState] while [active] and in front, one after another: the message, and
+ * Show when there's more to it, which opens the whole error (selectable, with Copy). Only a screen in front collects:
+ * the login screen stays under the main screens, and an error taken there would never be seen.
  *
  * @param active False while something covers this screen's snackbars (e.g. the media viewer, which shows them itself)
  */
 @Composable
 fun ErrorSnackbars(hostState: SnackbarHostState, active: Boolean = true) {
     val resources = LocalResources.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var shown by remember { mutableStateOf<AppError?>(null) }
-    LaunchedEffect(hostState, active) {
+    LaunchedEffect(hostState, active, lifecycleOwner) {
         if (!active) return@LaunchedEffect
-        AppErrors.errors.collect { error ->
-            // One at a time: the next waits until this one is gone
-            val result = hostState.showSnackbar(
-                message = error.message,
-                actionLabel = if (error.hasDetails) resources.getString(R.string.button_view) else null,
-                duration = if (error.hasDetails) SnackbarDuration.Long else SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) shown = error
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            AppErrors.errors.collect { error ->
+                // One at a time: the next waits until this one is gone
+                val result = hostState.showSnackbar(
+                    message = error.message,
+                    actionLabel = if (error.hasDetails) resources.getString(R.string.button_view) else null,
+                    duration = if (error.hasDetails) SnackbarDuration.Long else SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) shown = error
+            }
         }
     }
     shown?.let { error -> ErrorDetailsDialog(error, onDismiss = { shown = null }) }

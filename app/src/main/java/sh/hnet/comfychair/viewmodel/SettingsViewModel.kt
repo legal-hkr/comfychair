@@ -1,10 +1,9 @@
 package sh.hnet.comfychair.viewmodel
 
-import sh.hnet.comfychair.ui.components.config.OptionsSectionPrefs
-import android.os.LocaleList
 import android.app.LocaleManager
 import android.content.Context
 import android.net.Uri
+import android.os.LocaleList
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
@@ -29,6 +28,7 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
+import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.BackupManager
@@ -39,6 +39,8 @@ import sh.hnet.comfychair.storage.PromptPresetStorage
 import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.ui.components.config.OptionsSectionPrefs
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 
 /**
@@ -574,14 +576,17 @@ class SettingsViewModel : ViewModel() {
         } else {
             // Disabling offline mode - check connectivity first
             viewModelScope.launch {
-                val isConnected = checkConnectivity(context)
-                if (isConnected) {
-                    AppSettings.setOfflineMode(context, false)
-                    _isOfflineMode.value = false
-                    _events.emit(SettingsEvent.RestartNeeded)
-                } else {
+                val (isConnected, failure) = checkConnectivity(context)
+                when {
+                    isConnected -> {
+                        AppSettings.setOfflineMode(context, false)
+                        _isOfflineMode.value = false
+                        _events.emit(SettingsEvent.RestartNeeded)
+                    }
+                    // The server answered but refused the credentials: say so, not that it's unreachable
+                    failure == ConnectionFailure.AUTHENTICATION -> AppErrors.report(context, R.string.error_auth_unauthorized)
                     // Server unreachable, keep offline mode enabled
-                    _events.emit(SettingsEvent.ShowToast(R.string.msg_cannot_go_online))
+                    else -> AppErrors.report(context, R.string.error_cannot_go_online)
                 }
             }
         }
@@ -590,16 +595,16 @@ class SettingsViewModel : ViewModel() {
     /**
      * Check connectivity to the current server.
      * Creates a temporary client if no existing client is available (e.g., in offline mode).
-     * @return true if server is reachable, false otherwise
+     * @return Whether the server is reachable, and why not
      */
-    private suspend fun checkConnectivity(context: Context): Boolean {
+    private suspend fun checkConnectivity(context: Context): Pair<Boolean, ConnectionFailure> {
         // Try to use existing client first
         val existingClient = comfyUIClient
         if (existingClient != null) {
             return withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    existingClient.testConnection { success, _, _, _ ->
-                        continuation.resumeWith(Result.success(success))
+                    existingClient.testConnection { success, _, _, failure ->
+                        continuation.resumeWith(Result.success(success to failure))
                     }
                 }
             }
@@ -607,7 +612,7 @@ class SettingsViewModel : ViewModel() {
 
         // No existing client (offline mode) - create temporary client using selected server
         val serverStorage = ServerStorage(context)
-        val server = serverStorage.getSelectedServer() ?: return false
+        val server = serverStorage.getSelectedServer() ?: return false to ConnectionFailure.NETWORK
 
         // Load credentials for the server (fixes offline->online transition bug)
         val credentialStorage = CredentialStorage(context)
@@ -617,8 +622,8 @@ class SettingsViewModel : ViewModel() {
         return try {
             withContext(Dispatchers.IO) {
                 kotlin.coroutines.suspendCoroutine { continuation ->
-                    tempClient.testConnection { success, _, _, _ ->
-                        continuation.resumeWith(Result.success(success))
+                    tempClient.testConnection { success, _, _, failure ->
+                        continuation.resumeWith(Result.success(success to failure))
                     }
                 }
             }
@@ -723,7 +728,7 @@ class SettingsViewModel : ViewModel() {
                     reloadAppSettings(context, preserveDebugLogging = wasDebugLoggingEnabled)
 
                     if (result.skippedWorkflows > 0) {
-                        _events.emit(SettingsEvent.ShowToast(R.string.msg_backup_restore_partial))
+                        _events.emit(SettingsEvent.ShowToast(R.string.error_backup_restore_partial))
                     } else {
                         _events.emit(SettingsEvent.ShowToast(R.string.msg_backup_restore_success))
                     }

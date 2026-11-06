@@ -958,8 +958,9 @@ class ComfyUIClient(
                                 val errorJson = JSONObject(responseBody)
                                 val message = errorJson.optJSONObject("error")?.optString("message")
                                     ?: errorJson.optString("error", "")
-                                val nodes = NodeErrors.describe(errorJson.optJSONObject("node_errors"))
-                                DebugLogger.e(TAG, "Validation errors: $responseBody")
+                                val nodes = NodeErrors.describe(errorJson.optJSONObject("node_errors"), withDetails = true)
+                                // Counts only: the server echoes the received values (prompts, file names)
+                                DebugLogger.e(TAG, "Validation failed: ${nodes.size} input(s)")
                                 listOf(message).plus(nodes).filter { it.isNotEmpty() }.joinToString("\n")
                             } catch (e: Exception) {
                                 responseBody.take(500) // Truncate long responses

@@ -3,7 +3,6 @@ package sh.hnet.comfychair.ui.components.generation
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -60,6 +59,7 @@ import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.components.loadResultBitmap
 import sh.hnet.comfychair.ui.components.loadResultVideo
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.GenerationMetadataLoader
 import sh.hnet.comfychair.util.GenerationOutput
@@ -279,7 +279,7 @@ fun BoxScope.ResultActionsMenu(
                     val uri = media.shareFile(context)
                     if (uri == null) {
                         val messageRes = if (media.isVideo) R.string.error_share_video else R.string.error_share_image
-                        Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+                        AppErrors.notify(context, messageRes)
                     } else {
                         val kind = if (media.isVideo) MediaExport.Kind.VIDEO else MediaExport.Kind.IMAGE
                         val titleRes = if (media.isVideo) R.string.share_video else R.string.share_image
@@ -301,7 +301,7 @@ fun BoxScope.ResultActionsMenu(
                             if (media.isVideo) R.string.msg_video_saved_to_gallery else R.string.msg_image_saved_to_gallery
                         else -> if (media.isVideo) R.string.error_save_video else R.string.error_save_image
                     }
-                    Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+                    AppErrors.notify(context, messageRes)
                 }
             },
             icon = { Icon(Icons.Rounded.Download, contentDescription = null) },

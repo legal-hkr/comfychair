@@ -45,7 +45,7 @@
     <string name="msg_transfer_stalled">Przez 30 sekund nie przesłano żadnych danych. Może to wskazywać na problem z połączeniem.</string>
     <string name="error_upload_stalled">Wysyłanie zatrzymane</string>
     <string name="action_reconnect">Połącz ponownie</string>
-    <string name="msg_reconnect_failed">Nie można połączyć</string>
+    <string name="error_reconnect_failed">Nie można połączyć</string>
     <string name="action_go_offline">Tryb offline</string>
     <string name="action_return_to_login">Powrót do logowania</string>
 
@@ -69,7 +69,7 @@
     <string name="label_offline_mode">Tryb offline</string>
     <string name="desc_offline_mode">Przeglądaj dane z pamięci podręcznej bez połączenia sieciowego</string>
     <string name="msg_offline_mode_requires_disk_cache">Tryb offline wymaga przechowywania „Na urządzeniu”</string>
-    <string name="msg_cannot_go_online">Nie można przejść do trybu online – serwer nie odpowiada</string>
+    <string name="error_cannot_go_online">Nie można przejść do trybu online – serwer nie odpowiada</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Połączenie</string>
@@ -285,6 +285,7 @@
     <string name="error_not_comfyui_server">To nie jest serwer ComfyUI</string>
     <string name="error_invalid_server_response">Nieprawidłowa odpowiedź serwera</string>
     <string name="error_failed_load_workflow">Nie udało się załadować przepływu pracy</string>
+    <string name="error_connection_failed">Nie udało się połączyć z serwerem</string>
     <string name="error_submit_failed">Serwer nie przyjął zadania</string>
     <string name="error_node_failed">Błąd w węźle %1$s</string>
     <string name="error_generation_failed">Generowanie nie powiodło się</string>
@@ -355,9 +356,9 @@
     <string name="button_cancel_selection">Anuluj zaznaczenie</string>
     <string name="label_item_selected">Zaznaczono</string>
     <string name="msg_items_saved_to_gallery">Elementy zapisane do galerii</string>
-    <string name="msg_some_items_failed_to_save">Niektóre elementy nie zostały zapisane</string>
+    <string name="error_some_items_failed_to_save">Niektóre elementy nie zostały zapisane</string>
     <string name="error_share_items">Nie udało się udostępnić elementów</string>
-    <string name="msg_some_items_failed_to_delete">Niektóre elementy nie zostały usunięte</string>
+    <string name="error_some_items_failed_to_delete">Niektóre elementy nie zostały usunięte</string>
 
     <!-- Mask editor strings -->
     <string name="button_invert_mask">Odwróć maskę</string>
@@ -548,6 +549,7 @@
     <string name="workflow_menu_duplicate">Duplikuj</string>
     <string name="title_duplicate_workflow">Duplikuj przepływ pracy</string>
     <string name="msg_workflow_export_success">Przepływ pracy wyeksportowany</string>
+    <string name="error_workflow_duplicate">Nie udało się zduplikować przepływu</string>
     <string name="error_workflow_export">Nie udało się wyeksportować przepływu pracy</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="one">Konwersja zakończona – %d uwaga</item>
@@ -757,7 +759,7 @@
     <string name="msg_backup_created_success">Kopia zapasowa utworzona pomyślnie</string>
     <string name="error_backup_create">Nie udało się utworzyć kopii zapasowej</string>
     <string name="msg_backup_restore_success">Ustawienia przywrócone pomyślnie</string>
-    <string name="msg_backup_restore_partial">Ustawienia częściowo przywrócone. Niektóre przepływy pracy zostały pominięte.</string>
+    <string name="error_backup_restore_partial">Ustawienia częściowo przywrócone. Niektóre przepływy pracy zostały pominięte.</string>
     <string name="error_backup_restore">Nie udało się przywrócić kopii zapasowej</string>
     <string name="error_backup_invalid_json">Nieprawidłowy format pliku kopii zapasowej</string>
     <string name="error_backup_unsupported_version">Nieobsługiwana wersja kopii zapasowej</string>

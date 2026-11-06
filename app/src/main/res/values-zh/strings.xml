@@ -45,7 +45,7 @@
     <string name="msg_transfer_stalled">30 秒内没有数据传输。这可能表示连接存在问题。</string>
     <string name="error_upload_stalled">上传停滞</string>
     <string name="action_reconnect">重新连接</string>
-    <string name="msg_reconnect_failed">无法重新连接</string>
+    <string name="error_reconnect_failed">无法重新连接</string>
     <string name="action_go_offline">离线模式</string>
     <string name="action_return_to_login">返回登录</string>
 
@@ -69,7 +69,7 @@
     <string name="label_offline_mode">离线模式</string>
     <string name="desc_offline_mode">无需网络连接即可浏览缓存数据</string>
     <string name="msg_offline_mode_requires_disk_cache">选择“设备存储”以启用离线模式</string>
-    <string name="msg_cannot_go_online">无法上线：服务器无法访问</string>
+    <string name="error_cannot_go_online">无法上线：服务器无法访问</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">连接</string>
@@ -273,6 +273,7 @@
     <string name="error_not_comfyui_server">不是 ComfyUI 服务器</string>
     <string name="error_invalid_server_response">无效的服务器响应</string>
     <string name="error_failed_load_workflow">加载工作流失败</string>
+    <string name="error_connection_failed">无法连接到服务器</string>
     <string name="error_submit_failed">服务器未接受该任务</string>
     <string name="error_node_failed">节点 %1$s 出错</string>
     <string name="error_generation_failed">生成失败</string>
@@ -331,9 +332,9 @@
     <string name="button_cancel_selection">取消选择</string>
     <string name="label_item_selected">已选择</string>
     <string name="msg_items_saved_to_gallery">项目已保存到相册</string>
-    <string name="msg_some_items_failed_to_save">部分项目保存失败</string>
+    <string name="error_some_items_failed_to_save">部分项目保存失败</string>
     <string name="error_share_items">分享项目失败</string>
-    <string name="msg_some_items_failed_to_delete">部分项目删除失败</string>
+    <string name="error_some_items_failed_to_delete">部分项目删除失败</string>
 
     <!-- Mask editor strings -->
     <string name="button_invert_mask">反转蒙版</string>
@@ -509,6 +510,7 @@
     <string name="workflow_menu_duplicate">复制</string>
     <string name="title_duplicate_workflow">复制工作流</string>
     <string name="msg_workflow_export_success">工作流已导出</string>
+    <string name="error_workflow_duplicate">无法复制工作流</string>
     <string name="error_workflow_export">导出工作流失败</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="other">转换完成，有 %d 条备注</item>
@@ -700,7 +702,7 @@
     <string name="msg_backup_created_success">备份创建成功</string>
     <string name="error_backup_create">创建备份失败</string>
     <string name="msg_backup_restore_success">设置恢复成功</string>
-    <string name="msg_backup_restore_partial">设置部分恢复。部分工作流已跳过。</string>
+    <string name="error_backup_restore_partial">设置部分恢复。部分工作流已跳过。</string>
     <string name="error_backup_restore">恢复备份失败</string>
     <string name="error_backup_invalid_json">无效的备份文件格式</string>
     <string name="error_backup_unsupported_version">不支持的备份版本</string>

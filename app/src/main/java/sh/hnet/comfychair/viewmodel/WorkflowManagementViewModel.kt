@@ -22,6 +22,8 @@ import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.WorkflowValidationResult
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.util.AppError
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LiteGraphConverter
 import sh.hnet.comfychair.util.ValidationUtils
@@ -117,7 +119,6 @@ data class WorkflowManagementUiState(
  */
 sealed class WorkflowManagementEvent {
     data class ShowToast(val messageResId: Int) : WorkflowManagementEvent()
-    data class ShowToastMessage(val message: String) : WorkflowManagementEvent()
     data class LaunchEditor(val pendingUpload: PendingWorkflowUpload) : WorkflowManagementEvent()
     data class LaunchExportFilePicker(val suggestedFilename: String) : WorkflowManagementEvent()
     /** A workflow was imported; the list shows it and offers its details. */
@@ -145,6 +146,14 @@ class WorkflowManagementViewModel : ViewModel() {
     // nothing is lost on the way back from the editor or between pages, and each event is handled once
     private val _pageEvents = Channel<WorkflowManagementEvent>(Channel.BUFFERED)
     val pageEvents: Flow<WorkflowManagementEvent> = _pageEvents.receiveAsFlow()
+
+    /** A failed workflow operation: what failed, with the reason (e.g. the workflow's problem) behind Show. */
+    private fun reportFailure(messageRes: Int, cause: Throwable?) {
+        val context = applicationContext ?: return
+        AppErrors.report(
+            AppError(context.getString(messageRes), details = listOfNotNull(cause?.message?.trim()?.takeIf { it.isNotEmpty() }))
+        )
+    }
 
     private suspend fun emitEvent(event: WorkflowManagementEvent) {
         _pageEvents.send(event)
@@ -802,16 +811,15 @@ class WorkflowManagementViewModel : ViewModel() {
                         warnings.size,
                         warnings.size
                     ) ?: "Conversion completed with ${warnings.size} note(s)"
-                    emitEvent(WorkflowManagementEvent.ShowToastMessage(warningMessage))
+                    // The notes themselves behind Show
+                    AppErrors.report(AppError(warningMessage, details = warnings))
                 }
                 // Shown where it now sits; its type may not be the one filtered
                 if (imported.type !in _uiState.value.filter.types) onFilterChange(WorkflowFilter.ALL)
                 loadWorkflows()
                 emitEvent(WorkflowManagementEvent.WorkflowImported(imported.id))
             } else {
-                emitEvent(WorkflowManagementEvent.ShowToastMessage(
-                    result.exceptionOrNull()?.message ?: "Import failed"
-                ))
+                reportFailure(R.string.error_workflow_import, result.exceptionOrNull())
             }
 
             _uiState.value = _uiState.value.copy(
@@ -994,9 +1002,7 @@ class WorkflowManagementViewModel : ViewModel() {
                 // The detail page opens the copy's details
                 emitEvent(WorkflowManagementEvent.DuplicateCreated(copy.id))
             } else {
-                emitEvent(WorkflowManagementEvent.ShowToastMessage(
-                    result.exceptionOrNull()?.message ?: "Duplicate failed"
-                ))
+                reportFailure(R.string.error_workflow_duplicate, result.exceptionOrNull())
             }
 
             _uiState.value = _uiState.value.copy(
@@ -1063,9 +1069,7 @@ class WorkflowManagementViewModel : ViewModel() {
                     emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_export))
                 }
             } else {
-                emitEvent(WorkflowManagementEvent.ShowToastMessage(
-                    result.exceptionOrNull()?.message ?: "Export failed"
-                ))
+                reportFailure(R.string.error_workflow_export, result.exceptionOrNull())
             }
 
             _uiState.value = _uiState.value.copy(exportingWorkflow = null)

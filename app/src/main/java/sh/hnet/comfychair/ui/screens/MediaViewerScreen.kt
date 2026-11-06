@@ -4,7 +4,6 @@ package sh.hnet.comfychair.ui.screens
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -93,6 +92,7 @@ import sh.hnet.comfychair.ui.components.rememberViewerDismissState
 import sh.hnet.comfychair.ui.components.shared.CircleArrowButton
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.ui.components.viewerSwipeToDismiss
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.MediaViewerEvent
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.ViewerMode
@@ -171,7 +171,7 @@ fun MediaViewerScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is MediaViewerEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
+                    AppErrors.notify(context, event.messageResId)
                 }
                 is MediaViewerEvent.ItemDeleted -> {
                     // Items list changed, pager will recompose with new key
@@ -441,7 +441,7 @@ fun MediaViewerScreen(
                             } else {
                                 R.string.error_failed_load_image
                             }
-                            Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
+                            AppErrors.report(context, messageRes)
                         }
                     }
                 },

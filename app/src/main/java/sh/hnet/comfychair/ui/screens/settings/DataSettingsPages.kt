@@ -31,6 +31,7 @@ import sh.hnet.comfychair.ui.components.settings.SettingsDescription
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsPage
 import sh.hnet.comfychair.ui.components.settings.SettingsSwitchRow
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 
@@ -116,7 +117,7 @@ fun DebugLogSettingsPage(viewModel: SettingsViewModel, onNavigateBack: () -> Uni
             context.contentResolver.openOutputStream(uri)?.use { it.write(DebugLogger.exportToString().toByteArray(Charsets.UTF_8)) }
             Toast.makeText(context, R.string.msg_debug_log_saved, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(context, R.string.error_debug_log_save, Toast.LENGTH_SHORT).show()
+            AppErrors.report(context, R.string.error_debug_log_save)
         }
     }
 

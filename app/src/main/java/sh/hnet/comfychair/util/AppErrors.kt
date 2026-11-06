@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.util
 
 import android.content.Context
+import android.widget.Toast
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -35,4 +36,17 @@ object AppErrors {
     fun report(message: String, details: List<String> = emptyList()) = report(AppError(message, details = details))
 
     fun report(context: Context, messageRes: Int) = report(AppError(context.getString(messageRes)))
+
+    /**
+     * Tells the user [messageRes] where a screen's events carry both kinds: an error (an `error_` string, by the
+     * strings' naming convention) as an error snackbar, any other message (`msg_`, `hint_`: saved, copied…) as a toast.
+     * Call on the main thread.
+     */
+    fun notify(context: Context, messageRes: Int) {
+        if (context.resources.getResourceEntryName(messageRes).startsWith("error_")) {
+            report(context, messageRes)
+        } else {
+            Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
+        }
+    }
 }

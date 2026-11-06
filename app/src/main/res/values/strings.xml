@@ -43,7 +43,7 @@
     <string name="msg_transfer_stalled">No data was transferred for 30 seconds. This may indicate a connection problem.</string>
     <string name="error_upload_stalled">Upload stalled</string>
     <string name="action_reconnect">Reconnect</string>
-    <string name="msg_reconnect_failed">Unable to reconnect</string>
+    <string name="error_reconnect_failed">Unable to reconnect</string>
     <string name="action_go_offline">Go Offline</string>
     <string name="action_return_to_login">Return to Login</string>
 
@@ -228,7 +228,7 @@
     <string name="label_offline_mode">Offline mode</string>
     <string name="desc_offline_mode">Browse cached data without network connection</string>
     <string name="msg_offline_mode_requires_disk_cache">Choose \"On the device\" storage to enable offline mode</string>
-    <string name="msg_cannot_go_online">Cannot go online – server unreachable</string>
+    <string name="error_cannot_go_online">Cannot go online – server unreachable</string>
     <string name="label_auto_connect">Auto-connect</string>
     <string name="desc_auto_connect">Automatically connect to the last server on app launch</string>
     <string name="label_prompt_spell_check">Spell check &amp; autocorrect</string>
@@ -246,7 +246,7 @@
     <string name="msg_backup_created_success">Backup created successfully</string>
     <string name="error_backup_create">Failed to create backup</string>
     <string name="msg_backup_restore_success">Settings restored successfully</string>
-    <string name="msg_backup_restore_partial">Settings partially restored. Some workflows were skipped.</string>
+    <string name="error_backup_restore_partial">Settings partially restored. Some workflows were skipped.</string>
     <string name="error_backup_restore">Failed to restore backup</string>
     <string name="error_backup_invalid_json">Invalid backup file format</string>
     <string name="error_backup_unsupported_version">Unsupported backup version</string>
@@ -292,6 +292,7 @@
     <string name="error_not_comfyui_server">Not a ComfyUI server</string>
     <string name="error_invalid_server_response">Invalid server response</string>
     <string name="error_failed_load_workflow">Failed to load workflow</string>
+    <string name="error_connection_failed">Couldn’t connect to the server</string>
     <string name="error_submit_failed">The job wasn’t accepted by the server</string>
     <string name="error_node_failed">The %1$s node failed</string>
     <string name="error_generation_failed">Generation failed</string>
@@ -352,9 +353,9 @@
     <string name="button_cancel_selection">Cancel selection</string>
     <string name="label_item_selected">Selected</string>
     <string name="msg_items_saved_to_gallery">Items saved to gallery</string>
-    <string name="msg_some_items_failed_to_save">Some items failed to save</string>
+    <string name="error_some_items_failed_to_save">Some items failed to save</string>
     <string name="error_share_items">Failed to share items</string>
-    <string name="msg_some_items_failed_to_delete">Some items failed to delete</string>
+    <string name="error_some_items_failed_to_delete">Some items failed to delete</string>
 
     <!-- Mask editor strings -->
     <string name="button_invert_mask">Invert mask</string>
@@ -638,6 +639,7 @@
     <string name="workflow_menu_duplicate">Duplicate</string>
     <string name="title_duplicate_workflow">Duplicate Workflow</string>
     <string name="msg_workflow_export_success">Workflow exported</string>
+    <string name="error_workflow_duplicate">Failed to duplicate workflow</string>
     <string name="error_workflow_export">Failed to export workflow</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="one">Conversion completed with %d note</item>

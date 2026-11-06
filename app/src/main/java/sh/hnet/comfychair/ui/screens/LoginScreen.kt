@@ -69,6 +69,7 @@ import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.connection.PendingCertificate
 import sh.hnet.comfychair.connection.ServerTrustStore
+import sh.hnet.comfychair.connection.connectionError
 import sh.hnet.comfychair.model.AuthCredentials
 import sh.hnet.comfychair.model.AuthType
 import sh.hnet.comfychair.model.Server
@@ -85,6 +86,7 @@ import sh.hnet.comfychair.ui.components.settings.ConfirmDestructiveDialog
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.ui.components.settings.SettingsRadioRow
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.ServerUrlUtils
 
 /**
@@ -162,11 +164,7 @@ fun LoginScreen() {
                 retryAfterAuthServer = server  // Triggers retry via LaunchedEffect below
             } else {
                 // User tapped Done before completing sign-in
-                Toast.makeText(
-                    context,
-                    R.string.error_browser_auth_cancelled,
-                    Toast.LENGTH_SHORT
-                ).show()
+                AppErrors.report(context, R.string.error_browser_auth_cancelled)
                 connectionState = ConnectionState.IDLE
             }
         } else {
@@ -249,15 +247,14 @@ fun LoginScreen() {
             } else {
                 connectionState = ConnectionState.FAILED
 
-                // Check if offline cache exists - offer offline mode
-                if (ConnectionManager.hasOfflineCache(context, server.id)) {
+                // A server that doesn't answer can wait: offer what's kept on this device. One that answered (refused
+                // the credentials, or isn't ComfyUI) needs fixing first, so say why.
+                val unreachable = failureType == ConnectionFailure.NETWORK || failureType == ConnectionFailure.STALLED
+                if (unreachable && ConnectionManager.hasOfflineCache(context, server.id)) {
                     offlinePromptServer = server
                     showOfflinePrompt = true
                 } else {
-                    // No cache available, just show error Toast
-                    errorMessage?.let { msg ->
-                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                    }
+                    AppErrors.report(connectionError(context, failureType, errorMessage))
                 }
 
                 delay(2000)
@@ -284,7 +281,7 @@ fun LoginScreen() {
     fun attemptOfflineConnection(server: Server) {
         // Check if cache exists for this server
         if (!ConnectionManager.hasOfflineCache(context, server.id)) {
-            Toast.makeText(context, R.string.error_no_offline_cache, Toast.LENGTH_LONG).show()
+            AppErrors.report(context, R.string.error_no_offline_cache)
             return
         }
 
@@ -307,7 +304,7 @@ fun LoginScreen() {
                 context.startActivity(intent)
             } else {
                 connectionState = ConnectionState.FAILED
-                Toast.makeText(context, R.string.error_no_offline_cache, Toast.LENGTH_LONG).show()
+                AppErrors.report(context, R.string.error_no_offline_cache)
                 delay(2000)
                 connectionState = ConnectionState.IDLE
             }

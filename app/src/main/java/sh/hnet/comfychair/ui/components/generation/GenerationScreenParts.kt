@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components.generation
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -168,10 +167,9 @@ fun GenerationScreenEffects(
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is GenerationScreenEvent.ShowToast ->
-                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
-                is GenerationScreenEvent.ShowToastMessage ->
-                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                is GenerationScreenEvent.ShowToast -> AppErrors.notify(context, event.messageResId)
+                // Only problems come as text (e.g. the connection lost during a job)
+                is GenerationScreenEvent.ShowToastMessage -> AppErrors.report(event.message)
             }
         }
     }
@@ -180,10 +178,9 @@ fun GenerationScreenEffects(
         presetViewModel.events.collect { event ->
             when (event) {
                 is PromptPresetEvent.PresetApplied -> viewModel.onPositivePromptChange(event.prompt)
-                is PromptPresetEvent.ShowToast ->
-                    Toast.makeText(context, resources.getString(event.messageResId), Toast.LENGTH_SHORT).show()
+                is PromptPresetEvent.ShowToast -> AppErrors.notify(context, event.messageResId)
                 is PromptPresetEvent.MaxFavoritesReached ->
-                    Toast.makeText(context, resources.getString(R.string.prompt_preset_max_favorites), Toast.LENGTH_SHORT).show()
+                    AppErrors.report(context, R.string.prompt_preset_max_favorites)
                 is PromptPresetEvent.ResetPrompt -> viewModel.resetPromptToDefault()
             }
         }
@@ -369,7 +366,7 @@ fun rememberJobSubmitter(
         { front ->
             scope.launch {
                 blocker()?.let { messageRes ->
-                    Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+                    AppErrors.notify(context, messageRes)
                     return@launch
                 }
                 val workflowJson = prepare()

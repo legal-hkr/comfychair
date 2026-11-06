@@ -1,7 +1,6 @@
 package sh.hnet.comfychair.ui.screens.settings
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.runtime.Composable
@@ -14,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.SettingsEvent
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 
@@ -30,7 +30,7 @@ fun SettingsEventsHost(viewModel: SettingsViewModel) {
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
-                is SettingsEvent.ShowToast -> Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
+                is SettingsEvent.ShowToast -> AppErrors.notify(context, event.messageResId)
                 is SettingsEvent.ShowRestoreDialog -> pendingRestore = event.uri
                 is SettingsEvent.SavedStateChanged, is SettingsEvent.MediaCleared, is SettingsEvent.MediaStorageChanged,
                 is SettingsEvent.RestartNeeded,

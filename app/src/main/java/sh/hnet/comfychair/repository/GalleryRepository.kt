@@ -1,7 +1,6 @@
 package sh.hnet.comfychair.repository
 
 import android.content.Context
-import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,6 +20,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.storage.MediaStorageMode
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.viewmodel.GalleryItem
@@ -390,8 +390,8 @@ class GalleryRepository private constructor() {
                 DebugLogger.w(TAG, "$failed of ${promptIds.size} deletions failed")
                 applicationContext?.let { context ->
                     withContext(Dispatchers.Main) {
-                        val message = if (promptIds.size == 1) R.string.error_history_item_delete else R.string.msg_some_items_failed_to_delete
-                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        val message = if (promptIds.size == 1) R.string.error_history_item_delete else R.string.error_some_items_failed_to_delete
+                        AppErrors.report(context, message)
                     }
                 }
                 refresh()

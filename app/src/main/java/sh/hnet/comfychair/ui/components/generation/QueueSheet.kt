@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.components.generation
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +57,7 @@ import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 
 /** Whether the queue sheet is open. One screen is shown at a time, and it hosts the sheet. */
@@ -97,7 +97,7 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
 
     fun refresh() = generationViewModel.fetchQueueSnapshot { snapshot = it }
     fun reportFailure(success: Boolean) {
-        if (!success) Toast.makeText(context, resources.getString(R.string.error_queue_action), Toast.LENGTH_SHORT).show()
+        if (!success) AppErrors.report(context, R.string.error_queue_action)
         refresh()
     }
     // Read again whenever the queue changes while the sheet is open
@@ -274,7 +274,7 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
                 confirmClear = false
                 generationViewModel.clearQueue { success ->
                     val messageRes = if (success) R.string.msg_queue_cleared_success else R.string.error_queue_clear
-                    Toast.makeText(context, resources.getString(messageRes), Toast.LENGTH_SHORT).show()
+                    AppErrors.notify(context, messageRes)
                     refresh()
                 }
             }

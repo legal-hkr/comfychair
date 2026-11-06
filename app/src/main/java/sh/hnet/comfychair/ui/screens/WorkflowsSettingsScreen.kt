@@ -3,7 +3,6 @@
 package sh.hnet.comfychair.ui.screens
 
 import android.app.Activity
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -140,6 +139,7 @@ import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.ExportFormat
 import sh.hnet.comfychair.viewmodel.WorkflowFilter
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
@@ -217,12 +217,7 @@ fun WorkflowsSettingsScreen(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
           viewModel.pageEvents.collect { event ->
             when (event) {
-                is WorkflowManagementEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                }
-                is WorkflowManagementEvent.ShowToastMessage -> {
-                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
-                }
+                is WorkflowManagementEvent.ShowToast -> AppErrors.notify(context, event.messageResId)
                 is WorkflowManagementEvent.LaunchEditor -> {
                     val pending = event.pendingUpload
                     val mappingState = pending.mappingState
@@ -645,7 +640,7 @@ private fun BoxScope.AddWorkflowMenu(offline: Boolean, onCreate: () -> Unit, onI
     // Both need the server (imports are checked against it, the editor saves through it): offline, they say why
     fun act(action: () -> Unit) {
         expanded = false
-        if (offline) Toast.makeText(context, needsServer, Toast.LENGTH_SHORT).show() else action()
+        if (offline) AppErrors.report(needsServer) else action()
     }
     BackHandler(enabled = expanded) { expanded = false }
 
@@ -772,8 +767,7 @@ fun WorkflowDetailPage(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.pageEvents.collect { event ->
                 when (event) {
-                    is WorkflowManagementEvent.ShowToast -> Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                    is WorkflowManagementEvent.ShowToastMessage -> Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+                    is WorkflowManagementEvent.ShowToast -> AppErrors.notify(context, event.messageResId)
                     is WorkflowManagementEvent.LaunchExportFilePicker -> exportLauncher.launch(event.suggestedFilename)
                     is WorkflowManagementEvent.DuplicateCreated -> {
                         onOpenDetails(event.workflowId)

@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.navigation
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -94,6 +93,7 @@ import sh.hnet.comfychair.ui.screens.settings.MediaPrivacySettingsPage
 import sh.hnet.comfychair.ui.screens.settings.ResetSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.SettingsEventsHost
 import sh.hnet.comfychair.ui.screens.settings.WorkflowEditorSettingsPage
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.VideoFrames
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
@@ -138,7 +138,7 @@ fun MainNavHost(
     // does. The image screens take an image or a video's last frame, Video to Video a video (at most 100 MB).
     val useAsSource: UseAsSource = { target, load ->
         scope.launch {
-            fun toast(messageRes: Int) = Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
+            fun toast(messageRes: Int) = AppErrors.report(context, messageRes)
             val media = load()
             if (media == null) {
                 toast(if (target == SourceTarget.VIDEO_TO_VIDEO) R.string.error_source_video_unreadable else R.string.error_failed_load_image)

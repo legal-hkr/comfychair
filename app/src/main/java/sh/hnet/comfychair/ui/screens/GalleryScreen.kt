@@ -2,7 +2,6 @@
 
 package sh.hnet.comfychair.ui.screens
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -99,6 +98,7 @@ import sh.hnet.comfychair.ui.components.mediaOriginKey
 import sh.hnet.comfychair.ui.components.rememberLazyBitmap
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.ConnectionStatus
 import sh.hnet.comfychair.viewmodel.GalleryEvent
 import sh.hnet.comfychair.viewmodel.GalleryItem
@@ -168,7 +168,7 @@ fun GalleryScreen(
         galleryViewModel.events.collect { event ->
             when (event) {
                 is GalleryEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
+                    AppErrors.notify(context, event.messageResId)
                 }
                 is GalleryEvent.ShowMedia -> {
                     // Handle media display

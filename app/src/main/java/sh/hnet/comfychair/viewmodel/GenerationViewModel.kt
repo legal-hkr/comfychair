@@ -133,6 +133,7 @@ class GenerationViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "Generation"
+        private const val MAX_UNCLAIMED_ERRORS = 8
         private const val PREFS_NAME = "GenerationViewModelPrefs"
         private const val PREF_IS_GENERATING = "isGenerating"
         private const val PREF_CURRENT_PROMPT_ID = "currentPromptId"
@@ -274,9 +275,16 @@ class GenerationViewModel : ViewModel() {
                 }
             }
             is WebSocketMessage.ExecutionError -> {
-                if (message.promptId == currentState.promptId || message.promptId == null) {
-                    applicationContext?.let { reportExecutionError(it, message) }
-                    resetGenerationState()
+                val isCurrent = message.promptId == currentState.promptId || message.promptId == null
+                when {
+                    // The running job, or another of ours waiting in the queue
+                    isCurrent || message.isOwn -> {
+                        applicationContext?.let { reportExecutionError(it, message) }
+                        if (isCurrent) resetGenerationState()
+                    }
+                    // Not known as ours yet: a job can fail before /prompt's answer registers it. Kept until the
+                    // registration claims it; another client's error is never shown and soon drops out.
+                    else -> message.promptId?.let { rememberUnclaimedError(it, message) }
                 }
             }
             // When a job starts executing, update generation state to track it
@@ -637,6 +645,19 @@ class GenerationViewModel : ViewModel() {
         }
     }
 
+    // Errors of jobs not known as ours when they came (see the ExecutionError handling), by prompt ID, the latest few
+    private val unclaimedErrors = object : LinkedHashMap<String, WebSocketMessage.ExecutionError>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, WebSocketMessage.ExecutionError>?) =
+            size > MAX_UNCLAIMED_ERRORS
+    }
+
+    private fun rememberUnclaimedError(promptId: String, error: WebSocketMessage.ExecutionError) {
+        synchronized(unclaimedErrors) { unclaimedErrors[promptId] = error }
+    }
+
+    private fun claimError(promptId: String): WebSocketMessage.ExecutionError? =
+        synchronized(unclaimedErrors) { unclaimedErrors.remove(promptId) }
+
     /** The failed job's error, with the node and the server's message and traceback behind Show. */
     private fun reportExecutionError(context: Context, error: WebSocketMessage.ExecutionError) {
         val node = error.nodeType?.let { type ->
@@ -688,6 +709,14 @@ class GenerationViewModel : ViewModel() {
                     applicationContext?.let { ctx -> JobRegistry.saveState(ctx) }
                 }
 
+                // It failed already, before this answer came: report it, and there's nothing to wait for
+                claimError(promptId)?.let { error ->
+                    JobRegistry.markFailed(promptId)
+                    applicationContext?.let { ctx -> reportExecutionError(ctx, error) }
+                    mainHandler.post { onResult(true, promptId, null) }
+                    return@submitPrompt
+                }
+
                 // Determine if we should set up GenerationState now
                 // There's a race condition: ExecutionStart might fire before we register the job.
                 // Check both:
@@ -695,7 +724,9 @@ class GenerationViewModel : ViewModel() {
                 // 2. This job is already executing (race: ExecutionStart fired before registration)
                 val queueState = JobRegistry.queueState.value
                 val isThisJobExecuting = queueState.executingPromptId == promptId
-                val shouldSetState = isThisJobExecuting || !queueState.isExecuting
+                // Not if it failed right after registration (the registry has let it go already)
+                val stillTracked = JobRegistry.findOwner(promptId) != null
+                val shouldSetState = stillTracked && (isThisJobExecuting || !queueState.isExecuting)
 
                 if (shouldSetState) {
                     _generationState.value = GenerationState(

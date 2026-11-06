@@ -37,6 +37,7 @@ import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.ObjectInfoCache
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
@@ -511,7 +512,7 @@ object ConnectionManager {
         val client = _client ?: run {
             DebugLogger.w(TAG, "retrySingleAttempt: aborting - client is null")
             _isReconnecting.value = false
-            Toast.makeText(context, R.string.msg_reconnect_failed, Toast.LENGTH_SHORT).show()
+            AppErrors.report(context, R.string.error_reconnect_failed)
             return
         }
 
@@ -545,7 +546,7 @@ object ConnectionManager {
                         clearConnectionAlert()
                     } else {
                         DebugLogger.w(TAG, "WebSocket failed to connect after successful HTTP test")
-                        Toast.makeText(context, R.string.msg_reconnect_failed, Toast.LENGTH_SHORT).show()
+                        AppErrors.report(context, R.string.error_reconnect_failed)
                     }
                 } else {
                     _isReconnecting.value = false
@@ -554,7 +555,7 @@ object ConnectionManager {
                         reason = errorMessage,
                         failureType = failureType
                     )
-                    Toast.makeText(context, R.string.msg_reconnect_failed, Toast.LENGTH_SHORT).show()
+                    AppErrors.report(context, R.string.error_reconnect_failed)
                 }
             }
         }
@@ -761,7 +762,8 @@ object ConnectionManager {
                     val promptId = data?.optString("prompt_id")
                     val errorMsg = data?.optString("exception_message", "Unknown error") ?: "Unknown error"
                     DebugLogger.e(TAG, "WS: execution_error (promptId: ${Obfuscator.promptId(promptId)})")
-                    // Notify JobRegistry of the failure
+                    // Ours, before the registry forgets it; then notify JobRegistry of the failure
+                    val isOwn = !promptId.isNullOrEmpty() && JobRegistry.findOwner(promptId) != null
                     if (!promptId.isNullOrEmpty()) {
                         JobRegistry.markFailed(promptId)
                     }
@@ -774,7 +776,8 @@ object ConnectionManager {
                         nodeType = data?.optString("node_type")?.takeIf { it.isNotEmpty() },
                         nodeId = data?.optString("node_id")?.takeIf { it.isNotEmpty() },
                         exceptionType = data?.optString("exception_type")?.takeIf { it.isNotEmpty() },
-                        traceback = traceback
+                        traceback = traceback,
+                        isOwn = isOwn
                     )
                 }
                 "execution_success" -> {

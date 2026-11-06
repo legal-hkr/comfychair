@@ -45,7 +45,7 @@
     <string name="msg_transfer_stalled">No se transfirieron datos durante 30 segundos. Esto podría indicar un problema de conexión.</string>
     <string name="error_upload_stalled">Carga detenida</string>
     <string name="action_reconnect">Reconectar</string>
-    <string name="msg_reconnect_failed">No se pudo reconectar</string>
+    <string name="error_reconnect_failed">No se pudo reconectar</string>
     <string name="action_go_offline">Modo sin conexión</string>
     <string name="action_return_to_login">Volver al inicio</string>
 
@@ -69,7 +69,7 @@
     <string name="label_offline_mode">Modo sin conexión</string>
     <string name="desc_offline_mode">Explorar datos en caché sin conexión de red</string>
     <string name="msg_offline_mode_requires_disk_cache">Elige el almacenamiento \"En el dispositivo\" para activar el modo sin conexión</string>
-    <string name="msg_cannot_go_online">No se puede conectar – servidor inalcanzable</string>
+    <string name="error_cannot_go_online">No se puede conectar – servidor inalcanzable</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Conexión</string>
@@ -281,6 +281,7 @@
     <string name="error_not_comfyui_server">No es un servidor ComfyUI</string>
     <string name="error_invalid_server_response">Respuesta del servidor inválida</string>
     <string name="error_failed_load_workflow">Error al cargar el workflow</string>
+    <string name="error_connection_failed">No se pudo conectar con el servidor</string>
     <string name="error_submit_failed">El servidor no aceptó la tarea</string>
     <string name="error_node_failed">Error en el nodo %1$s</string>
     <string name="error_generation_failed">La generación falló</string>
@@ -347,9 +348,9 @@
     <string name="button_cancel_selection">Cancelar selección</string>
     <string name="label_item_selected">Seleccionado</string>
     <string name="msg_items_saved_to_gallery">Elementos guardados en galería</string>
-    <string name="msg_some_items_failed_to_save">Algunos elementos no se pudieron guardar</string>
+    <string name="error_some_items_failed_to_save">Algunos elementos no se pudieron guardar</string>
     <string name="error_share_items">Error al compartir elementos</string>
-    <string name="msg_some_items_failed_to_delete">Algunos elementos no se pudieron eliminar</string>
+    <string name="error_some_items_failed_to_delete">Algunos elementos no se pudieron eliminar</string>
 
     <!-- Mask editor strings -->
     <string name="button_invert_mask">Invertir máscara</string>
@@ -535,6 +536,7 @@
     <string name="workflow_menu_duplicate">Duplicar</string>
     <string name="title_duplicate_workflow">Duplicar workflow</string>
     <string name="msg_workflow_export_success">Workflow exportado</string>
+    <string name="error_workflow_duplicate">No se pudo duplicar el flujo de trabajo</string>
     <string name="error_workflow_export">Error al exportar workflow</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="one">Conversión completada con %d nota</item>
@@ -738,7 +740,7 @@
     <string name="msg_backup_created_success">Copia de seguridad creada correctamente</string>
     <string name="error_backup_create">Error al crear la copia de seguridad</string>
     <string name="msg_backup_restore_success">Configuración restaurada correctamente</string>
-    <string name="msg_backup_restore_partial">Configuración parcialmente restaurada. Algunos workflows fueron omitidos.</string>
+    <string name="error_backup_restore_partial">Configuración parcialmente restaurada. Algunos workflows fueron omitidos.</string>
     <string name="error_backup_restore">Error al restaurar la copia de seguridad</string>
     <string name="error_backup_invalid_json">Formato de archivo de copia de seguridad inválido</string>
     <string name="error_backup_unsupported_version">Versión de copia de seguridad no compatible</string>

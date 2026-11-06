@@ -3,7 +3,6 @@ package sh.hnet.comfychair.viewmodel
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
@@ -26,6 +25,7 @@ import sh.hnet.comfychair.repository.GalleryRepository
 import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.mediaOriginKey
 import sh.hnet.comfychair.ui.components.readShownVideo
+import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.GenerationMetadataLoader
@@ -569,7 +569,7 @@ class MediaViewerViewModel : ViewModel() {
 
     /** No connection: nothing reaches the server, so say so rather than let the items come back unannounced. */
     private fun reportNoConnection() {
-        applicationContext?.let { Toast.makeText(it, R.string.error_history_item_delete, Toast.LENGTH_SHORT).show() }
+        applicationContext?.let { AppErrors.report(it, R.string.error_history_item_delete) }
     }
 
     private fun showItems(items: List<MediaViewerItem>, index: Int) {

@@ -45,7 +45,7 @@
     <string name="msg_transfer_stalled">30 Sekunden lang wurden keine Daten übertragen. Dies könnte auf ein Verbindungsproblem hinweisen.</string>
     <string name="error_upload_stalled">Upload gestoppt</string>
     <string name="action_reconnect">Erneut verbinden</string>
-    <string name="msg_reconnect_failed">Verbindung fehlgeschlagen</string>
+    <string name="error_reconnect_failed">Verbindung fehlgeschlagen</string>
     <string name="action_go_offline">Offline gehen</string>
     <string name="action_return_to_login">Zur Anmeldung</string>
 
@@ -69,7 +69,7 @@
     <string name="label_offline_mode">Offline-Modus</string>
     <string name="desc_offline_mode">Zwischengespeicherte Daten ohne Netzwerkverbindung durchsuchen</string>
     <string name="msg_offline_mode_requires_disk_cache">Wähle die Speicherung \"Auf dem Gerät\", um den Offline-Modus zu aktivieren</string>
-    <string name="msg_cannot_go_online">Kann nicht online gehen – Server nicht erreichbar</string>
+    <string name="error_cannot_go_online">Kann nicht online gehen – Server nicht erreichbar</string>
 
     <!-- Settings section titles -->
     <string name="title_settings_connection">Verbindung</string>
@@ -242,7 +242,7 @@
     <string name="msg_backup_created_success">Sicherung erfolgreich erstellt</string>
     <string name="error_backup_create">Sicherung konnte nicht erstellt werden</string>
     <string name="msg_backup_restore_success">Einstellungen erfolgreich wiederhergestellt</string>
-    <string name="msg_backup_restore_partial">Einstellungen teilweise wiederhergestellt. Einige Workflows wurden übersprungen.</string>
+    <string name="error_backup_restore_partial">Einstellungen teilweise wiederhergestellt. Einige Workflows wurden übersprungen.</string>
     <string name="error_backup_restore">Wiederherstellung fehlgeschlagen</string>
     <string name="error_backup_invalid_json">Ungültiges Sicherungsdateiformat</string>
     <string name="error_backup_unsupported_version">Nicht unterstützte Sicherungsversion</string>
@@ -293,6 +293,7 @@
     <string name="error_not_comfyui_server">Kein ComfyUI-Server</string>
     <string name="error_invalid_server_response">Ungültige Serverantwort</string>
     <string name="error_failed_load_workflow">Workflow konnte nicht geladen werden</string>
+    <string name="error_connection_failed">Verbindung zum Server fehlgeschlagen</string>
     <string name="error_submit_failed">Der Server hat den Auftrag nicht angenommen</string>
     <string name="error_node_failed">Fehler im Knoten %1$s</string>
     <string name="error_generation_failed">Generierung fehlgeschlagen</string>
@@ -353,9 +354,9 @@
     <string name="button_cancel_selection">Auswahl aufheben</string>
     <string name="label_item_selected">Ausgewählt</string>
     <string name="msg_items_saved_to_gallery">Elemente in Galerie gespeichert</string>
-    <string name="msg_some_items_failed_to_save">Einige Elemente konnten nicht gespeichert werden</string>
+    <string name="error_some_items_failed_to_save">Einige Elemente konnten nicht gespeichert werden</string>
     <string name="error_share_items">Elemente konnten nicht geteilt werden</string>
-    <string name="msg_some_items_failed_to_delete">Einige Elemente konnten nicht gelöscht werden</string>
+    <string name="error_some_items_failed_to_delete">Einige Elemente konnten nicht gelöscht werden</string>
 
     <!-- Mask editor strings -->
     <string name="button_invert_mask">Maske invertieren</string>
@@ -536,6 +537,7 @@
     <string name="workflow_menu_duplicate">Duplizieren</string>
     <string name="title_duplicate_workflow">Workflow duplizieren</string>
     <string name="msg_workflow_export_success">Workflow exportiert</string>
+    <string name="error_workflow_duplicate">Workflow konnte nicht dupliziert werden</string>
     <string name="error_workflow_export">Workflow konnte nicht exportiert werden</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="one">Konvertierung abgeschlossen mit %d Hinweis</item>
