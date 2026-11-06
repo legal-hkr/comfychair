@@ -378,10 +378,12 @@ class SettingsViewModel : ViewModel() {
      * (and the server data cached for them), plus the jobs being followed. Every app setting returns to its default,
      * the app follows the system language again, and imported workflows, the prompt library, the workflows' saved
      * values, the screens' choices and the media stored on the device are deleted. Media in memory stay until the app
-     * closes, as when switching to memory only.
+     * closes, as when switching to memory only. Offline mode returns to off as well; leaving it changes the connection,
+     * so the app restarts as when it's switched off by hand.
      */
     fun restoreDefaults(context: Context) {
         viewModelScope.launch {
+            val wasOffline = AppSettings.isOfflineMode(context)
             // Memory only is the default: switching first deletes the media stored on the device
             if (applyMediaStorageMode(context, MediaStorageMode.MEMORY_ONLY)) _events.emit(SettingsEvent.MediaStorageChanged)
             withContext(Dispatchers.IO) {
@@ -410,6 +412,7 @@ class SettingsViewModel : ViewModel() {
 
             _events.emit(SettingsEvent.ShowToast(R.string.msg_defaults_restored_success))
             _events.emit(SettingsEvent.SavedStateChanged)
+            if (wasOffline) _events.emit(SettingsEvent.RestartNeeded)
 
             // Last: a language change recreates the activity
             val localeManager = context.getSystemService(LocaleManager::class.java)
