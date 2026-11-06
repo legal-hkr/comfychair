@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
@@ -92,6 +94,19 @@ class WorkflowEditorViewModel : ViewModel() {
     // Use shared NodeTypeRegistry from ConnectionManager (populated on connection)
     private val nodeTypeRegistry: NodeTypeRegistry
         get() = ConnectionManager.nodeTypeRegistry
+
+    init {
+        // The server's node definitions load in the background after connecting: a workflow opened before they
+        // arrived gets its definitions (dropdowns, missing nodes, sockets' types) once they're there
+        viewModelScope.launch {
+            ConnectionManager.modelCache.map { it.isLoaded }.distinctUntilChanged().collect { loaded ->
+                val graph = _uiState.value.graph
+                if (loaded && graph != null) {
+                    _uiState.value = _uiState.value.copy(nodeDefinitions = buildNodeDefinitionsMap(graph))
+                }
+            }
+        }
+    }
 
     private var canvasWidth: Float = 0f
     private var canvasHeight: Float = 0f
@@ -2387,7 +2402,9 @@ class WorkflowEditorViewModel : ViewModel() {
             hasUnsavedChanges = true,
             showNodeBrowser = false,
             nodeInsertPosition = null,
-            nodeDefinitions = _uiState.value.nodeDefinitions + (nodeType.classType to nodeType)
+            // The whole graph's, not only the new node's: a map holding just the new type marked every other node
+            // as missing from the server
+            nodeDefinitions = buildNodeDefinitionsMap(layoutedGraph) + (nodeType.classType to nodeType)
         )
     }
 
@@ -3319,7 +3336,7 @@ class WorkflowEditorViewModel : ViewModel() {
             hasUnsavedChanges = true,
             showNodeBrowser = false,
             nodeInsertPosition = null,
-            nodeDefinitions = state.nodeDefinitions + (nodeType.classType to nodeType)
+            nodeDefinitions = buildNodeDefinitionsMap(updatedGraph) + (nodeType.classType to nodeType)
         )
     }
 }
