@@ -654,6 +654,9 @@
     <string name="content_description_previous_result">Previous result</string>
     <string name="button_edit_this_image">Edit this image</string>
     <string name="button_animate_it">Animate it</string>
+    <string name="button_edit_this_video">Edit this video</string>
+    <string name="button_animate_last_frame">Animate the last frame</string>
+    <string name="error_last_frame_unreadable">Couldn’t read the last frame</string>
     <string name="button_use_as_reference">Use as reference</string>
     <string name="button_details">Details</string>
     <string name="button_share_result">Share</string>

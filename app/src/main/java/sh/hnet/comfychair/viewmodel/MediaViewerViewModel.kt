@@ -23,7 +23,9 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.repository.GalleryRepository
+import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.mediaOriginKey
+import sh.hnet.comfychair.ui.components.readShownVideo
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.GenerationMetadataLoader
@@ -609,6 +611,20 @@ class MediaViewerViewModel : ViewModel() {
         return state.currentBitmap
             ?: MediaCache.getBitmap(key)
             ?: if (state.mode == ViewerMode.GALLERY) MediaCache.fetchImage(key, item.subfolder, item.type) else null
+    }
+
+    /**
+     * The medium shown, for "Use as source": its image, or its video read up to the source limit (RAM only in
+     * memory-first mode). Null when it can't be loaded.
+     */
+    suspend fun currentSourceMedia(): SourceMedia? {
+        val state = _uiState.value
+        if (!state.showsVideo()) return currentImage()?.let { SourceMedia.Image(it) }
+        val context = applicationContext ?: return null
+        state.currentVideoUri?.let { return readShownVideo(context, it) }
+        val item = state.currentItem ?: return null
+        if (state.mode != ViewerMode.GALLERY) return null
+        return MediaCache.fetchVideoBytes(item.toCacheKey(), item.subfolder, item.type)?.let { SourceMedia.Video(it) }
     }
 
     override fun onCleared() {

@@ -2,27 +2,25 @@ package sh.hnet.comfychair.viewmodel
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.lifecycle.viewModelScope
+import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.suspendCoroutine
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
-import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
-import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.SeasonalPrompts
 import sh.hnet.comfychair.util.UuidUtils
+import sh.hnet.comfychair.util.VideoFrames
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.BaseVideoGenerationViewModel
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
@@ -129,7 +127,7 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
         if (!MediaStateHolder.hasVideoBytes(MediaStateHolder.MediaKey.V2vSource, context)) return
         viewModelScope.launch {
             val uri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource) ?: return@launch
-            val frame = withContext(Dispatchers.IO) { firstFrame(context, uri) }
+            val frame = withContext(Dispatchers.IO) { VideoFrames.firstFrame(context, uri, FRAME_MAX_PX) }
             // A source chosen meanwhile wins
             _uiState.update { if (it.sourceVideoUri == null) it.copy(sourceVideoUri = uri, sourceFrame = frame) else it }
         }
@@ -158,24 +156,19 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
             val declaredSize = resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
             }
-            if (declaredSize != null && declaredSize > MAX_SOURCE_BYTES) {
-                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_too_large))
-                return@launch
+            val read = if (declaredSize != null && declaredSize > MAX_SOURCE_BYTES) {
+                VideoFrames.ReadResult.TooLarge
+            } else {
+                VideoFrames.readBytes(context, uri, MAX_SOURCE_BYTES)
             }
-            val bytes = try {
-                resolver.openInputStream(uri)?.use { readAtMost(it, MAX_SOURCE_BYTES) }
-            } catch (e: Exception) {
-                DebugLogger.w(tag, "Source video could not be read: ${e.javaClass.simpleName}")
-                null
-            }
-            when {
-                bytes == null -> {
-                    _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_unreadable))
+            val bytes = when (read) {
+                is VideoFrames.ReadResult.Ok -> read.bytes
+                VideoFrames.ReadResult.TooLarge -> {
+                    _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_too_large))
                     return@launch
                 }
-                bytes.isEmpty() -> {
-                    // Larger than the limit (the size wasn't declared)
-                    _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_too_large))
+                VideoFrames.ReadResult.Unreadable -> {
+                    _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_unreadable))
                     return@launch
                 }
             }
@@ -183,55 +176,32 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
                 ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
                 ?.takeIf { it.isNotEmpty() }
                 ?: "mp4"
-
-            MediaStateHolder.putVideoBytes(MediaStateHolder.MediaKey.V2vSource, bytes, context)
-            val playUri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource)
-            if (playUri == null) {
+            if (!setSource(context, bytes, extension)) {
                 _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_unreadable))
-                return@launch
             }
-            val frame = firstFrame(context, playUri)
-            sourceExtension = extension
-            _uiState.update { it.copy(sourceVideoUri = playUri, sourceFrame = frame, viewMode = VideoToVideoViewMode.SOURCE) }
         }
     }
 
-    /** The stream's bytes, or an empty array when there are more than [limit]. */
-    private fun readAtMost(input: java.io.InputStream, limit: Long): ByteArray {
-        val out = java.io.ByteArrayOutputStream()
-        val buffer = ByteArray(64 * 1024)
-        var total = 0L
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) break
-            total += read
-            if (total > limit) return ByteArray(0)
-            out.write(buffer, 0, read)
-        }
-        return out.toByteArray()
+    /**
+     * Use a generated video as the source video and show it. The caller has checked [MAX_SOURCE_BYTES].
+     *
+     * May run before the screen was first opened, i.e. before [initialize]: the context is then passed in so the
+     * video is stored where the initialization will read it.
+     *
+     * @return False if the video can't be played from where it's kept
+     */
+    suspend fun useAsSource(context: Context, bytes: ByteArray): Boolean = withContext(Dispatchers.IO) {
+        setSource(applicationContext ?: context.applicationContext, bytes, "mp4")
     }
 
-    /** The video's first frame, scaled down to [FRAME_MAX_PX] (read from RAM where the video is kept there). */
-    private fun firstFrame(context: Context, uri: Uri): Bitmap? = try {
-        val retriever = MediaMetadataRetriever()
-        try {
-            InMemoryVideo.setDataSource(retriever, context, uri)
-            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
-            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
-            val scale = if (width > 0 && height > 0) minOf(1f, FRAME_MAX_PX.toFloat() / maxOf(width, height)) else 1f
-            if (scale < 1f) {
-                retriever.getScaledFrameAtTime(
-                    0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, (width * scale).toInt(), (height * scale).toInt()
-                )
-            } else {
-                retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-            }
-        } finally {
-            retriever.release()
-        }
-    } catch (e: Exception) {
-        DebugLogger.w(tag, "Source frame could not be read: ${e.javaClass.simpleName}")
-        null
+    /** Keeps [bytes] as the source (RAM or the device, by the storage mode) and shows it with its first frame. */
+    private suspend fun setSource(context: Context, bytes: ByteArray, extension: String): Boolean {
+        MediaStateHolder.putVideoBytes(MediaStateHolder.MediaKey.V2vSource, bytes, context)
+        val playUri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource) ?: return false
+        val frame = VideoFrames.firstFrame(context, playUri, FRAME_MAX_PX)
+        sourceExtension = extension
+        _uiState.update { it.copy(sourceVideoUri = playUri, sourceFrame = frame, viewMode = VideoToVideoViewMode.SOURCE) }
+        return true
     }
 
     /**

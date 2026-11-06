@@ -567,6 +567,9 @@
     <string name="content_description_previous_result">Poprzedni wynik</string>
     <string name="button_edit_this_image">Edytuj ten obraz</string>
     <string name="button_animate_it">Animuj</string>
+    <string name="button_edit_this_video">Edytuj to wideo</string>
+    <string name="button_animate_last_frame">Animuj ostatnią klatkę</string>
+    <string name="error_last_frame_unreadable">Nie udało się odczytać ostatniej klatki</string>
     <string name="button_use_as_reference">Dodaj jako referencję</string>
     <string name="button_details">Szczegóły</string>
     <string name="button_share_result">Udostępnij</string>

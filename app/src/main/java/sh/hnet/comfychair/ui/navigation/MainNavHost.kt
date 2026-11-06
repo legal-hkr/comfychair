@@ -1,6 +1,6 @@
 package sh.hnet.comfychair.ui.navigation
 
-import android.graphics.Bitmap
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -51,7 +51,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.navigation.MainRoute
 import sh.hnet.comfychair.navigation.SettingsRoute
@@ -65,16 +67,18 @@ import sh.hnet.comfychair.ui.components.MainNavigationBar
 import sh.hnet.comfychair.ui.components.MediaOrigins
 import sh.hnet.comfychair.ui.components.MediaViewerOpener
 import sh.hnet.comfychair.ui.components.MediaViewerOverlay
+import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.screens.AboutSettingsScreen
 import sh.hnet.comfychair.ui.screens.GalleryScreen
 import sh.hnet.comfychair.ui.screens.ImageToImageScreen
 import sh.hnet.comfychair.ui.screens.ImageToVideoScreen
-import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
 import sh.hnet.comfychair.ui.screens.ServerSettingsScreen
 import sh.hnet.comfychair.ui.screens.SettingsRootScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
+import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
 import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
 import sh.hnet.comfychair.ui.screens.WorkflowsSettingsScreen
 import sh.hnet.comfychair.ui.screens.settings.BackupSettingsPage
@@ -87,15 +91,16 @@ import sh.hnet.comfychair.ui.screens.settings.MediaPrivacySettingsPage
 import sh.hnet.comfychair.ui.screens.settings.ResetSettingsPage
 import sh.hnet.comfychair.ui.screens.settings.SettingsEventsHost
 import sh.hnet.comfychair.ui.screens.settings.WorkflowEditorSettingsPage
+import sh.hnet.comfychair.util.VideoFrames
 import sh.hnet.comfychair.viewmodel.GalleryViewModel
 import sh.hnet.comfychair.viewmodel.GenerationViewModel
 import sh.hnet.comfychair.viewmodel.ImageToImageViewModel
 import sh.hnet.comfychair.viewmodel.ImageToVideoViewModel
-import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 import sh.hnet.comfychair.viewmodel.MediaViewerViewModel
 import sh.hnet.comfychair.viewmodel.SettingsViewModel
 import sh.hnet.comfychair.viewmodel.TextToImageViewModel
 import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
 
 /**
@@ -126,19 +131,48 @@ fun MainNavHost(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Sends a generated image to Image to Image or Image to Video as its source and switches to
-    // that screen the way the navigation bar does
-    val useAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit = { target, loadBitmap ->
+    // Sends a generated medium to a screen as its source and switches to that screen the way the navigation bar
+    // does. The image screens take an image or a video's last frame, Video to Video a video (at most 100 MB).
+    val useAsSource: UseAsSource = { target, load ->
         scope.launch {
-            val bitmap = loadBitmap() ?: return@launch
+            fun toast(messageRes: Int) = Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
+            val media = load()
+            if (media == null) {
+                toast(if (target == SourceTarget.VIDEO_TO_VIDEO) R.string.error_source_video_unreadable else R.string.error_failed_load_image)
+                return@launch
+            }
+            if (media is SourceMedia.TooLargeVideo ||
+                (target == SourceTarget.VIDEO_TO_VIDEO && media is SourceMedia.Video &&
+                    media.bytes.size > VideoToVideoViewModel.MAX_SOURCE_BYTES)) {
+                toast(R.string.error_source_video_too_large)
+                return@launch
+            }
             val route = when (target) {
-                SourceTarget.IMAGE_TO_IMAGE -> {
-                    imageToImageViewModel.useAsSource(context, bitmap)
-                    MainRoute.ImageToImage
+                SourceTarget.VIDEO_TO_VIDEO -> {
+                    val video = media as? SourceMedia.Video ?: return@launch
+                    if (!videoToVideoViewModel.useAsSource(context, video.bytes)) {
+                        toast(R.string.error_source_video_unreadable)
+                        return@launch
+                    }
+                    MainRoute.VideoToVideo
                 }
-                SourceTarget.IMAGE_TO_VIDEO -> {
-                    imageToVideoViewModel.useAsSource(context, bitmap)
-                    MainRoute.ImageToVideo
+                SourceTarget.IMAGE_TO_IMAGE, SourceTarget.IMAGE_TO_VIDEO -> {
+                    val bitmap = when (media) {
+                        is SourceMedia.Image -> media.bitmap
+                        is SourceMedia.Video -> withContext(Dispatchers.IO) { VideoFrames.lastFrame(media.bytes) }
+                        SourceMedia.TooLargeVideo -> null
+                    }
+                    if (bitmap == null) {
+                        toast(R.string.error_last_frame_unreadable)
+                        return@launch
+                    }
+                    if (target == SourceTarget.IMAGE_TO_IMAGE) {
+                        imageToImageViewModel.useAsSource(context, bitmap)
+                        MainRoute.ImageToImage
+                    } else {
+                        imageToVideoViewModel.useAsSource(context, bitmap)
+                        MainRoute.ImageToVideo
+                    }
                 }
             }
             navController.navigateToScreen(route)
@@ -356,7 +390,7 @@ fun MainNavHost(
             }
             // Messages and the restore confirmation of every settings page
             SettingsEventsHost(settingsViewModel)
-            MediaViewerOverlay(mediaViewerViewModel, onUseAsSource = { target, bitmap -> useAsSource(target) { bitmap } })
+            MediaViewerOverlay(mediaViewerViewModel, onUseAsSource = { target, media -> useAsSource(target) { media } })
         }
     }
 }

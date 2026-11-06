@@ -1,7 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import sh.hnet.comfychair.ui.components.mediaOrigin
-import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -45,7 +43,7 @@ import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
-import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.config.singleWorkflowGroup
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
@@ -65,12 +63,15 @@ import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.SourceResultSwitcher
 import sh.hnet.comfychair.ui.components.generation.SourceToolbar
 import sh.hnet.comfychair.ui.components.generation.WorkflowIcons
-import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
 import sh.hnet.comfychair.ui.components.generation.rememberVideoFrame
+import sh.hnet.comfychair.ui.components.generation.resultSendActions
+import sh.hnet.comfychair.ui.components.generation.videoSendActions
 import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.mediaOrigin
+import sh.hnet.comfychair.ui.components.readShownVideo
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
@@ -84,7 +85,7 @@ import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 fun ImageToVideoScreen(
     generationViewModel: GenerationViewModel,
     imageToVideoViewModel: ImageToVideoViewModel,
-    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
+    onUseAsSource: UseAsSource,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -231,9 +232,7 @@ fun ImageToVideoScreen(
                                         key(current.id) {
                                             ResultActionsMenu(
                                                 media = ResultMedia.output(current, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
-                                                sendActions = if (current.isVideo) emptyList() else {
-                                                    imageSendActions(onUseAsSource, { loadResultBitmap(current) })
-                                                },
+                                                sendActions = resultSendActions(onUseAsSource, current) { loadResultBitmap(current) },
                                                 resultNumber = results.indexOf(current) + 1
                                             )
                                         }
@@ -275,7 +274,7 @@ fun ImageToVideoScreen(
                                 )
                                 ResultActionsMenu(
                                     media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.IMAGE_TO_VIDEO),
-                                    sendActions = emptyList()
+                                    sendActions = videoSendActions(onUseAsSource) { readShownVideo(context, videoUri) }
                                 )
                             }
                             // Nothing generated yet

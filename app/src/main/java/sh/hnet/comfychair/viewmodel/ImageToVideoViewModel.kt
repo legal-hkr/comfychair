@@ -117,13 +117,6 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
      * passed in so the image is stored where the initialization will read it, otherwise it would
      * bring back the previous source.
      */
-    /**
-     * Use a generated image as the source image and switch to the Source tab.
-     *
-     * May run before the screen was first opened, i.e. before [initialize]: the context is then
-     * passed in so the image is stored where the initialization will read it, otherwise it would
-     * bring back the previous source.
-     */
     fun useAsSource(context: Context, bitmap: Bitmap) {
         val appContext = applicationContext ?: context.applicationContext
         MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, appContext)

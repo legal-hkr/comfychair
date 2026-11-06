@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.ui.screens
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -38,7 +38,7 @@ import sh.hnet.comfychair.ui.components.LocalMediaViewer
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
-import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.config.singleWorkflowGroup
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
@@ -55,10 +55,12 @@ import sh.hnet.comfychair.ui.components.generation.ResultActionsMenu
 import sh.hnet.comfychair.ui.components.generation.ResultMedia
 import sh.hnet.comfychair.ui.components.generation.ScreenJobStatus
 import sh.hnet.comfychair.ui.components.generation.WorkflowIcons
-import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
+import sh.hnet.comfychair.ui.components.generation.resultSendActions
+import sh.hnet.comfychair.ui.components.generation.videoSendActions
 import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.readShownVideo
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.ContentType
@@ -70,7 +72,7 @@ import sh.hnet.comfychair.viewmodel.TextToVideoViewModel
 fun TextToVideoScreen(
     generationViewModel: GenerationViewModel,
     textToVideoViewModel: TextToVideoViewModel,
-    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
+    onUseAsSource: UseAsSource,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val scope = rememberCoroutineScope()
@@ -103,6 +105,7 @@ fun TextToVideoScreen(
     }
 
     val mediaViewer = LocalMediaViewer.current
+    val context = LocalContext.current
 
     // Generate from the dock and from the prompt editor
     val submitJob = rememberJobSubmitter(
@@ -150,9 +153,7 @@ fun TextToVideoScreen(
                                 key(current.id) {
                                     ResultActionsMenu(
                                         media = ResultMedia.output(current, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO),
-                                        sendActions = if (current.isVideo) emptyList() else {
-                                            imageSendActions(onUseAsSource, { loadResultBitmap(current) })
-                                        },
+                                        sendActions = resultSendActions(onUseAsSource, current) { loadResultBitmap(current) },
                                         resultNumber = results.indexOf(current) + 1
                                     )
                                 }
@@ -191,7 +192,7 @@ fun TextToVideoScreen(
                         )
                         ResultActionsMenu(
                             media = ResultMedia.video(videoUri, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO),
-                            sendActions = emptyList()
+                            sendActions = videoSendActions(onUseAsSource) { readShownVideo(context, videoUri) }
                         )
                     }
                     // Nothing generated yet

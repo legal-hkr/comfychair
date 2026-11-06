@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MovieFilter
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.DropdownMenuGroup
@@ -80,6 +81,7 @@ import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.ui.components.ImageViewer
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
 import sh.hnet.comfychair.ui.components.SharedVideoPlayer
+import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.SourceTarget
 import sh.hnet.comfychair.ui.components.VideoPlayer
 import sh.hnet.comfychair.ui.components.VideoScaleMode
@@ -99,7 +101,7 @@ import sh.hnet.comfychair.viewmodel.ViewerMode
 fun MediaViewerScreen(
     viewModel: MediaViewerViewModel,
     onClose: () -> Unit,
-    onUseAsSource: (SourceTarget, Bitmap) -> Unit,
+    onUseAsSource: (SourceTarget, SourceMedia) -> Unit,
     onRequestClose: (ViewerCloseFrom) -> Boolean = { false },
     modifier: Modifier = Modifier
 ) {
@@ -410,9 +412,8 @@ fun MediaViewerScreen(
                 .padding(bottom = toolbarBottomPadding)
         ) {
             MediaViewerFloatingToolbar(
-                // Videos can't be a source yet. Decided by the item alone: loading state changes with every
-                // page and would make the button flicker
-                canUseAsSource = uiState.currentItem?.isVideo == false,
+                // Decided by the item alone: loading state changes with every page and would make the menu flicker
+                isVideo = uiState.currentItem?.isVideo == true,
                 // Gallery items only (a result on a generation screen isn't deleted from here)
                 onDelete = if (uiState.mode == ViewerMode.GALLERY) {
                     {
@@ -426,12 +427,18 @@ fun MediaViewerScreen(
                 onShare = { viewModel.shareCurrentItem() },
                 onUseAsSource = { target ->
                     scope.launch {
-                        val bitmap = viewModel.currentImage()
-                        if (bitmap != null) {
-                            onUseAsSource(target, bitmap)
+                        // Read before closing: the viewer's state is cleared on close
+                        val media = viewModel.currentSourceMedia()
+                        if (media != null) {
+                            onUseAsSource(target, media)
                             onClose()
                         } else {
-                            Toast.makeText(context, R.string.error_failed_load_image, Toast.LENGTH_SHORT).show()
+                            val messageRes = if (uiState.currentItem?.isVideo == true) {
+                                R.string.error_source_video_unreadable
+                            } else {
+                                R.string.error_failed_load_image
+                            }
+                            Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -477,12 +484,13 @@ fun MediaViewerScreen(
 
 /**
  * The viewer's actions, in the same order as everywhere: Save, Share, Use as source, Details, then Delete last.
- * Use as source opens a small menu upward with the screens that take an image.
+ * Use as source opens a small menu upward with the screens that take the medium: for an image Image to Image and
+ * Image to Video, for a video Video to Video and Image to Video (its last frame).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MediaViewerFloatingToolbar(
-    canUseAsSource: Boolean,
+    isVideo: Boolean,
     onDelete: (() -> Unit)?,
     onSave: () -> Unit,
     onShare: () -> Unit,
@@ -494,30 +502,35 @@ private fun MediaViewerFloatingToolbar(
     HorizontalFloatingToolbar(expanded = true, modifier = modifier) {
         TooltipIconButton(Icons.Rounded.Download, stringResource(R.string.media_viewer_save), onSave)
         TooltipIconButton(Icons.Rounded.Share, stringResource(R.string.media_viewer_share), onShare)
-        if (canUseAsSource) {
-            Box {
-                TooltipIconButton(
-                    Icons.AutoMirrored.Rounded.Input,
-                    stringResource(R.string.button_use_as_source),
-                    { sourceMenuOpen = true }
-                )
-                DropdownMenuPopup(expanded = sourceMenuOpen, onDismissRequest = { sourceMenuOpen = false }) {
-                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
-                        val targets = listOf(
+        Box {
+            TooltipIconButton(
+                Icons.AutoMirrored.Rounded.Input,
+                stringResource(R.string.button_use_as_source),
+                { sourceMenuOpen = true }
+            )
+            DropdownMenuPopup(expanded = sourceMenuOpen, onDismissRequest = { sourceMenuOpen = false }) {
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                    val targets = if (isVideo) {
+                        listOf(
+                            Triple(SourceTarget.VIDEO_TO_VIDEO, R.string.button_edit_this_video, Icons.Rounded.MovieFilter),
+                            Triple(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_last_frame, Icons.Rounded.Animation)
+                        )
+                    } else {
+                        listOf(
                             Triple(SourceTarget.IMAGE_TO_IMAGE, R.string.button_edit_this_image, Icons.Rounded.Edit),
                             Triple(SourceTarget.IMAGE_TO_VIDEO, R.string.button_animate_it, Icons.Rounded.Animation)
                         )
-                        targets.forEachIndexed { index, (target, label, icon) ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(label)) },
-                                shape = MenuDefaults.itemShape(index, targets.size).shape,
-                                leadingIcon = { Icon(icon, contentDescription = null) },
-                                onClick = {
-                                    sourceMenuOpen = false
-                                    onUseAsSource(target)
-                                }
-                            )
-                        }
+                    }
+                    targets.forEachIndexed { index, (target, label, icon) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(label)) },
+                            shape = MenuDefaults.itemShape(index, targets.size).shape,
+                            leadingIcon = { Icon(icon, contentDescription = null) },
+                            onClick = {
+                                sourceMenuOpen = false
+                                onUseAsSource(target)
+                            }
+                        )
                     }
                 }
             }

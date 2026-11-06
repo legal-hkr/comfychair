@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
@@ -87,13 +88,17 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.cache.ResultThumbnails
 import sh.hnet.comfychair.util.GenerationOutput
+import sh.hnet.comfychair.util.VideoFrames
 import sh.hnet.comfychair.viewmodel.MediaViewerItem
+import sh.hnet.comfychair.viewmodel.VideoToVideoViewModel
 
 private val StripHeight = 64.dp
 private val ThumbSize = 44.dp
@@ -519,8 +524,23 @@ fun Modifier.thumbnailFrame(corner: Dp, color: Color, width: Dp = 3.dp): Modifie
     )
 }
 
-/** Screens a generated image can be sent to as their source image. */
-enum class SourceTarget { IMAGE_TO_IMAGE, IMAGE_TO_VIDEO }
+/**
+ * Screens a generated medium can be sent to as their source. The image screens take an image, or a video's last
+ * frame (to edit or animate on from where it ends); Video to Video takes a video.
+ */
+enum class SourceTarget { IMAGE_TO_IMAGE, IMAGE_TO_VIDEO, VIDEO_TO_VIDEO }
+
+/** A medium sent to a generation screen as its source, held in RAM. */
+sealed interface SourceMedia {
+    class Image(val bitmap: Bitmap) : SourceMedia
+    class Video(val bytes: ByteArray) : SourceMedia
+
+    /** A video larger than a source may be ([VideoToVideoViewModel.MAX_SOURCE_BYTES]), not read whole. */
+    data object TooLargeVideo : SourceMedia
+}
+
+/** Sends the medium [load] gives to a screen as its source and switches to that screen. */
+typealias UseAsSource = (SourceTarget, suspend () -> SourceMedia?) -> Unit
 
 /**
  * Full-size image of a result, from MediaCache (RAM only in memory-first mode).
@@ -529,6 +549,25 @@ suspend fun loadResultBitmap(output: GenerationOutput): Bitmap? {
     if (output.isVideo) return null
     val key = MediaCacheKey(output.promptId, output.filename)
     return MediaCache.getBitmap(key) ?: MediaCache.fetchImage(key, output.subfolder, output.type)
+}
+
+/**
+ * A video shown on a screen (in RAM, or stored in device storage mode) as a source, read up to the source limit.
+ */
+suspend fun readShownVideo(context: Context, uri: Uri): SourceMedia? = withContext(Dispatchers.IO) {
+    when (val read = VideoFrames.readBytes(context, uri, VideoToVideoViewModel.MAX_SOURCE_BYTES)) {
+        is VideoFrames.ReadResult.Ok -> SourceMedia.Video(read.bytes)
+        VideoFrames.ReadResult.TooLarge -> SourceMedia.TooLargeVideo
+        VideoFrames.ReadResult.Unreadable -> null
+    }
+}
+
+/**
+ * A video result's bytes, from MediaCache (RAM only in memory-first mode).
+ */
+suspend fun loadResultVideo(output: GenerationOutput): ByteArray? {
+    if (!output.isVideo) return null
+    return MediaCache.fetchVideoBytes(MediaCacheKey(output.promptId, output.filename), output.subfolder, output.type)
 }
 
 @Composable

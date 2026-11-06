@@ -45,7 +45,8 @@ import sh.hnet.comfychair.ui.components.MaskPreview
 import sh.hnet.comfychair.ui.components.ResultHeroImage
 import sh.hnet.comfychair.ui.components.ResultHeroVideo
 import sh.hnet.comfychair.ui.components.ResultsPreview
-import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.SourceMedia
+import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.components.config.toBottomSheetConfig
 import sh.hnet.comfychair.ui.components.config.workflowGroups
 import sh.hnet.comfychair.ui.components.config.workflowIcon
@@ -72,7 +73,9 @@ import sh.hnet.comfychair.ui.components.generation.imageSendActions
 import sh.hnet.comfychair.ui.components.generation.rememberJobSubmitter
 import sh.hnet.comfychair.ui.components.generation.rememberOutputThumbnail
 import sh.hnet.comfychair.ui.components.generation.rememberPromptInputState
+import sh.hnet.comfychair.ui.components.generation.videoSendActions
 import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.loadResultVideo
 import sh.hnet.comfychair.ui.components.mediaOrigin
 import sh.hnet.comfychair.ui.components.rememberResultsViewer
 import sh.hnet.comfychair.util.VideoUtils
@@ -87,7 +90,7 @@ import sh.hnet.comfychair.viewmodel.PromptPresetViewModel
 fun ImageToImageScreen(
     generationViewModel: GenerationViewModel,
     imageToImageViewModel: ImageToImageViewModel,
-    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
+    onUseAsSource: UseAsSource,
     presetViewModel: PromptPresetViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -312,7 +315,7 @@ fun ImageToImageScreen(
                                         val load: suspend () -> Bitmap? = { preloaded ?: loadResultBitmap(current) }
                                         ResultActionsMenu(
                                             media = ResultMedia.output(current, VideoUtils.GalleryPrefix.TEXT_TO_VIDEO, preloaded),
-                                            sendActions = if (current.isVideo) emptyList() else imageSendActions(
+                                            sendActions = if (current.isVideo) videoSendActions(onUseAsSource) { loadResultVideo(current)?.let { SourceMedia.Video(it) } } else imageSendActions(
                                                 onUseAsSource, load,
                                                 onUseAsReference = useAsReference?.let { use -> { scope.launch { load()?.let(use) } } }
                                             ),

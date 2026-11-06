@@ -136,12 +136,12 @@ private const val LANDING_WAIT_MS = 500L
  * back into it on close (a fade when the origin isn't on screen or there's no still), hides the system bars with its
  * overlays and uses light bar icons on its dark backdrop, restoring both when it closes.
  *
- * @param onUseAsSource Sends the image shown to a generation screen as its source
+ * @param onUseAsSource Sends the medium shown to a generation screen as its source
  */
 @Composable
 fun MediaViewerOverlay(
     viewModel: MediaViewerViewModel,
-    onUseAsSource: (SourceTarget, Bitmap) -> Unit
+    onUseAsSource: (SourceTarget, SourceMedia) -> Unit
 ) {
     val isOpen by viewModel.isOpen.collectAsState()
     val uiState by viewModel.uiState.collectAsState()

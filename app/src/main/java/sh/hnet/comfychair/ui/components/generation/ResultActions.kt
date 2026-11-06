@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.MovieFilter
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
@@ -54,8 +55,11 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaCacheKey
 import sh.hnet.comfychair.ui.components.MetadataBottomSheet
+import sh.hnet.comfychair.ui.components.SourceMedia
 import sh.hnet.comfychair.ui.components.SourceTarget
+import sh.hnet.comfychair.ui.components.UseAsSource
 import sh.hnet.comfychair.ui.components.loadResultBitmap
+import sh.hnet.comfychair.ui.components.loadResultVideo
 import sh.hnet.comfychair.util.GenerationMetadata
 import sh.hnet.comfychair.util.GenerationMetadataLoader
 import sh.hnet.comfychair.util.GenerationOutput
@@ -135,14 +139,32 @@ class ResultSendAction(val labelRes: Int, val icon: ImageVector, val onClick: ()
  * @param onUseAsReference Null unless Image to Image in Editing mode has a free reference slot
  */
 fun imageSendActions(
-    onUseAsSource: (SourceTarget, suspend () -> Bitmap?) -> Unit,
+    onUseAsSource: UseAsSource,
     load: suspend () -> Bitmap?,
     onUseAsReference: (() -> Unit)? = null
-): List<ResultSendAction> = listOfNotNull(
-    ResultSendAction(R.string.button_edit_this_image, Icons.Rounded.Edit) { onUseAsSource(SourceTarget.IMAGE_TO_IMAGE, load) },
-    ResultSendAction(R.string.button_animate_it, Icons.Rounded.Animation) { onUseAsSource(SourceTarget.IMAGE_TO_VIDEO, load) },
-    onUseAsReference?.let { ResultSendAction(R.string.button_use_as_reference, Icons.Rounded.AddPhotoAlternate, it) }
-)
+): List<ResultSendAction> {
+    val loadImage: suspend () -> SourceMedia? = { load()?.let { SourceMedia.Image(it) } }
+    return listOfNotNull(
+        ResultSendAction(R.string.button_edit_this_image, Icons.Rounded.Edit) { onUseAsSource(SourceTarget.IMAGE_TO_IMAGE, loadImage) },
+        ResultSendAction(R.string.button_animate_it, Icons.Rounded.Animation) { onUseAsSource(SourceTarget.IMAGE_TO_VIDEO, loadImage) },
+        onUseAsReference?.let { ResultSendAction(R.string.button_use_as_reference, Icons.Rounded.AddPhotoAlternate, it) }
+    )
+}
+
+/**
+ * Send actions for a video result: edit it in Video to Video, or animate on from its last frame in Image to Video.
+ * Each switches screens in one tap and leaves the target's prompt as it is.
+ */
+fun videoSendActions(onUseAsSource: UseAsSource, loadVideo: suspend () -> SourceMedia?): List<ResultSendAction> =
+    listOf(
+        ResultSendAction(R.string.button_edit_this_video, Icons.Rounded.MovieFilter) { onUseAsSource(SourceTarget.VIDEO_TO_VIDEO, loadVideo) },
+        ResultSendAction(R.string.button_animate_last_frame, Icons.Rounded.Animation) { onUseAsSource(SourceTarget.IMAGE_TO_VIDEO, loadVideo) }
+    )
+
+/** Send actions for a result of either kind. */
+fun resultSendActions(onUseAsSource: UseAsSource, output: GenerationOutput, loadImage: suspend () -> Bitmap?): List<ResultSendAction> =
+    if (output.isVideo) videoSendActions(onUseAsSource) { loadResultVideo(output)?.let { SourceMedia.Video(it) } }
+    else imageSendActions(onUseAsSource, loadImage)
 
 /**
  * Actions for the result shown in the preview: one small round toggle FAB in the bottom-end corner that opens a menu
