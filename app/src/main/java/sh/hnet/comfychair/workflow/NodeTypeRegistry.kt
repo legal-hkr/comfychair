@@ -58,6 +58,8 @@ fun InputDefinition.getEffectiveDefault(): Any {
         "STRING" -> ""
         "BOOLEAN" -> false
         "ENUM" -> options?.firstOrNull() ?: ""
+        // A dynamic combo: its first option, as ComfyUI's own combo widget starts
+        DYNAMIC_COMBO_TYPE -> dynamicOptions?.keys?.firstOrNull() ?: ""
         else -> ""
     }
 }

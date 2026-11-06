@@ -14,8 +14,13 @@ import sh.hnet.comfychair.workflow.NodeTypeDefinition
  */
 class LiteGraphWidgetMappingTest {
 
-    private fun def(name: String, type: String, dynamicOptions: Map<String, List<InputDefinition>>? = null) =
-        InputDefinition(name = name, type = type, isRequired = true, dynamicOptions = dynamicOptions)
+    private fun def(
+        name: String,
+        type: String,
+        dynamicOptions: Map<String, List<InputDefinition>>? = null,
+        default: Any? = null,
+        options: List<String>? = null
+    ) = InputDefinition(name = name, type = type, isRequired = true, default = default, options = options, dynamicOptions = dynamicOptions)
 
     private val definitions = mapOf(
         // ComfyUI's CreateVideo: an AUDIO socket between the frame rate and the bit depth
@@ -37,6 +42,20 @@ class LiteGraphWidgetMappingTest {
         ),
         // Growing image sockets before a widget
         "Batch" to listOf(def("images", "COMFY_AUTOGROW_V3"), def("render_text_images", "BOOLEAN")),
+        // ComfyUI's SaveImageAdvanced: PNG adds two fields, which workflows saved before them lack
+        "SaveImageAdvanced" to listOf(
+            def("images", "IMAGE"), def("filename_prefix", "STRING", default = "ComfyUI"),
+            def(
+                "format", DYNAMIC_COMBO_TYPE,
+                mapOf(
+                    "png" to listOf(
+                        def("bit_depth", "ENUM", default = "8-bit", options = listOf("8-bit", "16-bit")),
+                        def("input_color_space", "ENUM", default = "sRGB", options = listOf("sRGB"))
+                    ),
+                    "webp" to listOf(def("quality", "INT", default = 90))
+                )
+            )
+        ),
         // VideoHelperSuite saves its widget values by name
         "VHS_VideoCombine" to listOf(
             def("images", "IMAGE"), def("frame_rate", "FLOAT"), def("filename_prefix", "STRING"),
@@ -89,6 +108,26 @@ class LiteGraphWidgetMappingTest {
         assertEquals("video/h264-mp4", inputs.get("format"))
         assertFalse(inputs.has("videopreview"))
         assertFalse(inputs.has("audio"))
+    }
+
+    @Test
+    fun `widgets a workflow was saved without get the node's defaults, as in ComfyUI`() {
+        val inputs = convert("SaveImageAdvanced", """["ComfyChair", "png"]""")
+        assertEquals("ComfyChair", inputs.get("filename_prefix"))
+        assertEquals("png", inputs.get("format"))
+        assertEquals("8-bit", inputs.get("format.bit_depth"))
+        assertEquals("sRGB", inputs.get("format.input_color_space"))
+        assertFalse(inputs.has("format.quality"))
+    }
+
+    @Test
+    fun `a node saved without widget values gets all its defaults`() {
+        val ui = JSONObject("""{"nodes": [{"id": 1, "type": "SaveImageAdvanced", "pos": [0, 0], "size": [100, 100]}], "links": []}""")
+        val api = JSONObject(converter.convert(ui).jsonContent)
+        val inputs = (api.optJSONObject("nodes") ?: api).getJSONObject("1").getJSONObject("inputs")
+        assertEquals("ComfyUI", inputs.get("filename_prefix"))
+        assertEquals("png", inputs.get("format"))
+        assertEquals("8-bit", inputs.get("format.bit_depth"))
     }
 
     @Test

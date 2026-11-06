@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.isWidget
 
 /**
@@ -582,8 +583,8 @@ class LiteGraphConverter(
 
             // 1. Map widget values from internal node
             val internalWidgetValues = node.opt("widgets_values")?.takeIf { it is JSONArray || it is JSONObject }
-            if (internalWidgetValues != null && nodeDef != null) {
-                mapWidgetValues(internalWidgetValues, nodeDef.inputs, inputs, nodeType, newNodeId, warnings)
+            if (nodeDef != null) {
+                mapWidgetValues(internalWidgetValues ?: JSONArray(), nodeDef.inputs, inputs, nodeType, newNodeId, warnings)
             }
 
             // 2. Add connections from internal node's inputs array
@@ -719,11 +720,12 @@ class LiteGraphConverter(
         // Build inputs map
         val inputs = JSONObject()
 
-        // 1. Map widget values to named inputs (a list in widget order, or by name for nodes that save them so)
+        // 1. Map widget values to named inputs (a list in widget order, or by name for nodes that save them so); a node
+        // saved without any gets its widgets' defaults, as in ComfyUI
         val widgetValues = node.opt("widgets_values")?.takeIf { it is JSONArray || it is JSONObject }
-        if (widgetValues != null && nodeDef != null) {
-            mapWidgetValues(widgetValues, nodeDef.inputs, inputs, nodeType, nodeId, warnings)
-        } else if (widgetValues != null && nodeDef == null) {
+        if (nodeDef != null) {
+            mapWidgetValues(widgetValues ?: JSONArray(), nodeDef.inputs, inputs, nodeType, nodeId, warnings)
+        } else if (widgetValues != null) {
             // Unknown node - can't map widget values
             DebugLogger.w(TAG, "Node #$nodeId ($nodeType): no definition found, cannot map widget values")
             warnings.add("Node \"$nodeType\" (#$nodeId): inputs could not be fully mapped")
@@ -779,7 +781,8 @@ class LiteGraphConverter(
     /**
      * Map LiteGraph widgets_values to named inputs using node definition: a list in the frontend's widget order, or an
      * object by widget name, as some extensions save them (e.g. VideoHelperSuite: {"frame_rate": 24, …}), whose
-     * other keys (previews, buttons) are left out.
+     * other keys (previews, buttons) are left out. A widget with no saved value (a workflow saved before the node had
+     * it, e.g. a dynamic combo option's fields) gets the node's default, as ComfyUI's frontend gives it when loading.
      */
     private fun mapWidgetValues(
         widgetValues: Any,
@@ -800,25 +803,26 @@ class LiteGraphConverter(
         // option adds its own widgets right after it, named "combo.input" (and so on, for nested combos)
         fun mapWidgets(defs: List<InputDefinition>, prefix: String) {
             for (inputDef in defs) {
-                if (widgetIndex >= widgetValues.length()) return
                 if (!inputDef.isWidget) continue
                 val name = prefix + inputDef.name
-
-                val value = widgetValues.opt(widgetIndex)
+                // The saved values have run out: the rest are widgets the file doesn't know
+                val saved = widgetIndex < widgetValues.length()
 
                 // Skip control widgets defined in server (rare, but handle it)
                 if (inputDef.name == "control_after_generate" ||
                     inputDef.name.startsWith("control_")) {
-                    widgetIndex++
+                    if (saved) widgetIndex++
                     continue
                 }
+
+                val value = if (saved) widgetValues.opt(widgetIndex) else inputDef.getEffectiveDefault()
 
                 // Map the value
                 if (value != null && value != JSONObject.NULL) {
                     inputs.put(name, value)
                 }
 
-                widgetIndex++
+                if (saved) widgetIndex++
 
                 inputDef.dynamicOptions?.get(value as? String)?.let { optionInputs -> mapWidgets(optionInputs, "$name.") }
 
@@ -835,13 +839,15 @@ class LiteGraphConverter(
         mapWidgets(inputDefs, prefix = "")
     }
 
-    /** Widget values saved by name: each widget of the definition that has one (a dynamic combo's chosen option too). */
+    /**
+     * Widget values saved by name: each widget of the definition (a dynamic combo's chosen option too), with the node's
+     * default where the file has no value.
+     */
     private fun mapNamedWidgetValues(values: JSONObject, defs: List<InputDefinition>, inputs: JSONObject, prefix: String) {
         for (inputDef in defs) {
             if (!inputDef.isWidget) continue
             val name = prefix + inputDef.name
-            val value = values.opt(name)
-            if (value == null || value == JSONObject.NULL) continue
+            val value = values.opt(name)?.takeIf { it != JSONObject.NULL } ?: inputDef.getEffectiveDefault()
             inputs.put(name, value)
             inputDef.dynamicOptions?.get(value as? String)?.let { optionInputs ->
                 mapNamedWidgetValues(values, optionInputs, inputs, "$name.")
