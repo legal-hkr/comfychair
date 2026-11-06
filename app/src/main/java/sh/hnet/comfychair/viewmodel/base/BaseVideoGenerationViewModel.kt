@@ -56,9 +56,17 @@ abstract class BaseVideoGenerationViewModel<UiState> : BaseGenerationViewModel<U
 
     override val fallbackParams: GenerationParams get() = videoScreenDefaults
 
+    // The selected workflow's length grid, found once per workflow (read from its JSON and the server's node types)
+    private var lengthGrid: Pair<String, WorkflowConstraintsProvider.NumericConstraints>? = null
+
     /** On the frame grid of the selected workflow's latent node (its minimum and step, e.g. 17k+5 for MiniMax H3). */
     override fun validateLength(length: String): String? {
-        val constraints = WorkflowConstraintsProvider.getConstraints("length", currentParams.selectedWorkflow)
+        val workflow = currentParams.selectedWorkflow
+        val constraints = lengthGrid?.takeIf { it.first == workflow }?.second
+            ?: WorkflowConstraintsProvider.getConstraints("length", workflow).also { found ->
+                // Not before the server's node types are known: until then it's the fallback grid
+                if (ConnectionManager.nodeTypeRegistry.isPopulated()) lengthGrid = workflow to found
+            }
         return ValidationUtils.validateVideoLength(
             length, applicationContext, min = constraints.min.toInt().coerceAtLeast(1), step = constraints.step.toInt()
         )

@@ -3,8 +3,8 @@ package sh.hnet.comfychair.util
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.workflow.InputDefinition
-import sh.hnet.comfychair.workflow.isWidget
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import sh.hnet.comfychair.workflow.isWidget
 
 /**
  * Converts LiteGraph workflow format (ComfyUI's default "Save" format) to
@@ -581,7 +581,7 @@ class LiteGraphConverter(
             val inputs = JSONObject()
 
             // 1. Map widget values from internal node
-            val internalWidgetValues = node.optJSONArray("widgets_values")
+            val internalWidgetValues = node.opt("widgets_values")?.takeIf { it is JSONArray || it is JSONObject }
             if (internalWidgetValues != null && nodeDef != null) {
                 mapWidgetValues(internalWidgetValues, nodeDef.inputs, inputs, nodeType, newNodeId, warnings)
             }
@@ -719,8 +719,8 @@ class LiteGraphConverter(
         // Build inputs map
         val inputs = JSONObject()
 
-        // 1. Map widget values to named inputs
-        val widgetValues = node.optJSONArray("widgets_values")
+        // 1. Map widget values to named inputs (a list in widget order, or by name for nodes that save them so)
+        val widgetValues = node.opt("widgets_values")?.takeIf { it is JSONArray || it is JSONObject }
         if (widgetValues != null && nodeDef != null) {
             mapWidgetValues(widgetValues, nodeDef.inputs, inputs, nodeType, nodeId, warnings)
         } else if (widgetValues != null && nodeDef == null) {
@@ -777,16 +777,23 @@ class LiteGraphConverter(
     }
 
     /**
-     * Map LiteGraph widgets_values array to named inputs using node definition
+     * Map LiteGraph widgets_values to named inputs using node definition: a list in the frontend's widget order, or an
+     * object by widget name, as some extensions save them (e.g. VideoHelperSuite: {"frame_rate": 24, …}), whose
+     * other keys (previews, buttons) are left out.
      */
     private fun mapWidgetValues(
-        widgetValues: JSONArray,
+        widgetValues: Any,
         inputDefs: List<InputDefinition>,
         inputs: JSONObject,
         nodeType: String,
         nodeId: Int,
         warnings: MutableList<String>
     ) {
+        if (widgetValues is JSONObject) {
+            mapNamedWidgetValues(widgetValues, inputDefs, inputs, prefix = "")
+            return
+        }
+        if (widgetValues !is JSONArray) return
         var widgetIndex = 0
 
         // The frontend's widget order: the node's widgets in input order, sockets left out; a dynamic combo's chosen
@@ -826,6 +833,20 @@ class LiteGraphConverter(
             }
         }
         mapWidgets(inputDefs, prefix = "")
+    }
+
+    /** Widget values saved by name: each widget of the definition that has one (a dynamic combo's chosen option too). */
+    private fun mapNamedWidgetValues(values: JSONObject, defs: List<InputDefinition>, inputs: JSONObject, prefix: String) {
+        for (inputDef in defs) {
+            if (!inputDef.isWidget) continue
+            val name = prefix + inputDef.name
+            val value = values.opt(name)
+            if (value == null || value == JSONObject.NULL) continue
+            inputs.put(name, value)
+            inputDef.dynamicOptions?.get(value as? String)?.let { optionInputs ->
+                mapNamedWidgetValues(values, optionInputs, inputs, "$name.")
+            }
+        }
     }
 
     /**

@@ -65,8 +65,10 @@ object VideoFrames {
     }
 
     /**
-     * The video's last frame at full size, e.g. to animate on from where the video ends. Taken by index where the
-     * container reports the frame count, otherwise the frame closest to the end.
+     * The video's last frame, exactly and at full size: a video animated on from it must continue where this one ends.
+     * Taken by index where the container reports the frame count; otherwise the frame closest to 1 ms before the end,
+     * which is the last one (frames are further apart than that; the end itself lies past the last frame's start, where
+     * decoders may return nothing).
      */
     fun lastFrame(bytes: ByteArray): Bitmap? = withRetriever {
         it.setDataSource(InMemoryVideo.ByteArrayMediaDataSource(bytes))
@@ -74,7 +76,7 @@ object VideoFrames {
         val byIndex = if (frameCount > 0) runCatching { it.getFrameAtIndex(frameCount - 1) }.getOrNull() else null
         byIndex ?: run {
             val durationMs = it.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            it.getFrameAtTime(durationMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
+            it.getFrameAtTime((durationMs - 1).coerceAtLeast(0) * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
         }
     }
 

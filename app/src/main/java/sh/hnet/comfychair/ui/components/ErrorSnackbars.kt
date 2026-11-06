@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import kotlin.coroutines.cancellation.CancellationException
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.dialogs.InfoDialog
 import sh.hnet.comfychair.util.AppError
@@ -41,11 +42,18 @@ fun ErrorSnackbars(hostState: SnackbarHostState, active: Boolean = true) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             AppErrors.errors.collect { error ->
                 // One at a time: the next waits until this one is gone
-                val result = hostState.showSnackbar(
-                    message = error.message,
-                    actionLabel = if (error.hasDetails) resources.getString(R.string.button_view) else null,
-                    duration = if (error.hasDetails) SnackbarDuration.Long else SnackbarDuration.Short
-                )
+                val result = try {
+                    hostState.showSnackbar(
+                        message = error.message,
+                        actionLabel = if (error.hasDetails) resources.getString(R.string.button_view) else null,
+                        duration = if (error.hasDetails) SnackbarDuration.Long else SnackbarDuration.Short
+                    )
+                } catch (e: CancellationException) {
+                    // Cut off while shown (the screen went behind something, or the media viewer opened): back in the
+                    // queue, so the screen in front shows it again
+                    AppErrors.report(error)
+                    throw e
+                }
                 if (result == SnackbarResult.ActionPerformed) shown = error
             }
         }

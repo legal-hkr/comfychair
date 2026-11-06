@@ -121,23 +121,27 @@ fun VideoPlayer(
     val coveredByViewer = LocalCoveredByMediaViewer.current
     val context = LocalContext.current
 
+    // The video shown: its cache key, else its address (a source or a result played from RAM has no key). The still and
+    // the dimensions belong to it, so another video doesn't take the previous one's proportions
+    val shownVideo: Any? = cacheKey ?: videoUri
+
     // Initialize thumbnail synchronously from cache to avoid black flash during transitions
     // This ensures the thumbnail is available on the very first composition
     // A first frame the caller already has stands in when the cache has none
-    val initialThumbnail = remember(cacheKey) {
+    val initialThumbnail = remember(shownVideo) {
         cacheKey?.let { MediaCache.getBitmap(it) } ?: placeholder
     }
-    var thumbnail by remember(cacheKey) { mutableStateOf(initialThumbnail) }
+    var thumbnail by remember(shownVideo) { mutableStateOf(initialThumbnail) }
 
     // Video dimensions - also check cache synchronously for instant display. The placeholder's proportions are the
     // video's, which is all the layout needs, so the surface can be shown without waiting for the metadata
-    val cachedDimensions = remember(cacheKey) {
+    val cachedDimensions = remember(shownVideo) {
         cacheKey?.let { MediaCache.getVideoDimensions(it) }
     }
-    var videoWidth by remember(cacheKey) { mutableStateOf(cachedDimensions?.width ?: placeholder?.width ?: 0) }
-    var videoHeight by remember(cacheKey) { mutableStateOf(cachedDimensions?.height ?: placeholder?.height ?: 0) }
+    var videoWidth by remember(shownVideo) { mutableStateOf(cachedDimensions?.width ?: placeholder?.width ?: 0) }
+    var videoHeight by remember(shownVideo) { mutableStateOf(cachedDimensions?.height ?: placeholder?.height ?: 0) }
     // The placeholder may arrive after the first composition
-    LaunchedEffect(placeholder) {
+    LaunchedEffect(placeholder, shownVideo) {
         if (placeholder != null) {
             if (thumbnail == null) thumbnail = placeholder
             if (videoWidth == 0 || videoHeight == 0) {

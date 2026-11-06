@@ -138,23 +138,23 @@ fun MainNavHost(
     // does. The image screens take an image or a video's last frame, Video to Video a video (at most 100 MB).
     val useAsSource: UseAsSource = { target, load ->
         scope.launch {
-            fun toast(messageRes: Int) = AppErrors.report(context, messageRes)
+            fun reportError(messageRes: Int) = AppErrors.report(context, messageRes)
             val media = load()
             if (media == null) {
-                toast(if (target == SourceTarget.VIDEO_TO_VIDEO) R.string.error_source_video_unreadable else R.string.error_failed_load_image)
+                reportError(if (target == SourceTarget.VIDEO_TO_VIDEO) R.string.error_source_video_unreadable else R.string.error_failed_load_image)
                 return@launch
             }
             if (media is SourceMedia.TooLargeVideo ||
                 (target == SourceTarget.VIDEO_TO_VIDEO && media is SourceMedia.Video &&
                     media.bytes.size > VideoToVideoViewModel.MAX_SOURCE_BYTES)) {
-                toast(R.string.error_source_video_too_large)
+                reportError(R.string.error_source_video_too_large)
                 return@launch
             }
             val route = when (target) {
                 SourceTarget.VIDEO_TO_VIDEO -> {
                     val video = media as? SourceMedia.Video ?: return@launch
                     if (!videoToVideoViewModel.useAsSource(context, video.bytes)) {
-                        toast(R.string.error_source_video_unreadable)
+                        reportError(R.string.error_source_video_unreadable)
                         return@launch
                     }
                     MainRoute.VideoToVideo
@@ -166,7 +166,7 @@ fun MainNavHost(
                         SourceMedia.TooLargeVideo -> null
                     }
                     if (bitmap == null) {
-                        toast(R.string.error_last_frame_unreadable)
+                        reportError(R.string.error_last_frame_unreadable)
                         return@launch
                     }
                     if (target == SourceTarget.IMAGE_TO_IMAGE) {

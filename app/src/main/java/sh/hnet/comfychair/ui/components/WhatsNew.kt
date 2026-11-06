@@ -1,9 +1,10 @@
 package sh.hnet.comfychair.ui.components
 
 import android.content.Context
+import android.content.pm.PackageManager
+import java.io.IOException
 import sh.hnet.comfychair.BuildConfig
 import sh.hnet.comfychair.util.Changelog
-import java.io.IOException
 
 /**
  * This version's release notes, from the F-Droid changelogs written for the release (copied into the assets at build
@@ -91,7 +92,7 @@ object WhatsNew {
 
     // An installed app that was updated since (for versions before the last-start record)
     private fun wasUpdated(context: Context): Boolean = try {
-        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        val info = context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
         info.lastUpdateTime != info.firstInstallTime
     } catch (_: Exception) {
         false

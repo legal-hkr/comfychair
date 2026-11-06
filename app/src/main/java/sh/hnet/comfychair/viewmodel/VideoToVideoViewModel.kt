@@ -92,6 +92,13 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
     // File extension of the source, for its name on the server (a restored source is taken as MP4)
     private var sourceExtension = "mp4"
 
+    // The source is kept under one name, so each version gets its own address: the player loads a replaced video
+    // instead of replaying the one it has (readers use the path only)
+    private var sourceVersion = 0
+
+    private fun versioned(uri: Uri): Uri =
+        uri.buildUpon().appendQueryParameter("version", (++sourceVersion).toString()).build()
+
     override fun onInitialize() {
         super.onInitialize()
         loadSavedSourceVideo()
@@ -113,7 +120,7 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
         val context = applicationContext ?: return
         if (_uiState.value.sourceVideoUri == null) return
         viewModelScope.launch {
-            val uri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource) ?: return@launch
+            val uri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource)?.let(::versioned) ?: return@launch
             _uiState.update { if (it.sourceVideoUri != null) it.copy(sourceVideoUri = uri) else it }
         }
     }
@@ -126,7 +133,7 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
         if (_uiState.value.sourceVideoUri != null) return
         if (!MediaStateHolder.hasVideoBytes(MediaStateHolder.MediaKey.V2vSource, context)) return
         viewModelScope.launch {
-            val uri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource) ?: return@launch
+            val uri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource)?.let(::versioned) ?: return@launch
             val frame = withContext(Dispatchers.IO) { VideoFrames.firstFrame(context, uri, FRAME_MAX_PX) }
             // A source chosen meanwhile wins
             _uiState.update { if (it.sourceVideoUri == null) it.copy(sourceVideoUri = uri, sourceFrame = frame) else it }
@@ -197,7 +204,7 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
     /** Keeps [bytes] as the source (RAM or the device, by the storage mode) and shows it with its first frame. */
     private suspend fun setSource(context: Context, bytes: ByteArray, extension: String): Boolean {
         MediaStateHolder.putVideoBytes(MediaStateHolder.MediaKey.V2vSource, bytes, context)
-        val playUri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource) ?: return false
+        val playUri = MediaStateHolder.getVideoUri(context, MediaStateHolder.MediaKey.V2vSource)?.let(::versioned) ?: return false
         val frame = VideoFrames.firstFrame(context, playUri, FRAME_MAX_PX)
         sourceExtension = extension
         _uiState.update { it.copy(sourceVideoUri = playUri, sourceFrame = frame, viewMode = VideoToVideoViewMode.SOURCE) }

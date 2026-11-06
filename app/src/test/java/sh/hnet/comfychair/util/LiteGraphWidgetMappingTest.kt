@@ -36,7 +36,12 @@ class LiteGraphWidgetMappingTest {
             def("scale_method", "ENUM")
         ),
         // Growing image sockets before a widget
-        "Batch" to listOf(def("images", "COMFY_AUTOGROW_V3"), def("render_text_images", "BOOLEAN"))
+        "Batch" to listOf(def("images", "COMFY_AUTOGROW_V3"), def("render_text_images", "BOOLEAN")),
+        // VideoHelperSuite saves its widget values by name
+        "VHS_VideoCombine" to listOf(
+            def("images", "IMAGE"), def("frame_rate", "FLOAT"), def("filename_prefix", "STRING"),
+            def("format", "ENUM"), def("audio", "AUDIO")
+        )
     )
 
     private val converter = LiteGraphConverter { classType ->
@@ -70,6 +75,20 @@ class LiteGraphWidgetMappingTest {
         assertEquals("scale by multiplier", inputs.get("resize_type"))
         assertEquals(2, inputs.get("resize_type.multiplier"))
         assertEquals("lanczos", inputs.get("scale_method"))
+    }
+
+    @Test
+    fun `widget values saved by name are taken by name, other keys left out`() {
+        val inputs = convert(
+            "VHS_VideoCombine",
+            """{"frame_rate": 24, "filename_prefix": "ComfyChair", "format": "video/h264-mp4",
+                "videopreview": {"hidden": false}, "audio": "x"}"""
+        )
+        assertEquals(24, inputs.get("frame_rate"))
+        assertEquals("ComfyChair", inputs.get("filename_prefix"))
+        assertEquals("video/h264-mp4", inputs.get("format"))
+        assertFalse(inputs.has("videopreview"))
+        assertFalse(inputs.has("audio"))
     }
 
     @Test
