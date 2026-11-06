@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaStateHolder
@@ -82,7 +83,9 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
             MediaStateHolder.storedMediaVersion.collect { version ->
                 if (isInitialized() && version > mediaVersionShown) {
                     mediaVersionShown = version
-                    onStoredMediaAvailable()
+                    // Off the main thread: with storage on the device the screens read and decode files here; they
+                    // update their state through StateFlow.update, which is safe from any thread
+                    withContext(Dispatchers.IO) { onStoredMediaAvailable() }
                 }
             }
         }
@@ -139,7 +142,8 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
 
     /**
      * Stored media (previews, source images, videos) became available after initialization.
-     * Screens fill in what they don't show yet; they never replace a newer result.
+     * Screens fill in what they don't show yet; they never replace a newer result. Called off the main thread (files
+     * are read here): update state only through StateFlow.update.
      */
     protected open fun onStoredMediaAvailable() {}
 
