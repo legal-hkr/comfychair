@@ -122,8 +122,8 @@ fun ChoiceRow(
 }
 
 /**
- * The options of a choice in the app's menu style (M3 Expressive): one group, the chosen option checked. Options in
- * folders (models) form a tree: folders first, then files, alphabetically; a folder opens in place (one folder path
+ * The options of a choice in the app's menu style (M3 Expressive): one group, the chosen option checked, in the
+ * options' own order. Options in folders (models) form a tree: folders first, then files, alphabetically; a folder opens in place (one folder path
  * open at a time) and the chosen option's folder is open when the menu opens.
  *
  * @param width The menu's width (its anchor's), wider than the menu's own limit for long names
@@ -141,7 +141,11 @@ fun ChoiceMenu(
     val sized = if (width != null) Modifier.width(width) else Modifier
     val tree = remember(options) { buildModelTree(options) }
     var expandedPath by remember(selectedValue, expanded) { mutableStateOf(folderPathOf(selectedValue)) }
-    val rows = remember(tree, expandedPath) { visibleTreeRows(tree, expandedPath) }
+    // Options without folders keep their own order (a sampler list is ordered on purpose); only a tree is sorted
+    val rows = remember(tree, options, expandedPath) {
+        if (modelTreeHasFolders(tree)) visibleTreeRows(tree, expandedPath)
+        else options.map { ModelTreeNode.Leaf(name = it, fullPath = it) to 0 }
+    }
 
     val expandedLabel = stringResource(R.string.state_expanded)
     val collapsedLabel = stringResource(R.string.state_collapsed)

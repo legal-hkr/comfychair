@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -33,15 +32,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.LoraSelection
-import sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems
-import sh.hnet.comfychair.ui.components.shared.ModelPathText
-import sh.hnet.comfychair.ui.components.shared.buildModelTree
+import sh.hnet.comfychair.ui.components.shared.ChoiceMenu
 import sh.hnet.comfychair.ui.components.shared.folderPathOf
-import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
 
 /**
  * Reusable component for editing a LoRA chain (0-5 LoRAs with per-LoRA strength)
@@ -138,9 +137,9 @@ private fun LoraEntryItem(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    val tree = remember(availableLoras) { buildModelTree(availableLoras) }
-    val hasFolders = remember(tree) { modelTreeHasFolders(tree) }
-    var expandedPath by remember(lora.name) { mutableStateOf(folderPathOf(lora.name)) }
+    // The menu is as wide as the field: LoRA names are long
+    val density = LocalDensity.current
+    var fieldWidth by remember { mutableStateOf<Dp?>(null) }
 
     // Label carries the position and folder, the field shows only the file name
     val folder = folderPathOf(lora.name)
@@ -169,11 +168,10 @@ private fun LoraEntryItem(
                 // LoRA dropdown
                 ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onExpandedChange = {
-                        expanded = it
-                        if (it) expandedPath = folderPathOf(lora.name)
-                    },
-                    modifier = Modifier.weight(1f)
+                    onExpandedChange = { expanded = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .onSizeChanged { fieldWidth = with(density) { it.width.toDp() } }
                 ) {
                     OutlinedTextField(
                         value = fileName,
@@ -187,35 +185,18 @@ private fun LoraEntryItem(
                         singleLine = true
                     )
 
-                    ExposedDropdownMenu(
+                    // The app's choice menu: as wide as the field, LoRA folders as a tree
+                    ChoiceMenu(
                         expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        if (!hasFolders) {
-                            availableLoras.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { ModelPathText(option) },
-                                    onClick = {
-                                        onNameChange(option)
-                                        expanded = false
-                                    },
-                                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                                )
-                            }
-                        } else {
-                            HierarchicalTreeItems(
-                                nodes = tree,
-                                expandedPath = expandedPath,
-                                selectedValue = lora.name,
-                                depth = 0,
-                                onExpandFolder = { expandedPath = it },
-                                onSelectModel = {
-                                    onNameChange(it)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
+                        onDismiss = { expanded = false },
+                        options = availableLoras,
+                        selectedValue = lora.name,
+                        onSelect = {
+                            onNameChange(it)
+                            expanded = false
+                        },
+                        width = fieldWidth
+                    )
                 }
 
                 // Remove button

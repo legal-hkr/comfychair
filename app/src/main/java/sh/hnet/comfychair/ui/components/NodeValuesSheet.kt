@@ -24,7 +24,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.RestartAlt
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -55,25 +54,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.SamplerOptions
 import sh.hnet.comfychair.ui.components.settings.groupShapes
+import sh.hnet.comfychair.ui.components.shared.ChoiceMenu
 import sh.hnet.comfychair.ui.components.shared.ExpandableTooltip
-import sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems
-import sh.hnet.comfychair.ui.components.shared.ModelPathText
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.ui.components.shared.TooltipLabel
-import sh.hnet.comfychair.ui.components.shared.buildModelTree
-import sh.hnet.comfychair.ui.components.shared.folderPathOf
-import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
@@ -408,18 +406,15 @@ private fun EnumEditor(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var tooltipExpanded by remember { mutableStateOf(false) }
-
-    val tree = remember(options) { buildModelTree(options) }
-    val hasFolders = remember(tree) { modelTreeHasFolders(tree) }
-    var expandedPath by remember(value) { mutableStateOf(folderPathOf(value)) }
+    // The menu is as wide as the field: model and file names are long
+    val density = LocalDensity.current
+    var fieldWidth by remember { mutableStateOf<Dp?>(null) }
 
     Column {
         ExposedDropdownMenuBox(
             expanded = expanded,
-            onExpandedChange = {
-                expanded = it
-                if (it) expandedPath = folderPathOf(value)
-            }
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.onSizeChanged { fieldWidth = with(density) { it.width.toDp() } }
         ) {
             OutlinedTextField(
                 value = value,
@@ -443,36 +438,17 @@ private fun EnumEditor(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            ExposedDropdownMenu(
+            ChoiceMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                if (!hasFolders) {
-                    options.forEach { option ->
-                        key(option) {
-                            DropdownMenuItem(
-                                text = { ModelPathText(option) },
-                                onClick = {
-                                    onValueChange(option)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    HierarchicalTreeItems(
-                        nodes = tree,
-                        expandedPath = expandedPath,
-                        selectedValue = value,
-                        depth = 0,
-                        onExpandFolder = { expandedPath = it },
-                        onSelectModel = {
-                            onValueChange(it)
-                            expanded = false
-                        }
-                    )
-                }
-            }
+                onDismiss = { expanded = false },
+                options = options,
+                selectedValue = value,
+                onSelect = {
+                    onValueChange(it)
+                    expanded = false
+                },
+                width = fieldWidth
+            )
         }
 
         ExpandableTooltip(
@@ -684,11 +660,14 @@ private fun ImageEnumEditor(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var tooltipExpanded by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    var fieldWidth by remember { mutableStateOf<Dp?>(null) }
 
     Column {
         ExposedDropdownMenuBox(
             expanded = expanded,
-            onExpandedChange = { expanded = it }
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.onSizeChanged { fieldWidth = with(density) { it.width.toDp() } }
         ) {
             OutlinedTextField(
                 value = value,
@@ -711,22 +690,17 @@ private fun ImageEnumEditor(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            ExposedDropdownMenu(
+            ChoiceMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                options.forEach { option ->
-                    key(option) {
-                        DropdownMenuItem(
-                            text = { ModelPathText(option) },
-                            onClick = {
-                                onValueChange(option)
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
+                onDismiss = { expanded = false },
+                options = options,
+                selectedValue = value,
+                onSelect = {
+                    onValueChange(it)
+                    expanded = false
+                },
+                width = fieldWidth
+            )
         }
 
         ExpandableTooltip(
