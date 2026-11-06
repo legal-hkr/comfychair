@@ -242,7 +242,7 @@
     <string name="msg_backup_created_success">Sicherung erfolgreich erstellt</string>
     <string name="error_backup_create">Sicherung konnte nicht erstellt werden</string>
     <string name="msg_backup_restore_success">Einstellungen erfolgreich wiederhergestellt</string>
-    <string name="error_backup_restore_partial">Einstellungen teilweise wiederhergestellt. Einige Workflows wurden übersprungen.</string>
+    <string name="error_backup_restore_partial">Sicherung teilweise wiederhergestellt. Einige Workflows oder Prompts wurden übersprungen.</string>
     <string name="error_backup_restore">Wiederherstellung fehlgeschlagen</string>
     <string name="error_backup_invalid_json">Ungültiges Sicherungsdateiformat</string>
     <string name="error_backup_unsupported_version">Nicht unterstützte Sicherungsversion</string>
@@ -936,4 +936,42 @@
     <string name="title_welcome_add_server">Server hinzufügen</string>
     <string name="title_welcome_restore">Aus Sicherung wiederherstellen</string>
     <string name="button_backup_choose_file">Sicherungsdatei wählen</string>
+    <string name="label_backup_unnamed_file">Diese Datei</string>
+    <string name="label_backup_brings_back">Wähle eine aus ComfyChair exportierte Sicherungsdatei. Sie stellt wieder her:</string>
+    <string name="label_backup_item_servers">Server</string>
+    <string name="desc_backup_item_servers">Name, Adresse und Anmeldeart</string>
+    <string name="label_backup_item_workflows">Workflows</string>
+    <string name="label_backup_item_prompts">Gespeicherte Prompts</string>
+    <string name="label_backup_item_settings">Einstellungen</string>
+    <string name="label_backup_no_credentials_title">Passwörter und Tokens sind nicht in Sicherungen enthalten.</string>
+    <string name="label_backup_no_credentials_body">Du gibst sie für jeden Server, der sie braucht, erneut ein.</string>
+    <string name="button_backup_choose_another">Andere Datei wählen</string>
+    <string name="button_backup_change">Ändern</string>
+    <string name="label_backup_settings_only">Nur Einstellungen</string>
+    <string name="content_description_backup_file_contents">Sicherungsdatei %1$s, %2$s</string>
+    <string name="error_backup_unreadable_title">Datei kann nicht gelesen werden</string>
+    <string name="error_backup_unreadable_body">%1$s konnte nicht geöffnet werden. Wähle eine andere Datei.</string>
+    <string name="error_backup_not_backup_title">Das ist keine ComfyChair-Sicherung</string>
+    <string name="error_backup_not_backup_body">%1$s enthält keine ComfyChair-Einstellungen. Wähle eine in den Einstellungen erstellte Sicherung.</string>
+    <string name="error_backup_unsupported_title">Diese Sicherung kann nicht wiederhergestellt werden</string>
+    <string name="error_backup_unsupported_body">%1$s stammt aus einer ComfyChair-Version, die diese nicht lesen kann. Wähle eine andere Datei.</string>
+    <string name="error_backup_no_servers_title">Diese Sicherung enthält keine Server</string>
+    <string name="error_backup_no_servers_body">Wähle eine andere Datei oder geh zurück und füge einen Server hinzu.</string>
+    <string name="error_backup_failed_title">Sicherung konnte nicht wiederhergestellt werden</string>
+    <string name="error_backup_failed_body">Versuche es erneut oder wähle eine andere Datei.</string>
+    <string name="label_backup_skipped_workflows">Workflows: %1$s</string>
+    <string name="label_backup_skipped_prompts">Prompts: %1$s</string>
+    <string name="msg_backup_restored">Sicherung wiederhergestellt</string>
+    <plurals name="label_backup_servers_count">
+        <item quantity="one">%d Server</item>
+        <item quantity="other">%d Server</item>
+    </plurals>
+    <plurals name="label_backup_workflows_count">
+        <item quantity="one">%d Workflow</item>
+        <item quantity="other">%d Workflows</item>
+    </plurals>
+    <plurals name="label_backup_prompts_count">
+        <item quantity="one">%d Prompt</item>
+        <item quantity="other">%d Prompts</item>
+    </plurals>
 </resources>

@@ -777,7 +777,7 @@
     <string name="msg_backup_created_success">Kopia zapasowa utworzona pomyślnie</string>
     <string name="error_backup_create">Nie udało się utworzyć kopii zapasowej</string>
     <string name="msg_backup_restore_success">Ustawienia przywrócone pomyślnie</string>
-    <string name="error_backup_restore_partial">Ustawienia częściowo przywrócone. Niektóre przepływy pracy zostały pominięte.</string>
+    <string name="error_backup_restore_partial">Kopia przywrócona częściowo. Niektóre przepływy pracy lub prompty zostały pominięte.</string>
     <string name="error_backup_restore">Nie udało się przywrócić kopii zapasowej</string>
     <string name="error_backup_invalid_json">Nieprawidłowy format pliku kopii zapasowej</string>
     <string name="error_backup_unsupported_version">Nieobsługiwana wersja kopii zapasowej</string>
@@ -984,4 +984,48 @@
     <string name="title_welcome_add_server">Dodaj serwer</string>
     <string name="title_welcome_restore">Przywróć kopię zapasową</string>
     <string name="button_backup_choose_file">Wybierz plik kopii</string>
+    <string name="label_backup_unnamed_file">bez nazwy</string>
+    <string name="label_backup_brings_back">Wybierz plik kopii zapasowej wyeksportowany z ComfyChair. Przywrócone zostaną:</string>
+    <string name="label_backup_item_servers">Serwery</string>
+    <string name="desc_backup_item_servers">Nazwa, adres i sposób logowania</string>
+    <string name="label_backup_item_workflows">Przepływy pracy</string>
+    <string name="label_backup_item_prompts">Zapisane prompty</string>
+    <string name="label_backup_item_settings">Ustawienia</string>
+    <string name="label_backup_no_credentials_title">Kopia nie zawiera haseł ani tokenów.</string>
+    <string name="label_backup_no_credentials_body">Trzeba je będzie wpisać ponownie przy każdym serwerze, który ich wymaga.</string>
+    <string name="button_backup_choose_another">Wybierz inny plik</string>
+    <string name="button_backup_change">Zmień</string>
+    <string name="label_backup_settings_only">Tylko ustawienia</string>
+    <string name="content_description_backup_file_contents">Plik kopii %1$s, %2$s</string>
+    <string name="error_backup_unreadable_title">Nie można odczytać pliku</string>
+    <string name="error_backup_unreadable_body">Nie udało się otworzyć pliku %1$s. Wybierz inny.</string>
+    <string name="error_backup_not_backup_title">To nie jest kopia ComfyChair</string>
+    <string name="error_backup_not_backup_body">Plik %1$s nie zawiera ustawień ComfyChair. Wybierz kopię zrobioną w Ustawieniach.</string>
+    <string name="error_backup_unsupported_title">Tej kopii nie da się przywrócić</string>
+    <string name="error_backup_unsupported_body">Plik %1$s pochodzi z wersji ComfyChair, której ta nie potrafi odczytać. Wybierz inny plik.</string>
+    <string name="error_backup_no_servers_title">Kopia nie zawiera serwerów</string>
+    <string name="error_backup_no_servers_body">Wybierz inny plik albo wróć i dodaj serwer.</string>
+    <string name="error_backup_failed_title">Nie udało się przywrócić kopii</string>
+    <string name="error_backup_failed_body">Spróbuj ponownie albo wybierz inny plik.</string>
+    <string name="label_backup_skipped_workflows">Przepływy pracy: %1$s</string>
+    <string name="label_backup_skipped_prompts">Prompty: %1$s</string>
+    <string name="msg_backup_restored">Kopia zapasowa przywrócona</string>
+    <plurals name="label_backup_servers_count">
+        <item quantity="one">%d serwer</item>
+        <item quantity="few">%d serwery</item>
+        <item quantity="many">%d serwerów</item>
+        <item quantity="other">%d serwera</item>
+    </plurals>
+    <plurals name="label_backup_workflows_count">
+        <item quantity="one">%d przepływ pracy</item>
+        <item quantity="few">%d przepływy pracy</item>
+        <item quantity="many">%d przepływów pracy</item>
+        <item quantity="other">%d przepływu pracy</item>
+    </plurals>
+    <plurals name="label_backup_prompts_count">
+        <item quantity="one">%d prompt</item>
+        <item quantity="few">%d prompty</item>
+        <item quantity="many">%d promptów</item>
+        <item quantity="other">%d promptu</item>
+    </plurals>
 </resources>

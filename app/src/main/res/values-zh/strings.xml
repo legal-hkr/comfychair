@@ -720,7 +720,7 @@
     <string name="msg_backup_created_success">备份创建成功</string>
     <string name="error_backup_create">创建备份失败</string>
     <string name="msg_backup_restore_success">设置恢复成功</string>
-    <string name="error_backup_restore_partial">设置部分恢复。部分工作流已跳过。</string>
+    <string name="error_backup_restore_partial">备份已部分恢复。部分工作流或提示词已跳过。</string>
     <string name="error_backup_restore">恢复备份失败</string>
     <string name="error_backup_invalid_json">无效的备份文件格式</string>
     <string name="error_backup_unsupported_version">不支持的备份版本</string>
@@ -915,4 +915,39 @@
     <string name="title_welcome_add_server">添加服务器</string>
     <string name="title_welcome_restore">从备份恢复</string>
     <string name="button_backup_choose_file">选择备份文件</string>
+    <string name="label_backup_unnamed_file">此文件</string>
+    <string name="label_backup_brings_back">选择从 ComfyChair 导出的备份文件。它将恢复：</string>
+    <string name="label_backup_item_servers">服务器</string>
+    <string name="desc_backup_item_servers">名称、地址和登录方式</string>
+    <string name="label_backup_item_workflows">工作流</string>
+    <string name="label_backup_item_prompts">已保存的提示词</string>
+    <string name="label_backup_item_settings">设置</string>
+    <string name="label_backup_no_credentials_title">备份中不包含密码和令牌。</string>
+    <string name="label_backup_no_credentials_body">需要的服务器要重新输入。</string>
+    <string name="button_backup_choose_another">选择其他文件</string>
+    <string name="button_backup_change">更改</string>
+    <string name="label_backup_settings_only">仅设置</string>
+    <string name="content_description_backup_file_contents">备份文件 %1$s，%2$s</string>
+    <string name="error_backup_unreadable_title">无法读取此文件</string>
+    <string name="error_backup_unreadable_body">无法打开 %1$s。请选择其他文件。</string>
+    <string name="error_backup_not_backup_title">这不是 ComfyChair 备份</string>
+    <string name="error_backup_not_backup_body">%1$s 不包含 ComfyChair 设置。请选择在设置中创建的备份。</string>
+    <string name="error_backup_unsupported_title">无法恢复此备份</string>
+    <string name="error_backup_unsupported_body">%1$s 来自当前版本无法读取的 ComfyChair 版本。请选择其他文件。</string>
+    <string name="error_backup_no_servers_title">此备份不包含服务器</string>
+    <string name="error_backup_no_servers_body">请选择其他文件，或返回并添加服务器。</string>
+    <string name="error_backup_failed_title">无法恢复备份</string>
+    <string name="error_backup_failed_body">请重试或选择其他文件。</string>
+    <string name="label_backup_skipped_workflows">工作流：%1$s</string>
+    <string name="label_backup_skipped_prompts">提示词：%1$s</string>
+    <string name="msg_backup_restored">备份已恢复</string>
+    <plurals name="label_backup_servers_count">
+        <item quantity="other">%d 个服务器</item>
+    </plurals>
+    <plurals name="label_backup_workflows_count">
+        <item quantity="other">%d 个工作流</item>
+    </plurals>
+    <plurals name="label_backup_prompts_count">
+        <item quantity="other">%d 条提示词</item>
+    </plurals>
 </resources>

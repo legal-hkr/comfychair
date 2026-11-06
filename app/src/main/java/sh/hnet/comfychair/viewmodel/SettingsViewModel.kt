@@ -32,6 +32,7 @@ import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.BackupManager
+import sh.hnet.comfychair.storage.BackupRestore
 import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.GalleryMetadataCache
 import sh.hnet.comfychair.storage.MediaStorageMode
@@ -40,9 +41,9 @@ import sh.hnet.comfychair.storage.RestoreResult
 import sh.hnet.comfychair.storage.ServerStorage
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.ui.components.config.OptionsSectionPrefs
+import sh.hnet.comfychair.util.AppError
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * UI state for server settings screen
@@ -685,56 +686,21 @@ class SettingsViewModel : ViewModel() {
 
         DebugLogger.i(TAG, "restoreBackup called (debug logging was: $wasDebugLoggingEnabled)")
         viewModelScope.launch {
-            val json = withContext(Dispatchers.IO) {
-                try {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use {
-                        it.readText()
-                    }
-                } catch (e: Exception) {
-                    DebugLogger.e(TAG, "Failed to read backup file: ${Obfuscator.error(e)}")
-                    null
-                }
-            }
-
-            if (json == null) {
+            val file = BackupRestore.read(context, uri)
+            if (file == null) {
                 DebugLogger.e(TAG, "Backup file read returned null")
                 _events.emit(SettingsEvent.ShowToast(R.string.error_backup_restore))
                 return@launch
             }
 
-            DebugLogger.d(TAG, "Backup file read, length: ${json.length}")
-
-            val result = withContext(Dispatchers.IO) {
-                BackupManager(context).restoreBackup(json)
-            }
-
-            DebugLogger.d(TAG, "Restore result: $result")
-
-            when (result) {
+            when (val result = BackupRestore.restore(context, file.json)) {
                 is RestoreResult.Success -> {
-                    if (result.serversChanged) {
-                        // Disconnect and clear all caches via ConnectionManager
-                        // (also reloads workflows)
-                        ConnectionManager.invalidateForRestore()
-                    } else {
-                        // Just clear in-memory caches (disk files already cleared by BackupManager)
-                        MediaCache.clearAll()
-                        MediaStateHolder.clearAll()
-                        // Reload workflows to pick up restored user workflows
-                        WorkflowManager.reloadWorkflows()
-                    }
-
                     // Reload AppSettings into ViewModel state, preserving debug logging if it was enabled
-                    DebugLogger.d(TAG, "Reloading AppSettings into ViewModel...")
                     reloadAppSettings(context, preserveDebugLogging = wasDebugLoggingEnabled)
-
-                    if (result.skippedWorkflows > 0) {
-                        _events.emit(SettingsEvent.ShowToast(R.string.error_backup_restore_partial))
-                    } else {
+                    // A partial restore was reported with the skipped items
+                    if (result.skippedWorkflows.isEmpty() && result.skippedPrompts.isEmpty()) {
                         _events.emit(SettingsEvent.ShowToast(R.string.msg_backup_restore_success))
                     }
-                    // Written straight to the preferences: the prompt libraries on the screens refresh
-                    PromptPresetStorage.notifyChanged()
                     _events.emit(SettingsEvent.SavedStateChanged)
                     _events.emit(SettingsEvent.MediaCleared)
                     if (result.serversChanged) {
@@ -744,6 +710,9 @@ class SettingsViewModel : ViewModel() {
                 is RestoreResult.Failure -> {
                     DebugLogger.e(TAG, "Restore failed with error: ${result.errorMessageResId}")
                     _events.emit(SettingsEvent.ShowToast(result.errorMessageResId))
+                }
+                is RestoreResult.Crashed -> {
+                    AppErrors.report(AppError(context.getString(R.string.error_backup_restore), text = result.details))
                 }
             }
         }
