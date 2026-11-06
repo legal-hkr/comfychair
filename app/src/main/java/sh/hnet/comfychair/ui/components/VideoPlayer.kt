@@ -94,6 +94,7 @@ enum class VideoScaleMode {
  * @param placeholder A first frame of the video the caller already has (in memory), shown until the video plays and
  *   used for its proportions, so nothing empty flashes when the player appears
  * @param showPlaybackStatus Show the pause/position chip at the top end and a position line at the bottom edge
+ * @param surface Where it's shown, which decides the sound and the looping (the preview: muted, always looping)
  *   (inline results on the generation screens)
  * @param originKey Marks the player as the [mediaOrigin] of the media viewer's flight, with its first frame as the
  *   image that flies (the video itself draws on a surface the flight can't take)
@@ -113,6 +114,7 @@ fun VideoPlayer(
     onSingleTap: () -> Unit = {},
     cacheKey: MediaCacheKey? = null,
     showPlaybackStatus: Boolean = false,
+    surface: SharedVideoPlayer.Surface = SharedVideoPlayer.Surface.PREVIEW,
     placeholder: Bitmap? = null,
     originKey: String? = null,
     originCorner: Dp = 0.dp
@@ -219,7 +221,7 @@ fun VideoPlayer(
 
                 // Prepare video (without playing) when URI changes
                 LaunchedEffect(videoUri) {
-                    SharedVideoPlayer.prepareVideo(context, videoUri)
+                    SharedVideoPlayer.prepareVideo(context, videoUri, surface)
                 }
 
                 // Use PresentationState to track when video surface is ready

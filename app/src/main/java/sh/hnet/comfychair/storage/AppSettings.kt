@@ -13,6 +13,7 @@ object AppSettings {
     private const val KEY_MEDIA_CACHE_DISABLED = "media_cache_disabled"
     private const val KEY_MEMORY_FIRST_CACHE = "memory_first_cache"
     private const val KEY_LIVE_PREVIEW_ENABLED = "live_preview_enabled"
+    private const val KEY_VIEWER_LOOP = "viewer_loop"
     private const val KEY_DEBUG_LOGGING_ENABLED = "debug_logging_enabled"
     private const val KEY_AUTO_CONNECT = "autoConnect"
     private const val KEY_DISABLED_WORKFLOWS = "disabled_workflows"
@@ -36,6 +37,14 @@ object AppSettings {
     /**
      * Set whether live preview should be enabled.
      */
+    /** Whether the media viewer loops videos (its loop toggle); on by default. Previews always loop. */
+    fun isViewerLoop(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_VIEWER_LOOP, true)
+
+    fun setViewerLoop(context: Context, loop: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_VIEWER_LOOP, loop).apply()
+    }
+
     fun setLivePreviewEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()

@@ -208,6 +208,7 @@ class BackupManager(private val context: Context) {
         return JSONObject().apply {
             put("autoConnectEnabled", prefs.getBoolean("autoConnect", true))
             put("livePreviewEnabled", prefs.getBoolean("live_preview_enabled", true))
+            put("viewerLoop", prefs.getBoolean("viewer_loop", true))
             val storageMode = AppSettings.getMediaStorageMode(context)
             put("mediaStorageMode", storageMode.key)
             // Equivalent former switches, so older app versions restore the same behaviour
@@ -357,6 +358,9 @@ class BackupManager(private val context: Context) {
 
         if (json.has("autoConnectEnabled")) {
             editor.putBoolean("autoConnect", json.optBoolean("autoConnectEnabled", true))
+        }
+        if (json.has("viewerLoop")) {
+            editor.putBoolean("viewer_loop", json.optBoolean("viewerLoop", true))
         }
         if (json.has("livePreviewEnabled")) {
             editor.putBoolean("live_preview_enabled", json.optBoolean("livePreviewEnabled", true))

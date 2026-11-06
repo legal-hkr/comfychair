@@ -139,6 +139,8 @@ fun MediaViewerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     // The app's errors while the viewer is open (the main screens' snackbars are under it)
     ErrorSnackbars(snackbarHostState)
+    // Each opening of the viewer starts with the sound on
+    LaunchedEffect(Unit) { SharedVideoPlayer.startViewerSession() }
     // Results of the job about to be deleted, while asking (only when there's more than the one shown)
     var confirmJobDeletion by remember { mutableStateOf<Int?>(null) }
     val resources = LocalResources.current
@@ -570,6 +572,8 @@ private fun MediaContent(
                 VideoPlayer(
                     videoUri = videoUri,
                     modifier = Modifier.fillMaxSize(),
+                    // The viewer's sound (on when it opens) and its loop setting
+                    surface = SharedVideoPlayer.Surface.VIEWER,
                     scaleMode = VideoScaleMode.FIT,
                     enableZoom = true,
                     onSingleTap = onSingleTap,
