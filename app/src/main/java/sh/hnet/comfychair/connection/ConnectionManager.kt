@@ -27,7 +27,6 @@ import okio.ByteString
 import org.json.JSONObject
 import sh.hnet.comfychair.ComfyUIClient
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.cache.MediaStateHolder
 import sh.hnet.comfychair.cache.ResultThumbnails
@@ -345,17 +344,6 @@ object ConnectionManager {
         _sessionExpired.value = false
         _connectionState.value = ConnectionState.Disconnected
         DebugLogger.i(TAG, "Disconnected")
-    }
-
-    /**
-     * Called when backup restore changes connection settings.
-     * Clears everything, reloads workflows, and returns to login.
-     */
-    fun invalidateForRestore() {
-        DebugLogger.i(TAG, "Invalidating for restore")
-        // Reload workflows to pick up restored user workflows
-        WorkflowManager.reloadWorkflows()
-        disconnect()
     }
 
     /**

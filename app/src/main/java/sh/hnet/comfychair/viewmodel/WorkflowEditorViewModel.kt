@@ -1922,6 +1922,8 @@ class WorkflowEditorViewModel : ViewModel() {
      * Exit edit mode - discards unsaved changes and restores original graph.
      */
     fun exitEditMode() {
+        // Values kept for Disconnect belong to the discarded session
+        keptValues.clear()
         // Restore original graph and bounds
         val restoredGraph = originalGraph
         val restoredBounds = originalBounds

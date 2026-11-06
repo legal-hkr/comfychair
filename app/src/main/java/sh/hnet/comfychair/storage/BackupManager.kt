@@ -63,6 +63,7 @@ class BackupManager(private val context: Context) {
         private const val TAG = "BackupManager"
         const val BACKUP_VERSION = 5
         private const val USER_WORKFLOWS_DIR = "user_workflows"
+        private val WORKFLOW_FILENAME = Regex("""^[A-Za-z0-9._ -]+\.json$""")
 
         // SharedPreferences names
         private const val PREFS_APP_SETTINGS = "AppSettings"
@@ -720,14 +721,21 @@ class BackupManager(private val context: Context) {
                     continue
                 }
 
-                // Skip if workflow with same ID already exists
-                if (id in existingIds) {
+                // Already here (the same backup restored again): nothing to restore, and not a skipped one
+                if (id in existingIds) continue
+
+                // The file name comes from the backup: a plain .json name in the workflows folder only, never a path
+                // out of it (a crafted name like "../shared_prefs/…" would write elsewhere in the app's data)
+                if (!isSafeWorkflowFilename(filename)) {
                     skip()
                     continue
                 }
-
-                // Save workflow file
-                val file = File(dir, filename)
+                // Another workflow's file keeps its content: a name already taken gets a number
+                val file = uniqueFile(dir, filename)
+                if (!file.canonicalPath.startsWith(dir.canonicalPath + File.separator)) {
+                    skip()
+                    continue
+                }
                 file.writeText(fileContent)
 
                 // Add to metadata
@@ -736,7 +744,7 @@ class BackupManager(private val context: Context) {
                     put("name", name)
                     put("description", description)
                     put("type", typeStr)
-                    put("filename", filename)
+                    put("filename", file.name)
                 }
                 existingArray.put(metadata)
                 existingIds.add(id)
@@ -751,6 +759,18 @@ class BackupManager(private val context: Context) {
 
         DebugLogger.i(TAG, "User workflows restored: $restored, skipped: ${skippedNames.size}")
         return skippedNames
+    }
+
+    /** A workflow file name a backup may use: one plain `.json` name, no folders, not hidden. */
+    private fun isSafeWorkflowFilename(name: String): Boolean =
+        name.length <= 200 && WORKFLOW_FILENAME.matches(name) && !name.startsWith(".")
+
+    /** [name] in [dir], or with a number before `.json` when that file already exists. */
+    private fun uniqueFile(dir: File, name: String): File {
+        val base = name.removeSuffix(".json")
+        return generateSequence(1) { it + 1 }
+            .map { n -> File(dir, if (n == 1) name else "${base}_$n.json") }
+            .first { !it.exists() }
     }
 
     /**
@@ -795,11 +815,8 @@ class BackupManager(private val context: Context) {
                     continue
                 }
 
-                // Skip if preset with same ID already exists
-                if (id in existingIds) {
-                    skip()
-                    continue
-                }
+                // Already here (the same backup restored again): not a skipped one
+                if (id in existingIds) continue
 
                 // Validate and sanitize tags
                 val validTags = JSONArray()

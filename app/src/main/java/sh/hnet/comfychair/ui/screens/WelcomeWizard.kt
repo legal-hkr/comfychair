@@ -62,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -477,7 +478,7 @@ private fun NoCredentialsNote() {
 /** The picked file: its name, what it holds, and Change to pick another. */
 @Composable
 private fun BackupFileCard(name: String, contents: BackupCheck.Valid, enabled: Boolean, onChange: () -> Unit) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     val parts = buildList {
         if (contents.servers > 0) add(resources.getQuantityString(R.plurals.label_backup_servers_count, contents.servers, contents.servers))
         if (contents.workflows > 0) add(resources.getQuantityString(R.plurals.label_backup_workflows_count, contents.workflows, contents.workflows))

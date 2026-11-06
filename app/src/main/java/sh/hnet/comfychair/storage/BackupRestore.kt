@@ -54,19 +54,24 @@ object BackupRestore {
      */
     suspend fun restore(context: Context, json: String): RestoreResult {
         val appContext = context.applicationContext
-        val result = withContext(Dispatchers.IO) { BackupManager(appContext).restoreBackup(json) }
+        val result = withContext(Dispatchers.IO) {
+            BackupManager(appContext).restoreBackup(json).also { result ->
+                if (result is RestoreResult.Success) {
+                    // Restored workflows read in the background (many files); the welcome wizard may restore before
+                    // anything loaded them
+                    WorkflowManager.initialize(appContext)
+                    WorkflowManager.reloadWorkflows()
+                }
+            }
+        }
         if (result is RestoreResult.Success) {
-            // The welcome wizard may restore before anything loaded the workflows
-            WorkflowManager.initialize(appContext)
             if (result.serversChanged) {
-                // Disconnects and clears all caches, and reloads the workflows
-                ConnectionManager.invalidateForRestore()
+                // Another set of servers: disconnect (the caches go with the connection)
+                ConnectionManager.disconnect()
             } else {
                 // Just clear in-memory caches (disk files already cleared by BackupManager)
                 MediaCache.clearAll()
                 MediaStateHolder.clearAll()
-                // Reload workflows to pick up restored user workflows
-                WorkflowManager.reloadWorkflows()
             }
             // Written straight to the preferences: the prompt libraries on the screens refresh
             PromptPresetStorage.notifyChanged()

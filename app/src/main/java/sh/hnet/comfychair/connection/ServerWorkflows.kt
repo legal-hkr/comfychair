@@ -55,6 +55,8 @@ object ServerWorkflows {
     suspend fun list(client: ComfyUIClient): ListResult {
         when (val users = client.getText("/users", MAX_LIST_BYTES)) {
             is ComfyUIClient.TextResult.Ok -> if (isMultiUser(users.text)) return ListResult.MultiUser
+            // An older ComfyUI without user accounts at all: one user
+            is ComfyUIClient.TextResult.HttpError -> if (users.code != 404) return ListResult.Failed(describe(users))
             else -> return ListResult.Failed(describe(users))
         }
         val query = "/userdata?dir=$FOLDER&recurse=true&split=false&full_info=true"

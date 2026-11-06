@@ -339,7 +339,7 @@
         <item quantity="other">Supprimer %d résultats de cette tâche ?</item>
     </plurals>
     <plurals name="msg_delete_selected">
-        <item quantity="one">L’élément sélectionné sera supprimé de l’historique du serveur.</item>
+        <item quantity="one">%d élément sélectionné sera supprimé de l’historique du serveur.</item>
         <item quantity="many">%d éléments sélectionnés seront supprimés de l’historique du serveur.</item>
         <item quantity="other">%d éléments sélectionnés seront supprimés de l’historique du serveur.</item>
     </plurals>
@@ -586,7 +586,6 @@
     <string name="video_position">Position</string>
     <string name="video_back_5s">Reculer de 5 secondes</string>
     <string name="video_forward_5s">Avancer de 5 secondes</string>
-    <string name="video_playback_controls">Lecture</string>
     <string name="video_sound">Son</string>
     <string name="video_sound_on">Activé</string>
     <string name="video_sound_off">Désactivé</string>
@@ -644,7 +643,7 @@
     <string name="button_use_as_source">Utiliser comme source</string>
     <string name="content_description_copy_value">Copier : %1$s</string>
     <plurals name="msg_deleted_from_history">
-        <item quantity="one">Supprimé de l’historique</item>
+        <item quantity="one">%d élément supprimé de l’historique</item>
         <item quantity="many">%d éléments supprimés de l’historique</item>
         <item quantity="other">%d éléments supprimés de l’historique</item>
     </plurals>
@@ -712,7 +711,7 @@
     <string name="error_name_taken">Un workflow portant ce nom existe déjà</string>
     <string name="msg_names_copied">Noms copiés</string>
     <plurals name="msg_missing_nodes_count">
-        <item quantity="one">Ce workflow utilise un nœud absent de votre serveur. Installez-le dans ComfyUI, puis importez à nouveau.</item>
+        <item quantity="one">Ce workflow utilise %d nœud absent de votre serveur. Installez-le dans ComfyUI, puis importez à nouveau.</item>
         <item quantity="many">Ce workflow utilise %d nœuds absents de votre serveur. Installez-les dans ComfyUI, puis importez à nouveau.</item>
         <item quantity="other">Ce workflow utilise %d nœuds absents de votre serveur. Installez-les dans ComfyUI, puis importez à nouveau.</item>
     </plurals>

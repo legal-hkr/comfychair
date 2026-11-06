@@ -659,11 +659,12 @@ fun WorkflowDetailPage(
     val workflow = current ?: lastShown.value
     var confirmDelete by remember { mutableStateOf(false) }
 
+    val savedMessage = stringResource(R.string.msg_workflow_saved)
     val editLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         // The editor saved the workflow's structure
         if (result.resultCode == Activity.RESULT_OK) {
             viewModel.reloadAndRefreshWorkflows()
-            snackbar?.let { host -> scope.launch { host.showSnackbar(context.getString(R.string.msg_workflow_saved)) } }
+            snackbar?.let { host -> scope.launch { host.showSnackbar(savedMessage) } }
         }
     }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->

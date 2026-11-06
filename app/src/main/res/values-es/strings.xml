@@ -586,7 +586,6 @@
     <string name="video_position">Posición</string>
     <string name="video_back_5s">Atrás 5 segundos</string>
     <string name="video_forward_5s">Adelante 5 segundos</string>
-    <string name="video_playback_controls">Reproducción</string>
     <string name="video_sound">Sonido</string>
     <string name="video_sound_on">Activado</string>
     <string name="video_sound_off">Desactivado</string>

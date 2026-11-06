@@ -558,7 +558,6 @@
     <string name="video_position">位置</string>
     <string name="video_back_5s">后退 5 秒</string>
     <string name="video_forward_5s">前进 5 秒</string>
-    <string name="video_playback_controls">播放</string>
     <string name="video_sound">声音</string>
     <string name="video_sound_on">开</string>
     <string name="video_sound_off">关</string>
