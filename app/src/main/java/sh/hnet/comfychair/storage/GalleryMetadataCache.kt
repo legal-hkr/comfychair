@@ -1,11 +1,12 @@
 package sh.hnet.comfychair.storage
 
 import android.content.Context
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.viewmodel.GalleryItem
-import java.io.File
 
 /**
  * Disk cache for gallery metadata (list of gallery items).
@@ -47,7 +48,7 @@ object GalleryMetadataCache {
             cacheFile.writeText(jsonArray.toString())
             DebugLogger.i(TAG, "Gallery metadata cached for server $serverId: ${items.size} items, ${cacheFile.length()} bytes")
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to save gallery metadata for server $serverId: ${e.message}")
+            DebugLogger.e(TAG, "Failed to save gallery metadata for server $serverId: ${Obfuscator.error(e)}")
         }
     }
 
@@ -85,7 +86,7 @@ object GalleryMetadataCache {
             DebugLogger.i(TAG, "Gallery metadata loaded from cache for server $serverId: ${items.size} items")
             return items
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to load gallery metadata for server $serverId: ${e.message}")
+            DebugLogger.e(TAG, "Failed to load gallery metadata for server $serverId: ${Obfuscator.error(e)}")
             return null
         }
     }
@@ -127,7 +128,7 @@ object GalleryMetadataCache {
                 DebugLogger.d(TAG, "Gallery metadata cache cleared for server $serverId")
             }
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to clear gallery metadata cache for server $serverId: ${e.message}")
+            DebugLogger.e(TAG, "Failed to clear gallery metadata cache for server $serverId: ${Obfuscator.error(e)}")
         }
     }
 
@@ -145,7 +146,7 @@ object GalleryMetadataCache {
             cacheFiles?.forEach { it.delete() }
             DebugLogger.d(TAG, "All gallery metadata caches cleared")
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to clear all gallery metadata caches: ${e.message}")
+            DebugLogger.e(TAG, "Failed to clear all gallery metadata caches: ${Obfuscator.error(e)}")
         }
     }
 

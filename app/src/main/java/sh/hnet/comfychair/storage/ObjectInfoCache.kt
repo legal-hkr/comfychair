@@ -1,7 +1,6 @@
 package sh.hnet.comfychair.storage
 
 import android.content.Context
-import sh.hnet.comfychair.util.DebugLogger
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -10,6 +9,8 @@ import java.io.InputStream
 import java.io.Reader
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Singleton for caching /object_info responses to disk per server.
@@ -60,7 +61,7 @@ object ObjectInfoCache {
             DebugLogger.i(TAG, "Object info cached for server $serverId, size: ${cacheFile.length()} bytes")
             true
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to save object info cache: ${e.message}")
+            DebugLogger.e(TAG, "Failed to save object info cache: ${Obfuscator.error(e)}")
             false
         } catch (e: OutOfMemoryError) {
             // Fail this fetch instead of crashing on every connection attempt to the same server
@@ -90,7 +91,7 @@ object ObjectInfoCache {
             DebugLogger.i(TAG, "Object info loaded from cache for server $serverId")
             true
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to load object info cache: ${e.message}")
+            DebugLogger.e(TAG, "Failed to load object info cache: ${Obfuscator.error(e)}")
             false
         } catch (e: OutOfMemoryError) {
             DebugLogger.e(TAG, "Out of memory while loading object info cache for server $serverId")
@@ -147,7 +148,7 @@ object ObjectInfoCache {
 
             DebugLogger.i(TAG, "Cache cleared for server $serverId")
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to clear cache: ${e.message}")
+            DebugLogger.e(TAG, "Failed to clear cache: ${Obfuscator.error(e)}")
         }
     }
 
@@ -165,7 +166,7 @@ object ObjectInfoCache {
             }
             DebugLogger.i(TAG, "All object info caches cleared")
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to clear all caches: ${e.message}")
+            DebugLogger.e(TAG, "Failed to clear all caches: ${Obfuscator.error(e)}")
         }
     }
 
@@ -183,7 +184,7 @@ object ObjectInfoCache {
                 ?.toSet()
                 ?: emptySet()
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to get cached server IDs: ${e.message}")
+            DebugLogger.e(TAG, "Failed to get cached server IDs: ${Obfuscator.error(e)}")
             emptySet()
         }
     }

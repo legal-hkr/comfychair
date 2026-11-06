@@ -194,4 +194,16 @@ object Obfuscator {
      */
     fun workflowName(name: String?): String =
         if (name.isNullOrBlank()) "<workflow>" else "<workflow:${name.take(8)}...>"
+
+    /**
+     * Obfuscate an exception: its type only. Messages can quote what failed (a host name, a file path, a piece of a
+     * workflow or a prompt).
+     */
+    fun error(t: Throwable?): String = t?.let { "<${it.javaClass.simpleName}>" } ?: "<error>"
+
+    /**
+     * Obfuscate a title the user gave (a group, a note, a node, a subgraph). Shows only its length.
+     */
+    fun title(text: String?): String =
+        if (text.isNullOrBlank()) "<untitled>" else "<title:${text.length}chars>"
 }

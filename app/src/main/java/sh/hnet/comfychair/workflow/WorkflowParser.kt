@@ -3,6 +3,7 @@ package sh.hnet.comfychair.workflow
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Parses ComfyUI workflow JSON into a WorkflowGraph
@@ -228,7 +229,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
 
             // Skip groups with no members (including legacy groups without member_nodes)
             if (memberNodeIds.isEmpty()) {
-                DebugLogger.w(TAG, "parseGroups: skipping group $id '$title': has no members")
+                DebugLogger.w(TAG, "parseGroups: skipping group $id ${Obfuscator.title(title)}: has no members")
                 continue
             }
 
@@ -316,7 +317,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
                         )
                     } catch (e: Exception) {
                         // If parsing fails, treat as literal
-                        DebugLogger.w(TAG, "Failed to parse connection for input '$key': ${e.message}")
+                        DebugLogger.w(TAG, "Failed to parse connection for input '$key': ${Obfuscator.error(e)}")
                         InputValue.Literal(value.toString())
                     }
                 }

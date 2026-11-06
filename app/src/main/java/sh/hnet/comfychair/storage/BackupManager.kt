@@ -12,6 +12,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.model.Server
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Result of a restore operation.
@@ -91,7 +92,7 @@ class BackupManager(private val context: Context) {
             DebugLogger.i(TAG, "Backup created successfully with ${servers.size} servers")
             Result.success(backup.toString(2))
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Backup creation failed: ${e.message}")
+            DebugLogger.e(TAG, "Backup creation failed: ${Obfuscator.error(e)}")
             Result.failure(e)
         }
     }
@@ -107,7 +108,7 @@ class BackupManager(private val context: Context) {
         val json = try {
             JSONObject(jsonString)
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to parse backup JSON: ${e.message}")
+            DebugLogger.e(TAG, "Failed to parse backup JSON: ${Obfuscator.error(e)}")
             return RestoreResult.Failure(R.string.error_backup_invalid_json)
         }
 

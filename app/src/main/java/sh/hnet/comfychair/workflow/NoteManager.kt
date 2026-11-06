@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.workflow
 
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Manages workflow note CRUD operations.
@@ -79,7 +80,7 @@ object NoteManager {
             val note = graph.notes[index]
             val oldTitle = note.title
             graph.notes[index] = note.copy(title = newTitle)
-            DebugLogger.i(TAG, "Renamed note $noteId: '$oldTitle' -> '$newTitle'")
+            DebugLogger.i(TAG, "Renamed note $noteId: ${Obfuscator.title(oldTitle)} -> ${Obfuscator.title(newTitle)}")
             return true
         }
         DebugLogger.w(TAG, "Note not found for rename: id=$noteId")
@@ -128,7 +129,7 @@ object NoteManager {
                 } else {
                     // Update group membership
                     graph.groups[i] = group.copy(memberNodeIds = newMembers)
-                    DebugLogger.d(TAG, "Removed note $noteId from group ${group.id} '${group.title}'")
+                    DebugLogger.d(TAG, "Removed note $noteId from group ${group.id} ${Obfuscator.title(group.title)}")
                 }
             }
         }

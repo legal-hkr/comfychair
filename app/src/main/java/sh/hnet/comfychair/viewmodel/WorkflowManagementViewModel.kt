@@ -26,6 +26,7 @@ import sh.hnet.comfychair.util.AppError
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.LiteGraphConverter
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.workflow.FieldCandidate
@@ -347,7 +348,7 @@ class WorkflowManagementViewModel : ViewModel() {
                         conversionWarnings = result.warnings
                     }
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "Import failed: ${e.message}")
+                    DebugLogger.e(TAG, "Import failed: ${Obfuscator.error(e)}")
                     emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_workflow_invalid_json))
                     _uiState.value = _uiState.value.copy(isValidatingNodes = false)
                     return@launch

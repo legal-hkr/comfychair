@@ -23,6 +23,7 @@ import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutputs
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.viewmodel.GalleryItem
 
 /**
@@ -258,7 +259,7 @@ class GalleryRepository private constructor() {
 
             return true
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "Gallery refresh failed: ${e.message}")
+            DebugLogger.w(TAG, "Gallery refresh failed: ${Obfuscator.error(e)}")
             return false
         } finally {
             _isLoading.value = false

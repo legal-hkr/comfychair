@@ -4,6 +4,18 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.JsonReader
+import java.io.IOException
+import java.io.InputStream
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -26,20 +38,6 @@ import sh.hnet.comfychair.util.NodeErrors
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ProgressTrackingRequestBody
 import sh.hnet.comfychair.util.ProgressTrackingResponseBody
-import java.io.IOException
-import java.io.InputStream
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 
 /**
  * ComfyUIClient - Handles communication with ComfyUI server
@@ -278,7 +276,7 @@ class ComfyUIClient(
                             }
                         } catch (e: Exception) {
                             // Response is not valid JSON - not a ComfyUI server
-                            DebugLogger.w(TAG, "Invalid response: ${e.message}")
+                            DebugLogger.w(TAG, "Invalid response: ${Obfuscator.error(e)}")
                             if (protocol == "https") {
                                 tryHttpFallback(httpsRequired, callback)
                             } else {
@@ -477,7 +475,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch node types: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch node types: ${Obfuscator.error(e)}")
                 callback(null)
             }
 
@@ -503,7 +501,7 @@ class ComfyUIClient(
                         reader.endObject()
                         result
                     } catch (e: Exception) {
-                        DebugLogger.w(TAG, "Failed to parse node types: ${e.message}")
+                        DebugLogger.w(TAG, "Failed to parse node types: ${Obfuscator.error(e)}")
                         null
                     }
                     callback(nodeTypes)
@@ -538,7 +536,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch object_info: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch object_info: ${Obfuscator.error(e)}")
                 callback(null)
             }
 
@@ -580,7 +578,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch checkpoints: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch checkpoints: ${Obfuscator.error(e)}")
                 callback(emptyList())
             }
 
@@ -609,7 +607,7 @@ class ComfyUIClient(
                             DebugLogger.d(TAG, "Fetched ${checkpoints.size} checkpoints")
                             callback(checkpoints)
                         } catch (e: Exception) {
-                            DebugLogger.w(TAG, "Failed to parse checkpoints: ${e.message}")
+                            DebugLogger.w(TAG, "Failed to parse checkpoints: ${Obfuscator.error(e)}")
                             callback(emptyList())
                         }
                     } else {
@@ -644,7 +642,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch UNETs: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch UNETs: ${Obfuscator.error(e)}")
                 callback(emptyList())
             }
 
@@ -673,7 +671,7 @@ class ComfyUIClient(
                             DebugLogger.d(TAG, "Fetched ${unets.size} UNETs")
                             callback(unets)
                         } catch (e: Exception) {
-                            DebugLogger.w(TAG, "Failed to parse UNETs: ${e.message}")
+                            DebugLogger.w(TAG, "Failed to parse UNETs: ${Obfuscator.error(e)}")
                             callback(emptyList())
                         }
                     } else {
@@ -707,7 +705,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch VAEs: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch VAEs: ${Obfuscator.error(e)}")
                 callback(emptyList())
             }
 
@@ -736,7 +734,7 @@ class ComfyUIClient(
                             DebugLogger.d(TAG, "Fetched ${vaes.size} VAEs")
                             callback(vaes)
                         } catch (e: Exception) {
-                            DebugLogger.w(TAG, "Failed to parse VAEs: ${e.message}")
+                            DebugLogger.w(TAG, "Failed to parse VAEs: ${Obfuscator.error(e)}")
                             callback(emptyList())
                         }
                     } else {
@@ -771,7 +769,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch CLIPs: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch CLIPs: ${Obfuscator.error(e)}")
                 callback(emptyList())
             }
 
@@ -800,7 +798,7 @@ class ComfyUIClient(
                             DebugLogger.d(TAG, "Fetched ${clips.size} CLIPs")
                             callback(clips)
                         } catch (e: Exception) {
-                            DebugLogger.w(TAG, "Failed to parse CLIPs: ${e.message}")
+                            DebugLogger.w(TAG, "Failed to parse CLIPs: ${Obfuscator.error(e)}")
                             callback(emptyList())
                         }
                     } else {
@@ -835,7 +833,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.w(TAG, "Failed to fetch LoRAs: ${e.message}")
+                DebugLogger.w(TAG, "Failed to fetch LoRAs: ${Obfuscator.error(e)}")
                 callback(emptyList())
             }
 
@@ -864,7 +862,7 @@ class ComfyUIClient(
                             DebugLogger.d(TAG, "Fetched ${loras.size} LoRAs")
                             callback(loras)
                         } catch (e: Exception) {
-                            DebugLogger.w(TAG, "Failed to parse LoRAs: ${e.message}")
+                            DebugLogger.w(TAG, "Failed to parse LoRAs: ${Obfuscator.error(e)}")
                             callback(emptyList())
                         }
                     } else {
@@ -927,7 +925,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.e(TAG, "Submit failed: ${e.message}")
+                DebugLogger.e(TAG, "Submit failed: ${Obfuscator.error(e)}")
                 callback(false, null, "Failed to submit prompt: ${e.message}", ConnectionFailure.NETWORK, emptyList())
             }
 
@@ -943,7 +941,7 @@ class ComfyUIClient(
                             skippedOutputs.forEach { DebugLogger.w(TAG, "Skipped by validation: $it") }
                             callback(true, promptId, null, ConnectionFailure.NONE, skippedOutputs)
                         } catch (e: Exception) {
-                            DebugLogger.e(TAG, "Failed to parse submit response: ${e.message}")
+                            DebugLogger.e(TAG, "Failed to parse submit response: ${Obfuscator.error(e)}")
                             callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK, emptyList())
                         }
                     } else {
@@ -1147,7 +1145,7 @@ class ComfyUIClient(
         val bytes = try {
             trackedBody.bytes()
         } catch (e: IOException) {
-            DebugLogger.d(TAG, "$logTag download interrupted: ${e.message}")
+            DebugLogger.d(TAG, "$logTag download interrupted: ${Obfuscator.error(e)}")
             null
         } finally {
             watchdogJob.cancel()
@@ -1358,7 +1356,7 @@ class ComfyUIClient(
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
-                DebugLogger.e(TAG, "Interrupt failed: ${e.message}")
+                DebugLogger.e(TAG, "Interrupt failed: ${Obfuscator.error(e)}")
                 callback(false)
             }
 
@@ -1706,7 +1704,7 @@ class ComfyUIClient(
                     callback(false, null, context?.getString(R.string.error_upload_stalled)
                         ?: "Upload stalled", ConnectionFailure.STALLED)
                 } else {
-                    DebugLogger.e(TAG, "Upload failed: ${e.message}")
+                    DebugLogger.e(TAG, "Upload failed: ${Obfuscator.error(e)}")
                     callback(false, null, "Upload failed: ${e.message}", ConnectionFailure.NETWORK)
                 }
             }
@@ -1721,7 +1719,7 @@ class ComfyUIClient(
                             DebugLogger.i(TAG, "Upload successful")
                             callback(true, savedFilename, null, ConnectionFailure.NONE)
                         } catch (e: Exception) {
-                            DebugLogger.e(TAG, "Failed to parse upload response: ${e.message}")
+                            DebugLogger.e(TAG, "Failed to parse upload response: ${Obfuscator.error(e)}")
                             callback(false, null, "Failed to parse response: ${e.message}", ConnectionFailure.NETWORK)
                         }
                     } else {

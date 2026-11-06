@@ -431,7 +431,7 @@ class LiteGraphConverter(
                 outputNodeId = outputNodeId
             )
 
-            DebugLogger.d(TAG, "Parsed subgraph '$name': ${nodes.length()} nodes, ${links.size} links, ${inputs.size} inputs, ${outputs.size} outputs")
+            DebugLogger.d(TAG, "Parsed subgraph ${Obfuscator.title(name)}: ${nodes.length()} nodes, ${links.size} links, ${inputs.size} inputs, ${outputs.size} outputs")
         }
 
         return subgraphs
@@ -456,7 +456,7 @@ class LiteGraphConverter(
         warnings: MutableList<String>
     ): FlattenResult {
         val subgraphNodeId = subgraphNode.optInt("id", -1)
-        DebugLogger.d(TAG, "Flattening subgraph '${subgraphDef.name}' (node #$subgraphNodeId) with offset $nodeIdOffset")
+        DebugLogger.d(TAG, "Flattening subgraph ${Obfuscator.title(subgraphDef.name)} (node #$subgraphNodeId) with offset $nodeIdOffset")
 
         val apiNodes = mutableMapOf<String, JSONObject>()
         val nodePositions = mutableMapOf<Int, NodePosition>()

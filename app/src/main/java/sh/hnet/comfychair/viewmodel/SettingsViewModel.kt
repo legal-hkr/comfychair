@@ -42,6 +42,7 @@ import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.ui.components.config.OptionsSectionPrefs
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * UI state for server settings screen
@@ -690,7 +691,7 @@ class SettingsViewModel : ViewModel() {
                         it.readText()
                     }
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "Failed to read backup file: ${e.message}")
+                    DebugLogger.e(TAG, "Failed to read backup file: ${Obfuscator.error(e)}")
                     null
                 }
             }

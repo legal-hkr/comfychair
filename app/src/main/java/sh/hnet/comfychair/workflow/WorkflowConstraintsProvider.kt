@@ -87,7 +87,7 @@ object WorkflowConstraintsProvider {
         val json = try {
             JSONObject(workflow.jsonContent)
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "  -> Failed to parse workflow JSON: ${e.message}")
+            DebugLogger.w(TAG, "  -> Failed to parse workflow JSON: ${Obfuscator.error(e)}")
             return fallbackWithDecimals
         }
 

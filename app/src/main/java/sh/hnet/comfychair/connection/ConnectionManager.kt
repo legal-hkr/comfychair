@@ -819,7 +819,7 @@ object ConnectionManager {
                 scope.launch { _webSocketMessages.emit(it) }
             }
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "WS: failed to parse message: ${e.message}")
+            DebugLogger.w(TAG, "WS: failed to parse message: ${Obfuscator.error(e)}")
         }
     }
 
@@ -835,7 +835,7 @@ object ConnectionManager {
                     scope.launch { _webSocketMessages.emit(WebSocketMessage.PreviewImage(bitmap)) }
                 }
             } catch (e: Exception) {
-                DebugLogger.w(TAG, "WS: failed to decode preview: ${e.message}")
+                DebugLogger.w(TAG, "WS: failed to decode preview: ${Obfuscator.error(e)}")
             }
         }
     }

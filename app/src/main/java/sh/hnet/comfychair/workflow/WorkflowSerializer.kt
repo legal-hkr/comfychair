@@ -3,6 +3,7 @@ package sh.hnet.comfychair.workflow
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Serializes a WorkflowGraph back to ComfyUI API JSON format.
@@ -148,7 +149,7 @@ class WorkflowSerializer {
                 positionArray.put(note.x.toDouble())
                 positionArray.put(note.y.toDouble())
                 noteJson.put("position", positionArray)
-                DebugLogger.d(TAG, "serializeNotes: note id=${note.id} '${note.title}' with manual position: (${note.x}, ${note.y})")
+                DebugLogger.d(TAG, "serializeNotes: note id=${note.id} ${Obfuscator.title(note.title)} with manual position: (${note.x}, ${note.y})")
             } else {
                 DebugLogger.d(TAG, "serializeNotes: note id=${note.id} '${note.title}' (${note.content.length} chars)")
             }

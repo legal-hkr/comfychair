@@ -408,9 +408,9 @@ class WorkflowEditorViewModel : ViewModel() {
                 )
                 isInitialized = true
 
-                DebugLogger.i(TAG, "initializeForEditingExisting: Loaded workflow ${workflow.name}, type=${workflow.type}")
+                DebugLogger.i(TAG, "initializeForEditingExisting: Loaded workflow ${Obfuscator.workflowName(workflow.name)}, type=${workflow.type}")
             } catch (e: Exception) {
-                DebugLogger.e(TAG, "initializeForEditingExisting: Failed to load workflow: ${e.message}")
+                DebugLogger.e(TAG, "initializeForEditingExisting: Failed to load workflow: ${Obfuscator.error(e)}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Failed to load workflow: ${e.message}"
@@ -1106,7 +1106,7 @@ class WorkflowEditorViewModel : ViewModel() {
             return
         }
 
-        DebugLogger.d(TAG, "confirmMappingAndSave: Saving '${pending.name}' as ${pending.type}, editingWorkflowId=${state.editingWorkflowId}")
+        DebugLogger.d(TAG, "confirmMappingAndSave: Saving ${Obfuscator.workflowName(pending.name)} as ${pending.type}, editingWorkflowId=${state.editingWorkflowId}")
 
         // Convert mappings to the format expected by WorkflowManager
         val fieldMappings = mutableMapOf<String, Pair<String, String>>()
@@ -1158,7 +1158,7 @@ class WorkflowEditorViewModel : ViewModel() {
             }
         } else {
             val error = result.exceptionOrNull()
-            DebugLogger.e(TAG, "confirmMappingAndSave: Save failed: ${error?.message}")
+            DebugLogger.e(TAG, "confirmMappingAndSave: Save failed: ${Obfuscator.error(error)}")
             viewModelScope.launch {
                 _events.emit(WorkflowEditorEvent.CreateCancelled)
             }
@@ -1761,7 +1761,7 @@ class WorkflowEditorViewModel : ViewModel() {
         // Find the node and create an updated copy
         val updatedNodes = graph.nodes.map { node ->
             if (node.id == nodeId) {
-                DebugLogger.d(TAG, "toggleNodeBypass: Changing mode from ${node.mode} to $newMode for node '${node.title}'")
+                DebugLogger.d(TAG, "toggleNodeBypass: Changing mode from ${node.mode} to $newMode for node ${node.id}")
                 node.copy(mode = newMode)
             } else {
                 node
@@ -1957,7 +1957,7 @@ class WorkflowEditorViewModel : ViewModel() {
             isManualPlacementMode = graph.isManualPlacementMode
         )
 
-        DebugLogger.i(TAG, "returnToViewMode: Now in view mode for workflow ${workflow.name}")
+        DebugLogger.i(TAG, "returnToViewMode: Now in view mode for workflow ${Obfuscator.workflowName(workflow.name)}")
     }
 
     /**
@@ -2887,7 +2887,7 @@ class WorkflowEditorViewModel : ViewModel() {
         )
 
         DebugLogger.d(TAG, "completeConnection: created newNode id=$newNodeId, inputs=${newNode.inputs.keys}")
-        DebugLogger.d(TAG, "completeConnection: newNode input[${targetInput.name}]=${newNode.inputs[targetInput.name]}")
+        DebugLogger.d(TAG, "completeConnection: newNode input[${targetInput.name}] is ${newNode.inputs[targetInput.name]?.let { it::class.simpleName }}")
 
         // 4. Add node to graph
         graph.nodes.add(newNode)
@@ -2915,7 +2915,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Verify the new node has the connection
         val verifyNode = layoutedGraph.nodes.find { it.id == newNodeId }
-        DebugLogger.d(TAG, "completeConnection: verify node input[${targetInput.name}]=${verifyNode?.inputs?.get(targetInput.name)}")
+        DebugLogger.d(TAG, "completeConnection: verify node input[${targetInput.name}] is ${verifyNode?.inputs?.get(targetInput.name)?.let { it::class.simpleName }}")
 
         // 7. Update graph bounds
         val newBounds = layoutEngine.calculateBounds(layoutedGraph)

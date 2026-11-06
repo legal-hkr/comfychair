@@ -100,7 +100,7 @@ internal object BypassNodeResolver {
             DebugLogger.i(TAG, "applyBypassedNodes: Processed ${bypassedNodeIds.size} bypassed nodes")
             json.toString()
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "applyBypassedNodes: Error processing bypass: ${e.message}")
+            DebugLogger.e(TAG, "applyBypassedNodes: Error processing bypass: ${Obfuscator.error(e)}")
             workflowJson
         }
     }

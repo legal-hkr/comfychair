@@ -1,28 +1,28 @@
 package sh.hnet.comfychair
 
 import android.content.Context
-import org.json.JSONArray
-import org.json.JSONObject
-import sh.hnet.comfychair.viewmodel.base.GenerationParams
-import sh.hnet.comfychair.viewmodel.base.ModelSlot
-import sh.hnet.comfychair.connection.ConnectionManager
-import sh.hnet.comfychair.model.NodeAttributeEdits
-import sh.hnet.comfychair.model.WorkflowDefaults
-import sh.hnet.comfychair.storage.WorkflowValuesStorage
-import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.BypassNodeResolver
-import sh.hnet.comfychair.util.LoraInjectionUtils
-import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
-import sh.hnet.comfychair.util.Obfuscator
-import sh.hnet.comfychair.storage.AppSettings
-import sh.hnet.comfychair.util.UuidUtils
-import sh.hnet.comfychair.util.ValidationUtils
-import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import java.io.File
+import java.io.InputStream
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.io.File
-import java.io.InputStream
+import org.json.JSONArray
+import org.json.JSONObject
+import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.NodeAttributeEdits
+import sh.hnet.comfychair.model.WorkflowDefaults
+import sh.hnet.comfychair.storage.AppSettings
+import sh.hnet.comfychair.storage.WorkflowValuesStorage
+import sh.hnet.comfychair.util.BypassNodeResolver
+import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.LoraInjectionUtils
+import sh.hnet.comfychair.util.Obfuscator
+import sh.hnet.comfychair.util.UuidUtils
+import sh.hnet.comfychair.util.ValidationUtils
+import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
+import sh.hnet.comfychair.viewmodel.base.GenerationParams
+import sh.hnet.comfychair.viewmodel.base.ModelSlot
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 
 /**
  * Workflow types supported by ComfyChair
@@ -475,7 +475,7 @@ object WorkflowManager {
         // Add to in-memory list
         workflows.add(newWorkflow)
 
-        DebugLogger.i(TAG, "Duplicated workflow: ${sourceWorkflow.name} -> $newName (id: $newId)")
+        DebugLogger.i(TAG, "Duplicated workflow: ${Obfuscator.workflowName(sourceWorkflow.name)} -> ${Obfuscator.workflowName(newName)} (id: $newId)")
 
         _workflowsVersion.value++
         return Result.success(newWorkflow)
@@ -525,7 +525,7 @@ object WorkflowManager {
             }
         }
 
-        DebugLogger.i(TAG, "Exported workflow to ComfyUI format: ${workflow.name}")
+        DebugLogger.i(TAG, "Exported workflow to ComfyUI format: ${Obfuscator.workflowName(workflow.name)}")
 
         return Result.success(nodesJson.toString(2))
     }
@@ -543,7 +543,7 @@ object WorkflowManager {
         return try {
             // Parse and re-format with indentation for readability
             val json = JSONObject(workflow.jsonContent)
-            DebugLogger.i(TAG, "Exported workflow in internal format: ${workflow.name}")
+            DebugLogger.i(TAG, "Exported workflow in internal format: ${Obfuscator.workflowName(workflow.name)}")
             Result.success(json.toString(2))
         } catch (e: Exception) {
             Result.failure(Exception("Failed to parse workflow JSON"))
@@ -1595,7 +1595,7 @@ object WorkflowManager {
         val json = try {
             JSONObject(processedJson)
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to parse workflow JSON for edits: ${e.message}")
+            DebugLogger.e(TAG, "Failed to parse workflow JSON for edits: ${Obfuscator.error(e)}")
             return processedJson
         }
 

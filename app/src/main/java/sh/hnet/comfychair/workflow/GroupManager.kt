@@ -1,6 +1,7 @@
 package sh.hnet.comfychair.workflow
 
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Manages workflow node groups.
@@ -156,7 +157,7 @@ object GroupManager {
                 if (newMemberIds.isEmpty()) {
                     // Mark for removal (dissolve group)
                     groupsToRemove.add(index)
-                    DebugLogger.d(TAG, "removeNodesFromGroups: group ${group.id} '${group.title}' will be dissolved (removed $removedNodes, no members left)")
+                    DebugLogger.d(TAG, "removeNodesFromGroups: group ${group.id} will be dissolved (removed $removedNodes, no members left)")
                 } else {
                     // Update group with reduced membership
                     graph.groups[index] = group.copy(memberNodeIds = newMemberIds)
@@ -169,7 +170,7 @@ object GroupManager {
         // Remove dissolved groups (in reverse order to preserve indices)
         groupsToRemove.sortedDescending().forEach { index ->
             val dissolved = graph.groups[index]
-            DebugLogger.i(TAG, "removeNodesFromGroups: dissolved group ${dissolved.id} '${dissolved.title}'")
+            DebugLogger.i(TAG, "removeNodesFromGroups: dissolved group ${dissolved.id}")
             graph.groups.removeAt(index)
         }
 
@@ -193,7 +194,7 @@ object GroupManager {
         groupId: Int,
         newTitle: String
     ): Boolean {
-        DebugLogger.d(TAG, "renameGroup: renaming group $groupId to '$newTitle'")
+        DebugLogger.d(TAG, "renameGroup: renaming group $groupId to ${Obfuscator.title(newTitle)}")
 
         val index = graph.groups.indexOfFirst { it.id == groupId }
         if (index < 0) {
@@ -203,7 +204,7 @@ object GroupManager {
 
         val oldTitle = graph.groups[index].title
         graph.groups[index] = graph.groups[index].copy(title = newTitle)
-        DebugLogger.i(TAG, "renameGroup: group $groupId renamed from '$oldTitle' to '$newTitle'")
+        DebugLogger.i(TAG, "renameGroup: group $groupId renamed from ${Obfuscator.title(oldTitle)} to ${Obfuscator.title(newTitle)}")
         return true
     }
 

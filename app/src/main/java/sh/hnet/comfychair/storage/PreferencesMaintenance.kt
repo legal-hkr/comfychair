@@ -1,9 +1,10 @@
 package sh.hnet.comfychair.storage
 
-import sh.hnet.comfychair.connection.ConnectionManager
 import android.content.Context
 import sh.hnet.comfychair.WorkflowManager
+import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Performs maintenance on SharedPreferences to remove stale entries.
@@ -95,7 +96,7 @@ object PreferencesMaintenance {
         return try {
             ServerStorage(context).getServers().map { it.id }.toSet()
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to get valid server IDs: ${e.message}")
+            DebugLogger.e(TAG, "Failed to get valid server IDs: ${Obfuscator.error(e)}")
             emptySet()
         }
     }
@@ -109,7 +110,7 @@ object PreferencesMaintenance {
             WorkflowManager.initialize(context)
             WorkflowManager.getAllWorkflows().map { it.id }.toSet()
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to get valid workflow IDs: ${e.message}")
+            DebugLogger.e(TAG, "Failed to get valid workflow IDs: ${Obfuscator.error(e)}")
             emptySet()
         }
     }
@@ -183,7 +184,7 @@ object PreferencesMaintenance {
                 androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "Using fallback prefs for credentials: ${e.message}")
+            DebugLogger.w(TAG, "Using fallback prefs for credentials: ${Obfuscator.error(e)}")
             context.getSharedPreferences(PREFS_CREDENTIALS, Context.MODE_PRIVATE)
         }
 
@@ -311,7 +312,7 @@ object PreferencesMaintenance {
                 }
             }
         } catch (e: Exception) {
-            DebugLogger.e(TAG, "Failed to scan gallery metadata caches: ${e.message}")
+            DebugLogger.e(TAG, "Failed to scan gallery metadata caches: ${Obfuscator.error(e)}")
         }
 
         return removed

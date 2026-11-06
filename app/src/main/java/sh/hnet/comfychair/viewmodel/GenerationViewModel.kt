@@ -590,7 +590,7 @@ class GenerationViewModel : ViewModel() {
                     }
                     DebugLogger.w(TAG, "Immediate image fetch: no images in history output")
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "Immediate image fetch failed: ${e.message}")
+                    DebugLogger.e(TAG, "Immediate image fetch failed: ${Obfuscator.error(e)}")
                 }
             } else {
                 DebugLogger.w(TAG, "Immediate image fetch: history is null")
@@ -742,7 +742,7 @@ class GenerationViewModel : ViewModel() {
                 }
                 mainHandler.post { onResult(true, promptId, null) }
             } else {
-                DebugLogger.e(TAG, "Workflow submission failed: $errorMessage")
+                DebugLogger.e(TAG, "Workflow submission failed: $failureType")
                 // For authentication errors, show the connection alert dialog instead of Toast
                 if (failureType == ConnectionFailure.AUTHENTICATION) {
                     mainHandler.post {

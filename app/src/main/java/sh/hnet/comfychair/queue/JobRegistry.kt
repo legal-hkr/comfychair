@@ -489,7 +489,7 @@ object JobRegistry {
                 DebugLogger.i(TAG, "Restored ${jobs.size} jobs from preferences")
             }
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "Failed to restore jobs: ${e.message}")
+            DebugLogger.w(TAG, "Failed to restore jobs: ${Obfuscator.error(e)}")
         }
     }
 

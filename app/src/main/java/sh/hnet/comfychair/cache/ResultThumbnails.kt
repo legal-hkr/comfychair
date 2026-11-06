@@ -6,6 +6,9 @@ import android.media.MediaMetadataRetriever
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -13,9 +16,7 @@ import kotlinx.coroutines.withContext
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.GenerationOutput
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import sh.hnet.comfychair.util.Obfuscator
 
 /**
  * Small thumbnails of the results of a generation job, for the results strip.
@@ -69,7 +70,7 @@ object ResultThumbnails {
                 try {
                     if (output.isVideo) loadVideoFrame(output, sizePx) else loadImage(output, sizePx)
                 } catch (e: Exception) {
-                    DebugLogger.w(TAG, "Thumbnail failed: ${e.message}")
+                    DebugLogger.w(TAG, "Thumbnail failed: ${Obfuscator.error(e)}")
                     null
                 }
             }

@@ -9,12 +9,12 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import sh.hnet.comfychair.cache.InMemoryVideo
 import java.io.File
 import java.io.OutputStream
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import sh.hnet.comfychair.cache.InMemoryVideo
 
 /**
  * Saving generated media to the device gallery and sharing it with other apps – the only places
@@ -69,7 +69,7 @@ object MediaExport {
             resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
             true
         } catch (e: Exception) {
-            DebugLogger.e("MediaExport", "Saving to gallery failed: ${e.message}")
+            DebugLogger.e("MediaExport", "Saving to gallery failed: ${Obfuscator.error(e)}")
             resolver.delete(uri, null, null)
             false
         }
@@ -97,7 +97,7 @@ object MediaExport {
             file.outputStream().use(write)
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         } catch (e: Exception) {
-            DebugLogger.e("MediaExport", "Writing share file failed: ${e.message}")
+            DebugLogger.e("MediaExport", "Writing share file failed: ${Obfuscator.error(e)}")
             null
         }
     }

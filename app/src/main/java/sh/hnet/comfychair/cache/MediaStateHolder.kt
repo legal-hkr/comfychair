@@ -5,12 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.content.FileProvider
+import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,12 +23,10 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.util.DebugLogger
-import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.GenerationOutputs
+import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.VideoUtils
-import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Singleton that holds media state for generation screens.
@@ -273,7 +272,7 @@ object MediaStateHolder {
                     .toString()
             )
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "Failed to save result list: ${e.message}")
+            DebugLogger.w(TAG, "Failed to save result list: ${Obfuscator.error(e)}")
         }
     }
 
@@ -293,7 +292,7 @@ object MediaStateHolder {
             if (outputs.isEmpty()) null
             else outputs to json.optInt("currentIndex").coerceIn(0, outputs.size - 1)
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "Failed to load result list: ${e.message}")
+            DebugLogger.w(TAG, "Failed to load result list: ${Obfuscator.error(e)}")
             null
         }
     }
@@ -378,7 +377,7 @@ object MediaStateHolder {
                     }
                     DebugLogger.d(TAG, "putBitmap: written to disk")
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "putBitmap: disk write FAILED - ${e.message}")
+                    DebugLogger.e(TAG, "putBitmap: disk write FAILED - ${Obfuscator.error(e)}")
                 }
             } ?: DebugLogger.w(TAG, "putBitmap: context is null, cannot write to disk")
         }
@@ -414,7 +413,7 @@ object MediaStateHolder {
                         null
                     }
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "getBitmap: ${key.logName} disk read FAILED - ${e.message}")
+                    DebugLogger.e(TAG, "getBitmap: ${key.logName} disk read FAILED - ${Obfuscator.error(e)}")
                     null
                 }
             }
@@ -596,7 +595,7 @@ object MediaStateHolder {
                         DebugLogger.d(TAG, "persistToDisk: ${key.logName} -> OK")
                         true
                     } catch (e: Exception) {
-                        DebugLogger.e(TAG, "persistToDisk: ${key.logName} -> FAILED: ${e.message}")
+                        DebugLogger.e(TAG, "persistToDisk: ${key.logName} -> FAILED: ${Obfuscator.error(e)}")
                         false
                     }
                 }
@@ -622,7 +621,7 @@ object MediaStateHolder {
                         DebugLogger.d(TAG, "persistToDisk: ${key.logName} -> OK")
                         true
                     } catch (e: Exception) {
-                        DebugLogger.e(TAG, "persistToDisk: ${key.logName} -> FAILED: ${e.message}")
+                        DebugLogger.e(TAG, "persistToDisk: ${key.logName} -> FAILED: ${Obfuscator.error(e)}")
                         false
                     }
                 }
@@ -691,7 +690,7 @@ object MediaStateHolder {
                         bitmapsNotFound++
                     }
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "loadFromDisk: ${key.logName} -> ERROR: ${e.message}")
+                    DebugLogger.e(TAG, "loadFromDisk: ${key.logName} -> ERROR: ${Obfuscator.error(e)}")
                 }
             }
 
@@ -724,7 +723,7 @@ object MediaStateHolder {
                     val file = context.getFileStreamPath(MediaKey.V2vSource.filename(serverId))
                     if (file.exists()) videoBytes[MediaKey.V2vSource] = file.readBytes()
                 } catch (e: Exception) {
-                    DebugLogger.e(TAG, "loadFromDisk: V2V source -> ERROR: ${e.message}")
+                    DebugLogger.e(TAG, "loadFromDisk: V2V source -> ERROR: ${Obfuscator.error(e)}")
                 }
             }
 
@@ -963,7 +962,7 @@ object MediaStateHolder {
                 }
             }
         } catch (e: Exception) {
-            DebugLogger.w(TAG, "Failed to cleanup orphaned files: ${e.message}")
+            DebugLogger.w(TAG, "Failed to cleanup orphaned files: ${Obfuscator.error(e)}")
         }
     }
 }
