@@ -454,6 +454,10 @@
     <string name="button_reset_node">Knoten zurücksetzen</string>
     <string name="label_value_changed">Geändert – Standard %1$s</string>
     <string name="content_description_reset_value">%1$s auf %2$s zurücksetzen</string>
+    <string name="title_node_values_linked">Verbunden</string>
+    <string name="desc_node_values_linked">Ihre Werte kommen von anderen Knoten.</string>
+    <string name="label_node_values_linked_from">Von %1$s in %2$s</string>
+    <string name="content_description_open_node">%1$s öffnen</string>
     <string name="title_from_generation_screen">Vom Generierungsbildschirm</string>
     <string name="desc_from_generation_screen">Die App füllt sie beim Generieren aus.</string>
     <plurals name="label_node_changed_count">

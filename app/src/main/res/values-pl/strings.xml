@@ -464,6 +464,10 @@
     <string name="button_reset_node">Resetuj węzeł</string>
     <string name="label_value_changed">Zmieniono – domyślnie %1$s</string>
     <string name="content_description_reset_value">Przywróć %1$s do %2$s</string>
+    <string name="title_node_values_linked">Połączone</string>
+    <string name="desc_node_values_linked">Ich wartości przychodzą z innych węzłów.</string>
+    <string name="label_node_values_linked_from">Z %1$s w %2$s</string>
+    <string name="content_description_open_node">Otwórz %1$s</string>
     <string name="title_from_generation_screen">Z ekranu generowania</string>
     <string name="desc_from_generation_screen">Aplikacja wypełnia je sama przy generowaniu.</string>
     <plurals name="label_node_changed_count">

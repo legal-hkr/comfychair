@@ -93,6 +93,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.LinkedValue
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.NodeValuesSheetContent
 import sh.hnet.comfychair.ui.components.WorkflowGraphCanvas
@@ -116,11 +117,13 @@ import sh.hnet.comfychair.ui.components.workflow.FieldMappingCard
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
+import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.GraphDetailLevel
 import sh.hnet.comfychair.workflow.InputValue
+import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
@@ -286,7 +289,10 @@ fun WorkflowEditorScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = sheetMaxHeight)
-                        .navigationBarsPadding()
+                        .navigationBarsPadding(),
+                    linkedValues = linkedValuesOf(node, uiState.graph, uiState.nodeDefinitions[node.classType]),
+                    // A linked value's row opens its source node, as tapping that node does
+                    onOpenNode = { id -> uiState.graph?.nodes?.find { it.id == id }?.let(viewModel::onNodeTappedForEditing) }
                 )
             }
         }
@@ -1143,3 +1149,14 @@ private fun SocketMenu(
         }
     }
 }
+
+/** The node's value inputs (in ComfyUI: widgets) linked to other nodes, with where each value comes from. */
+private fun linkedValuesOf(node: WorkflowNode, graph: WorkflowGraph?, definition: NodeTypeDefinition?): List<LinkedValue> =
+    node.inputs.mapNotNull { (name, value) ->
+        val link = value as? InputValue.Connection ?: return@mapNotNull null
+        val input = definition?.inputs?.find { it.name == name } ?: return@mapNotNull null
+        val isValue = !input.forceInput && (input.type.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES || input.options != null)
+        if (!isValue) return@mapNotNull null
+        val source = graph?.nodes?.find { it.id == link.sourceNodeId }
+        LinkedValue(name, link.sourceNodeId, source?.title.orEmpty(), source?.outputs?.getOrNull(link.outputIndex)?.name.orEmpty())
+    }

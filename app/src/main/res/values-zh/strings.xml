@@ -428,6 +428,10 @@
     <string name="button_reset_node">重置节点</string>
     <string name="label_value_changed">已更改 – 默认 %1$s</string>
     <string name="content_description_reset_value">将 %1$s 重置为 %2$s</string>
+    <string name="title_node_values_linked">已连接</string>
+    <string name="desc_node_values_linked">它们的值来自其他节点。</string>
+    <string name="label_node_values_linked_from">来自 %2$s 的 %1$s</string>
+    <string name="content_description_open_node">打开 %1$s</string>
     <string name="title_from_generation_screen">来自生成界面</string>
     <string name="desc_from_generation_screen">生成时由应用自动填写。</string>
     <plurals name="label_node_changed_count">

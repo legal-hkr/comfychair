@@ -452,6 +452,10 @@
     <string name="button_reset_node">Restablecer nodo</string>
     <string name="label_value_changed">Cambiado – por defecto %1$s</string>
     <string name="content_description_reset_value">Restablecer %1$s a %2$s</string>
+    <string name="title_node_values_linked">Conectadas</string>
+    <string name="desc_node_values_linked">Sus valores vienen de otros nodos.</string>
+    <string name="label_node_values_linked_from">Desde %1$s en %2$s</string>
+    <string name="content_description_open_node">Abrir %1$s</string>
     <string name="title_from_generation_screen">Desde la pantalla de generación</string>
     <string name="desc_from_generation_screen">La app los rellena al generar.</string>
     <plurals name="label_node_changed_count">

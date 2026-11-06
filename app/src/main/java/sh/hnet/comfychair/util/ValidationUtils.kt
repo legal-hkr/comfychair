@@ -271,6 +271,19 @@ object ValidationUtils {
      * @param max Maximum allowed value (nullable = no limit)
      * @return Error message if invalid, null if valid
      */
+    /**
+     * Validate a whole number against bounds that may need 64 bits (ComfyUI's INT inputs: PrimitiveInt allows
+     * ±9223372036854775807, which [validateInt] can't hold).
+     */
+    fun validateWholeNumber(value: String, context: Context? = null, min: Long? = null, max: Long? = null): String? {
+        if (value.isEmpty()) return null
+        val number = value.toLongOrNull()
+            ?: return context?.getString(R.string.error_invalid_integer) ?: "Must be a whole number"
+        if (min != null && number < min) return context?.getString(R.string.error_value_min, min) ?: "Minimum: $min"
+        if (max != null && number > max) return context?.getString(R.string.error_value_max, max) ?: "Maximum: $max"
+        return null
+    }
+
     fun validateInt(
         value: String,
         context: Context? = null,

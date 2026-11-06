@@ -7,8 +7,8 @@ import org.junit.Test
 
 class StepperMathTest {
     private fun d(v: String) = BigDecimal(v)
-    private fun dec(v: String, min: String, max: String, step: String) = StepperMath.decrement(d(v), d(min), d(max), d(step))?.stripTrailingZeros()?.toPlainString()
-    private fun inc(v: String, min: String, max: String, step: String) = StepperMath.increment(d(v), d(min), d(max), d(step))?.stripTrailingZeros()?.toPlainString()
+    private fun dec(v: String, min: String?, max: String?, step: String) = StepperMath.decrement(d(v), min?.let(::d), max?.let(::d), d(step))?.stripTrailingZeros()?.toPlainString()
+    private fun inc(v: String, min: String?, max: String?, step: String) = StepperMath.increment(d(v), min?.let(::d), max?.let(::d), d(step))?.stripTrailingZeros()?.toPlainString()
 
     @Test
     fun lengthGridFromValidValues() {
@@ -57,5 +57,15 @@ class StepperMathTest {
     fun largeSeedsStayExact() {
         assertEquals("1234567890123456790", inc("1234567890123456789", "0", "18446744073709551615", "1"))
         assertEquals("18446744073709551614", dec("18446744073709551615", "0", "18446744073709551615", "1"))
+    }
+
+    @Test
+    fun open64BitAndMissingBounds() {
+        // PrimitiveInt: the full Long range
+        assertEquals("1025", inc("1024", "-9223372036854775807", "9223372036854775807", "1"))
+        assertEquals("1023", dec("1024", "-9223372036854775807", "9223372036854775807", "1"))
+        // No bounds: the grid starts at 0, nothing stops the steps (negative floats included)
+        assertEquals("-0.1", dec("0", null, null, "0.1"))
+        assertEquals("0.3", inc("0.25", null, null, "0.1"))
     }
 }

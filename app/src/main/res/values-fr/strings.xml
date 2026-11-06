@@ -452,6 +452,10 @@
     <string name="button_reset_node">Réinitialiser le nœud</string>
     <string name="label_value_changed">Modifié – par défaut %1$s</string>
     <string name="content_description_reset_value">Rétablir %1$s à %2$s</string>
+    <string name="title_node_values_linked">Liées</string>
+    <string name="desc_node_values_linked">Leurs valeurs viennent d’autres nœuds.</string>
+    <string name="label_node_values_linked_from">Depuis %1$s dans %2$s</string>
+    <string name="content_description_open_node">Ouvrir %1$s</string>
     <string name="title_from_generation_screen">Depuis l’écran de génération</string>
     <string name="desc_from_generation_screen">L’app les remplit lors de la génération.</string>
     <plurals name="label_node_changed_count">

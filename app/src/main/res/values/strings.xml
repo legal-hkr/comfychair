@@ -505,6 +505,10 @@
     <string name="button_reset_node">Reset node</string>
     <string name="label_value_changed">Changed – default %1$s</string>
     <string name="content_description_reset_value">Reset %1$s to %2$s</string>
+    <string name="title_node_values_linked">Linked</string>
+    <string name="desc_node_values_linked">Their values come from other nodes.</string>
+    <string name="label_node_values_linked_from">From %1$s in %2$s</string>
+    <string name="content_description_open_node">Open %1$s</string>
     <string name="title_from_generation_screen">From the generation screen</string>
     <string name="desc_from_generation_screen">The app fills these in when generating.</string>
     <plurals name="label_node_changed_count">

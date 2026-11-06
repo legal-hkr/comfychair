@@ -20,25 +20,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -54,11 +58,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.SamplerOptions
+import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.ExpandableTooltip
 import sh.hnet.comfychair.ui.components.shared.HierarchicalTreeItems
 import sh.hnet.comfychair.ui.components.shared.ModelPathText
@@ -67,7 +74,6 @@ import sh.hnet.comfychair.ui.components.shared.TooltipLabel
 import sh.hnet.comfychair.ui.components.shared.buildModelTree
 import sh.hnet.comfychair.ui.components.shared.folderPathOf
 import sh.hnet.comfychair.ui.components.shared.modelTreeHasFolders
-import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.DebugLogger
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
@@ -105,7 +111,9 @@ fun NodeValuesSheetContent(
     onEditChange: (inputName: String, value: Any) -> Unit,
     onResetToDefault: (inputName: String) -> Unit,
     onResetNode: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    linkedValues: List<LinkedValue> = emptyList(),
+    onOpenNode: (nodeId: String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val editableInputs = remember(node, nodeDefinition, currentEdits) {
@@ -141,7 +149,7 @@ fun NodeValuesSheetContent(
                 }
             }
         }
-        if (editableInputs.isEmpty() && linked.isEmpty()) {
+        if (editableInputs.isEmpty() && linked.isEmpty() && linkedValues.isEmpty()) {
             item(key = "empty") {
                 Text(
                     text = stringResource(R.string.node_editor_no_editable_inputs),
@@ -158,8 +166,52 @@ fun NodeValuesSheetContent(
                 context = context
             )
         }
+        // Values that come from other nodes, before those the generation screen fills (spec §17.5)
+        if (linkedValues.isNotEmpty()) {
+            item(key = "linked_values") { LinkedValues(linkedValues, onOpenNode) }
+        }
         if (linked.isNotEmpty()) {
             item(key = "linked") { LinkedInputs(linked) }
+        }
+    }
+}
+
+/** A node's value input that is linked to another node: where its value comes from. */
+@Immutable
+data class LinkedValue(val inputName: String, val sourceNodeId: String, val sourceTitle: String, val sourceOutput: String)
+
+/**
+ * The node's value inputs that take their value from other nodes: each opens its source node, whose value can be
+ * changed there. Disconnecting belongs to Edit structure (the socket's menu); Node values never changes the structure.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LinkedValues(values: List<LinkedValue>, onOpenNode: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            stringResource(R.string.title_node_values_linked),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        Text(
+            stringResource(R.string.desc_node_values_linked),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        values.forEachIndexed { index, value ->
+            val open = stringResource(R.string.content_description_open_node, value.sourceTitle)
+            SegmentedListItem(
+                onClick = { onOpenNode(value.sourceNodeId) },
+                shapes = groupShapes(index, values.size),
+                colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                supportingContent = { Text(stringResource(R.string.label_node_values_linked_from, value.sourceOutput, value.sourceTitle)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null) },
+                modifier = Modifier.semantics { onClick(label = open) { onOpenNode(value.sourceNodeId); true } }
+            ) {
+                Text(value.inputName)
+            }
         }
     }
 }
@@ -181,14 +233,30 @@ private fun LinkedInputs(inputs: List<Pair<String, String>>) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
+        // Not buttons: segments of the group, as the information rows in Settings
         inputs.forEachIndexed { index, (name, value) ->
-            ListItem(
-                headlineContent = { Text(name) },
-                supportingContent = { Text(appFieldLabel(context, value)) },
-                trailingContent = { Icon(Icons.Rounded.Link, contentDescription = null) },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                modifier = Modifier.clip(segmentedItemShape(index, inputs.size))
-            )
+            Surface(
+                shape = groupShapes(index, inputs.size).shape,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {}
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(name, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            appFieldLabel(context, value),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.Rounded.Link, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }
@@ -252,9 +320,10 @@ private fun InputEditor(
             type == "INT" -> IntEditor(
                 label = input.name,
                 value = input.currentValue?.toString() ?: "",
-                min = definition?.min?.toInt(),
-                max = definition?.max?.toInt(),
-                step = definition?.step?.toInt(),
+                // As Long: ComfyUI's INT bounds can be 64-bit (PrimitiveInt: ±9223372036854775807)
+                min = definition?.min?.toLong(),
+                max = definition?.max?.toLong(),
+                step = definition?.step?.toLong(),
                 tooltip = definition?.tooltip,
                 onValueChange = { onValueChange(it) },
                 context = context
@@ -262,9 +331,9 @@ private fun InputEditor(
             type == "FLOAT" -> FloatEditor(
                 label = input.name,
                 value = input.currentValue?.toString() ?: "",
-                min = definition?.min?.toFloat(),
-                max = definition?.max?.toFloat(),
-                step = definition?.step?.toFloat(),
+                min = definition?.min?.toDouble(),
+                max = definition?.max?.toDouble(),
+                step = definition?.step?.toDouble(),
                 tooltip = definition?.tooltip,
                 onValueChange = { onValueChange(it) },
                 context = context
@@ -455,15 +524,15 @@ private fun BooleanEditor(
 private fun IntEditor(
     label: String,
     value: String,
-    min: Int?,
-    max: Int?,
-    step: Int?,
+    min: Long?,
+    max: Long?,
+    step: Long?,
     tooltip: String?,
-    onValueChange: (Int) -> Unit,
+    onValueChange: (Number) -> Unit,
     context: android.content.Context
 ) {
     var textValue by remember(value) { mutableStateOf(value) }
-    val error = ValidationUtils.validateInt(textValue, context, min, max)
+    val error = ValidationUtils.validateWholeNumber(textValue, context, min, max)
 
     // Construct range hint
     val hint = when {
@@ -477,12 +546,13 @@ private fun IntEditor(
         value = textValue,
         onValueChange = { newValue ->
             textValue = newValue
-            newValue.toIntOrNull()?.let { onValueChange(it) }
+            // An Int where it fits, as the workflow's own values; a Long beyond that
+            newValue.toLongOrNull()?.let { v -> onValueChange(if (v in Int.MIN_VALUE..Int.MAX_VALUE) v.toInt() else v) }
         },
         label = label,
-        min = (min ?: Int.MIN_VALUE).toFloat(),
-        max = (max ?: Int.MAX_VALUE).toFloat(),
-        step = (step ?: 1).toFloat(),
+        min = min,
+        max = max,
+        step = step ?: 1L,
         decimalPlaces = 0,
         error = error,
         hint = hint,
@@ -498,15 +568,15 @@ private fun IntEditor(
 private fun FloatEditor(
     label: String,
     value: String,
-    min: Float?,
-    max: Float?,
-    step: Float?,
+    min: Double?,
+    max: Double?,
+    step: Double?,
     tooltip: String?,
     onValueChange: (Float) -> Unit,
     context: android.content.Context
 ) {
     var textValue by remember(value) { mutableStateOf(value) }
-    val error = ValidationUtils.validateFloat(textValue, context, min, max)
+    val error = ValidationUtils.validateFloat(textValue, context, min?.toFloat(), max?.toFloat())
 
     // Construct range hint
     val hint = when {
@@ -523,9 +593,10 @@ private fun FloatEditor(
             newValue.toFloatOrNull()?.let { onValueChange(it) }
         },
         label = label,
-        min = min ?: Float.MIN_VALUE,
-        max = max ?: Float.MAX_VALUE,
-        step = step ?: 0.1f,
+        // No bound means none (Float.MIN_VALUE was the smallest positive number, so values couldn't go below 0)
+        min = min,
+        max = max,
+        step = step ?: 0.1,
         decimalPlaces = 2,
         error = error,
         hint = hint,

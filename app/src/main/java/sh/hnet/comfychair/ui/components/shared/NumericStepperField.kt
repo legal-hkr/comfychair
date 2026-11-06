@@ -36,8 +36,8 @@ import sh.hnet.comfychair.util.StepperMath
  * @param value The current value as a string
  * @param onValueChange Callback when the value changes
  * @param label The field label
- * @param min Minimum allowed value
- * @param max Maximum allowed value
+ * @param min Minimum allowed value, null for none (any number type: ComfyUI's INT bounds need a Long)
+ * @param max Maximum allowed value, null for none
  * @param step Step size for increment/decrement
  * @param decimalPlaces Number of decimal places (0 for integers)
  * @param error Error message to display, or null
@@ -51,9 +51,9 @@ fun NumericStepperField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    min: Float,
-    max: Float,
-    step: Float,
+    min: Number?,
+    max: Number?,
+    step: Number,
     decimalPlaces: Int = 0,
     error: String? = null,
     hint: String? = null,
@@ -64,10 +64,10 @@ fun NumericStepperField(
     // From a value that isn't allowed (off the step grid or out of range), − and + go to the nearest allowed value
     // below or above it, not one step from it
     val currentValue = value.trim().toBigDecimalOrNull()
-    // The bounds as written (0.01, not the nearest binary float to it)
-    val minValue = min.toString().toBigDecimal()
-    val maxValue = max.toString().toBigDecimal()
-    val stepValue = step.toString().toBigDecimal()
+    // The bounds as written (0.01, not the nearest binary float to it); an infinite one is no bound
+    val minValue = min?.toString()?.toBigDecimalOrNull()
+    val maxValue = max?.toString()?.toBigDecimalOrNull()
+    val stepValue = step.toString().toBigDecimalOrNull() ?: BigDecimal.ONE
     val decremented = currentValue?.let { StepperMath.decrement(it, minValue, maxValue, stepValue) }
     val incremented = currentValue?.let { StepperMath.increment(it, minValue, maxValue, stepValue) }
     val canDecrement = enabled && decremented != null
