@@ -6,7 +6,8 @@ import org.json.JSONObject
 /**
  * One file produced by a generation job, as listed in the job's /history outputs.
  *
- * @param type "output" for saved files, "temp" for preview files (PreviewImage and similar)
+ * @param type "output" for saved files, "temp" for preview files (PreviewImage and similar);
+ *        "input" files (sources reported by loaders) are never listed
  * @param durationMs Video duration if the server reported it (SaveVideo metadata), otherwise null
  */
 data class GenerationOutput(
@@ -57,6 +58,8 @@ object GenerationOutputs {
                     if (filename.isEmpty()) continue
                     val subfolder = file.optString("subfolder", "")
                     val type = file.optString("type", "output")
+                    // Loaders such as LoadVideo report the source file they read; it is not a result
+                    if (type == "input") continue
                     if (!seen.add(Triple(filename, subfolder, type))) continue
 
                     // SaveVideo reports its files in "images", marked with metadata.kind = "video",
