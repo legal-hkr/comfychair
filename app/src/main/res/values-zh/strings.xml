@@ -852,4 +852,48 @@
 
     <!-- Metadata actions -->
     <string name="metadata_save_prompt">保存提示词到库</string>
+    <!-- Server gallery (Input/Output browsing) -->
+    <string name="server_image_target">原图 %1$d</string>
+    <string name="server_image_input_scope">LoadImage 提供的 Input 图片（通常仅根目录文件）。</string>
+    <string name="server_image_output_scope">Output 执行历史，最新在前；向下滚动加载更早记录，并非整个输出目录。</string>
+    <string name="server_image_loading">正在加载图片…</string>
+    <string name="server_image_empty">此来源暂无可用图片。</string>
+    <string name="server_image_error">加载失败 · 检查连接或图片限制</string>
+    <string name="server_image_refresh">刷新 / 重试</string>
+    <string name="server_image_more_error">追加失败 · 列表已保留</string>
+    <string name="server_image_retry_more">重试</string>
+    <string name="server_image_end">已加载全部可用图片</string>
+    <string name="server_image_preview_retry">预览失败 · 点击重试</string>
+    <string name="server_assets_search">搜索名称</string>
+    <string name="server_assets_count">%1$d 张图片 · %2$d 个资产</string>
+    <string name="server_assets_scope">资产索引不是实时文件夹列表；仅显示已验证 Input/Output 来源的图片。</string>
+    <string name="server_assets_more">加载更多</string>
+    <string name="server_assets_newest">最新优先</string>
+    <string name="server_assets_oldest">最旧优先</string>
+    <string name="server_assets_name">名称升序</string>
+    <string name="server_assets_size">最大优先</string>
+    <string name="server_image_legacy_count">%1$d 张图片 · 旧版来源</string>
+    <string name="server_image_info">来源范围与图片限制</string>
+    <string name="server_image_limits">列表及缩略图私有缓存24小时，列表后台刷新。原图上限 32 MiB / 1600 万像素。下载进度不定，期间暂停其他预览请求。资产总数包含非图片。失败时请检查连接和权限后重试。</string>
+    <string name="server_assets_sort">排序：%1$s</string>
+    <string name="server_gallery_title">服务器图库</string>
+
+    <!-- Server image cache settings -->
+    <string name="image_cache_title">服务器图片缓存</string>
+    <string name="image_cache_scope">仅清理本地 Input/Output 列表、缩略图与上传记录；不删除素材、工作流、已选图片或服务器文件。</string>
+    <string name="image_cache_auto">自动清理</string>
+    <string name="image_cache_mb">最大容量（MB，1–1024）</string>
+    <string name="image_cache_days">最多保留天数（1–365）</string>
+    <string name="image_cache_rules">开启后：超过保留天数即清理，或容量超限时按创建时间从最老开始清理。在访问缓存和保存设置时执行。1 MB = 1024² 字节。关闭后不按天数/容量配置清理，仍保留 1024 MB / 8192 条安全上限。有效期检查仍为列表/缩略图 24 小时。</string>
+    <string name="image_cache_validation">请输入整数：容量 1–1024 MB，天数 1–365。</string>
+    <string name="image_cache_apply">保存并应用限制</string>
+    <string name="image_cache_clear">清理服务器图片缓存</string>
+    <string name="image_cache_saved">已保存并应用到当前缓存。</string>
+    <string name="image_cache_cleared">缓存已清理，重新打开选图面板即可刷新。</string>
+    <string name="image_cache_error">缓存操作失败，请重试。</string>
+    <string name="image_cache_size">当前缓存大小：%1$s（%2$d 字节）</string>
+    <string name="image_cache_count">缓存数量：%1$d 条有效缓存</string>
+    <string name="image_cache_stats_loading">正在读取缓存统计…</string>
+    <string name="image_cache_stats_error">读取缓存统计失败，请刷新重试。</string>
+    <string name="image_cache_stats_refresh">刷新缓存统计</string>
 </resources>

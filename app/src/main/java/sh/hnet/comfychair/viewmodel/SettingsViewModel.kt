@@ -135,6 +135,12 @@ class SettingsViewModel : ViewModel() {
     private val _isPromptSpellCheckEnabled = MutableStateFlow(false)
     val isPromptSpellCheckEnabled: StateFlow<Boolean> = _isPromptSpellCheckEnabled.asStateFlow()
 
+    /** Retention/size limits of the private server image cache (lists, thumbnails, upload descriptors). */
+    private val _imageCachePolicy = MutableStateFlow(sh.hnet.comfychair.cache.ImageCachePolicy())
+    val imageCachePolicy: StateFlow<sh.hnet.comfychair.cache.ImageCachePolicy> = _imageCachePolicy.asStateFlow()
+    private val _imageCacheStats = MutableStateFlow<sh.hnet.comfychair.cache.PrivateImageDiskCache.Stats?>(null)
+    val imageCacheStats: StateFlow<sh.hnet.comfychair.cache.PrivateImageDiskCache.Stats?> = _imageCacheStats.asStateFlow()
+
 
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
@@ -152,6 +158,7 @@ class SettingsViewModel : ViewModel() {
         _isOfflineMode.value = AppSettings.isOfflineMode(context)
         _edgeRouterId.value = AppSettings.getEdgeRouterId(context)
         _isPromptSpellCheckEnabled.value = AppSettings.isPromptSpellCheckEnabled(context)
+        _imageCachePolicy.value = AppSettings.getImageCachePolicy(context)
 
         // Initialize debug logger with saved state
         DebugLogger.setEnabled(_isDebugLoggingEnabled.value)
@@ -367,9 +374,47 @@ class SettingsViewModel : ViewModel() {
             // Clear in-memory media caches
             MediaCache.clearAll()
             MediaStateHolder.clearAll()
+            sh.hnet.comfychair.cache.PersistentImageCache.clear(context)
 
             _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.msg_cache_cleared_success))
             _events.emit(SettingsEvent.MediaCleared)
+        }
+    }
+
+    /** Apply new server image cache limits (saved to AppSettings and enforced immediately). */
+    fun setImageCachePolicy(context: Context, policy: sh.hnet.comfychair.cache.ImageCachePolicy) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { sh.hnet.comfychair.cache.PersistentImageCache.apply(context, policy) }
+                _imageCachePolicy.value = policy
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_saved))
+            } catch (e: Exception) {
+                DebugLogger.w(TAG, "Image cache policy failed: ${e.message}")
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_error))
+            }
+        }
+    }
+
+    /** Read cache statistics on demand (valid entries only). */
+    fun refreshImageCacheStats(context: Context) {
+        viewModelScope.launch {
+            _imageCacheStats.value = withContext(Dispatchers.IO) {
+                runCatching { sh.hnet.comfychair.cache.PersistentImageCache.storage(context).stats() }.getOrNull()
+            }
+        }
+    }
+
+    /** Clear only the server image cache (lists, thumbnails, descriptors); media state stays. */
+    fun clearImageCache(context: Context) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { sh.hnet.comfychair.cache.PersistentImageCache.clear(context) }
+                _imageCacheStats.value = null
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_cleared))
+            } catch (e: Exception) {
+                DebugLogger.w(TAG, "Image cache clear failed: ${e.message}")
+                _events.emit(SettingsEvent.ShowToast(sh.hnet.comfychair.R.string.image_cache_error))
+            }
         }
     }
 
