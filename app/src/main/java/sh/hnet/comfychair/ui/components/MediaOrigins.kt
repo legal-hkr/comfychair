@@ -1,10 +1,10 @@
 package sh.hnet.comfychair.ui.components
 
-import androidx.compose.runtime.rememberUpdatedState
 import android.graphics.Bitmap
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -26,13 +27,12 @@ import androidx.compose.ui.unit.toSize
  *
  * @param bounds Full bounds in root coordinates, also the parts scrolled out of view
  * @param visible Whether any of it is on screen; a hidden origin gets a fade instead of a flight
- * @param fit The medium is fitted inside [bounds] (preview); otherwise it fills them, cropped (tile)
  * @param still The image the origin shows, to fly when the viewer has none at hand yet
+ *
+ * Every origin fills its bounds with the medium, cropped (gallery tiles, the generation screens' previews), so the
+ * flight starts and lands on exactly what the screen shows.
  */
-class MediaOrigin(val bounds: Rect, val visible: Boolean, val fit: Boolean, val cornerPx: Float, val still: Bitmap?) {
-    /** Where the medium itself is drawn, for an image of [aspect] (width / height). */
-    fun mediaRect(aspect: Float): Rect = if (fit) bounds.fitted(aspect) else bounds
-}
+class MediaOrigin(val bounds: Rect, val visible: Boolean, val cornerPx: Float, val still: Bitmap?)
 
 /** The origins on screen by key, and the one hidden while its medium is in the viewer. */
 class MediaOrigins {
@@ -57,20 +57,19 @@ val LocalMediaOrigins = staticCompositionLocalOf { MediaOrigins() }
 
 /**
  * Marks this element as the origin of the medium with [key] for the viewer's flight, and hides it while the medium
- * is in the viewer.
+ * is in the viewer. The element must show the medium filling it, cropped ([ContentScale.Crop]).
  *
- * @param fit Whether the medium is fitted inside (preview) rather than cropped to fill (tile)
  * @param corner Corner radius of the element
  * @param still The image shown there, if the element holds it (a tile keeps its bitmap after the shared cache drops it)
  */
-fun Modifier.mediaOrigin(key: String?, fit: Boolean, corner: Dp, still: Bitmap? = null): Modifier = if (key == null) this else composed {
+fun Modifier.mediaOrigin(key: String?, corner: Dp, still: Bitmap? = null): Modifier = if (key == null) this else composed {
     val currentStill by rememberUpdatedState(still)
     val origins = LocalMediaOrigins.current
     val cornerPx = with(LocalDensity.current) { corner.toPx() }
     DisposableEffect(origins, key) { onDispose { origins.remove(key) } }
     onGloballyPositioned { coordinates ->
         val bounds = Rect(coordinates.positionInRoot(), coordinates.size.toSize())
-        origins.put(key, MediaOrigin(bounds, !coordinates.boundsInRoot().isEmpty, fit, cornerPx, currentStill))
+        origins.put(key, MediaOrigin(bounds, !coordinates.boundsInRoot().isEmpty, cornerPx, currentStill))
     }.graphicsLayer { alpha = if (origins.hiddenKey == key) 0f else 1f }
 }
 

@@ -108,7 +108,7 @@ fun TextToImageScreen(
                     .fillMaxSize()
                     .heightIn(min = 150.dp)
                     // The viewer flies the image out of the preview and back
-                    .mediaOrigin(PREVIEW_ORIGIN, fit = true, corner = 28.dp)
+                    .mediaOrigin(PREVIEW_ORIGIN, corner = 28.dp)
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(enabled = uiState.previewBitmap != null && !isThisScreenExecuting && !showResults) {
                         // Launch MediaViewer for single image

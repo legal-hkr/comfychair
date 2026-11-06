@@ -198,7 +198,6 @@ fun ImageToImageScreen(
                     // The viewer flies the image shown (result or source) out of the preview and back
                     .mediaOrigin(
                         if (uiState.viewMode == ImageToImageViewMode.PREVIEW) RESULT_ORIGIN else SOURCE_ORIGIN,
-                        fit = true,
                         corner = 28.dp
                     )
                     .background(MaterialTheme.colorScheme.surfaceContainer)

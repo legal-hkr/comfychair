@@ -164,7 +164,6 @@ fun ImageToVideoScreen(
                     // The viewer flies the source image out of the preview and back (a video has no still to fly)
                     .mediaOrigin(
                         SOURCE_ORIGIN.takeIf { uiState.viewMode == ImageToVideoViewMode.SOURCE },
-                        fit = true,
                         corner = 28.dp
                     )
                     .background(MaterialTheme.colorScheme.surfaceContainer)

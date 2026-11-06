@@ -70,6 +70,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -224,8 +225,9 @@ private fun Hero(
                     )
                 }
                 .clickable(onClickLabel = openLabel) { onOpenViewer(page) }
-                // The viewer flies the result out of the preview and back (fitted, in the rounded preview)
-                .mediaOrigin(mediaOriginKey(output.promptId, output.filename), fit = true, corner = 28.dp)
+                // The viewer flies the result out of the preview and back; an image page marks itself, with the image it
+                // shows (ResultHeroImage), a video page here
+                .mediaOrigin(mediaOriginKey(output.promptId, output.filename).takeIf { output.isVideo }, corner = 28.dp)
         ) {
             // Only the settled page counts as current, so a single player is swapped, not duplicated
             hero(output, page == pagerState.settledPage)
@@ -408,7 +410,18 @@ fun ResultHeroImage(output: GenerationOutput, preloaded: Bitmap? = null) {
         }
     }
     val shown = image ?: ResultThumbnails.get(output)
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            // The origin of the viewer's flight, with the image shown here: the viewer may not have it at hand
+            // (a video's first frame shown here leaves the origin to its page)
+            .mediaOrigin(
+                mediaOriginKey(output.promptId, output.filename).takeIf { !output.isVideo },
+                corner = 28.dp,
+                still = shown?.asAndroidBitmap()
+            ),
+        contentAlignment = Alignment.Center
+    ) {
         if (shown != null) {
             Image(bitmap = shown, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {

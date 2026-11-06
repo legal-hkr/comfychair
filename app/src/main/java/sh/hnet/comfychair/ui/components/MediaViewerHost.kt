@@ -163,7 +163,7 @@ fun MediaViewerOverlay(
             val aspect = still.width.toFloat() / still.height
             val out = MediaFlight(
                 image = still.asImageBitmap(),
-                from = origin.mediaRect(aspect),
+                from = origin.bounds,
                 to = Rect(Offset.Zero, size.toSize()).fitted(aspect),
                 fromCornerPx = origin.cornerPx,
                 toCornerPx = 0f,
@@ -200,7 +200,7 @@ fun MediaViewerOverlay(
         val back = MediaFlight(
             image = still.asImageBitmap(),
             from = screen.fitted(aspect).transformed(screen.center, from.scale, from.offsetY),
-            to = origin.mediaRect(aspect),
+            to = origin.bounds,
             fromCornerPx = from.cornerPx,
             toCornerPx = origin.cornerPx,
             fromBackdrop = from.backdropAlpha,

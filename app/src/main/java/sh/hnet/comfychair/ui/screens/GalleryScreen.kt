@@ -497,7 +497,7 @@ private fun GalleryTile(
             .fillMaxWidth()
             .aspectRatio(1f)
             // The viewer flies the medium out of the tile and back
-            .mediaOrigin(mediaOriginKey(item.promptId, item.filename), fit = false, corner = 6.dp, still = bitmap)
+            .mediaOrigin(mediaOriginKey(item.promptId, item.filename), corner = 6.dp, still = bitmap)
             .clip(RoundedCornerShape(outerCorner.coerceAtLeast(0.dp)))
             .background(if (marked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
             .combinedClickable(onClick = onTap, onLongClick = onLongPress)
