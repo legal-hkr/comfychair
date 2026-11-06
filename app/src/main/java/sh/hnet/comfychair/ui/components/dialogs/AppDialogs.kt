@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -58,11 +61,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -483,42 +488,17 @@ fun FullScreenFormDialog(
         onDismissRequest = { if (!busy) close() },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
-        Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize().semantics { paneTitle = title }) {
-            // Safe drawing includes the keyboard, so the button stays above it
-            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
-                ) {
-                    IconButton(onClick = close, enabled = !busy) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.content_description_close))
-                    }
-                    Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
-                }
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(22.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    content = content
-                )
-                Button(
-                    onClick = onConfirm,
-                    enabled = confirmEnabled && !busy,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .height(56.dp)
-                ) {
-                    if (busy) LoadingIndicator(color = LocalContentColor.current, modifier = Modifier.size(24.dp))
-                    else Text(confirmLabel)
-                }
-            }
-        }
+        FormPage(
+            title = title,
+            navigationIcon = Icons.Rounded.Close,
+            navigationLabel = stringResource(R.string.content_description_close),
+            onNavigate = close,
+            confirmLabel = confirmLabel,
+            onConfirm = onConfirm,
+            confirmEnabled = confirmEnabled,
+            busy = busy,
+            content = content
+        )
     }
     if (confirmDiscard) {
         ConfirmDialog(
@@ -533,3 +513,83 @@ fun FullScreenFormDialog(
         )
     }
 }
+
+
+/**
+ * A full page with one task: a top bar (navigation and title; none when [title] is null), content that scrolls and one
+ * full-width filled button at the bottom, which rides on the keyboard. The full-screen form dialogs and the welcome
+ * wizard's pages are built on it.
+ *
+ * @param busy The button shows a loading indicator and the navigation is disabled (e.g. while saving)
+ * @param confirmIcon Shown before the button's label
+ * @param contentSpacing Space between the content's items (form fields need room for their floating labels)
+ */
+@Composable
+fun FormPage(
+    title: String?,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    navigationIcon: ImageVector? = null,
+    navigationLabel: String? = null,
+    onNavigate: () -> Unit = {},
+    confirmEnabled: Boolean = true,
+    busy: Boolean = false,
+    confirmIcon: ImageVector? = null,
+    contentSpacing: Dp = 22.dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize().semantics { title?.let { paneTitle = it } }) {
+        // Safe drawing includes the keyboard, so the button stays above it
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            if (title != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+                ) {
+                    if (navigationIcon != null) {
+                        IconButton(onClick = onNavigate, enabled = !busy) {
+                            Icon(navigationIcon, contentDescription = navigationLabel)
+                        }
+                    }
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .semantics { heading() }
+                    )
+                }
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(contentSpacing),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                content = content
+            )
+            Button(
+                onClick = onConfirm,
+                enabled = confirmEnabled && !busy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(56.dp)
+            ) {
+                if (busy) {
+                    LoadingIndicator(color = LocalContentColor.current, modifier = Modifier.size(24.dp))
+                } else {
+                    if (confirmIcon != null) {
+                        Icon(confirmIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    }
+                    Text(confirmLabel)
+                }
+            }
+        }
+    }
+}
+

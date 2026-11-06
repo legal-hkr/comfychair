@@ -971,4 +971,17 @@
     <string name="whats_new_badge">Nowe</string>
     <string name="whats_new_all_releases">Wszystkie wydania</string>
     <string name="whats_new_on_github">Na GitHubie</string>
+
+    <!-- Welcome wizard (first run) -->
+    <string name="title_welcome">Witaj w ComfyChair</string>
+    <string name="label_welcome_intro">Mobilny klient Twojego własnego serwera ComfyUI. Wygenerowane obrazy i filmy trzymane są tylko w pamięci telefonu, chyba że zdecydujesz inaczej.</string>
+    <string name="label_welcome_question">Co chcesz zrobić?</string>
+    <string name="label_welcome_add_server">Dodaj serwer</string>
+    <string name="desc_welcome_add_server">Połącz się z serwerem ComfyUI</string>
+    <string name="label_welcome_restore">Przywróć kopię zapasową</string>
+    <string name="desc_welcome_restore">Odzyskaj serwery, przepływy pracy i ustawienia</string>
+    <string name="button_next">Dalej</string>
+    <string name="title_welcome_add_server">Dodaj serwer</string>
+    <string name="title_welcome_restore">Przywróć kopię zapasową</string>
+    <string name="button_backup_choose_file">Wybierz plik kopii</string>
 </resources>

@@ -198,13 +198,17 @@ private fun rowColors(highlightSelected: Boolean = false): ListItemColors {
     )
 }
 
-/** The row keeps its place's shape when selected (checked), so the group stays one block. */
+/**
+ * The row keeps its place's shape when selected (checked) or focused, so the group stays one block; only a press
+ * morphs it. Focus lands on a row without the user aiming at it (coming back to a page), and the library's focused
+ * shape would leave one rounded row among square-cornered ones.
+ */
 @Composable
 private fun steadyShapes(shapes: ListItemShapes): ListItemShapes = ListItemDefaults.shapes(
     shape = shapes.shape,
     selectedShape = shapes.shape,
     pressedShape = shapes.pressedShape,
-    focusedShape = shapes.focusedShape,
+    focusedShape = shapes.shape,
     hoveredShape = shapes.hoveredShape,
     draggedShape = shapes.draggedShape
 )

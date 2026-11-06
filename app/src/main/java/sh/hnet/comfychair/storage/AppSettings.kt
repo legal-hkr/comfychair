@@ -24,6 +24,10 @@ object AppSettings {
     private const val DEFAULT_EDGE_ROUTER = "hermite"
     private const val KEY_PROMPT_SPELL_CHECK = "prompt_spell_check"
 
+    /** Whether any app setting was ever stored (a fresh install, or one whose data was cleared, has none). */
+    fun hasAnyValue(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).all.isNotEmpty()
+
     /**
      * Check if live preview is enabled.
      * When enabled (default), intermediate preview images are shown during generation.

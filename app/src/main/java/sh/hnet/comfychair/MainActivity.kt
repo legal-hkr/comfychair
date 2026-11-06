@@ -14,7 +14,11 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,7 +30,9 @@ import sh.hnet.comfychair.cache.InMemoryVideo
 import sh.hnet.comfychair.storage.PreferencesMaintenance
 import sh.hnet.comfychair.ui.components.ErrorSnackbars
 import sh.hnet.comfychair.ui.components.WhatsNew
+import sh.hnet.comfychair.ui.screens.FirstRun
 import sh.hnet.comfychair.ui.screens.LoginScreen
+import sh.hnet.comfychair.ui.screens.WelcomeWizard
 import sh.hnet.comfychair.ui.theme.ComfyChairTheme
 
 /**
@@ -53,8 +59,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ComfyChairTheme {
+                // A start with no configuration at all goes through the welcome wizard first
+                var showWizard by rememberSaveable { mutableStateOf(FirstRun.isNeeded(applicationContext)) }
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    LoginScreen()
+                    if (showWizard) WelcomeWizard(onFinished = { showWizard = false }) else LoginScreen()
                 }
                 // The login screen's errors, above the keyboard and the navigation bar
                 val snackbarHostState = remember { SnackbarHostState() }

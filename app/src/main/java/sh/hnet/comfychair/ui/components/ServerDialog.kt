@@ -1,13 +1,15 @@
 package sh.hnet.comfychair.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +33,211 @@ import sh.hnet.comfychair.ui.components.dialogs.DialogTextField
 import sh.hnet.comfychair.ui.components.dialogs.FullScreenFormDialog
 
 /**
- * Dialog for adding or editing a server configuration.
+ * The state of a server form: its fields, their errors, validation and the credentials it builds. Kept by whoever
+ * hosts the form, so a page can be left and come back to (the welcome wizard) or a dialog asks before discarding edits.
+ *
+ * @param server The server to edit, or null for adding a new one
+ * @param existingCredentials The server's stored credentials (when editing)
+ */
+@Stable
+class ServerFormState(private val server: Server?, existingCredentials: AuthCredentials) {
+    val isEditMode: Boolean = server != null
+
+    var name by mutableStateOf(server?.name ?: "")
+    var hostname by mutableStateOf(server?.hostname ?: "")
+    var port by mutableStateOf(server?.port?.toString() ?: "8188")
+    var authType by mutableStateOf(server?.authType ?: AuthType.NONE)
+    var username by mutableStateOf((existingCredentials as? AuthCredentials.Basic)?.username ?: "")
+    // Secure fields: no keyboard suggestions or learning, no copy or cut
+    val passwordState = TextFieldState((existingCredentials as? AuthCredentials.Basic)?.password ?: "")
+    val tokenState = TextFieldState((existingCredentials as? AuthCredentials.Bearer)?.token ?: "")
+
+    var nameError by mutableStateOf<String?>(null)
+    var hostnameError by mutableStateOf<String?>(null)
+    var portError by mutableStateOf<String?>(null)
+    var usernameError by mutableStateOf<String?>(null)
+    var passwordError by mutableStateOf<String?>(null)
+    var tokenError by mutableStateOf<String?>(null)
+
+    // What was there when the form opened, to ask before throwing edits away
+    private val initial = listOf(name, hostname, port, authType, username)
+    private val initialPassword = passwordState.text.toString()
+    private val initialToken = tokenState.text.toString()
+    val hasChanges: Boolean
+        get() = listOf(name, hostname, port, authType, username) != initial ||
+            passwordState.text.toString() != initialPassword || tokenState.text.toString() != initialToken
+
+    /** Validates every field, showing the errors; true when the server can be saved. */
+    fun validate(messages: ServerFormMessages, isNameTaken: (name: String, excludeServerId: String?) -> Boolean): Boolean {
+        nameError = null
+        hostnameError = null
+        portError = null
+        usernameError = null
+        passwordError = null
+        tokenError = null
+        val trimmedName = name.trim()
+        val trimmedHostname = hostname.trim()
+        val trimmedPort = port.trim()
+        nameError = when {
+            trimmedName.isEmpty() -> messages.required
+            isNameTaken(trimmedName, server?.id) -> messages.nameTaken
+            else -> null
+        }
+        hostnameError = when {
+            trimmedHostname.isEmpty() -> messages.required
+            !isValidHostname(trimmedHostname) -> messages.invalidHostname
+            else -> null
+        }
+        portError = when {
+            trimmedPort.isEmpty() -> messages.required
+            trimmedPort.toIntOrNull()?.let { it in 1..65535 } != true -> messages.invalidPort
+            else -> null
+        }
+        when (authType) {
+            AuthType.BASIC -> {
+                if (username.trim().isEmpty()) usernameError = messages.required
+                if (passwordState.text.isEmpty()) passwordError = messages.required
+            }
+            AuthType.BEARER -> if (tokenState.text.isBlank()) tokenError = messages.required
+            AuthType.NONE, AuthType.BROWSER -> Unit
+        }
+        return listOf(nameError, hostnameError, portError, usernameError, passwordError, tokenError).all { it == null }
+    }
+
+    /** The credentials of the chosen authentication (browser cookies are captured when connecting). */
+    fun buildCredentials(): AuthCredentials = when (authType) {
+        AuthType.NONE -> AuthCredentials.None
+        AuthType.BASIC -> AuthCredentials.Basic(username.trim(), passwordState.text.toString())
+        AuthType.BEARER -> AuthCredentials.Bearer(tokenState.text.toString().trim())
+        AuthType.BROWSER -> AuthCredentials.None
+    }
+
+    companion object {
+        private val ipAddressPattern =
+            Regex("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
+        private val hostnamePattern =
+            Regex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
+
+        fun isValidHostname(value: String): Boolean = ipAddressPattern.matches(value) || hostnamePattern.matches(value)
+    }
+}
+
+/** The form's validation messages. */
+class ServerFormMessages(val required: String, val invalidHostname: String, val invalidPort: String, val nameTaken: String)
+
+@Composable
+fun rememberServerFormMessages() = ServerFormMessages(
+    required = stringResource(R.string.error_required),
+    invalidHostname = stringResource(R.string.error_invalid_hostname),
+    invalidPort = stringResource(R.string.error_invalid_port),
+    nameTaken = stringResource(R.string.error_server_name_taken)
+)
+
+/**
+ * The server form's fields: name, hostname and port, the authentication and its fields. The same in the server dialog
+ * and the welcome wizard.
+ *
+ * @param focusName Put the cursor in the name field when the form appears
+ */
+@Composable
+fun ColumnScope.ServerFormFields(state: ServerFormState, focusName: Boolean = true) {
+    val messages = rememberServerFormMessages()
+    // Editing a secure field clears its error, as the other fields do in onValueChange
+    LaunchedEffect(state.passwordState) { snapshotFlow { state.passwordState.text.toString() }.drop(1).collect { state.passwordError = null } }
+    LaunchedEffect(state.tokenState) { snapshotFlow { state.tokenState.text.toString() }.drop(1).collect { state.tokenError = null } }
+    val nameFocusRequester = remember { FocusRequester() }
+    if (focusName) LaunchedEffect(Unit) { nameFocusRequester.requestFocus() }
+
+    DialogTextField(
+        value = state.name,
+        onValueChange = {
+            state.name = it
+            state.nameError = null
+        },
+        label = stringResource(R.string.label_server_name),
+        placeholder = stringResource(R.string.placeholder_server_name),
+        error = state.nameError,
+        modifier = Modifier.focusRequester(nameFocusRequester)
+    )
+
+    // Host and port belong together, in one row
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        DialogTextField(
+            value = state.hostname,
+            onValueChange = { newValue ->
+                state.hostname = newValue
+                // Live validation
+                val trimmed = newValue.trim()
+                state.hostnameError = if (trimmed.isNotEmpty() && !ServerFormState.isValidHostname(trimmed)) messages.invalidHostname else null
+            },
+            label = stringResource(R.string.hint_hostname),
+            placeholder = stringResource(R.string.placeholder_server_hostname),
+            error = state.hostnameError,
+            keyboardType = KeyboardType.Uri,
+            modifier = Modifier.weight(2f)
+        )
+        DialogTextField(
+            value = state.port,
+            onValueChange = { newValue ->
+                state.port = newValue
+                val trimmed = newValue.trim()
+                state.portError = if (trimmed.isNotEmpty() && trimmed.toIntOrNull()?.let { it in 1..65535 } != true) messages.invalidPort else null
+            },
+            label = stringResource(R.string.hint_port),
+            error = state.portError,
+            keyboardType = KeyboardType.Number,
+            modifier = Modifier.weight(1f)
+        )
+    }
+
+    // Authentication, by name; its fields follow
+    DialogDropdownField(
+        label = stringResource(R.string.label_auth_type),
+        options = listOf(
+            AuthType.NONE to stringResource(R.string.option_auth_type_none),
+            AuthType.BASIC to stringResource(R.string.option_auth_type_basic),
+            AuthType.BEARER to stringResource(R.string.option_auth_type_bearer),
+            AuthType.BROWSER to stringResource(R.string.option_auth_type_browser)
+        ),
+        selected = state.authType,
+        onSelect = {
+            state.authType = it
+            state.usernameError = null
+            state.passwordError = null
+            state.tokenError = null
+        }
+    )
+
+    val storedEncrypted = stringResource(R.string.label_stored_encrypted)
+    when (state.authType) {
+        AuthType.BASIC -> {
+            DialogTextField(
+                value = state.username,
+                onValueChange = {
+                    state.username = it
+                    state.usernameError = null
+                },
+                label = stringResource(R.string.label_auth_username),
+                error = state.usernameError
+            )
+            DialogSecureField(state.passwordState, stringResource(R.string.label_auth_password), error = state.passwordError, supporting = storedEncrypted)
+        }
+        AuthType.BEARER -> {
+            DialogSecureField(state.tokenState, stringResource(R.string.label_auth_token), error = state.tokenError, supporting = storedEncrypted)
+        }
+        AuthType.BROWSER -> {
+            Text(
+                text = stringResource(R.string.label_auth_browser_info),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        AuthType.NONE -> Unit
+    }
+}
+
+/**
+ * Dialog for adding or editing a server: the server form in a full-screen form dialog.
  *
  * @param server The server to edit, or null for adding a new server
  * @param existingCredentials The existing credentials for the server (when editing)
@@ -48,246 +254,19 @@ fun ServerDialog(
     onDismiss: () -> Unit,
     onSave: (name: String, hostname: String, port: Int, authType: AuthType, credentials: AuthCredentials) -> Unit
 ) {
-    val isEditMode = server != null
-
-    // Form state
-    var name by remember { mutableStateOf(server?.name ?: "") }
-    var hostname by remember { mutableStateOf(server?.hostname ?: "") }
-    var port by remember { mutableStateOf(server?.port?.toString() ?: "8188") }
-
-    // Authentication state
-    var authType by remember { mutableStateOf(server?.authType ?: AuthType.NONE) }
-    var username by remember {
-        mutableStateOf(
-            (existingCredentials as? AuthCredentials.Basic)?.username ?: ""
-        )
-    }
-    // Secure fields: no keyboard suggestions or learning, no copy or cut
-    val passwordState = rememberTextFieldState((existingCredentials as? AuthCredentials.Basic)?.password ?: "")
-    val tokenState = rememberTextFieldState((existingCredentials as? AuthCredentials.Bearer)?.token ?: "")
-
-    // Error states
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var hostnameError by remember { mutableStateOf<String?>(null) }
-    var portError by remember { mutableStateOf<String?>(null) }
-    var usernameError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
-    var tokenError by remember { mutableStateOf<String?>(null) }
-    // Editing a secure field clears its error, as the other fields do in onValueChange
-    LaunchedEffect(passwordState) { snapshotFlow { passwordState.text.toString() }.drop(1).collect { passwordError = null } }
-    LaunchedEffect(tokenState) { snapshotFlow { tokenState.text.toString() }.drop(1).collect { tokenError = null } }
-
-    // Focus requester for name field
-    val nameFocusRequester = remember { FocusRequester() }
-
-    // Regex patterns for validation
-    val ipAddressPattern = remember {
-        Regex("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$")
-    }
-    val hostnamePattern = remember {
-        Regex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$")
-    }
-
-    fun isValidHostname(value: String): Boolean {
-        return ipAddressPattern.matches(value) || hostnamePattern.matches(value)
-    }
-
-    // String resources
-    val errorRequired = stringResource(R.string.error_required)
-    val errorInvalidHostname = stringResource(R.string.error_invalid_hostname)
-    val errorInvalidPort = stringResource(R.string.error_invalid_port)
-    val errorNameTaken = stringResource(R.string.error_server_name_taken)
-
-    // Validation function
-    fun validate(): Boolean {
-        var isValid = true
-        nameError = null
-        hostnameError = null
-        portError = null
-        usernameError = null
-        passwordError = null
-        tokenError = null
-
-        val trimmedName = name.trim()
-        val trimmedHostname = hostname.trim()
-        val trimmedPort = port.trim()
-
-        // Validate name
-        if (trimmedName.isEmpty()) {
-            nameError = errorRequired
-            isValid = false
-        } else if (isNameTaken(trimmedName, server?.id)) {
-            nameError = errorNameTaken
-            isValid = false
-        }
-
-        // Validate hostname
-        if (trimmedHostname.isEmpty()) {
-            hostnameError = errorRequired
-            isValid = false
-        } else if (!isValidHostname(trimmedHostname)) {
-            hostnameError = errorInvalidHostname
-            isValid = false
-        }
-
-        // Validate port
-        if (trimmedPort.isEmpty()) {
-            portError = errorRequired
-            isValid = false
-        } else {
-            val portNum = trimmedPort.toIntOrNull()
-            if (portNum == null || portNum !in 1..65535) {
-                portError = errorInvalidPort
-                isValid = false
-            }
-        }
-
-        // Validate auth credentials
-        when (authType) {
-            AuthType.BASIC -> {
-                if (username.trim().isEmpty()) {
-                    usernameError = errorRequired
-                    isValid = false
-                }
-                if (passwordState.text.isEmpty()) {
-                    passwordError = errorRequired
-                    isValid = false
-                }
-            }
-            AuthType.BEARER -> {
-                if (tokenState.text.isBlank()) {
-                    tokenError = errorRequired
-                    isValid = false
-                }
-            }
-            AuthType.NONE, AuthType.BROWSER -> { /* No credential validation needed */ }
-        }
-
-        return isValid
-    }
-
-    // Build credentials from current state
-    fun buildCredentials(): AuthCredentials {
-        return when (authType) {
-            AuthType.NONE -> AuthCredentials.None
-            AuthType.BASIC -> AuthCredentials.Basic(username.trim(), passwordState.text.toString())
-            AuthType.BEARER -> AuthCredentials.Bearer(tokenState.text.toString().trim())
-            // Browser cookies are captured via BrowserAuthActivity at connection time
-            AuthType.BROWSER -> AuthCredentials.None
-        }
-    }
-
-    // Focus the name field when dialog opens
-    LaunchedEffect(Unit) {
-        nameFocusRequester.requestFocus()
-    }
-
-    // What was there when the form opened, to ask before throwing edits away
-    val initial = remember {
-        listOf(server?.name ?: "", server?.hostname ?: "", server?.port?.toString() ?: "8188", server?.authType ?: AuthType.NONE,
-            (existingCredentials as? AuthCredentials.Basic)?.username ?: "")
-    }
-    val initialPassword = remember { passwordState.text.toString() }
-    val initialToken = remember { tokenState.text.toString() }
-    val hasChanges = listOf(name, hostname, port, authType, username) != initial ||
-        passwordState.text.toString() != initialPassword || tokenState.text.toString() != initialToken
-
+    val state = remember { ServerFormState(server, existingCredentials) }
+    val messages = rememberServerFormMessages()
     FullScreenFormDialog(
-        title = stringResource(if (isEditMode) R.string.title_server_edit else R.string.title_server_add),
+        title = stringResource(if (state.isEditMode) R.string.title_server_edit else R.string.title_server_add),
         confirmLabel = stringResource(R.string.button_save),
-        hasChanges = hasChanges,
+        hasChanges = state.hasChanges,
         onDismiss = onDismiss,
         onConfirm = {
-            if (validate()) {
-                onSave(name.trim(), hostname.trim(), port.trim().toInt(), authType, buildCredentials())
+            if (state.validate(messages, isNameTaken)) {
+                onSave(state.name.trim(), state.hostname.trim(), state.port.trim().toInt(), state.authType, state.buildCredentials())
             }
         }
     ) {
-        DialogTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                nameError = null
-            },
-            label = stringResource(R.string.label_server_name),
-            placeholder = stringResource(R.string.placeholder_server_name),
-            error = nameError,
-            modifier = Modifier.focusRequester(nameFocusRequester)
-        )
-
-        // Host and port belong together, in one row
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-            DialogTextField(
-                value = hostname,
-                onValueChange = { newValue ->
-                    hostname = newValue
-                    // Live validation
-                    val trimmed = newValue.trim()
-                    hostnameError = if (trimmed.isNotEmpty() && !isValidHostname(trimmed)) errorInvalidHostname else null
-                },
-                label = stringResource(R.string.hint_hostname),
-                placeholder = stringResource(R.string.placeholder_server_hostname),
-                error = hostnameError,
-                keyboardType = KeyboardType.Uri,
-                modifier = Modifier.weight(2f)
-            )
-            DialogTextField(
-                value = port,
-                onValueChange = { newValue ->
-                    port = newValue
-                    val trimmed = newValue.trim()
-                    portError = if (trimmed.isNotEmpty() && trimmed.toIntOrNull()?.let { it in 1..65535 } != true) errorInvalidPort else null
-                },
-                label = stringResource(R.string.hint_port),
-                error = portError,
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        // Authentication, by name; its fields follow
-        DialogDropdownField(
-            label = stringResource(R.string.label_auth_type),
-            options = listOf(
-                AuthType.NONE to stringResource(R.string.option_auth_type_none),
-                AuthType.BASIC to stringResource(R.string.option_auth_type_basic),
-                AuthType.BEARER to stringResource(R.string.option_auth_type_bearer),
-                AuthType.BROWSER to stringResource(R.string.option_auth_type_browser)
-            ),
-            selected = authType,
-            onSelect = {
-                authType = it
-                usernameError = null
-                passwordError = null
-                tokenError = null
-            }
-        )
-
-        val storedEncrypted = stringResource(R.string.label_stored_encrypted)
-        when (authType) {
-            AuthType.BASIC -> {
-                DialogTextField(
-                    value = username,
-                    onValueChange = {
-                        username = it
-                        usernameError = null
-                    },
-                    label = stringResource(R.string.label_auth_username),
-                    error = usernameError
-                )
-                DialogSecureField(passwordState, stringResource(R.string.label_auth_password), error = passwordError, supporting = storedEncrypted)
-            }
-            AuthType.BEARER -> {
-                DialogSecureField(tokenState, stringResource(R.string.label_auth_token), error = tokenError, supporting = storedEncrypted)
-            }
-            AuthType.BROWSER -> {
-                Text(
-                    text = stringResource(R.string.label_auth_browser_info),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            AuthType.NONE -> Unit
-        }
+        ServerFormFields(state)
     }
 }

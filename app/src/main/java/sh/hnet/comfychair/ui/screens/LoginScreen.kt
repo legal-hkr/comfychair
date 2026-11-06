@@ -7,7 +7,6 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -48,9 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -58,7 +55,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.BrowserAuthActivity
@@ -77,6 +73,7 @@ import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.CredentialStorage
 import sh.hnet.comfychair.storage.MediaStorageMode
 import sh.hnet.comfychair.storage.ServerStorage
+import sh.hnet.comfychair.ui.components.AppLogo
 import sh.hnet.comfychair.ui.components.CertificateTrustDialog
 import sh.hnet.comfychair.ui.components.ConnectionSplitButton
 import sh.hnet.comfychair.ui.components.InsecureFallbackDialog
@@ -505,22 +502,7 @@ fun LoginScreen() {
                 .verticalScroll(rememberScrollState())
         ) {
             Spacer(Modifier.height(16.dp))
-            // The logo file is the launcher icon's foreground, with the safe zone around the mark: the mark is moved
-            // to start on the title's line, and the empty band below it doesn't push the title down
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(LOGO_SIZE)
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        val markStart = (placeable.width * LOGO_MARK_START).roundToInt()
-                        val emptyBelow = (placeable.height * LOGO_EMPTY_BELOW).roundToInt()
-                        layout(placeable.width, placeable.height - emptyBelow) {
-                            placeable.place(TITLE_INSET.roundToPx() - markStart, 0)
-                        }
-                    }
-            )
+            AppLogo(titleInset = TITLE_INSET)
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.displaySmall,
@@ -652,14 +634,6 @@ private fun ServerRowMenu(enabled: Boolean, onEdit: () -> Unit, onDelete: () -> 
         }
     }
 }
-
-private val LOGO_SIZE = 144.dp
-
-/** Where the mark starts in the logo file, as a share of its width (measured from the icon's artwork). */
-private const val LOGO_MARK_START = 0.30f
-
-/** The empty band below the mark in the logo file, as a share of its height. */
-private const val LOGO_EMPTY_BELOW = 0.265f
 
 /** Start inset of the title and subtitle, which the mark lines up with. */
 private val TITLE_INSET = 8.dp

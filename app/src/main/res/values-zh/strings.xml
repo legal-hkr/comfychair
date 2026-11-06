@@ -902,4 +902,17 @@
     <string name="whats_new_badge">新</string>
     <string name="whats_new_all_releases">所有版本</string>
     <string name="whats_new_on_github">在 GitHub 上</string>
+
+    <!-- Welcome wizard (first run) -->
+    <string name="title_welcome">欢迎使用 ComfyChair</string>
+    <string name="label_welcome_intro">连接你自己的 ComfyUI 服务器的移动客户端。除非你另行选择，生成的图片和视频只保存在手机内存中。</string>
+    <string name="label_welcome_question">你想做什么？</string>
+    <string name="label_welcome_add_server">添加服务器</string>
+    <string name="desc_welcome_add_server">连接到你的 ComfyUI 服务器</string>
+    <string name="label_welcome_restore">从备份恢复</string>
+    <string name="desc_welcome_restore">从文件恢复服务器、工作流和设置</string>
+    <string name="button_next">下一步</string>
+    <string name="title_welcome_add_server">添加服务器</string>
+    <string name="title_welcome_restore">从备份恢复</string>
+    <string name="button_backup_choose_file">选择备份文件</string>
 </resources>
