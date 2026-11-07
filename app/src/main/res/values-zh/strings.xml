@@ -488,8 +488,9 @@
     <string name="button_name_and_description">名称和描述</string>
     <string name="desc_duplicate_builtin">创建可编辑的副本</string>
     <string name="title_workflow_export">导出</string>
-    <string name="button_export_app">为 ComfyChair 导出</string>
-    <string name="button_export_api">以 ComfyUI API 格式导出</string>
+    <string name="button_export_app">ComfyChair</string>
+    <string name="button_export_ui">ComfyUI</string>
+    <string name="button_export_api">ComfyUI (API)</string>
     <string name="button_delete_workflow">删除工作流</string>
     <string name="title_delete_named">删除“%1$s”？</string>
     <string name="msg_delete_workflow_device">它将从此设备中移除。已导出的文件不受影响。</string>
@@ -519,6 +520,7 @@
     <string name="msg_workflow_export_success">工作流已导出</string>
     <string name="error_workflow_duplicate">无法复制工作流</string>
     <string name="error_workflow_export">导出工作流失败</string>
+    <string name="error_export_needs_definitions">请先连接服务器：ComfyUI 格式需要从服务器获取节点值的顺序</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="other">转换完成，有 %d 条备注</item>
     </plurals>

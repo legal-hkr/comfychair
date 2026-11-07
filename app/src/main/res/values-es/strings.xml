@@ -514,8 +514,9 @@
     <string name="button_name_and_description">Nombre y descripción</string>
     <string name="desc_duplicate_builtin">Crear una copia editable</string>
     <string name="title_workflow_export">Exportar</string>
-    <string name="button_export_app">Exportar para ComfyChair</string>
-    <string name="button_export_api">Exportar en formato API de ComfyUI</string>
+    <string name="button_export_app">ComfyChair</string>
+    <string name="button_export_ui">ComfyUI</string>
+    <string name="button_export_api">ComfyUI (API)</string>
     <string name="button_delete_workflow">Eliminar workflow</string>
     <string name="title_delete_named">¿Eliminar «%1$s»?</string>
     <string name="msg_delete_workflow_device">Se eliminará de este dispositivo. Los archivos exportados no se ven afectados.</string>
@@ -545,6 +546,7 @@
     <string name="msg_workflow_export_success">Workflow exportado</string>
     <string name="error_workflow_duplicate">No se pudo duplicar el flujo de trabajo</string>
     <string name="error_workflow_export">Error al exportar workflow</string>
+    <string name="error_export_needs_definitions">Conéctate primero al servidor: el formato ComfyUI toma de él el orden de los valores de los nodos</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="one">Conversión completada con %d nota</item>
         <item quantity="many">Conversión completada con %d notas</item>

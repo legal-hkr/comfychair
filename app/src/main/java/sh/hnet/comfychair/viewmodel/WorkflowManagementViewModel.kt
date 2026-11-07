@@ -44,6 +44,7 @@ import sh.hnet.comfychair.workflow.WorkflowMappingState
  */
 enum class ExportFormat {
     INTERNAL,  // Full internal format with placeholders, groups, notes
+    UI,        // ComfyUI's UI format: layout, groups, notes, subgraphs; values instead of placeholders
     API        // Raw ComfyUI API format with placeholders replaced
 }
 
@@ -1045,6 +1046,11 @@ class WorkflowManagementViewModel : ViewModel() {
     // Export flow
 
     fun onExportWorkflow(workflow: WorkflowManager.Workflow, format: ExportFormat) {
+        // The UI format takes the order of node values from the server's definitions: none, no file to pick
+        if (format == ExportFormat.UI && !ConnectionManager.nodeTypeRegistry.isPopulated()) {
+            viewModelScope.launch { emitEvent(WorkflowManagementEvent.ShowToast(R.string.error_export_needs_definitions)) }
+            return
+        }
         val suggestedFilename = WorkflowManager.generateExportFilename(workflow.name)
 
         _uiState.value = _uiState.value.copy(
@@ -1064,6 +1070,7 @@ class WorkflowManagementViewModel : ViewModel() {
         viewModelScope.launch {
             val result = when (format) {
                 ExportFormat.INTERNAL -> WorkflowManager.exportWorkflowInternal(workflow.id)
+                ExportFormat.UI -> withContext(Dispatchers.Default) { WorkflowManager.exportWorkflowToComfyUIUiFormat(workflow.id) }
                 ExportFormat.API -> WorkflowManager.exportWorkflowToComfyUIFormat(workflow.id)
             }
 

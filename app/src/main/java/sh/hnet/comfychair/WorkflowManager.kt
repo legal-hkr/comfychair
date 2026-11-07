@@ -13,6 +13,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.model.WorkflowDefaults
+import sh.hnet.comfychair.model.WorkflowValues
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.BypassNodeResolver
@@ -24,8 +25,10 @@ import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
 import sh.hnet.comfychair.viewmodel.base.ModelSlot
+import sh.hnet.comfychair.workflow.ComfyUiExporter
 import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
+import sh.hnet.comfychair.workflow.WorkflowGraphPreparation
 
 /**
  * Workflow types supported by ComfyChair
@@ -491,53 +494,104 @@ object WorkflowManager {
     }
 
     /**
-     * Export a workflow to ComfyUI format (just the nodes, without our wrapper metadata).
-     * This is the inverse of importing - strips name, description, defaults, fieldMappings
-     * and returns only the raw ComfyUI workflow JSON.
+     * Export a workflow in ComfyUI's API format: only the nodes that run (subgraphs flattened), as generation sends
+     * them but with the values of [exportableRoot].
      *
      * @return Result containing the JSON string in ComfyUI format, or error
      */
     fun exportWorkflowToComfyUIFormat(workflowId: String): Result<String> {
         val workflow = workflows.find { it.id == workflowId }
             ?: return Result.failure(Exception("Workflow not found"))
-
-        // Subgraphs flattened: the API format has only the nodes that run
-        val json = try {
-            Subgraphs.flatten(JSONObject(workflow.jsonContent))
+        return try {
+            val flat = Subgraphs.flatten(exportableRoot(workflow))
+            DebugLogger.i(TAG, "Exported workflow in API format: ${Obfuscator.workflowName(workflow.name)}")
+            Result.success((flat.optJSONObject("nodes") ?: flat).toString(2))
         } catch (e: Exception) {
-            return Result.failure(Exception("Failed to parse workflow JSON"))
+            Result.failure(Exception("Failed to parse workflow JSON"))
         }
+    }
 
-        // Extract the nodes object (ComfyUI format is just the nodes)
-        val nodesJson = if (json.has("nodes") && json.optJSONObject("nodes") != null) {
-            json.getJSONObject("nodes")
-        } else {
-            // Already in raw format
-            json
+    /**
+     * Export a workflow in ComfyUI's UI format (what its frontend opens with layout, groups, notes and subgraphs),
+     * with the values of [exportableRoot] and the editor's layout. Needs the server's node definitions (the order of
+     * the widgets' values comes from them).
+     */
+    fun exportWorkflowToComfyUIUiFormat(workflowId: String): Result<String> {
+        val workflow = workflows.find { it.id == workflowId }
+            ?: return Result.failure(Exception("Workflow not found"))
+        val registry = ConnectionManager.nodeTypeRegistry
+        if (!registry.isPopulated()) return Result.failure(IllegalStateException("No node definitions"))
+        return try {
+            val exporter = ComfyUiExporter(registry::getNodeDefinition) { level ->
+                WorkflowGraphPreparation.levelPositions(level, registry)
+            }
+            val document = exporter.export(exportableRoot(workflow))
+            DebugLogger.i(TAG, "Exported workflow in UI format: ${Obfuscator.workflowName(workflow.name)}")
+            Result.success(document.toString(2))
+        } catch (e: Exception) {
+            DebugLogger.e(TAG, "UI format export failed: ${Obfuscator.error(e)}")
+            Result.failure(e)
         }
+    }
 
-        // Replace any placeholders ({{placeholder}}) with default values if available
-        val defaults = workflow.defaults
-        for (nodeId in nodesJson.keys()) {
-            val node = nodesJson.optJSONObject(nodeId) ?: continue
-            val inputs = node.optJSONObject("inputs") ?: continue
-
-            for (inputKey in inputs.keys()) {
-                val value = inputs.opt(inputKey)
-                if (value is String && value.startsWith("{{") && value.endsWith("}}")) {
-                    // This is a placeholder, try to replace with default
-                    val placeholderName = value.substring(2, value.length - 2)
-                    val defaultValue = getDefaultValueForPlaceholder(placeholderName, defaults)
-                    if (defaultValue != null) {
-                        inputs.put(inputKey, defaultValue)
-                    }
+    /**
+     * A workflow as it's exported for ComfyUI (stored form): every value the app fills (a placeholder) replaced by what
+     * was last used for this workflow on this server, else the workflow's default; the edits made in Node values
+     * applied. Images the app uploads keep their markers: the user picks them in ComfyUI.
+     */
+    private fun exportableRoot(workflow: Workflow): JSONObject {
+        val saved = ConnectionManager.currentServerId?.let { workflowValuesStorage.loadValues(it, workflow.id) }
+        val root = JSONObject(applyNodeAttributeEdits(Subgraphs.exposeJson(workflow.jsonContent), workflow.id))
+        val placeholder = Regex("""^\{\{(\w+)\}\}$""")
+        fun fill(nodes: JSONObject?) {
+            if (nodes == null) return
+            for (nodeId in nodes.keys()) {
+                val inputs = nodes.optJSONObject(nodeId)?.optJSONObject("inputs") ?: continue
+                for (key in inputs.keys().asSequence().toList()) {
+                    val name = (inputs.opt(key) as? String)?.let { placeholder.find(it)?.groupValues?.get(1) } ?: continue
+                    exportValueFor(name, saved, workflow)?.let { inputs.put(key, it) }
                 }
             }
         }
+        fill(root.optJSONObject("nodes") ?: root)
+        Subgraphs.definitionsOf(root)?.let { definitions ->
+            for (id in definitions.keys()) fill(definitions.optJSONObject(id)?.optJSONObject("nodes"))
+        }
+        Subgraphs.absorb(root)
+        return root
+    }
 
-        DebugLogger.i(TAG, "Exported workflow to ComfyUI format: ${Obfuscator.workflowName(workflow.name)}")
-
-        return Result.success(nodesJson.toString(2))
+    /** The value an export gives the app's field [placeholder]: the last one used ([saved]), else the default. */
+    private fun exportValueFor(placeholder: String, saved: WorkflowValues?, workflow: Workflow): Any? {
+        CustomFields.PLACEHOLDER.find("{{$placeholder}}")?.let { match ->
+            val field = workflow.customFields.find { it.id == match.groupValues[1] } ?: return null
+            return saved?.customValues?.get(field.id)?.let { CustomFields.typedValue(field.type, it) }
+                ?: CustomFields.typedValue(field.type, field.default) ?: field.default
+        }
+        ModelSlot.entries.find { it.placeholder == placeholder }?.let { slot ->
+            return saved?.let(slot.saved)?.takeIf { it.isNotEmpty() }
+        }
+        val defaults = workflow.defaults
+        return when (placeholder) {
+            "width" -> saved?.width ?: defaults.width
+            "height" -> saved?.height ?: defaults.height
+            "steps" -> saved?.steps ?: defaults.steps
+            "cfg" -> (saved?.cfg ?: defaults.cfg)?.toDouble()
+            "sampler_name", "sampler" -> saved?.samplerName ?: defaults.samplerName
+            "scheduler" -> saved?.scheduler ?: defaults.scheduler
+            "denoise" -> saved?.denoise?.toDouble() ?: 1.0
+            "positive_prompt", "positive_text" -> ""
+            "negative_prompt", "negative_text" -> saved?.negativePrompt ?: defaults.negativePrompt ?: ""
+            "seed" -> saved?.seed ?: 0L
+            "batch_size" -> saved?.batchSize ?: 1
+            "megapixels" -> (saved?.megapixels ?: defaults.megapixels)?.toDouble()
+            "length" -> saved?.length ?: defaults.length
+            "frame_rate", "fps" -> saved?.frameRate ?: defaults.frameRate
+            "upscale_method" -> saved?.upscaleMethod
+            "scale_by" -> saved?.scaleBy?.toDouble()
+            "stop_at_clip_layer" -> saved?.stopAtClipLayer
+            else -> null
+        }?.takeUnless { it is String && isPlaceholder(it) }
     }
 
     /**
@@ -557,29 +611,6 @@ object WorkflowManager {
             Result.success(json.toString(2))
         } catch (e: Exception) {
             Result.failure(Exception("Failed to parse workflow JSON"))
-        }
-    }
-
-    /**
-     * Get default value for a placeholder name.
-     */
-    private fun getDefaultValueForPlaceholder(placeholder: String, defaults: WorkflowDefaults): Any? {
-        return when (placeholder) {
-            "width" -> defaults.width
-            "height" -> defaults.height
-            "steps" -> defaults.steps
-            "cfg" -> defaults.cfg
-            "sampler_name", "sampler" -> defaults.samplerName
-            "scheduler" -> defaults.scheduler
-            "denoise" -> 1.0  // Common default
-            "positive_prompt", "positive_text" -> ""
-            "negative_prompt", "negative_text" -> defaults.negativePrompt ?: ""
-            "seed" -> -1  // Random seed
-            "batch_size" -> 1  // Default batch size
-            "megapixels" -> defaults.megapixels
-            "length" -> defaults.length
-            "frame_rate", "fps" -> defaults.frameRate
-            else -> null
         }
     }
 

@@ -37,7 +37,11 @@ data class InputDefinition(
     /** Followed by the frontend's "control after generate" widget (fixed, increment, decrement, randomize) */
     val controlAfterGenerate: Boolean = false,
     /** Has the frontend's upload button (image, video or file), which may save a value of its own after it */
-    val upload: Boolean = false
+    val upload: Boolean = false,
+    /** Which upload button: the flag's name without "_upload" ("image", "video", "audio", "file"…) */
+    val uploadKind: String? = null,
+    /** The widget the frontend draws for an input of several types ("FLOAT,INT" drawn as FLOAT) */
+    val widgetType: String? = null
 )
 
 /**
@@ -46,7 +50,7 @@ data class InputDefinition(
  * sockets (COMFY_MATCHTYPE_V3, COMFY_AUTOGROW_V3, COMFY_DYNAMICGROUP_V3) and inputs forced to be connected.
  */
 val InputDefinition.isWidget: Boolean
-    get() = !forceInput && type in WIDGET_TYPES
+    get() = !forceInput && (type in WIDGET_TYPES || widgetType in WIDGET_TYPES)
 
 private val WIDGET_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM", "COMBO", DYNAMIC_COMBO_TYPE)
 
@@ -360,8 +364,9 @@ class NodeTypeRegistry {
                                     tooltip = tooltip,
                                     multiselect = multiselect,
                                     socketless = optionsObj.optBoolean("socketless", false),
-                                    controlAfterGenerate = optionsObj.optBoolean("control_after_generate", false),
-                                    upload = optionsObj.hasUploadFlag()
+                                    controlAfterGenerate = optionsObj.hasControlAfterGenerate(),
+                                    upload = optionsObj.hasUploadFlag(),
+                                    uploadKind = optionsObj.uploadKind()
                                 )
                             )
                             continue
@@ -395,8 +400,9 @@ class NodeTypeRegistry {
                             forceInput = forceInput,
                             tooltip = tooltip,
                             socketless = optionsObj?.optBoolean("socketless", false) ?: false,
-                            controlAfterGenerate = optionsObj?.optBoolean("control_after_generate", false) ?: false,
-                            upload = optionsObj?.hasUploadFlag() ?: false
+                            controlAfterGenerate = optionsObj?.hasControlAfterGenerate() ?: false,
+                            upload = optionsObj?.hasUploadFlag() ?: false,
+                            uploadKind = optionsObj?.uploadKind()
                         )
                     )
                 }
@@ -452,12 +458,24 @@ class NodeTypeRegistry {
             round = round,
             dynamicOptions = dynamicOptions,
             socketless = options?.optBoolean("socketless", false) ?: false,
-            controlAfterGenerate = options?.optBoolean("control_after_generate", false) ?: false,
-            upload = options?.hasUploadFlag() ?: false
+            controlAfterGenerate = options?.hasControlAfterGenerate() ?: false,
+            upload = options?.hasUploadFlag() ?: false,
+            uploadKind = options?.uploadKind(),
+            widgetType = options?.optString("widgetType", "")?.takeIf { it.isNotEmpty() }
         )
     }
 
     /** Whether an input's options ask the frontend for an upload button (image_upload, video_upload, file_upload…). */
+    /** The "control after generate" flag: true, or the control's starting value ("fixed", as primitive nodes give it). */
+    private fun JSONObject.hasControlAfterGenerate(): Boolean = when (val flag = opt("control_after_generate")) {
+        is Boolean -> flag
+        is String -> flag.isNotEmpty()
+        else -> false
+    }
+
+    private fun JSONObject.uploadKind(): String? =
+        keys().asSequence().firstOrNull { it.endsWith("_upload") && optBoolean(it, false) }?.removeSuffix("_upload")
+
     private fun JSONObject.hasUploadFlag(): Boolean =
         keys().asSequence().any { it.endsWith("_upload") && optBoolean(it, false) }
 

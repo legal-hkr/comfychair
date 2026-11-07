@@ -527,8 +527,9 @@
     <string name="button_name_and_description">Nazwa i opis</string>
     <string name="desc_duplicate_builtin">Utwórz kopię, którą można edytować</string>
     <string name="title_workflow_export">Eksport</string>
-    <string name="button_export_app">Eksportuj dla ComfyChair</string>
-    <string name="button_export_api">Eksportuj w formacie API ComfyUI</string>
+    <string name="button_export_app">ComfyChair</string>
+    <string name="button_export_ui">ComfyUI</string>
+    <string name="button_export_api">ComfyUI (API)</string>
     <string name="button_delete_workflow">Usuń przepływ pracy</string>
     <string name="title_delete_named">Usunąć „%1$s”?</string>
     <string name="msg_delete_workflow_device">Zniknie z tego urządzenia. Wyeksportowane pliki zostaną nietknięte.</string>
@@ -558,6 +559,7 @@
     <string name="msg_workflow_export_success">Przepływ pracy wyeksportowany</string>
     <string name="error_workflow_duplicate">Nie udało się zduplikować przepływu</string>
     <string name="error_workflow_export">Nie udało się wyeksportować przepływu pracy</string>
+    <string name="error_export_needs_definitions">Najpierw połącz się z serwerem – format ComfyUI bierze z niego kolejność wartości węzłów</string>
     <plurals name="msg_litegraph_conversion_notes">
         <item quantity="one">Konwersja zakończona – %d uwaga</item>
         <item quantity="few">Konwersja zakończona – %d uwagi</item>

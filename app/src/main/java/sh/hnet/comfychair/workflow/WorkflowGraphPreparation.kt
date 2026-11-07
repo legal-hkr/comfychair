@@ -62,6 +62,20 @@ object WorkflowGraphPreparation {
     }
 
     /**
+     * Where the members of one level of a workflow stand in the editor's layout (the top level, or a subgraph's
+     * definition: a JSON object with `nodes`, `groups` and `notes`): (x, y, width, height) by node ID and by "note:N".
+     */
+    fun levelPositions(level: org.json.JSONObject, registry: NodeTypeRegistry): Map<String, FloatArray> {
+        val graph = prepare(level.toString(), registry)
+        val engine = WorkflowLayoutEngine(null)
+        return graph.nodes.associate { it.id to floatArrayOf(it.x, it.y, it.width, it.height) } +
+            graph.notes.associate { note ->
+                WorkflowNote.noteIdToMemberId(note.id) to
+                    floatArrayOf(note.x, note.y, note.width, note.height.takeIf { it > 0f } ?: engine.calculateNoteHeight(note))
+            }
+    }
+
+    /**
      * A workflow's JSON parsed, given outputs, laid out and with typed connections: ready to draw.
      *
      * @param targetAspect Width / height to lay the graph out for (a preview card); null for the editor's layout

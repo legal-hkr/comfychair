@@ -53,7 +53,6 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Dns
-import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material.icons.rounded.ToggleOff
@@ -810,9 +809,17 @@ fun WorkflowDetailPage(
             row { shapes ->
                 SettingsActionRow(
                     shapes = shapes,
-                    icon = Icons.Rounded.Download,
+                    icon = Icons.Rounded.DataObject,
                     title = stringResource(R.string.button_export_app),
                     onClick = { viewModel.onExportWorkflow(workflow, ExportFormat.INTERNAL) }
+                )
+            }
+            row { shapes ->
+                SettingsActionRow(
+                    shapes = shapes,
+                    icon = Icons.Rounded.DataObject,
+                    title = stringResource(R.string.button_export_ui),
+                    onClick = { viewModel.onExportWorkflow(workflow, ExportFormat.UI) }
                 )
             }
             row { shapes ->
