@@ -1131,4 +1131,33 @@
     <string name="content_description_use_builtin_name">Przywróć nazwę wbudowaną: %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
+    <!-- Subgraphs in the editor (spec §19) -->
+    <string name="sg_open">Otwórz</string>
+    <plurals name="sg_nodes_count">
+        <item quantity="one">%d węzeł</item>
+        <item quantity="few">%d węzły</item>
+        <item quantity="many">%d węzłów</item>
+        <item quantity="other">%d węzła</item>
+    </plurals>
+    <string name="sg_used_times">użyty %1$d×</string>
+    <string name="sg_bypassed_suffix">pominięty</string>
+    <string name="sg_muted_suffix">wyciszony</string>
+    <string name="sg_path_a11y">Ścieżka, %1$s. Dotknij dwukrotnie, by wybrać poziom</string>
+    <string name="sg_inputs">Wejścia</string>
+    <string name="sg_outputs">Wyjścia</string>
+    <plurals name="sg_inside_announce">
+        <item quantity="one">Wewnątrz: %1$s, %2$d węzeł</item>
+        <item quantity="few">Wewnątrz: %1$s, %2$d węzły</item>
+        <item quantity="many">Wewnątrz: %1$s, %2$d węzłów</item>
+        <item quantity="other">Wewnątrz: %1$s, %2$d węzła</item>
+    </plurals>
+    <plurals name="sg_used_announce">
+        <item quantity="one">użyty %d raz</item>
+        <item quantity="few">użyty %d razy</item>
+        <item quantity="many">użyty %d razy</item>
+        <item quantity="other">użyty %d razy</item>
+    </plurals>
+    <string name="sg_back_announce">Z powrotem: %1$s</string>
+    <string name="sg_open_action">Otwórz podgraf</string>
+    <string name="sg_subgraph">Podgraf</string>
 </resources>

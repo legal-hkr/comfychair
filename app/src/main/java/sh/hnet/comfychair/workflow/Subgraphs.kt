@@ -235,9 +235,10 @@ object Subgraphs {
     /**
      * Take an exposed workflow back to its stored form in place: each instance's values go into its definition where
      * they differ from it (an instance whose values weren't changed leaves the definition alone, so another instance's
-     * change stays), the promoted list is rebuilt from the instance's paths, and definitions no instance uses go.
+     * change stays), the promoted list is rebuilt from the instance's paths, and definitions no instance uses go (unless
+     * [prune] is false: a level inside a subgraph, whose own definition no node of the level uses).
      */
-    fun absorb(root: JSONObject) {
+    fun absorb(root: JSONObject, prune: Boolean = true) {
         val definitions = definitionsOf(root) ?: return
         val original = JSONObject(definitions.toString())
         val nodes = nodesOf(root)
@@ -263,7 +264,7 @@ object Subgraphs {
             }
             if (promoted.length() > 0) node.put(PROMOTED_KEY, promoted) else node.remove(PROMOTED_KEY)
         }
-        pruneUnused(root)
+        if (prune) pruneUnused(root)
     }
 
     /** Remove definitions that no instance uses, at the top level or inside a used definition. */

@@ -1047,4 +1047,24 @@
     <string name="content_description_use_builtin_name">使用内置名称：%1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s：%2$s</string>
+    <!-- Subgraphs in the editor (spec §19) -->
+    <string name="sg_open">打开</string>
+    <plurals name="sg_nodes_count">
+        <item quantity="other">%d 个节点</item>
+    </plurals>
+    <string name="sg_used_times">使用 %1$d 次</string>
+    <string name="sg_bypassed_suffix">已跳过</string>
+    <string name="sg_muted_suffix">已静音</string>
+    <string name="sg_path_a11y">路径，%1$s。点按两次以选择层级</string>
+    <string name="sg_inputs">输入</string>
+    <string name="sg_outputs">输出</string>
+    <plurals name="sg_inside_announce">
+        <item quantity="other">在 %1$s 内，%2$d 个节点</item>
+    </plurals>
+    <plurals name="sg_used_announce">
+        <item quantity="other">使用 %d 次</item>
+    </plurals>
+    <string name="sg_back_announce">已返回 %1$s</string>
+    <string name="sg_open_action">打开子图</string>
+    <string name="sg_subgraph">子图</string>
 </resources>

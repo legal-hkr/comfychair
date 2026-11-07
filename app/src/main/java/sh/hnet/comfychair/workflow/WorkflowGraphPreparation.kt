@@ -7,7 +7,12 @@ package sh.hnet.comfychair.workflow
  */
 object WorkflowGraphPreparation {
 
-    private data class LocalTypesKey(val subgraphs: String, val promoted: Map<String, List<String>>, val version: Int)
+    private data class LocalTypesKey(
+        val subgraphs: String,
+        val promoted: Map<String, List<String>>,
+        val ports: Set<String>,
+        val version: Int
+    )
 
     // The last graph's subgraph types: the editor looks types up many times between changes of the graph
     @Volatile
@@ -15,15 +20,20 @@ object WorkflowGraphPreparation {
 
     /**
      * [registry] with the types of a graph's subgraphs ([subgraphs], as stored in the graph) added, as their instances
-     * among [nodes] show them; [registry] itself for a graph without subgraphs.
+     * among [nodes] show them, and inside a subgraph its port nodes' types; [registry] itself for a graph without
+     * subgraphs.
      */
     fun registryFor(subgraphs: String?, nodes: List<WorkflowNode>, registry: NodeTypeRegistry): NodeTypeRegistry {
         if (subgraphs == null) return registry
         val promoted = nodes.groupBy { it.classType }
             .mapValues { (_, instances) -> instances.flatMap { node -> node.inputs.keys.filter(Subgraphs::isPromotedKey) } }
-        val key = LocalTypesKey(subgraphs, promoted, registry.version)
+        val ports = nodes.mapNotNullTo(HashSet()) { node -> node.classType.takeIf { SubgraphLevels.isPortType(it) } }
+        val key = LocalTypesKey(subgraphs, promoted, ports, registry.version)
         val types = localTypesCache?.takeIf { it.first == key }?.second
-            ?: runCatching { Subgraphs.nodeTypes(org.json.JSONObject(subgraphs), promoted, registry::getNodeDefinition) }
+            ?: runCatching {
+                val definitions = org.json.JSONObject(subgraphs)
+                Subgraphs.nodeTypes(definitions, promoted, registry::getNodeDefinition) + SubgraphLevels.portTypes(definitions, ports)
+            }
                 .getOrDefault(emptyMap())
                 .also { localTypesCache = key to it }
         return registry.withLocalTypes(types)
@@ -35,9 +45,11 @@ object WorkflowGraphPreparation {
 
     /** Add each node's output types from its definition. */
     fun populateNodeOutputs(graph: WorkflowGraph, registry: NodeTypeRegistry): WorkflowGraph {
-        if (!registry.isPopulated()) return graph
+        // The workflow's own types (subgraphs, a level's port nodes) are known without the server's
+        val populated = registry.isPopulated()
         return graph.copy(nodes = graph.nodes.map { node ->
-            node.copy(outputs = registry.getNodeDefinition(node.classType)?.outputs ?: emptyList())
+            val definition = registry.getNodeDefinition(node.classType)
+            node.copy(outputs = definition?.outputs ?: if (populated) emptyList() else node.outputs)
         })
     }
 

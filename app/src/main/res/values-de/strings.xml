@@ -1073,4 +1073,27 @@
     <string name="content_description_use_builtin_name">Integrierten Namen verwenden: %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
+    <!-- Subgraphs in the editor (spec §19) -->
+    <string name="sg_open">Öffnen</string>
+    <plurals name="sg_nodes_count">
+        <item quantity="one">%d Knoten</item>
+        <item quantity="other">%d Knoten</item>
+    </plurals>
+    <string name="sg_used_times">%1$d× verwendet</string>
+    <string name="sg_bypassed_suffix">umgangen</string>
+    <string name="sg_muted_suffix">stummgeschaltet</string>
+    <string name="sg_path_a11y">Pfad, %1$s. Doppeltippen, um eine Ebene zu wählen</string>
+    <string name="sg_inputs">Eingänge</string>
+    <string name="sg_outputs">Ausgänge</string>
+    <plurals name="sg_inside_announce">
+        <item quantity="one">In %1$s, %2$d Knoten</item>
+        <item quantity="other">In %1$s, %2$d Knoten</item>
+    </plurals>
+    <plurals name="sg_used_announce">
+        <item quantity="one">%d-mal verwendet</item>
+        <item quantity="other">%d-mal verwendet</item>
+    </plurals>
+    <string name="sg_back_announce">Zurück in %1$s</string>
+    <string name="sg_open_action">Subgraph öffnen</string>
+    <string name="sg_subgraph">Subgraph</string>
 </resources>

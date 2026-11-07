@@ -8,6 +8,7 @@ import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.SubgraphLevels
 import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowGraph
@@ -97,10 +98,7 @@ object FieldMappingAnalyzer {
                 val (nodeId, key) = Subgraphs.exposedAddress(storedRoot, candidate.nodeId, candidate.inputKey)
                 if (nodeId == candidate.nodeId) return@map candidate to candidate
                 Subgraphs.promote(storedRoot, nodeId, key)
-                val instance = nodes.optJSONObject(nodeId)
-                val title = instance?.optJSONObject("_meta")?.optString("title")?.takeIf { it.isNotEmpty() }
-                    ?: candidate.nodeName
-                candidate to candidate.copy(nodeId = nodeId, nodeName = title, inputKey = key)
+                candidate to candidate.copy(nodeId = nodeId, nodeName = pathTitle(storedRoot, candidate), inputKey = key)
             }
             // A subgraph's input feeding two values inside is one candidate
             val candidates = moved.map { it.second }.distinctBy { it.nodeId to it.inputKey }
@@ -112,6 +110,30 @@ object FieldMappingAnalyzer {
                 } ?: -1
             )
         })
+    }
+
+    /**
+     * A value inside a subgraph named by its path (spec §19.6): the instance's title, nested instances' titles, the
+     * node's own, joined with " – "; a deeper path keeps the last two, after "… – ".
+     */
+    private fun pathTitle(storedRoot: JSONObject, candidate: FieldCandidate): String {
+        val definitions = Subgraphs.definitionsOf(storedRoot) ?: return candidate.nodeName
+        val nodes = storedRoot.optJSONObject("nodes") ?: storedRoot
+        val parts = candidate.nodeId.split(":")
+        fun titleOf(node: JSONObject?): String? {
+            node ?: return null
+            return node.optJSONObject("_meta")?.optString("title")?.takeIf { it.isNotEmpty() }
+                ?: SubgraphLevels.nameOf(definitions, node.optString("class_type"))
+        }
+        val titles = mutableListOf<String>()
+        var node = nodes.optJSONObject(parts.first())
+        titleOf(node)?.let(titles::add)
+        for (part in parts.drop(1).dropLast(1)) {
+            node = definitions.optJSONObject(node?.optString("class_type").orEmpty())?.optJSONObject("nodes")?.optJSONObject(part)
+            titleOf(node)?.let(titles::add)
+        }
+        titles.add(candidate.nodeName)
+        return if (titles.size > 2) "… – " + titles.takeLast(2).joinToString(" – ") else titles.joinToString(" – ")
     }
 
     /**

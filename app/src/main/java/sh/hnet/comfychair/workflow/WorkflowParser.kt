@@ -136,7 +136,7 @@ class WorkflowParser(private val logDetails: Boolean = true) {
                     id = nodeId,
                     classType = classType,
                     title = title,
-                    category = nodeCategoryOf(classType),
+                    category = if (definitionsJson?.has(classType) == true) NodeCategory.SUBGRAPH else nodeCategoryOf(classType),
                     inputs = sortInputsForLayout(inputs),
                     templateInputKeys = templateKeys,
                     mode = mode,

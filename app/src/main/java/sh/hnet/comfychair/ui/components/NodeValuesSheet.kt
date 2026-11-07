@@ -61,7 +61,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
@@ -94,8 +98,14 @@ data class EditableInput(
     val name: String,
     val definition: InputDefinition?,
     val currentValue: Any?,
-    val originalValue: Any?
+    val originalValue: Any?,
+    /** As shown: a value from inside a subgraph by its label (spec §19.1) */
+    val label: String = Subgraphs.displayName(name)
 )
+
+/** A subgraph instance in its values sheet (spec §19.6): its subgraph's name when its title differs, the nodes inside. */
+@Immutable
+data class SubgraphSummary(val name: String?, val nodeCount: Int, val labels: Map<String, String>)
 
 /**
  * A node's values, in the bottom sheet of the Node values mode: the node's title, class and how many values changed,
@@ -113,14 +123,16 @@ fun NodeValuesSheetContent(
     modifier: Modifier = Modifier,
     linkedValues: List<LinkedValue> = emptyList(),
     onOpenNode: (nodeId: String) -> Unit = {},
-    fieldNames: Map<String, String> = emptyMap()
+    fieldNames: Map<String, String> = emptyMap(),
+    subgraph: SubgraphSummary? = null
 ) {
     val context = LocalContext.current
-    val editableInputs = remember(node, nodeDefinition, currentEdits) {
-        editableInputNames(node, nodeDefinition).map { name ->
+    val editableInputs = remember(node, nodeDefinition, currentEdits, subgraph) {
+        // An instance's values shown from inside first, in its order (spec §19.6)
+        editableInputNames(node, nodeDefinition).sortedBy { if (subgraph != null && Subgraphs.isPromotedKey(it)) 0 else 1 }.map { name ->
             val definition = nodeDefinition?.inputs?.find { it.name == name }
             val original = workflowValueOf(node, definition, name)
-            EditableInput(name, definition, currentEdits[name] ?: original, original)
+            EditableInput(name, definition, currentEdits[name] ?: original, original, subgraph?.labels?.get(name) ?: Subgraphs.displayName(name))
         }
     }
     val linked = remember(node) { appManagedInputs(node) }
@@ -135,11 +147,18 @@ fun NodeValuesSheetContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(node.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    // A subgraph instance by its subgraph's name, not its ID
-                    val typeName = nodeDefinition?.takeIf { it.category == Subgraphs.SUBGRAPH_CATEGORY }?.displayName ?: node.classType
+                    // A subgraph instance by its subgraph's name (when its title differs) and the nodes inside, not its ID
+                    val nodes = subgraph?.let { pluralStringResource(R.plurals.sg_nodes_count, it.nodeCount, it.nodeCount) }
+                    val typeParts = if (subgraph != null) listOfNotNull(subgraph.name, nodes) else listOf(node.classType)
+                    val changedPart = if (changed > 0) pluralStringResource(R.plurals.label_node_changed_count, changed, changed) else null
                     Text(
-                        if (changed > 0) "$typeName – " + pluralStringResource(R.plurals.label_node_changed_count, changed, changed)
-                        else typeName,
+                        buildAnnotatedString {
+                            (typeParts + listOfNotNull(changedPart)).forEachIndexed { index, part ->
+                                if (index > 0) append(" – ")
+                                if (index == 0 && subgraph?.name != null) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part) }
+                                else append(part)
+                            }
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -297,7 +316,7 @@ private fun InputEditor(
                 val options = effectiveOptions ?: emptyList()
                 if (isImageOptions(options)) {
                     ImageEnumEditor(
-                        label = Subgraphs.displayName(input.name),
+                        label = input.label,
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         tooltip = definition?.tooltip,
@@ -305,7 +324,7 @@ private fun InputEditor(
                     )
                 } else {
                     EnumEditor(
-                        label = Subgraphs.displayName(input.name),
+                        label = input.label,
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         tooltip = definition?.tooltip,
@@ -314,13 +333,13 @@ private fun InputEditor(
                 }
             }
             type == "BOOLEAN" || input.currentValue is Boolean -> BooleanEditor(
-                label = Subgraphs.displayName(input.name),
+                label = input.label,
                 value = (input.currentValue as? Boolean) ?: false,
                 tooltip = definition?.tooltip,
                 onValueChange = { onValueChange(it) }
             )
             type == "INT" -> IntEditor(
-                label = Subgraphs.displayName(input.name),
+                label = input.label,
                 value = input.currentValue?.toString() ?: "",
                 // As Long: ComfyUI's INT bounds can be 64-bit (PrimitiveInt: ±9223372036854775807)
                 min = definition?.min?.toLong(),
@@ -331,7 +350,7 @@ private fun InputEditor(
                 context = context
             )
             type == "FLOAT" -> FloatEditor(
-                label = Subgraphs.displayName(input.name),
+                label = input.label,
                 value = input.currentValue?.toString() ?: "",
                 min = definition?.min?.toDouble(),
                 max = definition?.max?.toDouble(),
@@ -341,7 +360,7 @@ private fun InputEditor(
                 context = context
             )
             else -> StringEditor(
-                label = Subgraphs.displayName(input.name),
+                label = input.label,
                 value = input.currentValue?.toString() ?: "",
                 multiline = type == "STRING" && definition?.multiline == true,
                 tooltip = if (type == "STRING") definition?.tooltip else null,

@@ -1103,4 +1103,30 @@
     <string name="content_description_use_builtin_name">Usar el nombre integrado: %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
+    <!-- Subgraphs in the editor (spec §19) -->
+    <string name="sg_open">Abrir</string>
+    <plurals name="sg_nodes_count">
+        <item quantity="one">%d nodo</item>
+        <item quantity="many">%d nodos</item>
+        <item quantity="other">%d nodos</item>
+    </plurals>
+    <string name="sg_used_times">usado %1$d×</string>
+    <string name="sg_bypassed_suffix">omitido</string>
+    <string name="sg_muted_suffix">silenciado</string>
+    <string name="sg_path_a11y">Ruta, %1$s. Toca dos veces para elegir un nivel</string>
+    <string name="sg_inputs">Entradas</string>
+    <string name="sg_outputs">Salidas</string>
+    <plurals name="sg_inside_announce">
+        <item quantity="one">Dentro de %1$s, %2$d nodo</item>
+        <item quantity="many">Dentro de %1$s, %2$d nodos</item>
+        <item quantity="other">Dentro de %1$s, %2$d nodos</item>
+    </plurals>
+    <plurals name="sg_used_announce">
+        <item quantity="one">usado %d vez</item>
+        <item quantity="many">usado %d veces</item>
+        <item quantity="other">usado %d veces</item>
+    </plurals>
+    <string name="sg_back_announce">De vuelta en %1$s</string>
+    <string name="sg_open_action">Abrir subgrafo</string>
+    <string name="sg_subgraph">Subgrafo</string>
 </resources>

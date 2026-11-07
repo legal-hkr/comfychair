@@ -1105,4 +1105,27 @@
     <string name="content_description_use_builtin_name">Use the built-in name, %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
+    <!-- Subgraphs in the editor (spec §19) -->
+    <string name="sg_open">Open</string>
+    <plurals name="sg_nodes_count">
+        <item quantity="one">%d node</item>
+        <item quantity="other">%d nodes</item>
+    </plurals>
+    <string name="sg_used_times">used %1$d×</string>
+    <string name="sg_bypassed_suffix">bypassed</string>
+    <string name="sg_muted_suffix">muted</string>
+    <string name="sg_path_a11y">Path, %1$s. Double-tap to choose a level</string>
+    <string name="sg_inputs">Inputs</string>
+    <string name="sg_outputs">Outputs</string>
+    <plurals name="sg_inside_announce">
+        <item quantity="one">Inside %1$s, %2$d node</item>
+        <item quantity="other">Inside %1$s, %2$d nodes</item>
+    </plurals>
+    <plurals name="sg_used_announce">
+        <item quantity="one">used %d time</item>
+        <item quantity="other">used %d times</item>
+    </plurals>
+    <string name="sg_back_announce">Back in %1$s</string>
+    <string name="sg_open_action">Open subgraph</string>
+    <string name="sg_subgraph">Subgraph</string>
 </resources>

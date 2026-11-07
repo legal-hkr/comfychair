@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AccountTree
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.FitScreen
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SelectAll
@@ -54,23 +58,30 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
+import sh.hnet.comfychair.ui.components.shared.rememberMenuScrollModifier
 import sh.hnet.comfychair.util.ConnectionValidator
+import sh.hnet.comfychair.workflow.SubgraphLevelInfo
 
 /*
  * The workflow editor's frame (spec §10.2): Back and a title pill at the top, one floating toolbar at the bottom whose
@@ -124,7 +135,10 @@ fun EditorTopRow(
     modifier: Modifier = Modifier,
     onEditStructure: (() -> Unit)? = null,
     selectedCount: Int = 0,
-    onClearSelection: () -> Unit = {}
+    onClearSelection: () -> Unit = {},
+    // Inside a subgraph: the levels from the top (spec §19.2.2); a level picked in the path menu, 0 the workflow
+    path: List<SubgraphLevelInfo> = emptyList(),
+    onPickLevel: (Int) -> Unit = {}
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -144,7 +158,7 @@ fun EditorTopRow(
 
         // The pill as wide as its text; the rest of the row stays free, the control sits at the end
         Box(Modifier.weight(1f)) {
-            TitlePill(workflowName, status, onCancelConnection, Modifier)
+            TitlePill(workflowName, status, onCancelConnection, Modifier, path, onPickLevel)
         }
 
         when {
@@ -179,19 +193,23 @@ fun EditorTopRow(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun TitlePill(workflowName: String, status: EditorStatus, onCancelConnection: () -> Unit, modifier: Modifier) {
+private fun TitlePill(
+    workflowName: String,
+    status: EditorStatus,
+    onCancelConnection: () -> Unit,
+    modifier: Modifier,
+    path: List<SubgraphLevelInfo> = emptyList(),
+    onPickLevel: (Int) -> Unit = {}
+) {
     val connecting = status as? EditorStatus.Connecting
     val fade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    Surface(
-        shape = CircleShape,
-        color = if (connecting != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = if (connecting != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
-            // Mode changes (connecting, unsaved changes) are read out without moving focus
-            .semantics { liveRegion = LiveRegionMode.Polite }
-    ) {
+    // Inside a subgraph the pill names the level and opens the path (spec §19.2.2)
+    val level = path.lastOrNull()?.takeIf { connecting == null }
+    var menuOpen by remember { mutableStateOf(false) }
+    var pillWidth by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val pathLabel = level?.let { stringResource(R.string.sg_path_a11y, it.name) }
+    val content: @Composable () -> Unit = {
         AnimatedContent(
             targetState = status,
             contentKey = { it::class },
@@ -203,12 +221,25 @@ private fun TitlePill(workflowName: String, status: EditorStatus, onCancelConnec
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .weight(1f, fill = false)
-                        .padding(start = 20.dp, end = if (current is EditorStatus.Connecting) 0.dp else 20.dp, top = 6.dp, bottom = 6.dp)
+                        .padding(
+                            start = 20.dp,
+                            end = if (current is EditorStatus.Connecting || level != null) 0.dp else 20.dp,
+                            top = 6.dp,
+                            bottom = 6.dp
+                        )
                 ) {
                     val (line1, line2) = pillLines(workflowName, current)
-                    Text(line1, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (level != null && current !is EditorStatus.Connecting) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Layers, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(level.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    } else {
+                        Text(line1, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                     Text(
-                        line2,
+                        if (level != null && current !is EditorStatus.Connecting) line2 + levelSuffix(level) else line2,
                         style = MaterialTheme.typography.labelMedium,
                         color = if (current is EditorStatus.Connecting) MaterialTheme.colorScheme.onSecondaryContainer
                             else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -220,9 +251,80 @@ private fun TitlePill(workflowName: String, status: EditorStatus, onCancelConnec
                     IconButton(onClick = onCancelConnection) {
                         Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.content_description_cancel_connection))
                     }
+                } else if (level != null) {
+                    Icon(
+                        Icons.Rounded.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(start = 4.dp, end = 12.dp)
+                            .size(20.dp)
+                    )
                 }
             }
         }
+    }
+    val pillModifier = modifier
+        .heightIn(min = 48.dp)
+        .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+        .onSizeChanged { pillWidth = it.width }
+        // Mode changes (connecting, unsaved changes) are read out without moving focus
+        .semantics {
+            liveRegion = LiveRegionMode.Polite
+            if (pathLabel != null) contentDescription = pathLabel
+        }
+    Box {
+        if (level != null) {
+            Surface(
+                onClick = { menuOpen = true },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = pillModifier,
+                content = content
+            )
+        } else {
+            Surface(
+                shape = CircleShape,
+                color = if (connecting != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = if (connecting != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                modifier = pillModifier,
+                content = content
+            )
+        }
+        // The path: the workflow, then each level down to this one (checked); names wrap, a long path scrolls
+        DropdownMenuPopup(
+            expanded = menuOpen && level != null,
+            onDismissRequest = { menuOpen = false },
+            modifier = rememberMenuScrollModifier().widthIn(min = with(density) { pillWidth.toDp() })
+        ) {
+            val names = listOf(workflowName.ifEmpty { stringResource(R.string.label_new_workflow) }) + path.map { it.name }
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                names.forEachIndexed { index, name ->
+                    val current = index == names.lastIndex
+                    DropdownMenuItem(
+                        text = { Text(name, fontWeight = if (current) FontWeight.Bold else null) },
+                        leadingIcon = { Icon(if (index == 0) Icons.Rounded.AccountTree else Icons.Rounded.Layers, contentDescription = null) },
+                        trailingIcon = if (current) ({ Icon(Icons.Rounded.Check, contentDescription = null) }) else null,
+                        shape = MenuDefaults.itemShape(index, names.size).shape,
+                        onClick = {
+                            menuOpen = false
+                            if (!current) onPickLevel(index)
+                        },
+                        modifier = Modifier.semantics { if (current) selected = true }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** What line 2 of the pill adds inside a subgraph: " – used 3×" for a shared one, " – bypassed" or " – muted". */
+@Composable
+private fun levelSuffix(level: SubgraphLevelInfo): String = buildString {
+    if (level.usedCount > 1) append(" – ").append(stringResource(R.string.sg_used_times, level.usedCount))
+    when (level.inheritedMode) {
+        4 -> append(" – ").append(stringResource(R.string.sg_bypassed_suffix))
+        2 -> append(" – ").append(stringResource(R.string.sg_muted_suffix))
     }
 }
 

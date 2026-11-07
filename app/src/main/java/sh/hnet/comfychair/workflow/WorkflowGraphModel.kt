@@ -31,6 +31,8 @@ data class WorkflowNode(
     val isBypassed: Boolean get() = mode == 4
     /** True if node is muted (mode=2) - execution stops at this node */
     val isMuted: Boolean get() = mode == 2
+    /** An instance of one of the workflow's subgraphs (spec §19.1) */
+    val isSubgraphInstance: Boolean get() = category == NodeCategory.SUBGRAPH
 }
 
 /**
@@ -86,6 +88,7 @@ enum class NodeCategory {
     PROCESS,     // VAEDecode, ModelSamplingSD3, CreateVideo, ImageScale
     INPUT,       // LoadImage
     OUTPUT,      // SaveImage, SaveVideo
+    SUBGRAPH,    // An instance of one of the workflow's subgraphs (its class type is the definition's ID)
     OTHER        // Fallback
 }
 
@@ -326,6 +329,24 @@ data class ConnectionModeState(
 )
 
 /**
+ * A level of the editor inside a subgraph (spec §19.2): entered through instance [instanceId] (of the level above) of
+ * definition [definitionId].
+ *
+ * @param nodeCount The nodes inside, nested subgraphs' included
+ * @param usedCount The definition's instances in the whole workflow (its "used n×")
+ * @param inheritedMode The mode of the instance it was entered through, or of an outer one: 2 muted, 4 bypassed, else 0
+ */
+@Immutable
+data class SubgraphLevelInfo(
+    val instanceId: String,
+    val definitionId: String,
+    val name: String,
+    val nodeCount: Int,
+    val usedCount: Int,
+    val inheritedMode: Int
+)
+
+/**
  * UI state for the workflow editor
  */
 @Stable
@@ -425,7 +446,10 @@ data class WorkflowEditorUiState(
 
     // Per-workflow manual placement mode
     val isManualPlacementMode: Boolean = false,
-    val showDisableManualPlacementConfirmation: Boolean = false
+    val showDisableManualPlacementConfirmation: Boolean = false,
+
+    /** The subgraphs entered, from the top level down to the one shown; empty at the top level (spec §19.2) */
+    val subgraphPath: List<SubgraphLevelInfo> = emptyList()
 )
 
 /**

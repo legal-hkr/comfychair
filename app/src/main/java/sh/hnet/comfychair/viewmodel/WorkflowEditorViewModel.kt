@@ -48,6 +48,8 @@ import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.PendingMappedLink
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.SubgraphLevelInfo
+import sh.hnet.comfychair.workflow.SubgraphLevels
 import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowEdge
@@ -680,6 +682,7 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     fun confirmMapping() {
         DebugLogger.i(TAG, "confirmMapping: Confirming mapping for upload flow")
+        leaveAllSubgraphs()
         val mappingsJson = getFinalMappingsJson()
         if (mappingsJson != null) {
             DebugLogger.d(TAG, "confirmMapping: Emitting MappingConfirmed event")
@@ -804,6 +807,8 @@ class WorkflowEditorViewModel : ViewModel() {
      * Auto-detects workflow type from graph nodes.
      */
     fun showSaveDialog(context: Context) {
+        // Saved from the top level, with the subgraphs' changes in their definitions
+        leaveAllSubgraphs()
         val state = _uiState.value
         val hasExistingWorkflow = state.editingWorkflowId != null
         DebugLogger.i(TAG, "showSaveDialog: hasExistingWorkflow=$hasExistingWorkflow")
@@ -1198,6 +1203,7 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     fun confirmMappingAndSave(context: Context) {
         DebugLogger.i(TAG, "confirmMappingAndSave: Starting save process")
+        leaveAllSubgraphs()
         val state = _uiState.value
         val pending = pendingSaveData
         if (pending == null) {
@@ -1509,6 +1515,7 @@ class WorkflowEditorViewModel : ViewModel() {
      */
     fun onNodeTappedForEditing(node: WorkflowNode) {
         val state = _uiState.value
+        if (SubgraphLevels.isPortNode(node)) return
 
         // Don't allow editing in mapping mode
         if (state.isFieldMappingMode) return
@@ -1917,7 +1924,8 @@ class WorkflowEditorViewModel : ViewModel() {
             DebugLogger.w(TAG, "saveNodeAttributeEdits: No serverId (ConnectionManager.currentServerId is null), skipping save")
             return
         }
-        val edits = _uiState.value.nodeAttributeEdits
+        // Inside a subgraph, kept by the top level's addresses
+        val edits = topLevelEdits()
 
         if (edits.isEmpty()) {
             // Clear the edits from storage
@@ -1963,6 +1971,14 @@ class WorkflowEditorViewModel : ViewModel() {
      * Saves the original graph and bounds for restoration on discard.
      */
     fun enterEditMode() {
+        // Inside a subgraph: edited from the top level down, back where it was
+        if (levels.isNotEmpty()) {
+            val path = openPath()
+            leaveAllSubgraphs()
+            enterEditMode()
+            reopen(path)
+            return
+        }
         val state = _uiState.value
         val graph = state.graph ?: return
 
@@ -1989,6 +2005,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Exit edit mode - discards unsaved changes and restores original graph.
      */
     fun exitEditMode() {
+        dropSubgraphLevels()
         // Values kept for Disconnect belong to the discarded session
         keptValues.clear()
         // Restore original graph and bounds
@@ -2039,6 +2056,8 @@ class WorkflowEditorViewModel : ViewModel() {
         originalGraph = null
         originalBounds = null
         pendingSaveData = null
+        levels.clear()
+        levelViewports.clear()
 
         // Update UI state to view mode
         _uiState.value = _uiState.value.copy(
@@ -2061,7 +2080,8 @@ class WorkflowEditorViewModel : ViewModel() {
             originalWorkflowName = workflow.name,
             originalWorkflowDescription = workflow.description,
             // Sync manual placement mode from graph
-            isManualPlacementMode = graph.isManualPlacementMode
+            isManualPlacementMode = graph.isManualPlacementMode,
+            subgraphPath = emptyList()
         )
 
         DebugLogger.i(TAG, "returnToViewMode: Now in view mode for workflow ${Obfuscator.workflowName(workflow.name)}")
@@ -2073,6 +2093,8 @@ class WorkflowEditorViewModel : ViewModel() {
     fun toggleNodeSelection(nodeId: String) {
         val state = _uiState.value
         if (!state.isEditMode) return
+        // A subgraph's Inputs and Outputs strips aren't nodes to select (spec §19.2.4)
+        if (state.graph?.nodes?.find { it.id == nodeId }?.let(SubgraphLevels::isPortNode) == true) return
 
         val newSelection = if (nodeId in state.selectedNodeIds) {
             state.selectedNodeIds - nodeId
@@ -3450,6 +3472,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Start dragging a node for manual repositioning.
      */
     fun startNodeDrag(nodeId: String) {
+        if (_uiState.value.graph?.nodes?.find { it.id == nodeId }?.let(SubgraphLevels::isPortNode) == true) return
         DebugLogger.d(TAG, "startNodeDrag: nodeId=$nodeId")
         _uiState.value = _uiState.value.copy(
             draggingNodeId = nodeId,
@@ -3716,6 +3739,371 @@ class WorkflowEditorViewModel : ViewModel() {
             nodeInsertPosition = null,
             nodeDefinitions = buildNodeDefinitionsMap(updatedGraph) + (nodeType.classType to nodeType)
         )
+    }
+
+    // ===========================================
+    // Subgraph levels (spec §19.2)
+    // ===========================================
+
+    /**
+     * A level entered: what it was entered from, restored when it's left. One editor session covers all levels: the
+     * level's changes go into its definition when it's left (or before saving), never saved on their own.
+     *
+     * Values, fields and mappings are kept by the top level's addresses; a level shows them by its own: a value inside
+     * (node "11", input "steps") is the instance's ("5", "11/steps") one level up, and what lies outside the level is
+     * carried along under a marked ID no node has ([outsideId]), so nothing is lost on the way.
+     */
+    private class LevelFrame(
+        val instanceId: String,
+        val definitionId: String,
+        val parentGraph: WorkflowGraph,
+        val parentEditing: Boolean,
+        val parentBounds: GraphBounds,
+        val parentScale: Float,
+        val parentOffset: Offset,
+        val parentViewFollows: Boolean,
+        val parentSelectedNodeIds: Set<String>,
+        val parentSelectedNoteIds: Set<Int>,
+        val parentKeptValues: Map<Pair<String, String>, Any>,
+        val parentNodeIdCounter: Int,
+        val parentGroupIdCounter: Int,
+        /** The custom fields as the level above had them on entering (for values that left a field inside) */
+        val parentFields: List<CustomField>
+    )
+
+    private val levels = mutableListOf<LevelFrame>()
+
+    // Each level's last view in this editor session (spec §19.2.1), by its path
+    private val levelViewports = mutableMapOf<String, Pair<Float, Offset>>()
+
+    private fun levelKey(frames: List<LevelFrame> = levels): String = frames.joinToString("/") { it.instanceId }
+
+    private fun outsideId(id: String) = "\u0000$id"
+
+    /** A value of the level above as the level entered through [frame] knows it. */
+    private fun addressIn(frame: LevelFrame, nodeId: String, input: String): Pair<String, String> =
+        if (nodeId == frame.instanceId && Subgraphs.isPromotedKey(input)) input.substringBefore('/') to input.substringAfter('/')
+        else outsideId(nodeId) to input
+
+    /** A value of the level entered through [frame] as the level above knows it. */
+    private fun addressOut(frame: LevelFrame, nodeId: String, input: String): Pair<String, String> =
+        if (nodeId.startsWith('\u0000')) nodeId.substring(1) to input else frame.instanceId to "$nodeId/$input"
+
+    private fun translateEdits(
+        edits: Map<String, Map<String, Any>>,
+        address: (String, String) -> Pair<String, String>
+    ): Map<String, Map<String, Any>> {
+        val result = mutableMapOf<String, MutableMap<String, Any>>()
+        edits.forEach { (nodeId, values) ->
+            values.forEach { (input, value) ->
+                val (id, key) = address(nodeId, input)
+                result.getOrPut(id) { mutableMapOf() }[key] = value
+            }
+        }
+        return result
+    }
+
+    private fun translateFields(fields: List<CustomField>, address: (String, String) -> Pair<String, String>): List<CustomField> =
+        fields.map { field ->
+            field.copy(targets = field.targets.map { target -> address(target.nodeId, target.input).let { (id, key) -> FieldTarget(id, key) } })
+        }
+
+    private fun translateMapping(
+        mapping: WorkflowMappingState?,
+        address: (String, String) -> Pair<String, String>
+    ): WorkflowMappingState? = mapping?.copy(fieldMappings = mapping.fieldMappings.map { field ->
+        field.copy(candidates = field.candidates.map { candidate ->
+            address(candidate.nodeId, candidate.inputKey).let { (id, key) -> candidate.copy(nodeId = id, inputKey = key) }
+        })
+    })
+
+    /** Node values changed on the top level's addresses, wherever the editor is. */
+    private fun topLevelEdits(): Map<String, Map<String, Any>> =
+        levels.asReversed().fold(_uiState.value.nodeAttributeEdits) { edits, frame ->
+            translateEdits(edits) { id, input -> addressOut(frame, id, input) }
+        }
+
+    /** The graph shown now, as it is being edited. */
+    private fun currentGraph(): WorkflowGraph? = mutableGraph?.toImmutable() ?: _uiState.value.graph
+
+    /**
+     * The workflow's definitions as they are now: with the values the shown level's instances show taken into them,
+     * and inside a subgraph being edited, with that subgraph written back.
+     */
+    private fun currentDefinitions(graph: WorkflowGraph): JSONObject? {
+        val frame = levels.lastOrNull()
+        return when {
+            frame != null && mutableGraph != null -> writeLevel(graph, frame)
+            frame != null -> graph.subgraphs?.let(::JSONObject)
+            else -> JSONObject(serializer.serializeWithWrapper(graph)).optJSONObject(Subgraphs.KEY)
+        }
+    }
+
+    /** The shown level written back into its definition: the definitions with it. */
+    private fun writeLevel(graph: WorkflowGraph, frame: LevelFrame): JSONObject {
+        val definitions = JSONObject(graph.subgraphs ?: "{}")
+        val written = JSONObject(serializer.serializeWithWrapper(graph.copy(subgraphs = null, customFields = emptyList(), fieldLabels = emptyMap())))
+        return SubgraphLevels.write(definitions, frame.definitionId, written, keptValues)
+    }
+
+    /** The levels on the way, for the pill and its path menu. */
+    private fun subgraphPathInfo(definitions: JSONObject?): List<SubgraphLevelInfo> {
+        if (levels.isEmpty() || definitions == null) return emptyList()
+        val topTypes = levels.first().parentGraph.nodes.map { it.classType }
+        var inherited = 0
+        return levels.map { frame ->
+            val mode = frame.parentGraph.nodes.find { it.id == frame.instanceId }?.mode ?: 0
+            if (mode == 2 || mode == 4) inherited = mode
+            SubgraphLevelInfo(
+                instanceId = frame.instanceId,
+                definitionId = frame.definitionId,
+                name = SubgraphLevels.nameOf(definitions, frame.definitionId),
+                nodeCount = SubgraphLevels.nodeCount(definitions, frame.definitionId),
+                usedCount = SubgraphLevels.usageCount(definitions, topTypes, frame.definitionId),
+                inheritedMode = inherited
+            )
+        }
+    }
+
+    /** A subgraph's nodes as a graph ready to show, with its Outputs node's sockets in the outputs' order. */
+    private fun levelGraphOf(level: SubgraphLevels.Level, definitions: JSONObject, definitionId: String, from: WorkflowGraph): WorkflowGraph {
+        var graph = parser.parse(level.root.toString(), from.name, from.description)
+        val outputs = Subgraphs.portsOf(definitions, definitionId, "outputs")
+        val keys = definitions.optJSONObject(definitionId)?.let(SubgraphLevels::outputKeys).orEmpty()
+        // The port nodes are the subgraph's own: named after it ("image – from image in Invert and upscale")
+        val name = SubgraphLevels.nameOf(definitions, definitionId)
+        graph = graph.copy(
+            nodes = graph.nodes.map { node ->
+                if (SubgraphLevels.isInputsNode(node)) return@map node.copy(title = name)
+                if (!SubgraphLevels.isOutputsNode(node)) return@map node
+                node.copy(title = name, inputs = keys.mapIndexed { index, key ->
+                    key to (node.inputs[key] ?: InputValue.UnconnectedSlot(outputs.getOrNull(index)?.second ?: "*"))
+                }.toMap())
+            },
+            isManualPlacementMode = from.isManualPlacementMode,
+            fieldLabels = from.fieldLabels
+        )
+        graph = populateNodeOutputs(graph)
+        graph = layoutEngine.layoutGraph(graph)
+        return resolveEdgeTypes(graph)
+    }
+
+    /**
+     * Instances in [graph] showing what their definitions hold now: their subgraph's inputs (links kept), and the
+     * values they show from inside, with those [promote] adds (by instance).
+     */
+    private fun refreshInstances(graph: WorkflowGraph, definitions: JSONObject, promote: Map<String, Set<String>>): WorkflowGraph =
+        graph.copy(nodes = graph.nodes.map { node ->
+            if (!node.isSubgraphInstance || !definitions.has(node.classType)) return@map node
+            val inputs = LinkedHashMap<String, InputValue>()
+            Subgraphs.portsOf(definitions, node.classType, "inputs").forEach { (name, type) ->
+                val old = node.inputs[name]
+                inputs[name] = if (old is InputValue.Connection) old
+                    else Subgraphs.valueAt(definitions, node.classType, name)?.let { InputValue.Literal(it) } ?: InputValue.UnconnectedSlot(type)
+            }
+            (node.inputs.keys.filter(Subgraphs::isPromotedKey) + promote[node.id].orEmpty()).distinct().forEach { key ->
+                Subgraphs.valueAt(definitions, node.classType, key)?.let { inputs[key] = InputValue.Literal(it) }
+            }
+            node.copy(inputs = sortInputsForLayout(inputs))
+        })
+
+    /**
+     * Values outside a level that left a custom field while inside it (the field deleted, or the value taken out) get
+     * the field's value back as their own in [graph], the level above.
+     */
+    private fun restoreLeftFieldValues(graph: WorkflowGraph, before: List<CustomField>, after: List<CustomField>): WorkflowGraph {
+        val kept = after.flatMap { field -> field.targets.map { field.id to it } }.toSet()
+        val left = before.flatMap { field -> field.targets.filter { (field.id to it) !in kept }.map { field to it } }
+        if (left.isEmpty()) return graph
+        return graph.copy(nodes = graph.nodes.map { node ->
+            val mine = left.filter { (_, target) -> target.nodeId == node.id }
+            if (mine.isEmpty()) return@map node
+            val inputs = node.inputs.toMutableMap()
+            mine.forEach { (field, target) ->
+                if ((inputs[target.input] as? InputValue.Literal)?.value == field.placeholder) {
+                    inputs[target.input] = InputValue.Literal(CustomFields.typedValue(field.type, field.default) ?: field.default)
+                }
+            }
+            node.copy(inputs = inputs)
+        })
+    }
+
+    /** Open subgraph instance [instanceId] of the shown level (its Open button). */
+    fun openSubgraph(instanceId: String) {
+        if (_uiState.value.connectionModeState != null || _uiState.value.fieldPick != null) return
+        if (_uiState.value.isEditingNode) dismissNodeEditor()
+        val state = _uiState.value
+        val graph = currentGraph() ?: return
+        val instance = graph.nodes.find { it.id == instanceId && it.isSubgraphInstance } ?: return
+        val definitions = currentDefinitions(graph) ?: return
+        val level = SubgraphLevels.levelOf(definitions, instance.classType) ?: return
+        levelViewports[levelKey()] = state.scale to state.offset
+        val editing = mutableGraph != null
+        val frame = LevelFrame(
+            instanceId = instanceId,
+            definitionId = instance.classType,
+            parentGraph = graph,
+            parentEditing = editing,
+            parentBounds = state.graphBounds,
+            parentScale = state.scale,
+            parentOffset = state.offset,
+            parentViewFollows = viewFollowsLayout,
+            parentSelectedNodeIds = state.selectedNodeIds,
+            parentSelectedNoteIds = state.selectedNoteIds,
+            parentKeptValues = keptValues.toMap(),
+            parentNodeIdCounter = nodeIdCounter,
+            parentGroupIdCounter = groupIdCounter,
+            parentFields = graph.customFields
+        )
+        levels.add(frame)
+        var levelGraph = levelGraphOf(level, definitions, instance.classType, graph)
+        levelGraph = levelGraph.copy(customFields = translateFields(graph.customFields) { id, input -> addressIn(frame, id, input) })
+        mutableGraph = if (editing) MutableWorkflowGraph.fromImmutable(levelGraph) else null
+        keptValues.clear()
+        keptValues.putAll(level.kept)
+        nodeIdCounter = levelGraph.nodes.mapNotNull { it.id.toIntOrNull() }.filter { it > 0 }.maxOrNull()?.plus(1) ?: 1
+        groupIdCounter = levelGraph.groups.maxOfOrNull { it.id }?.plus(1) ?: 1
+        val mapping = translateMapping(state.mappingState) { id, input -> addressIn(frame, id, input) }
+        DebugLogger.d(TAG, "openSubgraph: level ${levels.size}, ${levelGraph.nodes.size} nodes")
+        showLevel(levelGraph, mapping, translateEdits(state.nodeAttributeEdits) { id, input -> addressIn(frame, id, input) }, definitions)
+    }
+
+    /** Show [graph] as the level now on top of [levels]: its own last view, or fitted the first time. */
+    private fun showLevel(
+        graph: WorkflowGraph,
+        mapping: WorkflowMappingState?,
+        edits: Map<String, Map<String, Any>>,
+        definitions: JSONObject?,
+        selectedNodeIds: Set<String> = emptySet(),
+        selectedNoteIds: Set<Int> = emptySet(),
+        viewport: Pair<Float, Offset>? = levelViewports[levelKey()],
+        bounds: GraphBounds = layoutEngine.calculateBounds(graph)
+    ) {
+        _uiState.value = _uiState.value.copy(
+            graph = graph,
+            graphBounds = bounds,
+            nodeDefinitions = buildNodeDefinitionsMap(graph),
+            nodeAttributeEdits = edits,
+            mappingState = mapping,
+            selectedNodeIds = selectedNodeIds,
+            selectedNoteIds = selectedNoteIds,
+            connectionModeState = null,
+            pendingMappedLink = null,
+            fieldPick = null,
+            draggingNodeId = null,
+            draggingNoteId = null,
+            subgraphPath = subgraphPathInfo(definitions),
+            canConfirmMapping = mapping?.allRequiredFieldsMapped ?: _uiState.value.canConfirmMapping
+        )
+        if (mapping != null) selectFieldForMapping(_uiState.value.selectedFieldKey)
+        if (viewport != null) {
+            viewFollowsLayout = false
+            _uiState.value = _uiState.value.copy(scale = viewport.first, offset = viewport.second)
+        } else {
+            viewFollowsLayout = true
+            fitToScreen()
+        }
+    }
+
+    /** Go up one level (Back, spec §19.2.3); false at the top level. */
+    fun leaveSubgraph(): Boolean {
+        val frame = levels.lastOrNull() ?: return false
+        if (_uiState.value.isEditingNode) dismissNodeEditor()
+        val state = _uiState.value
+        levelViewports[levelKey()] = state.scale to state.offset
+        val levelGraph = currentGraph() ?: return false
+        var edits = translateEdits(state.nodeAttributeEdits) { id, input -> addressOut(frame, id, input) }
+        // Values inside belong to the definition: other instances of it show a value changed inside too
+        val inside = edits[frame.instanceId].orEmpty().filterKeys(Subgraphs::isPromotedKey)
+        if (inside.isNotEmpty()) {
+            val copies = frame.parentGraph.nodes.filter { it.classType == frame.definitionId && it.id != frame.instanceId }.map { it.id }
+            edits = edits + copies.associateWith { id -> edits[id].orEmpty() + inside }
+        }
+        val mapping = translateMapping(state.mappingState) { id, input -> addressOut(frame, id, input) }
+        var parent = frame.parentGraph
+        val definitions: JSONObject?
+        if (frame.parentEditing) {
+            definitions = writeLevel(levelGraph, frame)
+            val fields = translateFields(levelGraph.customFields) { id, input -> addressOut(frame, id, input) }
+            // A value inside that fills a custom field is shown on the instance, so the field reaches it (spec §19.6)
+            val promote = fields.flatMap { it.targets }.filter { it.nodeId == frame.instanceId && Subgraphs.isPromotedKey(it.input) }
+                .map { it.input }.toSet()
+            parent = restoreLeftFieldValues(parent, frame.parentFields, fields)
+            parent = parent.copy(subgraphs = definitions.toString(), customFields = fields, fieldLabels = levelGraph.fieldLabels)
+            parent = refreshInstances(parent, definitions, mapOf(frame.instanceId to promote))
+            parent = resolveEdgeTypes(layoutEngine.layoutGraph(populateNodeOutputs(parent)))
+        } else {
+            definitions = parent.subgraphs?.let(::JSONObject)
+        }
+        levels.removeAt(levels.lastIndex)
+        mutableGraph = if (frame.parentEditing) MutableWorkflowGraph.fromImmutable(parent) else null
+        keptValues.clear()
+        keptValues.putAll(frame.parentKeptValues)
+        nodeIdCounter = frame.parentNodeIdCounter
+        groupIdCounter = frame.parentGroupIdCounter
+        DebugLogger.d(TAG, "leaveSubgraph: back to level ${levels.size}")
+        showLevel(
+            parent, mapping, edits, definitions,
+            selectedNodeIds = frame.parentSelectedNodeIds.filterTo(HashSet()) { id -> parent.nodes.any { it.id == id } },
+            selectedNoteIds = frame.parentSelectedNoteIds,
+            viewport = frame.parentScale to frame.parentOffset,
+            bounds = if (frame.parentEditing) layoutEngine.calculateBounds(parent) else frame.parentBounds
+        )
+        viewFollowsLayout = frame.parentViewFollows
+        return true
+    }
+
+    /** Jump to level [depth] of the path (0: the workflow), one level at a time (the path menu, spec §19.2.2). */
+    fun leaveSubgraphsTo(depth: Int) {
+        while (levels.size > depth.coerceAtLeast(0)) {
+            if (!leaveSubgraph()) return
+        }
+    }
+
+    /** Back at the top level, the levels' changes written back (before saving, mapping's end, a mode change). */
+    private fun leaveAllSubgraphs() = leaveSubgraphsTo(0)
+
+    /**
+     * Back at the top level as it was on entering, the levels' changes dropped (Discard): its view, and node values
+     * by its addresses.
+     */
+    private fun dropSubgraphLevels() {
+        val top = levels.firstOrNull() ?: return
+        val edits = topLevelEdits()
+        val mapping = levels.asReversed().fold(_uiState.value.mappingState) { m, frame ->
+            translateMapping(m) { id, input -> addressOut(frame, id, input) }
+        }
+        levels.clear()
+        mutableGraph = if (top.parentEditing) MutableWorkflowGraph.fromImmutable(top.parentGraph) else null
+        keptValues.clear()
+        keptValues.putAll(top.parentKeptValues)
+        nodeIdCounter = top.parentNodeIdCounter
+        groupIdCounter = top.parentGroupIdCounter
+        viewFollowsLayout = top.parentViewFollows
+        _uiState.value = _uiState.value.copy(
+            graph = top.parentGraph,
+            graphBounds = top.parentBounds,
+            nodeDefinitions = buildNodeDefinitionsMap(top.parentGraph),
+            nodeAttributeEdits = edits,
+            mappingState = mapping,
+            scale = top.parentScale,
+            offset = top.parentOffset,
+            selectedNodeIds = emptySet(),
+            selectedNoteIds = emptySet(),
+            connectionModeState = null,
+            subgraphPath = emptyList()
+        )
+    }
+
+    /** The instances entered, from the top level (to come back to them after a mode change). */
+    private fun openPath(): List<String> = levels.map { it.instanceId }
+
+    private fun reopen(path: List<String>) {
+        path.forEach { id ->
+            val before = levels.size
+            openSubgraph(id)
+            if (levels.size == before) return
+        }
     }
 }
 

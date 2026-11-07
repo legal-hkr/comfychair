@@ -1582,12 +1582,21 @@ object WorkflowManager {
         return try {
             val json = JSONObject(workflowJson)
             val nodes = json.optJSONObject("nodes") ?: json
+            val definitions = Subgraphs.definitionsOf(json)
 
             for ((nodeId, nodeEdits) in edits) {
                 val node = nodes.optJSONObject(nodeId) ?: continue
                 val inputs = node.optJSONObject("inputs") ?: continue
 
                 for ((inputName, value) in nodeEdits) {
+                    // A value inside a subgraph that its instance doesn't show (changed inside it, spec §19.2.5) goes
+                    // into the definition, as a value the instance shows does when it's taken back
+                    if (!inputs.has(inputName) && definitions != null && Subgraphs.isPromotedKey(inputName) &&
+                        definitions.has(node.optString("class_type"))
+                    ) {
+                        Subgraphs.setValueAt(definitions, node.optString("class_type"), inputName, if (value is Float) value.toDouble() else value)
+                        continue
+                    }
                     // Only update if the input exists and is not a connection
                     if (inputs.has(inputName)) {
                         val currentValue = inputs.opt(inputName)

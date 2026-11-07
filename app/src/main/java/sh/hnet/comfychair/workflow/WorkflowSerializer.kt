@@ -107,7 +107,7 @@ class WorkflowSerializer {
         val groupsArray = JSONArray()
 
         for (group in groups) {
-            DebugLogger.d(TAG, "serializeGroups: processing group id=${group.id} '${group.title}' with ${group.memberNodeIds.size} members: ${group.memberNodeIds}")
+            DebugLogger.d(TAG, "serializeGroups: processing group id=${group.id} ${Obfuscator.title(group.title)} with ${group.memberNodeIds.size} members: ${group.memberNodeIds}")
 
             val groupJson = JSONObject()
             groupJson.put("id", group.id)
@@ -162,7 +162,7 @@ class WorkflowSerializer {
                 noteJson.put("position", positionArray)
                 DebugLogger.d(TAG, "serializeNotes: note id=${note.id} ${Obfuscator.title(note.title)} with manual position: (${note.x}, ${note.y})")
             } else {
-                DebugLogger.d(TAG, "serializeNotes: note id=${note.id} '${note.title}' (${note.content.length} chars)")
+                DebugLogger.d(TAG, "serializeNotes: note id=${note.id} ${Obfuscator.title(note.title)} (${note.content.length} chars)")
             }
 
             notesArray.put(noteJson)

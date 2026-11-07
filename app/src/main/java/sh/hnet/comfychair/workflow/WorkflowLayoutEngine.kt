@@ -33,6 +33,16 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         fun outputSlotY(node: WorkflowNode, outputIndex: Int): Float =
             rowCenterY(node.inputs.count { (_, value) -> value is InputValue.Literal } + outputIndex)
 
+        // A subgraph instance's foot, holding its Open button (spec §19.1: a 36 dp button 6 dp inside a 4 dp bezel)
+        const val SUBGRAPH_FOOTER_HEIGHT = 96f
+        // Inside a subgraph: the Inputs and Outputs strips' width, and the gap from the content to their centre lines
+        const val PORT_STRIP_WIDTH = 48f
+        const val PORT_STRIP_GAP = 160f
+
+        /** A port strip's height for [sockets] sockets: its cap (a node's header), then a row per socket. */
+        fun portStripHeight(sockets: Int): Float =
+            NODE_HEADER_HEIGHT + 2 * NODE_BODY_PADDING + maxOf(sockets, 1) * INPUT_ROW_HEIGHT
+
         // Serpentine layout constants
         const val MAX_NODES_PER_COLUMN = 8
         const val MIN_COLUMNS = 2
@@ -97,6 +107,16 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
      * - Manual mode (true): Preserve existing positions, only position new elements
      */
     fun layoutGraph(graph: WorkflowGraph): WorkflowGraph {
+        // Inside a subgraph: its Inputs and Outputs strips aren't laid out, they're placed around the result
+        val ports = graph.nodes.filter(SubgraphLevels::isPortNode)
+        if (ports.isNotEmpty()) {
+            val portIds = ports.map { it.id }.toSet()
+            val content = layoutGraph(graph.copy(
+                nodes = graph.nodes.filter { it.id !in portIds },
+                edges = graph.edges.filter { it.sourceNodeId !in portIds && it.targetNodeId !in portIds }
+            ))
+            return content.copy(nodes = placePorts(content, ports) + content.nodes, edges = graph.edges)
+        }
         if (graph.nodes.isEmpty() && graph.notes.isEmpty()) return graph
 
         // Use the workflow's explicit mode setting
@@ -596,6 +616,33 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
     }
 
     /**
+     * A subgraph's Inputs and Outputs strips (spec §19.2.4) around a level's laid out [content]: their centre lines
+     * [PORT_STRIP_GAP] left of the leftmost and right of the rightmost member, vertically centred on the content
+     * (around the origin when it's empty). Each is half a strip wide, so its sockets (outputs at the right edge of the
+     * Inputs node, inputs at the left edge of the Outputs node) sit on the strip's centre line.
+     */
+    private fun placePorts(content: WorkflowGraph, ports: List<WorkflowNode>): List<WorkflowNode> {
+        val boxes = content.nodes.map { floatArrayOf(it.x, it.y, it.x + it.width, it.y + it.height) } +
+            content.notes.map { floatArrayOf(it.x, it.y, it.x + it.width, it.y + it.height.coerceAtLeast(NODE_MIN_HEIGHT)) } +
+            calculateRenderedGroups(content.groups, content.nodes, content.notes).map { floatArrayOf(it.x, it.y, it.x + it.width, it.y + it.height) }
+        val minX = boxes.minOfOrNull { it[0] } ?: 0f
+        val maxX = boxes.maxOfOrNull { it[2] } ?: 0f
+        val centerY = if (boxes.isEmpty()) 0f else ((boxes.minOf { it[1] }) + (boxes.maxOf { it[3] })) / 2
+        return ports.map { port ->
+            val sockets = if (SubgraphLevels.isInputsNode(port)) port.outputs.size else port.inputs.size
+            val height = portStripHeight(sockets)
+            val centerLine = if (SubgraphLevels.isInputsNode(port)) minX - PORT_STRIP_GAP else maxX + PORT_STRIP_GAP
+            port.copy(
+                x = if (SubgraphLevels.isInputsNode(port)) centerLine - PORT_STRIP_WIDTH / 2 else centerLine,
+                y = centerY - height / 2,
+                width = PORT_STRIP_WIDTH / 2,
+                height = height,
+                hasManualPosition = false
+            )
+        }
+    }
+
+    /**
      * Calculate the bounds of the laid out graph (nodes and notes)
      */
     fun calculateBounds(graph: WorkflowGraph): GraphBounds {
@@ -922,7 +969,9 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         // Total content height
         val contentHeight = (literalInputCount * INPUT_ROW_HEIGHT) + connectionAreaHeight
 
-        val rawHeight = maxOf(NODE_MIN_HEIGHT, NODE_HEADER_HEIGHT + contentHeight + 2 * NODE_BODY_PADDING)
+        // A subgraph instance has its Open button at the foot (spec §19.1)
+        val footer = if (node.isSubgraphInstance) SUBGRAPH_FOOTER_HEIGHT else 0f
+        val rawHeight = maxOf(NODE_MIN_HEIGHT, NODE_HEADER_HEIGHT + contentHeight + 2 * NODE_BODY_PADDING + footer)
         // Snap to grid (round up to nearest GRID_CELL_SIZE)
         return (kotlin.math.ceil(rawHeight / GRID_CELL_SIZE) * GRID_CELL_SIZE).toFloat()
     }

@@ -4,6 +4,7 @@ package sh.hnet.comfychair.ui.screens
 
 import android.text.TextUtils
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
@@ -66,8 +67,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -80,7 +85,21 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.util.lerp
+import org.json.JSONObject
+import sh.hnet.comfychair.ui.components.SubgraphSummary
+import sh.hnet.comfychair.workflow.SubgraphLevels
+import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -194,6 +213,58 @@ fun WorkflowEditorScreen(
         else -> EditorMode.NODE_VALUES
     }
     val connection = uiState.connectionModeState
+
+    // Entering and leaving a subgraph (spec §19.2.1): the level shown grows out of its instance (or shrinks back into
+    // it) while the other one, a picture taken as the level changed, fades; standard spatial motion, no bounce
+    val canvasLayer = rememberGraphicsLayer()
+    val levelMotion = remember { Animatable(1f) }
+    var levelPicture by remember { mutableStateOf<ImageBitmap?>(null) }
+    var levelPivot by remember { mutableStateOf(Offset.Zero) }
+    var levelRatio by remember { mutableFloatStateOf(1f) }
+    var levelEntering by remember { mutableStateOf(true) }
+    var levelChanges by remember { mutableIntStateOf(0) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    // Predictive Back inside a subgraph: how far the gesture went (the level shrinks a little)
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    val levelScope = rememberCoroutineScope()
+    val levelSpatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    // An instance on screen now: its centre, and how many times wider the canvas is
+    fun instanceOnScreen(instanceId: String): Pair<Offset, Float>? {
+        val now = viewModel.uiState.value
+        val node = now.graph?.nodes?.find { it.id == instanceId } ?: return null
+        val center = Offset((node.x + node.width / 2) * now.scale + now.offset.x, (node.y + node.height / 2) * now.scale + now.offset.y)
+        return center to (canvasSize.width / (node.width * now.scale)).coerceIn(1.5f, 12f)
+    }
+    fun changeLevel(entering: Boolean, instanceId: String, change: () -> Unit) {
+        levelScope.launch {
+            val picture = runCatching { canvasLayer.toImageBitmap() }.getOrNull()
+            val before = if (entering) instanceOnScreen(instanceId) else null
+            change()
+            val place = before ?: instanceOnScreen(instanceId) ?: (Offset(canvasSize.width / 2f, canvasSize.height / 2f) to 3f)
+            levelPivot = place.first
+            levelRatio = place.second
+            levelEntering = entering
+            levelPicture = picture
+            levelChanges++
+            backProgress = 0f
+            levelMotion.snapTo(0f)
+            levelMotion.animateTo(1f, levelSpatial)
+            levelPicture = null
+        }
+    }
+    val openSubgraph: (String) -> Unit = { id -> changeLevel(entering = true, instanceId = id) { viewModel.openSubgraph(id) } }
+    // Up to level [depth] of the path (0: the workflow), shrinking into the instance it was entered through
+    val leaveTo: (Int) -> Unit = { depth ->
+        viewModel.uiState.value.subgraphPath.getOrNull(depth)?.let { level ->
+            changeLevel(entering = false, instanceId = level.instanceId) { viewModel.leaveSubgraphsTo(depth) }
+        }
+    }
+    val leaveOne = { leaveTo(viewModel.uiState.value.subgraphPath.size - 1) }
+    val levelKey = uiState.subgraphPath.joinToString("/") { it.instanceId }
+    // The workflow's subgraphs, for instances' names and node counts (values sheet, nodes list)
+    val definitionsJson = remember(uiState.graph?.subgraphs) {
+        uiState.graph?.subgraphs?.let { runCatching { JSONObject(it) }.getOrNull() }
+    }
     // A linked input socket's menu (Disconnect, Change source), and the app's field names for the linking question
     var socketMenu by remember { mutableStateOf<SlotPosition?>(null) }
     // Custom fields by the names the user gave them ("field_<id>" -> name), built-in fields by their labels in this
@@ -278,6 +349,8 @@ fun WorkflowEditorScreen(
             uiState.fieldPick != null -> viewModel.cancelFieldPick()
             connection != null -> viewModel.exitConnectionMode()
             uiState.isEditingNode -> viewModel.dismissNodeEditor()
+            // Inside a subgraph: up one level (spec §19.2.3)
+            uiState.subgraphPath.isNotEmpty() -> leaveOne()
             // Importing: asks; saving from the editor: back to editing, nothing lost
             uiState.isFieldMappingMode -> if (uiState.isImportMapping) confirmCancelImport = true else viewModel.returnFromSaveMapping()
             uiState.isCreateMode -> viewModel.handleCreateModeClose()
@@ -288,9 +361,21 @@ fun WorkflowEditorScreen(
     // Taken over only when Back has something to do first or might not leave (unsaved changes ask); otherwise it's the
     // system's, with its predictive animation back to the previous screen (goBack would only close the editor too)
     val backHasWork = connection != null || uiState.isEditingNode || uiState.isFieldMappingMode ||
+        uiState.subgraphPath.isNotEmpty() ||
         ((uiState.isCreateMode || uiState.isEditMode) &&
             (uiState.hasUnsavedChanges || (uiState.isCreateMode && uiState.graph?.nodes?.isNotEmpty() == true)))
-    BackHandler(enabled = backHasWork, onBack = goBack)
+    // Inside a subgraph with nothing else to close, Back goes up a level with a predictive preview of it
+    val backLeavesLevel = uiState.subgraphPath.isNotEmpty() && connection == null && uiState.fieldPick == null && !uiState.isEditingNode
+    BackHandler(enabled = backHasWork && !backLeavesLevel, onBack = goBack)
+    PredictiveBackHandler(enabled = backLeavesLevel) { progress ->
+        try {
+            progress.collect { event -> backProgress = event.progress }
+            leaveOne()
+        } catch (e: CancellationException) {
+            backProgress = 0f
+            throw e
+        }
+    }
 
     // Node values: a standard (non-modal) bottom sheet, so the graph stays pannable; swiping it down closes the node
     val valuesSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.Hidden, skipHiddenState = false)
@@ -349,7 +434,14 @@ fun WorkflowEditorScreen(
                     linkedValues = linkedValuesOf(node, uiState.graph, uiState.nodeDefinitions[node.classType]),
                     // A linked value's row opens its source node, as tapping that node does
                     onOpenNode = { id -> uiState.graph?.nodes?.find { it.id == id }?.let(viewModel::onNodeTappedForEditing) },
-                    fieldNames = customFieldNames
+                    fieldNames = customFieldNames,
+                    subgraph = definitionsJson?.takeIf { node.isSubgraphInstance && it.has(node.classType) }?.let { definitions ->
+                        SubgraphSummary(
+                            name = SubgraphLevels.nameOf(definitions, node.classType).takeIf { it != node.title },
+                            nodeCount = SubgraphLevels.nodeCount(definitions, node.classType),
+                            labels = SubgraphLevels.promotedLabels(definitions, node.classType, node.inputs.keys)
+                        )
+                    }
                 )
             }
         }
@@ -529,6 +621,8 @@ fun WorkflowEditorScreen(
                                 onAddToField = { fieldId -> viewModel.addToCustomField(fieldId, slot.nodeId, slot.slotName) }
                             )
                         }
+                        // A fresh canvas for each level, showing it in place (the level's own motion moves it)
+                        key(levelKey) {
                         WorkflowGraphCanvas(
                             graph = uiState.graph!!,
                             scale = displayScale,
@@ -679,8 +773,29 @@ fun WorkflowEditorScreen(
                                 shouldAnimateZoomChange.value = true
                                 viewModel.onTransform(scale, offset)
                             },
+                            onOpenSubgraph = openSubgraph,
+                            appearInPlace = levelChanges > 0 || uiState.subgraphPath.isNotEmpty(),
                             modifier = Modifier
                                 .fillMaxSize()
+                                .onSizeChanged { canvasSize = it }
+                                // The level comes in from its instance (entering) or from around it (leaving)
+                                .graphicsLayer {
+                                    val p = levelMotion.value
+                                    val center = Offset(size.width / 2, size.height / 2)
+                                    val zoom = if (levelEntering) lerp(1f / levelRatio, 1f, p) else lerp(levelRatio, 1f, p)
+                                    val back = 1f - 0.1f * backProgress
+                                    val shift = if (levelEntering) (levelPivot - center) * (1f - p) else (levelPivot - center) * (1f - zoom)
+                                    scaleX = zoom * back
+                                    scaleY = zoom * back
+                                    translationX = shift.x
+                                    translationY = shift.y
+                                    alpha = if (levelPicture != null) p else 1f
+                                }
+                                // What's drawn is kept, for the picture the next level change fades out
+                                .drawWithContent {
+                                    canvasLayer.record { this@drawWithContent.drawContent() }
+                                    drawLayer(canvasLayer)
+                                }
                                 .semantics {
                                     if (mode == EditorMode.EDIT || mode == EditorMode.NODE_VALUES) {
                                         customActions = buildList {
@@ -703,6 +818,26 @@ fun WorkflowEditorScreen(
                                     }
                                 }
                         )
+                        }
+
+                        // The level left, as a picture: growing past its instance (entering) or shrinking into it
+                        levelPicture?.let { picture ->
+                            Canvas(
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        val p = levelMotion.value
+                                        val center = Offset(size.width / 2, size.height / 2)
+                                        val zoom = if (levelEntering) lerp(1f, levelRatio, p) else lerp(1f, 1f / levelRatio, p)
+                                        val shift = if (levelEntering) (levelPivot - center) * (1f - zoom) else (levelPivot - center) * p
+                                        scaleX = zoom
+                                        scaleY = zoom
+                                        translationX = shift.x
+                                        translationY = shift.y
+                                        alpha = 1f - p
+                                    }
+                            ) { drawImage(picture) }
+                        }
 
                         EditorTopRow(
                             workflowName = uiState.workflowName,
@@ -714,6 +849,8 @@ fun WorkflowEditorScreen(
                             } else null,
                             selectedCount = if (mode == EditorMode.EDIT) uiState.selectedNodeIds.size + uiState.selectedNoteIds.size else 0,
                             onClearSelection = { viewModel.clearSelection() },
+                            path = uiState.subgraphPath,
+                            onPickLevel = leaveTo,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(start = 12.dp, end = 12.dp, top = 8.dp)
@@ -795,7 +932,13 @@ fun WorkflowEditorScreen(
         }
         if (showNodeList) {
             NodeListSheet(
-                nodes = uiState.graph?.nodes ?: emptyList(),
+                // A level's Inputs and Outputs strips aren't nodes
+                nodes = uiState.graph?.nodes.orEmpty().filterNot(SubgraphLevels::isPortNode),
+                nodeCount = { node -> definitionsJson?.takeIf { node.isSubgraphInstance }?.let { SubgraphLevels.nodeCount(it, node.classType) } },
+                onOpen = { node ->
+                    showNodeList = false
+                    openSubgraph(node.id)
+                },
                 onPick = { node ->
                     showNodeList = false
                     if (mode == EditorMode.EDIT) {
@@ -808,6 +951,27 @@ fun WorkflowEditorScreen(
                 onDismiss = { showNodeList = false }
             )
         }
+        // TalkBack: where a level change took the user (spec §19.7), read out without moving focus
+        var announcedPath by remember { mutableStateOf(levelKey) }
+        var announcement by remember { mutableStateOf("") }
+        LaunchedEffect(levelKey) {
+            if (levelKey == announcedPath) return@LaunchedEffect
+            val path = uiState.subgraphPath
+            val deeper = levelKey.length > announcedPath.length
+            announcement = path.lastOrNull()?.takeIf { deeper }?.let { level ->
+                resources.getQuantityString(R.plurals.sg_inside_announce, level.nodeCount, level.name, level.nodeCount) +
+                    (if (level.usedCount > 1) ", " + resources.getQuantityString(R.plurals.sg_used_announce, level.usedCount, level.usedCount) else "")
+            } ?: resources.getString(R.string.sg_back_announce, path.lastOrNull()?.name ?: uiState.workflowName)
+            announcedPath = levelKey
+        }
+        Box(
+            Modifier
+                .size(1.dp)
+                .semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = announcement
+                }
+        )
         if (confirmCancelImport) {
             ConfirmDialog(
                 title = stringResource(R.string.title_cancel_import),
@@ -1269,7 +1433,17 @@ fun WorkflowEditorScreen(
 /** The graph's nodes as a list (accessibility): picking one selects it or opens its values. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NodeListSheet(nodes: List<WorkflowNode>, onPick: (WorkflowNode) -> Unit, onDismiss: () -> Unit) {
+private fun NodeListSheet(
+    nodes: List<WorkflowNode>,
+    onPick: (WorkflowNode) -> Unit,
+    onDismiss: () -> Unit,
+    // A subgraph instance's nodes inside (null for other nodes), and opening it (spec §19.7)
+    nodeCount: (WorkflowNode) -> Int? = { null },
+    onOpen: (WorkflowNode) -> Unit = {}
+) {
+    val openAction = stringResource(R.string.sg_open_action)
+    val subgraphLabel = stringResource(R.string.sg_subgraph)
+    val resources = LocalResources.current
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
             stringResource(R.string.label_nodes_list),
@@ -1282,11 +1456,19 @@ private fun NodeListSheet(nodes: List<WorkflowNode>, onPick: (WorkflowNode) -> U
             modifier = Modifier.navigationBarsPadding()
         ) {
             itemsIndexed(nodes, key = { _, node -> node.id }) { index, node ->
+                val count = nodeCount(node)
                 SegmentedListItem(
                     onClick = { onPick(node) },
                     shapes = groupShapes(index, nodes.size),
                     colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    supportingContent = if (node.title != node.classType) ({ Text(node.classType) }) else null
+                    supportingContent = when {
+                        count != null -> ({ Text("$subgraphLabel – " + resources.getQuantityString(R.plurals.sg_nodes_count, count, count)) })
+                        node.title != node.classType -> ({ Text(node.classType) })
+                        else -> null
+                    },
+                    modifier = if (count != null) Modifier.semantics {
+                        customActions = listOf(CustomAccessibilityAction(openAction) { onOpen(node); true })
+                    } else Modifier
                 ) {
                     Text(node.title)
                 }
