@@ -470,10 +470,10 @@ private fun SectionSummary(section: OptionsSection, config: BottomSheetConfig, o
         OptionsSection.SAMPLING -> listOfNotNull(
             params.sampler?.selectedValue,
             params.scheduler?.selectedValue,
-            params.cfg?.takeIf { it.isVisible }?.let { "${fieldLabel(OptionField.CFG, R.string.label_cfg)} ${it.value}" },
-            params.stopAtClipLayer?.takeIf { it.isVisible }?.let { "${fieldLabel(OptionField.CLIP_LAYER, R.string.label_stop_at_clip_layer)} ${it.value}" },
+            params.cfg?.takeIf { it.isVisible }?.let { stringResource(R.string.label_name_value, fieldLabel(OptionField.CFG, R.string.label_cfg), it.value) },
+            params.stopAtClipLayer?.takeIf { it.isVisible }?.let { stringResource(R.string.label_name_value, fieldLabel(OptionField.CLIP_LAYER, R.string.label_stop_at_clip_layer), it.value) },
             params.upscaleMethod?.selectedValue,
-            params.scaleBy?.takeIf { it.isVisible }?.let { "${fieldLabel(OptionField.SCALE_BY, R.string.label_scale_by)} ${it.value}" }
+            params.scaleBy?.takeIf { it.isVisible }?.let { stringResource(R.string.label_name_value, fieldLabel(OptionField.SCALE_BY, R.string.label_scale_by), it.value) }
         ).filter { it.isNotBlank() }.joinToString(", ")
         OptionsSection.LORA -> loraCount(config).let { count ->
             if (count == 0) stringResource(R.string.label_no_loras) else pluralStringResource(R.plurals.label_lora_count, count, count)

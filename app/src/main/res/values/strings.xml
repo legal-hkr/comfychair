@@ -1101,4 +1101,6 @@
     <string name="label_builtin_field_context">Built-in field – &lt;b>%1$s&lt;/b></string>
     <string name="desc_builtin_field_name">Built-in name: %1$s – %2$d/%3$d</string>
     <string name="content_description_use_builtin_name">Use the built-in name, %1$s</string>
+    <!-- A field and its value in a summary ("CFG: 7") -->
+    <string name="label_name_value">%1$s: %2$s</string>
 </resources>

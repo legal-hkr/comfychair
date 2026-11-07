@@ -1043,4 +1043,6 @@
     <string name="label_builtin_field_context">内置字段 – &lt;b>%1$s&lt;/b></string>
     <string name="desc_builtin_field_name">内置名称：%1$s – %2$d/%3$d</string>
     <string name="content_description_use_builtin_name">使用内置名称：%1$s</string>
+    <!-- A field and its value in a summary ("CFG: 7") -->
+    <string name="label_name_value">%1$s：%2$s</string>
 </resources>

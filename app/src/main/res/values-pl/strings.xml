@@ -1127,4 +1127,6 @@
     <string name="label_builtin_field_context">Pole wbudowane – &lt;b>%1$s&lt;/b></string>
     <string name="desc_builtin_field_name">Nazwa wbudowana: %1$s – %2$d/%3$d</string>
     <string name="content_description_use_builtin_name">Przywróć nazwę wbudowaną: %1$s</string>
+    <!-- A field and its value in a summary ("CFG: 7") -->
+    <string name="label_name_value">%1$s: %2$s</string>
 </resources>

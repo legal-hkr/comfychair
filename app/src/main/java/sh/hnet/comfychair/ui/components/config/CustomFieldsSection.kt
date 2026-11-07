@@ -49,9 +49,11 @@ fun customFieldEntries(workflowId: String): List<CustomFieldEntry> {
     }
 }
 
-/** A collapsed Custom section: the fields with their values. */
+/** A collapsed Custom section: the fields with their values ("Duration: 5, Mode: fast"). */
+@Composable
 fun customFieldsSummary(entries: List<CustomFieldEntry>, values: Map<String, String>): String =
-    entries.joinToString(", ") { (field, _) -> "${field.name} ${values[field.id] ?: field.default}" }
+    entries.map { (field, _) -> stringResource(R.string.label_name_value, field.name, values[field.id] ?: field.default) }
+        .joinToString(", ")
 
 /**
  * One custom field on the options sheet (spec §18.6), by type: numbers – the app's − / + field with the node's range;
