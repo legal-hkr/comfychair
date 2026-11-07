@@ -1,0 +1,13 @@
+v0.9.2
+
+New:
+- Welcome screen to add a server or restore a backup (#52)
+- Import workflows saved on your ComfyUI server (#53)
+- Link values between nodes, and a menu on every socket (#59)
+- Video playback with sound, seeking and frame steps
+- Edit or animate the frame a video shows
+
+Bug fixes:
+- Several fields from one node when mapping (#60)
+- Number fields step to valid values
+- Safer, quieter backup restore
