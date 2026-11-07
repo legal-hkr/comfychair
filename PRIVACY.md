@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date**: November 6, 2026
+**Effective Date**: November 7, 2026
 **App**: ComfyChair
 **Developer**: Legal HKr
 
@@ -22,7 +22,7 @@ The app stores the following data locally on your device:
 - **Generation Parameters**: Your workflow selections, prompts, and generation settings (dimensions, steps, CFG, etc.)
 - **Generated Media and Sources**: Controlled by the "Media storage" setting, which applies equally to the source images and videos you pick. By default ("Memory only") generated images and videos are kept only in the phone's RAM and are never written to its storage; switching to this mode deletes any media stored earlier. The other options keep the latest results on the device when the app goes to the background ("Memory, saved on exit") or store them as they arrive ("On the device"). When you share a result, a copy is written to the app's private cache for the receiving app and deleted the next time ComfyChair starts. Media you save to the gallery is managed by you
 - **Debug Log**: Kept in memory only while debug logging is enabled. Prompts, file names, job IDs, server addresses, workflow names and the titles you give to groups, notes and nodes are recorded as placeholders; node values, server responses and error messages (which can quote addresses, paths or prompts) are not recorded at all, so an exported log does not reveal them
-- **Custom Workflows**: Any workflows you import into the app
+- **Custom Workflows**: Any workflows you import into the app, from a file or from the workflows saved on your ComfyUI server. The server's list of saved workflows is only shown, not stored; the workflow you pick is kept in memory until you finish importing it
 - **Queue**: The IDs of your queued jobs and a random client ID for each server, so jobs you submitted are still recognized as yours after the app restarts. Descriptions of your queued jobs (prompt and workflow) shown in the queue are kept in memory only
 
 All of this data remains on your device and is never transmitted to the developer or any third party.
@@ -61,7 +61,7 @@ ComfyChair does not integrate any third-party services such as:
 
 ## Data Backup
 
-ComfyChair opts out of Android's cloud backup, so none of its data (prompts, server addresses, settings, credentials or media) is uploaded to your Google account. When you move to a new phone with Android's device-to-device transfer, app settings are copied directly between the two devices; saved credentials and media are not, and you will need to sign in to your servers again. To move everything deliberately, use the backup export in the app's settings.
+ComfyChair opts out of Android's cloud backup, so none of its data (prompts, server addresses, settings, credentials or media) is uploaded to your Google account. When you move to a new phone with Android's device-to-device transfer, app settings are copied directly between the two devices; saved credentials and media are not, and you will need to sign in to your servers again. To move everything deliberately, use the backup export in the app's settings. Backup files contain your servers, settings, workflows and saved prompts, but no passwords, tokens or sign-in cookies: you enter those again after restoring.
 
 ## Children's Privacy
 

@@ -2,7 +2,7 @@
 
 An unofficial, native Android UI for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
-**Current version**: v0.9.1
+**Current version**: v0.9.2
 
 [<img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png"
     alt="Get it on GitHub"
@@ -26,6 +26,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 ### General
 
 - **Material 3 Expressive design**: Image, Video, Gallery and Settings tabs, each generation screen keeping its own state; Back retraces every step with the predictive back animation
+- **First start**: A short welcome offers to add a server or restore a backup; restored servers that need a password or token say so, and Connect opens their form to save and connect
 - **Multi-server support**: Save and manage multiple ComfyUI server connections with per-server settings and optional auto-login
 - **Server connection**: Connect to remote or local ComfyUI servers over HTTPS or HTTP, with HTTPS tried first
 - **Certificate trust**: Certificates trusted by Android are accepted as usual; self-signed or private-CA certificates are accepted after you confirm their SHA-256 fingerprint, and from then on only that certificate is accepted for the server. A server that used HTTPS is never switched to unencrypted HTTP without asking
@@ -54,10 +55,11 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **One layout for every mode**: the preview on top, a dock with the prompt, the workflow chip and parameter chips below it, and the Generate button
 - **Prompt editor**: Tapping the prompt opens a full-screen editor with Positive and Negative tabs, the prompt library and its own Generate button
 - **Parameter chips**: Seed, steps, size or megapixels, length and scale one tap away, with the same controls as the options sheet
+- **Number fields**: − and + step along the values the workflow's node allows; from a mistyped value they go to the nearest allowed one
 - **Options sheet**: Only the fields the workflow uses, in sections (workflow, quick, sampling, LoRA, models); large workflows get collapsible sections
 - **Generate button**: Generate, or add to the front of the queue and cancel your running job from its menu
 - **Progress**: A status card on the preview shows the step and elapsed time, with live preview images when the server sends them
-- **Results**: Jobs with several results get a pager with a thumbnail strip; videos play inline with a pause and position chip; one menu on the result saves, shares, shows details and sends it to another screen as its source: an image to edit or animate, a video to edit in Video to Video, or its last frame to animate on from where it ends
+- **Results**: Jobs with several results get a pager with a thumbnail strip; videos play inline, muted, with a play/pause and time control and a sound toggle; one menu on the result saves, shares, shows details and sends it to another screen as its source: an image to edit or animate, a video to edit in Video to Video, or its last frame to animate on from where it ends
 - **Text to Image** and **Text to Video**: From a prompt, with High Noise / Low Noise UNET and LoRA selection for video
 - **Image to Image**:
   - Two modes: **Editing** (transformation, with its own prompt and up to 2 reference images) and **Inpainting** (mask-based, with a mask editor with adjustable brush size and feathered edges)
@@ -75,7 +77,8 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Media viewer**:
   - Opens out of the tile or preview and returns into it; swipe down or use predictive back to close
   - Swipe between items, pinch to zoom, double tap to switch between fit and fill, single tap to hide the controls
-  - Save, share, use as source (images and videos), details (generation parameters such as prompt, model, seed and steps) and delete
+  - Save, share, use as source (images, videos, and a video's frame shown or its last frame), details (generation parameters such as prompt, model, seed and steps) and delete
+  - Videos play with sound, on a playback card with a seek slider the picture follows as you drag it, frame-by-frame stepping, play/pause, sound and a remembered loop toggle; it hides while a video plays and comes back when it ends
 - **Undo**: Every deletion of media can be undone for a few seconds before it reaches the server
 - **Media management**: Save to device gallery (Pictures/ComfyChair or Movies/ComfyChair) or share
 - **Media storage**: Generated media is kept in memory only by default and never written to the device; optionally it can be saved on exit or stored on the device. In memory-only mode the app is also hidden from the recents screen preview
@@ -87,17 +90,19 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Nodes and connections in ComfyUI's colors, adapted to the app's light and dark themes, with Bezier curves or Hermite splines
   - Zoomed out below about 40 %, nodes become blocks with their titles; tap one to zoom in to it
   - The selected node's connections are emphasized while the others recede
+  - Notes and group labels lie above the wires; group areas are frosted glass, with other wires passing under them
   - Opens fitted into the free area of the screen, laid out for its proportions
-- **Node values**: A bottom sheet with every editable input of a node (numeric steppers with range hints, switches, image previews, the inputs the generation screen fills in), its changed values marked and resettable one by one or all at once
+- **Node values**: A bottom sheet with every editable input of a node (numeric steppers with range hints, switches, image previews, values linked from other nodes leading to their source, the inputs the generation screen fills in), its changed values marked and resettable one by one or all at once
 - **Node management**:
   - Add nodes via a searchable node browser with category chips, human-readable names, and deprecated and experimental nodes marked
-  - Long-press an output socket to open the node browser filtered by compatible types
   - Delete, duplicate, bypass and rename nodes; clean up disconnected nodes
-  - Connect by tapping an output socket and then an input socket (or vice versa); compatible sockets are ringed while a connection waits
+  - Tap any socket for its menu: Connect (compatible sockets are ringed while a connection waits), Add a node (the node browser filtered by compatible types) or Disconnect
+  - Values (numbers, text, true/false) take links of their type, as in ComfyUI, and become values again when disconnected
+  - With TalkBack, a node's sockets and a pending connection's targets are available as actions
   - Organize nodes into groups and add notes with Markdown support; groups are laid out apart like nodes
-- **Field mapping**: When importing, the app's fields are assigned one at a time on a card, with a list of all fields; no field is required except the source image for image workflows, and workflows without a prompt (e.g. upscalers) are supported
+- **Field mapping**: When importing, the app's fields are assigned one at a time on a card, with a list of all fields; several fields can come from one node; no field is required except the source image for image workflows, and workflows without a prompt (e.g. upscalers) are supported
 - **Workflow management**:
-  - Create workflows from scratch or import existing ones from ComfyUI
+  - Create workflows from scratch, import a file, or import a workflow saved on the ComfyUI server (Workflow › Save) from a searchable list
   - Supported formats:
     - ComfyUI LiteGraph (import only) - native ComfyUI workflow format with subgraph support; widget values are read as ComfyUI lays them out, dynamic inputs and extensions' named values included
     - ComfyUI API JSON (import/export) - workflow format used by the ComfyUI API
@@ -112,7 +117,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 
 - **Server**: ComfyUI, OS, Python and PyTorch versions, RAM and VRAM meters, freeing memory and unloading models, clearing the history
 - **App**: Connection, generation, media and privacy, language and workflow editor pages; changes apply at once, without restarting the app
-- **Data**: Backup and restore of the configuration (connections, workflow values, custom workflows), clearing the cache, the debug log, and restoring the app to its installed state while keeping the servers
+- **Data**: Backup and restore of the configuration (connections, workflow values, custom workflows, saved prompts; passwords and tokens are not included), also offered on the first start, clearing the cache, the debug log, and restoring the app to its installed state while keeping the servers
 
 ## Requirements
 

@@ -12,7 +12,8 @@ What you can do:
 Flexible workflow support:
 - Works with both traditional Checkpoint and modern UNET workflows (Flux, Z-Image, Wan, LTX-2, MiniMax H3 and more)
 - Stack up to 5 LoRAs with individual strength controls
-- Create new workflows from scratch or import existing ones from ComfyUI
+- Create new workflows from scratch, import files, or pick a workflow saved on your ComfyUI server
+- Link values between nodes and disconnect them, as in ComfyUI
 - Full node graph visualization and editing with a searchable node browser, and an overview of large graphs when zoomed out
 - Organize nodes into groups and add notes with Markdown support
 
@@ -23,9 +24,10 @@ Built for mobile:
 - HTTP Basic Auth, API key and browser SSO sign-in for secured servers
 - Private by default: generated media stays in memory, no analytics, no cloud backup
 - Pinch-to-zoom media viewer with swipe navigation
+- Video playback with sound, seeking and frame-by-frame stepping
 - Clear error messages, with the full details from the server one tap away
 - Batch operations for saving, sharing, or deleting multiple items
-- Backup and restore your configuration across devices
+- Backup and restore your configuration across devices, right from the welcome screen
 - Available in English, German, French, Polish, Spanish, and Chinese
 
 Requirements:
