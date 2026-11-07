@@ -27,7 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +69,20 @@ private sealed interface SheetItem {
     data class Summary(val section: OptionsSection) : SheetItem {
         override val key get() = "summary-$section"
     }
+    /** Custom fields (spec §18.6): switch and choice rows next to each other form one group, others stand alone */
+    data class Custom(val entries: List<CustomFieldEntry>) : SheetItem {
+        override val key get() = "custom-${entries.joinToString { it.field.id }}"
+    }
+    data object CustomHeader : SheetItem {
+        override val key get() = "header-custom"
+    }
+    data object CustomSummary : SheetItem {
+        override val key get() = "summary-custom"
+    }
 }
+
+/** The custom fields' section (not a built-in [OptionsSection]: the workflow defines its fields) */
+const val CUSTOM_SECTION = "CUSTOM"
 
 /** Sections that collapse to a summary in a large workflow; Quick always stays open. */
 private val collapsibleSections = setOf(OptionsSection.SAMPLING, OptionsSection.LORA, OptionsSection.MODELS)
@@ -84,7 +99,12 @@ fun ConfigBottomSheetContent(
     workflowId: String,
     modifier: Modifier = Modifier,
     // Opens the workflow's node values in the editor: the last row, for values the sheet doesn't show
-    onOpenNodeValues: (() -> Unit)? = null
+    onOpenNodeValues: (() -> Unit)? = null,
+    // Custom fields (spec §18.6): a last section, after LoRA
+    customFields: List<CustomFieldEntry> = emptyList(),
+    customValues: Map<String, String> = emptyMap(),
+    customErrors: Map<String, String> = emptyMap(),
+    onCustomFieldChange: (fieldId: String, value: String, error: String?) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -96,6 +116,7 @@ fun ConfigBottomSheetContent(
             collapsibleSections.forEach { put(it, OptionsSectionPrefs.isExpanded(context, workflowId, it)) }
         }
     }
+    var customExpanded by remember(workflowId) { mutableStateOf(OptionsSectionPrefs.isExpanded(context, workflowId, CUSTOM_SECTION)) }
     fun setExpanded(section: OptionsSection, value: Boolean) {
         expanded[section] = value
         OptionsSectionPrefs.setExpanded(context, workflowId, section, value)
@@ -123,6 +144,26 @@ fun ConfigBottomSheetContent(
                 }
             }
         }
+        if (customFields.isNotEmpty()) {
+            // Collapsible as the other sections of a large workflow; in a small one the fields just follow
+            if (layout.sectioned) add(SheetItem.CustomHeader)
+            if (layout.sectioned && !customExpanded) {
+                add(SheetItem.CustomSummary)
+            } else {
+                customFields.forEach { entry ->
+                    val last = lastOrNull()
+                    if (entry.isListRow() && last is SheetItem.Custom && last.entries.last().isListRow()) {
+                        set(lastIndex, SheetItem.Custom(last.entries + entry))
+                    } else {
+                        add(SheetItem.Custom(listOf(entry)))
+                    }
+                }
+            }
+        }
+    }
+    fun setCustomExpanded(value: Boolean) {
+        customExpanded = value
+        OptionsSectionPrefs.setExpanded(context, workflowId, CUSTOM_SECTION, value)
     }
 
     LazyColumn(
@@ -135,7 +176,7 @@ fun ConfigBottomSheetContent(
             when (item) {
                 is SheetItem.Header -> item(key = item.key) {
                     SectionHeader(
-                        section = item.section,
+                        title = stringResource(sectionTitleRes(item.section)),
                         expanded = expanded[item.section] == true,
                         onCollapse = if (item.collapsible && expanded[item.section] == true) {
                             { setExpanded(item.section, false) }
@@ -154,6 +195,32 @@ fun ConfigBottomSheetContent(
                 }
                 is SheetItem.Fields -> item(key = item.key) {
                     FieldRow(item.row, config, workflowName)
+                }
+                SheetItem.CustomHeader -> item(key = item.key) {
+                    SectionHeader(
+                        title = stringResource(R.string.section_custom_fields),
+                        expanded = customExpanded,
+                        onCollapse = if (customExpanded) { { setCustomExpanded(false) } } else null
+                    )
+                }
+                SheetItem.CustomSummary -> item(key = item.key) {
+                    SummaryRow(stringResource(R.string.section_custom_fields), customFieldsSummary(customFields, customValues)) {
+                        setCustomExpanded(true)
+                    }
+                }
+                is SheetItem.Custom -> item(key = item.key) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        item.entries.forEachIndexed { index, entry ->
+                            val id = entry.field.id
+                            CustomFieldControl(
+                                entry = entry,
+                                value = customValues[id] ?: entry.field.default,
+                                error = customErrors[id],
+                                onValueChange = { value, error -> onCustomFieldChange(id, value, error) },
+                                shape = segmentedItemShape(index, item.entries.size)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -319,7 +386,7 @@ private fun modelCount(config: BottomSheetConfig): Int = with(config.models) {
 }
 
 @Composable
-private fun SectionHeader(section: OptionsSection, expanded: Boolean, onCollapse: (() -> Unit)?) {
+private fun SectionHeader(title: String, expanded: Boolean, onCollapse: (() -> Unit)?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,7 +394,7 @@ private fun SectionHeader(section: OptionsSection, expanded: Boolean, onCollapse
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = stringResource(sectionTitleRes(section)),
+            text = title,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f)
@@ -335,7 +402,7 @@ private fun SectionHeader(section: OptionsSection, expanded: Boolean, onCollapse
         if (onCollapse != null && expanded) {
             sh.hnet.comfychair.ui.components.shared.TooltipIconButton(
                 Icons.Rounded.ExpandLess,
-                stringResource(R.string.content_description_hide_section, stringResource(sectionTitleRes(section))),
+                stringResource(R.string.content_description_hide_section, title),
                 onCollapse
             )
         }
@@ -361,7 +428,11 @@ private fun SectionSummary(section: OptionsSection, config: BottomSheetConfig, o
         OptionsSection.MODELS -> modelCount(config).let { pluralStringResource(R.plurals.label_models_count, it, it) }
         else -> ""
     }
-    val title = stringResource(sectionTitleRes(section))
+    SummaryRow(stringResource(sectionTitleRes(section)), summary, onExpand)
+}
+
+@Composable
+private fun SummaryRow(title: String, summary: String, onExpand: () -> Unit) {
     val showLabel = stringResource(R.string.content_description_show_section, title)
     SegmentedListItem(
         onClick = onExpand,
@@ -381,11 +452,18 @@ object OptionsSectionPrefs {
     private const val PREFS = "OptionsSheetSections"
 
     fun isExpanded(context: Context, workflowId: String, section: OptionsSection): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("$workflowId:${section.name}", false)
+        isExpanded(context, workflowId, section.name)
 
-    fun setExpanded(context: Context, workflowId: String, section: OptionsSection, expanded: Boolean) {
+    fun setExpanded(context: Context, workflowId: String, section: OptionsSection, expanded: Boolean) =
+        setExpanded(context, workflowId, section.name, expanded)
+
+    /** By the section's name: the built-in sections' enum names, or [CUSTOM_SECTION] */
+    fun isExpanded(context: Context, workflowId: String, section: String): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("$workflowId:$section", false)
+
+    fun setExpanded(context: Context, workflowId: String, section: String, expanded: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean("$workflowId:${section.name}", expanded).apply()
+            .putBoolean("$workflowId:$section", expanded).apply()
     }
 
     fun clearAll(context: Context) {

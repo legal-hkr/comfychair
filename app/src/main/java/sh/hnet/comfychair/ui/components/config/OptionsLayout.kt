@@ -138,11 +138,12 @@ private fun rowsFor(templateRows: List<List<OptionField>>, present: (OptionField
  * Lay out the options sheet for a workflow's capabilities. Only fields the workflow has appear, and a section exists
  * only when it has at least one; nothing depends on the screen. (Reference images are set on the source image, not here.)
  */
-fun optionsLayout(capabilities: WorkflowCapabilities): OptionsLayout {
+fun optionsLayout(capabilities: WorkflowCapabilities, customFieldCount: Int = 0): OptionsLayout {
     val present: (OptionField) -> Boolean = { capabilities.has(it) }
     val workflow = OptionsSectionLayout(OptionsSection.WORKFLOW, rowsFor(templates.getValue(OptionsSection.WORKFLOW), present))
     val others = OptionsSection.entries.drop(1)
-    val fieldCount = others.sumOf { section -> templates.getValue(section).flatten().count(present) }
+    // Custom fields count as fields too (their section is drawn by the sheet, after LoRA)
+    val fieldCount = others.sumOf { section -> templates.getValue(section).flatten().count(present) } + customFieldCount
     val sectioned = fieldCount > FLAT_OPTIONS_MAX_FIELDS
 
     val rest = if (sectioned) {

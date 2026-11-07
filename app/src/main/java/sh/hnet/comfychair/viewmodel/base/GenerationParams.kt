@@ -87,8 +87,9 @@ data class GenerationParams(
     override val upscaleMethod: String = "nearest-exact",
     override val scaleBy: String = "1.5",
     override val stopAtClipLayer: String = "-1",
-    // Custom fields' values as text, by field ID (spec §18)
-    val customValues: Map<String, String> = emptyMap(),
+    // Custom fields' values as text, by field ID, and their validation errors (spec §18)
+    override val customValues: Map<String, String> = emptyMap(),
+    override val customErrors: Map<String, String> = emptyMap(),
 
     // LoRA chains
     override val loraChain: List<LoraSelection> = emptyList(),
@@ -176,7 +177,7 @@ data class GenerationParams(
         get() = listOf(
             widthError, heightError, megapixelsError, lengthError, fpsError, stepsError, cfgError,
             seedError, denoiseError, batchSizeError, scaleByError, stopAtClipLayerError
-        ).any { it != null }
+        ).any { it != null } || customErrors.isNotEmpty()
 
     /**
      * Apply the server's model lists: a selection restored before the lists arrived wins if the
@@ -258,6 +259,7 @@ data class GenerationParams(
             lownoiseLoraChain = saved?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             // Custom fields: the saved value, else the value the field was made with
             customValues = customFields.associate { field -> field.id to (saved?.customValues?.get(field.id) ?: field.default) },
+            customErrors = emptyMap(),
             // Values come from storage or the template, so no field starts with an error
             widthError = null, heightError = null, megapixelsError = null, lengthError = null, fpsError = null,
             stepsError = null, cfgError = null, seedError = null, denoiseError = null, batchSizeError = null,

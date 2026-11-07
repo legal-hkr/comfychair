@@ -80,6 +80,7 @@ import sh.hnet.comfychair.ui.components.config.BottomSheetConfig
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.ui.components.config.ConfigBottomSheetContent
 import sh.hnet.comfychair.ui.components.config.UnifiedCallbacks
+import sh.hnet.comfychair.ui.components.config.customFieldEntries
 import sh.hnet.comfychair.ui.components.config.optionsLayout
 import sh.hnet.comfychair.util.AppError
 import sh.hnet.comfychair.util.AppErrors
@@ -595,7 +596,9 @@ fun GenerationOptionsSheet(
     }
     val callbacks = remember(viewModel) { extraCallbacks(generationCallbacks(viewModel)) }
     val config = remember(state, callbacks) { buildConfig(callbacks) }
-    val layout = remember(state.capabilities) { optionsLayout(state.capabilities) }
+    // The workflow's custom fields with their inputs' definitions (spec §18.6)
+    val customFields = remember(state.selectedWorkflowId, state.capabilities) { customFieldEntries(state.selectedWorkflowId) }
+    val layout = remember(state.capabilities, customFields.size) { optionsLayout(state.capabilities, customFields.size) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = layout.sectioned)
     LaunchedEffect(visible) {
         if (!visible) {
@@ -614,7 +617,11 @@ fun GenerationOptionsSheet(
             layout = layout,
             workflowId = state.selectedWorkflowId,
             modifier = Modifier.navigationBarsPadding(),
-            onOpenNodeValues = openNodeValues
+            onOpenNodeValues = openNodeValues,
+            customFields = customFields,
+            customValues = state.customValues,
+            customErrors = state.customErrors,
+            onCustomFieldChange = viewModel::onCustomFieldChange
         )
     }
 }

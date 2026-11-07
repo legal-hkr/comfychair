@@ -55,6 +55,10 @@ interface CommonGenerationState {
     /** Options of the node that holds {{upscale_method}}; the server-wide list mixes in custom nodes' values */
     val filteredUpscaleMethods: List<String>?
 
+    // Custom fields (spec §18): values as text and validation errors, by field ID
+    val customValues: Map<String, String>
+    val customErrors: Map<String, String>
+
     // Generation parameters
     val steps: String
     val cfg: String
