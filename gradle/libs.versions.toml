@@ -16,7 +16,7 @@ composeBom = "2025.12.00"
 composeMaterial3 = "1.5.0-alpha11"
 lifecycleViewModel = "2.8.7"
 navigationCompose = "2.8.5"
-media3 = "1.8.0"
+media3 = "1.11.1"
 commonmark = "0.24.0"
 securityCrypto = "1.1.0-alpha06"
 

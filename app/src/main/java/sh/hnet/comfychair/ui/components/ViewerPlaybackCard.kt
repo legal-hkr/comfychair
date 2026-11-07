@@ -46,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,6 +85,11 @@ fun ViewerPlaybackCard(
     var positionMs by remember { mutableLongStateOf(SharedVideoPlayer.positionMs()) }
     // The position while the slider is dragged, shown instead of the player's until it's let go
     var dragPosition by remember { mutableStateOf<Float?>(null) }
+    // Whether the video played when a drag of the slider began: it pauses while scrubbing and plays on after
+    var playedBeforeDrag by remember { mutableStateOf(false) }
+    // A gesture that began on the slider belongs to the slider; the card takes every other touch (read in the card's
+    // handler, set by the slider's before it: not state, nothing to draw)
+    val gestureOnSlider = remember { BooleanArray(1) }
     // A step or seek changes the position while paused: read it again right after
     var refresh by remember { mutableIntStateOf(0) }
     LaunchedEffect(state.isPlaying, state.durationMs, state.ended, refresh) {
@@ -92,7 +99,9 @@ fun ViewerPlaybackCard(
         } while (state.isPlaying)
     }
 
-    val loading = state.isLoading
+    // Loading is the first load of the video (its length still unknown): seeking buffers briefly, and must neither
+    // disable the slider under the finger nor turn play/pause into a spinner
+    val loading = state.durationMs == null
     val durationMs = state.durationMs
     val shownMs = dragPosition?.toLong() ?: positionMs
     val elapsed = formatPlaybackTime(shownMs)
@@ -116,13 +125,16 @@ fun ViewerPlaybackCard(
             .widthIn(max = 600.dp)
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
-            // Every touch inside the card stays here: the pager, swipe-to-close and the overlay tap never see it
+            // Every touch inside the card stays here: the pager, swipe-to-close and the overlay tap never see it. Except a
+            // drag of the slider: a slider gives up a drag that someone else consumed before it crossed the touch slop,
+            // so its gestures are left to it (once dragging, it consumes them itself, and the pager doesn't move)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     do {
                         val event = awaitPointerEvent()
-                        event.changes.forEach { it.consume() }
+                        if (!gestureOnSlider[0]) event.changes.forEach { it.consume() }
                     } while (event.changes.any { it.pressed })
+                    gestureOnSlider[0] = false
                 }
             }
     ) {
@@ -134,13 +146,22 @@ fun ViewerPlaybackCard(
             val forward5 = stringResource(R.string.video_forward_5s)
             Slider(
                 value = shownMs.toFloat().coerceIn(0f, (durationMs ?: 1L).toFloat()),
+                // Scrubbing: the picture follows the finger (paused meanwhile), landing exactly on its frame at the end
                 onValueChange = { value ->
-                    if (dragPosition == null) onDraggingChange(true)
+                    if (dragPosition == null) {
+                        onDraggingChange(true)
+                        playedBeforeDrag = state.isPlaying
+                        if (state.isPlaying) SharedVideoPlayer.togglePlayback()
+                        SharedVideoPlayer.startScrub()
+                    }
                     dragPosition = value
+                    SharedVideoPlayer.scrubTo(value.toLong())
                 },
                 onValueChangeFinished = {
-                    dragPosition?.let { SharedVideoPlayer.seekToFrameAt(it.toLong()) }
+                    dragPosition?.let { SharedVideoPlayer.endScrub(it.toLong()) }
                     dragPosition = null
+                    if (playedBeforeDrag) SharedVideoPlayer.togglePlayback()
+                    playedBeforeDrag = false
                     onDraggingChange(false)
                     act {}
                 },
@@ -152,6 +173,13 @@ fun ViewerPlaybackCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
+                    // Marks a gesture that begins here as the slider's, before the card's handler sees it (spec §14.3.3)
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            gestureOnSlider[0] = true
+                        }
+                    }
                     .semantics {
                         contentDescription = positionLabel
                         stateDescription = positionState

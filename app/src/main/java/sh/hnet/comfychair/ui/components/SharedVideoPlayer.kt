@@ -252,6 +252,27 @@ object SharedVideoPlayer {
         seekTo(target, exact = true)
     }
 
+    /**
+     * The slider's drag begins: ExoPlayer's scrubbing mode, made for many frequent seeks (a seek per finger movement,
+     * frames decoded as fast as they're asked for). End it with [endScrub].
+     */
+    @OptIn(UnstableApi::class)
+    fun startScrub() {
+        exoPlayer?.setScrubbingModeEnabled(true)
+    }
+
+    /** Follow the finger: a plain seek per movement, as Media3's own scrubber bar does in scrubbing mode. */
+    fun scrubTo(positionMs: Long) {
+        exoPlayer?.seekTo(positionMs.coerceAtLeast(0L))
+    }
+
+    /** The finger is lifted: leave scrubbing mode and land exactly on the frame let go on ([seekToFrameAt]). */
+    @OptIn(UnstableApi::class)
+    fun endScrub(positionMs: Long) {
+        exoPlayer?.setScrubbingModeEnabled(false)
+        seekToFrameAt(positionMs)
+    }
+
     /** Seek with the slider: to the start of the frame at [positionMs], so the frame shown is exactly that frame. */
     fun seekToFrameAt(positionMs: Long) {
         val fps = _state.value.frameRate?.toDouble() ?: DEFAULT_FRAME_RATE
