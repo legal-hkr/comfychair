@@ -213,7 +213,12 @@ data class WorkflowGraph(
     /** Fields the user made from node values (spec §18) */
     val customFields: List<CustomField> = emptyList(),
     /** The workflow's own labels for built-in fields, by field key */
-    val fieldLabels: Map<String, String> = emptyMap()
+    val fieldLabels: Map<String, String> = emptyMap(),
+    /**
+     * The workflow's subgraph definitions as stored (JSON text of its `subgraphs` object, [Subgraphs]), carried as they
+     * are; instances show their values as their inputs (exposed). Null without subgraphs.
+     */
+    val subgraphs: String? = null
 )
 
 /**
@@ -233,7 +238,8 @@ data class MutableWorkflowGraph(
     /** Whether manual placement mode is enabled for this workflow */
     var isManualPlacementMode: Boolean = false,
     var customFields: List<CustomField> = emptyList(),
-    var fieldLabels: Map<String, String> = emptyMap()
+    var fieldLabels: Map<String, String> = emptyMap(),
+    var subgraphs: String? = null
 ) {
     /**
      * Convert to immutable WorkflowGraph
@@ -249,7 +255,8 @@ data class MutableWorkflowGraph(
         mappedFields = mappedFields,
         isManualPlacementMode = isManualPlacementMode,
         customFields = customFields,
-        fieldLabels = fieldLabels
+        fieldLabels = fieldLabels,
+        subgraphs = subgraphs
     )
 
     companion object {
@@ -267,7 +274,8 @@ data class MutableWorkflowGraph(
             mappedFields = graph.mappedFields,
             isManualPlacementMode = graph.isManualPlacementMode,
             customFields = graph.customFields,
-            fieldLabels = graph.fieldLabels
+            fieldLabels = graph.fieldLabels,
+            subgraphs = graph.subgraphs
         )
     }
 }

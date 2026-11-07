@@ -26,6 +26,7 @@ import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.util.AppError
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.util.DebugLogger
+import sh.hnet.comfychair.util.FieldMappingAnalyzer
 import sh.hnet.comfychair.util.LiteGraphConverter
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.ValidationUtils
@@ -34,6 +35,7 @@ import sh.hnet.comfychair.workflow.FieldCandidate
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.PendingWorkflowUpload
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
 
@@ -405,12 +407,14 @@ class WorkflowManagementViewModel : ViewModel() {
                     else -> { /* Continue - may have placeholders instead of keys */ }
                 }
 
-                // Create field mapping state
-                val mappingState = createFieldMappingState(
-                    context,
-                    jsonContent,
-                    selectedType
+                // Create field mapping state: found on the nodes that run, shown where the editor has them (values
+                // inside a subgraph on its instance, which may get them promoted)
+                val storedRoot = JSONObject(jsonContent)
+                val mappingState = FieldMappingAnalyzer.toExposedView(
+                    createFieldMappingState(context, Subgraphs.flattenJson(jsonContent), selectedType),
+                    storedRoot
                 )
+                if (Subgraphs.definitionsOf(storedRoot) != null) jsonContent = storedRoot.toString(2)
 
                 // Check if all REQUIRED fields are mapped (optional fields can be unmapped)
                 if (!mappingState.allRequiredFieldsMapped) {

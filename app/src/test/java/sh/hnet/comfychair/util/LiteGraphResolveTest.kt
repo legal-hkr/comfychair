@@ -9,10 +9,11 @@ import org.junit.Test
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.OutputSlot
+import sh.hnet.comfychair.workflow.Subgraphs
 
 /**
- * What a UI workflow runs as, once the frontend's own nodes (reroutes, primitives) and subgraph boundaries are gone,
- * on small workflows written for each case.
+ * What a UI workflow runs as, once the frontend's own nodes (reroutes, primitives) are gone and its subgraphs are
+ * flattened for generation, on small workflows written for each case.
  */
 class LiteGraphResolveTest {
 
@@ -32,7 +33,9 @@ class LiteGraphResolveTest {
         }
     }
 
-    private fun convert(json: String): JSONObject = JSONObject(converter.convert(JSONObject(json)).jsonContent).getJSONObject("nodes")
+    /** The nodes that run: subgraphs kept by the conversion, flattened as for generation. */
+    private fun convert(json: String): JSONObject =
+        JSONObject(Subgraphs.flattenJson(converter.convert(JSONObject(json)).jsonContent)).getJSONObject("nodes")
 
     private fun JSONObject.inputs(id: String) = getJSONObject(id).getJSONObject("inputs")
 

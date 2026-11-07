@@ -78,6 +78,7 @@ import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.WorkflowNode
 import sh.hnet.comfychair.workflow.appManagedInputs
 import sh.hnet.comfychair.workflow.changedInputNames
@@ -134,9 +135,11 @@ fun NodeValuesSheetContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(node.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    // A subgraph instance by its subgraph's name, not its ID
+                    val typeName = nodeDefinition?.takeIf { it.category == Subgraphs.SUBGRAPH_CATEGORY }?.displayName ?: node.classType
                     Text(
-                        if (changed > 0) "${node.classType} – " + pluralStringResource(R.plurals.label_node_changed_count, changed, changed)
-                        else node.classType,
+                        if (changed > 0) "$typeName – " + pluralStringResource(R.plurals.label_node_changed_count, changed, changed)
+                        else typeName,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -209,7 +212,7 @@ private fun LinkedValues(values: List<LinkedValue>, onOpenNode: (String) -> Unit
                 trailingContent = { Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null) },
                 modifier = Modifier.semantics { onClick(label = open) { onOpenNode(value.sourceNodeId); true } }
             ) {
-                Text(value.inputName)
+                Text(Subgraphs.displayName(value.inputName))
             }
         }
     }
@@ -246,7 +249,7 @@ private fun LinkedInputs(inputs: List<Pair<String, String>>, fieldNames: Map<Str
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(name, style = MaterialTheme.typography.bodyLarge)
+                        Text(Subgraphs.displayName(name), style = MaterialTheme.typography.bodyLarge)
                         Text(
                             appFieldLabel(context, value, fieldNames),
                             style = MaterialTheme.typography.bodyMedium,
@@ -294,7 +297,7 @@ private fun InputEditor(
                 val options = effectiveOptions ?: emptyList()
                 if (isImageOptions(options)) {
                     ImageEnumEditor(
-                        label = input.name,
+                        label = Subgraphs.displayName(input.name),
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         tooltip = definition?.tooltip,
@@ -302,7 +305,7 @@ private fun InputEditor(
                     )
                 } else {
                     EnumEditor(
-                        label = input.name,
+                        label = Subgraphs.displayName(input.name),
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         tooltip = definition?.tooltip,
@@ -311,13 +314,13 @@ private fun InputEditor(
                 }
             }
             type == "BOOLEAN" || input.currentValue is Boolean -> BooleanEditor(
-                label = input.name,
+                label = Subgraphs.displayName(input.name),
                 value = (input.currentValue as? Boolean) ?: false,
                 tooltip = definition?.tooltip,
                 onValueChange = { onValueChange(it) }
             )
             type == "INT" -> IntEditor(
-                label = input.name,
+                label = Subgraphs.displayName(input.name),
                 value = input.currentValue?.toString() ?: "",
                 // As Long: ComfyUI's INT bounds can be 64-bit (PrimitiveInt: ±9223372036854775807)
                 min = definition?.min?.toLong(),
@@ -328,7 +331,7 @@ private fun InputEditor(
                 context = context
             )
             type == "FLOAT" -> FloatEditor(
-                label = input.name,
+                label = Subgraphs.displayName(input.name),
                 value = input.currentValue?.toString() ?: "",
                 min = definition?.min?.toDouble(),
                 max = definition?.max?.toDouble(),
@@ -338,7 +341,7 @@ private fun InputEditor(
                 context = context
             )
             else -> StringEditor(
-                label = input.name,
+                label = Subgraphs.displayName(input.name),
                 value = input.currentValue?.toString() ?: "",
                 multiline = type == "STRING" && definition?.multiline == true,
                 tooltip = if (type == "STRING") definition?.tooltip else null,

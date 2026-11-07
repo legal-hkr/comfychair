@@ -48,6 +48,7 @@ import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.PendingMappedLink
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowEditorUiState
@@ -98,9 +99,15 @@ class WorkflowEditorViewModel : ViewModel() {
     private val layoutEngine: WorkflowLayoutEngine
         get() = WorkflowLayoutEngine(layoutAspect)
 
-    // Use shared NodeTypeRegistry from ConnectionManager (populated on connection)
+    // Shared NodeTypeRegistry from ConnectionManager (populated on connection), with the types of the graph's subgraphs
     private val nodeTypeRegistry: NodeTypeRegistry
-        get() = ConnectionManager.nodeTypeRegistry
+        get() = mutableGraph?.let { WorkflowGraphPreparation.registryFor(it.subgraphs, it.nodes, ConnectionManager.nodeTypeRegistry) }
+            ?: _uiState.value.graph?.let { WorkflowGraphPreparation.registryFor(it, ConnectionManager.nodeTypeRegistry) }
+            ?: ConnectionManager.nodeTypeRegistry
+
+    /** The registry for [graph] (one being loaded or changed, not yet the editor's). */
+    private fun registryFor(graph: WorkflowGraph): NodeTypeRegistry =
+        WorkflowGraphPreparation.registryFor(graph, ConnectionManager.nodeTypeRegistry)
 
     /**
      * Values that took a link in this editing session, by node and input: Disconnect brings them back. Not saved – the
@@ -970,9 +977,12 @@ class WorkflowEditorViewModel : ViewModel() {
 
                 DebugLogger.d(TAG, "proceedWithSave: Server has ${availableNodes.size} node types")
 
-                val workflowClassTypes = graph.nodes
-                    .map { it.classType }
-                    .toSet()
+                // The nodes that run: inside subgraphs, without the instances (their types are the workflow's own)
+                val workflowClassTypes = if (graph.subgraphs == null) {
+                    graph.nodes.map { it.classType }.toSet()
+                } else {
+                    WorkflowManager.extractClassTypes(serializer.serializeWithWrapper(graph)).getOrDefault(emptySet())
+                }
                 val missingNodes = workflowClassTypes.filter { it !in availableNodes }
 
                 if (missingNodes.isNotEmpty()) {
@@ -1076,9 +1086,12 @@ class WorkflowEditorViewModel : ViewModel() {
 
                 DebugLogger.d(TAG, "proceedWithEditExistingSave: Server has ${availableNodes.size} node types")
 
-                val workflowClassTypes = graph.nodes
-                    .map { it.classType }
-                    .toSet()
+                // The nodes that run: inside subgraphs, without the instances (their types are the workflow's own)
+                val workflowClassTypes = if (graph.subgraphs == null) {
+                    graph.nodes.map { it.classType }.toSet()
+                } else {
+                    WorkflowManager.extractClassTypes(serializer.serializeWithWrapper(graph)).getOrDefault(emptySet())
+                }
                 val missingNodes = workflowClassTypes.filter { it !in availableNodes }
 
                 if (missingNodes.isNotEmpty()) {
@@ -1141,7 +1154,43 @@ class WorkflowEditorViewModel : ViewModel() {
         graph: WorkflowGraph,
         type: WorkflowType
     ): WorkflowMappingState {
-        return FieldMappingAnalyzer.createFieldMappingState(context, graph, type, nodeTypeRegistry)
+        if (graph.subgraphs == null) {
+            return FieldMappingAnalyzer.createFieldMappingState(context, graph, type, nodeTypeRegistry)
+        }
+        // With subgraphs: found on the nodes that run, shown on the instances (which may get values promoted)
+        val stored = JSONObject(serializer.serializeWithWrapper(graph))
+        val flat = populateNodeOutputs(parser.parse(Subgraphs.flatten(stored).toString(), graph.name, graph.description))
+        val state = FieldMappingAnalyzer.toExposedView(
+            FieldMappingAnalyzer.createFieldMappingState(context, flat, type, ConnectionManager.nodeTypeRegistry),
+            stored
+        )
+        showPromotedValues(stored)
+        return state
+    }
+
+    /**
+     * Instances of the editor's graph show the values promoted in [stored] (the graph as stored, after promoting values
+     * for the field mapping) that they don't show yet.
+     */
+    private fun showPromotedValues(stored: JSONObject) {
+        val definitions = Subgraphs.definitionsOf(stored) ?: return
+        val graph = mutableGraph ?: return
+        val storedNodes = stored.optJSONObject("nodes") ?: return
+        var changed = false
+        graph.nodes.replaceAll { node ->
+            val promoted = storedNodes.optJSONObject(node.id)?.optJSONArray(Subgraphs.PROMOTED_KEY) ?: return@replaceAll node
+            val added = (0 until promoted.length()).map { promoted.optString(it) }
+                .filter { it !in node.inputs }
+                .mapNotNull { key -> Subgraphs.valueAt(definitions, node.classType, key)?.let { key to InputValue.Literal(it) } }
+            if (added.isEmpty()) return@replaceAll node
+            changed = true
+            node.copy(inputs = sortInputsForLayout(node.inputs + added))
+        }
+        if (changed) {
+            _uiState.value = _uiState.value.copy(nodeDefinitions = buildNodeDefinitionsMap(graph.toImmutable()))
+            // Taller instances: laid out again
+            relayoutGraph()
+        }
     }
 
     /**
@@ -1236,14 +1285,14 @@ class WorkflowEditorViewModel : ViewModel() {
      * Adds slotType to each edge based on the source node's output type.
      */
     private fun resolveEdgeTypes(graph: WorkflowGraph): WorkflowGraph =
-        WorkflowGraphPreparation.resolveEdgeTypes(graph, nodeTypeRegistry)
+        WorkflowGraphPreparation.resolveEdgeTypes(graph, registryFor(graph))
 
     /**
      * Populate node outputs using the node type registry.
      * Adds output types to each node based on its class type.
      */
     private fun populateNodeOutputs(graph: WorkflowGraph): WorkflowGraph =
-        WorkflowGraphPreparation.populateNodeOutputs(graph, nodeTypeRegistry)
+        WorkflowGraphPreparation.populateNodeOutputs(graph, registryFor(graph))
 
     /**
      * Set the canvas size for proper centering calculations
@@ -1425,7 +1474,7 @@ class WorkflowEditorViewModel : ViewModel() {
      * Build a map of classType -> NodeTypeDefinition for all nodes in the graph.
      */
     private fun buildNodeDefinitionsMap(graph: WorkflowGraph): Map<String, NodeTypeDefinition> =
-        WorkflowGraphPreparation.nodeDefinitions(graph, nodeTypeRegistry)
+        WorkflowGraphPreparation.nodeDefinitions(graph, registryFor(graph))
 
     /**
      * Load node attribute edits from storage.
@@ -3357,7 +3406,11 @@ class WorkflowEditorViewModel : ViewModel() {
         // Apply edits to graph
         val graphWithEdits = serializer.applyEdits(graph, edits)
 
-        // Serialize to JSON
+        // Serialize to JSON: with subgraphs, the nodes that run (as the API format has them)
+        if (graphWithEdits.subgraphs != null) {
+            val flat = JSONObject(Subgraphs.flattenJson(serializer.serializeWithWrapper(graphWithEdits, includeMetadata = true)))
+            return flat.optJSONObject("nodes")?.toString(2)
+        }
         return serializer.serialize(graphWithEdits, includeMetadata = true)
     }
 

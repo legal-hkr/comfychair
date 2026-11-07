@@ -140,6 +140,7 @@ import sh.hnet.comfychair.workflow.GraphDetailLevel
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
@@ -1007,7 +1008,7 @@ fun WorkflowEditorScreen(
                 EditFieldDialog(
                     field = field,
                     typeDescription = fieldTypeDescription(field.type, definition?.min, definition?.max),
-                    targetLines = field.targets.map { t -> t to ((uiState.graph?.nodes?.find { it.id == t.nodeId }?.title ?: t.nodeId) to t.input) },
+                    targetLines = field.targets.map { t -> t to ((uiState.graph?.nodes?.find { it.id == t.nodeId }?.title ?: t.nodeId) to Subgraphs.displayName(t.input)) },
                     isTaken = { viewModel.isFieldNameTaken(it, field.id, builtInFieldNames) },
                     onSave = { name, targets ->
                         viewModel.updateCustomField(field.id, name, targets)
@@ -1032,7 +1033,7 @@ fun WorkflowEditorScreen(
         editBuiltInKey?.let { key ->
             val placeholder = "{{$key}}"
             val targets = uiState.graph?.nodes.orEmpty().flatMap { node ->
-                node.inputs.filter { (_, v) -> (v as? InputValue.Literal)?.value == placeholder }.map { (input, _) -> node.title to input }
+                node.inputs.filter { (_, v) -> (v as? InputValue.Literal)?.value == placeholder }.map { (input, _) -> node.title to Subgraphs.displayName(input) }
             }
             BuiltInFieldDialog(
                 builtInName = FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(key)),

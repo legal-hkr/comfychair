@@ -84,8 +84,9 @@ object WorkflowConstraintsProvider {
             return fallbackWithDecimals
         }
 
+        // The nodes that run: a placeholder's node may be inside a subgraph
         val json = try {
-            JSONObject(workflow.jsonContent)
+            JSONObject(Subgraphs.flattenJson(workflow.jsonContent))
         } catch (e: Exception) {
             DebugLogger.w(TAG, "  -> Failed to parse workflow JSON: ${Obfuscator.error(e)}")
             return fallbackWithDecimals

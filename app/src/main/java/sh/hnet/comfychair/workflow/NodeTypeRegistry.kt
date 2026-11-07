@@ -116,9 +116,31 @@ class NodeTypeRegistry {
     private var nodeTypes: Map<String, NodeTypeInfo> = emptyMap()
     @Volatile
     private var nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap()
+    // Types of one workflow (its subgraphs), looked up before the server's; not listed with the server's types
+    private var localDefinitions: Map<String, NodeTypeDefinition> = emptyMap()
+
+    /** Changes whenever the server's types are replaced, for views and caches built from them. */
+    @Volatile
+    var version: Int = 0
+        private set
 
     companion object {
         private const val TAG = "NodeTypeRegistry"
+    }
+
+    /**
+     * This registry with a workflow's own types added ([local], by class type: its subgraphs), for lookups of that
+     * workflow's nodes. A view of the server's types as they are now; the node browser and option lists keep only those.
+     */
+    fun withLocalTypes(local: Map<String, NodeTypeDefinition>): NodeTypeRegistry {
+        if (local.isEmpty() && localDefinitions.isEmpty()) return this
+        val base = this
+        return NodeTypeRegistry().apply {
+            nodeTypes = base.nodeTypes
+            nodeDefinitions = base.nodeDefinitions
+            localDefinitions = local
+            version = base.version
+        }
     }
 
     /**
@@ -149,6 +171,7 @@ class NodeTypeRegistry {
 
         nodeTypes = newNodeTypes
         nodeDefinitions = newNodeDefinitions
+        version++
 
         DebugLogger.i(TAG, "NodeTypeRegistry populated: ${newNodeDefinitions.size} node types parsed")
     }
@@ -442,6 +465,7 @@ class NodeTypeRegistry {
      * Get the output type for a node at a specific output index.
      */
     fun getOutputType(classType: String, outputIndex: Int): String? {
+        localDefinitions[classType]?.let { return it.outputs.getOrNull(outputIndex)?.type }
         val info = nodeTypes[classType] ?: return null
         return info.outputTypes.getOrNull(outputIndex)
     }
@@ -450,6 +474,7 @@ class NodeTypeRegistry {
      * Get the input type for a specific input on a node.
      */
     fun getInputType(classType: String, inputName: String): String? {
+        localDefinitions[classType]?.let { local -> return local.inputs.find { it.name == inputName }?.type }
         val info = nodeTypes[classType] ?: return null
         return info.inputTypes[inputName]
     }
@@ -458,7 +483,7 @@ class NodeTypeRegistry {
      * Get the full node definition for a class type.
      */
     fun getNodeDefinition(classType: String): NodeTypeDefinition? {
-        return nodeDefinitions[classType]
+        return localDefinitions[classType] ?: nodeDefinitions[classType]
     }
 
     /**
@@ -466,7 +491,7 @@ class NodeTypeRegistry {
      * Convenience method combining getNodeDefinition and finding the input.
      */
     fun getInputDefinition(classType: String, inputName: String): InputDefinition? {
-        val definition = nodeDefinitions[classType]
+        val definition = localDefinitions[classType] ?: nodeDefinitions[classType]
         if (definition == null) {
             DebugLogger.d(TAG, "getInputDefinition: Node type '$classType' not found in registry")
             return null
@@ -545,5 +570,6 @@ class NodeTypeRegistry {
     fun clear() {
         nodeTypes = emptyMap()
         nodeDefinitions = emptyMap()
+        version++
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.MutableWorkflowGraph
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 
@@ -141,7 +142,8 @@ object ConnectionValidator {
     /** The type of a value input that can take a link, or null (lists, connection types, unknown nodes). */
     fun linkableValueType(classType: String, inputName: String, nodeTypeRegistry: NodeTypeRegistry): String? =
         nodeTypeRegistry.getNodeDefinition(classType)?.inputs?.find { it.name == inputName }?.type?.uppercase()
-            ?.takeIf { it in LINKABLE_VALUE_TYPES }
+            // A value promoted from inside a subgraph is set, not linked (a link would go to the subgraph's input)
+            ?.takeIf { it in LINKABLE_VALUE_TYPES && !Subgraphs.isPromotedKey(inputName) }
 
     /**
      * Whether a value input of [valueType] takes a link from an output of [outputType]: the same type (INT and FLOAT

@@ -1,12 +1,14 @@
 package sh.hnet.comfychair.util
 
 import android.content.Context
+import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.workflow.FieldCandidate
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowMappingState
@@ -78,6 +80,38 @@ object FieldMappingAnalyzer {
             workflowType = type,
             fieldMappings = fieldMappings
         )
+    }
+
+    /**
+     * A mapping found on the flat view of a workflow with subgraphs (where the nodes that run are), with its candidates
+     * where the editor shows them: a value inside a subgraph on its instance, as the subgraph's input feeding it or as
+     * a promoted value, which [storedRoot] (the workflow as stored) gets promoted when the instance doesn't show it yet.
+     * The selection stays on the same value.
+     */
+    fun toExposedView(state: WorkflowMappingState, storedRoot: JSONObject): WorkflowMappingState {
+        if (Subgraphs.definitionsOf(storedRoot) == null) return state
+        val nodes = storedRoot.optJSONObject("nodes") ?: storedRoot
+        return state.copy(fieldMappings = state.fieldMappings.map { mapping ->
+            val selected = mapping.selectedCandidate
+            val moved = mapping.candidates.map { candidate ->
+                val (nodeId, key) = Subgraphs.exposedAddress(storedRoot, candidate.nodeId, candidate.inputKey)
+                if (nodeId == candidate.nodeId) return@map candidate to candidate
+                Subgraphs.promote(storedRoot, nodeId, key)
+                val instance = nodes.optJSONObject(nodeId)
+                val title = instance?.optJSONObject("_meta")?.optString("title")?.takeIf { it.isNotEmpty() }
+                    ?: candidate.nodeName
+                candidate to candidate.copy(nodeId = nodeId, nodeName = title, inputKey = key)
+            }
+            // A subgraph's input feeding two values inside is one candidate
+            val candidates = moved.map { it.second }.distinctBy { it.nodeId to it.inputKey }
+            val selectedNow = moved.find { it.first == selected }?.second
+            mapping.copy(
+                candidates = candidates,
+                selectedCandidateIndex = selectedNow?.let { now ->
+                    candidates.indexOfFirst { it.nodeId == now.nodeId && it.inputKey == now.inputKey }
+                } ?: -1
+            )
+        })
     }
 
     /**

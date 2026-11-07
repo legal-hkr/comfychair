@@ -3,6 +3,7 @@ package sh.hnet.comfychair.util
 import org.json.JSONObject
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.WorkflowValidationResult
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowGraph
 
@@ -87,8 +88,9 @@ internal object WorkflowJsonAnalyzer {
      * Returns null if type cannot be determined
      */
     fun detectWorkflowType(jsonContent: String): WorkflowType? {
+        // The nodes that run: inside subgraphs too
         val json = try {
-            JSONObject(jsonContent)
+            JSONObject(Subgraphs.flattenJson(jsonContent))
         } catch (e: Exception) {
             return null
         }
@@ -247,8 +249,9 @@ internal object WorkflowJsonAnalyzer {
      * This is used for raw ComfyUI workflows that don't use placeholders
      */
     fun validateWorkflowKeys(jsonContent: String, type: WorkflowType): WorkflowValidationResult {
+        // The nodes that run: inside subgraphs too
         val json = try {
-            JSONObject(jsonContent)
+            JSONObject(Subgraphs.flattenJson(jsonContent))
         } catch (e: Exception) {
             return WorkflowValidationResult.InvalidJson(e.message ?: "Invalid JSON")
         }
@@ -304,7 +307,8 @@ internal object WorkflowJsonAnalyzer {
      */
     fun extractClassTypes(jsonContent: String): Result<Set<String>> {
         return try {
-            val json = JSONObject(jsonContent)
+            // The nodes that run: inside subgraphs, without the instances (their types are the workflow's own)
+            val json = JSONObject(Subgraphs.flattenJson(jsonContent))
             val nodesJson = extractNodesObject(json)
             val classTypes = mutableSetOf<String>()
 

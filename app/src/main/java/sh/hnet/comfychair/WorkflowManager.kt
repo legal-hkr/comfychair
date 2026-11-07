@@ -24,6 +24,7 @@ import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.util.WorkflowJsonAnalyzer
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
 import sh.hnet.comfychair.viewmodel.base.ModelSlot
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 
 /**
@@ -500,8 +501,9 @@ object WorkflowManager {
         val workflow = workflows.find { it.id == workflowId }
             ?: return Result.failure(Exception("Workflow not found"))
 
+        // Subgraphs flattened: the API format has only the nodes that run
         val json = try {
-            JSONObject(workflow.jsonContent)
+            Subgraphs.flatten(JSONObject(workflow.jsonContent))
         } catch (e: Exception) {
             return Result.failure(Exception("Failed to parse workflow JSON"))
         }
@@ -613,7 +615,8 @@ object WorkflowManager {
         placeholderIndexCache.getOrPut(jsonContent) {
             val index = mutableMapOf<String, Pair<String, String>>()
             try {
-                val json = JSONObject(jsonContent)
+                // The nodes that hold them, inside subgraphs too
+                val json = JSONObject(Subgraphs.flattenJson(jsonContent))
                 val nodesJson = if (json.has("nodes")) json.optJSONObject("nodes") ?: json else json
                 for (nodeId in nodesJson.keys()) {
                     val node = nodesJson.optJSONObject(nodeId) ?: continue
@@ -672,6 +675,19 @@ object WorkflowManager {
     }
 
     /**
+     * A workflow's JSON with its subgraph instances' values exposed ([Subgraphs]), each value a mapping names from
+     * inside a subgraph shown by its instance.
+     */
+    private fun exposedForMapping(jsonContent: String, mappings: Collection<Pair<String, String>>): JSONObject {
+        val json = JSONObject(jsonContent)
+        if (Subgraphs.definitionsOf(json) != null) {
+            mappings.forEach { (nodeId, inputKey) -> Subgraphs.promote(json, nodeId, inputKey) }
+            Subgraphs.expose(json)
+        }
+        return json
+    }
+
+    /**
      * Add a user workflow with explicit type and field mappings
      * This is used for the new upload flow where the user selects the type
      */
@@ -683,9 +699,9 @@ object WorkflowManager {
         fieldMappings: Map<String, Pair<String, String>>,  // fieldKey -> (nodeId, inputKey)
         customFields: List<CustomField>? = null  // made or changed while mapping; null keeps the file's
     ): Result<Workflow> {
-        // Parse JSON
+        // Parse JSON; mappings may name values an instance shows from its subgraph, so its values are exposed
         val json = try {
-            JSONObject(jsonContent)
+            exposedForMapping(jsonContent, fieldMappings.values)
         } catch (e: Exception) {
             return Result.failure(Exception("Invalid JSON: ${e.message}"))
         }
@@ -824,6 +840,7 @@ object WorkflowManager {
             }
             if (keptFields.isNotEmpty()) put(CustomFields.FIELDS_KEY, CustomFields.toJson(keptFields))
             if (isWrapped && json.has(CustomFields.LABELS_KEY)) put(CustomFields.LABELS_KEY, json.getJSONObject(CustomFields.LABELS_KEY))
+            if (isWrapped && json.has(Subgraphs.KEY)) put(Subgraphs.KEY, json.getJSONObject(Subgraphs.KEY))
             // Store field mappings for reference
             if (fieldMappings.isNotEmpty()) {
                 put("fieldMappings", JSONObject().apply {
@@ -836,6 +853,9 @@ object WorkflowManager {
                 })
             }
         }
+
+        // Values shown on subgraph instances back into their definitions
+        Subgraphs.absorb(finalJson)
 
         // Generate filename
         val filename = generateFilename(type, name)
@@ -898,9 +918,9 @@ object WorkflowManager {
             return Result.failure(Exception("Cannot edit built-in workflows"))
         }
 
-        // Parse JSON
+        // Parse JSON; mappings may name values an instance shows from its subgraph, so its values are exposed
         val json = try {
-            JSONObject(jsonContent)
+            exposedForMapping(jsonContent, fieldMappings.values)
         } catch (e: Exception) {
             return Result.failure(Exception("Invalid JSON: ${e.message}"))
         }
@@ -1024,6 +1044,7 @@ object WorkflowManager {
             // Custom fields and labels of built-in fields go with the workflow (spec §18)
             if (isWrapped && json.has(CustomFields.FIELDS_KEY)) put(CustomFields.FIELDS_KEY, json.getJSONArray(CustomFields.FIELDS_KEY))
             if (isWrapped && json.has(CustomFields.LABELS_KEY)) put(CustomFields.LABELS_KEY, json.getJSONObject(CustomFields.LABELS_KEY))
+            if (isWrapped && json.has(Subgraphs.KEY)) put(Subgraphs.KEY, json.getJSONObject(Subgraphs.KEY))
             if (fieldMappings.isNotEmpty()) {
                 put("fieldMappings", JSONObject().apply {
                     fieldMappings.forEach { (fieldKey, mapping) ->
@@ -1035,6 +1056,9 @@ object WorkflowManager {
                 })
             }
         }
+
+        // Values shown on subgraph instances back into their definitions
+        Subgraphs.absorb(finalJson)
 
         // Get filename from preferences
         val prefs = applicationContext.getSharedPreferences(USER_WORKFLOWS_PREFS, Context.MODE_PRIVATE)
@@ -1635,7 +1659,7 @@ object WorkflowManager {
         // no longer offers these, but older versions saved such edits (e.g. a stale image filename).
         val templateNodes = getWorkflowById(workflowId)?.jsonContent?.let { content ->
             try {
-                JSONObject(content).let { it.optJSONObject("nodes") ?: it }
+                JSONObject(Subgraphs.exposeJson(content)).let { it.optJSONObject("nodes") ?: it }
             } catch (e: Exception) {
                 null
             }
@@ -1711,7 +1735,8 @@ object WorkflowManager {
         }
         images.source?.let { DebugLogger.d(TAG, "Source image: ${Obfuscator.filename(it)}") }
 
-        var json = workflow.jsonContent
+        // Values shown on subgraph instances are inputs there, as the fields and edits name them
+        var json = Subgraphs.exposeJson(workflow.jsonContent)
 
         // Prompts and models
         json = json.replace("{{positive_prompt}}", escapeForJson(params.positivePrompt))
@@ -1763,8 +1788,11 @@ object WorkflowManager {
         // Custom fields: each value into every value it fills, as its type
         json = CustomFields.apply(json, workflow.customFields, params.customValues)
 
+        json = applyNodeAttributeEdits(json, workflow.id)
+        // From here on the nodes that run: subgraphs flattened, their values back inside
+        json = Subgraphs.flattenJson(json)
         json = removeUnusedReferenceImages(json, images)
-        json = applyBypassedNodes(applyNodeAttributeEdits(json, workflow.id))
+        json = applyBypassedNodes(json)
 
         // LoRA chains: the main chain after the model loader, the high/low noise chains after a
         // dual-model workflow's own LoRAs (no change for workflows without that structure)

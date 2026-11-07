@@ -87,6 +87,7 @@ import sh.hnet.comfychair.workflow.MarkdownParser
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.WorkflowEdge
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
@@ -1950,7 +1951,7 @@ private fun DrawScope.drawNode(
             }
             labelPaint.color = (if (editable) colors.primary else slotColor).faded().toArgb()
             // Half the width: an output's label may share the row
-            val label = ellipsizeEnd(name, node.width / 2 - NodeStyle.ROW_PADDING, labelPaint)
+            val label = ellipsizeEnd(Subgraphs.displayName(name), node.width / 2 - NodeStyle.ROW_PADDING, labelPaint)
             nativeCanvas.drawText(label, rowLeft, labelPaint.baselineFor(centerY), labelPaint)
             return@forEachIndexed
         }
@@ -1999,7 +2000,8 @@ private fun DrawScope.drawNode(
         }
 
         labelPaint.color = (if (editable) colors.primary else colors.onSurfaceVariant).faded().toArgb()
-        val label = ellipsizeEnd(name, pillLeft - rowLeft - 16f, labelPaint)
+        // A value promoted from a subgraph by its own name, without its path
+        val label = ellipsizeEnd(Subgraphs.displayName(name), pillLeft - rowLeft - 16f, labelPaint)
         nativeCanvas.drawText(label, rowLeft, labelPaint.baselineFor(centerY), labelPaint)
     }
 
@@ -2512,7 +2514,7 @@ private fun findInputSlotAt(
 /** The type of a value row that can take a link (INT, FLOAT, STRING, BOOLEAN), or null. */
 private fun linkableValueType(node: WorkflowNode, inputName: String, nodeDefinitions: Map<String, NodeTypeDefinition>): String? =
     nodeDefinitions[node.classType]?.inputs?.find { it.name == inputName }?.type?.uppercase()
-        ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES }
+        ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES && !Subgraphs.isPromotedKey(inputName) }
 
 /**
  * The type of a value row that has a socket in Edit structure: one that can take a link, or a list (its socket opens

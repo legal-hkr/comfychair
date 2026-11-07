@@ -27,6 +27,7 @@ import sh.hnet.comfychair.ui.components.shared.ChoiceRow
 import sh.hnet.comfychair.ui.components.shared.NumericStepperField
 import sh.hnet.comfychair.util.ValidationUtils
 import sh.hnet.comfychair.workflow.InputDefinition
+import sh.hnet.comfychair.workflow.Subgraphs
 
 /** A workflow's custom fields with the definition of the input each one fills first (range, step, options…). */
 data class CustomFieldEntry(val field: CustomField, val definition: InputDefinition?)
@@ -39,12 +40,13 @@ fun customFieldEntries(workflowId: String): List<CustomFieldEntry> {
     val workflow = WorkflowManager.getWorkflowById(workflowId) ?: return emptyList()
     val fields = workflow.customFields
     if (fields.isEmpty()) return emptyList()
-    val nodes = runCatching { JSONObject(workflow.jsonContent).let { it.optJSONObject("nodes") ?: it } }.getOrNull()
+    val root = runCatching { JSONObject(workflow.jsonContent) }.getOrNull()
     val registry = ConnectionManager.nodeTypeRegistry
     return fields.map { field ->
         val target = field.targets.first()
-        val classType = nodes?.optJSONObject(target.nodeId)?.optString("class_type").orEmpty()
-        val definition = if (classType.isNotEmpty() && registry.isPopulated()) registry.getInputDefinition(classType, target.input) else null
+        // The node input behind it (inside a subgraph for a value an instance shows)
+        val real = root?.let { Subgraphs.realInput(it, target.nodeId, target.input) }
+        val definition = if (real != null && registry.isPopulated()) registry.getInputDefinition(real.first, real.second) else null
         CustomFieldEntry(field, definition)
     }
 }

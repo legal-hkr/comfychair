@@ -75,6 +75,12 @@ class WorkflowSerializer {
         if (graph.customFields.isNotEmpty()) rootJson.put(CustomFields.FIELDS_KEY, CustomFields.toJson(graph.customFields))
         if (graph.fieldLabels.isNotEmpty()) rootJson.put(CustomFields.LABELS_KEY, CustomFields.labelsToJson(graph.fieldLabels))
 
+        // Subgraph definitions, with the values their instances show taken back into them
+        graph.subgraphs?.let { definitions ->
+            rootJson.put(Subgraphs.KEY, JSONObject(definitions))
+            Subgraphs.absorb(rootJson)
+        }
+
         val result = rootJson.toString(2)
         DebugLogger.d(TAG, "Serialized workflow with wrapper: ${result.length} chars")
         return result
@@ -303,6 +309,8 @@ class WorkflowSerializer {
             is Double -> value
             is Boolean -> value
             is Number -> value.toDouble()
+            // Objects and lists as they are (see WorkflowParser)
+            is JSONObject, is JSONArray -> value
             else -> value.toString()
         }
     }
