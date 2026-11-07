@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import sh.hnet.comfychair.model.CustomField
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.geometry.Offset
@@ -208,7 +209,11 @@ data class WorkflowGraph(
      * When true, nodes/notes can be dragged to custom positions on a grid.
      * When false, auto-layout is used.
      */
-    val isManualPlacementMode: Boolean = false
+    val isManualPlacementMode: Boolean = false,
+    /** Fields the user made from node values (spec §18) */
+    val customFields: List<CustomField> = emptyList(),
+    /** The workflow's own labels for built-in fields, by field key */
+    val fieldLabels: Map<String, String> = emptyMap()
 )
 
 /**
@@ -226,7 +231,9 @@ data class MutableWorkflowGraph(
     /** The workflow's mappings; linking a mapped value removes its mapping (spec §17.2.3) */
     var mappedFields: Map<Pair<String, String>, String> = emptyMap(),
     /** Whether manual placement mode is enabled for this workflow */
-    var isManualPlacementMode: Boolean = false
+    var isManualPlacementMode: Boolean = false,
+    var customFields: List<CustomField> = emptyList(),
+    var fieldLabels: Map<String, String> = emptyMap()
 ) {
     /**
      * Convert to immutable WorkflowGraph
@@ -240,7 +247,9 @@ data class MutableWorkflowGraph(
         notes = notes.toList(),
         templateVariables = templateVariables.toSet(),
         mappedFields = mappedFields,
-        isManualPlacementMode = isManualPlacementMode
+        isManualPlacementMode = isManualPlacementMode,
+        customFields = customFields,
+        fieldLabels = fieldLabels
     )
 
     companion object {
@@ -256,7 +265,9 @@ data class MutableWorkflowGraph(
             notes = graph.notes.toMutableList(),
             templateVariables = graph.templateVariables.toMutableSet(),
             mappedFields = graph.mappedFields,
-            isManualPlacementMode = graph.isManualPlacementMode
+            isManualPlacementMode = graph.isManualPlacementMode,
+            customFields = graph.customFields,
+            fieldLabels = graph.fieldLabels
         )
     }
 }
@@ -435,5 +446,7 @@ data class PendingMappedLink(
     val fieldName: String,
     val sourceTitle: String,
     /** Linking to a node not added yet (Add a node, from the socket's menu) */
-    val addNode: Boolean = false
+    val addNode: Boolean = false,
+    /** The value is its custom field's last one: linking deletes the field */
+    val deletesField: Boolean = false
 )

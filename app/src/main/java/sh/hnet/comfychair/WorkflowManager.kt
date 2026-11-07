@@ -1,5 +1,7 @@
 package sh.hnet.comfychair
 
+import sh.hnet.comfychair.model.CustomFields
+import sh.hnet.comfychair.model.CustomField
 import android.content.Context
 import java.io.File
 import java.io.InputStream
@@ -99,7 +101,13 @@ object WorkflowManager {
         val type: WorkflowType,
         val isBuiltIn: Boolean,
         val defaults: WorkflowDefaults = WorkflowDefaults()
-    )
+    ) {
+        /** Fields the user made from node values (spec §18), read from the workflow's wrapper. */
+        val customFields: List<CustomField> by lazy { CustomFields.fieldsOf(jsonContent) }
+
+        /** The workflow's own labels for its built-in fields, by field key. */
+        val fieldLabels: Map<String, String> by lazy { CustomFields.labelsOf(jsonContent) }
+    }
 
     // Context initialization
     private lateinit var applicationContext: Context
@@ -802,6 +810,9 @@ object WorkflowManager {
             if (isWrapped && json.has("manual_placement")) {
                 put("manual_placement", json.getBoolean("manual_placement"))
             }
+            // Custom fields and labels of built-in fields go with the workflow (spec §18)
+            if (isWrapped && json.has(CustomFields.FIELDS_KEY)) put(CustomFields.FIELDS_KEY, json.getJSONArray(CustomFields.FIELDS_KEY))
+            if (isWrapped && json.has(CustomFields.LABELS_KEY)) put(CustomFields.LABELS_KEY, json.getJSONObject(CustomFields.LABELS_KEY))
             // Store field mappings for reference
             if (fieldMappings.isNotEmpty()) {
                 put("fieldMappings", JSONObject().apply {
@@ -999,6 +1010,9 @@ object WorkflowManager {
             if (isWrapped && json.has("manual_placement")) {
                 put("manual_placement", json.getBoolean("manual_placement"))
             }
+            // Custom fields and labels of built-in fields go with the workflow (spec §18)
+            if (isWrapped && json.has(CustomFields.FIELDS_KEY)) put(CustomFields.FIELDS_KEY, json.getJSONArray(CustomFields.FIELDS_KEY))
+            if (isWrapped && json.has(CustomFields.LABELS_KEY)) put(CustomFields.LABELS_KEY, json.getJSONObject(CustomFields.LABELS_KEY))
             if (fieldMappings.isNotEmpty()) {
                 put("fieldMappings", JSONObject().apply {
                     fieldMappings.forEach { (fieldKey, mapping) ->
@@ -1734,6 +1748,9 @@ object WorkflowManager {
             scaleBy = params.scaleBy.toFloatOrNull(),
             stopAtClipLayer = params.stopAtClipLayer.toIntOrNull()
         )
+
+        // Custom fields: each value into every value it fills, as its type
+        json = CustomFields.apply(json, workflow.customFields, params.customValues)
 
         json = removeUnusedReferenceImages(json, images)
         json = applyBypassedNodes(applyNodeAttributeEdits(json, workflow.id))

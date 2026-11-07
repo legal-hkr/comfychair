@@ -158,7 +158,8 @@ fun ConfirmDialog(
 }
 
 /**
- * B · Form: up to three outlined fields under the task as headline. The verb stays disabled until the form is valid;
+ * B · Form: up to three outlined fields under the task as headline; optionally a destructive action of the form
+ * ([destructiveLabel], e.g. Delete field) before Cancel, in the error colour. The verb stays disabled until the form is valid;
  * while a request runs it shows a loading indicator and the dialog can't be dismissed.
  *
  * @param supportingText One line under the headline (e.g. the file being imported)
@@ -172,6 +173,8 @@ fun FormDialog(
     confirmEnabled: Boolean = true,
     busy: Boolean = false,
     supportingText: String? = null,
+    destructiveLabel: String? = null,
+    onDestructive: () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit
 ) {
     AlertDialog(
@@ -196,7 +199,19 @@ fun FormDialog(
             }
         },
         confirmButton = { ConfirmButton(confirmLabel, onConfirm, enabled = confirmEnabled, busy = busy) },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.button_cancel)) } },
+        dismissButton = {
+            // A destructive action of the form (e.g. Delete field) comes first, in the error colour
+            Row {
+                destructiveLabel?.let { label ->
+                    TextButton(
+                        onClick = onDestructive,
+                        enabled = !busy,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) { Text(label) }
+                }
+                TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.button_cancel)) }
+            }
+        },
         modifier = Modifier.semantics { paneTitle = title }
     )
 }

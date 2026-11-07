@@ -238,7 +238,8 @@ abstract class BaseGenerationViewModel<UiState> : ViewModel() {
             saved = storage.loadValues(serverId, workflowId),
             defaults = WorkflowManager.getWorkflowDefaultsById(workflowId),
             options = { fieldKey -> WorkflowManager.getNodeSpecificOptionsForField(workflowId, fieldKey) },
-            fallback = fallback
+            fallback = fallback,
+            customFields = WorkflowManager.getWorkflowById(workflowId)?.customFields.orEmpty()
         )
     }
 

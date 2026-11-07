@@ -18,6 +18,10 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.CustomField
+import sh.hnet.comfychair.model.CustomFields
+import sh.hnet.comfychair.model.FieldTarget
+import sh.hnet.comfychair.model.FieldValueType
 import sh.hnet.comfychair.model.NodeAttributeEdits
 import sh.hnet.comfychair.storage.WorkflowValuesStorage
 import sh.hnet.comfychair.util.ConnectionValidator
@@ -2062,9 +2066,10 @@ class WorkflowEditorViewModel : ViewModel() {
         if (!state.isEditMode) return
         if (state.selectedNodeIds.isEmpty() && state.selectedNoteIds.isEmpty()) return
 
-        // Delete selected nodes
+        // Delete selected nodes (and their values from custom fields; a field left with none goes too)
         if (state.selectedNodeIds.isNotEmpty()) {
             GraphMutationUtils.deleteNodes(graph, state.selectedNodeIds)
+            pruneCustomFields()
         }
 
         // Delete selected notes
@@ -2097,6 +2102,8 @@ class WorkflowEditorViewModel : ViewModel() {
             nodeIds = state.selectedNodeIds,
             idGenerator = { (nodeIdCounter++).toString() }
         )
+        // A copy of a value in a custom field fills from the same field, as copies of built-in fields' values do
+        adoptCopiedFieldValues()
 
         // Re-layout to prevent overlaps
         relayoutGraph()
@@ -2536,6 +2543,8 @@ class WorkflowEditorViewModel : ViewModel() {
         val targetNode = graph.nodes.find { it.id == inputSlot.nodeId }
         val valueTookLink = targetNode?.inputs?.get(inputSlot.slotName) is InputValue.Literal
         if (targetNode != null) {
+            // A value taking a link leaves its custom field (the field goes when it was its last value)
+            releaseFromCustomField(targetNode.id, inputSlot.slotName)
             // A value taking a link: its typed value comes back on Disconnect (for this editing session). A value the app
             // filled ({{placeholder}}) doesn't: linking ends that mapping, and Disconnect gives the node's default
             (targetNode.inputs[inputSlot.slotName] as? InputValue.Literal)
@@ -2581,7 +2590,10 @@ class WorkflowEditorViewModel : ViewModel() {
         }
         val sourceTitle = graph.nodes.find { it.id == outputSlot.nodeId }?.title.orEmpty()
         _uiState.value = _uiState.value.copy(
-            pendingMappedLink = PendingMappedLink(targetSlot, inputSlot.slotName, fieldNameOf(fieldKey), sourceTitle)
+            pendingMappedLink = PendingMappedLink(
+                targetSlot, inputSlot.slotName, fieldNameOf(fieldKey), sourceTitle,
+                deletesField = customFieldOf(inputSlot.nodeId, inputSlot.slotName)?.targets?.size == 1
+            )
         )
     }
 
@@ -2607,6 +2619,153 @@ class WorkflowEditorViewModel : ViewModel() {
                 pendingMappedLink = PendingMappedLink(slot, slot.slotName, fieldNameOf(fieldKey), sourceTitle = "", addNode = true)
             )
         }
+    }
+
+    // ===========================================
+    // Custom fields (spec §18)
+    // ===========================================
+
+    /** The custom field that fills a node's value, if any. */
+    fun customFieldOf(nodeId: String, input: String): CustomField? =
+        mutableGraph?.customFields?.find { field -> field.targets.any { it.nodeId == nodeId && it.input == input } }
+
+    /** A value's field type from its node's definition (a list by its options), null for an input that isn't a value. */
+    fun fieldValueTypeOf(nodeId: String, input: String): FieldValueType? {
+        val node = mutableGraph?.nodes?.find { it.id == nodeId } ?: return null
+        val definition = _uiState.value.nodeDefinitions[node.classType]?.inputs?.find { it.name == input } ?: return null
+        return FieldValueType.of(definition.type, definition.options)
+    }
+
+    /** Custom fields another value could join: the same type (lists: the same options), not the one it's in. */
+    fun compatibleCustomFields(nodeId: String, input: String): List<CustomField> {
+        val type = fieldValueTypeOf(nodeId, input) ?: return emptyList()
+        val options = optionsOf(nodeId, input)
+        return mutableGraph?.customFields.orEmpty().filter { field ->
+            field.type == type && field.targets.none { it.nodeId == nodeId && it.input == input } &&
+                (type != FieldValueType.LIST || field.targets.firstOrNull()?.let { optionsOf(it.nodeId, it.input) } == options)
+        }
+    }
+
+    private fun optionsOf(nodeId: String, input: String): List<String>? {
+        val node = mutableGraph?.nodes?.find { it.id == nodeId } ?: return null
+        return _uiState.value.nodeDefinitions[node.classType]?.inputs?.find { it.name == input }?.options
+    }
+
+    /**
+     * Whether [name] is taken by another field of this workflow: a custom field other than [exceptFieldId], or a
+     * built-in field's name or label ([builtInNames], as shown to the user). Compared trimmed, ignoring case.
+     */
+    fun isFieldNameTaken(name: String, exceptFieldId: String?, builtInNames: Collection<String>): Boolean {
+        val key = name.trim().lowercase()
+        return mutableGraph?.customFields.orEmpty().any { it.id != exceptFieldId && it.name.trim().lowercase() == key } ||
+            builtInNames.any { it.trim().lowercase() == key }
+    }
+
+    /** Make a custom field of a node's value: the value becomes the field's placeholder; its value now the default. */
+    fun createCustomField(nodeId: String, input: String, name: String) {
+        val graph = mutableGraph ?: return
+        val type = fieldValueTypeOf(nodeId, input) ?: return
+        val value = literalOf(nodeId, input) ?: return
+        if (TemplateKeyRegistry.isAppManagedValue(value)) return
+        val field = CustomField(CustomFields.newId(), name.trim().take(CustomFields.MAX_NAME_LENGTH), type, value.toString(), listOf(FieldTarget(nodeId, input)))
+        graph.customFields = graph.customFields + field
+        setLiteral(nodeId, input, field.placeholder)
+        fieldsChanged()
+    }
+
+    /** Add another value of the same type to a field (its own value is replaced by the field's). */
+    fun addToCustomField(fieldId: String, nodeId: String, input: String) {
+        val graph = mutableGraph ?: return
+        val field = graph.customFields.find { it.id == fieldId } ?: return
+        if (field !in compatibleCustomFields(nodeId, input)) return
+        val value = literalOf(nodeId, input) ?: return
+        if (TemplateKeyRegistry.isAppManagedValue(value)) return
+        graph.customFields = graph.customFields.map { if (it.id == fieldId) it.copy(targets = it.targets + FieldTarget(nodeId, input)) else it }
+        setLiteral(nodeId, input, field.placeholder)
+        fieldsChanged()
+    }
+
+    /** Take a value out of its field: it gets the field's value back as its own; a field left with none goes. */
+    fun removeFromCustomField(nodeId: String, input: String) {
+        releaseFromCustomField(nodeId, input, restoreValue = true)
+        fieldsChanged()
+    }
+
+    /** Rename a field and keep only [targets] of its values (the others get its value back as their own). */
+    fun updateCustomField(fieldId: String, name: String, targets: List<FieldTarget>) {
+        val graph = mutableGraph ?: return
+        val field = graph.customFields.find { it.id == fieldId } ?: return
+        (field.targets - targets.toSet()).forEach { restoreValue(field, it) }
+        val kept = field.targets.filter { it in targets }
+        graph.customFields = if (kept.isEmpty()) {
+            graph.customFields.filterNot { it.id == fieldId }
+        } else {
+            graph.customFields.map { if (it.id == fieldId) it.copy(name = name.trim().take(CustomFields.MAX_NAME_LENGTH), targets = kept) else it }
+        }
+        fieldsChanged()
+    }
+
+    /** Delete a field: every value it filled gets its value back as its own. */
+    fun deleteCustomField(fieldId: String) {
+        val graph = mutableGraph ?: return
+        val field = graph.customFields.find { it.id == fieldId } ?: return
+        field.targets.forEach { restoreValue(field, it) }
+        graph.customFields = graph.customFields.filterNot { it.id == fieldId }
+        fieldsChanged()
+    }
+
+    /** A value leaves its field (linked, or taken out); [restoreValue]: it gets the field's value as its own. */
+    private fun releaseFromCustomField(nodeId: String, input: String, restoreValue: Boolean = false) {
+        val graph = mutableGraph ?: return
+        val field = customFieldOf(nodeId, input) ?: return
+        val target = FieldTarget(nodeId, input)
+        if (restoreValue) restoreValue(field, target)
+        val left = field.targets - target
+        graph.customFields = if (left.isEmpty()) graph.customFields.filterNot { it.id == field.id }
+        else graph.customFields.map { if (it.id == field.id) it.copy(targets = left) else it }
+    }
+
+    private fun restoreValue(field: CustomField, target: FieldTarget) {
+        if (literalOf(target.nodeId, target.input) == field.placeholder) {
+            setLiteral(target.nodeId, target.input, CustomFields.typedValue(field.type, field.default) ?: field.default)
+        }
+    }
+
+    /** After nodes were deleted: their values leave the fields; a field left with none goes. */
+    private fun pruneCustomFields() {
+        val graph = mutableGraph ?: return
+        graph.customFields = graph.customFields.mapNotNull { field ->
+            val kept = field.targets.filter { literalOf(it.nodeId, it.input) == field.placeholder }
+            if (kept.isEmpty()) null else field.copy(targets = kept)
+        }
+    }
+
+    /** After nodes were copied: copied values holding a field's placeholder join that field. */
+    private fun adoptCopiedFieldValues() {
+        val graph = mutableGraph ?: return
+        graph.customFields = graph.customFields.map { field ->
+            val holders = graph.nodes.flatMap { node ->
+                node.inputs.filter { (_, value) -> (value as? InputValue.Literal)?.value == field.placeholder }
+                    .map { (input, _) -> FieldTarget(node.id, input) }
+            }
+            field.copy(targets = (field.targets + holders).distinct())
+        }
+    }
+
+    private fun literalOf(nodeId: String, input: String): Any? =
+        (mutableGraph?.nodes?.find { it.id == nodeId }?.inputs?.get(input) as? InputValue.Literal)?.value
+
+    private fun setLiteral(nodeId: String, input: String, value: Any) {
+        val graph = mutableGraph ?: return
+        val index = graph.nodes.indexOfFirst { it.id == nodeId }
+        if (index < 0) return
+        val node = graph.nodes[index]
+        graph.nodes[index] = node.copy(inputs = node.inputs + (input to InputValue.Literal(value)))
+    }
+
+    private fun fieldsChanged() {
+        updateGraphState()
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
     }
 
     /** Disconnect everything an output feeds (its menu). */
@@ -2892,6 +3051,7 @@ class WorkflowEditorViewModel : ViewModel() {
         // 7. Update target node's input to be a Connection type
         val targetNode = graph.nodes.find { it.id == targetInputSlot.nodeId }
         if (targetNode != null) {
+            releaseFromCustomField(targetNode.id, targetInputSlot.slotName)
             // A value taking the link: kept for Disconnect, as when linking an existing node
             (targetNode.inputs[targetInputSlot.slotName] as? InputValue.Literal)
                 ?.takeUnless { TemplateKeyRegistry.isAppManagedValue(it.value) }

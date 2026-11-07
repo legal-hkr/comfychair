@@ -300,6 +300,8 @@ fun WorkflowGraphCanvas(
     notes: List<WorkflowNote> = emptyList(),
     selectedNoteIds: Set<Int> = emptySet(),
     nodeDefinitions: Map<String, NodeTypeDefinition> = emptyMap(),
+    /** Shown names of fields by key, e.g. custom fields ("field_<id>") by the names the user gave them */
+    fieldNames: Map<String, String> = emptyMap(),
     onNodeTapped: ((String) -> Unit)? = null,
     onTapOutsideNodes: (() -> Unit)? = null,
     onOutputSlotTapped: ((SlotPosition) -> Unit)? = null,
@@ -370,8 +372,10 @@ fun WorkflowGraphCanvas(
 
     // Create display name resolver using Context for localized field names
     val context = LocalContext.current
+    // Custom fields by their own names (spec §18), built-in fields by the app's
+    val currentFieldNames = rememberUpdatedState(fieldNames)
     val displayNameResolver: (String) -> String = remember(context) {
-        { fieldKey -> FieldDisplayRegistry.getDisplayName(context, fieldKey) }
+        { fieldKey -> currentFieldNames.value[fieldKey] ?: FieldDisplayRegistry.getDisplayName(context, fieldKey) }
     }
 
     // TextMeasurer for markdown rendering in notes
@@ -1608,10 +1612,13 @@ fun WorkflowGraphCanvas(
                     // In Edit structure every value row that can take a link has a socket, as in ComfyUI (the owner's
                     // choice over the spec's selected nodes only); while a connection waits, only its targets and source
                     val valueSocketType = if (inputValue is InputValue.Literal && isEditMode && level == GraphDetailLevel.FULL) {
-                        linkableValueType(node, inputName, nodeDefinitions)?.takeIf {
-                            val isTarget = connectionModeState?.validTargetSlots?.any { slot -> slot.nodeId == node.id && slot.slotName == inputName } == true
-                            val isValueSource = connectionModeState?.sourceSlot?.let { slot -> !slot.isOutput && slot.nodeId == node.id && slot.slotName == inputName } == true
-                            isTarget || isValueSource || connectionModeState == null
+                        val isTarget = connectionModeState?.validTargetSlots?.any { slot -> slot.nodeId == node.id && slot.slotName == inputName } == true
+                        val isValueSource = connectionModeState?.sourceSlot?.let { slot -> !slot.isOutput && slot.nodeId == node.id && slot.slotName == inputName } == true
+                        when {
+                            isTarget || isValueSource -> linkableValueType(node, inputName, nodeDefinitions)
+                            // Without a connection waiting, every value has its socket: lists too, for their field menu
+                            connectionModeState == null -> valueRowType(node, inputName, nodeDefinitions)
+                            else -> null
                         }
                     } else null
                     if (inputValue !is InputValue.Connection && inputValue !is InputValue.UnconnectedSlot && valueSocketType == null) return@forEach
@@ -2428,7 +2435,7 @@ private fun findInputSlotAt(
         for ((inputName, inputValue) in node.inputs) {
             // Connection-type inputs, and (with [valueSockets]) the value rows that can take a link
             val valueType = if (inputValue is InputValue.Literal && valueSockets) {
-                linkableValueType(node, inputName, nodeDefinitions)
+                valueRowType(node, inputName, nodeDefinitions)
             } else null
             val isConnectionInput = inputValue is InputValue.Connection ||
                 inputValue is InputValue.UnconnectedSlot || valueType != null
@@ -2470,3 +2477,13 @@ private fun findInputSlotAt(
 private fun linkableValueType(node: WorkflowNode, inputName: String, nodeDefinitions: Map<String, NodeTypeDefinition>): String? =
     nodeDefinitions[node.classType]?.inputs?.find { it.name == inputName }?.type?.uppercase()
         ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES }
+
+/**
+ * The type of a value row that has a socket in Edit structure: one that can take a link, or a list (its socket opens
+ * the field menu only). Null for anything else.
+ */
+private fun valueRowType(node: WorkflowNode, inputName: String, nodeDefinitions: Map<String, NodeTypeDefinition>): String? {
+    linkableValueType(node, inputName, nodeDefinitions)?.let { return it }
+    val definition = nodeDefinitions[node.classType]?.inputs?.find { it.name == inputName } ?: return null
+    return if (definition.options != null && !definition.forceInput) definition.type else null
+}

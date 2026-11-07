@@ -1059,4 +1059,33 @@
     </plurals>
     <string name="state_expanded">Expandido</string>
     <string name="state_collapsed">Contraído</string>
+
+    <!-- Custom fields -->
+    <string name="menu_editor_make_field">Crear un campo</string>
+    <string name="menu_editor_add_to_field">Añadir a un campo</string>
+    <string name="label_editor_add_to_field_header">Añadir &lt;b>%1$s&lt;/b> a</string>
+    <string name="menu_editor_edit_field">Editar campo</string>
+    <string name="menu_editor_remove_from_field">Quitar del campo</string>
+    <string name="label_field_type_int">número entero</string>
+    <string name="label_field_type_float">número decimal</string>
+    <string name="label_field_type_bool">sí/no</string>
+    <string name="label_field_type_list">lista</string>
+    <string name="label_field_type_text">texto</string>
+    <string name="label_field_type_with_range">%1$s, %2$s</string>
+    <string name="title_new_field">Campo nuevo</string>
+    <string name="label_new_field_context">Desde &lt;b>%1$s&lt;/b> en &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_field_name">Nombre</string>
+    <string name="desc_field_name">Visible en la pantalla de generación – %1$d/%2$d</string>
+    <string name="error_field_name_empty">Escribe un nombre</string>
+    <string name="error_field_name_taken">%1$s ya es un campo de este flujo de trabajo</string>
+    <string name="button_add">Añadir</string>
+    <string name="title_edit_field">Editar campo</string>
+    <string name="title_field_fills">Rellena</string>
+    <string name="content_description_remove_field_value">Quitar %2$s en %1$s</string>
+    <string name="error_field_needs_value">Un campo necesita al menos un valor</string>
+    <string name="button_delete_field">Eliminar campo</string>
+    <string name="title_delete_field">¿Eliminar %1$s?</string>
+    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> es su único valor. Conservará el valor del campo como propio.</string>
+    <string name="msg_editor_link_deletes_field">&lt;b>%2$s&lt;/b> no tiene otro valor y se eliminará.</string>
+    <string name="button_link_delete_field">Conectar y eliminar campo</string>
 </resources>

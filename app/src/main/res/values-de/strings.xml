@@ -1029,4 +1029,33 @@
     </plurals>
     <string name="state_expanded">Ausgeklappt</string>
     <string name="state_collapsed">Eingeklappt</string>
+
+    <!-- Custom fields -->
+    <string name="menu_editor_make_field">Feld erstellen</string>
+    <string name="menu_editor_add_to_field">Zu Feld hinzufügen</string>
+    <string name="label_editor_add_to_field_header">&lt;b>%1$s&lt;/b> hinzufügen zu</string>
+    <string name="menu_editor_edit_field">Feld bearbeiten</string>
+    <string name="menu_editor_remove_from_field">Aus Feld entfernen</string>
+    <string name="label_field_type_int">Ganzzahl</string>
+    <string name="label_field_type_float">Dezimalzahl</string>
+    <string name="label_field_type_bool">ein/aus</string>
+    <string name="label_field_type_list">Liste</string>
+    <string name="label_field_type_text">Text</string>
+    <string name="label_field_type_with_range">%1$s, %2$s</string>
+    <string name="title_new_field">Neues Feld</string>
+    <string name="label_new_field_context">Aus &lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_field_name">Name</string>
+    <string name="desc_field_name">Auf dem Generierungsbildschirm sichtbar – %1$d/%2$d</string>
+    <string name="error_field_name_empty">Gib einen Namen ein</string>
+    <string name="error_field_name_taken">%1$s ist bereits ein Feld dieses Workflows</string>
+    <string name="button_add">Hinzufügen</string>
+    <string name="title_edit_field">Feld bearbeiten</string>
+    <string name="title_field_fills">Füllt</string>
+    <string name="content_description_remove_field_value">%2$s in %1$s entfernen</string>
+    <string name="error_field_needs_value">Ein Feld braucht mindestens einen Wert</string>
+    <string name="button_delete_field">Feld löschen</string>
+    <string name="title_delete_field">%1$s löschen?</string>
+    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> ist sein einziger Wert. Er behält den Wert des Felds als eigenen.</string>
+    <string name="msg_editor_link_deletes_field">&lt;b>%2$s&lt;/b> hat keinen anderen Wert und wird gelöscht.</string>
+    <string name="button_link_delete_field">Verbinden und Feld löschen</string>
 </resources>

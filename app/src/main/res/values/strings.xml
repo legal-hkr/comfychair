@@ -1061,4 +1061,33 @@
     </plurals>
     <string name="state_expanded">Expanded</string>
     <string name="state_collapsed">Collapsed</string>
+
+    <!-- Custom fields -->
+    <string name="menu_editor_make_field">Make a field</string>
+    <string name="menu_editor_add_to_field">Add to field</string>
+    <string name="label_editor_add_to_field_header">Add &lt;b>%1$s&lt;/b> to</string>
+    <string name="menu_editor_edit_field">Edit field</string>
+    <string name="menu_editor_remove_from_field">Remove from field</string>
+    <string name="label_field_type_int">whole number</string>
+    <string name="label_field_type_float">decimal number</string>
+    <string name="label_field_type_bool">on/off</string>
+    <string name="label_field_type_list">list</string>
+    <string name="label_field_type_text">text</string>
+    <string name="label_field_type_with_range">%1$s, %2$s</string>
+    <string name="title_new_field">New field</string>
+    <string name="label_new_field_context">From &lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_field_name">Name</string>
+    <string name="desc_field_name">Shown on the generation screen – %1$d/%2$d</string>
+    <string name="error_field_name_empty">Enter a name</string>
+    <string name="error_field_name_taken">%1$s is already a field in this workflow</string>
+    <string name="button_add">Add</string>
+    <string name="title_edit_field">Edit field</string>
+    <string name="title_field_fills">Fills</string>
+    <string name="content_description_remove_field_value">Remove %2$s in %1$s</string>
+    <string name="error_field_needs_value">A field needs at least one value</string>
+    <string name="button_delete_field">Delete field</string>
+    <string name="title_delete_field">Delete %1$s?</string>
+    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> is its only value. It keeps the field\'s value as its own.</string>
+    <string name="msg_editor_link_deletes_field">&lt;b>%2$s&lt;/b> has no other value and will be deleted.</string>
+    <string name="button_link_delete_field">Link and delete field</string>
 </resources>

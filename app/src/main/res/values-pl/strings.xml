@@ -1087,4 +1087,33 @@
     </plurals>
     <string name="state_expanded">Rozwinięty</string>
     <string name="state_collapsed">Zwinięty</string>
+
+    <!-- Custom fields -->
+    <string name="menu_editor_make_field">Utwórz pole</string>
+    <string name="menu_editor_add_to_field">Dodaj do pola</string>
+    <string name="label_editor_add_to_field_header">Dodaj &lt;b>%1$s&lt;/b> do</string>
+    <string name="menu_editor_edit_field">Edytuj pole</string>
+    <string name="menu_editor_remove_from_field">Usuń z pola</string>
+    <string name="label_field_type_int">liczba całkowita</string>
+    <string name="label_field_type_float">liczba dziesiętna</string>
+    <string name="label_field_type_bool">tak/nie</string>
+    <string name="label_field_type_list">lista</string>
+    <string name="label_field_type_text">tekst</string>
+    <string name="label_field_type_with_range">%1$s, %2$s</string>
+    <string name="title_new_field">Nowe pole</string>
+    <string name="label_new_field_context">Z &lt;b>%1$s&lt;/b> w &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_field_name">Nazwa</string>
+    <string name="desc_field_name">Widoczna na ekranie generowania – %1$d/%2$d</string>
+    <string name="error_field_name_empty">Wpisz nazwę</string>
+    <string name="error_field_name_taken">Pole %1$s już jest w tym przepływie</string>
+    <string name="button_add">Dodaj</string>
+    <string name="title_edit_field">Edytuj pole</string>
+    <string name="title_field_fills">Wypełnia</string>
+    <string name="content_description_remove_field_value">Usuń %2$s w %1$s</string>
+    <string name="error_field_needs_value">Pole musi wypełniać co najmniej jedną wartość</string>
+    <string name="button_delete_field">Usuń pole</string>
+    <string name="title_delete_field">Usunąć pole %1$s?</string>
+    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> to jego jedyna wartość. Zachowa wartość pola jako własną.</string>
+    <string name="msg_editor_link_deletes_field">Pole &lt;b>%2$s&lt;/b> nie ma innych wartości i zostanie usunięte.</string>
+    <string name="button_link_delete_field">Podłącz i usuń pole</string>
 </resources>

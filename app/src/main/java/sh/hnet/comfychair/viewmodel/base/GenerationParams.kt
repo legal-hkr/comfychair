@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.viewmodel.base
 
+import sh.hnet.comfychair.model.CustomField
 import androidx.compose.runtime.Immutable
 import sh.hnet.comfychair.connection.ModelCache
 import sh.hnet.comfychair.model.LoraSelection
@@ -86,6 +87,8 @@ data class GenerationParams(
     override val upscaleMethod: String = "nearest-exact",
     override val scaleBy: String = "1.5",
     override val stopAtClipLayer: String = "-1",
+    // Custom fields' values as text, by field ID (spec §18)
+    val customValues: Map<String, String> = emptyMap(),
 
     // LoRA chains
     override val loraChain: List<LoraSelection> = emptyList(),
@@ -205,7 +208,8 @@ data class GenerationParams(
         saved: WorkflowValues?,
         defaults: WorkflowDefaults?,
         options: (fieldKey: String) -> List<String>?,
-        fallback: GenerationParams
+        fallback: GenerationParams,
+        customFields: List<CustomField> = emptyList()
     ): GenerationParams {
         val cache = models
         val savedSelections = saved?.let { values ->
@@ -252,6 +256,8 @@ data class GenerationParams(
             loraChain = saved?.loraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             highnoiseLoraChain = saved?.highnoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
             lownoiseLoraChain = saved?.lownoiseLoraChain?.let { LoraSelection.fromJsonString(it) } ?: emptyList(),
+            // Custom fields: the saved value, else the value the field was made with
+            customValues = customFields.associate { field -> field.id to (saved?.customValues?.get(field.id) ?: field.default) },
             // Values come from storage or the template, so no field starts with an error
             widthError = null, heightError = null, megapixelsError = null, lengthError = null, fpsError = null,
             stepsError = null, cfgError = null, seedError = null, denoiseError = null, batchSizeError = null,
@@ -303,6 +309,7 @@ data class GenerationParams(
         upscaleMethod = upscaleMethod.takeIf { it.isNotEmpty() },
         scaleBy = scaleBy.toFloatOrNull(),
         stopAtClipLayer = stopAtClipLayer.toIntOrNull(),
-        nodeAttributeEdits = existing?.nodeAttributeEdits
+        nodeAttributeEdits = existing?.nodeAttributeEdits,
+        customValues = customValues.takeIf { it.isNotEmpty() }
     )
 }

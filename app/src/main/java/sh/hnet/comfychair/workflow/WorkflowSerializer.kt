@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import sh.hnet.comfychair.model.CustomFields
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
@@ -69,6 +70,10 @@ class WorkflowSerializer {
         if (graph.isManualPlacementMode) {
             rootJson.put("manual_placement", true)
         }
+
+        // Custom fields and labels of built-in fields go with the workflow
+        if (graph.customFields.isNotEmpty()) rootJson.put(CustomFields.FIELDS_KEY, CustomFields.toJson(graph.customFields))
+        if (graph.fieldLabels.isNotEmpty()) rootJson.put(CustomFields.LABELS_KEY, CustomFields.labelsToJson(graph.fieldLabels))
 
         val result = rootJson.toString(2)
         DebugLogger.d(TAG, "Serialized workflow with wrapper: ${result.length} chars")

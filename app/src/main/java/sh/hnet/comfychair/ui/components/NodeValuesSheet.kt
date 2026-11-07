@@ -111,7 +111,8 @@ fun NodeValuesSheetContent(
     onResetNode: () -> Unit,
     modifier: Modifier = Modifier,
     linkedValues: List<LinkedValue> = emptyList(),
-    onOpenNode: (nodeId: String) -> Unit = {}
+    onOpenNode: (nodeId: String) -> Unit = {},
+    fieldNames: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
     val editableInputs = remember(node, nodeDefinition, currentEdits) {
@@ -169,7 +170,7 @@ fun NodeValuesSheetContent(
             item(key = "linked_values") { LinkedValues(linkedValues, onOpenNode) }
         }
         if (linked.isNotEmpty()) {
-            item(key = "linked") { LinkedInputs(linked) }
+            item(key = "linked") { LinkedInputs(linked, fieldNames) }
         }
     }
 }
@@ -216,7 +217,7 @@ private fun LinkedValues(values: List<LinkedValue>, onOpenNode: (String) -> Unit
 
 /** Inputs the generation screen fills in: their name and the app's field, no controls. */
 @Composable
-private fun LinkedInputs(inputs: List<Pair<String, String>>) {
+private fun LinkedInputs(inputs: List<Pair<String, String>>, fieldNames: Map<String, String>) {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
@@ -247,7 +248,7 @@ private fun LinkedInputs(inputs: List<Pair<String, String>>) {
                     Column(Modifier.weight(1f)) {
                         Text(name, style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            appFieldLabel(context, value),
+                            appFieldLabel(context, value, fieldNames),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -260,12 +261,12 @@ private fun LinkedInputs(inputs: List<Pair<String, String>>) {
 }
 
 /** The app's field behind a placeholder ("{{seed}}") or an uploaded image marker. */
-private fun appFieldLabel(context: android.content.Context, value: String): String = when {
+private fun appFieldLabel(context: android.content.Context, value: String, fieldNames: Map<String, String> = emptyMap()): String = when {
     value.startsWith("uploaded_image") -> context.getString(R.string.label_pip_source)
     value.startsWith("reference_image_1") -> context.getString(R.string.content_description_reference_image_1)
     value.startsWith("reference_image_2") -> context.getString(R.string.content_description_reference_image_2)
     else -> Regex("""\{\{(\w+)\}\}""").find(value)?.groupValues?.get(1)
-        ?.let { FieldDisplayRegistry.getDisplayName(context, it) } ?: value
+        ?.let { fieldNames[it] ?: FieldDisplayRegistry.getDisplayName(context, it) } ?: value
 }
 
 /**

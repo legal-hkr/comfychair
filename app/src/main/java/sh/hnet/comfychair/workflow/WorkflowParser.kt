@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.workflow
 
+import sh.hnet.comfychair.model.CustomFields
 import org.json.JSONArray
 import org.json.JSONObject
 import sh.hnet.comfychair.util.DebugLogger
@@ -182,7 +183,9 @@ class WorkflowParser(private val logDetails: Boolean = true) {
             notes = notes,
             templateVariables = allTemplateVars,
             mappedFields = mappedFields,
-            isManualPlacementMode = isManualPlacementMode
+            isManualPlacementMode = isManualPlacementMode,
+            customFields = CustomFields.fromJson(json.optJSONArray(CustomFields.FIELDS_KEY)),
+            fieldLabels = CustomFields.labelsFromJson(json.optJSONObject(CustomFields.LABELS_KEY))
         )
     }
 

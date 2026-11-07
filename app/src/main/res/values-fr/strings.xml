@@ -1059,4 +1059,33 @@
     </plurals>
     <string name="state_expanded">Développé</string>
     <string name="state_collapsed">Réduit</string>
+
+    <!-- Custom fields -->
+    <string name="menu_editor_make_field">Créer un champ</string>
+    <string name="menu_editor_add_to_field">Ajouter à un champ</string>
+    <string name="label_editor_add_to_field_header">Ajouter &lt;b>%1$s&lt;/b> à</string>
+    <string name="menu_editor_edit_field">Modifier le champ</string>
+    <string name="menu_editor_remove_from_field">Retirer du champ</string>
+    <string name="label_field_type_int">nombre entier</string>
+    <string name="label_field_type_float">nombre décimal</string>
+    <string name="label_field_type_bool">oui/non</string>
+    <string name="label_field_type_list">liste</string>
+    <string name="label_field_type_text">texte</string>
+    <string name="label_field_type_with_range">%1$s, %2$s</string>
+    <string name="title_new_field">Nouveau champ</string>
+    <string name="label_new_field_context">Depuis &lt;b>%1$s&lt;/b> dans &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_field_name">Nom</string>
+    <string name="desc_field_name">Affiché sur l’écran de génération – %1$d/%2$d</string>
+    <string name="error_field_name_empty">Saisissez un nom</string>
+    <string name="error_field_name_taken">%1$s est déjà un champ de ce workflow</string>
+    <string name="button_add">Ajouter</string>
+    <string name="title_edit_field">Modifier le champ</string>
+    <string name="title_field_fills">Remplit</string>
+    <string name="content_description_remove_field_value">Retirer %2$s dans %1$s</string>
+    <string name="error_field_needs_value">Un champ doit remplir au moins une valeur</string>
+    <string name="button_delete_field">Supprimer le champ</string>
+    <string name="title_delete_field">Supprimer %1$s ?</string>
+    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> est sa seule valeur. Elle garde la valeur du champ comme la sienne.</string>
+    <string name="msg_editor_link_deletes_field">&lt;b>%2$s&lt;/b> n’a pas d’autre valeur et sera supprimé.</string>
+    <string name="button_link_delete_field">Lier et supprimer le champ</string>
 </resources>

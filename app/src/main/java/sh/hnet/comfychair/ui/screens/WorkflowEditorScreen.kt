@@ -37,10 +37,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.AddCircleOutline
+import androidx.compose.material.icons.rounded.AddLink
+import androidx.compose.material.icons.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.Cable
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Label
+import androidx.compose.material.icons.rounded.LabelOff
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LinkOff
+import androidx.compose.material.icons.rounded.NewLabel
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.DropdownMenuGroup
@@ -86,13 +92,16 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.model.CustomFields
 import sh.hnet.comfychair.ui.components.LinkedValue
 import sh.hnet.comfychair.ui.components.NodeBrowserBottomSheet
 import sh.hnet.comfychair.ui.components.NodeValuesSheetContent
@@ -106,7 +115,9 @@ import sh.hnet.comfychair.ui.components.graphCanvasColor
 import sh.hnet.comfychair.ui.components.rememberGraphDetailLevel
 import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.boldNamesResource
+import sh.hnet.comfychair.ui.components.shared.rememberMenuScrollModifier
 import sh.hnet.comfychair.ui.components.workflow.AllFieldsSheet
+import sh.hnet.comfychair.ui.components.workflow.EditFieldDialog
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
 import sh.hnet.comfychair.ui.components.workflow.EditorMode
 import sh.hnet.comfychair.ui.components.workflow.EditorStatus
@@ -116,7 +127,9 @@ import sh.hnet.comfychair.ui.components.workflow.EditorTopRow
 import sh.hnet.comfychair.ui.components.workflow.FieldMappingCard
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
+import sh.hnet.comfychair.ui.components.workflow.NewFieldDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
+import sh.hnet.comfychair.ui.components.workflow.fieldTypeDescription
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
@@ -125,6 +138,7 @@ import sh.hnet.comfychair.workflow.GraphDetailLevel
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowGraph
 import sh.hnet.comfychair.workflow.WorkflowLayoutEngine
 import sh.hnet.comfychair.workflow.WorkflowNode
@@ -179,7 +193,23 @@ fun WorkflowEditorScreen(
     val connection = uiState.connectionModeState
     // A linked input socket's menu (Disconnect, Change source), and the app's field names for the linking question
     var socketMenu by remember { mutableStateOf<SlotPosition?>(null) }
-    val fieldNameOf: (String) -> String = remember(context) { { key -> FieldDisplayRegistry.getDisplayName(context, key) } }
+    // Custom fields by the names the user gave them ("field_<id>" -> name), built-in fields by the app's names
+    val customFieldNames = remember(uiState.graph?.customFields) {
+        uiState.graph?.customFields.orEmpty().associate { "${CustomFields.PLACEHOLDER_PREFIX}${it.id}" to it.name }
+    }
+    val currentCustomFieldNames by rememberUpdatedState(customFieldNames)
+    val fieldNameOf: (String) -> String = remember(context) {
+        { key -> currentCustomFieldNames[key] ?: FieldDisplayRegistry.getDisplayName(context, key) }
+    }
+    // Names a new field can't take: the workflow's built-in fields as shown
+    val builtInFieldNames = remember(uiState.graph?.templateVariables) {
+        uiState.graph?.templateVariables.orEmpty().filterNot { it.startsWith(CustomFields.PLACEHOLDER_PREFIX) }
+            .map { FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(it)) }
+    }
+    // Custom fields (spec §18): naming a new one, editing one, confirming a last value's removal
+    var newFieldFor by remember { mutableStateOf<SlotPosition?>(null) }
+    var editFieldId by remember { mutableStateOf<String?>(null) }
+    var removeLastFrom by remember { mutableStateOf<SlotPosition?>(null) }
     // Values that differ from the workflow's (edits that only fill an empty value with the node's default don't count)
     val changedValues = remember(uiState.graph, uiState.nodeDefinitions, uiState.nodeAttributeEdits) {
         uiState.graph?.let { changedValueCount(it, uiState.nodeDefinitions, uiState.nodeAttributeEdits) } ?: 0
@@ -298,7 +328,8 @@ fun WorkflowEditorScreen(
                         .navigationBarsPadding(),
                     linkedValues = linkedValuesOf(node, uiState.graph, uiState.nodeDefinitions[node.classType]),
                     // A linked value's row opens its source node, as tapping that node does
-                    onOpenNode = { id -> uiState.graph?.nodes?.find { it.id == id }?.let(viewModel::onNodeTappedForEditing) }
+                    onOpenNode = { id -> uiState.graph?.nodes?.find { it.id == id }?.let(viewModel::onNodeTappedForEditing) },
+                    fieldNames = customFieldNames
                 )
             }
         }
@@ -457,7 +488,24 @@ fun WorkflowEditorScreen(
                                 onDisconnect = {
                                     if (slot.isOutput) viewModel.disconnectOutput(slot.nodeId, slot.outputIndex)
                                     else viewModel.deleteConnection(slot.nodeId, slot.slotName)
-                                }
+                                },
+                                linkable = slot.isOutput || uiState.graph?.nodes?.find { it.id == slot.nodeId }?.inputs?.get(slot.slotName) !is InputValue.Literal ||
+                                    slot.slotType?.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES,
+                                fieldItems = fieldMenuItems(
+                                    slot = slot,
+                                    graph = uiState.graph,
+                                    viewModel = viewModel,
+                                    onMake = { newFieldFor = slot },
+                                    onEdit = { editFieldId = it },
+                                    onRemove = {
+                                        if (viewModel.customFieldOf(slot.nodeId, slot.slotName)?.targets?.size == 1) removeLastFrom = slot
+                                        else viewModel.removeFromCustomField(slot.nodeId, slot.slotName)
+                                    }
+                                ),
+                                addToFields = if (slot.isOutput) emptyList() else viewModel.compatibleCustomFields(slot.nodeId, slot.slotName)
+                                    .takeIf { viewModel.customFieldOf(slot.nodeId, slot.slotName) == null && literalIsOwnValue(uiState.graph, slot) }
+                                    .orEmpty().map { it.id to it.name },
+                                onAddToField = { fieldId -> viewModel.addToCustomField(fieldId, slot.nodeId, slot.slotName) }
                             )
                         }
                         WorkflowGraphCanvas(
@@ -477,6 +525,7 @@ fun WorkflowEditorScreen(
                             connectionModeState = uiState.connectionModeState,
                             renderedGroups = renderedGroups,
                             nodeDefinitions = uiState.nodeDefinitions,
+                            fieldNames = customFieldNames,
                             onNodeTapped = { nodeId ->
                                 when {
                                     uiState.isFieldMappingMode -> {
@@ -886,16 +935,86 @@ fun WorkflowEditorScreen(
         }
 
         // Several compatible inputs or outputs: which one (a tap connects)
+        // Custom fields: naming a new one, editing one, deleting one with its last value (spec §18)
+        newFieldFor?.let { slot ->
+            val node = uiState.graph?.nodes?.find { it.id == slot.nodeId }
+            val definition = node?.let { uiState.nodeDefinitions[it.classType] }?.inputs?.find { it.name == slot.slotName }
+            val type = viewModel.fieldValueTypeOf(slot.nodeId, slot.slotName)
+            if (node == null || type == null) {
+                newFieldFor = null
+            } else {
+                NewFieldDialog(
+                    inputName = slot.slotName,
+                    nodeTitle = node.title,
+                    typeDescription = fieldTypeDescription(type, definition?.min, definition?.max),
+                    isTaken = { viewModel.isFieldNameTaken(it, null, builtInFieldNames) },
+                    onAdd = { name ->
+                        viewModel.createCustomField(slot.nodeId, slot.slotName, name)
+                        newFieldFor = null
+                    },
+                    onDismiss = { newFieldFor = null }
+                )
+            }
+        }
+        editFieldId?.let { id ->
+            val field = uiState.graph?.customFields?.find { it.id == id }
+            val first = field?.targets?.firstOrNull()
+            val firstNode = first?.let { t -> uiState.graph?.nodes?.find { it.id == t.nodeId } }
+            val definition = firstNode?.let { uiState.nodeDefinitions[it.classType] }?.inputs?.find { it.name == first.input }
+            if (field == null) {
+                editFieldId = null
+            } else {
+                EditFieldDialog(
+                    field = field,
+                    typeDescription = fieldTypeDescription(field.type, definition?.min, definition?.max),
+                    targetLines = field.targets.map { t -> t to ((uiState.graph?.nodes?.find { it.id == t.nodeId }?.title ?: t.nodeId) to t.input) },
+                    isTaken = { viewModel.isFieldNameTaken(it, field.id, builtInFieldNames) },
+                    onSave = { name, targets ->
+                        viewModel.updateCustomField(field.id, name, targets)
+                        editFieldId = null
+                    },
+                    onDelete = {
+                        viewModel.deleteCustomField(field.id)
+                        editFieldId = null
+                    },
+                    onDismiss = { editFieldId = null }
+                )
+            }
+        }
+        removeLastFrom?.let { slot ->
+            val field = viewModel.customFieldOf(slot.nodeId, slot.slotName)
+            if (field == null) {
+                removeLastFrom = null
+            } else {
+                ConfirmDialog(
+                    title = stringResource(R.string.title_delete_field, field.name),
+                    text = boldNamesResource(R.string.msg_delete_field_last, field.name, slot.slotName),
+                    confirmLabel = stringResource(R.string.button_delete_field),
+                    icon = Icons.Rounded.LabelOff,
+                    destructive = true,
+                    onConfirm = { viewModel.removeFromCustomField(slot.nodeId, slot.slotName) },
+                    onDismiss = { removeLastFrom = null }
+                )
+            }
+        }
+
         // Linking a value the app fills: what it means, before it's done (spec §17.2.3)
         uiState.pendingMappedLink?.let { pending ->
             ConfirmDialog(
                 title = stringResource(R.string.title_editor_link_mapped, pending.inputName),
-                text = if (pending.addNode) {
-                    boldNamesResource(R.string.msg_editor_link_mapped_new_node, pending.inputName, pending.fieldName)
-                } else {
-                    boldNamesResource(R.string.msg_editor_link_mapped, pending.inputName, pending.fieldName, pending.sourceTitle)
+                text = buildAnnotatedString {
+                    append(
+                        if (pending.addNode) boldNamesResource(R.string.msg_editor_link_mapped_new_node, pending.inputName, pending.fieldName)
+                        else boldNamesResource(R.string.msg_editor_link_mapped, pending.inputName, pending.fieldName, pending.sourceTitle)
+                    )
+                    // The custom field's last value: the field goes with it
+                    if (pending.deletesField) {
+                        append(" ")
+                        append(boldNamesResource(R.string.msg_editor_link_deletes_field, pending.inputName, pending.fieldName))
+                    }
                 },
-                confirmLabel = stringResource(R.string.button_link),
+                confirmLabel = stringResource(if (pending.deletesField) R.string.button_link_delete_field else R.string.button_link),
+                destructive = pending.deletesField,
                 icon = Icons.Rounded.Link,
                 onConfirm = { viewModel.confirmMappedLink(pending) },
                 onDismiss = viewModel::dismissMappedLink
@@ -1175,7 +1294,11 @@ private fun SocketMenu(
     onDismiss: () -> Unit,
     onConnect: () -> Unit,
     onAddNode: () -> Unit,
-    onDisconnect: () -> Unit
+    onDisconnect: () -> Unit,
+    linkable: Boolean = true,
+    fieldItems: List<SocketMenuItem> = emptyList(),
+    addToFields: List<Pair<String, String>> = emptyList(),
+    onAddToField: (fieldId: String) -> Unit = {}
 ) {
     val node = graph?.nodes?.find { it.id == slot.nodeId }
     val link = node?.inputs?.get(slot.slotName) as? InputValue.Connection
@@ -1203,15 +1326,23 @@ private fun SocketMenu(
             else -> resources.getString(R.string.label_editor_socket_menu_header, TextUtils.htmlEncode(slot.slotName), otherEnds.first())
         }
     )
-    data class Item(val labelRes: Int, val icon: ImageVector, val action: () -> Unit)
+    // Add to field opens a second menu of the fields this value can join
+    var addToOpen by remember { mutableStateOf(false) }
     val items = buildList {
-        // Connect, as its opposite Disconnect: the label says which socket and where it's linked
-        add(Item(R.string.menu_editor_connect, Icons.Rounded.Cable, onConnect))
-        add(Item(R.string.menu_editor_add_node, Icons.Rounded.AddCircleOutline, onAddNode))
+        // Connect, as its opposite Disconnect: the label says which socket and where it's linked (a list value can't
+        // take a link: only its field items)
+        if (linkable) {
+            add(SocketMenuItem(R.string.menu_editor_connect, Icons.Rounded.Cable, action = onConnect))
+            add(SocketMenuItem(R.string.menu_editor_add_node, Icons.Rounded.AddCircleOutline, action = onAddNode))
+        }
     }
-    val disconnect = if (connected) listOf(Item(R.string.menu_editor_disconnect, Icons.Rounded.LinkOff, onDisconnect)) else emptyList()
-    // Disconnect in a group of its own, apart from the actions that add a link (as Delete in the server menu)
-    val groups = listOf(items, disconnect).filter { it.isNotEmpty() }
+    val fields = fieldItems + if (addToFields.isNotEmpty()) {
+        listOf(SocketMenuItem(R.string.menu_editor_add_to_field, Icons.Rounded.AddLink, Icons.Rounded.ArrowRight, closesMenu = false) { addToOpen = true })
+    } else emptyList()
+    val disconnect = if (connected) listOf(SocketMenuItem(R.string.menu_editor_disconnect, Icons.Rounded.LinkOff, action = onDisconnect)) else emptyList()
+    // Disconnect in a group of its own, apart from the actions that add a link (as Delete in the server menu); a
+    // value's field items between them
+    val groups = listOf(items, fields, disconnect).filter { it.isNotEmpty() }
     Box(Modifier.offset { anchor }) {
         DropdownMenuPopup(expanded = true, onDismissRequest = onDismiss) {
             groups.forEachIndexed { groupIndex, group ->
@@ -1228,9 +1359,10 @@ private fun SocketMenu(
                         DropdownMenuItem(
                             text = { Text(stringResource(item.labelRes)) },
                             leadingIcon = { Icon(item.icon, contentDescription = null) },
+                            trailingIcon = item.trailing?.let { { Icon(it, contentDescription = null) } },
                             shape = MenuDefaults.itemShape(index, group.size).shape,
                             onClick = {
-                                onDismiss()
+                                if (item.closesMenu) onDismiss()
                                 item.action()
                             }
                         )
@@ -1239,6 +1371,74 @@ private fun SocketMenu(
                 if (groupIndex < groups.size - 1) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
             }
         }
+        // The fields this value can join, over the first menu; Back or a tap outside closes only this one
+        DropdownMenuPopup(
+            expanded = addToOpen,
+            onDismissRequest = { addToOpen = false },
+            offset = DpOffset(32.dp, 24.dp),
+            modifier = rememberMenuScrollModifier()
+        ) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                Text(
+                    boldNamesResource(R.string.label_editor_add_to_field_header, slot.slotName),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+                )
+                addToFields.forEachIndexed { index, (id, name) ->
+                    DropdownMenuItem(
+                        text = { Text(name) },
+                        leadingIcon = { Icon(Icons.Rounded.Label, contentDescription = null) },
+                        shape = MenuDefaults.itemShape(index, addToFields.size).shape,
+                        onClick = {
+                            addToOpen = false
+                            onDismiss()
+                            onAddToField(id)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** An item of a socket's menu; [closesMenu] false for one that opens another menu (Add to field). */
+private class SocketMenuItem(
+    val labelRes: Int,
+    val icon: ImageVector,
+    val trailing: ImageVector? = null,
+    val closesMenu: Boolean = true,
+    val action: () -> Unit
+)
+
+/** Whether a value input holds its own value (not a placeholder of a field, nor a link). */
+private fun literalIsOwnValue(graph: WorkflowGraph?, slot: SlotPosition): Boolean {
+    val value = (graph?.nodes?.find { it.id == slot.nodeId }?.inputs?.get(slot.slotName) as? InputValue.Literal)?.value ?: return false
+    return !TemplateKeyRegistry.isAppManagedValue(value)
+}
+
+/**
+ * A value's field items (spec §18.2.1): in a custom field – Edit field, Remove from field; its own value – Make a field.
+ * Nothing for an output, a link or a value a built-in field fills (labels of built-in fields come later).
+ */
+private fun fieldMenuItems(
+    slot: SlotPosition,
+    graph: WorkflowGraph?,
+    viewModel: WorkflowEditorViewModel,
+    onMake: () -> Unit,
+    onEdit: (fieldId: String) -> Unit,
+    onRemove: () -> Unit
+): List<SocketMenuItem> {
+    if (slot.isOutput) return emptyList()
+    val field = viewModel.customFieldOf(slot.nodeId, slot.slotName)
+    return when {
+        field != null -> listOf(
+            SocketMenuItem(R.string.menu_editor_edit_field, Icons.Rounded.Edit) { onEdit(field.id) },
+            SocketMenuItem(R.string.menu_editor_remove_from_field, Icons.Rounded.LinkOff, action = onRemove)
+        )
+        literalIsOwnValue(graph, slot) && viewModel.fieldValueTypeOf(slot.nodeId, slot.slotName) != null ->
+            listOf(SocketMenuItem(R.string.menu_editor_make_field, Icons.Rounded.NewLabel, action = onMake))
+        else -> emptyList()
     }
 }
 

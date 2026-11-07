@@ -59,7 +59,10 @@ data class WorkflowValues(
     val batchSize: Int? = null,
     val upscaleMethod: String? = null,
     val scaleBy: Float? = null,
-    val stopAtClipLayer: Int? = null
+    val stopAtClipLayer: Int? = null,
+
+    // Custom fields' values, as text by field ID (spec §18)
+    val customValues: Map<String, String>? = null
 ) {
     companion object {
         fun fromJson(jsonString: String): WorkflowValues {
@@ -101,7 +104,10 @@ data class WorkflowValues(
                 batchSize = json.optInt("batchSize").takeIf { it > 0 },
                 upscaleMethod = json.optString("upscaleMethod").takeIf { it.isNotEmpty() },
                 scaleBy = json.optDouble("scaleBy").takeIf { !it.isNaN() }?.toFloat(),
-                stopAtClipLayer = json.optInt("stopAtClipLayer", 0).takeIf { it != 0 }
+                stopAtClipLayer = json.optInt("stopAtClipLayer", 0).takeIf { it != 0 },
+                customValues = json.optJSONObject("customValues")?.let { values ->
+                    values.keys().asSequence().associateWith { values.optString(it) }
+                }?.takeIf { it.isNotEmpty() }
             )
         }
 
@@ -144,6 +150,9 @@ data class WorkflowValues(
                 values.upscaleMethod?.let { put("upscaleMethod", it) }
                 values.scaleBy?.let { put("scaleBy", it.toDouble()) }
                 values.stopAtClipLayer?.let { put("stopAtClipLayer", it) }
+                values.customValues?.takeIf { it.isNotEmpty() }?.let { custom ->
+                    put("customValues", JSONObject().apply { custom.forEach { (id, value) -> put(id, value) } })
+                }
             }.toString()
         }
     }
