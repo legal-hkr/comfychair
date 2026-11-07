@@ -1113,7 +1113,15 @@
     <string name="error_field_needs_value">Pole musi wypełniać co najmniej jedną wartość</string>
     <string name="button_delete_field">Usuń pole</string>
     <string name="title_delete_field">Usunąć pole %1$s?</string>
-    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> to jego jedyna wartość. Zachowa wartość pola jako własną.</string>
-    <string name="msg_editor_link_deletes_field">Pole &lt;b>%2$s&lt;/b> nie ma innych wartości i zostanie usunięte.</string>
+    <string name="msg_delete_field_last">&lt;b>%1$s&lt;/b> to jego jedyna wartość. Zachowa wartość pola jako własną.</string>
+    <string name="msg_editor_link_deletes_field">Pole &lt;b>%1$s&lt;/b> nie ma innych wartości i zostanie usunięte.</string>
     <string name="button_link_delete_field">Podłącz i usuń pole</string>
+    <string name="section_custom_fields">Własne</string>
+    <string name="menu_add_field">Dodaj pole</string>
+    <string name="desc_add_field">Wybierz wartość do przypisania</string>
+    <string name="label_pick_add_to">Dodawanie do &lt;b>%1$s&lt;/b></string>
+    <string name="title_pick_value">Wybierz wartość</string>
+    <string name="hint_pick_value">Dopuszczalne wartości zostały podświetlone</string>
+    <string name="content_description_cancel_new_field">Anuluj nowe pole</string>
+    <string name="button_add_value">Dodaj wartość</string>
 </resources>

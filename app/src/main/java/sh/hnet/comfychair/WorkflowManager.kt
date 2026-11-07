@@ -680,7 +680,8 @@ object WorkflowManager {
         description: String,
         jsonContent: String,
         type: WorkflowType,
-        fieldMappings: Map<String, Pair<String, String>>  // fieldKey -> (nodeId, inputKey)
+        fieldMappings: Map<String, Pair<String, String>>,  // fieldKey -> (nodeId, inputKey)
+        customFields: List<CustomField>? = null  // made or changed while mapping; null keeps the file's
     ): Result<Workflow> {
         // Parse JSON
         val json = try {
@@ -693,6 +694,11 @@ object WorkflowManager {
         val isWrapped = json.has("nodes") && json.optJSONObject("nodes") != null
 
         val nodesJson = if (isWrapped) json.getJSONObject("nodes") else json
+
+        // Custom fields made while mapping: their placeholders into the values they fill (before built-in fields
+        // take theirs, so a value mapped to both ends with the built-in one)
+        val fileFields = if (isWrapped) CustomFields.fieldsOf(jsonContent) else emptyList()
+        val finalCustomFields = customFields?.let { CustomFields.place(nodesJson, it, fileFields) } ?: fileFields
 
         // Extract original values before replacing with placeholders to create defaults
         val extractedDefaults = mutableMapOf<String, Any>()
@@ -811,7 +817,12 @@ object WorkflowManager {
                 put("manual_placement", json.getBoolean("manual_placement"))
             }
             // Custom fields and labels of built-in fields go with the workflow (spec §18)
-            if (isWrapped && json.has(CustomFields.FIELDS_KEY)) put(CustomFields.FIELDS_KEY, json.getJSONArray(CustomFields.FIELDS_KEY))
+            val keptFields = finalCustomFields.mapNotNull { field ->
+                // A value a built-in field took leaves the custom one; a field left with none goes
+                val kept = field.targets.filter { t -> nodesJson.optJSONObject(t.nodeId)?.optJSONObject("inputs")?.opt(t.input) == field.placeholder }
+                if (kept.isEmpty()) null else field.copy(targets = kept)
+            }
+            if (keptFields.isNotEmpty()) put(CustomFields.FIELDS_KEY, CustomFields.toJson(keptFields))
             if (isWrapped && json.has(CustomFields.LABELS_KEY)) put(CustomFields.LABELS_KEY, json.getJSONObject(CustomFields.LABELS_KEY))
             // Store field mappings for reference
             if (fieldMappings.isNotEmpty()) {

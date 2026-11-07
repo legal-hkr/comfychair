@@ -124,6 +124,30 @@ object CustomFields {
      * placeholder gets the value as its type (a number, true/false or a string), the field's default when the value
      * isn't one. Structural, not text replacement: strings need no escaping and numbers aren't quoted.
      */
+    /**
+     * Write [fields] into a workflow's nodes ([nodesJson], node ID -> node): each value a field fills gets its
+     * placeholder; a value holding a placeholder of no field among them (taken out while mapping) gets its value back
+     * as its own, from [previous] fields' defaults. Returns [fields].
+     */
+    fun place(nodesJson: JSONObject, fields: List<CustomField>, previous: List<CustomField> = emptyList()): List<CustomField> {
+        val targets = fields.flatMap { field -> field.targets.map { (it.nodeId to it.input) to field } }.toMap()
+        val byId = (previous + fields).associateBy { it.id }
+        for (nodeId in nodesJson.keys()) {
+            val inputs = nodesJson.optJSONObject(nodeId)?.optJSONObject("inputs") ?: continue
+            for (input in inputs.keys().asSequence().toList()) {
+                val field = targets[nodeId to input]
+                if (field != null) {
+                    inputs.put(input, field.placeholder)
+                    continue
+                }
+                val id = (inputs.opt(input) as? String)?.let { PLACEHOLDER.find(it)?.groupValues?.get(1) } ?: continue
+                val old = byId[id]
+                inputs.put(input, old?.let { typedValue(it.type, it.default) ?: it.default } ?: "")
+            }
+        }
+        return fields
+    }
+
     fun apply(workflowJson: String, fields: List<CustomField>, values: Map<String, String>): String {
         if (fields.isEmpty()) return workflowJson
         return try {

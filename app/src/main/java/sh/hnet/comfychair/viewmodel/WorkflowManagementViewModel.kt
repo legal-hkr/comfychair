@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.viewmodel
 
+import sh.hnet.comfychair.model.CustomField
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -799,7 +800,8 @@ class WorkflowManagementViewModel : ViewModel() {
     /**
      * Complete the import after mapping is confirmed in editor
      */
-    fun completeImport(fieldMappings: Map<String, Pair<String, String>>) {
+    /** @param customFields The workflow's custom fields after mapping; null keeps those the file has */
+    fun completeImport(fieldMappings: Map<String, Pair<String, String>>, customFields: List<CustomField>? = null) {
         val pending = _uiState.value.pendingWorkflowForMapping ?: return
         val warnings = _uiState.value.pendingImportWarnings
 
@@ -809,7 +811,8 @@ class WorkflowManagementViewModel : ViewModel() {
                 description = pending.description,
                 jsonContent = pending.jsonContent,
                 type = pending.type,
-                fieldMappings = fieldMappings
+                fieldMappings = fieldMappings,
+                customFields = customFields
             )
 
             val imported = result.getOrNull()

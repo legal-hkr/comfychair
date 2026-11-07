@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -129,7 +132,8 @@ fun EditFieldDialog(
     isTaken: (String) -> Boolean,
     onSave: (name: String, targets: List<FieldTarget>) -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onAddValue: ((name: String, targets: List<FieldTarget>) -> Unit)? = null
 ) {
     var name by remember { mutableStateOf(field.name) }
     var attempted by remember { mutableStateOf(false) }
@@ -168,11 +172,13 @@ fun EditFieldDialog(
                     .semantics { heading() }
             )
             val shown = targetLines.filter { (target, _) -> target in kept }
+            // Map fields: Add a value last in the group (picks one on the graph, spec §18.3)
+            val rows = shown.size + if (onAddValue != null) 1 else 0
             shown.forEachIndexed { index, (target, line) ->
                 val (nodeTitle, input) = line
                 // Not buttons: segments of the group, each with its × to take the value out
                 Surface(
-                    shape = groupShapes(index, shown.size).shape,
+                    shape = groupShapes(index, rows).shape,
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -192,6 +198,17 @@ fun EditFieldDialog(
                             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.content_description_remove_field_value, nodeTitle, input))
                         }
                     }
+                }
+            }
+            onAddValue?.let { add ->
+                SegmentedListItem(
+                    onClick = { add(name, kept) },
+                    shapes = groupShapes(rows - 1, rows),
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    leadingContent = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.button_add_value))
                 }
             }
             if (kept.isEmpty()) {

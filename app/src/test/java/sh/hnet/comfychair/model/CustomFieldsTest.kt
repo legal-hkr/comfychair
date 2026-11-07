@@ -59,4 +59,17 @@ class CustomFieldsTest {
         assertEquals(FieldValueType.INT, FieldValueType.of("INT", null))
         assertEquals(null, FieldValueType.of("MODEL", null))
     }
+
+    @Test
+    fun `place writes placeholders and gives values taken out their own back`() {
+        val kept = CustomField("a".repeat(32), "Length", FieldValueType.INT, "81", listOf(FieldTarget("1", "length")))
+        val dropped = CustomField("b".repeat(32), "Old", FieldValueType.FLOAT, "1.5", listOf(FieldTarget("2", "scale")))
+        val nodes = JSONObject(
+            """{"1":{"inputs":{"length":81,"seed":5}},"2":{"inputs":{"scale":"${dropped.placeholder}"}}}"""
+        )
+        CustomFields.place(nodes, listOf(kept), previous = listOf(dropped))
+        assertEquals(kept.placeholder, nodes.getJSONObject("1").getJSONObject("inputs").get("length"))
+        assertEquals(5, nodes.getJSONObject("1").getJSONObject("inputs").get("seed"))
+        assertEquals(1.5, nodes.getJSONObject("2").getJSONObject("inputs").get("scale"))
+    }
 }

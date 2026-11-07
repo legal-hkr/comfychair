@@ -202,9 +202,11 @@ fun WorkflowEditorScreen(
         { key -> currentCustomFieldNames[key] ?: FieldDisplayRegistry.getDisplayName(context, key) }
     }
     // Names a new field can't take: the workflow's built-in fields as shown
-    val builtInFieldNames = remember(uiState.graph?.templateVariables) {
+    // (while mapping, also the fields mapped so far)
+    val builtInFieldNames = remember(uiState.graph?.templateVariables, uiState.mappingState) {
         uiState.graph?.templateVariables.orEmpty().filterNot { it.startsWith(CustomFields.PLACEHOLDER_PREFIX) }
-            .map { FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(it)) }
+            .map { FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(it)) } +
+            uiState.mappingState?.fieldMappings.orEmpty().filter { it.isMapped }.map { it.field.displayName }
     }
     // Custom fields (spec §18): naming a new one, editing one, confirming a last value's removal
     var newFieldFor by remember { mutableStateOf<SlotPosition?>(null) }
@@ -256,6 +258,7 @@ fun WorkflowEditorScreen(
     // dropping changes. The system Back and the Back button do the same.
     val goBack = {
         when {
+            uiState.fieldPick != null -> viewModel.cancelFieldPick()
             connection != null -> viewModel.exitConnectionMode()
             uiState.isEditingNode -> viewModel.dismissNodeEditor()
             // Importing: asks; saving from the editor: back to editing, nothing lost
@@ -526,6 +529,13 @@ fun WorkflowEditorScreen(
                             renderedGroups = renderedGroups,
                             nodeDefinitions = uiState.nodeDefinitions,
                             fieldNames = customFieldNames,
+                            valuePickTargets = uiState.fieldPick?.targets,
+                            onValuePicked = { slot ->
+                                // A new field is named next; another value joins its field at once
+                                val fieldId = uiState.fieldPick?.fieldId
+                                viewModel.cancelFieldPick()
+                                if (fieldId == null) newFieldFor = slot else viewModel.addToCustomField(fieldId, slot.nodeId, slot.slotName)
+                            },
                             onNodeTapped = { nodeId ->
                                 when {
                                     uiState.isFieldMappingMode -> {
@@ -703,6 +713,9 @@ fun WorkflowEditorScreen(
                 currentKey = uiState.selectedFieldKey,
                 onSelectField = { viewModel.selectFieldForMapping(it) },
                 onAllFields = { showAllFields = true },
+                pick = uiState.fieldPick,
+                pickFieldName = uiState.fieldPick?.fieldId?.let { id -> uiState.graph?.customFields?.find { it.id == id }?.name },
+                onCancelPick = viewModel::cancelFieldPick,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -717,7 +730,17 @@ fun WorkflowEditorScreen(
                     },
                     onClearField = { viewModel.clearFieldMapping(it) },
                     onClearAll = { viewModel.clearAllMappings() },
-                    onDismiss = { showAllFields = false }
+                    onDismiss = { showAllFields = false },
+                    customFields = uiState.graph?.customFields.orEmpty(),
+                    targetLabel = { t -> "${uiState.graph?.nodes?.find { it.id == t.nodeId }?.title ?: t.nodeId} – ${t.input}" },
+                    onEditCustomField = {
+                        showAllFields = false
+                        editFieldId = it
+                    },
+                    onAddField = {
+                        showAllFields = false
+                        viewModel.startFieldPick(null)
+                    }
                 )
             }
         }
@@ -977,7 +1000,15 @@ fun WorkflowEditorScreen(
                         viewModel.deleteCustomField(field.id)
                         editFieldId = null
                     },
-                    onDismiss = { editFieldId = null }
+                    onDismiss = { editFieldId = null },
+                    // Map fields: another value is picked on the graph; the dialog's changes are kept when valid
+                    onAddValue = if (uiState.isFieldMappingMode) { name, targets ->
+                        if (targets.isNotEmpty() && name.isNotBlank() && !viewModel.isFieldNameTaken(name, field.id, builtInFieldNames)) {
+                            viewModel.updateCustomField(field.id, name, targets)
+                        }
+                        editFieldId = null
+                        viewModel.startFieldPick(field.id)
+                    } else null
                 )
             }
         }
@@ -988,7 +1019,7 @@ fun WorkflowEditorScreen(
             } else {
                 ConfirmDialog(
                     title = stringResource(R.string.title_delete_field, field.name),
-                    text = boldNamesResource(R.string.msg_delete_field_last, field.name, slot.slotName),
+                    text = boldNamesResource(R.string.msg_delete_field_last, slot.slotName),
                     confirmLabel = stringResource(R.string.button_delete_field),
                     icon = Icons.Rounded.LabelOff,
                     destructive = true,
@@ -1010,7 +1041,7 @@ fun WorkflowEditorScreen(
                     // The custom field's last value: the field goes with it
                     if (pending.deletesField) {
                         append(" ")
-                        append(boldNamesResource(R.string.msg_editor_link_deletes_field, pending.inputName, pending.fieldName))
+                        append(boldNamesResource(R.string.msg_editor_link_deletes_field, pending.fieldName))
                     }
                 },
                 confirmLabel = stringResource(if (pending.deletesField) R.string.button_link_delete_field else R.string.button_link),

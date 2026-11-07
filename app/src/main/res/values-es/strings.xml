@@ -1085,7 +1085,15 @@
     <string name="error_field_needs_value">Un campo necesita al menos un valor</string>
     <string name="button_delete_field">Eliminar campo</string>
     <string name="title_delete_field">¿Eliminar %1$s?</string>
-    <string name="msg_delete_field_last">&lt;b>%2$s&lt;/b> es su único valor. Conservará el valor del campo como propio.</string>
-    <string name="msg_editor_link_deletes_field">&lt;b>%2$s&lt;/b> no tiene otro valor y se eliminará.</string>
+    <string name="msg_delete_field_last">&lt;b>%1$s&lt;/b> es su único valor. Conservará el valor del campo como propio.</string>
+    <string name="msg_editor_link_deletes_field">&lt;b>%1$s&lt;/b> no tiene otro valor y se eliminará.</string>
     <string name="button_link_delete_field">Conectar y eliminar campo</string>
+    <string name="section_custom_fields">Personalizados</string>
+    <string name="menu_add_field">Añadir un campo</string>
+    <string name="desc_add_field">Elige un valor para asignar</string>
+    <string name="label_pick_add_to">Añadir a &lt;b>%1$s&lt;/b></string>
+    <string name="title_pick_value">Elige un valor</string>
+    <string name="hint_pick_value">Los valores admitidos están resaltados</string>
+    <string name="content_description_cancel_new_field">Cancelar campo nuevo</string>
+    <string name="button_add_value">Añadir un valor</string>
 </resources>

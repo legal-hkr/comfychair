@@ -36,6 +36,7 @@ import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.ConnectionModeState
 import sh.hnet.comfychair.workflow.DiscardAction
 import sh.hnet.comfychair.workflow.FieldMappingState
+import sh.hnet.comfychair.workflow.FieldPick
 import sh.hnet.comfychair.workflow.GraphBounds
 import sh.hnet.comfychair.workflow.GroupManager
 import sh.hnet.comfychair.workflow.InputDefinition
@@ -68,7 +69,8 @@ import sh.hnet.comfychair.workflow.workflowValueOf
  * Events emitted by the Workflow Editor
  */
 sealed class WorkflowEditorEvent {
-    data class MappingConfirmed(val mappingsJson: String) : WorkflowEditorEvent()
+    /** [customFieldsJson]: the workflow's custom fields after mapping (made or changed during import), null for none */
+    data class MappingConfirmed(val mappingsJson: String, val customFieldsJson: String? = null) : WorkflowEditorEvent()
     object MappingCancelled : WorkflowEditorEvent()
     data class WorkflowCreated(val workflowId: String) : WorkflowEditorEvent()
     data class WorkflowUpdated(val workflowId: String) : WorkflowEditorEvent()
@@ -294,6 +296,9 @@ class WorkflowEditorViewModel : ViewModel() {
 
                 // Calculate highlighted nodes from mapping state
                 val highlightedNodes = calculateHighlightedNodes(mappingState)
+
+                // Custom fields are made on the graph while mapping (spec §18.3)
+                mutableGraph = MutableWorkflowGraph.fromImmutable(graph)
 
                 _uiState.value = _uiState.value.copy(
                     graph = graph,
@@ -530,6 +535,10 @@ class WorkflowEditorViewModel : ViewModel() {
             mappingState = newMappingState,
             canConfirmMapping = newMappingState.allRequiredFieldsMapped
         )
+        // An input fills one field: a custom field's value mapped to a built-in field leaves the custom one
+        if (selected != null && customFieldOf(selected.nodeId, selected.inputKey) != null) {
+            removeFromCustomField(selected.nodeId, selected.inputKey)
+        }
     }
 
     /**
@@ -667,8 +676,12 @@ class WorkflowEditorViewModel : ViewModel() {
         val mappingsJson = getFinalMappingsJson()
         if (mappingsJson != null) {
             DebugLogger.d(TAG, "confirmMapping: Emitting MappingConfirmed event")
+            val customFields = mutableGraph?.customFields.orEmpty()
+            val customFieldsJson = if (customFields.isNotEmpty() || _uiState.value.graph?.customFields?.isNotEmpty() == true) {
+                CustomFields.toJson(customFields).toString()
+            } else null
             viewModelScope.launch {
-                _events.emit(WorkflowEditorEvent.MappingConfirmed(mappingsJson))
+                _events.emit(WorkflowEditorEvent.MappingConfirmed(mappingsJson, customFieldsJson))
             }
         } else {
             DebugLogger.w(TAG, "confirmMapping: No mappings JSON available")
@@ -1163,7 +1176,8 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Serialize graph to JSON (with wrapper to include groups)
         DebugLogger.d(TAG, "confirmMappingAndSave: Serializing graph with ${pending.graph.nodes.size} nodes, ${pending.graph.groups.size} groups")
-        val jsonContent = serializer.serializeWithWrapper(pending.graph)
+        // The graph as it is now: custom fields may have been made while mapping (spec §18.3)
+        val jsonContent = serializer.serializeWithWrapper(mutableGraph?.toImmutable() ?: pending.graph)
         DebugLogger.d(TAG, "confirmMappingAndSave: JSON length=${jsonContent.length}")
 
         // Save using WorkflowManager - update if editing existing workflow, create if new
@@ -2712,6 +2726,42 @@ class WorkflowEditorViewModel : ViewModel() {
         field.targets.forEach { restoreValue(field, it) }
         graph.customFields = graph.customFields.filterNot { it.id == fieldId }
         fieldsChanged()
+    }
+
+    /**
+     * Map fields: pick a value on the graph (spec §18.3) – for a new field ([fieldId] null: any value in no field), or
+     * another value for a field (values of its type).
+     */
+    fun startFieldPick(fieldId: String?) {
+        val graph = mutableGraph ?: return
+        val mapped = _uiState.value.mappingState?.fieldMappings.orEmpty().mapNotNull { it.selectedCandidate }
+            .map { it.nodeId to it.inputKey }.toSet()
+        val field = fieldId?.let { id -> graph.customFields.find { it.id == id } ?: return }
+        val targets = graph.nodes.flatMap { node ->
+            node.inputs.keys.filter { input ->
+                literalIsOwnValue(node.id, input) && (node.id to input) !in mapped &&
+                    fieldValueTypeOf(node.id, input) != null &&
+                    (field == null || field in compatibleCustomFields(node.id, input))
+            }.map { input ->
+                SlotPosition(
+                    nodeId = node.id,
+                    slotName = input,
+                    isOutput = false,
+                    center = Offset(node.x, node.y + WorkflowLayoutEngine.inputSlotY(node, input)),
+                    slotType = _uiState.value.nodeDefinitions[node.classType]?.inputs?.find { it.name == input }?.type
+                )
+            }
+        }
+        _uiState.value = _uiState.value.copy(fieldPick = FieldPick(fieldId, targets))
+    }
+
+    fun cancelFieldPick() {
+        _uiState.value = _uiState.value.copy(fieldPick = null)
+    }
+
+    private fun literalIsOwnValue(nodeId: String, input: String): Boolean {
+        val value = literalOf(nodeId, input) ?: return false
+        return !TemplateKeyRegistry.isAppManagedValue(value)
     }
 
     /** A value leaves its field (linked, or taken out); [restoreValue]: it gets the field's value as its own. */

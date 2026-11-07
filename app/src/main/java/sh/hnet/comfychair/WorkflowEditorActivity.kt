@@ -44,6 +44,8 @@ class WorkflowEditorActivity : ComponentActivity() {
         private const val EXTRA_WORKFLOW_DESCRIPTION = "workflow_description"
 
         const val EXTRA_RESULT_MAPPINGS = "result_mappings"
+        /** The workflow's custom fields after mapping (JSON array), absent when it has none (spec §18.3) */
+        const val EXTRA_RESULT_CUSTOM_FIELDS = "result_custom_fields"
         const val EXTRA_RESULT_WORKFLOW_ID = "result_workflow_id"
 
         /**
@@ -164,6 +166,7 @@ class WorkflowEditorActivity : ComponentActivity() {
                                 DebugLogger.i(TAG, "Mapping confirmed")
                                 setResult(Activity.RESULT_OK, Intent().apply {
                                     putExtra(EXTRA_RESULT_MAPPINGS, event.mappingsJson)
+                                    event.customFieldsJson?.let { putExtra(EXTRA_RESULT_CUSTOM_FIELDS, it) }
                                 })
                                 finish()
                             }

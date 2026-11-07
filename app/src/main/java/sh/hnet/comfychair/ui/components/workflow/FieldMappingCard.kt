@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -33,12 +34,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.model.CustomField
+import sh.hnet.comfychair.model.FieldTarget
 import sh.hnet.comfychair.ui.components.settings.groupShapes
+import sh.hnet.comfychair.ui.components.shared.boldNamesResource
 import sh.hnet.comfychair.workflow.FieldMappingState
+import sh.hnet.comfychair.workflow.FieldPick
 
 /*
  * Map fields (spec §10.3): one field at a time on a card above the toolbar, the full list in a sheet.
@@ -56,8 +66,15 @@ fun FieldMappingCard(
     currentKey: String?,
     onSelectField: (String) -> Unit,
     onAllFields: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pick: FieldPick? = null,
+    pickFieldName: String? = null,
+    onCancelPick: () -> Unit = {}
 ) {
+    if (pick != null) {
+        PickCard(pickFieldName, onCancelPick, modifier)
+        return
+    }
     if (fields.isEmpty()) return
     val index = fields.indexOfFirst { it.field.fieldKey == currentKey }.coerceAtLeast(0)
     val current = fields[index]
@@ -116,6 +133,52 @@ fun FieldMappingCard(
     }
 }
 
+/**
+ * Picking a value on the graph for a custom field (spec §18.3): for a new field, or another value for
+ * [fieldName]'s. No progress and no Previous / Next; × or Back cancels.
+ */
+@Composable
+private fun PickCard(fieldName: String?, onCancel: () -> Unit, modifier: Modifier) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (fieldName == null) AnnotatedString(stringResource(R.string.title_new_field))
+                    else boldNamesResource(R.string.label_pick_add_to, fieldName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onCancel) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(
+                            if (fieldName == null) R.string.content_description_cancel_new_field else R.string.button_cancel
+                        )
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.title_pick_value),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+            )
+            Text(
+                stringResource(R.string.hint_pick_value),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+    }
+}
+
 /** The field's node, or why there is none. */
 @Composable
 private fun MatchText(field: FieldMappingState) {
@@ -139,7 +202,11 @@ fun AllFieldsSheet(
     onSelectField: (String) -> Unit,
     onClearField: (String) -> Unit,
     onClearAll: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    customFields: List<CustomField> = emptyList(),
+    targetLabel: (FieldTarget) -> String = { "${it.nodeId} – ${it.input}" },
+    onEditCustomField: (fieldId: String) -> Unit = {},
+    onAddField: () -> Unit = {}
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(
@@ -172,6 +239,52 @@ fun AllFieldsSheet(
                             }
                         }
                     }
+                }
+            }
+            // Custom fields (spec §18.3): each opens Edit field; Add a field picks a value on the graph. Shown with
+            // none too (then only Add a field)
+            item(key = "title_custom") {
+                Text(
+                    stringResource(R.string.section_custom_fields),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(top = 16.dp, bottom = 8.dp)
+                        .semantics { heading() }
+                )
+            }
+            if (customFields.isNotEmpty()) {
+                item(key = "group_custom") {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        customFields.forEachIndexed { index, field ->
+                            SegmentedListItem(
+                                onClick = { onEditCustomField(field.id) },
+                                shapes = groupShapes(index, customFields.size),
+                                colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                supportingContent = { Text(field.targets.joinToString(", ", transform = targetLabel)) },
+                                leadingContent = { Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(field.name)
+                            }
+                        }
+                    }
+                }
+            }
+            // Add a field apart from the fields: an action, not one of them
+            item(key = "add_field") {
+                SegmentedListItem(
+                    onClick = onAddField,
+                    shapes = groupShapes(0, 1),
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    supportingContent = { Text(stringResource(R.string.desc_add_field)) },
+                    leadingContent = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = if (customFields.isNotEmpty()) 12.dp else 0.dp)
+                ) {
+                    Text(stringResource(R.string.menu_add_field))
                 }
             }
         }

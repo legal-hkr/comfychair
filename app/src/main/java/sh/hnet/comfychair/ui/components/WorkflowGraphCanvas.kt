@@ -296,6 +296,9 @@ fun WorkflowGraphCanvas(
     isEditMode: Boolean = false,
     selectedNodeIds: Set<String> = emptySet(),
     connectionModeState: ConnectionModeState? = null,
+    /** Map fields: values that can be picked for a custom field (spec §18.3), each tappable on its whole row */
+    valuePickTargets: List<SlotPosition>? = null,
+    onValuePicked: ((SlotPosition) -> Unit)? = null,
     renderedGroups: List<RenderedGroup> = emptyList(),
     notes: List<WorkflowNote> = emptyList(),
     selectedNoteIds: Set<Int> = emptySet(),
@@ -340,6 +343,8 @@ fun WorkflowGraphCanvas(
     val currentOffsetState = rememberUpdatedState(offset)
     val currentGraphState = rememberUpdatedState(graph)
     val currentConnectionModeState = rememberUpdatedState(connectionModeState)
+    val currentPickTargets = rememberUpdatedState(valuePickTargets)
+    val currentOnValuePicked = rememberUpdatedState(onValuePicked)
     val currentIsEditMode = rememberUpdatedState(isEditMode)
     val currentRenderedGroups = rememberUpdatedState(renderedGroups)
     val currentNotes = rememberUpdatedState(notes)
@@ -1164,6 +1169,19 @@ fun WorkflowGraphCanvas(
                         // Sockets can be tapped at full detail only; zoomed out, a tap selects the node
                         val socketsActive = currentLevel.value == GraphDetailLevel.FULL
 
+                        // Picking a value for a custom field: a target's socket or anywhere on its row; other taps do
+                        // nothing (they'd assign built-in fields)
+                        currentPickTargets.value?.let { targets ->
+                            if (socketsActive) {
+                                targets.firstOrNull { slot ->
+                                    val node = graph.nodes.find { it.id == slot.nodeId }
+                                    node != null && graphX in (node.x - radius)..(node.x + node.width) &&
+                                        abs(graphY - (node.y + WorkflowLayoutEngine.inputSlotY(node, slot.slotName))) <= WorkflowLayoutEngine.INPUT_ROW_HEIGHT / 2
+                                }?.let { currentOnValuePicked.value?.invoke(it) }
+                            }
+                            return@detectTapGestures
+                        }
+
                         // In connection mode, check for taps on valid target slots (the nearest one)
                         if (connectionState != null && socketsActive) {
                             fun distance(slot: SlotPosition) = (graphX - slot.center.x).let { it * it } + (graphY - slot.center.y).let { it * it }
@@ -1609,9 +1627,13 @@ fun WorkflowGraphCanvas(
                 }
 
                 node.inputs.forEach { (inputName, inputValue) ->
+                    val isPickTarget = level == GraphDetailLevel.FULL &&
+                        valuePickTargets?.any { slot -> slot.nodeId == node.id && slot.slotName == inputName } == true
                     // In Edit structure every value row that can take a link has a socket, as in ComfyUI (the owner's
                     // choice over the spec's selected nodes only); while a connection waits, only its targets and source
-                    val valueSocketType = if (inputValue is InputValue.Literal && isEditMode && level == GraphDetailLevel.FULL) {
+                    val valueSocketType = if (isPickTarget) {
+                        valueRowType(node, inputName, nodeDefinitions)
+                    } else if (inputValue is InputValue.Literal && isEditMode && level == GraphDetailLevel.FULL) {
                         val isTarget = connectionModeState?.validTargetSlots?.any { slot -> slot.nodeId == node.id && slot.slotName == inputName } == true
                         val isValueSource = connectionModeState?.sourceSlot?.let { slot -> !slot.isOutput && slot.nodeId == node.id && slot.slotName == inputName } == true
                         when {
@@ -1646,6 +1668,20 @@ fun WorkflowGraphCanvas(
                         paints = paints,
                         alpha = nodeAlpha,
                         scale = scaleMultiplier
+                    )
+                }
+            }
+
+            // Values that can be picked for a custom field: the same ring as a connection's targets (spec §18.3)
+            if (level == GraphDetailLevel.FULL) {
+                val ringRadius = NodeStyle.SOCKET_RADIUS + NodeStyle.SOCKET_HALO + NodeStyle.SELECTION_WIDTH / 2
+                valuePickTargets?.forEach { slot ->
+                    val node = graph.nodes.find { it.id == slot.nodeId } ?: return@forEach
+                    drawCircle(
+                        color = colors.primary,
+                        radius = ringRadius,
+                        center = Offset(node.x, node.y + WorkflowLayoutEngine.inputSlotY(node, slot.slotName)),
+                        style = Stroke(NodeStyle.SELECTION_WIDTH)
                     )
                 }
             }

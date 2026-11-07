@@ -12,9 +12,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import org.json.JSONArray
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
 import sh.hnet.comfychair.connection.ConnectionManager
+import sh.hnet.comfychair.model.CustomFields
 import sh.hnet.comfychair.util.AppErrors
 import sh.hnet.comfychair.viewmodel.WorkflowManagementEvent
 import sh.hnet.comfychair.viewmodel.WorkflowManagementViewModel
@@ -35,7 +37,9 @@ fun WorkflowImportHost(viewModel: WorkflowManagementViewModel, onImported: suspe
     val editorLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val mappingsJson = result.data?.getStringExtra(WorkflowEditorActivity.EXTRA_RESULT_MAPPINGS)
-            if (mappingsJson != null) viewModel.completeImport(parseMappingsFromJson(mappingsJson))
+            val customFields = result.data?.getStringExtra(WorkflowEditorActivity.EXTRA_RESULT_CUSTOM_FIELDS)
+                ?.let { runCatching { CustomFields.fromJson(JSONArray(it)) }.getOrNull() }
+            if (mappingsJson != null) viewModel.completeImport(parseMappingsFromJson(mappingsJson), customFields)
         } else {
             viewModel.cancelMapping()
         }

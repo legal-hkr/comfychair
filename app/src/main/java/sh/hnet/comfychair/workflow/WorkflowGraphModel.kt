@@ -302,6 +302,15 @@ enum class ConnectionDirection {
  * - INPUT_TO_OUTPUT: tapping an input highlights valid outputs
  */
 @Stable
+/**
+ * Picking a value on the graph for a custom field in Map fields (spec §18.3): [fieldId] null for a new field, else the
+ * field getting another value; [targets] the values that can be picked.
+ */
+data class FieldPick(
+    val fieldId: String?,
+    val targets: List<SlotPosition>
+)
+
 data class ConnectionModeState(
     val direction: ConnectionDirection,
     val sourceSlot: SlotPosition,
@@ -351,6 +360,8 @@ data class WorkflowEditorUiState(
     val connectionModeState: ConnectionModeState? = null,
     /** A pending connection's target is a value the app fills: the editor asks before linking it (spec §17.2.3). */
     val pendingMappedLink: PendingMappedLink? = null,
+    /** Map fields: picking the value a new field fills, or another value for a field (spec §18.3) */
+    val fieldPick: FieldPick? = null,
 
     // Long-press connection mode (filtered node browser)
     val longPressSourceSlot: SlotPosition? = null,
