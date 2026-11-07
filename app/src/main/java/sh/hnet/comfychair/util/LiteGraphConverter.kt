@@ -8,932 +8,520 @@ import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.isWidget
 
 /**
- * Converts LiteGraph workflow format (ComfyUI's default "Save" format) to
- * ComfyChair/API format that can be used by the app.
+ * Converts a workflow in ComfyUI's UI format (what its "Save" and "Export" write) to ComfyChair's format: nodes keyed
+ * by ID with `class_type` and named `inputs` (values, or `[sourceNodeId, outputIndex]` for links), groups with their
+ * member nodes and notes.
  *
- * LiteGraph format has:
- * - nodes: Array of node objects with id, type, widgets_values, inputs, outputs
- * - links: Array of [linkId, srcNodeId, srcSlot, dstNodeId, dstSlot, type]
- * - groups: Array with bounding boxes
+ * What runs is what ComfyUI would send to the server for the same file:
+ * - the frontend's own nodes leave: notes become notes, reroutes pass their link straight through, a primitive node
+ *   puts its value into every widget it feeds;
+ * - subgraphs (definitions.subgraphs, nested to any depth) are flattened: a link into a subgraph's input comes from
+ *   whatever feeds the instance's input of that name, a link from a subgraph instance comes from the node inside that
+ *   feeds the subgraph's output, and values promoted to an instance fill the widgets inside;
+ * - widget values are assigned to inputs in the frontend's widget order (see [mapWidgetValues]).
  *
- * API/ComfyChair format has:
- * - nodes: Object keyed by node ID with class_type, inputs (named map)
- * - groups: Array with member_nodes
- * - notes: Array with id, title, content
+ * The format is described in `comfyui-format-research.md` (project notes); nothing here is taken from ComfyUI's code.
  */
 class LiteGraphConverter(
     private val getNodeDefinition: (classType: String) -> NodeTypeDefinition?
 ) {
 
-    /**
-     * Result of LiteGraph to API format conversion
-     */
     data class ConversionResult(
         val jsonContent: String,
         val warnings: List<String>
     )
 
-    /**
-     * Internal representation of a LiteGraph link
-     */
+    /** A link of a graph level; the top level saves them as arrays, subgraphs as objects. */
     private data class Link(
-        val linkId: Int,
-        val srcNodeId: Int,
-        val srcSlotIdx: Int,
-        val dstNodeId: Int,
-        val dstSlotIdx: Int,
-        val type: String
-    )
-
-    /**
-     * Internal representation of a LiteGraph node (for group membership calculation)
-     */
-    private data class NodePosition(
-        val id: Int,
-        val x: Float,
-        val y: Float,
-        val width: Float,
-        val height: Float
-    )
-
-    /**
-     * Subgraph (ComfyUI component) definition from definitions.subgraphs
-     */
-    private data class SubgraphDefinition(
-        val id: String,
-        val name: String,
-        val inputs: List<SubgraphPort>,
-        val outputs: List<SubgraphPort>,
-        val nodes: JSONArray,
-        val links: List<SubgraphLink>,
-        val inputNodeId: Int,
-        val outputNodeId: Int
-    )
-
-    /**
-     * Input or output port of a subgraph
-     */
-    private data class SubgraphPort(
-        val name: String,
-        val type: String,
-        val linkIds: List<Int>,
-        val slotIndex: Int
-    )
-
-    /**
-     * Internal link within a subgraph (uses object format, not array)
-     */
-    private data class SubgraphLink(
         val id: Int,
         val originId: Int,
         val originSlot: Int,
         val targetId: Int,
-        val targetSlot: Int,
-        val type: String
+        val targetSlot: Int
     )
 
+    /** A subgraph's input or output port. */
+    private data class Port(val name: String, val type: String)
+
+    /** One level of the workflow: the top level, or a subgraph definition. */
+    private class Graph(
+        val nodes: List<JSONObject>,
+        val links: Map<Int, Link>,
+        val inputs: List<Port> = emptyList(),
+        val outputs: List<Port> = emptyList(),
+        val inputNodeId: Int = SUBGRAPH_INPUT_NODE_ID,
+        val outputNodeId: Int = SUBGRAPH_OUTPUT_NODE_ID,
+        val name: String = ""
+    ) {
+        val nodeById: Map<Int, JSONObject> = nodes.associateBy { it.optInt("id", Int.MIN_VALUE) }
+    }
+
     /**
-     * Result of flattening a subgraph node
+     * A graph level as instantiated: the top level, or one subgraph instance (a subgraph used twice is two scopes).
+     *
+     * @param promoted Values the instance promotes to its widgets, by (node inside, widget name)
+     * @param inputValues Values of the subgraph's inputs that no link feeds, by input name
      */
-    private data class FlattenResult(
-        val nodes: Map<String, JSONObject>,
-        val nodePositions: Map<Int, NodePosition>,
-        val groupTitle: String,
-        val memberNodeIds: List<String>,
-        val subgraphMetadata: JSONObject,
-        val newMaxNodeId: Int,
-        val newMaxLinkId: Int
-    )
+    private inner class Scope(
+        val graph: Graph,
+        val parent: Scope?,
+        val instance: JSONObject?,
+        val promoted: Map<Pair<Int, String>, Any>,
+        val inputValues: Map<String, Any>
+    ) {
+        val flatIds = mutableMapOf<Int, String>()
+        val children = mutableMapOf<Int, Scope>()
+
+        /** The mode the instances around this level impose: muted or bypassed instances take their insides along. */
+        val inheritedMode: Int = generateSequence(this) { it.parent }
+            .mapNotNull { it.instance?.optInt("mode", 0)?.takeIf { mode -> mode != 0 } }.firstOrNull() ?: 0
+    }
+
+    /** Where an input's value comes from, once the frontend's nodes and subgraph boundaries are gone. */
+    private sealed interface Source {
+        data class Output(val nodeId: String, val slot: Int) : Source
+        data class Value(val value: Any) : Source
+    }
+
+    private lateinit var subgraphs: Map<String, Graph>
+    private var nextNodeId = 1
 
     companion object {
         private const val TAG = "LiteGraphConverter"
 
-        // Note node types that should be extracted to notes array
+        private const val SUBGRAPH_INPUT_NODE_ID = -10
+        private const val SUBGRAPH_OUTPUT_NODE_ID = -20
+
+        // IDs of the groups made for subgraph instances, apart from the file's own groups
+        private const val SUBGRAPH_GROUP_ID_BASE = 10000
+
+        // The frontend's notes, extracted to the notes list
         private val NOTE_NODE_TYPES = setOf("Note", "MarkdownNote", "workflow/note")
 
-        // Reroute node types that should be skipped
+        // The frontend's reroutes: a link passes straight through
         private val REROUTE_NODE_TYPES = setOf("Reroute", "ReroutePrimitive")
 
-        // Bypass mode value in LiteGraph
-        private const val MODE_BYPASS = 4
+        // The frontend's primitive node: one value for every widget its output feeds
+        private const val PRIMITIVE_NODE_TYPE = "PrimitiveNode"
 
-        // Control widget values (frontend-only, appear after seed inputs in widgets_values)
-        // These are not in server's /object_info and must be detected by value
+        // Values of the frontend's "control after generate" widget, saved after the widget it controls
         private val CONTROL_WIDGET_VALUES = setOf("fixed", "increment", "decrement", "randomize")
 
-        // Input names that may have a control widget following them
+        // Inputs followed by that widget in files saved before servers flagged it
         private val SEED_INPUT_NAMES = setOf("seed", "noise_seed")
+
+        // Values an upload button may save after its widget
+        private val UPLOAD_WIDGET_VALUES = setOf("image", "video", "audio", "file", "upload")
+
+        // Promoted entries that aren't values (an instance's image preview)
+        private const val PROMOTED_PREVIEW_PREFIX = "$$"
+
+        // Link chains through reroutes and subgraphs longer than this are taken as a loop in a broken file
+        private const val MAX_RESOLVE_DEPTH = 256
+
+        // The subgraph types used by widgets promoted from a subgraph without a list of them (older files)
+        private val VALUE_PORT_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "COMBO", "ENUM")
     }
 
     /**
-     * Convert LiteGraph format workflow to ComfyChair format
+     * Convert a workflow in ComfyUI's UI format to ComfyChair's format.
      */
     fun convert(liteGraphJson: JSONObject): ConversionResult {
         val warnings = mutableListOf<String>()
-        val inputNodeCount = liteGraphJson.optJSONArray("nodes")?.length() ?: 0
-        val inputGroupCount = liteGraphJson.optJSONArray("groups")?.length() ?: 0
-        DebugLogger.i(TAG, "Converting LiteGraph workflow: $inputNodeCount nodes, $inputGroupCount groups")
+        val topNodes = liteGraphJson.optJSONArray("nodes").objects()
+        DebugLogger.i(TAG, "Converting UI workflow: ${topNodes.size} nodes")
 
-        // Parse subgraph definitions first
-        val subgraphs = parseSubgraphDefinitions(liteGraphJson)
-        if (subgraphs.isNotEmpty()) {
-            DebugLogger.i(TAG, "Found ${subgraphs.size} subgraph definitions")
-        }
+        subgraphs = parseSubgraphs(liteGraphJson)
+        if (subgraphs.isNotEmpty()) DebugLogger.i(TAG, "Found ${subgraphs.size} subgraph definitions")
+        val top = Graph(topNodes, parseLinks(liteGraphJson.optJSONArray("links")))
+        // Nodes inside subgraphs get IDs after the top level's, which keep their own
+        nextNodeId = (topNodes.maxOfOrNull { it.optInt("id", 0) } ?: 0) + 1
+        val scope = Scope(top, parent = null, instance = null, promoted = emptyMap(), inputValues = emptyMap())
 
-        // Parse links into lookup map
-        val linksArray = liteGraphJson.optJSONArray("links")
-        val linkMap = parseLinkMap(linksArray)
-
-        // Calculate max node and link IDs for subgraph flattening offsets
-        val nodesArray = liteGraphJson.optJSONArray("nodes") ?: JSONArray()
-        var maxNodeId = 0
-        var maxLinkId = 0
-        for (i in 0 until nodesArray.length()) {
-            val nodeId = nodesArray.optJSONObject(i)?.optInt("id", 0) ?: 0
-            if (nodeId > maxNodeId) maxNodeId = nodeId
-        }
-        for (link in linkMap.values) {
-            if (link.linkId > maxLinkId) maxLinkId = link.linkId
-        }
-
-        // Track subgraph output mappings for remapping connections
-        // Maps (subgraphNodeId, outputSlot) -> (internalNodeId, internalSlot)
-        val subgraphOutputMappings = mutableMapOf<Pair<Int, Int>, Pair<String, Int>>()
-
-        // Parse node positions for group membership
-        val nodePositions = mutableMapOf<Int, NodePosition>()
-
-        // Convert nodes
         val apiNodes = JSONObject()
         val notes = JSONArray()
-        val subgraphGroups = mutableListOf<JSONObject>()
+        val groups = JSONArray()
+        // Top-level nodes and notes by position, for the groups drawn around them
+        val positions = mutableMapOf<String, FloatArray>()
 
-        // First pass: process subgraph nodes to build output mappings
-        var currentNodeOffset = maxNodeId
-        var currentLinkOffset = maxLinkId
-
-        for (i in 0 until nodesArray.length()) {
-            val node = nodesArray.optJSONObject(i) ?: continue
-            val nodeId = node.optInt("id", -1)
-            if (nodeId == -1) continue
-
-            val nodeType = node.optString("type", "")
-
-            // Check if this is a subgraph node
-            val subgraphDef = subgraphs[nodeType]
-            if (subgraphDef != null) {
-                // Flatten the subgraph
-                val flattenResult = flattenSubgraph(
-                    node, subgraphDef, linkMap, currentNodeOffset, currentLinkOffset, warnings
-                )
-
-                // Add all flattened nodes
-                for ((nodeIdStr, apiNode) in flattenResult.nodes) {
-                    apiNodes.put(nodeIdStr, apiNode)
-                }
-
-                // Merge positions
-                nodePositions.putAll(flattenResult.nodePositions)
-
-                // Create group for flattened nodes
-                if (flattenResult.memberNodeIds.isNotEmpty()) {
-                    val groupId = currentNodeOffset + 10000 + subgraphGroups.size  // Unique group ID
-                    subgraphGroups.add(JSONObject().apply {
-                        put("id", groupId)
-                        put("title", flattenResult.groupTitle)
-                        put("member_nodes", JSONArray(flattenResult.memberNodeIds))
-                        put("subgraph_metadata", flattenResult.subgraphMetadata)
+        for (node in topNodes) {
+            val id = node.optInt("id", Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE } ?: continue
+            val type = node.optString("type", "")
+            if (type in subgraphs) {
+                // A subgraph instance: its nodes, in a group named after it (the instance's title, else the subgraph's)
+                val members = mutableListOf<String>()
+                emitScope(childScope(scope, node), apiNodes, notes, members, warnings)
+                if (members.isNotEmpty()) {
+                    groups.put(JSONObject().apply {
+                        put("id", SUBGRAPH_GROUP_ID_BASE + groups.length())
+                        put("title", node.optString("title", "").ifEmpty { subgraphs.getValue(type).name })
+                        put("member_nodes", JSONArray(members))
                     })
                 }
-
-                // Store output mappings for this subgraph node
-                // Parse from subgraphMetadata.outputs
-                val outputsArray = flattenResult.subgraphMetadata.optJSONArray("outputs")
-                if (outputsArray != null) {
-                    for (j in 0 until outputsArray.length()) {
-                        val out = outputsArray.optJSONObject(j) ?: continue
-                        val slot = out.optInt("slot", -1)
-                        val internalNodeId = out.optString("internal_node_id", "")
-                        val internalSlot = out.optInt("internal_slot", 0)
-                        if (slot >= 0 && internalNodeId.isNotEmpty()) {
-                            subgraphOutputMappings[Pair(nodeId, slot)] = Pair(internalNodeId, internalSlot)
-                        }
-                    }
-                }
-
-                currentNodeOffset = flattenResult.newMaxNodeId
-                currentLinkOffset = flattenResult.newMaxLinkId
                 continue
             }
-
-            // Skip reroute nodes
-            if (nodeType in REROUTE_NODE_TYPES) continue
-
-            // Store position for group membership calculation
-            val pos = node.optJSONArray("pos")
-            val size = node.optJSONArray("size")
-            if (pos != null && pos.length() >= 2) {
-                nodePositions[nodeId] = NodePosition(
-                    id = nodeId,
-                    x = pos.optDouble(0, 0.0).toFloat(),
-                    y = pos.optDouble(1, 0.0).toFloat(),
-                    width = size?.optDouble(0, 200.0)?.toFloat() ?: 200f,
-                    height = size?.optDouble(1, 100.0)?.toFloat() ?: 100f
+            node.optJSONArray("pos")?.let { pos ->
+                val size = node.optJSONArray("size")
+                positions[id.toString()] = floatArrayOf(
+                    pos.optDouble(0, 0.0).toFloat(), pos.optDouble(1, 0.0).toFloat(),
+                    size?.optDouble(0, 200.0)?.toFloat() ?: 200f, size?.optDouble(1, 100.0)?.toFloat() ?: 100f
                 )
             }
-
-            // Extract note nodes separately
-            if (nodeType in NOTE_NODE_TYPES) {
-                val noteObj = extractNote(node)
-                if (noteObj != null) {
-                    notes.put(noteObj)
-                }
-                continue
-            }
-
-            // Convert regular node
-            val (apiNode, nodeWarnings) = convertNode(node, linkMap)
-            if (apiNode != null) {
-                apiNodes.put(nodeId.toString(), apiNode)
-            }
-            warnings.addAll(nodeWarnings)
+            emitNode(scope, node, apiNodes, notes, members = null, warnings)
         }
 
-        // Second pass: remap connections that reference subgraph outputs
-        if (subgraphOutputMappings.isNotEmpty()) {
-            remapSubgraphConnections(apiNodes, linkMap, subgraphOutputMappings)
+        convertGroups(liteGraphJson.optJSONArray("groups"), positions).let { converted ->
+            for (i in 0 until converted.length()) groups.put(converted.get(i))
         }
 
-        // Convert groups
-        val groupsArray = liteGraphJson.optJSONArray("groups")
-        val groups = convertGroups(groupsArray, nodePositions)
-
-        // Add subgraph groups
-        for (sg in subgraphGroups) {
-            groups.put(sg)
-        }
-
-        // Build final ComfyChair-format JSON
         val result = JSONObject().apply {
             put("nodes", apiNodes)
-            if (groups.length() > 0) {
-                put("groups", groups)
-            }
-            if (notes.length() > 0) {
-                put("notes", notes)
-            }
+            if (groups.length() > 0) put("groups", groups)
+            if (notes.length() > 0) put("notes", notes)
         }
-
         DebugLogger.i(TAG, "Conversion complete: ${apiNodes.length()} nodes, ${groups.length()} groups, ${notes.length()} notes")
-        if (warnings.isNotEmpty()) {
-            DebugLogger.w(TAG, "Conversion warnings: ${warnings.joinToString("; ")}")
-        }
-
+        if (warnings.isNotEmpty()) DebugLogger.w(TAG, "Conversion warnings: ${warnings.size}")
         return ConversionResult(result.toString(2), warnings)
     }
 
-    /**
-     * Remap connections in converted nodes that reference subgraph outputs
-     */
-    private fun remapSubgraphConnections(
-        apiNodes: JSONObject,
-        linkMap: Map<Int, Link>,
-        subgraphOutputMappings: Map<Pair<Int, Int>, Pair<String, Int>>
-    ) {
-        // For each API node, check all its connection inputs
-        val nodeIds = apiNodes.keys().asSequence().toList()
-        for (nodeIdStr in nodeIds) {
-            val apiNode = apiNodes.optJSONObject(nodeIdStr) ?: continue
-            val inputs = apiNode.optJSONObject("inputs") ?: continue
+    // ---------------------------------------------------------------------------------------------------------------
+    // Parsing
+    // ---------------------------------------------------------------------------------------------------------------
 
-            val inputNames = inputs.keys().asSequence().toList()
-            for (inputName in inputNames) {
-                val value = inputs.opt(inputName)
-                if (value is JSONArray && value.length() == 2) {
-                    // This is a connection: [srcNodeId, srcSlot]
-                    val srcNodeIdStr = value.optString(0, "")
-                    val srcSlot = value.optInt(1, 0)
-                    val srcNodeId = srcNodeIdStr.toIntOrNull() ?: continue
+    private fun JSONArray?.objects(): List<JSONObject> =
+        if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
 
-                    // Check if this references a subgraph output
-                    val mapping = subgraphOutputMappings[Pair(srcNodeId, srcSlot)]
-                    if (mapping != null) {
-                        // Replace with internal node reference
-                        val newConnection = JSONArray().apply {
-                            put(mapping.first)  // internal node ID
-                            put(mapping.second) // internal slot
-                        }
-                        inputs.put(inputName, newConnection)
-                        DebugLogger.d(TAG, "Remapped connection: $srcNodeIdStr:$srcSlot -> ${mapping.first}:${mapping.second}")
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Parse links array into a map for quick lookup
-     */
-    private fun parseLinkMap(linksArray: JSONArray?): Map<Int, Link> {
-        val linkMap = mutableMapOf<Int, Link>()
-        if (linksArray == null) return linkMap
-
-        for (i in 0 until linksArray.length()) {
-            val linkArr = linksArray.optJSONArray(i) ?: continue
-            if (linkArr.length() < 6) continue
-
-            val linkId = linkArr.optInt(0, -1)
-            if (linkId == -1) continue
-
-            linkMap[linkId] = Link(
-                linkId = linkId,
-                srcNodeId = linkArr.optInt(1, 0),
-                srcSlotIdx = linkArr.optInt(2, 0),
-                dstNodeId = linkArr.optInt(3, 0),
-                dstSlotIdx = linkArr.optInt(4, 0),
-                type = linkArr.optString(5, "")
-            )
-        }
-
-        return linkMap
-    }
-
-    /**
-     * Parse definitions.subgraphs section into a map
-     */
-    private fun parseSubgraphDefinitions(json: JSONObject): Map<String, SubgraphDefinition> {
-        val subgraphs = mutableMapOf<String, SubgraphDefinition>()
-        val definitions = json.optJSONObject("definitions") ?: return subgraphs
-        val subgraphsArray = definitions.optJSONArray("subgraphs") ?: return subgraphs
-
-        for (i in 0 until subgraphsArray.length()) {
-            val sg = subgraphsArray.optJSONObject(i) ?: continue
-            val id = sg.optString("id", "")
-            if (id.isEmpty()) continue
-
-            val name = sg.optString("name", "Subgraph")
-            val inputNodeId = sg.optJSONObject("inputNode")?.optInt("id", -10) ?: -10
-            val outputNodeId = sg.optJSONObject("outputNode")?.optInt("id", -20) ?: -20
-
-            // Parse inputs
-            val inputsArray = sg.optJSONArray("inputs") ?: JSONArray()
-            val inputs = mutableListOf<SubgraphPort>()
-            for (j in 0 until inputsArray.length()) {
-                val inp = inputsArray.optJSONObject(j) ?: continue
-                val linkIdsArray = inp.optJSONArray("linkIds") ?: JSONArray()
-                val linkIds = (0 until linkIdsArray.length()).map { linkIdsArray.optInt(it) }
-                inputs.add(SubgraphPort(
-                    name = inp.optString("name", ""),
-                    type = inp.optString("type", "*"),
-                    linkIds = linkIds,
-                    slotIndex = j
-                ))
-            }
-
-            // Parse outputs
-            val outputsArray = sg.optJSONArray("outputs") ?: JSONArray()
-            val outputs = mutableListOf<SubgraphPort>()
-            for (j in 0 until outputsArray.length()) {
-                val out = outputsArray.optJSONObject(j) ?: continue
-                val linkIdsArray = out.optJSONArray("linkIds") ?: JSONArray()
-                val linkIds = (0 until linkIdsArray.length()).map { linkIdsArray.optInt(it) }
-                outputs.add(SubgraphPort(
-                    name = out.optString("name", ""),
-                    type = out.optString("type", "*"),
-                    linkIds = linkIds,
-                    slotIndex = j
-                ))
-            }
-
-            // Parse internal links (object format, not array)
-            val linksArray = sg.optJSONArray("links") ?: JSONArray()
-            val links = mutableListOf<SubgraphLink>()
-            for (j in 0 until linksArray.length()) {
-                val link = linksArray.optJSONObject(j) ?: continue
-                links.add(SubgraphLink(
-                    id = link.optInt("id", -1),
-                    originId = link.optInt("origin_id", 0),
-                    originSlot = link.optInt("origin_slot", 0),
-                    targetId = link.optInt("target_id", 0),
-                    targetSlot = link.optInt("target_slot", 0),
-                    type = link.optString("type", "*")
-                ))
-            }
-
-            val nodes = sg.optJSONArray("nodes") ?: JSONArray()
-
-            subgraphs[id] = SubgraphDefinition(
-                id = id,
-                name = name,
-                inputs = inputs,
-                outputs = outputs,
-                nodes = nodes,
-                links = links,
-                inputNodeId = inputNodeId,
-                outputNodeId = outputNodeId
-            )
-
-            DebugLogger.d(TAG, "Parsed subgraph ${Obfuscator.title(name)}: ${nodes.length()} nodes, ${links.size} links, ${inputs.size} inputs, ${outputs.size} outputs")
-        }
-
-        return subgraphs
-    }
-
-    /**
-     * Flatten a subgraph node into its internal nodes.
-     *
-     * @param subgraphNode The main workflow node that references the subgraph
-     * @param subgraphDef The subgraph definition
-     * @param mainLinkMap Links from main workflow (for resolving external connections)
-     * @param nodeIdOffset Offset to apply to internal node IDs to avoid collisions
-     * @param linkIdOffset Offset to apply to internal link IDs
-     * @return FlattenResult with converted nodes, positions, and metadata
-     */
-    private fun flattenSubgraph(
-        subgraphNode: JSONObject,
-        subgraphDef: SubgraphDefinition,
-        mainLinkMap: Map<Int, Link>,
-        nodeIdOffset: Int,
-        linkIdOffset: Int,
-        warnings: MutableList<String>
-    ): FlattenResult {
-        val subgraphNodeId = subgraphNode.optInt("id", -1)
-        DebugLogger.d(TAG, "Flattening subgraph ${Obfuscator.title(subgraphDef.name)} (node #$subgraphNodeId) with offset $nodeIdOffset")
-
-        val apiNodes = mutableMapOf<String, JSONObject>()
-        val nodePositions = mutableMapOf<Int, NodePosition>()
-        val memberNodeIds = mutableListOf<String>()
-        var maxNodeId = nodeIdOffset
-        var maxLinkId = linkIdOffset
-
-        // Build ID remapping tables
-        val nodeIdRemap = mutableMapOf<Int, Int>()  // old internal ID -> new global ID
-        for (i in 0 until subgraphDef.nodes.length()) {
-            val node = subgraphDef.nodes.optJSONObject(i) ?: continue
-            val oldId = node.optInt("id", -1)
-            if (oldId == -1) continue
-            val newId = oldId + nodeIdOffset
-            nodeIdRemap[oldId] = newId
-            if (newId > maxNodeId) maxNodeId = newId
-        }
-
-        // Remap link IDs
-        val linkIdRemap = mutableMapOf<Int, Int>()  // old link ID -> new link ID
-        for (link in subgraphDef.links) {
-            val newLinkId = link.id + linkIdOffset
-            linkIdRemap[link.id] = newLinkId
-            if (newLinkId > maxLinkId) maxLinkId = newLinkId
-        }
-
-        // Parse subgraph node's external inputs (connections coming from main workflow)
-        // These will replace connections from virtual input node (-10)
-        val externalInputConnections = mutableMapOf<Int, Pair<Int, Int>>()  // slotIndex -> (srcNodeId, srcSlot)
-        val subgraphNodeInputs = subgraphNode.optJSONArray("inputs")
-        if (subgraphNodeInputs != null) {
-            for (i in 0 until subgraphNodeInputs.length()) {
-                val input = subgraphNodeInputs.optJSONObject(i) ?: continue
-                val linkId = input.optInt("link", -1)
-                if (linkId != -1) {
-                    val link = mainLinkMap[linkId]
-                    if (link != null) {
-                        externalInputConnections[i] = Pair(link.srcNodeId, link.srcSlotIdx)
-                    }
-                }
-            }
-        }
-
-        // Parse subgraph node's widget values for unconnected inputs
-        val widgetValues = subgraphNode.optJSONArray("widgets_values")
-        val proxyWidgets = subgraphNode.optJSONObject("properties")?.optJSONArray("proxyWidgets")
-
-        // Build widget value map: inputName -> value
-        val widgetValueMap = mutableMapOf<String, Any>()
-        if (widgetValues != null && proxyWidgets != null) {
-            for (i in 0 until proxyWidgets.length()) {
-                val proxy = proxyWidgets.optJSONArray(i) ?: continue
-                val inputName = proxy.optString(1, "")
-                if (inputName.isNotEmpty() && i < widgetValues.length()) {
-                    val value = widgetValues.opt(i)
-                    if (value != null && value != JSONObject.NULL) {
-                        widgetValueMap[inputName] = value
-                    }
-                }
-            }
-        }
-
-        // Build link lookup for internal links: (targetNodeId, targetSlot) -> link
-        val internalLinksByTarget = subgraphDef.links
-            .filter { it.targetId != subgraphDef.outputNodeId }  // Exclude links to output node
-            .groupBy { Pair(it.targetId, it.targetSlot) }
-
-        // Build lookup for links FROM input node: slotIndex -> list of internal links
-        val inputNodeLinks = mutableMapOf<Int, MutableList<SubgraphLink>>()
-        for (link in subgraphDef.links) {
-            if (link.originId == subgraphDef.inputNodeId) {
-                inputNodeLinks.getOrPut(link.originSlot) { mutableListOf() }.add(link)
-            }
-        }
-
-        // Find output mappings: which internal nodes connect to output virtual node
-        // subgraph output slot -> (internal node ID, slot)
-        val outputMappings = mutableMapOf<Int, Pair<Int, Int>>()
-        for (link in subgraphDef.links) {
-            if (link.targetId == subgraphDef.outputNodeId) {
-                val remappedOriginId = nodeIdRemap[link.originId] ?: link.originId
-                outputMappings[link.targetSlot] = Pair(remappedOriginId, link.originSlot)
-            }
-        }
-
-        // Process each internal node
-        for (i in 0 until subgraphDef.nodes.length()) {
-            val node = subgraphDef.nodes.optJSONObject(i) ?: continue
-            val oldNodeId = node.optInt("id", -1)
-            if (oldNodeId == -1) continue
-
-            val nodeType = node.optString("type", "")
-
-            // Skip reroute nodes
-            if (nodeType in REROUTE_NODE_TYPES) continue
-
-            // Skip note nodes (handled separately in main conversion)
-            if (nodeType in NOTE_NODE_TYPES) continue
-
-            val newNodeId = nodeIdRemap[oldNodeId] ?: (oldNodeId + nodeIdOffset)
-            val newNodeIdStr = newNodeId.toString()
-            memberNodeIds.add(newNodeIdStr)
-
-            // Store position for group membership
-            val pos = node.optJSONArray("pos")
-            val size = node.optJSONArray("size")
-            if (pos != null && pos.length() >= 2) {
-                nodePositions[newNodeId] = NodePosition(
-                    id = newNodeId,
-                    x = pos.optDouble(0, 0.0).toFloat(),
-                    y = pos.optDouble(1, 0.0).toFloat(),
-                    width = size?.optDouble(0, 200.0)?.toFloat() ?: 200f,
-                    height = size?.optDouble(1, 100.0)?.toFloat() ?: 100f
+    /** Links of a level: arrays `[id, origin, originSlot, target, targetSlot, type]` or objects with those names. */
+    private fun parseLinks(array: JSONArray?): Map<Int, Link> {
+        val links = mutableMapOf<Int, Link>()
+        if (array == null) return links
+        for (i in 0 until array.length()) {
+            val link = when (val entry = array.opt(i)) {
+                is JSONArray -> if (entry.length() >= 5) Link(
+                    entry.optInt(0, -1), entry.optInt(1), entry.optInt(2), entry.optInt(3), entry.optInt(4)
+                ) else null
+                is JSONObject -> Link(
+                    entry.optInt("id", -1), entry.optInt("origin_id"), entry.optInt("origin_slot"),
+                    entry.optInt("target_id"), entry.optInt("target_slot")
                 )
+                else -> null
             }
-
-            // Get node definition for widget mapping
-            val nodeDef = getNodeDefinition(nodeType)
-
-            // Build inputs map
-            val inputs = JSONObject()
-
-            // 1. Map widget values from internal node
-            val internalWidgetValues = node.opt("widgets_values")?.takeIf { it is JSONArray || it is JSONObject }
-            if (nodeDef != null) {
-                mapWidgetValues(internalWidgetValues ?: JSONArray(), nodeDef.inputs, inputs, nodeType, newNodeId, warnings)
-            }
-
-            // 2. Add connections from internal node's inputs array
-            val nodeInputs = node.optJSONArray("inputs")
-            if (nodeInputs != null) {
-                for (j in 0 until nodeInputs.length()) {
-                    val input = nodeInputs.optJSONObject(j) ?: continue
-                    val inputName = input.optString("name", "")
-                    val linkId = input.optInt("link", -1)
-
-                    if (inputName.isEmpty() || linkId == -1) continue
-
-                    // Find the internal link
-                    val internalLink = subgraphDef.links.find { it.id == linkId }
-                    if (internalLink != null) {
-                        if (internalLink.originId == subgraphDef.inputNodeId) {
-                            // Connection from virtual input node - resolve to external connection or widget value
-                            val slotIndex = internalLink.originSlot
-                            val subgraphInput = subgraphDef.inputs.getOrNull(slotIndex)
-
-                            // Check if there's an external connection (takes priority over widget value)
-                            val externalConn = externalInputConnections[slotIndex]
-                            if (externalConn != null) {
-                                // Use external connection
-                                val connection = JSONArray().apply {
-                                    put(externalConn.first.toString())
-                                    put(externalConn.second)
-                                }
-                                inputs.put(inputName, connection)
-                            } else if (subgraphInput != null && widgetValueMap.containsKey(subgraphInput.name)) {
-                                // Use widget value from subgraph node
-                                inputs.put(inputName, widgetValueMap[subgraphInput.name])
-                            }
-                        } else {
-                            // Internal connection - remap source node ID
-                            val remappedSrcId = nodeIdRemap[internalLink.originId] ?: internalLink.originId
-                            val connection = JSONArray().apply {
-                                put(remappedSrcId.toString())
-                                put(internalLink.originSlot)
-                            }
-                            inputs.put(inputName, connection)
-                        }
-                    }
-                }
-            }
-
-            // Build API node
-            val apiNode = JSONObject().apply {
-                put("class_type", nodeType)
-                put("inputs", inputs)
-
-                // Preserve mode
-                val mode = node.optInt("mode", 0)
-                if (mode != 0) {
-                    put("mode", mode)
-                }
-
-                // Add metadata
-                val meta = JSONObject()
-                val title = node.optString("title", "")
-                if (title.isNotEmpty() && title != nodeType) {
-                    meta.put("title", title)
-                }
-                if (meta.length() > 0) {
-                    put("_meta", meta)
-                }
-            }
-
-            apiNodes[newNodeIdStr] = apiNode
+            if (link != null && link.id != -1) links[link.id] = link
         }
+        return links
+    }
 
-        // Build subgraph metadata for future compact view support
-        val subgraphMetadata = JSONObject().apply {
-            put("original_subgraph_id", subgraphDef.id)
-            put("display_mode", "expanded")  // Future: "collapsed" for compact view
+    private fun parseSubgraphs(json: JSONObject): Map<String, Graph> {
+        val definitions = json.optJSONObject("definitions")?.optJSONArray("subgraphs").objects()
+        return definitions.mapNotNull { definition ->
+            val id = definition.optString("id", "").ifEmpty { return@mapNotNull null }
+            fun ports(key: String) = definition.optJSONArray(key).objects()
+                .map { Port(it.optString("name", ""), it.optString("type", "*")) }
+            val graph = Graph(
+                nodes = definition.optJSONArray("nodes").objects(),
+                links = parseLinks(definition.optJSONArray("links")),
+                inputs = ports("inputs"),
+                outputs = ports("outputs"),
+                inputNodeId = definition.optJSONObject("inputNode")?.optInt("id", SUBGRAPH_INPUT_NODE_ID) ?: SUBGRAPH_INPUT_NODE_ID,
+                outputNodeId = definition.optJSONObject("outputNode")?.optInt("id", SUBGRAPH_OUTPUT_NODE_ID) ?: SUBGRAPH_OUTPUT_NODE_ID,
+                name = definition.optString("name", "Subgraph")
+            )
+            DebugLogger.d(TAG, "Parsed subgraph ${Obfuscator.title(graph.name)}: ${graph.nodes.size} nodes, ${graph.links.size} links")
+            id to graph
+        }.toMap()
+    }
 
-            // Store input/output definitions for future compact view
-            val inputsArray = JSONArray()
-            for (input in subgraphDef.inputs) {
-                inputsArray.put(JSONObject().apply {
-                    put("name", input.name)
-                    put("type", input.type)
-                    put("slot", input.slotIndex)
-                })
+    // ---------------------------------------------------------------------------------------------------------------
+    // Subgraph scopes
+    // ---------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The scope of a subgraph instance in [scope]. Values promoted to the instance are listed in its
+     * `properties.proxyWidgets` as (node inside, widget) in the order of its `widgets_values`; older files have no such
+     * list, and then the values follow the subgraph's inputs that are values. Values the level around promotes to this
+     * instance count as values of its inputs of those names.
+     */
+    private fun childScope(scope: Scope, instance: JSONObject): Scope {
+        val instanceId = instance.optInt("id")
+        scope.children[instanceId]?.let { return it }
+        val graph = subgraphs.getValue(instance.optString("type"))
+        val values = instance.optJSONArray("widgets_values")
+        val proxies = instance.optJSONObject("properties")?.optJSONArray("proxyWidgets")
+
+        val promoted = mutableMapOf<Pair<Int, String>, Any>()
+        val inputValues = mutableMapOf<String, Any>()
+        if (proxies != null) {
+            for (i in 0 until proxies.length()) {
+                val proxy = proxies.optJSONArray(i) ?: continue
+                val nodeId = proxy.optString(0).toIntOrNull() ?: continue
+                val widget = proxy.optString(1, "")
+                if (widget.isEmpty() || widget.startsWith(PROMOTED_PREVIEW_PREFIX)) continue
+                val value = values?.opt(i)?.takeIf { it != JSONObject.NULL } ?: continue
+                promoted[nodeId to widget] = value
             }
-            put("inputs", inputsArray)
-
-            val outputsArray = JSONArray()
-            for ((slot, mapping) in outputMappings) {
-                val output = subgraphDef.outputs.getOrNull(slot)
-                outputsArray.put(JSONObject().apply {
-                    put("name", output?.name ?: "output_$slot")
-                    put("type", output?.type ?: "*")
-                    put("slot", slot)
-                    put("internal_node_id", mapping.first.toString())
-                    put("internal_slot", mapping.second)
-                })
+        } else if (values != null) {
+            graph.inputs.filter { it.type.uppercase() in VALUE_PORT_TYPES }.forEachIndexed { i, port ->
+                values.opt(i)?.takeIf { it != JSONObject.NULL }?.let { inputValues[port.name] = it }
             }
-            put("outputs", outputsArray)
         }
+        scope.promoted.forEach { (key, value) -> if (key.first == instanceId) inputValues[key.second] = value }
 
-        DebugLogger.d(TAG, "Flattened subgraph '${subgraphDef.name}': ${apiNodes.size} nodes, ${outputMappings.size} outputs")
+        return Scope(graph, scope, instance, promoted, inputValues).also { scope.children[instanceId] = it }
+    }
 
-        return FlattenResult(
-            nodes = apiNodes,
-            nodePositions = nodePositions,
-            groupTitle = subgraphDef.name,
-            memberNodeIds = memberNodeIds,
-            subgraphMetadata = subgraphMetadata,
-            newMaxNodeId = maxNodeId,
-            newMaxLinkId = maxLinkId
-        )
+    /** A node's ID in the converted workflow: the top level keeps its own, nodes inside subgraphs get new ones. */
+    private fun flatId(scope: Scope, nodeId: Int): String = scope.flatIds.getOrPut(nodeId) {
+        if (scope.parent == null) nodeId.toString() else (nextNodeId++).toString()
     }
 
     /**
-     * Convert a single LiteGraph node to API format
+     * Where output [slot] of node [nodeId] in [scope] really comes from: through reroutes, out of subgraph instances,
+     * into the level around a subgraph's input, to a primitive node's value. Null when nothing feeds it.
      */
-    private fun convertNode(
-        node: JSONObject,
-        linkMap: Map<Int, Link>
-    ): Pair<JSONObject?, List<String>> {
-        val warnings = mutableListOf<String>()
-        val nodeType = node.optString("type", "")
-        val nodeId = node.optInt("id", -1)
+    private fun resolve(scope: Scope, nodeId: Int, slot: Int, depth: Int = 0): Source? {
+        if (depth > MAX_RESOLVE_DEPTH) return null
+        val graph = scope.graph
 
-        if (nodeType.isEmpty()) {
-            return null to warnings
+        // A subgraph's input: what feeds the instance's input of that name, else the value given for it
+        if (scope.parent != null && nodeId == graph.inputNodeId) {
+            val port = graph.inputs.getOrNull(slot) ?: return null
+            val instanceInput = scope.instance?.optJSONArray("inputs").objects().find { it.optString("name") == port.name }
+            val link = instanceInput?.linkId()?.let { scope.parent.graph.links[it] }
+            if (link != null) return resolve(scope.parent, link.originId, link.originSlot, depth + 1)
+            return scope.inputValues[port.name]?.let { Source.Value(it) }
         }
 
-        // Get node definition for widget mapping
-        val nodeDef = getNodeDefinition(nodeType)
+        val node = graph.nodeById[nodeId] ?: return null
+        val type = node.optString("type", "")
+        return when {
+            type in REROUTE_NODE_TYPES -> {
+                val link = node.optJSONArray("inputs").objects().firstOrNull()?.linkId()?.let { graph.links[it] }
+                link?.let { resolve(scope, it.originId, it.originSlot, depth + 1) }
+            }
+            type == PRIMITIVE_NODE_TYPE ->
+                node.optJSONArray("widgets_values")?.opt(0)?.takeIf { it != JSONObject.NULL }?.let { Source.Value(it) }
+            type in subgraphs -> {
+                val child = childScope(scope, node)
+                val link = child.graph.links.values.find { it.targetId == child.graph.outputNodeId && it.targetSlot == slot }
+                link?.let { resolve(child, it.originId, it.originSlot, depth + 1) }
+            }
+            else -> Source.Output(flatId(scope, nodeId), slot)
+        }
+    }
 
-        // Build inputs map
+    private fun JSONObject.linkId(): Int? = if (isNull("link")) null else optInt("link", -1).takeIf { it >= 0 }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Emitting
+    // ---------------------------------------------------------------------------------------------------------------
+
+    /** Every node of a subgraph instance (nested ones too); their IDs are added to [members]. */
+    private fun emitScope(
+        scope: Scope,
+        apiNodes: JSONObject,
+        notes: JSONArray,
+        members: MutableList<String>,
+        warnings: MutableList<String>
+    ) {
+        for (node in scope.graph.nodes) {
+            val type = node.optString("type", "")
+            if (type in subgraphs) {
+                emitScope(childScope(scope, node), apiNodes, notes, members, warnings)
+            } else {
+                emitNode(scope, node, apiNodes, notes, members, warnings)
+            }
+        }
+    }
+
+    /** One node of a level: a note, nothing (the frontend's reroutes and primitives), or a node that runs. */
+    private fun emitNode(
+        scope: Scope,
+        node: JSONObject,
+        apiNodes: JSONObject,
+        notes: JSONArray,
+        members: MutableList<String>?,
+        warnings: MutableList<String>
+    ) {
+        val nodeId = node.optInt("id", Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE } ?: return
+        val type = node.optString("type", "").ifEmpty { return }
+        when (type) {
+            in NOTE_NODE_TYPES -> {
+                extractNote(node, if (scope.parent == null) nodeId else nextNodeId++)?.let { notes.put(it) }
+                return
+            }
+            in REROUTE_NODE_TYPES, PRIMITIVE_NODE_TYPE -> return
+        }
+        val id = flatId(scope, nodeId)
         val inputs = JSONObject()
 
-        // 1. Map widget values to named inputs (a list in widget order, or by name for nodes that save them so); a node
-        // saved without any gets its widgets' defaults, as in ComfyUI
-        val widgetValues = node.opt("widgets_values")?.takeIf { it is JSONArray || it is JSONObject }
-        if (nodeDef != null) {
-            mapWidgetValues(widgetValues ?: JSONArray(), nodeDef.inputs, inputs, nodeType, nodeId, warnings)
-        } else if (widgetValues != null) {
-            // Unknown node - can't map widget values
-            DebugLogger.w(TAG, "Node #$nodeId ($nodeType): no definition found, cannot map widget values")
-            warnings.add("Node \"$nodeType\" (#$nodeId): inputs could not be fully mapped")
+        // 1. Widget values: the node's own, then those promoted to its instance
+        val definition = getNodeDefinition(type)
+        if (definition != null) {
+            mapWidgetValues(node, definition.inputs, inputs)
+        } else if (node.has("widgets_values")) {
+            DebugLogger.w(TAG, "Node #$nodeId ($type): no definition found, cannot map widget values")
+            warnings.add("Node \"$type\" (#$nodeId): inputs could not be fully mapped")
         }
+        scope.promoted.forEach { (key, value) -> if (key.first == nodeId) inputs.put(key.second, value) }
 
-        // 2. Add connections from inputs array
-        val nodeInputs = node.optJSONArray("inputs")
-        if (nodeInputs != null) {
-            for (i in 0 until nodeInputs.length()) {
-                val input = nodeInputs.optJSONObject(i) ?: continue
-                val inputName = input.optString("name", "")
-                val linkId = input.optInt("link", -1)
-
-                if (inputName.isNotEmpty() && linkId != -1) {
-                    val link = linkMap[linkId]
-                    if (link != null) {
-                        // Connection format: [srcNodeId, srcSlotIdx]
-                        val connection = JSONArray().apply {
-                            put(link.srcNodeId.toString())
-                            put(link.srcSlotIdx)
-                        }
-                        inputs.put(inputName, connection)
-                    }
-                }
+        // 2. Links, resolved to the node or value that really feeds them (a widget linked to nothing keeps its value)
+        for (input in node.optJSONArray("inputs").objects()) {
+            val name = input.optString("name", "").ifEmpty { continue }
+            val link = input.linkId()?.let { scope.graph.links[it] } ?: continue
+            when (val source = resolve(scope, link.originId, link.originSlot)) {
+                is Source.Output -> inputs.put(name, JSONArray().put(source.nodeId).put(source.slot))
+                is Source.Value -> inputs.put(name, source.value)
+                null -> Unit
             }
         }
 
-        // Build API node
-        val apiNode = JSONObject().apply {
-            put("class_type", nodeType)
+        apiNodes.put(id, JSONObject().apply {
+            put("class_type", type)
             put("inputs", inputs)
-
-            // Preserve mode (0=active, 2=muted, 4=bypassed)
-            val mode = node.optInt("mode", 0)
-            if (mode != 0) {
-                put("mode", mode)
-            }
-
-            // Add metadata (title only)
-            val meta = JSONObject()
+            // 0 runs, 2 is muted, 4 bypassed; a muted or bypassed instance takes the nodes inside along
+            val mode = node.optInt("mode", 0).takeIf { it != 0 } ?: scope.inheritedMode
+            if (mode != 0) put("mode", mode)
             val title = node.optString("title", "")
-            if (title.isNotEmpty() && title != nodeType) {
-                meta.put("title", title)
-            }
-            if (meta.length() > 0) {
-                put("_meta", meta)
-            }
-        }
-
-        return apiNode to warnings
+            if (title.isNotEmpty() && title != type) put("_meta", JSONObject().put("title", title))
+        })
+        members?.add(id)
     }
 
+    // ---------------------------------------------------------------------------------------------------------------
+    // Widget values
+    // ---------------------------------------------------------------------------------------------------------------
+
+    /** Inputs the frontend saves a value for: widgets, and widgets without a socket (drawn by the frontend only). */
+    private val InputDefinition.savesValue: Boolean get() = isWidget || socketless
+
     /**
-     * Map LiteGraph widgets_values to named inputs using node definition: a list in the frontend's widget order, or an
-     * object by widget name, as some extensions save them (e.g. VideoHelperSuite: {"frame_rate": 24, …}), whose
-     * other keys (previews, buttons) are left out. A widget with no saved value (a workflow saved before the node had
-     * it, e.g. a dynamic combo option's fields) gets the node's default, as ComfyUI's frontend gives it when loading.
+     * Assign a node's widget values to its inputs, as ComfyUI's frontend lays out its widgets.
+     *
+     * The frontend's `widgets_values_named` (when it has as many entries as the list) names the list's positions;
+     * `widgets_values` as an object (as some extensions save them) is taken by name. A list follows the widget order: the node's inputs that save a value, in definition order, a
+     * dynamic combo's chosen option's widgets right after it; the frontend's "control after generate" value after the
+     * widget it controls, an upload button's value after its widget. Values the frontend adds for its own widgets
+     * (buttons, previews) are passed over where a number or a switch is due; a widget the file has no value for gets
+     * the node's default, as in ComfyUI.
      */
-    private fun mapWidgetValues(
-        widgetValues: Any,
-        inputDefs: List<InputDefinition>,
-        inputs: JSONObject,
-        nodeType: String,
-        nodeId: Int,
-        warnings: MutableList<String>
-    ) {
-        if (widgetValues is JSONObject) {
-            mapNamedWidgetValues(widgetValues, inputDefs, inputs, prefix = "")
+    private fun mapWidgetValues(node: JSONObject, definitions: List<InputDefinition>, inputs: JSONObject) {
+        // The frontend's record by name lists its widgets in their order, also those of types only it draws (boxes,
+        // colours…), but it isn't always up to date: the list is what ComfyUI loads, so the names only lay it out
+        val named = node.optJSONObject("widgets_values_named")
+        val list = node.optJSONArray("widgets_values")
+        if (named != null && (list == null || list.length() == named.length())) {
+            val laidOut = if (list == null) named else JSONObject().also { byName ->
+                named.keys().asSequence().forEachIndexed { i, key -> byName.put(key, list.opt(i)) }
+            }
+            mapNamedWidgetValues(laidOut, definitions, inputs, prefix = "", anyInput = true)
             return
         }
-        if (widgetValues !is JSONArray) return
-        var widgetIndex = 0
+        // An extension's object by name may hold other keys (sockets, previews): only the definition's widgets count
+        node.optJSONObject("widgets_values")?.let { named ->
+            mapNamedWidgetValues(named, definitions, inputs, prefix = "", anyInput = false)
+            return
+        }
+        val values = node.optJSONArray("widgets_values") ?: JSONArray()
+        var index = 0
+        // Values beyond the widgets the definition has: the frontend's own, which may be skipped
+        var spare = (values.length() - widgetSlotCount(definitions)).coerceAtLeast(0)
 
-        // The frontend's widget order: the node's widgets in input order, sockets left out; a dynamic combo's chosen
-        // option adds its own widgets right after it, named "combo.input" (and so on, for nested combos)
         fun mapWidgets(defs: List<InputDefinition>, prefix: String) {
-            for (inputDef in defs) {
-                if (!inputDef.isWidget) continue
-                val name = prefix + inputDef.name
-                // The saved values have run out: the rest are widgets the file doesn't know
-                val saved = widgetIndex < widgetValues.length()
-
-                // Skip control widgets defined in server (rare, but handle it)
-                if (inputDef.name == "control_after_generate" ||
-                    inputDef.name.startsWith("control_")) {
-                    if (saved) widgetIndex++
+            for (definition in defs) {
+                if (!definition.savesValue) continue
+                val name = prefix + definition.name
+                // A control widget the server lists itself (rare): its value isn't an input
+                if (definition.name == "control_after_generate") {
+                    if (index < values.length()) index++
                     continue
                 }
-
-                val value = if (saved) widgetValues.opt(widgetIndex) else inputDef.getEffectiveDefault()
-
-                // Map the value
-                if (value != null && value != JSONObject.NULL) {
-                    inputs.put(name, value)
+                // A value the frontend added for its own widget where this one's number or switch is due
+                while (spare > 0 && index < values.length() && !fitsWidget(definition, values.opt(index))) {
+                    index++
+                    spare--
                 }
+                val saved = index < values.length()
+                val value = if (saved) values.opt(index).takeIf { it != JSONObject.NULL } ?: definition.getEffectiveDefault()
+                else definition.getEffectiveDefault()
+                inputs.put(name, value)
+                if (saved) index++
 
-                if (saved) widgetIndex++
+                definition.dynamicOptions?.get(value as? String)?.let { mapWidgets(it, "$name.") }
 
-                inputDef.dynamicOptions?.get(value as? String)?.let { optionInputs -> mapWidgets(optionInputs, "$name.") }
-
-                // After mapping a seed input, check if next widget value is a control value
-                // (control_after_generate is frontend-only and not in server's /object_info)
-                if (inputDef.name in SEED_INPUT_NAMES && widgetIndex < widgetValues.length()) {
-                    val nextValue = widgetValues.opt(widgetIndex)
-                    if (nextValue is String && nextValue in CONTROL_WIDGET_VALUES) {
-                        widgetIndex++
-                    }
-                }
+                val next = values.opt(index)
+                if ((definition.controlAfterGenerate || definition.name in SEED_INPUT_NAMES) &&
+                    next is String && next in CONTROL_WIDGET_VALUES
+                ) index++
+                else if (definition.upload && next is String && next in UPLOAD_WIDGET_VALUES) index++
             }
         }
-        mapWidgets(inputDefs, prefix = "")
+        mapWidgets(definitions, prefix = "")
+    }
+
+    /** The values a list holds for these widgets, without dynamic options (an estimate of the frontend's own extras). */
+    private fun widgetSlotCount(definitions: List<InputDefinition>): Int =
+        definitions.filter { it.savesValue }.sumOf { 1 + (if (it.controlAfterGenerate) 1 else 0) }
+
+    /** Whether a saved value can be this widget's: numbers and switches only take numbers and booleans. */
+    private fun fitsWidget(definition: InputDefinition, value: Any?): Boolean = when (definition.type) {
+        "INT", "FLOAT" -> value is Number || (value is String && value.toDoubleOrNull() != null)
+        "BOOLEAN" -> value is Boolean
+        else -> true
     }
 
     /**
      * Widget values saved by name: each widget of the definition (a dynamic combo's chosen option too), with the node's
-     * default where the file has no value.
+     * default where the file has no value; with [anyInput], also any other input the file has a value for by name.
      */
-    private fun mapNamedWidgetValues(values: JSONObject, defs: List<InputDefinition>, inputs: JSONObject, prefix: String) {
+    private fun mapNamedWidgetValues(
+        values: JSONObject,
+        defs: List<InputDefinition>,
+        inputs: JSONObject,
+        prefix: String,
+        anyInput: Boolean
+    ) {
         for (inputDef in defs) {
-            if (!inputDef.isWidget) continue
             val name = prefix + inputDef.name
-            val value = values.opt(name)?.takeIf { it != JSONObject.NULL } ?: inputDef.getEffectiveDefault()
+            val savedValue = values.opt(name)?.takeIf { it != JSONObject.NULL }
+            if (!inputDef.savesValue && !(anyInput && savedValue != null)) continue
+            val value = savedValue ?: inputDef.getEffectiveDefault()
             inputs.put(name, value)
             inputDef.dynamicOptions?.get(value as? String)?.let { optionInputs ->
-                mapNamedWidgetValues(values, optionInputs, inputs, "$name.")
+                mapNamedWidgetValues(values, optionInputs, inputs, "$name.", anyInput)
             }
         }
     }
 
-    /**
-     * Extract a Note node to notes array format
-     */
-    private fun extractNote(node: JSONObject): JSONObject? {
-        val nodeId = node.optInt("id", -1)
-        if (nodeId == -1) return null
+    // ---------------------------------------------------------------------------------------------------------------
+    // Notes and groups
+    // ---------------------------------------------------------------------------------------------------------------
 
-        val title = node.optString("title", "Note")
-        val widgetValues = node.optJSONArray("widgets_values")
-        val content = widgetValues?.optString(0, "") ?: ""
-
-        return JSONObject().apply {
-            put("id", nodeId)
-            put("title", title)
-            put("content", content)
-        }
+    private fun extractNote(node: JSONObject, id: Int): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("title", node.optString("title", "Note"))
+        put("content", node.optJSONArray("widgets_values")?.optString(0, "") ?: "")
     }
 
     /**
-     * Convert LiteGraph groups (with bounding boxes) to ComfyChair format (with member_nodes)
+     * Groups of the top level, with the nodes and notes inside their rectangles (by top-left corner, as ComfyUI places
+     * a node in a group); empty groups are left out.
      */
-    private fun convertGroups(
-        groupsArray: JSONArray?,
-        nodePositions: Map<Int, NodePosition>
-    ): JSONArray {
+    private fun convertGroups(groupsArray: JSONArray?, positions: Map<String, FloatArray>): JSONArray {
         val result = JSONArray()
-        if (groupsArray == null) return result
-
-        for (i in 0 until groupsArray.length()) {
-            val group = groupsArray.optJSONObject(i) ?: continue
-
-            val title = group.optString("title", "Group")
-            val bounding = group.optJSONArray("bounding")
-
-            if (bounding == null || bounding.length() < 4) continue
-
-            val groupX = bounding.optDouble(0, 0.0).toFloat()
-            val groupY = bounding.optDouble(1, 0.0).toFloat()
-            val groupW = bounding.optDouble(2, 0.0).toFloat()
-            val groupH = bounding.optDouble(3, 0.0).toFloat()
-
-            // Find all nodes within this group's bounds
-            val memberNodes = JSONArray()
-            for ((nodeId, pos) in nodePositions) {
-                if (isNodeInGroup(pos, groupX, groupY, groupW, groupH)) {
-                    memberNodes.put(nodeId.toString())
-                }
-            }
-
-            // Only add group if it has members
-            if (memberNodes.length() > 0) {
-                val groupId = group.optInt("id", i + 1)  // Use original id or fallback to index+1
-                val groupObj = JSONObject().apply {
-                    put("id", groupId)
-                    put("title", title)
-                    put("member_nodes", memberNodes)
-                }
-                result.put(groupObj)
-            }
+        groupsArray.objects().forEachIndexed { i, group ->
+            val bounding = group.optJSONArray("bounding")?.takeIf { it.length() >= 4 } ?: return@forEachIndexed
+            val x = bounding.optDouble(0, 0.0).toFloat()
+            val y = bounding.optDouble(1, 0.0).toFloat()
+            val w = bounding.optDouble(2, 0.0).toFloat()
+            val h = bounding.optDouble(3, 0.0).toFloat()
+            val members = positions.filterValues { p -> p[0] >= x && p[1] >= y && p[0] <= x + w && p[1] <= y + h }.keys
+            if (members.isEmpty()) return@forEachIndexed
+            result.put(JSONObject().apply {
+                put("id", group.optInt("id", i + 1))
+                put("title", group.optString("title", "Group"))
+                put("member_nodes", JSONArray(members.toList()))
+            })
         }
-
         return result
-    }
-
-    /**
-     * Check if a node is within a group's bounding box
-     */
-    private fun isNodeInGroup(
-        nodePos: NodePosition,
-        groupX: Float,
-        groupY: Float,
-        groupW: Float,
-        groupH: Float
-    ): Boolean {
-        // Check if node's top-left corner is within the group bounds
-        // (This is how LiteGraph typically determines group membership)
-        return nodePos.x >= groupX &&
-               nodePos.y >= groupY &&
-               nodePos.x <= groupX + groupW &&
-               nodePos.y <= groupY + groupH
     }
 }

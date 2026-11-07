@@ -31,7 +31,13 @@ data class InputDefinition(
      * For a dynamic combo (COMFY_DYNAMICCOMBO_V3): each option's own inputs (required, then optional), which the
      * frontend shows right after the combo as "combo.input" while that option is chosen
      */
-    val dynamicOptions: Map<String, List<InputDefinition>>? = null
+    val dynamicOptions: Map<String, List<InputDefinition>>? = null,
+    /** A widget without a socket (an image comparer, a colour, a bounding box editor…): drawn by the frontend only */
+    val socketless: Boolean = false,
+    /** Followed by the frontend's "control after generate" widget (fixed, increment, decrement, randomize) */
+    val controlAfterGenerate: Boolean = false,
+    /** Has the frontend's upload button (image, video or file), which may save a value of its own after it */
+    val upload: Boolean = false
 )
 
 /**
@@ -329,7 +335,10 @@ class NodeTypeRegistry {
                                     options = options,
                                     forceInput = forceInput,
                                     tooltip = tooltip,
-                                    multiselect = multiselect
+                                    multiselect = multiselect,
+                                    socketless = optionsObj.optBoolean("socketless", false),
+                                    controlAfterGenerate = optionsObj.optBoolean("control_after_generate", false),
+                                    upload = optionsObj.hasUploadFlag()
                                 )
                             )
                             continue
@@ -361,7 +370,10 @@ class NodeTypeRegistry {
                             default = default,
                             options = options,
                             forceInput = forceInput,
-                            tooltip = tooltip
+                            tooltip = tooltip,
+                            socketless = optionsObj?.optBoolean("socketless", false) ?: false,
+                            controlAfterGenerate = optionsObj?.optBoolean("control_after_generate", false) ?: false,
+                            upload = optionsObj?.hasUploadFlag() ?: false
                         )
                     )
                 }
@@ -415,9 +427,16 @@ class NodeTypeRegistry {
             forceInput = forceInput,
             tooltip = tooltip,
             round = round,
-            dynamicOptions = dynamicOptions
+            dynamicOptions = dynamicOptions,
+            socketless = options?.optBoolean("socketless", false) ?: false,
+            controlAfterGenerate = options?.optBoolean("control_after_generate", false) ?: false,
+            upload = options?.hasUploadFlag() ?: false
         )
     }
+
+    /** Whether an input's options ask the frontend for an upload button (image_upload, video_upload, file_upload…). */
+    private fun JSONObject.hasUploadFlag(): Boolean =
+        keys().asSequence().any { it.endsWith("_upload") && optBoolean(it, false) }
 
     /**
      * Get the output type for a node at a specific output index.
