@@ -1584,7 +1584,7 @@ fun WorkflowGraphCanvas(
                     socketTypes = types,
                     socketNames = if (inputs) node.outputs.map { it.name } else node.inputs.keys.toList(),
                     colors = colors, paints = paints, icons = icons, alpha = alpha,
-                    showLabels = spread < 1f
+                    spread = spread
                 )
             }
 
@@ -1593,6 +1593,10 @@ fun WorkflowGraphCanvas(
                 val glass = underGlass[edge]
                 if (glass == null) drawWire(edge, alpha) else clipPath(glass, ClipOp.Difference) { drawWire(edge, alpha) }
             }
+
+            // A port strip's icon, and toward the overview its block growing over its wires' ends, as a node's title
+            // bar spreads over its sockets
+            portStrips.forEach { (node, alpha) -> drawPortStripBlock(node, colors, paints, icons, alpha, spread) }
 
             // Wire colour of each connected input (its wire's type), and the outputs that have a wire
             val inputWireColors: Map<String, Map<String, Color>> = buildMap<String, MutableMap<String, Color>> {
@@ -1735,13 +1739,11 @@ fun WorkflowGraphCanvas(
 
             // Sockets on the nodes' edges, in every mode: filled when connected, a ring when free; those the spreading
             // title bar has covered are gone, so none in overview
-            // (a level's port strips keep theirs, spec §19.2.4)
-            animatedNodes.forEach { (node, nodeAlpha) ->
+            // (a level's port strips too: in the overview they're plain blocks)
+            if (spread < 1f) animatedNodes.forEach { (node, nodeAlpha) ->
                 if (nodeAlpha <= 0.01f) return@forEach
-                val isPort = SubgraphLevels.isPortNode(node)
-                if (spread >= 1f && !isPort) return@forEach
                 val scaleMultiplier = if (node.id == draggingNodeId) dragScale.value else 1f
-                val coveredTo = if (isPort) 0f else WorkflowLayoutEngine.NODE_HEADER_HEIGHT + (node.height - WorkflowLayoutEngine.NODE_HEADER_HEIGHT) * spread
+                val coveredTo = WorkflowLayoutEngine.NODE_HEADER_HEIGHT + (node.height - WorkflowLayoutEngine.NODE_HEADER_HEIGHT) * spread
 
                 node.outputs.forEachIndexed { outputIndex, output ->
                     if (WorkflowLayoutEngine.outputSlotY(node, outputIndex) < coveredTo) return@forEachIndexed
@@ -2779,6 +2781,43 @@ private fun DrawScope.drawOpenButton(
     }
 }
 
+/**
+ * Over a port strip's wires: its icon in the cap, and toward the overview a plain block of its colour growing from the
+ * cap down the strip as nodes' title bars spread, covering sockets and wires' ends; in the overview the whole strip,
+ * nothing on it.
+ */
+private fun DrawScope.drawPortStripBlock(
+    node: WorkflowNode,
+    colors: CanvasColors,
+    paints: GraphPaints,
+    icons: GraphIcons,
+    alpha: Float,
+    spread: Float
+) {
+    val bounds = portStripBounds(node)
+    if (spread > 0f) {
+        val corner = bounds.width / 2
+        val bottom = bounds.top + portStripCoveredTo(node, spread)
+        // Fading in over the cap's glass at the start, so the change isn't a jump
+        val color = colors.stripGlass.copy(alpha = alpha * (spread * 4f).coerceAtMost(1f))
+        if (colors.isDark) {
+            drawRoundRect(color = color, topLeft = bounds.topLeft, size = Size(bounds.width, bottom - bounds.top), cornerRadius = CornerRadius(corner))
+        } else {
+            paints.shadow.color = color.toArgb()
+            paints.shadow.setElevationShadow(colors, color.alpha)
+            drawContext.canvas.nativeCanvas.drawRoundRect(bounds.left, bounds.top, bounds.right, bottom, corner, corner, paints.shadow)
+        }
+    }
+    if (spread >= 1f) return
+    val iconSize = NodeStyle.ICON
+    val capCenter = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT / 2
+    translate(bounds.center.x - iconSize / 2, capCenter - iconSize / 2) {
+        with(if (SubgraphLevels.isInputsNode(node)) icons.inputs else icons.outputs) {
+            draw(Size(iconSize, iconSize), alpha = alpha * (1f - spread), colorFilter = ColorFilter.tint(colors.onSurfaceVariant))
+        }
+    }
+}
+
 /** A level's Inputs or Outputs strip (spec §19.2.4) as drawn: centred on its sockets' line. */
 private fun portStripBounds(node: WorkflowNode): androidx.compose.ui.geometry.Rect {
     val centerLine = if (SubgraphLevels.isInputsNode(node)) node.x + node.width else node.x
@@ -2789,7 +2828,8 @@ private fun portStripBounds(node: WorkflowNode): androidx.compose.ui.geometry.Re
 /**
  * A level's Inputs or Outputs strip: a capsule of the groups' frosted glass with the sockets set into it (drawn with
  * the other sockets), its icon in the cap with the word beside it outside, and the sockets' labels outside, on the side
- * away from the content ([showLabels] false in the overview).
+ * away from the content. Toward the overview ([spread] 1, as nodes' title bars spread) its icon and labels go: the
+ * block drawn over the wires ([drawPortStripBlock]) takes its place (the owner's choice over spec §19.2.4).
  */
 private fun DrawScope.drawPortStrip(
     node: WorkflowNode,
@@ -2800,7 +2840,7 @@ private fun DrawScope.drawPortStrip(
     paints: GraphPaints,
     icons: GraphIcons,
     alpha: Float,
-    showLabels: Boolean
+    spread: Float
 ) {
     val bounds = portStripBounds(node)
     val glass = colors.stripGlass.copy(alpha = NodeStyle.GLASS_ALPHA * alpha)
@@ -2812,24 +2852,26 @@ private fun DrawScope.drawPortStrip(
         paints.shadow.setElevationShadow(colors, alpha)
         drawContext.canvas.nativeCanvas.drawRoundRect(bounds.left, bounds.top, bounds.right, bounds.bottom, corner, corner, paints.shadow)
     }
+    if (spread >= 1f) return
     val inputs = SubgraphLevels.isInputsNode(node)
     val capCenter = node.y + WorkflowLayoutEngine.NODE_HEADER_HEIGHT / 2
-    val iconSize = NodeStyle.ICON
-    translate(bounds.center.x - iconSize / 2, capCenter - iconSize / 2) {
-        with(if (inputs) icons.inputs else icons.outputs) {
-            draw(Size(iconSize, iconSize), alpha = alpha, colorFilter = ColorFilter.tint(colors.onSurfaceVariant))
-        }
-    }
-    if (!showLabels) return
+    // Labels fade as the block grows down the strip, each gone once the block has covered its socket
+    val coveredTo = portStripCoveredTo(node, spread)
+    val labelAlpha = alpha * (1f - spread)
     val nativeCanvas = drawContext.canvas.nativeCanvas
     // Outside the strip, away from the content: right-aligned left of the Inputs strip, left of the Outputs strip's right
     fun drawOutside(text: String, centerY: Float, paint: Paint) {
         val x = if (inputs) bounds.left - NodeStyle.STRIP_LABEL_GAP - paint.measureText(text) else bounds.right + NodeStyle.STRIP_LABEL_GAP
         nativeCanvas.drawText(text, x, paint.baselineFor(centerY), paint)
     }
-    drawOutside(word, capCenter, paints.labelStrong.apply { color = colors.onSurfaceVariant.copy(alpha = alpha).toArgb() })
+    drawOutside(word, capCenter, paints.labelStrong.apply { color = colors.onSurfaceVariant.copy(alpha = labelAlpha).toArgb() })
     socketNames.forEachIndexed { index, name ->
-        val paint = paints.label.apply { color = colors.slot(socketTypes.getOrNull(index)).copy(alpha = alpha).toArgb() }
+        if (spread > 0f && WorkflowLayoutEngine.rowCenterY(index) < coveredTo) return@forEachIndexed
+        val paint = paints.label.apply { color = colors.slot(socketTypes.getOrNull(index)).copy(alpha = labelAlpha).toArgb() }
         drawOutside(name, node.y + WorkflowLayoutEngine.rowCenterY(index), paint)
     }
 }
+
+/** How far down a port strip its overview block reaches (from the strip's top), as a node's title bar spreads. */
+private fun portStripCoveredTo(node: WorkflowNode, spread: Float): Float =
+    WorkflowLayoutEngine.NODE_HEADER_HEIGHT + (node.height - WorkflowLayoutEngine.NODE_HEADER_HEIGHT) * spread
