@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowEditorActivity
+import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.model.ScreenType
 import sh.hnet.comfychair.navigation.MainRoute
@@ -598,6 +599,9 @@ fun GenerationOptionsSheet(
     val config = remember(state, callbacks) { buildConfig(callbacks) }
     // The workflow's custom fields with their inputs' definitions (spec §18.6)
     val customFields = remember(state.selectedWorkflowId, state.capabilities) { customFieldEntries(state.selectedWorkflowId) }
+    val fieldLabels = remember(state.selectedWorkflowId, state.capabilities) {
+        WorkflowManager.getWorkflowById(state.selectedWorkflowId)?.fieldLabels.orEmpty()
+    }
     val layout = remember(state.capabilities, customFields.size) { optionsLayout(state.capabilities, customFields.size) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = layout.sectioned)
     LaunchedEffect(visible) {
@@ -621,7 +625,8 @@ fun GenerationOptionsSheet(
             customFields = customFields,
             customValues = state.customValues,
             customErrors = state.customErrors,
-            onCustomFieldChange = viewModel::onCustomFieldChange
+            onCustomFieldChange = viewModel::onCustomFieldChange,
+            fieldLabels = fieldLabels
         )
     }
 }

@@ -1096,4 +1096,7 @@
     <string name="hint_pick_value">Los valores admitidos están resaltados</string>
     <string name="content_description_cancel_new_field">Cancelar campo nuevo</string>
     <string name="button_add_value">Añadir un valor</string>
+    <string name="label_builtin_field_context">Campo integrado – &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Nombre integrado: %1$s – %2$d/%3$d</string>
+    <string name="content_description_use_builtin_name">Usar el nombre integrado: %1$s</string>
 </resources>

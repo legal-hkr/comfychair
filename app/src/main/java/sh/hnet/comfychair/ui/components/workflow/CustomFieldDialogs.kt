@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
@@ -218,6 +219,90 @@ fun EditFieldDialog(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(start = 16.dp, top = 4.dp)
                 )
+            }
+        }
+    }
+}
+
+/**
+ * A built-in field's label in this workflow (spec §18.4): the name it's shown by, the built-in name to go back to,
+ * and the values it fills (read-only: built-in fields are assigned in Map fields).
+ *
+ * @param label The current label, null for none
+ * @param onSave The new label, null for the built-in name
+ */
+@Composable
+fun BuiltInFieldDialog(
+    builtInName: String,
+    label: String?,
+    targetLines: List<Pair<String, String>>,
+    isTaken: (String) -> Boolean,
+    onSave: (label: String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(label ?: builtInName) }
+    var attempted by remember { mutableStateOf(false) }
+    val isBuiltIn = name.isBlank() || name.trim().equals(builtInName, ignoreCase = false)
+    // The built-in name (or none) is always allowed: it removes the label
+    val error = rememberNameError(name.ifBlank { builtInName }, attempted) { !isBuiltIn && isTaken(it) }
+    val submit = {
+        attempted = true
+        if (isBuiltIn) onSave(null) else if (!isTaken(name)) onSave(name.trim())
+    }
+    FormDialog(
+        title = stringResource(R.string.title_edit_field),
+        confirmLabel = stringResource(R.string.button_save),
+        onConfirm = submit,
+        onDismiss = onDismiss
+    ) {
+        Text(
+            boldNamesResource(R.string.label_builtin_field_context, builtInName),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        DialogTextField(
+            value = name,
+            onValueChange = {
+                name = it.take(CustomFields.MAX_NAME_LENGTH)
+                attempted = false
+            },
+            label = stringResource(R.string.label_field_name),
+            error = error,
+            supporting = stringResource(R.string.desc_builtin_field_name, builtInName, name.length, CustomFields.MAX_NAME_LENGTH),
+            onDone = submit,
+            trailingAction = if (!isBuiltIn) {
+                {
+                    IconButton(onClick = { name = builtInName }) {
+                        Icon(Icons.Rounded.RestartAlt, contentDescription = stringResource(R.string.content_description_use_builtin_name, builtInName))
+                    }
+                }
+            } else null
+        )
+        if (targetLines.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(R.string.title_field_fills),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier
+                        .padding(bottom = 6.dp)
+                        .semantics { heading() }
+                )
+                targetLines.forEachIndexed { index, (nodeTitle, input) ->
+                    Surface(
+                        shape = groupShapes(index, targetLines.size).shape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            Modifier
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                .semantics(mergeDescendants = true) {}
+                        ) {
+                            Text(nodeTitle, style = MaterialTheme.typography.bodyLarge)
+                            Text(input, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
             }
         }
     }

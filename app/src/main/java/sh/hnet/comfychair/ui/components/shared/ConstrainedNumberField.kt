@@ -33,7 +33,9 @@ fun ConstrainedNumberField(
     value: String,
     onValueChange: (String) -> Unit,
     error: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // The workflow's label for the field (spec §18.4), else the parameter's name
+    label: String? = null
 ) {
     val constraints = WorkflowConstraintsProvider.rememberConstraints(parameter.inputName, workflowName)
     val hint = stringResource(
@@ -44,7 +46,7 @@ fun ConstrainedNumberField(
     NumericStepperField(
         value = value,
         onValueChange = onValueChange,
-        label = stringResource(parameter.labelRes),
+        label = label ?: stringResource(parameter.labelRes),
         min = constraints.min,
         max = constraints.max,
         step = constraints.step,

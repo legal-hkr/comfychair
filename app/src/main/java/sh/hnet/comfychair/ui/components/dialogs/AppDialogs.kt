@@ -237,7 +237,9 @@ fun DialogTextField(
     supporting: String? = null,
     // An example value; an optional field says "Optional" instead
     placeholder: String? = null,
-    onDone: (() -> Unit)? = null
+    onDone: (() -> Unit)? = null,
+    // An action at the field's end (e.g. back to a built-in name); an error's icon takes its place
+    trailingAction: (@Composable () -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -249,7 +251,8 @@ fun DialogTextField(
             else -> null
         },
         isError = error != null,
-        trailingIcon = error?.let { { Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error) } },
+        trailingIcon = error?.let { { Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error) } }
+            ?: trailingAction,
         supportingText = (error ?: supporting)?.let { { Text(it) } },
         singleLine = !multiLine,
         minLines = if (multiLine) 3 else 1,

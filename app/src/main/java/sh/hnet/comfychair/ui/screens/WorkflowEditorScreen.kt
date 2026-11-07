@@ -117,6 +117,7 @@ import sh.hnet.comfychair.ui.components.settings.groupShapes
 import sh.hnet.comfychair.ui.components.shared.boldNamesResource
 import sh.hnet.comfychair.ui.components.shared.rememberMenuScrollModifier
 import sh.hnet.comfychair.ui.components.workflow.AllFieldsSheet
+import sh.hnet.comfychair.ui.components.workflow.BuiltInFieldDialog
 import sh.hnet.comfychair.ui.components.workflow.EditFieldDialog
 import sh.hnet.comfychair.ui.components.workflow.EditorEditActions
 import sh.hnet.comfychair.ui.components.workflow.EditorMode
@@ -134,6 +135,7 @@ import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.viewmodel.WorkflowEditorViewModel
 import sh.hnet.comfychair.workflow.ConnectionDirection
 import sh.hnet.comfychair.workflow.FieldDisplayRegistry
+import sh.hnet.comfychair.workflow.FieldMappingState
 import sh.hnet.comfychair.workflow.GraphDetailLevel
 import sh.hnet.comfychair.workflow.InputValue
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
@@ -193,9 +195,14 @@ fun WorkflowEditorScreen(
     val connection = uiState.connectionModeState
     // A linked input socket's menu (Disconnect, Change source), and the app's field names for the linking question
     var socketMenu by remember { mutableStateOf<SlotPosition?>(null) }
-    // Custom fields by the names the user gave them ("field_<id>" -> name), built-in fields by the app's names
-    val customFieldNames = remember(uiState.graph?.customFields) {
-        uiState.graph?.customFields.orEmpty().associate { "${CustomFields.PLACEHOLDER_PREFIX}${it.id}" to it.name }
+    // Custom fields by the names the user gave them ("field_<id>" -> name), built-in fields by their labels in this
+    // workflow (spec §18.4; also under the input key a mapping may name them by), else by the app's names
+    val customFieldNames = remember(uiState.graph?.customFields, uiState.graph?.fieldLabels) {
+        val labels = uiState.graph?.fieldLabels.orEmpty()
+        labels.flatMap { (key, label) ->
+            val inputKey = TemplateKeyRegistry.getJsonKeyForPlaceholder(key)
+            listOfNotNull(key to label, (inputKey to label).takeIf { inputKey != key && TemplateKeyRegistry.getPlaceholderForKey(inputKey) == key })
+        }.toMap() + uiState.graph?.customFields.orEmpty().associate { "${CustomFields.PLACEHOLDER_PREFIX}${it.id}" to it.name }
     }
     val currentCustomFieldNames by rememberUpdatedState(customFieldNames)
     val fieldNameOf: (String) -> String = remember(context) {
@@ -203,10 +210,19 @@ fun WorkflowEditorScreen(
     }
     // Names a new field can't take: the workflow's built-in fields as shown
     // (while mapping, also the fields mapped so far)
-    val builtInFieldNames = remember(uiState.graph?.templateVariables, uiState.mappingState) {
+    val builtInFieldShown = remember(uiState.graph?.templateVariables, uiState.graph?.fieldLabels, uiState.mappingState) {
+        val labels = uiState.graph?.fieldLabels.orEmpty()
         uiState.graph?.templateVariables.orEmpty().filterNot { it.startsWith(CustomFields.PLACEHOLDER_PREFIX) }
-            .map { FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(it)) } +
-            uiState.mappingState?.fieldMappings.orEmpty().filter { it.isMapped }.map { it.field.displayName }
+            .associateWith { labels[it] ?: FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(it)) } +
+            uiState.mappingState?.fieldMappings.orEmpty().filter { it.isMapped }
+                .associate { m -> TemplateKeyRegistry.getPlaceholderForKey(m.field.fieldKey).let { it to (labels[it] ?: m.field.displayName) } }
+    }
+    val builtInFieldNames = builtInFieldShown.values
+    // A built-in field's label being edited (its placeholder key)
+    var editBuiltInKey by remember { mutableStateOf<String?>(null) }
+    // Map fields: the fields by their labels in this workflow
+    fun labelled(fields: List<FieldMappingState>) = fields.map { m ->
+        customFieldNames[TemplateKeyRegistry.getPlaceholderForKey(m.field.fieldKey)]?.let { m.copy(field = m.field.copy(displayName = it)) } ?: m
     }
     // Custom fields (spec §18): naming a new one, editing one, confirming a last value's removal
     var newFieldFor by remember { mutableStateOf<SlotPosition?>(null) }
@@ -500,6 +516,7 @@ fun WorkflowEditorScreen(
                                     viewModel = viewModel,
                                     onMake = { newFieldFor = slot },
                                     onEdit = { editFieldId = it },
+                                    onEditBuiltIn = { editBuiltInKey = it },
                                     onRemove = {
                                         if (viewModel.customFieldOf(slot.nodeId, slot.slotName)?.targets?.size == 1) removeLastFrom = slot
                                         else viewModel.removeFromCustomField(slot.nodeId, slot.slotName)
@@ -709,7 +726,7 @@ fun WorkflowEditorScreen(
         // Map fields: the current field on a card above the toolbar
         if (uiState.isFieldMappingMode && uiState.mappingState != null) {
             FieldMappingCard(
-                fields = viewModel.orderedMappingFields(),
+                fields = labelled(viewModel.orderedMappingFields()),
                 currentKey = uiState.selectedFieldKey,
                 onSelectField = { viewModel.selectFieldForMapping(it) },
                 onAllFields = { showAllFields = true },
@@ -723,7 +740,7 @@ fun WorkflowEditorScreen(
             )
             if (showAllFields) {
                 AllFieldsSheet(
-                    fields = viewModel.allMappingFields(),
+                    fields = labelled(viewModel.allMappingFields()),
                     onSelectField = {
                         viewModel.selectFieldForMapping(it)
                         showAllFields = false
@@ -1011,6 +1028,25 @@ fun WorkflowEditorScreen(
                     } else null
                 )
             }
+        }
+        editBuiltInKey?.let { key ->
+            val placeholder = "{{$key}}"
+            val targets = uiState.graph?.nodes.orEmpty().flatMap { node ->
+                node.inputs.filter { (_, v) -> (v as? InputValue.Literal)?.value == placeholder }.map { (input, _) -> node.title to input }
+            }
+            BuiltInFieldDialog(
+                builtInName = FieldDisplayRegistry.getDisplayName(context, TemplateKeyRegistry.getJsonKeyForPlaceholder(key)),
+                label = uiState.graph?.fieldLabels?.get(key),
+                targetLines = targets,
+                isTaken = { name ->
+                    viewModel.isFieldNameTaken(name, null, builtInFieldShown.filterKeys { it != key }.values)
+                },
+                onSave = { label ->
+                    viewModel.setFieldLabel(key, label)
+                    editBuiltInKey = null
+                },
+                onDismiss = { editBuiltInKey = null }
+            )
         }
         removeLastFrom?.let { slot ->
             val field = viewModel.customFieldOf(slot.nodeId, slot.slotName)
@@ -1450,7 +1486,7 @@ private fun literalIsOwnValue(graph: WorkflowGraph?, slot: SlotPosition): Boolea
 
 /**
  * A value's field items (spec §18.2.1): in a custom field – Edit field, Remove from field; its own value – Make a field.
- * Nothing for an output, a link or a value a built-in field fills (labels of built-in fields come later).
+ * A value a built-in field fills: Edit field (its label). Nothing for an output or a link.
  */
 private fun fieldMenuItems(
     slot: SlotPosition,
@@ -1458,11 +1494,17 @@ private fun fieldMenuItems(
     viewModel: WorkflowEditorViewModel,
     onMake: () -> Unit,
     onEdit: (fieldId: String) -> Unit,
+    onEditBuiltIn: (key: String) -> Unit,
     onRemove: () -> Unit
 ): List<SocketMenuItem> {
     if (slot.isOutput) return emptyList()
     val field = viewModel.customFieldOf(slot.nodeId, slot.slotName)
+    // A built-in field's placeholder: its label can be edited
+    val builtInKey = ((graph?.nodes?.find { it.id == slot.nodeId }?.inputs?.get(slot.slotName) as? InputValue.Literal)?.value as? String)
+        ?.let { Regex("""^\{\{(\w+)\}\}$""").find(it)?.groupValues?.get(1) }
+        ?.takeUnless { it.startsWith(CustomFields.PLACEHOLDER_PREFIX) }
     return when {
+        builtInKey != null -> listOf(SocketMenuItem(R.string.menu_editor_edit_field, Icons.Rounded.Edit) { onEditBuiltIn(builtInKey) })
         field != null -> listOf(
             SocketMenuItem(R.string.menu_editor_edit_field, Icons.Rounded.Edit) { onEdit(field.id) },
             SocketMenuItem(R.string.menu_editor_remove_from_field, Icons.Rounded.LinkOff, action = onRemove)

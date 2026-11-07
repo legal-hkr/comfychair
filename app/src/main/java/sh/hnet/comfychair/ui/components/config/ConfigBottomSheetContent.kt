@@ -25,11 +25,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,6 +83,50 @@ private sealed interface SheetItem {
     }
 }
 
+/** Labels the workflow gives its built-in fields (spec §18.4), by placeholder key; read by the sheet's rows */
+private val LocalFieldLabels = staticCompositionLocalOf<Map<String, String>> { emptyMap() }
+
+/** The placeholder key of a sheet field's built-in field (labels are stored by it); null for LoRA chains. */
+private fun OptionField.placeholderKey(): String? = when (this) {
+    OptionField.WORKFLOW, OptionField.LORA_CHAIN, OptionField.HIGHNOISE_LORA_CHAIN, OptionField.LOWNOISE_LORA_CHAIN -> null
+    OptionField.SEED -> "seed"
+    OptionField.WIDTH -> "width"
+    OptionField.HEIGHT -> "height"
+    OptionField.LENGTH -> "length"
+    OptionField.FPS -> "frame_rate"
+    OptionField.STEPS -> "steps"
+    OptionField.MEGAPIXELS -> "megapixels"
+    OptionField.BATCH_SIZE -> "batch_size"
+    OptionField.SCALE_BY -> "scale_by"
+    OptionField.SAMPLER -> "sampler_name"
+    OptionField.SCHEDULER -> "scheduler"
+    OptionField.CFG -> "cfg"
+    OptionField.CLIP_LAYER -> "stop_at_clip_layer"
+    OptionField.DENOISE -> "denoise"
+    OptionField.UPSCALE_METHOD -> "upscale_method"
+    OptionField.LORA_NAME -> "lora_name"
+    OptionField.HIGHNOISE_LORA_NAME -> "highnoise_lora_name"
+    OptionField.LOWNOISE_LORA_NAME -> "lownoise_lora_name"
+    OptionField.CHECKPOINT -> "ckpt_name"
+    OptionField.UNET -> "unet_name"
+    OptionField.HIGHNOISE_UNET -> "highnoise_unet_name"
+    OptionField.LOWNOISE_UNET -> "lownoise_unet_name"
+    OptionField.VAE -> "vae_name"
+    OptionField.AUDIO_VAE -> "audio_vae_name"
+    OptionField.CLIP -> "clip_name"
+    OptionField.CLIP1 -> "clip_name1"
+    OptionField.CLIP2 -> "clip_name2"
+    OptionField.CLIP3 -> "clip_name3"
+    OptionField.CLIP4 -> "clip_name4"
+    OptionField.TEXT_ENCODER -> "text_encoder_name"
+    OptionField.LATENT_UPSCALE_MODEL -> "latent_upscale_model"
+}
+
+/** A field's name on the sheet: the workflow's label for it, else the app's. */
+@Composable
+private fun fieldLabel(field: OptionField, labelRes: Int): String =
+    field.placeholderKey()?.let { LocalFieldLabels.current[it] } ?: stringResource(labelRes)
+
 /** The custom fields' section (not a built-in [OptionsSection]: the workflow defines its fields) */
 const val CUSTOM_SECTION = "CUSTOM"
 
@@ -104,7 +150,9 @@ fun ConfigBottomSheetContent(
     customFields: List<CustomFieldEntry> = emptyList(),
     customValues: Map<String, String> = emptyMap(),
     customErrors: Map<String, String> = emptyMap(),
-    onCustomFieldChange: (fieldId: String, value: String, error: String?) -> Unit = { _, _, _ -> }
+    onCustomFieldChange: (fieldId: String, value: String, error: String?) -> Unit = { _, _, _ -> },
+    // Labels of the workflow's built-in fields (spec §18.4), by placeholder key
+    fieldLabels: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -166,6 +214,7 @@ fun ConfigBottomSheetContent(
         OptionsSectionPrefs.setExpanded(context, workflowId, CUSTOM_SECTION, value)
     }
 
+    CompositionLocalProvider(LocalFieldLabels provides fieldLabels) {
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -228,6 +277,7 @@ fun ConfigBottomSheetContent(
             item(key = "node-values") { NodeValuesRow(open) }
         }
     }
+    }
 }
 
 /** "All node values": the workflow's other values, in the editor. */
@@ -283,19 +333,22 @@ private fun Field(
     val models = config.models
     fun number(parameter: NumberParameter, numeric: NumericField?) = @Composable {
         numeric?.let {
-            ConstrainedNumberField(parameter, workflowName, it.value, it.onValueChange, it.error, modifier)
+            ConstrainedNumberField(
+                parameter, workflowName, it.value, it.onValueChange, it.error, modifier,
+                label = fieldLabel(field, parameter.labelRes)
+            )
         }
     }
     fun dropdown(labelRes: Int, dropdown: DropdownField?) = @Composable {
         dropdown?.let {
-            ChoiceRow(stringResource(labelRes), it.selectedValue, it.options, it.onValueChange, shape, modifier)
+            ChoiceRow(fieldLabel(field, labelRes), it.selectedValue, it.options, it.onValueChange, shape, modifier)
         }
     }
     // Models and single LoRAs: files, shown by name with their role and folder
     fun model(modelField: ModelField?) = @Composable {
         modelField?.let {
             ChoiceRow(
-                stringResource(it.label), it.selectedValue, it.filteredOptions ?: it.options, it.onValueChange, shape, modifier,
+                fieldLabel(field, it.label), it.selectedValue, it.filteredOptions ?: it.options, it.onValueChange, shape, modifier,
                 isFile = true
             )
         }
@@ -417,10 +470,10 @@ private fun SectionSummary(section: OptionsSection, config: BottomSheetConfig, o
         OptionsSection.SAMPLING -> listOfNotNull(
             params.sampler?.selectedValue,
             params.scheduler?.selectedValue,
-            params.cfg?.takeIf { it.isVisible }?.let { "${stringResource(R.string.label_cfg)} ${it.value}" },
-            params.stopAtClipLayer?.takeIf { it.isVisible }?.let { "${stringResource(R.string.label_stop_at_clip_layer)} ${it.value}" },
+            params.cfg?.takeIf { it.isVisible }?.let { "${fieldLabel(OptionField.CFG, R.string.label_cfg)} ${it.value}" },
+            params.stopAtClipLayer?.takeIf { it.isVisible }?.let { "${fieldLabel(OptionField.CLIP_LAYER, R.string.label_stop_at_clip_layer)} ${it.value}" },
             params.upscaleMethod?.selectedValue,
-            params.scaleBy?.takeIf { it.isVisible }?.let { "${stringResource(R.string.label_scale_by)} ${it.value}" }
+            params.scaleBy?.takeIf { it.isVisible }?.let { "${fieldLabel(OptionField.SCALE_BY, R.string.label_scale_by)} ${it.value}" }
         ).filter { it.isNotBlank() }.joinToString(", ")
         OptionsSection.LORA -> loraCount(config).let { count ->
             if (count == 0) stringResource(R.string.label_no_loras) else pluralStringResource(R.plurals.label_lora_count, count, count)

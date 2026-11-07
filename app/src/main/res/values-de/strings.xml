@@ -1066,4 +1066,7 @@
     <string name="hint_pick_value">Zulässige Werte sind hervorgehoben</string>
     <string name="content_description_cancel_new_field">Neues Feld abbrechen</string>
     <string name="button_add_value">Wert hinzufügen</string>
+    <string name="label_builtin_field_context">Integriertes Feld – &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Integrierter Name: %1$s – %2$d/%3$d</string>
+    <string name="content_description_use_builtin_name">Integrierten Namen verwenden: %1$s</string>
 </resources>

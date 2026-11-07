@@ -2719,6 +2719,17 @@ class WorkflowEditorViewModel : ViewModel() {
         fieldsChanged()
     }
 
+    /**
+     * A built-in field's label in this workflow (spec §18.4), by its placeholder key; null or blank removes it (the
+     * built-in name again).
+     */
+    fun setFieldLabel(key: String, label: String?) {
+        val graph = mutableGraph ?: return
+        val name = label?.trim()?.take(CustomFields.MAX_NAME_LENGTH)
+        graph.fieldLabels = if (name.isNullOrEmpty()) graph.fieldLabels - key else graph.fieldLabels + (key to name)
+        fieldsChanged()
+    }
+
     /** Delete a field: every value it filled gets its value back as its own. */
     fun deleteCustomField(fieldId: String) {
         val graph = mutableGraph ?: return
