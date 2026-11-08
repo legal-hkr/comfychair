@@ -1,0 +1,13 @@
+v0.9.5
+
+New:
+- Node browser: a tree of categories or all nodes by name
+- Search with filters in the prompt library and server import
+- Subgraph copies keep their own input values, as in ComfyUI
+
+Bug fixes:
+- Imports find the positive and negative prompts more reliably
+- Nested groups no longer overlap
+- Faster drawing of large graphs
+- Smoother source switch, no flicker of video controls
+- Passwords kept with Android's Keystore directly
