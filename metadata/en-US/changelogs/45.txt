@@ -1,0 +1,15 @@
+v0.9.4
+
+New:
+- Pick a source from the server's input folder (#62)
+- Sources the server has aren't uploaded again (#62)
+- Tables, code blocks and wide notes
+- Other clients' jobs in the queue with their prompts
+- Video lengths in the Gallery
+
+Bug fixes:
+- Mapping keeps links between nodes
+- Node values follow nodes into and out of subgraphs
+- Smooth panning with long values
+- New workflow files never overwrite others
+- Number fields keep what you type
