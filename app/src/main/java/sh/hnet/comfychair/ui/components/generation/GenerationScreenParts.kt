@@ -233,8 +233,9 @@ fun GenerationTopBar(
     }
 
     TopAppBar(
-        // What the screen generates from; the tab (Image or Video) is selected in the navigation bar
-        title = { SourceSwitch(screen) },
+        // What the screen generates from; the tab (Image or Video) is selected in the navigation bar. The switch
+        // itself is drawn over the screens; the bar keeps its place
+        title = { SourceSwitchPlaceholder(screen) },
         windowInsets = WindowInsets(0, 0, 0, 0),
         actions = {
             // The bar leaves 4 dp at the end for icon buttons, which bring their own inset; the chip doesn't, so it gets

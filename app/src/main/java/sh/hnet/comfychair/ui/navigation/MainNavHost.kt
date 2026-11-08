@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.ui.navigation
 
+import sh.hnet.comfychair.ui.components.generation.SourceSwitchOverlay
+import sh.hnet.comfychair.ui.components.generation.SourceSwitchAnchors
+import sh.hnet.comfychair.ui.components.generation.LocalSourceSwitchAnchors
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -197,6 +200,7 @@ fun MainNavHost(
     val currentRoute = currentEntry?.destination?.route
     val currentScreen = mainRouteOf(currentRoute)
     val currentTab = currentScreen?.outputTab
+    val sourceSwitchAnchors = remember { SourceSwitchAnchors() }
 
     // A change in Settings may need the generation screens reloaded: tell the activity when the user leaves the tab
     var wasInSettings by remember { mutableStateOf(false) }
@@ -303,131 +307,139 @@ fun MainNavHost(
                     },
                     modifier = modifier.imePadding()
                 ) { paddingValues ->
-                    // The source switch on each screen shows the other screens of its tab
-                    CompositionLocalProvider(LocalScreenNavigator provides { route: MainRoute -> navController.navigateToScreen(route) }) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = startDestination,
-                            modifier = Modifier.padding(paddingValues),
-                            enterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = false) },
-                            exitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = false) },
-                            popEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
-                            popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) },
-                            // The back gesture runs the same transitions (Navigation 2.10 otherwise fades and shrinks)
-                            predictivePopEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
-                            predictivePopExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
-                        ) {
-                            composable(MainRoute.TextToImage.route) {
-                                TextToImageScreen(
-                                    generationViewModel = generationViewModel,
-                                    textToImageViewModel = textToImageViewModel,
-                                    onUseAsSource = useAsSource
-                                )
-                            }
+                    // The source switch shows the other screens of its tab
+                    CompositionLocalProvider(
+                        LocalScreenNavigator provides { route: MainRoute -> navController.navigateToScreen(route) },
+                        LocalSourceSwitchAnchors provides sourceSwitchAnchors
+                    ) {
+                        Box(Modifier.fillMaxSize()) {
+                            NavHost(
+                                navController = navController,
+                                startDestination = startDestination,
+                                modifier = Modifier.padding(paddingValues),
+                                enterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = false) },
+                                exitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = false) },
+                                popEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
+                                popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) },
+                                // The back gesture runs the same transitions (Navigation 2.10 otherwise fades and shrinks)
+                                predictivePopEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
+                                predictivePopExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
+                            ) {
+                                composable(MainRoute.TextToImage.route) {
+                                    TextToImageScreen(
+                                        generationViewModel = generationViewModel,
+                                        textToImageViewModel = textToImageViewModel,
+                                        onUseAsSource = useAsSource
+                                    )
+                                }
 
-                            composable(MainRoute.ImageToImage.route) {
-                                ImageToImageScreen(
-                                    generationViewModel = generationViewModel,
-                                    imageToImageViewModel = imageToImageViewModel,
-                                    onUseAsSource = useAsSource
-                                )
-                            }
+                                composable(MainRoute.ImageToImage.route) {
+                                    ImageToImageScreen(
+                                        generationViewModel = generationViewModel,
+                                        imageToImageViewModel = imageToImageViewModel,
+                                        onUseAsSource = useAsSource
+                                    )
+                                }
 
-                            composable(MainRoute.TextToVideo.route) {
-                                TextToVideoScreen(
-                                    generationViewModel = generationViewModel,
-                                    textToVideoViewModel = textToVideoViewModel,
-                                    onUseAsSource = useAsSource
-                                )
-                            }
+                                composable(MainRoute.TextToVideo.route) {
+                                    TextToVideoScreen(
+                                        generationViewModel = generationViewModel,
+                                        textToVideoViewModel = textToVideoViewModel,
+                                        onUseAsSource = useAsSource
+                                    )
+                                }
 
-                            // Server history; the same GenerationViewModel as the generation screens
-                            composable(MainRoute.Gallery.route) {
-                                GalleryScreen(
-                                    generationViewModel = generationViewModel,
-                                    galleryViewModel = galleryViewModel
-                                )
-                            }
+                                // Server history; the same GenerationViewModel as the generation screens
+                                composable(MainRoute.Gallery.route) {
+                                    GalleryScreen(
+                                        generationViewModel = generationViewModel,
+                                        galleryViewModel = galleryViewModel
+                                    )
+                                }
 
-                            // Settings tab: the list, and the pages it opens (Back returns to the list)
-                            composable(MainRoute.Settings.route) {
-                                SettingsRootScreen(settingsViewModel, onOpenPage = { page -> navController.navigate(page.route) })
-                            }
-                            composable(SettingsRoute.Server.route) {
-                                ServerSettingsScreen(
-                                    viewModel = settingsViewModel,
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onLogout = onLogout
-                                )
-                            }
-                            composable(SettingsRoute.Workflows.route) {
-                                WorkflowsSettingsScreen(
-                                    viewModel = workflowManagementViewModel,
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) },
-                                    onImportFromServer = { navController.navigate(SettingsRoute.ServerImport.route) }
-                                )
-                            }
-                            composable(SettingsRoute.ServerImport.route) {
-                                ServerImportScreen(
-                                    viewModel = workflowManagementViewModel,
-                                    onNavigateBack = { navController.popBackStack() },
-                                    // Over this page: Back returns here to import the next one
-                                    onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) }
-                                )
-                            }
-                            composable(
-                                SettingsRoute.WorkflowDetail.route,
-                                arguments = listOf(navArgument(SettingsRoute.WorkflowDetail.ARG) { type = NavType.StringType })
-                            ) { entry ->
-                                WorkflowDetailPage(
-                                    viewModel = workflowManagementViewModel,
-                                    workflowId = entry.arguments?.getString(SettingsRoute.WorkflowDetail.ARG).orEmpty(),
-                                    onNavigateBack = { navController.popBackStack() },
-                                    // A copy replaces this page, so Back returns to the list
-                                    onOpenDetails = { id ->
-                                        navController.navigate(SettingsRoute.WorkflowDetail.of(id)) {
-                                            popUpTo(SettingsRoute.WorkflowDetail.route) { inclusive = true }
+                                // Settings tab: the list, and the pages it opens (Back returns to the list)
+                                composable(MainRoute.Settings.route) {
+                                    SettingsRootScreen(settingsViewModel, onOpenPage = { page -> navController.navigate(page.route) })
+                                }
+                                composable(SettingsRoute.Server.route) {
+                                    ServerSettingsScreen(
+                                        viewModel = settingsViewModel,
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onLogout = onLogout
+                                    )
+                                }
+                                composable(SettingsRoute.Workflows.route) {
+                                    WorkflowsSettingsScreen(
+                                        viewModel = workflowManagementViewModel,
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) },
+                                        onImportFromServer = { navController.navigate(SettingsRoute.ServerImport.route) }
+                                    )
+                                }
+                                composable(SettingsRoute.ServerImport.route) {
+                                    ServerImportScreen(
+                                        viewModel = workflowManagementViewModel,
+                                        onNavigateBack = { navController.popBackStack() },
+                                        // Over this page: Back returns here to import the next one
+                                        onOpenDetails = { id -> navController.navigate(SettingsRoute.WorkflowDetail.of(id)) }
+                                    )
+                                }
+                                composable(
+                                    SettingsRoute.WorkflowDetail.route,
+                                    arguments = listOf(navArgument(SettingsRoute.WorkflowDetail.ARG) { type = NavType.StringType })
+                                ) { entry ->
+                                    WorkflowDetailPage(
+                                        viewModel = workflowManagementViewModel,
+                                        workflowId = entry.arguments?.getString(SettingsRoute.WorkflowDetail.ARG).orEmpty(),
+                                        onNavigateBack = { navController.popBackStack() },
+                                        // A copy replaces this page, so Back returns to the list
+                                        onOpenDetails = { id ->
+                                            navController.navigate(SettingsRoute.WorkflowDetail.of(id)) {
+                                                popUpTo(SettingsRoute.WorkflowDetail.route) { inclusive = true }
+                                            }
                                         }
-                                    }
-                                )
-                            }
-                            // The app's and the data's topic pages
-                            val back: () -> Unit = { navController.popBackStack() }
-                            composable(SettingsRoute.Connection.route) { ConnectionSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.Generation.route) { GenerationSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.MediaPrivacy.route) { MediaPrivacySettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.Language.route) { LanguageSettingsPage(back) }
-                            composable(SettingsRoute.WorkflowEditor.route) { WorkflowEditorSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.Backup.route) { BackupSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.Cache.route) { CacheSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.DebugLog.route) { DebugLogSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.Reset.route) { ResetSettingsPage(settingsViewModel, back) }
-                            composable(SettingsRoute.About.route) {
-                                AboutSettingsScreen(
-                                    onNavigateBack = back,
-                                    onOpenWhatsNew = { navController.navigate(SettingsRoute.WhatsNew.route) },
-                                    onOpenLicense = { navController.navigate(SettingsRoute.License.route) }
-                                )
-                            }
-                            composable(SettingsRoute.WhatsNew.route) { WhatsNewSettingsScreen(back) }
-                            composable(SettingsRoute.License.route) { LicenseSettingsScreen(back) }
+                                    )
+                                }
+                                // The app's and the data's topic pages
+                                val back: () -> Unit = { navController.popBackStack() }
+                                composable(SettingsRoute.Connection.route) { ConnectionSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.Generation.route) { GenerationSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.MediaPrivacy.route) { MediaPrivacySettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.Language.route) { LanguageSettingsPage(back) }
+                                composable(SettingsRoute.WorkflowEditor.route) { WorkflowEditorSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.Backup.route) { BackupSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.Cache.route) { CacheSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.DebugLog.route) { DebugLogSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.Reset.route) { ResetSettingsPage(settingsViewModel, back) }
+                                composable(SettingsRoute.About.route) {
+                                    AboutSettingsScreen(
+                                        onNavigateBack = back,
+                                        onOpenWhatsNew = { navController.navigate(SettingsRoute.WhatsNew.route) },
+                                        onOpenLicense = { navController.navigate(SettingsRoute.License.route) }
+                                    )
+                                }
+                                composable(SettingsRoute.WhatsNew.route) { WhatsNewSettingsScreen(back) }
+                                composable(SettingsRoute.License.route) { LicenseSettingsScreen(back) }
 
-                            composable(MainRoute.ImageToVideo.route) {
-                                ImageToVideoScreen(
-                                    generationViewModel = generationViewModel,
-                                    imageToVideoViewModel = imageToVideoViewModel,
-                                    onUseAsSource = useAsSource
-                                )
-                            }
+                                composable(MainRoute.ImageToVideo.route) {
+                                    ImageToVideoScreen(
+                                        generationViewModel = generationViewModel,
+                                        imageToVideoViewModel = imageToVideoViewModel,
+                                        onUseAsSource = useAsSource
+                                    )
+                                }
 
-                            composable(MainRoute.VideoToVideo.route) {
-                                VideoToVideoScreen(
-                                    generationViewModel = generationViewModel,
-                                    videoToVideoViewModel = videoToVideoViewModel,
-                                    onUseAsSource = useAsSource
-                                )
+                                composable(MainRoute.VideoToVideo.route) {
+                                    VideoToVideoScreen(
+                                        generationViewModel = generationViewModel,
+                                        videoToVideoViewModel = videoToVideoViewModel,
+                                        onUseAsSource = useAsSource
+                                    )
+                                }
                             }
+                            // One switch for the tab over the screens, so choosing a source animates it as a toggle
+                            // group does; each screen's top bar keeps its place (SourceSwitchPlaceholder)
+                            SourceSwitchOverlay(currentScreen, sourceSwitchAnchors)
                         }
                     }
                 }
