@@ -3,9 +3,10 @@ ComfyChair brings the power of ComfyUI to your Android device with a native Mate
 What you can do:
 - Generate images from text prompts with live progress updates
 - Transform existing images or use inpainting with a built-in mask editor
+- Pick a source from your device or one already on your server, without uploading it again
 - Create AI videos from text, animate still images, or restyle and upscale videos
 - Continue a video from its last frame, or send a result straight to another screen
-- Follow your jobs in the queue, cancel them, move them to the front, or clear the queue
+- Follow your jobs in the queue, cancel them, move them to the front, or clear the queue, and see what else the server is working on
 - Browse all your creations in the gallery, with Undo for every deletion
 - Work offline with cached data when your server is unavailable (with media stored on the device)
 
@@ -17,7 +18,7 @@ Flexible workflow support:
 - Add your own fields: any node value can appear in the generation options
 - Open, create and unpack ComfyUI subgraphs, and export workflows in ComfyUI's format
 - Full node graph visualization and editing with a searchable node browser, and an overview of large graphs when zoomed out
-- Organize nodes into groups and add notes with Markdown support
+- Organize nodes into groups and add notes with Markdown, tables and code blocks included
 
 Built for mobile:
 - Image, Video, Gallery and Settings tabs with predictive back
