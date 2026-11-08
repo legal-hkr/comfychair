@@ -962,7 +962,6 @@
     <string name="prompts_none_title">Aucun prompt ne correspond à « %1$s »</string>
     <string name="prompts_none_body">Vérifiez l’orthographe ou cherchez parmi tous les prompts.</string>
     <string name="prompts_search_all">Chercher parmi tous les prompts</string>
-    <string name="placeholder_prompt_library_search">Rechercher des prompts…</string>
     <string name="msg_prompt_library_empty">Aucun prompt enregistré</string>
     <string name="msg_delete_prompt">Il sera supprimé de la bibliothèque de prompts.</string>
     <string name="msg_prompt_library_no_match">Aucun prompt ne correspond</string>

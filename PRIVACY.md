@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date**: November 8, 2026
+**Effective Date**: November 9, 2026
 **App**: ComfyChair
 **Developer**: Legal HKr
 
@@ -17,7 +17,7 @@ ComfyChair is an open-source Android application that provides a mobile interfac
 The app stores the following data locally on your device:
 
 - **Connection Settings**: Server names, hostnames and ports, and the protocol and certificate fingerprint you accepted for each server
-- **Credentials**: Passwords, tokens and sign-in cookies for your servers, encrypted with a key kept in the Android Keystore
+- **Credentials**: Passwords, tokens and sign-in cookies for your servers, encrypted with a key kept in the Android Keystore that never leaves the device; if the key can't be used, they are not saved rather than stored unencrypted
 - **App Preferences**: UI settings such as live preview, media storage, and debug logging
 - **Generation Parameters**: Your workflow selections, prompts, and generation settings (dimensions, steps, CFG, etc.)
 - **Generated Media and Sources**: Controlled by the "Media storage" setting, which applies equally to the source images and videos you pick. By default ("Memory only") generated images and videos are kept only in the phone's RAM and are never written to its storage; switching to this mode deletes any media stored earlier. The other options keep the latest results on the device when the app goes to the background ("Memory, saved on exit") or store them as they arrive ("On the device"). When you share a result, a copy is written to the app's private cache for the receiving app and deleted the next time ComfyChair starts. Media you save to the gallery is managed by you

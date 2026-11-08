@@ -984,7 +984,6 @@
     <string name="prompts_none_title">Żaden prompt nie pasuje do „%1$s”</string>
     <string name="prompts_none_body">Sprawdź pisownię albo szukaj wśród wszystkich promptów.</string>
     <string name="prompts_search_all">Szukaj wśród wszystkich</string>
-    <string name="placeholder_prompt_library_search">Szukaj promptów…</string>
     <string name="msg_prompt_library_empty">Brak zapisanych promptów</string>
     <string name="msg_delete_prompt">Zniknie z biblioteki promptów.</string>
     <string name="msg_prompt_library_no_match">Żaden prompt nie pasuje</string>

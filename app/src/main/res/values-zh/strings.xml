@@ -918,7 +918,6 @@
     <string name="prompts_none_title">没有与“%1$s”匹配的提示词</string>
     <string name="prompts_none_body">请检查拼写，或搜索全部提示词。</string>
     <string name="prompts_search_all">搜索全部提示词</string>
-    <string name="placeholder_prompt_library_search">搜索提示词…</string>
     <string name="msg_prompt_library_empty">暂无保存的提示词</string>
     <string name="msg_delete_prompt">它将从提示词库中移除。</string>
     <string name="msg_prompt_library_no_match">没有匹配的提示词</string>

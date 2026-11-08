@@ -43,8 +43,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - LoRAs are dynamically injected into workflows at generation time, including workflows with non-core model loaders such as GGUF
 - **Prompt Library**:
   - Save prompts as reusable presets with custom names and tags
-  - Organize presets with favorites and tag-based filtering
-  - Search presets by name, prompt text, or tags
+  - Search by name, prompt text or tags, with Favorites and the most used tags as filters under the search field and the match shown in bold
 - **What's new**: This version's release notes under Settings -> About, and a one-time notice after an update
 - **License**: The full GPL-3.0 text under Settings -> About, readable offline
 - **Errors**: Every error appears as a snackbar; Show opens the whole error (the node that failed with the server's message and traceback, the inputs a server refused, the reason a connection failed) to read or copy
@@ -97,7 +96,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Opens fitted into the free area of the screen, laid out for its proportions
 - **Node values**: A bottom sheet with every editable input of a node (numeric steppers with range hints, switches, image previews, values linked from other nodes leading to their source, the inputs the generation screen fills in), its changed values marked and resettable one by one or all at once
 - **Node management**:
-  - Add nodes via a searchable node browser with category chips, human-readable names, and deprecated and experimental nodes marked
+  - Add nodes via a node browser: ComfyUI's own categories and extension packs as a tree (open folders stay pinned at the top) or every node by name; the search ranks matches by name, and deprecated and experimental nodes are marked
   - Delete, duplicate, bypass and rename nodes; clean up disconnected nodes
   - Tap any socket for its menu: Connect (compatible sockets are ringed while a connection waits), Add a node (the node browser filtered by compatible types) or Disconnect
   - Values (numbers, text, true/false) take links of their type, as in ComfyUI, and become values again when disconnected

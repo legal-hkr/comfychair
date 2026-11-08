@@ -970,7 +970,6 @@
     <string name="prompts_none_title">No prompts match “%1$s”</string>
     <string name="prompts_none_body">Check the spelling, or search all prompts.</string>
     <string name="prompts_search_all">Search all prompts</string>
-    <string name="placeholder_prompt_library_search">Search prompts…</string>
     <string name="msg_prompt_library_empty">No saved prompts</string>
     <string name="msg_delete_prompt">It will be removed from the prompt library.</string>
     <string name="msg_prompt_library_no_match">No prompts match</string>
