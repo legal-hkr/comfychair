@@ -37,4 +37,38 @@ class WorkflowLayoutGroupsTest {
     fun `the first group's frame starts inside the canvas`() {
         assertTrue(frames().first().y >= 0f)
     }
+
+    // An outer group holding an inner one and a node of its own, beside a group of its own that it doesn't hold
+    private val nested = WorkflowGraph(
+        name = "nested", description = "",
+        nodes = listOf(node("a"), node("b"), node("c"), node("d"), node("e")),
+        edges = listOf(WorkflowEdge("a", 0, "b", "x"), WorkflowEdge("b", 0, "c", "x"), WorkflowEdge("d", 0, "c", "y"), WorkflowEdge("c", 0, "e", "x")),
+        groups = listOf(
+            WorkflowGroup(1, "Outer", setOf("a", "b", "c")),
+            WorkflowGroup(2, "Inner", setOf("a", "b")),
+            WorkflowGroup(3, "Apart", setOf("d"))
+        ),
+        templateVariables = emptySet()
+    )
+
+    @Test
+    fun `a nested group's frame lies inside its parent's, below the parent's label`() {
+        val engine = WorkflowLayoutEngine()
+        val laidOut = engine.layoutGraph(nested)
+        assertEquals(nested.nodes.map { it.id }.sorted(), laidOut.nodes.map { it.id }.sorted())
+        val frames = engine.calculateRenderedGroups(laidOut.groups, laidOut.nodes)
+        assertEquals(listOf("Outer", "Apart", "Inner"), frames.map { it.title })
+        val outer = frames.first { it.title == "Outer" }
+        val inner = frames.first { it.title == "Inner" }
+        val apart = frames.first { it.title == "Apart" }
+        val label = WorkflowLayoutEngine.GROUP_PADDING_TOP + WorkflowLayoutEngine.GROUP_HEADER_HEIGHT
+        assertTrue(inner.x >= outer.x + WorkflowLayoutEngine.GROUP_PADDING_SIDE - 0.01f)
+        assertTrue(inner.y >= outer.y + label - 0.01f)
+        assertTrue(inner.x + inner.width <= outer.x + outer.width - WorkflowLayoutEngine.GROUP_PADDING_SIDE + 0.01f)
+        assertTrue(inner.y + inner.height <= outer.y + outer.height - WorkflowLayoutEngine.GROUP_PADDING_BOTTOM + 0.01f)
+        // The group apart doesn't overlap the outer one
+        val overlaps = apart.x < outer.x + outer.width && apart.x + apart.width > outer.x &&
+            apart.y < outer.y + outer.height && apart.y + apart.height > outer.y
+        assertTrue(!overlaps)
+    }
 }
