@@ -57,6 +57,7 @@ object PreferencesMaintenance {
         totalRemoved += cleanFileCaches(context, validServerIds)
         totalRemoved += cleanRetiredAppSettings(context)
         totalRemoved += cleanClientIds(context, validServerIds)
+        totalRemoved += cleanRecentNodes(context, validServerIds)
 
         DebugLogger.i(TAG, "Maintenance complete. Removed $totalRemoved stale entries/files")
     }
@@ -69,6 +70,16 @@ object PreferencesMaintenance {
     private fun cleanClientIds(context: Context, validServerIds: Set<String>): Int {
         val prefs = context.getSharedPreferences(ConnectionManager.CLIENT_ID_PREFS, Context.MODE_PRIVATE)
         val stale = prefs.all.keys.filter { it.removePrefix("client_id_") !in validServerIds }
+        if (stale.isNotEmpty()) prefs.edit().apply { stale.forEach { remove(it) } }.apply()
+        return stale.size
+    }
+
+    /** Remove the node browser's recent nodes of deleted servers ([NodeBrowserPrefs], key `recent_{serverId}`). */
+    private fun cleanRecentNodes(context: Context, validServerIds: Set<String>): Int {
+        val prefs = context.getSharedPreferences(NodeBrowserPrefs.PREFS_NAME, Context.MODE_PRIVATE)
+        val stale = prefs.all.keys.filter {
+            it.startsWith(NodeBrowserPrefs.RECENT_PREFIX) && it.removePrefix(NodeBrowserPrefs.RECENT_PREFIX) !in validServerIds
+        }
         if (stale.isNotEmpty()) prefs.edit().apply { stale.forEach { remove(it) } }.apply()
         return stale.size
     }

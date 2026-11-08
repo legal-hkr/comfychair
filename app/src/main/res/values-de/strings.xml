@@ -831,25 +831,29 @@
     <string name="node_browser_no_match">Keine Knoten passen zu „%1$s“</string>
     <string name="content_description_custom_node">Knoten aus einer Erweiterung</string>
     <string name="content_description_remove_filter">Alle Knoten zeigen</string>
-    <string name="node_browser_more_categories">%d weitere</string>
-    <string name="node_browser_fewer_categories">Weniger</string>
-    <plurals name="node_browser_compatible_count">
-        <item quantity="one">%d passender Knoten</item>
-        <item quantity="other">%d passende Knoten</item>
+    <plurals name="node_search_hint">
+        <item quantity="one">%d Knoten durchsuchen</item>
+        <item quantity="other">%d Knoten durchsuchen</item>
     </plurals>
+    <string name="node_section_recent">Zuletzt hinzugefügt</string>
+    <string name="node_section_builtin">Integriert</string>
+    <string name="node_section_extensions">Erweiterungen</string>
+    <string name="node_folder_api">API-Knoten</string>
+    <string name="node_folder_other">Sonstige</string>
+    <string name="node_row_supporting">%1$s (Eingänge: %2$d, Ausgänge: %3$d)</string>
+    <string name="node_row_io">Eingänge: %1$d, Ausgänge: %2$d</string>
+    <string name="node_mark_deprecated">veraltet</string>
+    <string name="node_mark_experimental">experimentell</string>
+    <string name="node_count">Knoten: %1$d</string>
+    <string name="node_count_of">Knoten: %1$d von %2$d</string>
+    <string name="node_none_body">Prüfe die Schreibweise oder durchsuche alle Knoten.</string>
+    <string name="node_search_all">Alle Knoten durchsuchen</string>
+    <string name="node_not_connected">Nicht verbunden: Der Knoten hat keinen %1$s-Anschluss</string>
+    <string name="node_view_tree">Baum</string>
+    <string name="node_view_list">Liste</string>
+    <string name="content_description_node_view">Ansicht</string>
     <string name="node_browser_title">Knoten hinzufügen</string>
-    <string name="placeholder_node_browser_search">Knoten suchen…</string>
     <string name="node_browser_no_results">Keine passenden Knoten gefunden</string>
-    <plurals name="node_browser_inputs_count">
-        <item quantity="one">%d Eingang</item>
-        <item quantity="other">%d Eingänge</item>
-    </plurals>
-    <plurals name="node_browser_outputs_count">
-        <item quantity="one">%d Ausgang</item>
-        <item quantity="other">%d Ausgänge</item>
-    </plurals>
-    <string name="node_browser_deprecated">Veraltet</string>
-    <string name="node_browser_experimental">Experimentell</string>
     <string name="node_browser_accepts_input">Nimmt %1$s</string>
     <string name="node_browser_provides_output">Liefert %1$s</string>
     <string name="button_clear_search">Suche löschen</string>

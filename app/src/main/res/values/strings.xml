@@ -841,25 +841,29 @@
     <string name="node_browser_no_match">No nodes match “%1$s”</string>
     <string name="content_description_custom_node">Custom node</string>
     <string name="content_description_remove_filter">Show all nodes</string>
-    <string name="node_browser_more_categories">%d more</string>
-    <string name="node_browser_fewer_categories">Fewer</string>
-    <plurals name="node_browser_compatible_count">
-        <item quantity="one">%d compatible node</item>
-        <item quantity="other">%d compatible nodes</item>
+    <plurals name="node_search_hint">
+        <item quantity="one">Search %d node</item>
+        <item quantity="other">Search %d nodes</item>
     </plurals>
+    <string name="node_section_recent">Recent</string>
+    <string name="node_section_builtin">Built-in</string>
+    <string name="node_section_extensions">Extensions</string>
+    <string name="node_folder_api">API nodes</string>
+    <string name="node_folder_other">Other</string>
+    <string name="node_row_supporting">%1$s (inputs: %2$d, outputs: %3$d)</string>
+    <string name="node_row_io">inputs: %1$d, outputs: %2$d</string>
+    <string name="node_mark_deprecated">deprecated</string>
+    <string name="node_mark_experimental">experimental</string>
+    <string name="node_count">Nodes: %1$d</string>
+    <string name="node_count_of">Nodes: %1$d of %2$d</string>
+    <string name="node_none_body">Check the spelling, or search all nodes.</string>
+    <string name="node_search_all">Search all nodes</string>
+    <string name="node_not_connected">Not connected: the node has no %1$s socket</string>
+    <string name="node_view_tree">Tree</string>
+    <string name="node_view_list">List</string>
+    <string name="content_description_node_view">View</string>
     <string name="node_browser_title">Add node</string>
-    <string name="placeholder_node_browser_search">Search nodes…</string>
     <string name="node_browser_no_results">No nodes match your search</string>
-    <plurals name="node_browser_inputs_count">
-        <item quantity="one">%d input</item>
-        <item quantity="other">%d inputs</item>
-    </plurals>
-    <plurals name="node_browser_outputs_count">
-        <item quantity="one">%d output</item>
-        <item quantity="other">%d outputs</item>
-    </plurals>
-    <string name="node_browser_deprecated">Deprecated</string>
-    <string name="node_browser_experimental">Experimental</string>
     <string name="node_browser_accepts_input">Takes %1$s</string>
     <string name="node_browser_provides_output">Gives %1$s</string>
     <string name="button_clear_search">Clear search</string>
