@@ -44,16 +44,17 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material.icons.rounded.ArrowRight
+import androidx.compose.material.icons.automirrored.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.Cable
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Label
-import androidx.compose.material.icons.rounded.LabelOff
+import androidx.compose.material.icons.automirrored.rounded.Label
+import androidx.compose.material.icons.automirrored.rounded.LabelOff
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.NewLabel
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
@@ -64,14 +65,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorPosition
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -216,7 +216,7 @@ fun WorkflowEditorScreen(
     var editingNoteId by remember { mutableStateOf<Int?>(null) }
 
     // Node browser bottom sheet state (hoisted outside conditional for animation stability)
-    val nodeBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val nodeBrowserSheetState = rememberBottomSheetState(SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
 
     val mode = when {
         uiState.isFieldMappingMode -> EditorMode.MAPPING
@@ -396,7 +396,7 @@ fun WorkflowEditorScreen(
     }
 
     // Node values: a standard (non-modal) bottom sheet, so the graph stays pannable; swiping it down closes the node
-    val valuesSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.Hidden, skipHiddenState = false)
+    val valuesSheetState = rememberBottomSheetState(SheetValue.Hidden)
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = valuesSheetState)
     LaunchedEffect(uiState.isEditingNode) {
         if (uiState.isEditingNode) valuesSheetState.expand() else valuesSheetState.hide()
@@ -1205,7 +1205,7 @@ fun WorkflowEditorScreen(
 
         // Filtered node browser for long-press connection mode
         if (uiState.showCompatibleNodeBrowser) {
-            val compatibleBrowserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val compatibleBrowserSheetState = rememberBottomSheetState(SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
             val scope = rememberCoroutineScope()
             val sourceSlot = uiState.longPressSourceSlot
 
@@ -1316,7 +1316,7 @@ fun WorkflowEditorScreen(
                     title = stringResource(R.string.title_delete_field, field.name),
                     text = boldNamesResource(R.string.msg_delete_field_last, slot.slotName),
                     confirmLabel = stringResource(R.string.button_delete_field),
-                    icon = Icons.Rounded.LabelOff,
+                    icon = Icons.AutoMirrored.Rounded.LabelOff,
                     destructive = true,
                     onConfirm = { viewModel.removeFromCustomField(slot.nodeId, slot.slotName) },
                     onDismiss = { removeLastFrom = null }
@@ -1755,7 +1755,7 @@ private fun SocketMenu(
         }
     }
     val fields = fieldItems + if (addToFields.isNotEmpty()) {
-        listOf(SocketMenuItem(R.string.menu_editor_add_to_field, Icons.Rounded.AddLink, Icons.Rounded.ArrowRight, closesMenu = false) { addToOpen = true })
+        listOf(SocketMenuItem(R.string.menu_editor_add_to_field, Icons.Rounded.AddLink, Icons.AutoMirrored.Rounded.ArrowRight, closesMenu = false) { addToOpen = true })
     } else emptyList()
     val disconnect = (if (connected) listOf(SocketMenuItem(R.string.menu_editor_disconnect, Icons.Rounded.LinkOff, action = onDisconnect)) else emptyList()) +
         removeItems
@@ -1778,7 +1778,7 @@ private fun SocketMenu(
                         DropdownMenuItem(
                             text = { Text(item.label ?: AnnotatedString(stringResource(item.labelRes))) },
                             leadingIcon = { Icon(item.icon, contentDescription = null) },
-                            trailingIcon = item.trailing?.let { { Icon(it, contentDescription = null) } },
+                            trailingContent = item.trailing?.let { { Icon(it, contentDescription = null) } },
                             shape = MenuDefaults.itemShape(index, group.size).shape,
                             enabled = item.enabled,
                             onClick = {
@@ -1795,7 +1795,7 @@ private fun SocketMenu(
         DropdownMenuPopup(
             expanded = addToOpen,
             onDismissRequest = { addToOpen = false },
-            offset = DpOffset(32.dp, 24.dp),
+            popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below, DpOffset(32.dp, 24.dp)),
             modifier = rememberMenuScrollModifier()
         ) {
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
@@ -1808,7 +1808,7 @@ private fun SocketMenu(
                 addToFields.forEachIndexed { index, (id, name) ->
                     DropdownMenuItem(
                         text = { Text(name) },
-                        leadingIcon = { Icon(Icons.Rounded.Label, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Label, contentDescription = null) },
                         shape = MenuDefaults.itemShape(index, addToFields.size).shape,
                         onClick = {
                             addToOpen = false

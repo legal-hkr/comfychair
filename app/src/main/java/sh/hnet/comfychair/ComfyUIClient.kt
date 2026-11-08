@@ -258,7 +258,7 @@ class ComfyUIClient(
                     if (response.isSuccessful) {
                         // Validate this is actually a ComfyUI server by checking response content
                         try {
-                            val body = response.body?.string() ?: "{}"
+                            val body = response.body.string()
                             val json = JSONObject(body)
                             // ComfyUI's /system_stats returns a "system" object with "os" field
                             val system = json.optJSONObject("system")
@@ -349,7 +349,7 @@ class ComfyUIClient(
                     when {
                         it.code == 401 || it.code == 403 -> true
                         it.isSuccessful -> try {
-                            JSONObject(it.body?.string() ?: "{}").optJSONObject("system")?.has("os") == true
+                            JSONObject(it.body.string()).optJSONObject("system")?.has("os") == true
                         } catch (e: Exception) {
                             false
                         }
@@ -485,7 +485,7 @@ class ComfyUIClient(
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
                     val body = response.body
-                    if (!response.isSuccessful || body == null) {
+                    if (!response.isSuccessful) {
                         DebugLogger.w(TAG, "Node types request failed: ${response.code}")
                         callback(null)
                         return
@@ -546,7 +546,7 @@ class ComfyUIClient(
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
                     val body = response.body
-                    if (response.isSuccessful && body != null) {
+                    if (response.isSuccessful) {
                         callback(body.byteStream())
                     } else {
                         DebugLogger.w(TAG, "object_info request failed: ${response.code}")
@@ -589,7 +589,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val responseBody = response.body?.string() ?: "{}"
+                            val responseBody = response.body.string()
                             val json = JSONObject(responseBody)
                             // First get the CheckpointLoaderSimple object
                             val checkpointLoaderJson = json.optJSONObject("CheckpointLoaderSimple")
@@ -653,7 +653,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val responseBody = response.body?.string() ?: "{}"
+                            val responseBody = response.body.string()
                             val json = JSONObject(responseBody)
                             // Get the UNETLoader object
                             val unetLoaderJson = json.optJSONObject("UNETLoader")
@@ -716,7 +716,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val responseBody = response.body?.string() ?: "{}"
+                            val responseBody = response.body.string()
                             val json = JSONObject(responseBody)
                             // Get the VAELoader object
                             val vaeLoaderJson = json.optJSONObject("VAELoader")
@@ -780,7 +780,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val responseBody = response.body?.string() ?: "{}"
+                            val responseBody = response.body.string()
                             val json = JSONObject(responseBody)
                             // Get the CLIPLoader object
                             val clipLoaderJson = json.optJSONObject("CLIPLoader")
@@ -844,7 +844,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val responseBody = response.body?.string() ?: "{}"
+                            val responseBody = response.body.string()
                             val json = JSONObject(responseBody)
                             // Get the LoraLoaderModelOnly object
                             val loraLoaderJson = json.optJSONObject("LoraLoaderModelOnly")
@@ -934,7 +934,7 @@ class ComfyUIClient(
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    val responseBody = response.body?.string() ?: ""
+                    val responseBody = response.body.string()
                     if (response.isSuccessful) {
                         try {
                             val json = JSONObject(responseBody)
@@ -1004,7 +1004,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val body = response.body?.string() ?: "{}"
+                            val body = response.body.string()
                             val historyJson = JSONObject(body)
                             callback(historyJson)
                         } catch (e: Exception) {
@@ -1051,7 +1051,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val historyJson = JSONObject(response.body?.string() ?: "{}")
+                            val historyJson = JSONObject(response.body.string())
                             callback(historyJson)
                         } catch (e: Exception) {
                             callback(null)
@@ -1093,7 +1093,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val queueJson = JSONObject(response.body?.string() ?: "{}")
+                            val queueJson = JSONObject(response.body.string())
                             callback(queueJson)
                         } catch (e: Exception) {
                             callback(null)
@@ -1208,8 +1208,8 @@ class ComfyUIClient(
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful && response.body != null) {
-                        val result = downloadWithStallDetection(call, response.body!!, "Image")
+                    if (response.isSuccessful) {
+                        val result = downloadWithStallDetection(call, response.body, "Image")
                         val bitmap = result.bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
                         callback(bitmap, result.failureType)
                     } else {
@@ -1264,8 +1264,8 @@ class ComfyUIClient(
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful && response.body != null) {
-                        val result = downloadWithStallDetection(call, response.body!!, "Raw bytes")
+                    if (response.isSuccessful) {
+                        val result = downloadWithStallDetection(call, response.body, "Raw bytes")
                         callback(result.bytes, result.failureType)
                     } else {
                         callback(null, ConnectionFailure.NETWORK)
@@ -1320,8 +1320,8 @@ class ComfyUIClient(
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use {
-                    if (response.isSuccessful && response.body != null) {
-                        val result = downloadWithStallDetection(call, response.body!!, "Video")
+                    if (response.isSuccessful) {
+                        val result = downloadWithStallDetection(call, response.body, "Video")
                         callback(result.bytes, result.failureType)
                     } else {
                         callback(null, ConnectionFailure.NETWORK)
@@ -1405,7 +1405,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val statsJson = JSONObject(response.body?.string() ?: "{}")
+                            val statsJson = JSONObject(response.body.string())
                             callback(statsJson)
                         } catch (e: Exception) {
                             callback(null)
@@ -1512,7 +1512,7 @@ class ComfyUIClient(
                 response.use {
                     val newId = if (response.isSuccessful) {
                         try {
-                            JSONObject(response.body?.string() ?: "").optString("prompt_id").takeIf { it.isNotEmpty() }
+                            JSONObject(response.body.string()).optString("prompt_id").takeIf { it.isNotEmpty() }
                         } catch (e: Exception) {
                             null
                         }
@@ -1758,7 +1758,7 @@ class ComfyUIClient(
                 response.use {
                     if (response.isSuccessful) {
                         try {
-                            val json = JSONObject(response.body?.string() ?: "{}")
+                            val json = JSONObject(response.body.string())
                             val savedFilename = json.optString("name", filename)
                             DebugLogger.i(TAG, "Upload successful")
                             callback(true, savedFilename, null, ConnectionFailure.NONE)
@@ -1812,7 +1812,6 @@ class ComfyUIClient(
                         val body = response.body
                         when {
                             !response.isSuccessful -> TextResult.HttpError(response.code)
-                            body == null -> TextResult.Failed(null)
                             else -> try {
                                 val source = body.source()
                                 // More than the limit buffered: too large, without reading the rest

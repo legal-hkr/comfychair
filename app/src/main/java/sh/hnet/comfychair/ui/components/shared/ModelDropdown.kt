@@ -163,7 +163,7 @@ fun ChoiceMenu(
                             leadingIcon = {
                                 Icon(if (open) Icons.Rounded.FolderOpen else Icons.Rounded.Folder, contentDescription = null, modifier = indent)
                             },
-                            trailingIcon = {
+                            trailingContent = {
                                 Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, contentDescription = null)
                             },
                             // Open closes back to its parent

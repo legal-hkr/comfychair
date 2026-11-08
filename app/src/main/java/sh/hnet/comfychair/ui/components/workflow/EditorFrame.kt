@@ -38,7 +38,7 @@ import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SelectAll
-import androidx.compose.material.icons.rounded.StickyNote2
+import androidx.compose.material.icons.automirrored.rounded.StickyNote2
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material3.DropdownMenuGroup
@@ -312,7 +312,7 @@ private fun TitlePill(
                     DropdownMenuItem(
                         text = { Text(name, fontWeight = if (current) FontWeight.Bold else null) },
                         leadingIcon = { Icon(if (index == 0) Icons.Rounded.AccountTree else Icons.Rounded.Layers, contentDescription = null) },
-                        trailingIcon = if (current) ({ Icon(Icons.Rounded.Check, contentDescription = null) }) else null,
+                        trailingContent = if (current) ({ Icon(Icons.Rounded.Check, contentDescription = null) }) else null,
                         shape = MenuDefaults.itemShape(index, names.size).shape,
                         onClick = {
                             menuOpen = false
@@ -457,7 +457,7 @@ fun EditorToolbar(
                 }
                 if (edit.selectedItems == 0) {
                     TooltipIconButton(Icons.Rounded.Add, stringResource(R.string.workflow_editor_add_node), edit.onAddNode)
-                    TooltipIconButton(Icons.Rounded.StickyNote2, stringResource(R.string.workflow_editor_add_note), edit.onAddNote)
+                    TooltipIconButton(Icons.AutoMirrored.Rounded.StickyNote2, stringResource(R.string.workflow_editor_add_note), edit.onAddNote)
                     val subgraph = listOfNotNull(edit.onRenameThisSubgraph?.let { MenuAction(R.string.sg_rename_this, Icons.Rounded.Edit, it) })
                     EditMoreMenu(listOf(subgraph, graphActions).filter { it.isNotEmpty() })
                 } else {

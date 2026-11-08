@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
@@ -150,13 +151,14 @@ fun MaskEditorScreen(
                                 text = "${stringResource(R.string.label_brush_size)}: ${brushSize.toInt()}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
+                            val brushState = remember { SliderState(trackRange = 20f..200f) }
+                            brushState.value = brushSize
                             Slider(
-                                value = brushSize,
+                                state = brushState,
                                 onValueChange = {
                                     MaskEditorStateHolder.updateBrushSize(it)
                                     MaskEditorStateHolder.onBrushSizeChange?.invoke(it)
-                                },
-                                valueRange = 20f..200f
+                                }
                             )
                         }
                     }

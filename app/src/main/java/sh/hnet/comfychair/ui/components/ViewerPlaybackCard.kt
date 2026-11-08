@@ -32,6 +32,7 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -144,8 +145,11 @@ fun ViewerPlaybackCard(
             val positionState = stringResource(R.string.content_description_video_position, elapsed, total)
             val back5 = stringResource(R.string.video_back_5s)
             val forward5 = stringResource(R.string.video_forward_5s)
+            val positionRange = 0f..(durationMs ?: 1L).toFloat()
+            val positionSlider = remember(positionRange) { SliderState(trackRange = positionRange) }
+            positionSlider.value = shownMs.toFloat().coerceIn(0f, (durationMs ?: 1L).toFloat())
             Slider(
-                value = shownMs.toFloat().coerceIn(0f, (durationMs ?: 1L).toFloat()),
+                state = positionSlider,
                 // Scrubbing: the picture follows the finger (paused meanwhile), landing exactly on its frame at the end
                 onValueChange = { value ->
                     if (dragPosition == null) {
@@ -165,7 +169,6 @@ fun ViewerPlaybackCard(
                     onDraggingChange(false)
                     act {}
                 },
-                valueRange = 0f..(durationMs ?: 1L).toFloat(),
                 enabled = !loading && durationMs != null,
                 track = { sliderState ->
                     SliderDefaults.Track(sliderState = sliderState, modifier = Modifier.height(16.dp), drawStopIndicator = null)

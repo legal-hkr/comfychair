@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.navigation
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -138,25 +139,27 @@ fun MainNavHost(
 
     // Sends a generated medium to a screen as its source and switches to that screen the way the navigation bar
     // does. The image screens take an image or a video's last frame, Video to Video a video (at most 100 MB).
+    // Launched on the composition's (main) scope; the loaders move their reading to IO themselves, which lint's thread
+    // inference (ThreadConstraint, AGP 9.5) takes for the launched block running on a worker thread
+    @SuppressLint("ThreadConstraint")
     val useAsSource: UseAsSource = { target, load ->
         scope.launch {
-            fun reportError(messageRes: Int) = AppErrors.report(context, messageRes)
             val media = load()
             if (media == null) {
-                reportError(if (target == SourceTarget.VIDEO_TO_VIDEO) R.string.error_source_video_unreadable else R.string.error_failed_load_image)
+                AppErrors.report(context, if (target == SourceTarget.VIDEO_TO_VIDEO) R.string.error_source_video_unreadable else R.string.error_failed_load_image)
                 return@launch
             }
             if (media is SourceMedia.TooLargeVideo ||
                 (target == SourceTarget.VIDEO_TO_VIDEO && media is SourceMedia.Video &&
                     media.bytes.size > VideoToVideoViewModel.MAX_SOURCE_BYTES)) {
-                reportError(R.string.error_source_video_too_large)
+                AppErrors.report(context, R.string.error_source_video_too_large)
                 return@launch
             }
             val route = when (target) {
                 SourceTarget.VIDEO_TO_VIDEO -> {
                     val video = media as? SourceMedia.Video ?: return@launch
                     if (!videoToVideoViewModel.useAsSource(context, video.bytes)) {
-                        reportError(R.string.error_source_video_unreadable)
+                        AppErrors.report(context, R.string.error_source_video_unreadable)
                         return@launch
                     }
                     MainRoute.VideoToVideo
@@ -168,7 +171,7 @@ fun MainNavHost(
                         SourceMedia.TooLargeVideo -> null
                     }
                     if (bitmap == null) {
-                        reportError(R.string.error_last_frame_unreadable)
+                        AppErrors.report(context, R.string.error_last_frame_unreadable)
                         return@launch
                     }
                     if (target == SourceTarget.IMAGE_TO_IMAGE) {
@@ -309,7 +312,10 @@ fun MainNavHost(
                             enterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = false) },
                             exitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = false) },
                             popEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
-                            popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
+                            popExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) },
+                            // The back gesture runs the same transitions (Navigation 2.10 otherwise fades and shrinks)
+                            predictivePopEnterTransition = { transitions.enter(initialState.destination.route, targetState.destination.route, back = true) },
+                            predictivePopExitTransition = { transitions.exit(initialState.destination.route, targetState.destination.route, back = true) }
                         ) {
                             composable(MainRoute.TextToImage.route) {
                                 TextToImageScreen(

@@ -155,12 +155,14 @@ fun LoraStrengthControl(
             // Negative windows fill from their end, i.e. from zero
             val anchorAtEnd = windowStart + windowSize <= 0.0
 
+            val range = 0f..windowSize.toFloat()
+            val sliderState = remember(range) { SliderState(trackRange = range) }
+            sliderState.value = (value - windowStart).toFloat().coerceIn(0f, windowSize.toFloat())
             Slider(
-                value = (value - windowStart).toFloat().coerceIn(0f, windowSize.toFloat()),
+                state = sliderState,
                 onValueChange = { relative ->
                     onStrengthChange(LoraStrengthMath.fromSlider(windowStart, relative.toDouble()).toFloat())
                 },
-                valueRange = 0f..windowSize.toFloat(),
                 track = { state -> ZeroAnchoredTrack(state, anchorAtEnd = anchorAtEnd, tickEvery = 1f) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -275,7 +277,7 @@ private fun ZeroAnchoredTrack(
     val tickOnActiveColor = MaterialTheme.colorScheme.onPrimary
     val tickOnInactiveColor = MaterialTheme.colorScheme.onSecondaryContainer
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val range = state.valueRange
+    val range = state.trackRange
     val span = range.endInclusive - range.start
     val fraction = ((state.value - range.start) / span).coerceIn(0f, 1f)
 

@@ -1,12 +1,11 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "sh.hnet.comfychair"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "sh.hnet.comfychair"
@@ -32,8 +31,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    // AGP 9.5 prepares Compose previews for every variant, which needs the app's resources in unit tests
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
     buildFeatures {
         compose = true
@@ -47,6 +47,12 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 

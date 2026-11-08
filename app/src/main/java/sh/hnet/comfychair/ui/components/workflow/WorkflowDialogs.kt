@@ -6,7 +6,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExtensionOff
-import androidx.compose.material.icons.rounded.Rule
+import androidx.compose.material.icons.automirrored.rounded.Rule
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -121,7 +121,7 @@ fun MissingFieldsDialog(
 ) {
     val typeName = type?.let { stringResource(WorkflowTypeDisplay.getDisplayNameResId(it)) } ?: ""
     InfoDialog(
-        icon = Icons.Rounded.Rule,
+        icon = Icons.AutoMirrored.Rounded.Rule,
         title = stringResource(R.string.title_missing_fields),
         text = stringResource(R.string.msg_missing_fields_none, typeName),
         details = missingFields,

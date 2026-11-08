@@ -378,7 +378,7 @@ private fun BoxScope.PreviewPlaybackControls() {
     val playLabel = stringResource(if (state.isPlaying) R.string.content_description_pause_video else R.string.content_description_play_video)
     val positionText = stringResource(R.string.content_description_video_position, elapsed, total)
     val loadingLabel = stringResource(R.string.video_loading)
-    val restColors = ToggleButtonDefaults.toggleButtonColors(
+    val restColors = ToggleButtonDefaults.colors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = MaterialTheme.colorScheme.onSurface,
         checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -396,7 +396,7 @@ private fun BoxScope.PreviewPlaybackControls() {
             checked = false,
             onCheckedChange = { SharedVideoPlayer.togglePlayback() },
             enabled = !loading,
-            shapes = if (withSound) ButtonGroupDefaults.connectedLeadingButtonShapes() else ToggleButtonDefaults.shapes(),
+            shapes = if (withSound) ButtonGroupDefaults.connectedLeadingButtonShapes() else ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size),
             colors = restColors,
             contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = Modifier

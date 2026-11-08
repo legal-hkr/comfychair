@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconToggleButton
@@ -33,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -603,7 +604,10 @@ fun GenerationOptionsSheet(
         WorkflowManager.getWorkflowById(state.selectedWorkflowId)?.fieldLabels.orEmpty()
     }
     val layout = remember(state.capabilities, customFields.size) { optionsLayout(state.capabilities, customFields.size) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = layout.sectioned)
+    val sheetState = rememberBottomSheetState(
+        SheetValue.Hidden,
+        enabledValues = if (layout.sectioned) setOf(SheetValue.Hidden, SheetValue.Expanded) else SheetValue.entries.toSet()
+    )
     LaunchedEffect(visible) {
         if (!visible) {
             sheetState.hide()
