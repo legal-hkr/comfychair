@@ -95,6 +95,7 @@ dependencies {
     // Markdown parsing
     implementation(libs.commonmark)
     implementation(libs.commonmark.ext.gfm.strikethrough)
+    implementation(libs.commonmark.ext.gfm.tables)
 
     // Security (encrypted SharedPreferences)
     implementation(libs.androidx.security.crypto)

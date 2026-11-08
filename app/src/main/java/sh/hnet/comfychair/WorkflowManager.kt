@@ -678,7 +678,10 @@ object WorkflowManager {
     }
 
     /**
-     * Generate filename from workflow type and name
+     * A free file name for a new workflow, from its type and name: the name's letters and digits, with a number when
+     * that file exists. The name alone doesn't decide it: a renamed workflow keeps its file, names differing only in
+     * other characters (or made of none of them, e.g. Chinese) give the same one, and a taken file must never be
+     * overwritten.
      */
     fun generateFilename(type: WorkflowType, name: String): String {
         val prefix = PREFIX_TO_TYPE.entries.find { it.value == type }?.key ?: "tti_"
@@ -686,15 +689,12 @@ object WorkflowManager {
             .replace(Regex("[^a-z0-9]"), "_")
             .replace(Regex("_+"), "_")
             .trim('_')
-        return "${prefix}${sanitizedName}.json"
-    }
-
-    /**
-     * Check if a filename already exists in user workflows
-     */
-    fun isFilenameExists(filename: String): Boolean {
+            .ifEmpty { "workflow" }
         val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)
-        return File(dir, filename).exists()
+        var candidate = "${prefix}${sanitizedName}.json"
+        var n = 2
+        while (File(dir, candidate).exists()) candidate = "${prefix}${sanitizedName}_${n++}.json"
+        return candidate
     }
 
     /**
@@ -889,13 +889,8 @@ object WorkflowManager {
         // Values shown on subgraph instances back into their definitions
         Subgraphs.absorb(finalJson)
 
-        // Generate filename
+        // A free file name (the workflow's name was checked by the import dialog)
         val filename = generateFilename(type, name)
-
-        // Check for duplicate filename
-        if (isFilenameExists(filename)) {
-            return Result.failure(Exception("Workflow with this name already exists"))
-        }
 
         // Save file
         val dir = File(applicationContext.filesDir, USER_WORKFLOWS_DIR)

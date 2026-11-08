@@ -478,11 +478,17 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         val frameTop = GROUP_PADDING_TOP + GROUP_HEADER_HEIGHT
         val memberPositions = mutableMapOf<String, RelativePosition>()
 
+        // Each column as wide as its widest member (a wide note takes two columns' width)
+        val columnWidths = (0 until columns).map { col ->
+            allMembers.filterIndexed { index, _ -> index % columns == col }.maxOfOrNull { it.width } ?: NODE_WIDTH
+        }
+        val columnLefts = columnWidths.runningFold(0f) { acc, width -> acc + width + HORIZONTAL_SPACING }
+
         allMembers.forEachIndexed { index, member ->
             val col = index % columns
             val row = index / columns
 
-            val x = col * (NODE_WIDTH + HORIZONTAL_SPACING)
+            val x = columnLefts[col]
             val y = frameTop + (0 until row).sumOf { rowHeights[it].toDouble() + VERTICAL_SPACING }.toFloat()
 
             memberPositions[member.id] = RelativePosition(
@@ -494,7 +500,7 @@ class WorkflowLayoutEngine(private val targetAspect: Float? = null) {
         }
 
         // Calculate total dimensions
-        val totalWidth = columns * NODE_WIDTH + (columns - 1) * HORIZONTAL_SPACING
+        val totalWidth = columnWidths.sum() + (columns - 1) * HORIZONTAL_SPACING
         val totalHeight = frameTop + rowHeights.sum() + (rows - 1) * VERTICAL_SPACING + GROUP_PADDING_BOTTOM
 
         return GroupInternalLayout(

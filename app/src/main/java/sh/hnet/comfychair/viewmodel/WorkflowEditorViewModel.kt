@@ -1781,7 +1781,6 @@ class WorkflowEditorViewModel : ViewModel() {
             content = "",
             x = snappedX,
             y = snappedY,
-            width = noteWidth,
             height = noteHeight,
             hasManualPosition = true  // Mark as manually positioned
         )

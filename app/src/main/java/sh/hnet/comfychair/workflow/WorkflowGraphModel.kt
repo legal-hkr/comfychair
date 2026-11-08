@@ -202,11 +202,35 @@ data class WorkflowNote(
     val content: String,
     val x: Float = 0f,
     val y: Float = 0f,
-    val width: Float = 480f,  // Same as NODE_WIDTH (6 grid cells)
     var height: Float = 0f,   // Set by renderer after TextMeasurer measurement
     val hasManualPosition: Boolean = false  // True if position was set manually (from JSON or drag)
 ) {
+    /** A node's width, or two columns' (with the spacing between them) for a long note or a wide table. */
+    val width: Float by lazy { if (isWide(content)) WIDE_WIDTH else WorkflowLayoutEngine.NODE_WIDTH }
+
     companion object {
+        /** Two columns of the layout and the spacing between them. */
+        const val WIDE_WIDTH = 2 * WorkflowLayoutEngine.NODE_WIDTH + WorkflowLayoutEngine.HORIZONTAL_SPACING
+
+        // Longer notes take two columns: about the length of a note with a short table and a few paragraphs
+        private const val WIDE_LENGTH = 1200
+        // A table row wider than this (in graph units, estimated from its characters) doesn't fit one column
+        private const val TABLE_FIT = WorkflowLayoutEngine.NODE_WIDTH - 32f
+        private const val CHAR_WIDTH = 11f
+        private const val CELL_PADDING = 16f
+
+        /** Whether [content] needs two columns: long, or with a table row too wide for one. */
+        fun isWide(content: String): Boolean {
+            if (content.length > WIDE_LENGTH) return true
+            return content.lineSequence().map { it.trim() }
+                .filter { it.startsWith("|") && !it.all { c -> c in "|:- " } }
+                .any { line ->
+                    val cells = line.trim('|').split('|').map { it.replace("`", "").replace("*", "").trim() }
+                    cells.sumOf { it.length } * CHAR_WIDTH + cells.size * CELL_PADDING > TABLE_FIT
+                }
+        }
+
+
         /** Convert note ID to member ID string for group membership */
         fun noteIdToMemberId(noteId: Int): String = "note:$noteId"
 

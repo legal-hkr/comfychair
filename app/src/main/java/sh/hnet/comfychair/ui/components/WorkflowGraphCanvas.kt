@@ -92,7 +92,6 @@ import sh.hnet.comfychair.workflow.FieldDisplayRegistry
 import sh.hnet.comfychair.workflow.GraphColors
 import sh.hnet.comfychair.workflow.GraphDetailLevel
 import sh.hnet.comfychair.workflow.InputValue
-import sh.hnet.comfychair.workflow.MarkdownParser
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.RenderedGroup
 import sh.hnet.comfychair.workflow.SlotPosition
@@ -169,6 +168,10 @@ private object NodeStyle {
     const val CORNER = 32f
     const val TITLE_PADDING = 24f
     const val TITLE_TEXT = 25f
+    // Notes a size above nodes (a wide note is read whole): title, text and its line height
+    const val NOTE_TITLE_TEXT = 28f
+    const val NOTE_TEXT = 22f
+    const val NOTE_LINE = 27f
     const val ROW_PADDING = 20f
     const val LABEL_TEXT = 22f
     const val PILL_HEIGHT = 32f
@@ -221,7 +224,7 @@ private class GraphPaints {
     val pill = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.PILL_TEXT }
     val pillStrong = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.PILL_TEXT; typeface = semiBold }
     val groupLabel = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = WorkflowLayoutEngine.GROUP_HEADER_HEIGHT; typeface = semiBold }
-    val noteTitle = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.TITLE_TEXT; typeface = semiBold }
+    val noteTitle = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.NOTE_TITLE_TEXT; typeface = semiBold }
     val shadow = Paint(Paint.ANTI_ALIAS_FLAG)
     // A bypassed node's badge (labelSmall, weight 600)
     val badge = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.CHIP_TEXT; typeface = semiBold }
@@ -439,6 +442,8 @@ fun WorkflowGraphCanvas(
 
     // TextMeasurer for markdown rendering in notes
     val textMeasurer = rememberTextMeasurer()
+    // Notes' content laid out once, not every frame
+    val noteLayouts = remember { NoteLayouts() }
     val density = LocalDensity.current
 
     // The wire shape chosen in Settings
@@ -1746,7 +1751,8 @@ fun WorkflowGraphCanvas(
                                 alpha = alpha,
                                 isSelected = isSelected,
                                 textMeasurer = textMeasurer,
-                                density = density
+                                density = density,
+                                noteLayouts = noteLayouts
                             )
                         }
                         if (spread > 0f) {
@@ -2505,7 +2511,8 @@ private fun DrawScope.drawNote(
     alpha: Float = 1f,
     isSelected: Boolean = false,
     textMeasurer: TextMeasurer? = null,
-    density: androidx.compose.ui.unit.Density? = null
+    density: androidx.compose.ui.unit.Density? = null,
+    noteLayouts: NoteLayouts? = null
 ) {
     // Helper to apply alpha to a color
     fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
@@ -2518,39 +2525,28 @@ private fun DrawScope.drawNote(
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
     val contentPadding = 16f
 
-    // Measure text and calculate actual height
+    // Content laid out (once per content, width and colours) and the note's actual height from it
     var effectiveHeight = note.height
-    var textLayoutResult: androidx.compose.ui.text.TextLayoutResult? = null
+    var content: NoteLayout? = null
+    val contentColors = NoteColors(
+        text = colors.onNote,
+        // Two tones between the note and its text: code's background, a table's rules
+        codeBackground = lerp(colors.note, colors.onNote, 0.12f),
+        rule = lerp(colors.note, colors.onNote, 0.35f)
+    )
 
-    if (textMeasurer != null && density != null) {
-        val contentWidth = (note.width - contentPadding * 2).toInt()
-
-        // Convert pixel sizes to sp (20f pixels = same as node text)
-        val fontSizeSp = with(density) { 20f.toSp() }
-        val lineHeightSp = with(density) { 24f.toSp() }
-
-        // Parse markdown to AnnotatedString
-        val codeBackgroundColor = colors.pill.withAlpha()
-        val annotatedContent = MarkdownParser.parse(
-            markdown = note.content,
-            codeBackgroundColor = codeBackgroundColor,
-            baseFontSize = fontSizeSp
+    if (textMeasurer != null && density != null && noteLayouts != null) {
+        // A size above node text, the line height to match
+        content = noteLayouts.layout(
+            content = note.content,
+            width = note.width - contentPadding * 2,
+            colors = contentColors,
+            fontSize = with(density) { NodeStyle.NOTE_TEXT.toSp() },
+            lineHeight = with(density) { NodeStyle.NOTE_LINE.toSp() },
+            textMeasurer = textMeasurer,
+            density = density
         )
-
-        // Measure text with constraints
-        textLayoutResult = textMeasurer.measure(
-            text = annotatedContent,
-            style = TextStyle(
-                color = textColor,
-                fontSize = fontSizeSp,
-                lineHeight = lineHeightSp
-            ),
-            constraints = Constraints(maxWidth = contentWidth)
-        )
-
-        // Calculate actual height from measured content
-        val measuredHeight = headerHeight + contentPadding * 2 + textLayoutResult.size.height
-        effectiveHeight = measuredHeight
+        effectiveHeight = headerHeight + contentPadding * 2 + content.height
 
         // Update note model for layout consistency
         if (note.height != effectiveHeight) {
@@ -2596,12 +2592,8 @@ private fun DrawScope.drawNote(
     }
 
     // Draw markdown content with alpha
-    if (textLayoutResult != null) {
-        drawText(
-            textLayoutResult = textLayoutResult,
-            topLeft = Offset(note.x + contentPadding, note.y + headerHeight + contentPadding),
-            alpha = alpha
-        )
+    if (content != null) {
+        drawNoteContent(content, note.x + contentPadding, note.y + headerHeight + contentPadding, contentColors, alpha)
     } else {
         // Fallback: Draw content using native canvas (no markdown formatting)
         drawContext.canvas.nativeCanvas.apply {
