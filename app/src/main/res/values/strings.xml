@@ -117,7 +117,7 @@
     <string name="content_description_remove_job">Remove “%1$s” from the queue</string>
     <string name="button_clear_queue_confirm">Clear queue</string>
     <string name="title_clear_queue">Clear the whole queue?</string>
-    <string name="msg_clear_queue_own">This removes all your waiting jobs. A running job is not stopped.</string>
+    <string name="msg_clear_queue_own">This removes all waiting jobs. Running jobs are not stopped.</string>
     <string name="button_clear">Clear</string>
     <string name="error_queue_action">The queue couldn\'t be changed</string>
     <string name="content_description_open_queue">Open queue</string>
@@ -127,12 +127,12 @@
     </plurals>
     <string name="content_description_generating_progress">Generating, %1$d%%</string>
     <plurals name="label_more_queued">
-        <item quantity="one">%d more of yours queued</item>
-        <item quantity="other">%d more of yours queued</item>
+        <item quantity="one">Waiting jobs: %d</item>
+        <item quantity="other">Waiting jobs: %d</item>
     </plurals>
     <plurals name="label_queue_own_jobs">
-        <item quantity="one">%d of your jobs</item>
-        <item quantity="other">%d of your jobs</item>
+        <item quantity="one">%d job</item>
+        <item quantity="other">%d jobs</item>
     </plurals>
     <plurals name="label_queue_other_jobs">
         <item quantity="one">%d from another client</item>
@@ -603,7 +603,7 @@
     <string name="content_description_workflows_filter">Show</string>
     <string name="menu_switch_all_on">Switch all on</string>
     <string name="menu_switch_all_off">Switch all off</string>
-    <string name="label_workflows_yours">Yours</string>
+    <string name="label_workflows_yours">Own</string>
     <string name="label_workflows_builtin">Built-in</string>
     <string name="content_description_workflow_details">%1$s, details</string>
     <string name="msg_workflows_none_on">The “%1$s” screen has no workflow switched on and can’t generate.</string>
@@ -611,7 +611,7 @@
     <string name="msg_needs_server">Needs a server connection</string>
     <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">built-in</string>
-    <string name="label_workflow_kind_yours">yours</string>
+    <string name="label_workflow_kind_yours">own</string>
     <string name="label_show_in_screens">Show in generation screens</string>
     <string name="button_view_graph">View graph</string>
     <string name="button_edit_graph">Edit graph</string>

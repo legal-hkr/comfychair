@@ -40,7 +40,7 @@
     <string name="title_connection_lost">Utracono połączenie</string>
     <string name="msg_connection_lost">Nie udało się połączyć z serwerem po wielu próbach.</string>
     <string name="title_session_expired">Sesja wygasła</string>
-    <string name="msg_session_expired">Twoja sesja wygasła. Zaloguj się ponownie.</string>
+    <string name="msg_session_expired">Sesja wygasła. Zaloguj się ponownie.</string>
     <string name="title_transfer_stalled">Transfer zatrzymany</string>
     <string name="msg_transfer_stalled">Przez 30 sekund nie przesłano żadnych danych. Może to wskazywać na problem z połączeniem.</string>
     <string name="error_upload_stalled">Wysyłanie zatrzymane</string>
@@ -138,7 +138,7 @@
     <string name="content_description_remove_job">Usuń „%1$s” z kolejki</string>
     <string name="button_clear_queue_confirm">Wyczyść kolejkę</string>
     <string name="title_clear_queue">Wyczyścić całą kolejkę?</string>
-    <string name="msg_clear_queue_own">Usunie to wszystkie Twoje czekające zadania. Trwające zadanie nie zostanie przerwane.</string>
+    <string name="msg_clear_queue_own">Usunie to wszystkie oczekujące zadania. Uruchomione zadania nie zostaną przerwane.</string>
     <string name="button_clear">Wyczyść</string>
     <string name="error_queue_action">Nie udało się zmienić kolejki</string>
     <string name="content_description_open_queue">Otwórz kolejkę</string>
@@ -150,16 +150,16 @@
     </plurals>
     <string name="content_description_generating_progress">Generowanie, %1$d %%</string>
     <plurals name="label_more_queued">
-        <item quantity="one">W kolejce jeszcze %d Twoje zadanie</item>
-        <item quantity="few">W kolejce jeszcze %d Twoje zadania</item>
-        <item quantity="many">W kolejce jeszcze %d Twoich zadań</item>
-        <item quantity="other">W kolejce jeszcze %d Twojego zadania</item>
+        <item quantity="one">Oczekujące zadania: %d</item>
+        <item quantity="few">Oczekujące zadania: %d</item>
+        <item quantity="many">Oczekujące zadania: %d</item>
+        <item quantity="other">Oczekujące zadania: %d</item>
     </plurals>
     <plurals name="label_queue_own_jobs">
-        <item quantity="one">%d Twoje zadanie</item>
-        <item quantity="few">%d Twoje zadania</item>
-        <item quantity="many">%d Twoich zadań</item>
-        <item quantity="other">%d Twojego zadania</item>
+        <item quantity="one">%d zadanie</item>
+        <item quantity="few">%d zadania</item>
+        <item quantity="many">%d zadań</item>
+        <item quantity="other">%d zadania</item>
     </plurals>
     <plurals name="label_queue_other_jobs">
         <item quantity="one">%d zadanie innych klientów</item>
@@ -517,7 +517,7 @@
     <string name="content_description_workflows_filter">Pokaż</string>
     <string name="menu_switch_all_on">Włącz wszystkie</string>
     <string name="menu_switch_all_off">Wyłącz wszystkie</string>
-    <string name="label_workflows_yours">Twoje</string>
+    <string name="label_workflows_yours">Własne</string>
     <string name="label_workflows_builtin">Wbudowane</string>
     <string name="content_description_workflow_details">%1$s, szczegóły</string>
     <string name="msg_workflows_none_on">Ekran „%1$s” nie ma żadnego włączonego przepływu pracy i nie może generować.</string>
@@ -525,7 +525,7 @@
     <string name="msg_needs_server">Wymaga połączenia z serwerem</string>
     <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">wbudowany</string>
-    <string name="label_workflow_kind_yours">twój</string>
+    <string name="label_workflow_kind_yours">własny</string>
     <string name="label_show_in_screens">Pokazuj na ekranach generowania</string>
     <string name="button_view_graph">Pokaż graf</string>
     <string name="button_edit_graph">Edytuj graf</string>
@@ -735,10 +735,10 @@
     <string name="error_name_taken">Przepływ pracy o tej nazwie już istnieje</string>
     <string name="msg_names_copied">Skopiowano nazwy</string>
     <plurals name="msg_missing_nodes_count">
-        <item quantity="one">Ten przepływ pracy korzysta z węzła, którego nie ma na Twoim serwerze. Zainstaluj go w ComfyUI i zaimportuj ponownie.</item>
-        <item quantity="few">Ten przepływ pracy korzysta z %d węzłów, których nie ma na Twoim serwerze. Zainstaluj je w ComfyUI i zaimportuj ponownie.</item>
-        <item quantity="many">Ten przepływ pracy korzysta z %d węzłów, których nie ma na Twoim serwerze. Zainstaluj je w ComfyUI i zaimportuj ponownie.</item>
-        <item quantity="other">Ten przepływ pracy korzysta z %d węzła, którego nie ma na Twoim serwerze. Zainstaluj je w ComfyUI i zaimportuj ponownie.</item>
+        <item quantity="one">Ten przepływ pracy korzysta z węzła, którego nie ma na serwerze. Zainstaluj go w ComfyUI i zaimportuj ponownie.</item>
+        <item quantity="few">Ten przepływ pracy korzysta z %d węzłów, których nie ma na serwerze. Zainstaluj je w ComfyUI i zaimportuj ponownie.</item>
+        <item quantity="many">Ten przepływ pracy korzysta z %d węzłów, których nie ma na serwerze. Zainstaluj je w ComfyUI i zaimportuj ponownie.</item>
+        <item quantity="other">Ten przepływ pracy korzysta z %d węzła, którego nie ma na serwerze. Zainstaluj je w ComfyUI i zaimportuj ponownie.</item>
     </plurals>
     <string name="title_missing_fields">Brakujące wymagane pola</string>
 
@@ -999,7 +999,7 @@
 
     <!-- Welcome wizard (first run) -->
     <string name="title_welcome">Witaj w ComfyChair</string>
-    <string name="label_welcome_intro">Mobilny klient Twojego własnego serwera ComfyUI. Wygenerowane obrazy i filmy trzymane są tylko w pamięci telefonu, chyba że zdecydujesz inaczej.</string>
+    <string name="label_welcome_intro">Mobilny klient własnego serwera ComfyUI. Wygenerowane obrazy i filmy trzymane są tylko w pamięci telefonu, chyba że zdecydujesz inaczej.</string>
     <string name="label_welcome_question">Co chcesz zrobić?</string>
     <string name="label_welcome_add_server">Dodaj serwer</string>
     <string name="desc_welcome_add_server">Połącz się z serwerem ComfyUI</string>

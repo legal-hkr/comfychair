@@ -138,7 +138,7 @@
     <string name="content_description_remove_job">从队列中移除“%1$s”</string>
     <string name="button_clear_queue_confirm">清空队列</string>
     <string name="title_clear_queue">清空整个队列？</string>
-    <string name="msg_clear_queue_own">这会移除你所有等待中的任务。正在运行的任务不会被中断。</string>
+    <string name="msg_clear_queue_own">这会移除所有等待中的任务。正在运行的任务不会被中断。</string>
     <string name="button_clear">清空</string>
     <string name="error_queue_action">无法更改队列</string>
     <string name="content_description_open_queue">打开队列</string>
@@ -147,10 +147,10 @@
     </plurals>
     <string name="content_description_generating_progress">正在生成，%1$d%%</string>
     <plurals name="label_more_queued">
-        <item quantity="other">你还有 %d 个任务在排队</item>
+        <item quantity="other">等待中的任务：%d</item>
     </plurals>
     <plurals name="label_queue_own_jobs">
-        <item quantity="other">你的任务 %d 个</item>
+        <item quantity="other">%d 个任务</item>
     </plurals>
     <plurals name="label_queue_other_jobs">
         <item quantity="other">其他客户端的任务 %d 个</item>
@@ -478,7 +478,7 @@
     <string name="content_description_workflows_filter">显示</string>
     <string name="menu_switch_all_on">全部开启</string>
     <string name="menu_switch_all_off">全部关闭</string>
-    <string name="label_workflows_yours">我的</string>
+    <string name="label_workflows_yours">自有</string>
     <string name="label_workflows_builtin">内置</string>
     <string name="content_description_workflow_details">%1$s，详情</string>
     <string name="msg_workflows_none_on">“%1$s”屏幕没有开启的工作流，无法生成。</string>
@@ -486,7 +486,7 @@
     <string name="msg_needs_server">需要连接服务器</string>
     <string name="label_workflow_subtitle">%1$s（%2$s）</string>
     <string name="label_workflow_kind_builtin">内置</string>
-    <string name="label_workflow_kind_yours">我的</string>
+    <string name="label_workflow_kind_yours">自有</string>
     <string name="label_show_in_screens">在生成屏幕中显示</string>
     <string name="button_view_graph">查看图</string>
     <string name="button_edit_graph">编辑图</string>

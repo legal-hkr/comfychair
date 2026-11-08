@@ -138,7 +138,7 @@
     <string name="content_description_remove_job">Quitar «%1$s» de la cola</string>
     <string name="button_clear_queue_confirm">Vaciar la cola</string>
     <string name="title_clear_queue">¿Vaciar toda la cola?</string>
-    <string name="msg_clear_queue_own">Se quitarán todos tus trabajos en espera. Un trabajo en curso no se detiene.</string>
+    <string name="msg_clear_queue_own">Se quitarán todos los trabajos en espera. Los trabajos en curso no se detienen.</string>
     <string name="button_clear">Vaciar</string>
     <string name="error_queue_action">No se pudo cambiar la cola</string>
     <string name="content_description_open_queue">Abrir la cola</string>
@@ -149,14 +149,14 @@
     </plurals>
     <string name="content_description_generating_progress">Generando, %1$d %%</string>
     <plurals name="label_more_queued">
-        <item quantity="one">%d trabajo tuyo más en cola</item>
-        <item quantity="many">%d trabajos tuyos más en cola</item>
-        <item quantity="other">%d trabajos tuyos más en cola</item>
+        <item quantity="one">Trabajos en espera: %d</item>
+        <item quantity="many">Trabajos en espera: %d</item>
+        <item quantity="other">Trabajos en espera: %d</item>
     </plurals>
     <plurals name="label_queue_own_jobs">
-        <item quantity="one">%d trabajo tuyo</item>
-        <item quantity="many">%d trabajos tuyos</item>
-        <item quantity="other">%d trabajos tuyos</item>
+        <item quantity="one">%d trabajo</item>
+        <item quantity="many">%d trabajos</item>
+        <item quantity="other">%d trabajos</item>
     </plurals>
     <plurals name="label_queue_other_jobs">
         <item quantity="one">%d trabajo de otros clientes</item>
@@ -504,7 +504,7 @@
     <string name="content_description_workflows_filter">Mostrar</string>
     <string name="menu_switch_all_on">Activar todos</string>
     <string name="menu_switch_all_off">Desactivar todos</string>
-    <string name="label_workflows_yours">Tuyos</string>
+    <string name="label_workflows_yours">Propios</string>
     <string name="label_workflows_builtin">Integrados</string>
     <string name="content_description_workflow_details">%1$s, detalles</string>
     <string name="msg_workflows_none_on">La pantalla «%1$s» no tiene ningún workflow activado y no puede generar.</string>
@@ -512,7 +512,7 @@
     <string name="msg_needs_server">Requiere conexión con el servidor</string>
     <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">integrado</string>
-    <string name="label_workflow_kind_yours">tuyo</string>
+    <string name="label_workflow_kind_yours">propio</string>
     <string name="label_show_in_screens">Mostrar en las pantallas de generación</string>
     <string name="button_view_graph">Ver grafo</string>
     <string name="button_edit_graph">Editar grafo</string>

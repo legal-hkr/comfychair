@@ -138,7 +138,7 @@
     <string name="content_description_remove_job">„%1$s“ aus der Warteschlange entfernen</string>
     <string name="button_clear_queue_confirm">Warteschlange leeren</string>
     <string name="title_clear_queue">Ganze Warteschlange leeren?</string>
-    <string name="msg_clear_queue_own">Damit werden alle deine wartenden Aufträge entfernt. Ein laufender Auftrag wird nicht abgebrochen.</string>
+    <string name="msg_clear_queue_own">Damit werden alle wartenden Aufträge entfernt. Laufende Aufträge werden nicht abgebrochen.</string>
     <string name="button_clear">Leeren</string>
     <string name="error_queue_action">Die Warteschlange konnte nicht geändert werden</string>
     <string name="content_description_open_queue">Warteschlange öffnen</string>
@@ -148,12 +148,12 @@
     </plurals>
     <string name="content_description_generating_progress">Generierung, %1$d %%</string>
     <plurals name="label_more_queued">
-        <item quantity="one">%d weiterer eigener Auftrag in der Warteschlange</item>
-        <item quantity="other">%d weitere eigene Aufträge in der Warteschlange</item>
+        <item quantity="one">Wartende Aufträge: %d</item>
+        <item quantity="other">Wartende Aufträge: %d</item>
     </plurals>
     <plurals name="label_queue_own_jobs">
-        <item quantity="one">%d eigener Auftrag</item>
-        <item quantity="other">%d eigene Aufträge</item>
+        <item quantity="one">%d Auftrag</item>
+        <item quantity="other">%d Aufträge</item>
     </plurals>
     <plurals name="label_queue_other_jobs">
         <item quantity="one">%d Auftrag anderer Clients</item>

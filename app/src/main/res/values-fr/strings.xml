@@ -138,7 +138,7 @@
     <string name="content_description_remove_job">Retirer « %1$s » de la file</string>
     <string name="button_clear_queue_confirm">Vider la file</string>
     <string name="title_clear_queue">Vider toute la file d\'attente ?</string>
-    <string name="msg_clear_queue_own">Toutes vos tâches en attente seront retirées. Une tâche en cours n\'est pas interrompue.</string>
+    <string name="msg_clear_queue_own">Toutes les tâches en attente seront retirées. Les tâches en cours ne sont pas interrompues.</string>
     <string name="button_clear">Vider</string>
     <string name="error_queue_action">Impossible de modifier la file d\'attente</string>
     <string name="content_description_open_queue">Ouvrir la file d\'attente</string>
@@ -149,14 +149,14 @@
     </plurals>
     <string name="content_description_generating_progress">Génération, %1$d %%</string>
     <plurals name="label_more_queued">
-        <item quantity="one">Encore %d tâche à vous en attente</item>
-        <item quantity="many">Encore %d tâches à vous en attente</item>
-        <item quantity="other">Encore %d tâches à vous en attente</item>
+        <item quantity="one">Tâches en attente : %d</item>
+        <item quantity="many">Tâches en attente : %d</item>
+        <item quantity="other">Tâches en attente : %d</item>
     </plurals>
     <plurals name="label_queue_own_jobs">
-        <item quantity="one">%d tâche à vous</item>
-        <item quantity="many">%d tâches à vous</item>
-        <item quantity="other">%d tâches à vous</item>
+        <item quantity="one">%d tâche</item>
+        <item quantity="many">%d tâches</item>
+        <item quantity="other">%d tâches</item>
     </plurals>
     <plurals name="label_queue_other_jobs">
         <item quantity="one">%d tâche d\'autres clients</item>
@@ -504,7 +504,7 @@
     <string name="content_description_workflows_filter">Afficher</string>
     <string name="menu_switch_all_on">Tout activer</string>
     <string name="menu_switch_all_off">Tout désactiver</string>
-    <string name="label_workflows_yours">Les vôtres</string>
+    <string name="label_workflows_yours">Personnels</string>
     <string name="label_workflows_builtin">Intégrés</string>
     <string name="content_description_workflow_details">%1$s, détails</string>
     <string name="msg_workflows_none_on">L’écran « %1$s » n’a aucun workflow activé et ne peut pas générer.</string>
@@ -512,7 +512,7 @@
     <string name="msg_needs_server">Nécessite une connexion au serveur</string>
     <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">intégré</string>
-    <string name="label_workflow_kind_yours">le vôtre</string>
+    <string name="label_workflow_kind_yours">personnel</string>
     <string name="label_show_in_screens">Afficher dans les écrans de génération</string>
     <string name="button_view_graph">Voir le graphe</string>
     <string name="button_edit_graph">Modifier le graphe</string>
