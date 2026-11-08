@@ -1,0 +1,13 @@
+v0.9.3
+
+New:
+- Custom fields: any node value can be a field of its own (#60)
+- Rename built-in fields for a workflow (#60)
+- ComfyUI subgraphs: open, create, unpack and edit them
+- Export workflows in ComfyUI's format, with layout and groups
+- Bypassed nodes look switched off
+- The full GPL-3.0 license in Settings
+
+Bug fixes:
+- More ComfyUI workflows import correctly: reroutes, primitives and nested subgraphs
+- Clearer texts across the app
