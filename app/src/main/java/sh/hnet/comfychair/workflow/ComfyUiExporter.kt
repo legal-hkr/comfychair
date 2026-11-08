@@ -224,7 +224,8 @@ class ComfyUiExporter(
             // An instance: the subgraph's inputs; those holding values are widgets too
             return definition.optJSONArray("inputs").objects().map { port ->
                 val name = port.optString("name")
-                Entry(name, port.optString("type", "*"), Subgraphs.valueAt(level.definitions, type, name) != null)
+                val own = inputs.opt(name)?.takeIf { it != JSONObject.NULL && !isLink(it) }
+                Entry(name, port.optString("type", "*"), own != null || Subgraphs.valueAt(level.definitions, type, name) != null)
             }
         }
         val linked = (inputs.keys().asSequence().filter { isLink(inputs.opt(it)) } + fedByPorts.asSequence()).distinct().toList()
@@ -428,7 +429,8 @@ class ComfyUiExporter(
         val inputs = node.optJSONObject("inputs") ?: JSONObject()
         Subgraphs.portsOf(definitions, definitionId, "inputs").forEach { (name, _) ->
             if (isLink(inputs.opt(name))) return@forEach
-            val value = sharedValueOf(definitions, definitionId, name) ?: return@forEach
+            // The instance's own value, else what the inside holds when it agrees
+            val value = inputs.opt(name)?.takeIf { it != JSONObject.NULL } ?: sharedValueOf(definitions, definitionId, name) ?: return@forEach
             entries.put(JSONArray().put("-1").put(name))
             values.put(value)
         }

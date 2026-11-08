@@ -15,11 +15,14 @@ import sh.hnet.comfychair.util.DebugLogger
  *     "outputs": [{"name": "IMAGE", "type": "IMAGE", "source": ["11", 0]}],            // or "input": i, or "value": v
  *     "nodes": { "11": {"class_type": …, "inputs": …}, … },                            // IDs local to the definition
  *     "groups": […], "notes": […] } }
- * instance: {"class_type": "<id>", "inputs": {"image": ["4", 0]}, "promoted": ["11/blur_radius"], "mode": …, "_meta": …}
+ * instance: {"class_type": "<id>", "inputs": {"image": ["4", 0], "steps": 20}, "promoted": ["11/blur_radius"], "mode": …}
  * ```
  *
- * Values live in the definition: an instance holds only its links and the list of values it shows (promoted, as paths
- * "node/input" into the definition, through nested instances "node/node/input"). Two views of the same workflow:
+ * As in ComfyUI, the values of the subgraph's inputs belong to each instance and the values it promotes from inside to
+ * the definition: an instance holds its links, its own value for each of the subgraph's inputs no link feeds (by the
+ * input's name; without one, the value inside is the default) and the list of values it shows from inside (promoted, as
+ * paths "node/input" into the definition, through nested instances "node/node/input", which may end at a nested
+ * instance's own input value). Two views of the same workflow:
  * - **exposed** ([expose], [absorb]): the values an instance shows are inputs of the instance node, keyed by their path,
  *   and the subgraph's inputs no link feeds as inputs by name, so the editor, field mapping, custom fields and node
  *   edits work on instances as on any node. The stored workflow is never exposed.
@@ -64,16 +67,41 @@ object Subgraphs {
             val rest = key.substringAfter(PATH_SEPARATOR)
             val node = nodes.optJSONObject(nodeId) ?: return null
             val type = node.optString("class_type")
-            if (definitions.has(type)) return valueAt(definitions, type, rest, depth + 1)
+            if (definitions.has(type)) return instanceValue(node, rest) ?: valueAt(definitions, type, rest, depth + 1)
             return node.optJSONObject("inputs")?.opt(rest)?.takeIf { it != JSONObject.NULL && !isLink(it) }
         }
         val port = definition.optJSONArray("inputs").objects().find { it.optString("name") == key } ?: return null
         val (nodeId, input) = targetsOf(port).firstOrNull() ?: return null
         val node = nodes.optJSONObject(nodeId) ?: return null
         val type = node.optString("class_type")
-        if (definitions.has(type)) return valueAt(definitions, type, input, depth + 1)
+        if (definitions.has(type)) return instanceValue(node, input) ?: valueAt(definitions, type, input, depth + 1)
         return node.optJSONObject("inputs")?.opt(input)?.takeIf { it != JSONObject.NULL && !isLink(it) }
     }
+
+    /**
+     * The default inside for input [key] of a definition: the value everything it feeds holds, when they all hold the
+     * same one; null when something it feeds is a socket only or the values differ. An instance without a value of its
+     * own shows this one, as in ComfyUI an instance has a value for the input only with its own widget for it.
+     */
+    fun defaultOf(definitions: JSONObject, definitionId: String, key: String, depth: Int = 0): Any? {
+        if (depth > MAX_DEPTH) return null
+        val definition = definitions.optJSONObject(definitionId) ?: return null
+        val nodes = definition.optJSONObject("nodes") ?: return null
+        val port = definition.optJSONArray("inputs").objects().find { it.optString("name") == key } ?: return null
+        val held = targetsOf(port).map { (nodeId, input) ->
+            val node = nodes.optJSONObject(nodeId) ?: return null
+            val type = node.optString("class_type")
+            if (definitions.has(type)) instanceValue(node, input) ?: defaultOf(definitions, type, input, depth + 1)
+            else node.optJSONObject("inputs")?.opt(input)?.takeIf { it != JSONObject.NULL && !isLink(it) }
+        }
+        val first = held.firstOrNull() ?: return null
+        return first.takeIf { held.all { it != null && sameValue(it, first) } }
+    }
+
+    /** An instance's own value for its subgraph's input [name] (not a promoted path); null without one. */
+    private fun instanceValue(instance: JSONObject, name: String): Any? =
+        if (isPromotedKey(name)) null
+        else instance.optJSONObject("inputs")?.opt(name)?.takeIf { it != JSONObject.NULL && !isLink(it) }
 
     /** Set the value at [key] (as [valueAt] reads it); an input by name sets every value it feeds. Links are kept. */
     fun setValueAt(definitions: JSONObject, definitionId: String, key: String, value: Any, depth: Int = 0) {
@@ -84,7 +112,12 @@ object Subgraphs {
             val node = nodes.optJSONObject(nodeId) ?: return
             val type = node.optString("class_type")
             if (definitions.has(type)) {
-                setValueAt(definitions, type, input, value, depth + 1)
+                // A nested instance's input: its own value, as on any instance
+                if (isPromotedKey(input)) setValueAt(definitions, type, input, value, depth + 1)
+                else {
+                    val inputs = node.optJSONObject("inputs") ?: JSONObject().also { node.put("inputs", it) }
+                    if (!isLink(inputs.opt(input))) inputs.put(input, value)
+                }
                 return
             }
             val inputs = node.optJSONObject("inputs") ?: JSONObject().also { node.put("inputs", it) }
@@ -189,8 +222,8 @@ object Subgraphs {
 
     /**
      * Expose the values of every instance of the top level in place: its promoted values and the values of the
-     * subgraph's inputs no link feeds become inputs of the instance node (in the subgraph's order, then the promoted
-     * ones); the promoted list goes, [absorb] rebuilds it from the inputs.
+     * subgraph's inputs no link feeds (its own, else the default inside, [defaultOf]) become inputs of the instance node (in the
+     * subgraph's order, then the promoted ones); the promoted list goes, [absorb] rebuilds it from the inputs.
      */
     fun expose(root: JSONObject) {
         val definitions = definitionsOf(root) ?: return
@@ -208,7 +241,7 @@ object Subgraphs {
             for (port in definition.optJSONArray("inputs").objects()) {
                 val name = port.optString("name").ifEmpty { continue }
                 if (exposed.has(name)) continue
-                valueAt(definitions, definitionId, name)?.let { exposed.put(name, it) }
+                defaultOf(definitions, definitionId, name)?.let { exposed.put(name, it) }
             }
             if (promoted != null) for (i in 0 until promoted.length()) {
                 val key = promoted.optString(i).takeIf { isPromotedKey(it) } ?: continue
@@ -220,10 +253,11 @@ object Subgraphs {
     }
 
     /**
-     * Take an exposed workflow back to its stored form in place: each instance's values go into its definition where
-     * they differ from it (an instance whose values weren't changed leaves the definition alone, so another instance's
-     * change stays), the promoted list is rebuilt from the instance's paths, and definitions no instance uses go (unless
-     * [prune] is false: a level inside a subgraph, whose own definition no node of the level uses).
+     * Take an exposed workflow back to its stored form in place: the values of the subgraph's inputs stay on each
+     * instance, its own, where they differ from the default inside ([defaultOf]); its promoted values go into its definition where they differ from it (an instance whose values
+     * weren't changed leaves the definition alone, so another instance's change stays), the promoted list is rebuilt
+     * from the instance's paths, and definitions no instance uses go (unless [prune] is false: a level inside a
+     * subgraph, whose own definition no node of the level uses).
      */
     fun absorb(root: JSONObject, prune: Boolean = true) {
         val definitions = definitionsOf(root) ?: return
@@ -239,9 +273,13 @@ object Subgraphs {
             val promoted = node.optJSONArray(PROMOTED_KEY) ?: JSONArray()
             for (key in inputs.keys().asSequence().toList()) {
                 val value = inputs.opt(key)
-                val promotedKey = isPromotedKey(key)
-                if (!promotedKey && (key !in portNames || isLink(value))) continue
-                if (promotedKey && (0 until promoted.length()).none { promoted.optString(it) == key }) promoted.put(key)
+                if (!isPromotedKey(key)) {
+                    // A value of the subgraph's input: the instance's own, unless it's the default inside (what the
+                    // editor shows for a copy without one)
+                    if (key in portNames && !isLink(value) && sameValue(value, defaultOf(original, definitionId, key))) inputs.remove(key)
+                    continue
+                }
+                if ((0 until promoted.length()).none { promoted.optString(it) == key }) promoted.put(key)
                 if (value != null && value != JSONObject.NULL && !isLink(value) &&
                     !sameValue(value, valueAt(original, definitionId, key))
                 ) {

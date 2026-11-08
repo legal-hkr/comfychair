@@ -19,8 +19,9 @@ import sh.hnet.comfychair.workflow.isWidget
  *   puts its value into every widget it feeds;
  * - subgraphs (definitions.subgraphs, nested to any depth) stay subgraphs: a definition's links from its input node
  *   become the values each input feeds, its output node's links the sources of its outputs; an instance's inputs are
- *   matched to the subgraph's by name; the values it promotes (`properties.proxyWidgets`, or in older files the values
- *   of the subgraph's value inputs) are kept as its promoted list, values the file gives for them go into the definition;
+ *   matched to the subgraph's by name; the values of the subgraph's inputs the file gives for it (`proxyWidgets` entries
+ *   "-1", or in older files the values of the subgraph's value inputs) are its own, the values it promotes from inside
+ *   are kept as its promoted list, the values the file gives for them go into the definition;
  * - widget values are assigned to inputs in the frontend's widget order (see [mapWidgetValues]).
  *
  * The format is described in `comfyui-format-research.md` (project notes); nothing here is taken from ComfyUI's code.
@@ -72,8 +73,11 @@ class LiteGraphConverter(
         data class SubgraphInput(val index: Int) : Source
     }
 
-    /** Values an instance gives for its subgraph (by input name or promoted path), written into the definition. */
-    private data class InstanceValues(val definitionId: String, val values: List<Pair<String, Any>>)
+    /**
+     * Values an instance gives for its subgraph: by input name its own (kept on the instance), by promoted path the
+     * definition's (written into it).
+     */
+    private data class InstanceValues(val instance: JSONObject, val definitionId: String, val values: List<Pair<String, Any>>)
 
     private lateinit var subgraphs: Map<String, Graph>
     // Each instance converted, with the UI node it came from, for its promoted list once all definitions are converted
@@ -141,9 +145,13 @@ class LiteGraphConverter(
         val notes = JSONArray()
         emitLevel(top, apiNodes, notes, targets = null, warnings)
 
-        // Values instances give go into their definitions, then each instance gets the list of values it shows
-        instanceValues.forEach { (definitionId, values) ->
-            values.forEach { (key, value) -> Subgraphs.setValueAt(definitions, definitionId, key, value) }
+        // Values instances give: their inputs' their own, promoted ones into their definitions; then each instance
+        // gets the list of values it shows
+        instanceValues.forEach { (instance, definitionId, values) ->
+            values.forEach { (key, value) ->
+                if (Subgraphs.isPromotedKey(key)) Subgraphs.setValueAt(definitions, definitionId, key, value)
+                else instance.optJSONObject("inputs")?.let { inputs -> if (!inputs.has(key)) inputs.put(key, value) }
+            }
         }
         instances.forEach { (instance, uiNode) -> setPromoted(instance, uiNode, definitions) }
 
@@ -325,7 +333,7 @@ class LiteGraphConverter(
         val inputs = JSONObject()
         val subgraph = subgraphs[type]
 
-        // 1. Widget values (an instance's values go into its definition, see [instanceValuesOf])
+        // 1. Widget values (an instance's values are placed once all definitions are converted, see [instanceValuesOf])
         if (subgraph == null) {
             val definition = getNodeDefinition(type)
             if (definition != null) {
@@ -367,7 +375,7 @@ class LiteGraphConverter(
         if (subgraph != null) {
             instances.add(converted to node)
             val values = instanceValuesOf(node, subgraph) + linkedValues
-            if (values.isNotEmpty()) instanceValues.add(InstanceValues(type, values))
+            if (values.isNotEmpty()) instanceValues.add(InstanceValues(converted, type, values))
         }
     }
 

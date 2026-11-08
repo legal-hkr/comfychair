@@ -155,7 +155,8 @@ object SubgraphEditing {
 
     /**
      * Unpack instance [instanceId] of [level] (spec §19.4.2): its subgraph's nodes, groups and notes in its place with
-     * new IDs ([newNodeId], [newGroupId], [newNoteId]), linked to what the instance was linked to; the values it showed
+     * new IDs ([newNodeId], [newGroupId], [newNoteId]), linked to what the instance was linked to and given its own values
+     * of the subgraph's inputs; the values it showed
      * from nested subgraphs shown by those (nested) instances. A muted or bypassed instance's mode goes to its nodes.
      * [offset] moves the inner positions (manual placement) to where the instance was. Null for an unknown instance.
      */
@@ -179,7 +180,8 @@ object SubgraphEditing {
 
         // The definition's inputs: what the instance's inputs were linked to, by index
         val ports = definition.optJSONArray("inputs").objects()
-        val fedBy = ports.map { port -> instanceInputs.opt(port.optString("name"))?.takeIf(::isLink) as JSONArray? }
+        // What the instance gave each of the definition's inputs: a link, or its own value
+        val fedBy = ports.map { port -> instanceInputs.opt(port.optString("name"))?.takeIf { it != JSONObject.NULL } }
         val minPosition = innerNodes.keys().asSequence().mapNotNull { id ->
             innerNodes.getJSONObject(id).optJSONObject("_meta")?.optJSONArray("position")?.let { it.optDouble(0).toFloat() to it.optDouble(1).toFloat() }
         }.toList().let { list -> if (list.isEmpty()) null else list.minOf { it.first } to list.minOf { it.second } }
@@ -201,7 +203,8 @@ object SubgraphEditing {
             }
             nodes.put(newId, node)
         }
-        // Values the instance's inputs feed: linked to what fed the instance (an unlinked input leaves their own value)
+        // Values the instance's inputs feed: linked to what fed the instance, or given the instance's own value (an input
+        // with neither leaves theirs)
         ports.forEachIndexed { index, port ->
             val source = fedBy.getOrNull(index) ?: return@forEachIndexed
             port.optJSONArray("targets")?.let { targets ->
@@ -209,7 +212,7 @@ object SubgraphEditing {
                     val target = targets.optJSONArray(i) ?: continue
                     val node = nodes.optJSONObject(ids[target.optString(0)] ?: continue) ?: continue
                     val inputs = node.optJSONObject("inputs") ?: JSONObject().also { node.put("inputs", it) }
-                    inputs.put(target.optString(1), JSONArray(source.toString()))
+                    inputs.put(target.optString(1), if (isLink(source)) JSONArray(source.toString()) else source)
                 }
             }
         }
