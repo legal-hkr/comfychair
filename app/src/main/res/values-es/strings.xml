@@ -1090,11 +1090,7 @@
         <item quantity="many">Buscar en %d flujos de trabajo</item>
         <item quantity="other">Buscar en %d flujos de trabajo</item>
     </plurals>
-    <plurals name="label_server_import_count">
-        <item quantity="one">%1$d de %2$d flujo de trabajo</item>
-        <item quantity="many">%1$d de %2$d flujos de trabajo</item>
-        <item quantity="other">%1$d de %2$d flujos de trabajo</item>
-    </plurals>
+    <string name="label_server_import_count_of">Flujos de trabajo: %1$d de %2$d</string>
     <string name="state_expanded">Expandido</string>
     <string name="state_collapsed">Contraído</string>
 

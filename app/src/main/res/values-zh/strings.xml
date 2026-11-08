@@ -1036,9 +1036,7 @@
     <plurals name="hint_server_import_search">
         <item quantity="other">搜索 %d 个工作流</item>
     </plurals>
-    <plurals name="label_server_import_count">
-        <item quantity="other">%1$d / %2$d 个工作流</item>
-    </plurals>
+    <string name="label_server_import_count_of">工作流：%1$d / %2$d</string>
     <string name="state_expanded">已展开</string>
     <string name="state_collapsed">已收起</string>
 

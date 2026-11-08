@@ -1061,10 +1061,7 @@
         <item quantity="one">%d Workflow durchsuchen</item>
         <item quantity="other">%d Workflows durchsuchen</item>
     </plurals>
-    <plurals name="label_server_import_count">
-        <item quantity="one">%1$d von %2$d Workflow</item>
-        <item quantity="other">%1$d von %2$d Workflows</item>
-    </plurals>
+    <string name="label_server_import_count_of">Workflows: %1$d von %2$d</string>
     <string name="state_expanded">Ausgeklappt</string>
     <string name="state_collapsed">Eingeklappt</string>
 

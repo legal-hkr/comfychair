@@ -1117,12 +1117,7 @@
         <item quantity="many">Szukaj w %d przepływach</item>
         <item quantity="other">Szukaj w %d przepływu</item>
     </plurals>
-    <plurals name="label_server_import_count">
-        <item quantity="one">%1$d z %2$d przepływu</item>
-        <item quantity="few">%1$d z %2$d przepływów</item>
-        <item quantity="many">%1$d z %2$d przepływów</item>
-        <item quantity="other">%1$d z %2$d przepływu</item>
-    </plurals>
+    <string name="label_server_import_count_of">Przepływy: %1$d z %2$d</string>
     <string name="state_expanded">Rozwinięty</string>
     <string name="state_collapsed">Zwinięty</string>
 

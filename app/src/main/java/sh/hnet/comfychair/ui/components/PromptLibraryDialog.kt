@@ -163,7 +163,6 @@ fun PromptLibraryDialog(
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
                     )
                 }
-                Spacer(Modifier.height(8.dp))
 
                 if (presets.isEmpty() && filtering) {
                     SearchEmptyState(
@@ -179,7 +178,8 @@ fun PromptLibraryDialog(
                 } else {
                     NoOverscrollContainer(modifier = Modifier.weight(1f)) {
                         LazyColumn(
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                            // The room under the filters scrolls with the rows, so they pass right under them
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             itemsIndexed(presets, key = { _, preset -> preset.id }) { index, preset ->

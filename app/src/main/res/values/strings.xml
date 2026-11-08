@@ -1093,10 +1093,7 @@
         <item quantity="one">Search %d workflow</item>
         <item quantity="other">Search %d workflows</item>
     </plurals>
-    <plurals name="label_server_import_count">
-        <item quantity="one">%1$d of %2$d workflow</item>
-        <item quantity="other">%1$d of %2$d workflows</item>
-    </plurals>
+    <string name="label_server_import_count_of">Workflows: %1$d of %2$d</string>
     <string name="state_expanded">Expanded</string>
     <string name="state_collapsed">Collapsed</string>
 

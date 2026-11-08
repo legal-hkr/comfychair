@@ -1,5 +1,13 @@
 package sh.hnet.comfychair.ui.screens
 
+import sh.hnet.comfychair.ui.components.shared.highlighted
+import sh.hnet.comfychair.ui.components.shared.SearchEmptyState
+import sh.hnet.comfychair.ui.components.shared.SearchCountLine
+import sh.hnet.comfychair.ui.components.shared.SearchField
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import android.content.Context
 import android.text.format.DateUtils
 import android.text.format.Formatter
@@ -16,7 +24,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -30,25 +37,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -204,57 +206,37 @@ private fun WorkflowList(
     val searchable = workflows.size >= ServerImportViewModel.SEARCH_FROM
     val shown = if (searchable) workflows.filter { ServerImportViewModel.matches(it, query) } else workflows
     val filtering = searchable && query.isNotBlank()
+    // The field holds the text and the view model follows it (only one way: writing the view model's query back
+    // would overwrite letters typed while it caught up); the view model goes with the page, never clearing it itself
+    val search = rememberTextFieldState(query)
+    val currentOnQuery by rememberUpdatedState(onQueryChange)
+    LaunchedEffect(search) { snapshotFlow { search.text.toString() }.collect { currentOnQuery(it) } }
     Column(Modifier.fillMaxSize()) {
         if (searchable) {
-            // The input field gets its container and shape from the (collapsed) search bar
-            SearchBar(
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        query = query,
-                        onQueryChange = onQueryChange,
-                        onSearch = { },
-                        expanded = false,
-                        onExpandedChange = { },
-                        placeholder = { Text(pluralStringResource(R.plurals.hint_server_import_search, workflows.size, workflows.size)) },
-                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                        trailingIcon = if (query.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { onQueryChange("") }) {
-                                    Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
-                                }
-                            }
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                expanded = false,
-                onExpandedChange = { },
-                // The page already sits below the status bar
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
-            ) { }
+            SearchField(
+                state = search,
+                placeholder = pluralStringResource(R.plurals.hint_server_import_search, workflows.size, workflows.size),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            if (filtering) {
+                SearchCountLine(
+                    stringResource(R.string.label_server_import_count_of, shown.size, workflows.size),
+                    modifier = Modifier
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
         }
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    // The room under the search field scrolls with the rows, so they pass right under the field
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = if (searchable) 12.dp else 0.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = modifier.fillMaxSize()
                 ) {
                     if (shown.isEmpty()) {
-                        item(key = "none") {
-                            Text(
-                                stringResource(R.string.msg_server_import_no_match, query.trim()),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 32.dp)
-                            )
-                        }
+                        item(key = "none") { SearchEmptyState(title = stringResource(R.string.msg_server_import_no_match, query.trim())) }
                     }
                     itemsIndexed(shown, key = { _, workflow -> workflow.path }) { index, workflow ->
                         ServerWorkflowRow(
@@ -263,20 +245,9 @@ private fun WorkflowList(
                             count = shown.size,
                             downloading = workflow.path == downloadingPath,
                             imported = workflow.name.trim().lowercase() in ownNames,
+                            highlight = query.trim().takeIf { filtering },
                             onOpen = { onOpen(workflow) }
                         )
-                    }
-                    if (filtering && shown.isNotEmpty()) {
-                        item(key = "count") {
-                            Text(
-                                pluralStringResource(R.plurals.label_server_import_count, workflows.size, shown.size, workflows.size),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .padding(start = 8.dp, top = 10.dp)
-                                    .semantics { liveRegion = LiveRegionMode.Polite }
-                            )
-                        }
                     }
                     item(key = "insets") { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
                 }
@@ -285,10 +256,18 @@ private fun WorkflowList(
     }
 }
 
-/** A saved workflow: its name, folder and date; an Imported mark or downloading at the end. Too large: disabled, with its size. */
+/** A saved workflow: its name (a search's match in bold), folder and date; an Imported mark or downloading at the end. Too large: disabled, with its size. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ServerWorkflowRow(workflow: ServerWorkflow, index: Int, count: Int, downloading: Boolean, imported: Boolean, onOpen: () -> Unit) {
+private fun ServerWorkflowRow(
+    workflow: ServerWorkflow,
+    index: Int,
+    count: Int,
+    downloading: Boolean,
+    imported: Boolean,
+    highlight: String?,
+    onOpen: () -> Unit
+) {
     val context = LocalContext.current
     val supporting = buildList {
         if (workflow.folder.isNotEmpty()) add(workflow.folder)
@@ -324,7 +303,7 @@ private fun ServerWorkflowRow(workflow: ServerWorkflow, index: Int, count: Int, 
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.semantics { if (downloading) stateDescription = downloadingLabel }
     ) {
-        Text(workflow.name)
+        Text(highlighted(workflow.name, highlight))
     }
 }
 
