@@ -51,19 +51,6 @@ object Subgraphs {
     // Values by path
     // ---------------------------------------------------------------------------------------------------------------
 
-    private fun isLink(value: Any?): Boolean =
-        value is JSONArray && value.length() == 2 && value.opt(0) is String && value.opt(1) is Number
-
-    private fun JSONArray?.objects(): List<JSONObject> =
-        if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
-
-    private fun targetsOf(port: JSONObject): List<Pair<String, String>> {
-        val targets = port.optJSONArray("targets") ?: return emptyList()
-        return (0 until targets.length()).mapNotNull { i ->
-            targets.optJSONArray(i)?.takeIf { it.length() >= 2 }?.let { it.optString(0) to it.optString(1) }
-        }
-    }
-
     /**
      * The value at [key] of definition [definitionId]: a path "node/…" into it, or one of its inputs by name (the value
      * of the first value it feeds). Null when there's none (a link, a socket, an unknown path).

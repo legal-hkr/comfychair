@@ -13,21 +13,10 @@ object SubgraphEditing {
     /** The longest subgraph, input or output name (the templates' longest is 45). */
     const val MAX_NAME_LENGTH = 45
 
-    private fun isLink(value: Any?): Boolean =
-        value is JSONArray && value.length() == 2 && value.opt(0) is String && value.opt(1) is Number
-
     private fun link(nodeId: String, slot: Int) = JSONArray().put(nodeId).put(slot)
 
-    private fun JSONArray?.objects(): List<JSONObject> =
-        if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
-
-    private fun unique(name: String, taken: MutableSet<String>): String {
-        val base = name.ifEmpty { "input" }
-        var candidate = base
-        var n = 1
-        while (!taken.add(candidate)) candidate = "${base}_${n++}"
-        return candidate
-    }
+    private fun unique(name: String, taken: MutableSet<String>): String =
+        uniqueName(name.ifEmpty { "input" }) { it in taken }.also { taken.add(it) }
 
     /** Links that cross a selection's edge, each outside socket once: (into it, out of it). */
     fun crossingCounts(nodes: JSONObject, selected: Set<String>): Pair<Int, Int> {

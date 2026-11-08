@@ -32,28 +32,11 @@ object SubgraphLevels {
     fun isInputsNode(node: WorkflowNode): Boolean = node.classType.startsWith(INPUTS_TYPE)
     fun isOutputsNode(node: WorkflowNode): Boolean = node.classType.startsWith(OUTPUTS_TYPE)
 
-    private fun JSONArray?.objects(): List<JSONObject> =
-        if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
-
-    private fun targetsOf(port: JSONObject): List<Pair<String, String>> {
-        val targets = port.optJSONArray("targets") ?: return emptyList()
-        return (0 until targets.length()).mapNotNull { i ->
-            targets.optJSONArray(i)?.takeIf { it.length() >= 2 }?.let { it.optString(0) to it.optString(1) }
-        }
-    }
-
-    private fun isLink(value: Any?): Boolean =
-        value is JSONArray && value.length() == 2 && value.opt(0) is String && value.opt(1) is Number
-
     /** The keys of the Outputs node's inputs, by output: the outputs' names, a repeated one with _1, _2. */
     fun outputKeys(definition: JSONObject): List<String> {
         val used = mutableSetOf<String>()
         return definition.optJSONArray("outputs").objects().mapIndexed { index, port ->
-            val base = port.optString("name").ifEmpty { "output_${index + 1}" }
-            var key = base
-            var n = 1
-            while (!used.add(key)) key = "${base}_${n++}"
-            key
+            uniqueName(port.optString("name").ifEmpty { "output_${index + 1}" }) { it in used }.also { used.add(it) }
         }
     }
 

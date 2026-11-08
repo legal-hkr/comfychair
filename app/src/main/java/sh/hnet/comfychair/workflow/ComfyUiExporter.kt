@@ -97,11 +97,6 @@ class ComfyUiExporter(
         fun position(key: String): FloatArray = positions[key] ?: floatArrayOf(0f, 0f, 480f, 200f)
     }
 
-    private fun JSONArray?.objects(): List<JSONObject> =
-        if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
-
-    private fun isLink(value: Any?): Boolean =
-        value is JSONArray && value.length() == 2 && value.opt(0) is String && value.opt(1) is Number
 
     /** Inputs the frontend saves a value for: widgets, and widgets without a socket. */
     private val InputDefinition.savesValue: Boolean get() = isWidget || socketless

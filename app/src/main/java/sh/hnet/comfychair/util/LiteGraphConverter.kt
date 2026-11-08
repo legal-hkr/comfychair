@@ -5,6 +5,7 @@ import org.json.JSONObject
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.Subgraphs
+import sh.hnet.comfychair.workflow.objects
 import sh.hnet.comfychair.workflow.getEffectiveDefault
 import sh.hnet.comfychair.workflow.isWidget
 
@@ -165,8 +166,6 @@ class LiteGraphConverter(
     // Parsing
     // ---------------------------------------------------------------------------------------------------------------
 
-    private fun JSONArray?.objects(): List<JSONObject> =
-        if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
 
     /** Links of a level: arrays `[id, origin, originSlot, target, targetSlot, type]` or objects with those names. */
     private fun parseLinks(array: JSONArray?): Map<Int, Link> {

@@ -49,6 +49,7 @@ import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.PendingMappedLink
 import sh.hnet.comfychair.workflow.SlotPosition
 import sh.hnet.comfychair.workflow.SubgraphEditing
+import sh.hnet.comfychair.workflow.uniqueName
 import sh.hnet.comfychair.workflow.SubgraphLevelInfo
 import sh.hnet.comfychair.workflow.SubgraphLevels
 import sh.hnet.comfychair.workflow.Subgraphs
@@ -4426,13 +4427,8 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(nodeAttributeEdits = edits)
     }
 
-    private fun uniqueName(name: String, taken: Collection<String>): String {
-        val base = name.ifEmpty { "input" }.take(SubgraphEditing.MAX_NAME_LENGTH)
-        var candidate = base
-        var n = 1
-        while (candidate in taken) candidate = "${base}_${n++}"
-        return candidate
-    }
+    private fun uniquePortName(name: String, taken: Collection<String>): String =
+        uniqueName(name.ifEmpty { "input" }.take(SubgraphEditing.MAX_NAME_LENGTH)) { it in taken }
 
     /** A new input of the shown subgraph, linked to [inputSlot] inside (the add socket on the Inputs strip). */
     private fun addSubgraphInput(inputSlot: SlotPosition) {
@@ -4441,7 +4437,7 @@ class WorkflowEditorViewModel : ViewModel() {
         val node = mutableGraph?.nodes?.find { it.id == inputSlot.nodeId } ?: return
         val type = inputSlot.slotType ?: nodeTypeRegistry.getInputType(node.classType, inputSlot.slotName) ?: "*"
         val ports = definition.optJSONArray("inputs") ?: org.json.JSONArray().also { definition.put("inputs", it) }
-        val name = uniqueName(inputSlot.slotName.substringAfterLast('/'), subgraphPortNames(inputs = true))
+        val name = uniquePortName(inputSlot.slotName.substringAfterLast('/'), subgraphPortNames(inputs = true))
         ports.put(JSONObject().put("name", name).put("type", type).put("targets", org.json.JSONArray()))
         // A value the instance showed is now its input's (spec §19.5)
         val shownKey = "${inputSlot.nodeId}/${inputSlot.slotName}"
@@ -4460,7 +4456,7 @@ class WorkflowEditorViewModel : ViewModel() {
         val node = mutableGraph?.nodes?.find { it.id == outputSlot.nodeId } ?: return
         val type = outputSlot.slotType ?: node.outputs.getOrNull(outputSlot.outputIndex)?.type ?: "*"
         val ports = definition.optJSONArray("outputs") ?: org.json.JSONArray().also { definition.put("outputs", it) }
-        ports.put(JSONObject().put("name", uniqueName(node.outputs.getOrNull(outputSlot.outputIndex)?.name ?: outputSlot.slotName, subgraphPortNames(inputs = false))).put("type", type))
+        ports.put(JSONObject().put("name", uniquePortName(node.outputs.getOrNull(outputSlot.outputIndex)?.name ?: outputSlot.slotName, subgraphPortNames(inputs = false))).put("type", type))
         portsChanged(definitions, oldKeys)
         val key = SubgraphLevels.outputKeys(definition).last()
         link(outputSlot, SlotPosition(SubgraphLevels.OUTPUTS_ID, key, isOutput = false, center = Offset.Zero, slotType = type))
