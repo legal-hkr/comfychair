@@ -46,6 +46,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Organize presets with favorites and tag-based filtering
   - Search presets by name, prompt text, or tags
 - **What's new**: This version's release notes under Settings -> About, and a one-time notice after an update
+- **License**: The full GPL-3.0 text under Settings -> About, readable offline
 - **Errors**: Every error appears as a snackbar; Show opens the whole error (the node that failed with the server's message and traceback, the inputs a server refused, the reason a connection failed) to read or copy
 - **Localization**: Available in English (default), German, French, Polish, Spanish, and Chinese with per-app language selection
 - **Native Android experience**: Built with Kotlin and Jetpack Compose with Material Design 3
@@ -91,6 +92,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Zoomed out below about 40 %, nodes become blocks with their titles; tap one to zoom in to it
   - The selected node's connections are emphasized while the others recede
   - Notes and group labels lie above the wires; group areas are frosted glass, with other wires passing under them
+  - Bypassed nodes look switched off, with a Bypassed badge on their title bar
   - Opens fitted into the free area of the screen, laid out for its proportions
 - **Node values**: A bottom sheet with every editable input of a node (numeric steppers with range hints, switches, image previews, values linked from other nodes leading to their source, the inputs the generation screen fills in), its changed values marked and resettable one by one or all at once
 - **Node management**:
@@ -100,12 +102,17 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
   - Values (numbers, text, true/false) take links of their type, as in ComfyUI, and become values again when disconnected
   - With TalkBack, a node's sockets and a pending connection's targets are available as actions
   - Organize nodes into groups and add notes with Markdown support; groups are laid out apart like nodes
+- **Subgraphs**: Kept as in ComfyUI, one definition shared by all its copies
+  - A copy is a frame with an Open button; inside, the subgraph's Inputs and Outputs strips, and Back goes up a level
+  - Make a subgraph of a selection, unpack one, rename it or a single copy, and add, rename or remove its inputs and outputs
+  - Show, hide and order the values a copy shows, as ComfyUI's promoted values
 - **Field mapping**: When importing, the app's fields are assigned one at a time on a card, with a list of all fields; several fields can come from one node; no field is required except the source image for image workflows, and workflows without a prompt (e.g. upscalers) are supported
+- **Custom fields**: Any node value, inside subgraphs too, can become a named field of its own: shown in a Custom section of the options sheet with the control of its type and the node's range, checked before Generate and remembered per workflow; one field can fill several values. Built-in fields can be renamed for a workflow
 - **Workflow management**:
   - Create workflows from scratch, import a file, or import a workflow saved on the ComfyUI server (Workflow › Save) from a searchable list
   - Supported formats:
-    - ComfyUI LiteGraph (import only) - native ComfyUI workflow format with subgraph support; widget values are read as ComfyUI lays them out, dynamic inputs and extensions' named values included
-    - ComfyUI API JSON (import/export) - workflow format used by the ComfyUI API
+    - ComfyUI (import/export) - the format of ComfyUI's Workflow › Save, with layout, groups, notes and subgraphs; widget values are read as ComfyUI lays them out, dynamic inputs and extensions' named values included; an export carries the values last used with the workflow, without the positive prompt
+    - ComfyUI API (import/export) - workflow format used by the ComfyUI API
     - ComfyChair JSON (import/export) - preserves field mappings and app settings
   - A list of workflows with filters and a switch for each, so the generation screens offer only the ones you use; each workflow's page shows its graph and description
   - Prompts can be mapped to primitive String nodes, so one prompt can feed several text encoders

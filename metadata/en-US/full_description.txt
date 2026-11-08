@@ -14,6 +14,8 @@ Flexible workflow support:
 - Stack up to 5 LoRAs with individual strength controls
 - Create new workflows from scratch, import files, or pick a workflow saved on your ComfyUI server
 - Link values between nodes and disconnect them, as in ComfyUI
+- Add your own fields: any node value can appear in the generation options
+- Open, create and unpack ComfyUI subgraphs, and export workflows in ComfyUI's format
 - Full node graph visualization and editing with a searchable node browser, and an overview of large graphs when zoomed out
 - Organize nodes into groups and add notes with Markdown support
 
