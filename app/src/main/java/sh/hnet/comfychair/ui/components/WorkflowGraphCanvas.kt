@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -1480,18 +1479,8 @@ fun WorkflowGraphCanvas(
             val before = wireEmphasis(edge, previousFocus)
             val after = wireEmphasis(edge, shownFocus)
             // A wire leaves its socket with a curve that swings back past it, hidden under a node's body; a port strip
-            // is narrow glass, so the wire is cut at the strip's centre line
-            val fromStrip = nodePositionsMap[edge.sourceNodeId]?.takeIf(SubgraphLevels::isInputsNode)
-            val toStrip = nodePositionsMap[edge.targetNodeId]?.takeIf(SubgraphLevels::isOutputsNode)
-            if (fromStrip != null || toStrip != null) {
-                clipRect(
-                    left = fromStrip?.let { portStripBounds(it).center.x } ?: -1e7f,
-                    top = -1e7f,
-                    right = toStrip?.let { portStripBounds(it).center.x } ?: 1e7f,
-                    bottom = 1e7f
-                ) { drawWireUnclipped(edge, alpha, before, after) }
-                return
-            }
+            // is narrow glass, so its wires don't swing back ([drawEdge]) and are drawn whole: a wire bending past the
+            // strip on its way (a target close beside it, far above or below) stays visible
             drawWireUnclipped(edge, alpha, before, after)
         }
 
@@ -2406,7 +2395,12 @@ private fun DrawScope.drawEdge(
         targetNode, targetNode.x, targetNode.y + WorkflowLayoutEngine.inputSlotY(targetNode, edge.targetInputName),
         draggingNodeId, dragScale
     )
-    val path = router.computeRoute(start, end).path
+    // A port strip is narrow glass: its wires don't swing back behind its centre line, where their sockets are
+    val path = router.computeRoute(
+        start, end,
+        backAtStart = !SubgraphLevels.isInputsNode(sourceNode),
+        backAtEnd = !SubgraphLevels.isOutputsNode(targetNode)
+    ).path
 
     val color = lerp(colors.slot(edge.slotType), colors.outlineVariant, recede).copy(alpha = alpha)
     drawPath(path = path, color = color, style = Stroke(width = width, cap = StrokeCap.Round))
@@ -2632,25 +2626,38 @@ private fun DrawScope.drawNote(
 
 /** [text] cut at the end with "…" to fit [maxWidth]; empty when not even that fits. */
 private fun ellipsizeEnd(text: String, maxWidth: Float, paint: Paint): String {
-    if (paint.measureText(text) <= maxWidth) return text
-    var end = text.length
-    while (end > 0 && paint.measureText(text, 0, end) + paint.measureText("…") > maxWidth) end--
-    return if (end == 0) "" else text.substring(0, end).trimEnd() + "…"
+    val limit = fittingChars(maxWidth, paint)
+    if (text.length <= limit && paint.measureText(text) <= maxWidth) return text
+    // The longest start that fits with "…", found by halving (values can be thousands of characters long, e.g. a
+    // system prompt, and this runs every frame)
+    val room = maxWidth - paint.measureText("…")
+    var low = 0
+    var high = minOf(text.length, limit)
+    while (low < high) {
+        val mid = (low + high + 1) / 2
+        if (paint.measureText(text, 0, mid) <= room) low = mid else high = mid - 1
+    }
+    return if (low == 0) "" else text.substring(0, low).trimEnd() + "…"
 }
 
 /** [text] cut in the middle with "…" to fit [maxWidth] (values: both their start and their end tell them apart). */
 private fun ellipsizeMiddle(text: String, maxWidth: Float, paint: Paint): String {
-    if (paint.measureText(text) <= maxWidth) return text
-    var keep = text.length - 1
-    while (keep > 1) {
-        val head = text.substring(0, (keep + 1) / 2).trimEnd()
-        val tail = text.substring(text.length - keep / 2).trimStart()
-        val candidate = "$head…$tail"
-        if (paint.measureText(candidate) <= maxWidth) return candidate
-        keep--
+    val limit = fittingChars(maxWidth, paint)
+    if (text.length <= limit && paint.measureText(text) <= maxWidth) return text
+    fun cut(keep: Int) = text.substring(0, (keep + 1) / 2).trimEnd() + "…" + text.substring(text.length - keep / 2).trimStart()
+    // The most characters kept that fit, found by halving (see ellipsizeEnd)
+    var low = 0
+    var high = minOf(text.length - 1, limit)
+    while (low < high) {
+        val mid = (low + high + 1) / 2
+        if (paint.measureText(cut(mid)) <= maxWidth) low = mid else high = mid - 1
     }
-    return "…"
+    return if (low <= 1) "…" else cut(low)
 }
+
+/** At most this many characters fit in [maxWidth]: none is narrower than a fifth of the text size. */
+private fun fittingChars(maxWidth: Float, paint: Paint): Int =
+    (maxWidth / (paint.textSize * 0.2f)).toInt().coerceAtLeast(1)
 
 /**
  * The app field's label when the generation screen fills this input: a {{placeholder}} value, or an input the

@@ -27,7 +27,8 @@ class CubicBezierRouter : EdgeRouter {
         private const val MIN_CONTROL = 60f
     }
 
-    override fun computeRoute(start: Offset, end: Offset): RoutedPath {
+    // Never swings back behind its sockets (the waypoints' controls are capped at them)
+    override fun computeRoute(start: Offset, end: Offset, backAtStart: Boolean, backAtEnd: Boolean): RoutedPath {
         // Waypoints at same height as their respective sockets
         val p1 = start
         val p2 = Offset(start.x + WAYPOINT_OFFSET, start.y)  // Right of output

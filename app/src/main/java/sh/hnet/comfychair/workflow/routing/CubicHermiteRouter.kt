@@ -28,7 +28,7 @@ class CubicHermiteRouter : EdgeRouter {
         private const val MIN_TANGENT = 60f
     }
 
-    override fun computeRoute(start: Offset, end: Offset): RoutedPath {
+    override fun computeRoute(start: Offset, end: Offset, backAtStart: Boolean, backAtEnd: Boolean): RoutedPath {
         // Waypoints at same height as their respective sockets
         val p1 = start
         val p2 = Offset(start.x + WAYPOINT_OFFSET, start.y)  // Right of output
@@ -44,12 +44,16 @@ class CubicHermiteRouter : EdgeRouter {
         // Use same magnitude at waypoints for smooth transitions (C1 continuity)
         // Socket ends use smaller magnitude for tighter connection
         val magSocket = MIN_TANGENT
+        // Without a swing back behind a socket, its waypoint's tangent at most reaches back to it (the tangent's
+        // direction stays, so the curve stays smooth)
+        val magAfterStart = if (backAtStart) magMiddle else minOf(magMiddle, 3 * WAYPOINT_OFFSET)
+        val magBeforeEnd = if (backAtEnd) magMiddle else minOf(magMiddle, 3 * WAYPOINT_OFFSET)
 
         val path = Path().apply {
             moveTo(p1.x, p1.y)
 
             // Segment 1: P1 → P2 (small at socket, matches middle at waypoint)
-            val (c1a, c2a) = hermiteToBezier(p1, p2, Offset(magSocket, 0f), Offset(magMiddle, 0f))
+            val (c1a, c2a) = hermiteToBezier(p1, p2, Offset(magSocket, 0f), Offset(magAfterStart, 0f))
             cubicTo(c1a.x, c1a.y, c2a.x, c2a.y, p2.x, p2.y)
 
             // Segment 2: P2 → P3 (main curve with matching tangents)
@@ -57,7 +61,7 @@ class CubicHermiteRouter : EdgeRouter {
             cubicTo(c1b.x, c1b.y, c2b.x, c2b.y, p3.x, p3.y)
 
             // Segment 3: P3 → P4 (matches middle at waypoint, small at socket)
-            val (c1c, c2c) = hermiteToBezier(p3, p4, Offset(magMiddle, 0f), Offset(magSocket, 0f))
+            val (c1c, c2c) = hermiteToBezier(p3, p4, Offset(magBeforeEnd, 0f), Offset(magSocket, 0f))
             cubicTo(c1c.x, c1c.y, c2c.x, c2c.y, p4.x, p4.y)
         }
 

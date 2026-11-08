@@ -184,22 +184,28 @@ object FieldMappingAnalyzer {
 
         // Strategy 1: Find nodes that have matching input key names
         val directCandidates = mutableListOf<FieldCandidate>()
+        val nodesById = graph.nodes.associateBy { it.id }
 
         for (node in graph.nodes) {
             node.inputs.forEach { (inputName, inputValue) ->
                 if (TemplateKeyRegistry.doesInputKeyMatchField(fieldKey, inputName)) {
-                    val currentValue = when (inputValue) {
-                        is InputValue.Literal -> inputValue.value
-                        else -> null
+                    // A value linked from another node isn't the field's: mapping it would replace the link (e.g. a
+                    // width from a resolution node). A primitive node holding it is offered instead.
+                    val (target, targetKey) = when (inputValue) {
+                        is InputValue.Connection -> primitiveSource(nodesById[inputValue.sourceNodeId]) ?: return@forEach
+                        else -> node to inputName
                     }
+                    val currentValue = (target.inputs[targetKey] as? InputValue.Literal)?.value
 
-                    if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) {
+                    if (TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue) &&
+                        directCandidates.none { it.nodeId == target.id && it.inputKey == targetKey }
+                    ) {
                         directCandidates.add(
                             FieldCandidate(
-                                nodeId = node.id,
-                                nodeName = node.title,
-                                classType = node.classType,
-                                inputKey = inputName,
+                                nodeId = target.id,
+                                nodeName = target.title,
+                                classType = target.classType,
+                                inputKey = targetKey,
                                 currentValue = currentValue
                             )
                         )
@@ -369,6 +375,16 @@ object FieldMappingAnalyzer {
      * rather than defaulting to whichever node happens to be first in iteration order.
      * Falls back to index 0 if no placeholder match is found.
      */
+    /**
+     * A primitive node (ComfyUI's Int, Float, Boolean, String…) as the source of a linked value: its own value, a
+     * literal it holds with no links of its own; null for any other node.
+     */
+    private fun primitiveSource(node: WorkflowNode?): Pair<WorkflowNode, String>? {
+        if (node == null || !node.classType.startsWith("Primitive")) return null
+        if (node.inputs.values.any { it !is InputValue.Literal }) return null
+        return if (node.inputs["value"] is InputValue.Literal) node to "value" else null
+    }
+
     private fun autoSelectIndex(fieldKey: String, candidates: List<FieldCandidate>): Int {
         if (candidates.isEmpty()) return -1
         val placeholderPattern = "{{${TemplateKeyRegistry.getPlaceholderForKey(fieldKey)}}}"

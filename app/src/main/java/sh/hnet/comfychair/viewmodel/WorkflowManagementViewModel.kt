@@ -38,6 +38,7 @@ import sh.hnet.comfychair.workflow.PendingWorkflowUpload
 import sh.hnet.comfychair.workflow.Subgraphs
 import sh.hnet.comfychair.workflow.TemplateKeyRegistry
 import sh.hnet.comfychair.workflow.WorkflowMappingState
+import sh.hnet.comfychair.workflow.isLink
 
 /**
  * Export format options
@@ -497,16 +498,26 @@ class WorkflowManagementViewModel : ViewModel() {
 
                     for (inputKey in inputKeys) {
                         if (!inputs.has(inputKey)) continue
-                        val currentValue = inputs.opt(inputKey)
+                        // A value linked from another node isn't the field's: mapping it would replace the link
+                        // (e.g. a width from a resolution node). A primitive node holding it is offered instead.
+                        val linked = inputs.opt(inputKey)
+                        val (targetId, targetKey) = if (isLink(linked)) {
+                            primitiveSource(nodesJson, (linked as JSONArray).optString(0)) ?: continue
+                        } else {
+                            nodeId to inputKey
+                        }
+                        if (candidates.any { it.nodeId == targetId && it.inputKey == targetKey }) continue
+                        val target = nodesJson.optJSONObject(targetId) ?: continue
+                        val currentValue = target.optJSONObject("inputs")?.opt(targetKey)
                         if (!TemplateKeyRegistry.doesValueMatchPlaceholder(fieldKey, currentValue)) continue
-                        val classType = node.optString("class_type", "Unknown")
-                        val title = node.optJSONObject("_meta")?.optString("title") ?: classType
+                        val classType = target.optString("class_type", "Unknown")
+                        val title = target.optJSONObject("_meta")?.optString("title") ?: classType
                         candidates.add(
                             FieldCandidate(
-                                nodeId = nodeId,
+                                nodeId = targetId,
                                 nodeName = title,
                                 classType = classType,
-                                inputKey = inputKey,
+                                inputKey = targetKey,
                                 currentValue = currentValue
                             )
                         )
@@ -522,6 +533,18 @@ class WorkflowManagementViewModel : ViewModel() {
         }
 
         return WorkflowMappingState(type, fieldMappings)
+    }
+
+    /**
+     * A primitive node (ComfyUI's Int, Float, Boolean, String…) as the source of a linked value: its own value, a
+     * literal it holds with no links of its own; null for any other node.
+     */
+    private fun primitiveSource(nodesJson: JSONObject, nodeId: String): Pair<String, String>? {
+        val node = nodesJson.optJSONObject(nodeId) ?: return null
+        if (!node.optString("class_type").startsWith("Primitive")) return null
+        val inputs = node.optJSONObject("inputs") ?: return null
+        if (inputs.keys().asSequence().any { isLink(inputs.opt(it)) }) return null
+        return if (inputs.has("value")) nodeId to "value" else null
     }
 
     /**
