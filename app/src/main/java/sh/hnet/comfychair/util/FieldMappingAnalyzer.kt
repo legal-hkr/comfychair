@@ -113,8 +113,8 @@ object FieldMappingAnalyzer {
     }
 
     /**
-     * A value inside a subgraph named by its path (spec §19.6): the instance's title, nested instances' titles, the
-     * node's own, joined with " – "; a deeper path keeps the last two, after "… – ".
+     * A value inside a subgraph named by its node and, in parentheses, the subgraph it's in (the innermost instance's
+     * title): "ImageScale (Upscale)". The whole path is in the editor's pill once inside.
      */
     private fun pathTitle(storedRoot: JSONObject, candidate: FieldCandidate): String {
         val definitions = Subgraphs.definitionsOf(storedRoot) ?: return candidate.nodeName
@@ -133,7 +133,7 @@ object FieldMappingAnalyzer {
             titleOf(node)?.let(titles::add)
         }
         titles.add(candidate.nodeName)
-        return if (titles.size > 2) "… – " + titles.takeLast(2).joinToString(" – ") else titles.joinToString(" – ")
+        return if (titles.size > 1) "${titles.last()} (${titles[titles.size - 2]})" else titles.last()
     }
 
     /**

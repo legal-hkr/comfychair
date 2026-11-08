@@ -1148,8 +1148,7 @@
     <string name="sg_rename">Renommer le sous-graphe</string>
     <string name="sg_rename_this">Renommer ce sous-graphe</string>
     <string name="sg_rename_used">Copies : %1$d</string>
-    <string name="sg_own_title">Ce nœud a son propre titre, &lt;b>%1$s&lt;/b>.</string>
-    <string name="sg_use_subgraph_name">Utiliser le nom du sous-graphe</string>
+    <string name="sg_rename_all">Renommer toutes les copies (%1$d)</string>
     <string name="sg_name">Nom</string>
     <string name="sg_name_count">%1$d/%2$d</string>
     <string name="sg_error_name_empty">Saisissez un nom</string>

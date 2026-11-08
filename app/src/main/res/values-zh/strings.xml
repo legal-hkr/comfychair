@@ -1086,8 +1086,7 @@
     <string name="sg_rename">重命名子图</string>
     <string name="sg_rename_this">重命名此子图</string>
     <string name="sg_rename_used">副本：%1$d</string>
-    <string name="sg_own_title">此节点有自己的标题：&lt;b>%1$s&lt;/b>。</string>
-    <string name="sg_use_subgraph_name">使用子图名称</string>
+    <string name="sg_rename_all">重命名所有副本（%1$d）</string>
     <string name="sg_name">名称</string>
     <string name="sg_name_count">%1$d/%2$d</string>
     <string name="sg_error_name_empty">请输入名称</string>

@@ -402,11 +402,10 @@ class EditorEditActions(
     val onRenameNode: (() -> Unit)? = null,
     val onEditNote: (() -> Unit)? = null,
     val onRenameGroup: (() -> Unit)? = null,
-    // Subgraphs (spec §19.4), each only when it applies: the selection made into one, the selected instance unpacked or
-    // its subgraph renamed; inside a subgraph with nothing selected, renaming that one
+    // Subgraphs (spec §19.4), each only when it applies: the selection made into one, the selected instance unpacked
+    // (an instance is renamed with Rename); inside a subgraph with nothing selected, renaming that one
     val onMakeSubgraph: (() -> Unit)? = null,
     val onUnpackSubgraph: (() -> Unit)? = null,
-    val onRenameSubgraph: (() -> Unit)? = null,
     val onRenameThisSubgraph: (() -> Unit)? = null,
     val onSave: () -> Unit
 )
@@ -474,8 +473,7 @@ fun EditorToolbar(
                     )
                     val subgraph = listOfNotNull(
                         edit.onMakeSubgraph?.let { MenuAction(R.string.sg_make, Icons.Rounded.Layers, it) },
-                        edit.onUnpackSubgraph?.let { MenuAction(R.string.sg_unpack, Icons.Rounded.UnfoldMore, it) },
-                        edit.onRenameSubgraph?.let { MenuAction(R.string.sg_rename, Icons.Rounded.Edit, it) }
+                        edit.onUnpackSubgraph?.let { MenuAction(R.string.sg_unpack, Icons.Rounded.UnfoldMore, it) }
                     )
                     // Subgraphs first, then the selection's other actions, then the graph's
                     EditMoreMenu(listOf(subgraph, more, graphActions).filter { it.isNotEmpty() })

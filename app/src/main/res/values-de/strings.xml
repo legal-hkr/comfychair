@@ -1115,8 +1115,7 @@
     <string name="sg_rename">Subgraph umbenennen</string>
     <string name="sg_rename_this">Diesen Subgraph umbenennen</string>
     <string name="sg_rename_used">Kopien: %1$d</string>
-    <string name="sg_own_title">Dieser Knoten hat einen eigenen Titel: &lt;b>%1$s&lt;/b>.</string>
-    <string name="sg_use_subgraph_name">Namen des Subgraphs verwenden</string>
+    <string name="sg_rename_all">Alle Kopien umbenennen (%1$d)</string>
     <string name="sg_name">Name</string>
     <string name="sg_name_count">%1$d/%2$d</string>
     <string name="sg_error_name_empty">Gib einen Namen ein</string>

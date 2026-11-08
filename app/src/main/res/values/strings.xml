@@ -1147,8 +1147,7 @@
     <string name="sg_rename">Rename subgraph</string>
     <string name="sg_rename_this">Rename this subgraph</string>
     <string name="sg_rename_used">Copies: %1$d</string>
-    <string name="sg_own_title">This node has its own title, &lt;b>%1$s&lt;/b>.</string>
-    <string name="sg_use_subgraph_name">Use the subgraph name</string>
+    <string name="sg_rename_all">Rename all copies (%1$d)</string>
     <string name="sg_name">Name</string>
     <string name="sg_name_count">%1$d/%2$d</string>
     <string name="sg_error_name_empty">Enter a name</string>

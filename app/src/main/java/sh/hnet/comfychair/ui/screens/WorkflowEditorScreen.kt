@@ -154,6 +154,7 @@ import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.NewFieldDialog
 import sh.hnet.comfychair.ui.components.workflow.NewSubgraphDialog
+import sh.hnet.comfychair.ui.components.workflow.RenameInstanceDialog
 import sh.hnet.comfychair.ui.components.workflow.RenameSubgraphDialog
 import sh.hnet.comfychair.ui.components.workflow.RenameSubgraphPortDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
@@ -1124,10 +1125,12 @@ fun WorkflowEditorScreen(
                     },
                     onGroup = { viewModel.createGroupFromSelection() },
                     onUngroup = { viewModel.ungroupSelectedNode() },
-                    // A subgraph instance is renamed by its subgraph (spec §19.4.3)
-                    onRenameNode = uiState.selectedNodeIds.singleOrNull()?.takeIf { uiState.selectedNoteIds.isEmpty() && viewModel.selectedInstance() == null }?.let { nodeId ->
+                    // A subgraph instance has its own dialog: this copy only, or the subgraph and all its copies
+                    onRenameNode = uiState.selectedNodeIds.singleOrNull()?.takeIf { uiState.selectedNoteIds.isEmpty() }?.let { nodeId ->
                         {
-                            uiState.graph?.nodes?.find { it.id == nodeId }?.let { node ->
+                            val instance = viewModel.selectedInstance()
+                            if (instance != null) renameSubgraph = instance.classType to instance.id
+                            else uiState.graph?.nodes?.find { it.id == nodeId }?.let { node ->
                                 renamingNodeId = nodeId
                                 renameDialogText = node.title
                                 showRenameDialog = true
@@ -1157,7 +1160,6 @@ fun WorkflowEditorScreen(
                     onDelete = { viewModel.deleteSelectedNodes() },
                     onMakeSubgraph = if (uiState.selectedNodeIds.isNotEmpty()) ({ makeSubgraph = viewModel.subgraphFromSelection() }) else null,
                     onUnpackSubgraph = viewModel.selectedInstance()?.let { { viewModel.unpackSubgraph() } },
-                    onRenameSubgraph = viewModel.selectedInstance()?.let { instance -> { renameSubgraph = instance.classType to instance.id } },
                     onRenameThisSubgraph = uiState.subgraphPath.lastOrNull()?.let { level -> { renameSubgraph = level.definitionId to null } },
                     onSave = { viewModel.showSaveDialog(context) }
                 ) else null,
@@ -1401,18 +1403,31 @@ fun WorkflowEditorScreen(
             )
         }
         renameSubgraph?.let { (definitionId, instanceId) ->
-            val name = viewModel.subgraphName(definitionId)
-            val ownTitle = instanceId?.let { id -> uiState.graph?.nodes?.find { it.id == id }?.title }?.takeIf { it != name }
-            RenameSubgraphDialog(
-                current = name,
-                usedCount = viewModel.subgraphUsage(definitionId),
-                ownTitle = ownTitle,
-                onRename = { new, dropOwnTitle ->
-                    renameSubgraph = null
-                    viewModel.renameSubgraph(definitionId, new, instanceId.takeIf { dropOwnTitle })
-                },
-                onDismiss = { renameSubgraph = null }
-            )
+            val usedCount = viewModel.subgraphUsage(definitionId)
+            val instance = instanceId?.let { id -> uiState.graph?.nodes?.find { it.id == id } }
+            if (instance != null) {
+                // A copy: its own title, or (ticked, or the only copy) the subgraph's name for every copy
+                RenameInstanceDialog(
+                    current = instance.title,
+                    usedCount = usedCount,
+                    onRename = { new, all ->
+                        renameSubgraph = null
+                        if (all || usedCount <= 1) viewModel.renameSubgraph(definitionId, new, everyCopy = true)
+                        else viewModel.renameNode(instance.id, new)
+                    },
+                    onDismiss = { renameSubgraph = null }
+                )
+            } else {
+                RenameSubgraphDialog(
+                    current = viewModel.subgraphName(definitionId),
+                    usedCount = usedCount,
+                    onRename = { new ->
+                        renameSubgraph = null
+                        viewModel.renameSubgraph(definitionId, new)
+                    },
+                    onDismiss = { renameSubgraph = null }
+                )
+            }
         }
         renamePort?.let { (input, index) ->
             val names = viewModel.subgraphPortNames(input)

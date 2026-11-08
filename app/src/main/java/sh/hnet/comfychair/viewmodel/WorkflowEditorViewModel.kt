@@ -4306,10 +4306,10 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Rename subgraph [definitionId] (every instance: those showing its name show the new one); [dropTitleOf] an
-     * instance whose own title goes (spec §19.4.3).
+     * Rename subgraph [definitionId]: its instances showing its name show the new one; with [everyCopy] every
+     * instance does, titles of their own dropped – at every level and inside other subgraphs.
      */
-    fun renameSubgraph(definitionId: String, name: String, dropTitleOf: String? = null) {
+    fun renameSubgraph(definitionId: String, name: String, everyCopy: Boolean = false) {
         val graph = mutableGraph ?: return
         val definitions = JSONObject(graph.subgraphs ?: return)
         val definition = definitions.optJSONObject(definitionId) ?: return
@@ -4317,8 +4317,18 @@ class WorkflowEditorViewModel : ViewModel() {
         val new = name.trim().take(SubgraphEditing.MAX_NAME_LENGTH)
         if (new.isEmpty()) return
         definition.put("name", new)
+        fun follows(title: String) = everyCopy || title == old || title.isEmpty()
         fun retitle(nodes: List<WorkflowNode>) = nodes.map { node ->
-            if (node.classType == definitionId && (node.title == old || node.id == dropTitleOf)) node.copy(title = new) else node
+            if (node.classType == definitionId && follows(node.title)) node.copy(title = new) else node
+        }
+        // Instances stored inside definitions (levels not entered)
+        for (id in definitions.keys()) {
+            val nodes = definitions.optJSONObject(id)?.optJSONObject("nodes") ?: continue
+            for (nodeId in nodes.keys()) {
+                val node = nodes.optJSONObject(nodeId)?.takeIf { it.optString("class_type") == definitionId } ?: continue
+                val meta = node.optJSONObject("_meta")
+                if (meta != null && follows(meta.optString("title"))) meta.put("title", new)
+            }
         }
         graph.subgraphs = definitions.toString()
         graph.nodes.replaceAll { node -> retitle(listOf(node)).first() }
