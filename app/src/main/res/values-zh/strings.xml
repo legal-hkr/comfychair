@@ -813,6 +813,8 @@
     <string name="node_browser_no_match">没有与“%1$s”匹配的节点</string>
     <string name="content_description_custom_node">扩展节点</string>
     <string name="content_description_remove_filter">显示所有节点</string>
+    <string name="node_browser_more_categories">另外 %d 个</string>
+    <string name="node_browser_fewer_categories">收起</string>
     <plurals name="node_browser_compatible_count">
         <item quantity="other">%d 个兼容节点</item>
     </plurals>

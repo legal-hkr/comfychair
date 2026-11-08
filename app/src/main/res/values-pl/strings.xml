@@ -873,6 +873,8 @@
     <string name="node_browser_no_match">Żaden węzeł nie pasuje do „%1$s”</string>
     <string name="content_description_custom_node">Węzeł z rozszerzenia</string>
     <string name="content_description_remove_filter">Pokaż wszystkie węzły</string>
+    <string name="node_browser_more_categories">Jeszcze %d</string>
+    <string name="node_browser_fewer_categories">Mniej</string>
     <plurals name="node_browser_compatible_count">
         <item quantity="one">%d pasujący węzeł</item>
         <item quantity="few">%d pasujące węzły</item>

@@ -841,6 +841,8 @@
     <string name="node_browser_no_match">No nodes match “%1$s”</string>
     <string name="content_description_custom_node">Custom node</string>
     <string name="content_description_remove_filter">Show all nodes</string>
+    <string name="node_browser_more_categories">%d more</string>
+    <string name="node_browser_fewer_categories">Fewer</string>
     <plurals name="node_browser_compatible_count">
         <item quantity="one">%d compatible node</item>
         <item quantity="other">%d compatible nodes</item>

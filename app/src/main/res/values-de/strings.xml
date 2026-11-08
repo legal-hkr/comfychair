@@ -831,6 +831,8 @@
     <string name="node_browser_no_match">Keine Knoten passen zu „%1$s“</string>
     <string name="content_description_custom_node">Knoten aus einer Erweiterung</string>
     <string name="content_description_remove_filter">Alle Knoten zeigen</string>
+    <string name="node_browser_more_categories">%d weitere</string>
+    <string name="node_browser_fewer_categories">Weniger</string>
     <plurals name="node_browser_compatible_count">
         <item quantity="one">%d passender Knoten</item>
         <item quantity="other">%d passende Knoten</item>

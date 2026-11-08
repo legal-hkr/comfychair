@@ -853,6 +853,8 @@
     <string name="node_browser_no_match">Aucun nœud ne correspond à « %1$s »</string>
     <string name="content_description_custom_node">Nœud d’une extension</string>
     <string name="content_description_remove_filter">Afficher tous les nœuds</string>
+    <string name="node_browser_more_categories">%d de plus</string>
+    <string name="node_browser_fewer_categories">Moins</string>
     <plurals name="node_browser_compatible_count">
         <item quantity="one">%d nœud compatible</item>
         <item quantity="many">%d nœuds compatibles</item>

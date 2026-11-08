@@ -1,5 +1,11 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,8 +20,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,9 +88,9 @@ private val LITERAL_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
 private fun isConnectionType(type: String): Boolean = type.uppercase() !in LITERAL_TYPES
 
 /**
- * The node browser, a full-height sheet: search, then chips (from a held socket first "Takes LATENT ×", then the
- * categories, most nodes first, drilling down one level per chip), and the nodes as segmented rows with their
- * category colour. Tapping a node adds it (wired to the held socket when it came from one).
+ * The node browser, a full-height sheet: search, then chips wrapping into rows (from a held socket first "Takes LATENT
+ * ×", then the categories by name, drilling down one level per chip; many show the first ones and a chip for the rest)
+ * scrolling with the nodes, segmented rows with their category colour. Tapping a node adds it (wired to the held socket when it came from one).
  *
  * @param filterToOutputType Held output socket: nodes that take its type
  * @param filterToInputType Held input socket: nodes that give its type
@@ -125,13 +129,14 @@ fun NodeBrowserBottomSheet(
         if (prefix.isEmpty()) compatibleNodes
         else compatibleNodes.filter { normalizeCategory(it.category).let { c -> c == prefix || c.startsWith("$prefix/") } }
     }
-    // The next level's categories, most nodes first
+    // The next level's categories, by name
     val subcategories = remember(inCategory, path) {
         inCategory.mapNotNull { parseCategoryLevels(normalizeCategory(it.category)).getOrNull(path.size) }
-            .groupingBy { it }.eachCount()
-            .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.lowercase() })
-            .map { it.key }
+            .distinct()
+            .sortedBy { it.lowercase() }
     }
+    // Many categories show the first ones and a chip for the rest
+    var allCategories by remember(path, compatibleOnly) { mutableStateOf(false) }
     val shown = remember(inCategory, searchQuery) {
         val query = searchQuery.trim().lowercase()
         inCategory.filter { node ->
@@ -181,93 +186,138 @@ fun NodeBrowserBottomSheet(
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp)
             ) { }
 
-            // Compatibility, the chosen categories, then the next level's
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(vertical = 12.dp)
-            ) {
-                if (slotType != null && compatibleOnly) {
-                    item(key = "compatible") {
-                        InputChip(
-                            selected = true,
-                            onClick = {
+            // Dark or light by the theme actually shown, as the graph decides it
+            val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+            NoOverscrollContainer(modifier = Modifier.weight(1f)) {
+                LazyColumn(
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    // Compatibility, the chosen categories, then the next level's, in rows (scrolling with the nodes)
+                    item(key = "chips") {
+                        CategoryChips(
+                            compatibleLabel = if (slotType != null && compatibleOnly) {
+                                stringResource(
+                                    if (filterToOutputType != null) R.string.node_browser_accepts_input else R.string.node_browser_provides_output,
+                                    slotType
+                                )
+                            } else null,
+                            onClearCompatible = {
                                 compatibleOnly = false
                                 path = emptyList()
                             },
-                            label = {
-                                Text(
-                                    stringResource(
-                                        if (filterToOutputType != null) R.string.node_browser_accepts_input else R.string.node_browser_provides_output,
-                                        slotType
-                                    )
-                                )
-                            },
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.content_description_remove_filter),
-                                    modifier = Modifier.size(InputChipDefaults.IconSize)
-                                )
-                            }
+                            path = path,
+                            onPathLevel = { index -> path = path.take(index) },
+                            subcategories = subcategories,
+                            all = allCategories,
+                            onAll = { allCategories = it },
+                            onSubcategory = { category -> path = path + category }
                         )
                     }
-                }
-                path.forEachIndexed { index, level ->
-                    item(key = "path_$index") {
-                        FilterChip(
-                            selected = true,
-                            onClick = { path = path.take(index) },
-                            label = { Text(level) },
-                            leadingIcon = { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
-                        )
-                    }
-                }
-                items(subcategories, key = { "sub_$it" }) { category ->
-                    FilterChip(selected = false, onClick = { path = path + category }, label = { Text(category) })
-                }
-            }
 
-            if (slotType != null && compatibleOnly) {
-                Text(
-                    pluralStringResource(R.plurals.node_browser_compatible_count, shown.size, shown.size),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-                )
-            }
-
-            if (shown.isEmpty()) {
-                Text(
-                    text = if (searchQuery.isNotBlank()) stringResource(R.string.node_browser_no_match, searchQuery.trim())
-                        else stringResource(R.string.node_browser_no_results),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else {
-                // Dark or light by the theme actually shown, as the graph decides it
-                val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-                NoOverscrollContainer(modifier = Modifier.weight(1f)) {
-                    LazyColumn(
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        itemsIndexed(shown, key = { _, node -> "node_${node.classType}" }) { index, nodeType ->
-                            NodeTypeRow(
-                                nodeType = nodeType,
-                                swatch = GraphColors.palette(dark).categoryTint(nodeCategoryOf(nodeType.classType))
-                                    ?: MaterialTheme.colorScheme.surfaceContainerHighest,
-                                shape = segmentedItemShape(index, shown.size),
-                                onClick = { onNodeTypeSelected(nodeType) }
+                    if (slotType != null && compatibleOnly) {
+                        item(key = "count") {
+                            Text(
+                                pluralStringResource(R.plurals.node_browser_compatible_count, shown.size, shown.size),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
+                    }
+
+                    if (shown.isEmpty()) {
+                        item(key = "none") {
+                            Text(
+                                text = if (searchQuery.isNotBlank()) stringResource(R.string.node_browser_no_match, searchQuery.trim())
+                                    else stringResource(R.string.node_browser_no_results),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 16.dp)
+                            )
+                        }
+                    }
+                    itemsIndexed(shown, key = { _, node -> "node_${node.classType}" }) { index, nodeType ->
+                        NodeTypeRow(
+                            nodeType = nodeType,
+                            swatch = GraphColors.palette(dark).categoryTint(nodeCategoryOf(nodeType.classType))
+                                ?: MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = segmentedItemShape(index, shown.size),
+                            onClick = { onNodeTypeSelected(nodeType) }
+                        )
                     }
                 }
             }
         }
     }
 }
+
+/**
+ * The filter chips above the nodes, wrapping into rows: a held socket's filter, the levels gone down (each going back
+ * to it), then the next level's categories by name; more than [COLLAPSED_CATEGORIES] show the first ones and a chip
+ * for the rest, which turns into one for fewer.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryChips(
+    compatibleLabel: String?,
+    onClearCompatible: () -> Unit,
+    path: List<String>,
+    onPathLevel: (Int) -> Unit,
+    subcategories: List<String>,
+    all: Boolean,
+    onAll: (Boolean) -> Unit,
+    onSubcategory: (String) -> Unit
+) {
+    val collapsed = !all && subcategories.size > COLLAPSED_CATEGORIES + 1
+    val shownCategories = if (collapsed) subcategories.take(COLLAPSED_CATEGORIES) else subcategories
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(vertical = 12.dp)
+    ) {
+        if (compatibleLabel != null) {
+            InputChip(
+                selected = true,
+                onClick = onClearCompatible,
+                label = { Text(compatibleLabel) },
+                trailingIcon = {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.content_description_remove_filter),
+                        modifier = Modifier.size(InputChipDefaults.IconSize)
+                    )
+                }
+            )
+        }
+        path.forEachIndexed { index, level ->
+            FilterChip(
+                selected = true,
+                onClick = { onPathLevel(index) },
+                label = { Text(level) },
+                leadingIcon = { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+            )
+        }
+        shownCategories.forEach { category ->
+            FilterChip(selected = false, onClick = { onSubcategory(category) }, label = { Text(category) })
+        }
+        if (collapsed) {
+            AssistChip(
+                onClick = { onAll(true) },
+                label = { Text(stringResource(R.string.node_browser_more_categories, subcategories.size - COLLAPSED_CATEGORIES)) },
+                trailingIcon = { Icon(Icons.Rounded.ExpandMore, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize)) }
+            )
+        } else if (all) {
+            AssistChip(
+                onClick = { onAll(false) },
+                label = { Text(stringResource(R.string.node_browser_fewer_categories)) },
+                trailingIcon = { Icon(Icons.Rounded.ExpandLess, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize)) }
+            )
+        }
+    }
+}
+
+// Categories shown before the chip for the rest
+private const val COLLAPSED_CATEGORIES = 12
 
 /**
  * A node type: a swatch in its category colour (the graph's colours, the one exception to theme roles), its name, and

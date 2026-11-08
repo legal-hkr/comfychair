@@ -853,6 +853,8 @@
     <string name="node_browser_no_match">Ningún nodo coincide con «%1$s»</string>
     <string name="content_description_custom_node">Nodo de una extensión</string>
     <string name="content_description_remove_filter">Mostrar todos los nodos</string>
+    <string name="node_browser_more_categories">%d más</string>
+    <string name="node_browser_fewer_categories">Menos</string>
     <plurals name="node_browser_compatible_count">
         <item quantity="one">%d nodo compatible</item>
         <item quantity="many">%d nodos compatibles</item>
