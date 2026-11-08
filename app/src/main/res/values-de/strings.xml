@@ -930,6 +930,15 @@
     <string name="prompt_preset_reset_prompt">Prompt zurücksetzen</string>
     <string name="msg_prompt_preset_reset_success">Prompt auf Standard zurückgesetzt</string>
     <string name="title_prompt_library">Prompt-Bibliothek</string>
+    <plurals name="prompts_search_hint">
+        <item quantity="one">%d Prompt durchsuchen</item>
+        <item quantity="other">%d Prompts durchsuchen</item>
+    </plurals>
+    <string name="prompts_more_tags">Weitere Tags: %d</string>
+    <string name="prompts_count">Prompts: %1$d</string>
+    <string name="prompts_none_title">Keine Prompts passen zu „%1$s“</string>
+    <string name="prompts_none_body">Prüfe die Schreibweise oder durchsuche alle Prompts.</string>
+    <string name="prompts_search_all">Alle Prompts durchsuchen</string>
     <string name="placeholder_prompt_library_search">Prompts suchen…</string>
     <string name="msg_prompt_library_empty">Keine gespeicherten Prompts</string>
     <string name="msg_delete_prompt">Er wird aus der Prompt-Bibliothek entfernt.</string>

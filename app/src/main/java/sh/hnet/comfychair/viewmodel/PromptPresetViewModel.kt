@@ -128,6 +128,11 @@ class PromptPresetViewModel : ViewModel() {
         _uiState.update { it.copy(selectedTags = emptySet()) }
     }
 
+    /** Lift the tag and favourites filters (the search stays). */
+    fun clearFilters() {
+        _uiState.update { it.copy(selectedTags = emptySet(), filterFavoritesOnly = false) }
+    }
+
     /**
      * Toggle the favorites-only filter.
      */

@@ -974,6 +974,17 @@
     <string name="prompt_preset_reset_prompt">Resetuj prompt</string>
     <string name="msg_prompt_preset_reset_success">Prompt przywrócony do domyślnego</string>
     <string name="title_prompt_library">Biblioteka promptów</string>
+    <plurals name="prompts_search_hint">
+        <item quantity="one">Szukaj wśród %d promptu</item>
+        <item quantity="few">Szukaj wśród %d promptów</item>
+        <item quantity="many">Szukaj wśród %d promptów</item>
+        <item quantity="other">Szukaj wśród %d promptu</item>
+    </plurals>
+    <string name="prompts_more_tags">Więcej tagów: %d</string>
+    <string name="prompts_count">Prompty: %1$d</string>
+    <string name="prompts_none_title">Żaden prompt nie pasuje do „%1$s”</string>
+    <string name="prompts_none_body">Sprawdź pisownię albo szukaj wśród wszystkich promptów.</string>
+    <string name="prompts_search_all">Szukaj wśród wszystkich</string>
     <string name="placeholder_prompt_library_search">Szukaj promptów…</string>
     <string name="msg_prompt_library_empty">Brak zapisanych promptów</string>
     <string name="msg_delete_prompt">Zniknie z biblioteki promptów.</string>

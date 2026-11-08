@@ -1,5 +1,18 @@
 package sh.hnet.comfychair.ui.components
 
+import androidx.compose.ui.platform.LocalResources
+import sh.hnet.comfychair.ui.components.shared.highlighted
+import sh.hnet.comfychair.ui.components.shared.SearchFilterChips
+import sh.hnet.comfychair.ui.components.shared.SearchFilter
+import sh.hnet.comfychair.ui.components.shared.SearchField
+import sh.hnet.comfychair.ui.components.shared.SearchEmptyState
+import sh.hnet.comfychair.ui.components.shared.SearchCountLine
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.rounded.FilterAltOff
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,25 +29,18 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.rounded.BookmarkBorder
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
@@ -44,15 +50,12 @@ import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,10 +102,29 @@ fun PromptLibraryDialog(
     onDuplicatePreset: (String) -> Unit,
     onDeletePreset: (String) -> Unit,
     onDismiss: () -> Unit,
+    onClearFilters: () -> Unit,
+    totalCount: Int,
+    tagCounts: Map<String, Int>,
     onSaveCurrent: (() -> Unit)? = null
 ) {
     var presetToDelete by remember { mutableStateOf<PromptPreset?>(null) }
-    val filtering = searchQuery.isNotEmpty() || selectedTags.isNotEmpty() || filterFavoritesOnly
+    val filtersOn = selectedTags.isNotEmpty() || filterFavoritesOnly
+    val filtering = searchQuery.isNotBlank() || filtersOn
+    // The field's text, handed to the view model as typed
+    val search = rememberTextFieldState(searchQuery)
+    val currentOnQuery by rememberUpdatedState(onSearchQueryChange)
+    LaunchedEffect(search) { snapshotFlow { search.text.toString() }.collect { currentOnQuery(it) } }
+    // Favourites first, then the tags, most used first
+    val resources = LocalResources.current
+    val favouritesLabel = stringResource(R.string.prompt_library_filter_favorites)
+    val filters = buildList {
+        add(SearchFilter("favourites", favouritesLabel, filterFavoritesOnly, onToggleFavoritesFilter) {
+            Icon(Icons.Rounded.StarOutline, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize))
+        })
+        availableTags.sortedWith(compareByDescending<String> { tagCounts[it] ?: 0 }.thenBy { it.lowercase() }).forEach { tag ->
+            add(SearchFilter("tag_$tag", tag, tag in selectedTags, { onTagToggle(tag) }))
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -124,71 +146,35 @@ fun PromptLibraryDialog(
                     )
                 }
 
-                // The input field gets its container and shape from the (collapsed) search bar
-                SearchBar(
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            query = searchQuery,
-                            onQueryChange = onSearchQueryChange,
-                            onSearch = { },
-                            expanded = false,
-                            onExpandedChange = { },
-                            placeholder = { Text(stringResource(R.string.placeholder_prompt_library_search)) },
-                            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                            trailingIcon = if (searchQuery.isNotEmpty()) {
-                                {
-                                    IconButton(onClick = { onSearchQueryChange("") }) {
-                                        Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.button_clear_search))
-                                    }
-                                }
-                            } else null,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    },
-                    expanded = false,
-                    onExpandedChange = { },
-                    // The page already sits below the status bar
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) { }
-
-                // Favourites first, then the tags
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 12.dp)
-                ) {
-                    item(key = "favourites") {
-                        FilterChip(
-                            selected = filterFavoritesOnly,
-                            onClick = onToggleFavoritesFilter,
-                            label = { Text(stringResource(R.string.prompt_library_filter_favorites)) },
-                            leadingIcon = {
-                                Icon(
-                                    if (filterFavoritesOnly) Icons.Rounded.Star else Icons.Rounded.StarOutline,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                )
-                            }
-                        )
-                    }
-                    items(availableTags.sorted(), key = { "tag_$it" }) { tag ->
-                        val selected = tag in selectedTags
-                        FilterChip(
-                            selected = selected,
-                            onClick = { onTagToggle(tag) },
-                            label = { Text(tag) },
-                            leadingIcon = if (selected) {
-                                { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
-                            } else null
-                        )
-                    }
+                SearchField(
+                    state = search,
+                    placeholder = pluralStringResource(R.plurals.prompts_search_hint, totalCount, totalCount),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                SearchFilterChips(
+                    filters = filters,
+                    moreLabel = { resources.getString(R.string.prompts_more_tags, it) },
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                )
+                if (filtering) {
+                    SearchCountLine(
+                        stringResource(R.string.prompts_count, presets.size),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                    )
                 }
+                Spacer(Modifier.height(8.dp))
 
-                if (presets.isEmpty()) {
-                    LibraryEmptyState(filtering = filtering, onSaveCurrent = onSaveCurrent, modifier = Modifier.weight(1f))
+                if (presets.isEmpty() && filtering) {
+                    SearchEmptyState(
+                        title = if (searchQuery.isNotBlank()) stringResource(R.string.prompts_none_title, searchQuery.trim())
+                            else stringResource(R.string.msg_prompt_library_no_match),
+                        body = if (filtersOn) stringResource(R.string.prompts_none_body) else null,
+                        liftLabel = if (filtersOn) stringResource(R.string.prompts_search_all) else null,
+                        liftIcon = Icons.Rounded.FilterAltOff,
+                        onLift = onClearFilters
+                    )
+                } else if (presets.isEmpty()) {
+                    LibraryEmptyState(filtering = false, onSaveCurrent = onSaveCurrent, modifier = Modifier.weight(1f))
                 } else {
                     NoOverscrollContainer(modifier = Modifier.weight(1f)) {
                         LazyColumn(
@@ -198,6 +184,7 @@ fun PromptLibraryDialog(
                             itemsIndexed(presets, key = { _, preset -> preset.id }) { index, preset ->
                                 PresetRow(
                                     preset = preset,
+                                    highlight = searchQuery.trim().ifEmpty { null },
                                     shape = ListItemDefaults.segmentedShapes(index, presets.size).shape,
                                     onUse = {
                                         onPresetSelected(preset.id)
@@ -265,6 +252,7 @@ private fun LibraryEmptyState(filtering: Boolean, onSaveCurrent: (() -> Unit)?, 
 @Composable
 private fun PresetRow(
     preset: PromptPreset,
+    highlight: String?,
     shape: Shape,
     onUse: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -288,7 +276,7 @@ private fun PresetRow(
                 modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(preset.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(highlighted(preset.name, highlight), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         preset.prompt,
                         style = MaterialTheme.typography.bodyMedium,

@@ -911,6 +911,14 @@
     <string name="prompt_preset_reset_prompt">重置提示词</string>
     <string name="msg_prompt_preset_reset_success">提示词已恢复默认</string>
     <string name="title_prompt_library">提示词库</string>
+    <plurals name="prompts_search_hint">
+        <item quantity="other">搜索 %d 个提示词</item>
+    </plurals>
+    <string name="prompts_more_tags">更多标签：%d</string>
+    <string name="prompts_count">提示词：%1$d</string>
+    <string name="prompts_none_title">没有与“%1$s”匹配的提示词</string>
+    <string name="prompts_none_body">请检查拼写，或搜索全部提示词。</string>
+    <string name="prompts_search_all">搜索全部提示词</string>
     <string name="placeholder_prompt_library_search">搜索提示词…</string>
     <string name="msg_prompt_library_empty">暂无保存的提示词</string>
     <string name="msg_delete_prompt">它将从提示词库中移除。</string>

@@ -1,5 +1,10 @@
 package sh.hnet.comfychair.ui.components.shared
 
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -251,5 +256,17 @@ fun SearchEmptyState(
                 Text(liftLabel)
             }
         }
+    }
+}
+
+/** [text] with the first occurrence of [part] (case ignored) in bold: a search's match in a result. */
+fun highlighted(text: String, part: String?): AnnotatedString {
+    if (part.isNullOrEmpty()) return AnnotatedString(text)
+    val at = text.indexOf(part, ignoreCase = true)
+    if (at < 0) return AnnotatedString(text)
+    return buildAnnotatedString {
+        append(text.substring(0, at))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(text.substring(at, at + part.length)) }
+        append(text.substring(at + part.length))
     }
 }

@@ -83,6 +83,7 @@ import sh.hnet.comfychair.ui.components.shared.SearchEmptyState
 import sh.hnet.comfychair.ui.components.shared.SearchField
 import sh.hnet.comfychair.ui.components.shared.SearchFilter
 import sh.hnet.comfychair.ui.components.shared.SearchFilterChips
+import sh.hnet.comfychair.ui.components.shared.highlighted
 import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.GraphColors
@@ -542,17 +543,5 @@ private fun NodeTypeRow(
                 )
             }
         }
-    }
-}
-
-/** [text] with the first occurrence of [part] (case ignored) in bold. */
-private fun highlighted(text: String, part: String?): AnnotatedString {
-    if (part.isNullOrEmpty()) return AnnotatedString(text)
-    val at = text.indexOf(part, ignoreCase = true)
-    if (at < 0) return AnnotatedString(text)
-    return buildAnnotatedString {
-        append(text.substring(0, at))
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(text.substring(at, at + part.length)) }
-        append(text.substring(at + part.length))
     }
 }

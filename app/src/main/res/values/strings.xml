@@ -962,6 +962,15 @@
     <string name="prompt_preset_reset_prompt">Reset Prompt</string>
     <string name="msg_prompt_preset_reset_success">Prompt reset to default</string>
     <string name="title_prompt_library">Prompt Library</string>
+    <plurals name="prompts_search_hint">
+        <item quantity="one">Search %d prompt</item>
+        <item quantity="other">Search %d prompts</item>
+    </plurals>
+    <string name="prompts_more_tags">More tags: %d</string>
+    <string name="prompts_count">Prompts: %1$d</string>
+    <string name="prompts_none_title">No prompts match “%1$s”</string>
+    <string name="prompts_none_body">Check the spelling, or search all prompts.</string>
+    <string name="prompts_search_all">Search all prompts</string>
     <string name="placeholder_prompt_library_search">Search prompts…</string>
     <string name="msg_prompt_library_empty">No saved prompts</string>
     <string name="msg_delete_prompt">It will be removed from the prompt library.</string>

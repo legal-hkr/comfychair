@@ -662,6 +662,9 @@ fun PromptPresetDialogs(
             onDuplicatePreset = { presetViewModel.onDuplicatePreset(it) },
             onDeletePreset = { presetViewModel.onDeletePreset(it) },
             onDismiss = { presetViewModel.dismissLibrary() },
+            onClearFilters = { presetViewModel.clearFilters() },
+            totalCount = presetUiState.allPresets.size,
+            tagCounts = presetUiState.allPresets.flatMap { it.tags }.groupingBy { it }.eachCount(),
             onSaveCurrent = currentPrompt.takeIf { it.isNotBlank() }?.let { prompt -> { presetViewModel.showSaveDialog(prompt) } }
         )
     }
