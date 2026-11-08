@@ -197,7 +197,7 @@
     <string name="title_confirm_clear_history">Effacer l’historique du serveur ?</string>
     <string name="msg_confirm_clear_history">Tous les résultats disparaissent de l’historique du serveur et de la galerie. Les fichiers restent sur le disque du serveur.</string>
     <string name="label_memory_usage">%1$.1f / %2$.1f Go</string>
-    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="label_vram_of">VRAM (%1$s)</string>
     <string name="title_server_software">Logiciels</string>
     <string name="label_operating_system">Système d’exploitation</string>
     <string name="title_server_maintenance">Maintenance</string>
@@ -327,9 +327,9 @@
         <item quantity="other">%d sélectionnés</item>
     </plurals>
     <plurals name="label_gallery_subtitle">
-        <item quantity="one">Historique du serveur – %d élément</item>
-        <item quantity="many">Historique du serveur – %d éléments</item>
-        <item quantity="other">Historique du serveur – %d éléments</item>
+        <item quantity="one">Historique du serveur (%d élément)</item>
+        <item quantity="many">Historique du serveur (%d éléments)</item>
+        <item quantity="other">Historique du serveur (%d éléments)</item>
     </plurals>
     <string name="button_select_all">Tout sélectionner</string>
     <string name="title_delete_selected">Supprimer du serveur ?</string>
@@ -456,7 +456,7 @@
     <string name="label_socket_input">Entrée</string>
     <string name="label_socket_output">Sortie</string>
     <string name="button_reset_node">Réinitialiser le nœud</string>
-    <string name="label_value_changed">Modifié – par défaut %1$s</string>
+    <string name="label_value_changed">Modifié (par défaut : %1$s)</string>
     <string name="content_description_reset_value">Rétablir %1$s à %2$s</string>
     <string name="title_node_values_linked">Liées</string>
     <string name="desc_node_values_linked">Leurs valeurs viennent d’autres nœuds.</string>
@@ -480,6 +480,9 @@
     <string name="title_node_editor_rename">Renommer le nœud</string>
     <string name="label_node_editor_rename">Nom du nœud</string>
     <string name="node_editor_bypass">Contourner</string>
+    <!-- A bypassed node (spec §20): its badge in the title bar, its state after a dash -->
+    <string name="node_bypassed_badge">Contourné</string>
+    <string name="node_bypassed_state">contourné</string>
 
     <!-- Settings screen strings -->
     <string name="nav_server_settings">Serveur</string>
@@ -507,7 +510,7 @@
     <string name="msg_workflows_none_on">L’écran « %1$s » n’a aucun workflow activé et ne peut pas générer.</string>
     <string name="content_description_section_actions">%1$s. Actions de la section</string>
     <string name="msg_needs_server">Nécessite une connexion au serveur</string>
-    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">intégré</string>
     <string name="label_workflow_kind_yours">le vôtre</string>
     <string name="label_show_in_screens">Afficher dans les écrans de génération</string>
@@ -550,9 +553,9 @@
     <string name="error_workflow_export">Échec de l\'exportation du workflow</string>
     <string name="error_export_needs_definitions">Connectez-vous d’abord au serveur – le format ComfyUI lui emprunte l’ordre des valeurs des nœuds</string>
     <plurals name="msg_litegraph_conversion_notes">
-        <item quantity="one">Conversion terminée avec %d remarque</item>
-        <item quantity="many">Conversion terminée avec %d remarques</item>
-        <item quantity="other">Conversion terminée avec %d remarques</item>
+        <item quantity="one">Conversion terminée (%d remarque)</item>
+        <item quantity="many">Conversion terminée (%d remarques)</item>
+        <item quantity="other">Conversion terminée (%d remarques)</item>
     </plurals>
 
     <!-- Content descriptions for accessibility -->
@@ -678,11 +681,11 @@
     <string name="label_editor_linking">Liaison de %1$s</string>
     <string name="hint_editor_tap_input_or_value">Touchez une entrée ou une valeur en surbrillance</string>
     <string name="hint_editor_no_target">Rien dans ce workflow n’accepte %1$s</string>
-    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – depuis %2$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> (depuis %2$s)</string>
     <string name="menu_editor_connect">Connecter</string>
     <string name="menu_editor_disconnect">Déconnecter</string>
-    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – non connecté</string>
-    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – vers %2$s</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – &lt;i>non connecté&lt;/i></string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> (vers %2$s)</string>
     <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> dans &lt;b>%2$s&lt;/b></string>
     <string name="menu_editor_add_node">Ajouter un nœud</string>
     <string name="msg_editor_link_mapped_new_node">Une fois liée, la valeur &lt;b>%1$s&lt;/b> viendra du nouveau nœud et le champ &lt;b>%2$s&lt;/b> ne la modifiera plus.</string>
@@ -710,8 +713,8 @@
     <string name="button_copy_names">Copier les noms</string>
     <string name="title_missing_on_server">Absents du serveur</string>
     <string name="msg_missing_fields_none">L’écran « %1$s » a besoin de ces champs, mais aucun nœud de ce workflow ne les fournit. Vérifiez le type ou ajoutez les nœuds dans ComfyUI.</string>
-    <string name="label_copy_name">%1$s – copie</string>
-    <string name="label_copy_name_numbered">%1$s – copie %2$d</string>
+    <string name="label_copy_name">%1$s (copie)</string>
+    <string name="label_copy_name_numbered">%1$s (copie %2$d)</string>
     <string name="error_name_taken">Un workflow portant ce nom existe déjà</string>
     <string name="msg_names_copied">Noms copiés</string>
     <plurals name="msg_missing_nodes_count">
@@ -725,8 +728,8 @@
     <string name="button_clear_all_mapping">Tout effacer</string>
     <string name="label_field_n_of_m">Champ %1$d sur %2$d</string>
     <string name="button_all_fields">Tous les champs</string>
-    <string name="hint_mapping_required">Touchez le nœud qui le contient – obligatoire</string>
-    <string name="hint_mapping_optional">Touchez le nœud qui le contient – facultatif</string>
+    <string name="hint_mapping_required">Touchez le nœud qui le contient (obligatoire)</string>
+    <string name="hint_mapping_optional">Touchez le nœud qui le contient (facultatif)</string>
     <string name="content_description_previous_field">Champ précédent</string>
     <string name="content_description_next_field">Champ suivant</string>
     <string name="button_finish">Terminer</string>
@@ -795,6 +798,7 @@
     <string name="label_about_version">Version %1$s</string>
     <string name="title_about_license">Licence</string>
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="msg_license_english_only">Seul le texte original en anglais a valeur juridique.</string>
     <string name="title_about_source">Code source</string>
 
     <!-- Debug Logging strings -->
@@ -1076,9 +1080,9 @@
     <string name="label_field_type_text">texte</string>
     <string name="label_field_type_with_range">%1$s, %2$s</string>
     <string name="title_new_field">Nouveau champ</string>
-    <string name="label_new_field_context">Depuis &lt;b>%1$s&lt;/b> dans &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_new_field_context">Depuis &lt;b>%1$s&lt;/b> dans &lt;b>%2$s&lt;/b> (%3$s)</string>
     <string name="label_field_name">Nom</string>
-    <string name="desc_field_name">Affiché sur l’écran de génération – %1$d/%2$d</string>
+    <string name="desc_field_name">Affiché sur l’écran de génération (%1$d/%2$d)</string>
     <string name="error_field_name_empty">Saisissez un nom</string>
     <string name="error_field_name_taken">%1$s est déjà un champ de ce workflow</string>
     <string name="button_add">Ajouter</string>
@@ -1099,8 +1103,8 @@
     <string name="hint_pick_value">Les valeurs possibles sont mises en évidence</string>
     <string name="content_description_cancel_new_field">Annuler le nouveau champ</string>
     <string name="button_add_value">Ajouter une valeur</string>
-    <string name="label_builtin_field_context">Champ intégré – &lt;b>%1$s&lt;/b></string>
-    <string name="desc_builtin_field_name">Nom intégré : %1$s – %2$d/%3$d</string>
+    <string name="label_builtin_field_context">Champ intégré : &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Nom intégré : %1$s (%2$d/%3$d)</string>
     <string name="content_description_use_builtin_name">Utiliser le nom intégré : %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s : %2$s</string>
@@ -1139,7 +1143,7 @@
     <string name="sg_hide_from_node">Masquer du nœud</string>
     <string name="sg_move_up">Monter</string>
     <string name="sg_move_down">Descendre</string>
-    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – depuis &lt;b>%2$s&lt;/b></string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> (depuis &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_make">Créer un sous-graphe</string>
     <string name="sg_new_title">Nouveau sous-graphe</string>
     <string name="sg_new_nodes">Nœuds : %1$d</string>
@@ -1156,8 +1160,8 @@
     <string name="sg_error_name_empty">Saisissez un nom</string>
     <string name="sg_error_input_taken">Une autre entrée s’appelle %1$s</string>
     <string name="sg_error_output_taken">Une autre sortie s’appelle %1$s</string>
-    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – entrée de &lt;b>%2$s&lt;/b></string>
-    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – sortie de &lt;b>%2$s&lt;/b></string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> (entrée de &lt;b>%2$s&lt;/b>)</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> (sortie de &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_rename_input">Renommer l’entrée</string>
     <string name="sg_rename_output">Renommer la sortie</string>
     <string name="sg_remove_input">Supprimer l’entrée</string>

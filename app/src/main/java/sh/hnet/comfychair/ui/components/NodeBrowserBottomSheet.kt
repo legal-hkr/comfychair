@@ -276,11 +276,10 @@ fun NodeBrowserBottomSheet(
  */
 @Composable
 private fun NodeTypeRow(nodeType: NodeTypeDefinition, swatch: Color, shape: Shape, onClick: () -> Unit) {
-    val io = listOf(
-        nodeType.category,
-        pluralStringResource(R.plurals.node_browser_inputs_count, nodeType.inputs.size, nodeType.inputs.size),
+    // The category, its inputs and outputs in parentheses
+    val counts = pluralStringResource(R.plurals.node_browser_inputs_count, nodeType.inputs.size, nodeType.inputs.size) + ", " +
         pluralStringResource(R.plurals.node_browser_outputs_count, nodeType.outputs.size, nodeType.outputs.size)
-    ).filter { it.isNotEmpty() }.joinToString(" – ")
+    val io = if (nodeType.category.isEmpty()) counts else "${nodeType.category} ($counts)"
     Surface(
         onClick = onClick,
         shape = shape,

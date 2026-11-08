@@ -171,7 +171,7 @@
     <string name="title_confirm_clear_history">Clear the server’s history?</string>
     <string name="msg_confirm_clear_history">Every result disappears from the server’s history and from the gallery. The files stay on the server’s disk.</string>
     <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
-    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="label_vram_of">VRAM (%1$s)</string>
     <string name="title_server_software">Software</string>
     <string name="label_operating_system">Operating system</string>
     <string name="title_server_maintenance">Maintenance</string>
@@ -335,8 +335,8 @@
         <item quantity="other">%d selected</item>
     </plurals>
     <plurals name="label_gallery_subtitle">
-        <item quantity="one">Server history – %d item</item>
-        <item quantity="other">Server history – %d items</item>
+        <item quantity="one">Server history (%d item)</item>
+        <item quantity="other">Server history (%d items)</item>
     </plurals>
     <string name="button_select_all">Select all</string>
     <string name="title_delete_selected">Delete from the server?</string>
@@ -509,7 +509,7 @@
     <string name="label_socket_input">Input</string>
     <string name="label_socket_output">Output</string>
     <string name="button_reset_node">Reset node</string>
-    <string name="label_value_changed">Changed – default %1$s</string>
+    <string name="label_value_changed">Changed (default: %1$s)</string>
     <string name="content_description_reset_value">Reset %1$s to %2$s</string>
     <string name="title_node_values_linked">Linked</string>
     <string name="desc_node_values_linked">Their values come from other nodes.</string>
@@ -533,6 +533,9 @@
     <string name="title_node_editor_rename">Rename node</string>
     <string name="label_node_editor_rename">Node name</string>
     <string name="node_editor_bypass">Bypass</string>
+    <!-- A bypassed node (spec §20): its badge in the title bar, its state after a dash -->
+    <string name="node_bypassed_badge">Bypassed</string>
+    <string name="node_bypassed_state">bypassed</string>
 
     <!-- Field display names for workflow editor -->
     <string name="field_positive_prompt">Positive Prompt</string>
@@ -606,7 +609,7 @@
     <string name="msg_workflows_none_on">The “%1$s” screen has no workflow switched on and can’t generate.</string>
     <string name="content_description_section_actions">%1$s. Section actions</string>
     <string name="msg_needs_server">Needs a server connection</string>
-    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">built-in</string>
     <string name="label_workflow_kind_yours">yours</string>
     <string name="label_show_in_screens">Show in generation screens</string>
@@ -653,8 +656,8 @@
     <string name="error_workflow_export">Failed to export workflow</string>
     <string name="error_export_needs_definitions">Connect to the server first: the ComfyUI format takes the order of node values from it</string>
     <plurals name="msg_litegraph_conversion_notes">
-        <item quantity="one">Conversion completed with %d note</item>
-        <item quantity="other">Conversion completed with %d notes</item>
+        <item quantity="one">Conversion completed (%d note)</item>
+        <item quantity="other">Conversion completed (%d notes)</item>
     </plurals>
 
     <!-- Content descriptions for accessibility -->
@@ -779,11 +782,11 @@
     <string name="label_editor_linking">Linking %1$s</string>
     <string name="hint_editor_tap_input_or_value">Tap a highlighted input or value</string>
     <string name="hint_editor_no_target">Nothing in this graph takes %1$s</string>
-    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – from %2$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> (from %2$s)</string>
     <string name="menu_editor_connect">Connect</string>
     <string name="menu_editor_disconnect">Disconnect</string>
-    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – not connected</string>
-    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – to %2$s</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – &lt;i>not connected&lt;/i></string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> (to %2$s)</string>
     <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b></string>
     <string name="menu_editor_add_node">Add a node</string>
     <string name="msg_editor_link_mapped_new_node">Once linked, &lt;b>%1$s&lt;/b> takes its value from the new node, and the &lt;b>%2$s&lt;/b> field no longer changes it.</string>
@@ -855,8 +858,8 @@
     <string name="button_copy_names">Copy names</string>
     <string name="title_missing_on_server">Missing on the server</string>
     <string name="msg_missing_fields_none">The %1$s screen needs these fields, but no node in this workflow provides them. Check the type, or add the nodes in ComfyUI.</string>
-    <string name="label_copy_name">%1$s copy</string>
-    <string name="label_copy_name_numbered">%1$s copy %2$d</string>
+    <string name="label_copy_name">%1$s (copy)</string>
+    <string name="label_copy_name_numbered">%1$s (copy %2$d)</string>
     <string name="error_name_taken">A workflow with this name already exists</string>
     <string name="msg_names_copied">Names copied</string>
     <plurals name="msg_missing_nodes_count">
@@ -869,8 +872,8 @@
     <string name="button_clear_all_mapping">Clear all</string>
     <string name="label_field_n_of_m">Field %1$d of %2$d</string>
     <string name="button_all_fields">All fields</string>
-    <string name="hint_mapping_required">Tap the node that holds it – required</string>
-    <string name="hint_mapping_optional">Tap the node that holds it – optional</string>
+    <string name="hint_mapping_required">Tap the node that holds it (required)</string>
+    <string name="hint_mapping_optional">Tap the node that holds it (optional)</string>
     <string name="content_description_previous_field">Previous field</string>
     <string name="content_description_next_field">Next field</string>
     <string name="button_finish">Finish</string>
@@ -914,6 +917,7 @@
     <string name="label_about_version">Version %1$s</string>
     <string name="title_about_license">License</string>
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="msg_license_english_only">Only the original English text is legally binding.</string>
     <string name="title_about_source">Source Code</string>
 
     <!-- Debug Logging strings -->
@@ -1079,9 +1083,9 @@
     <string name="label_field_type_text">text</string>
     <string name="label_field_type_with_range">%1$s, %2$s</string>
     <string name="title_new_field">New field</string>
-    <string name="label_new_field_context">From &lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_new_field_context">From &lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b> (%3$s)</string>
     <string name="label_field_name">Name</string>
-    <string name="desc_field_name">Shown on the generation screen – %1$d/%2$d</string>
+    <string name="desc_field_name">Shown on the generation screen (%1$d/%2$d)</string>
     <string name="error_field_name_empty">Enter a name</string>
     <string name="error_field_name_taken">%1$s is already a field in this workflow</string>
     <string name="button_add">Add</string>
@@ -1102,8 +1106,8 @@
     <string name="hint_pick_value">Allowed values are highlighted</string>
     <string name="content_description_cancel_new_field">Cancel new field</string>
     <string name="button_add_value">Add a value</string>
-    <string name="label_builtin_field_context">Built-in field – &lt;b>%1$s&lt;/b></string>
-    <string name="desc_builtin_field_name">Built-in name: %1$s – %2$d/%3$d</string>
+    <string name="label_builtin_field_context">Built-in field: &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Built-in name: %1$s (%2$d/%3$d)</string>
     <string name="content_description_use_builtin_name">Use the built-in name, %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
@@ -1138,7 +1142,7 @@
     <string name="sg_hide_from_node">Hide from node</string>
     <string name="sg_move_up">Move up</string>
     <string name="sg_move_down">Move down</string>
-    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – from &lt;b>%2$s&lt;/b></string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> (from &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_make">Make a subgraph</string>
     <string name="sg_new_title">New subgraph</string>
     <string name="sg_new_nodes">Nodes: %1$d</string>
@@ -1155,8 +1159,8 @@
     <string name="sg_error_name_empty">Enter a name</string>
     <string name="sg_error_input_taken">Another input is called %1$s</string>
     <string name="sg_error_output_taken">Another output is called %1$s</string>
-    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – input of &lt;b>%2$s&lt;/b></string>
-    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – output of &lt;b>%2$s&lt;/b></string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> (input of &lt;b>%2$s&lt;/b>)</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> (output of &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_rename_input">Rename input</string>
     <string name="sg_rename_output">Rename output</string>
     <string name="sg_remove_input">Remove input</string>

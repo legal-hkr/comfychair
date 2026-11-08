@@ -151,6 +151,9 @@ fun NodeValuesSheetContent(
                     // A subgraph instance by its subgraph's name (when its title differs) and the nodes inside, not its ID
                     val nodes = subgraph?.let { pluralStringResource(R.plurals.sg_nodes_count, it.nodeCount, it.nodeCount) }
                     val changedPart = if (changed > 0) pluralStringResource(R.plurals.label_node_changed_count, changed, changed) else null
+                    // States after the dash: bypassed (spec §20.3), the changed values
+                    val states = listOfNotNull(if (node.isBypassed) stringResource(R.string.node_bypassed_state) else null, changedPart)
+                        .joinToString(", ").ifEmpty { null }
                     // The type (a subgraph's name in bold), its node count in parentheses, the state after a dash in italics
                     Text(
                         buildAnnotatedString {
@@ -162,9 +165,9 @@ fun NodeValuesSheetContent(
                                 nodes != null -> append(nodes)
                                 else -> append(node.classType)
                             }
-                            if (changedPart != null) {
+                            if (states != null) {
                                 append(" – ")
-                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(changedPart) }
+                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(states) }
                             }
                         },
                         style = MaterialTheme.typography.bodySmall,

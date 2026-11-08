@@ -31,7 +31,6 @@ import sh.hnet.comfychair.BuildConfig
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.WhatsNew
 import sh.hnet.comfychair.ui.components.settings.SettingsGroup
-import sh.hnet.comfychair.ui.components.settings.SettingsInfoRow
 import sh.hnet.comfychair.ui.components.settings.SettingsLinkRow
 import sh.hnet.comfychair.ui.components.settings.SettingsNavigationRow
 import sh.hnet.comfychair.ui.components.settings.SettingsPage
@@ -39,7 +38,8 @@ import sh.hnet.comfychair.ui.components.settings.SettingsPage
 @Composable
 fun AboutSettingsScreen(
     onNavigateBack: () -> Unit,
-    onOpenWhatsNew: () -> Unit
+    onOpenWhatsNew: () -> Unit,
+    onOpenLicense: () -> Unit
 ) {
     val context = LocalContext.current
     // No row without this version's notes; the badge until the page was opened (checked again on coming back)
@@ -89,11 +89,12 @@ fun AboutSettingsScreen(
                 }
             }
             row { shapes ->
-                SettingsInfoRow(
+                SettingsNavigationRow(
                     shapes = shapes,
+                    icon = Icons.Rounded.WorkspacePremium,
                     title = stringResource(R.string.title_about_license),
-                    value = stringResource(R.string.label_about_license_name),
-                    icon = Icons.Rounded.WorkspacePremium
+                    supporting = stringResource(R.string.label_about_license_name),
+                    onClick = onOpenLicense
                 )
             }
             row { shapes ->

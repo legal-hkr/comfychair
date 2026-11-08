@@ -189,7 +189,7 @@
     <string name="title_confirm_clear_history">清除服务器历史记录？</string>
     <string name="msg_confirm_clear_history">所有结果将从服务器历史记录和图库中消失。文件仍保留在服务器磁盘上。</string>
     <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
-    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="label_vram_of">VRAM（%1$s）</string>
     <string name="title_server_software">软件</string>
     <string name="label_operating_system">操作系统</string>
     <string name="title_server_maintenance">维护</string>
@@ -317,7 +317,7 @@
         <item quantity="other">已选择 %d 项</item>
     </plurals>
     <plurals name="label_gallery_subtitle">
-        <item quantity="other">服务器历史 – %d 项</item>
+        <item quantity="other">服务器历史（%d 项）</item>
     </plurals>
     <string name="button_select_all">全选</string>
     <string name="title_delete_selected">从服务器删除？</string>
@@ -432,7 +432,7 @@
     <string name="label_socket_input">输入</string>
     <string name="label_socket_output">输出</string>
     <string name="button_reset_node">重置节点</string>
-    <string name="label_value_changed">已更改 – 默认 %1$s</string>
+    <string name="label_value_changed">已更改（默认：%1$s）</string>
     <string name="content_description_reset_value">将 %1$s 重置为 %2$s</string>
     <string name="title_node_values_linked">已连接</string>
     <string name="desc_node_values_linked">它们的值来自其他节点。</string>
@@ -454,6 +454,9 @@
     <string name="title_node_editor_rename">重命名节点</string>
     <string name="label_node_editor_rename">节点名称</string>
     <string name="node_editor_bypass">跳过</string>
+    <!-- A bypassed node (spec §20): its badge in the title bar, its state after a dash -->
+    <string name="node_bypassed_badge">已跳过</string>
+    <string name="node_bypassed_state">已跳过</string>
 
     <!-- Settings screen strings -->
     <string name="nav_server_settings">服务器</string>
@@ -481,7 +484,7 @@
     <string name="msg_workflows_none_on">“%1$s”屏幕没有开启的工作流，无法生成。</string>
     <string name="content_description_section_actions">%1$s。分区操作</string>
     <string name="msg_needs_server">需要连接服务器</string>
-    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_subtitle">%1$s（%2$s）</string>
     <string name="label_workflow_kind_builtin">内置</string>
     <string name="label_workflow_kind_yours">我的</string>
     <string name="label_show_in_screens">在生成屏幕中显示</string>
@@ -524,7 +527,7 @@
     <string name="error_workflow_export">导出工作流失败</string>
     <string name="error_export_needs_definitions">请先连接服务器：ComfyUI 格式需要从服务器获取节点值的顺序</string>
     <plurals name="msg_litegraph_conversion_notes">
-        <item quantity="other">转换完成，有 %d 条备注</item>
+        <item quantity="other">转换完成（%d 条备注）</item>
     </plurals>
 
     <!-- Content descriptions for accessibility -->
@@ -644,11 +647,11 @@
     <string name="label_editor_linking">正在连接 %1$s</string>
     <string name="hint_editor_tap_input_or_value">点按高亮的输入或值</string>
     <string name="hint_editor_no_target">此工作流中没有节点接受 %1$s</string>
-    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – 来自 %2$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b>（来自 %2$s）</string>
     <string name="menu_editor_connect">连接</string>
     <string name="menu_editor_disconnect">断开连接</string>
-    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – 未连接</string>
-    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – 连接到 %2$s</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – &lt;i>未连接&lt;/i></string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b>（连接到 %2$s）</string>
     <string name="label_editor_socket_in">&lt;b>%2$s&lt;/b> 的 &lt;b>%1$s&lt;/b></string>
     <string name="menu_editor_add_node">添加节点</string>
     <string name="msg_editor_link_mapped_new_node">连接后，&lt;b>%1$s&lt;/b> 的值将来自新节点，字段 &lt;b>%2$s&lt;/b> 不再改变它。</string>
@@ -676,8 +679,8 @@
     <string name="button_copy_names">复制名称</string>
     <string name="title_missing_on_server">服务器缺少节点</string>
     <string name="msg_missing_fields_none">“%1$s”屏幕需要这些字段，但此工作流中没有节点提供它们。请检查类型，或在 ComfyUI 中添加这些节点。</string>
-    <string name="label_copy_name">%1$s 副本</string>
-    <string name="label_copy_name_numbered">%1$s 副本 %2$d</string>
+    <string name="label_copy_name">%1$s（副本）</string>
+    <string name="label_copy_name_numbered">%1$s（副本 %2$d）</string>
     <string name="error_name_taken">已存在同名工作流</string>
     <string name="msg_names_copied">已复制名称</string>
     <plurals name="msg_missing_nodes_count">
@@ -689,8 +692,8 @@
     <string name="button_clear_all_mapping">清除全部</string>
     <string name="label_field_n_of_m">第 %1$d 个字段，共 %2$d 个</string>
     <string name="button_all_fields">所有字段</string>
-    <string name="hint_mapping_required">点按包含它的节点 – 必填</string>
-    <string name="hint_mapping_optional">点按包含它的节点 – 可选</string>
+    <string name="hint_mapping_required">点按包含它的节点（必填）</string>
+    <string name="hint_mapping_optional">点按包含它的节点（可选）</string>
     <string name="content_description_previous_field">上一个字段</string>
     <string name="content_description_next_field">下一个字段</string>
     <string name="button_finish">完成</string>
@@ -759,6 +762,7 @@
     <string name="label_about_version">版本 %1$s</string>
     <string name="title_about_license">许可证</string>
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="msg_license_english_only">仅英文原文具有法律效力。</string>
     <string name="title_about_source">源代码</string>
 
     <!-- Debug Logging strings -->
@@ -1022,9 +1026,9 @@
     <string name="label_field_type_text">文本</string>
     <string name="label_field_type_with_range">%1$s，%2$s</string>
     <string name="title_new_field">新字段</string>
-    <string name="label_new_field_context">来自 &lt;b>%2$s&lt;/b> 中的 &lt;b>%1$s&lt;/b> – %3$s</string>
+    <string name="label_new_field_context">来自 &lt;b>%2$s&lt;/b> 中的 &lt;b>%1$s&lt;/b>（%3$s）</string>
     <string name="label_field_name">名称</string>
-    <string name="desc_field_name">显示在生成界面上 – %1$d/%2$d</string>
+    <string name="desc_field_name">显示在生成界面上（%1$d/%2$d）</string>
     <string name="error_field_name_empty">请输入名称</string>
     <string name="error_field_name_taken">%1$s 已是此工作流中的字段</string>
     <string name="button_add">添加</string>
@@ -1045,8 +1049,8 @@
     <string name="hint_pick_value">可选的值已突出显示</string>
     <string name="content_description_cancel_new_field">取消新字段</string>
     <string name="button_add_value">添加值</string>
-    <string name="label_builtin_field_context">内置字段 – &lt;b>%1$s&lt;/b></string>
-    <string name="desc_builtin_field_name">内置名称：%1$s – %2$d/%3$d</string>
+    <string name="label_builtin_field_context">内置字段：&lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">内置名称：%1$s（%2$d/%3$d）</string>
     <string name="content_description_use_builtin_name">使用内置名称：%1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s：%2$s</string>
@@ -1077,7 +1081,7 @@
     <string name="sg_hide_from_node">从节点隐藏</string>
     <string name="sg_move_up">上移</string>
     <string name="sg_move_down">下移</string>
-    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – 来自 &lt;b>%2$s&lt;/b></string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b>（来自 &lt;b>%2$s&lt;/b>）</string>
     <string name="sg_make">创建子图</string>
     <string name="sg_new_title">新子图</string>
     <string name="sg_new_nodes">节点：%1$d</string>
@@ -1094,8 +1098,8 @@
     <string name="sg_error_name_empty">请输入名称</string>
     <string name="sg_error_input_taken">已有名为 %1$s 的输入</string>
     <string name="sg_error_output_taken">已有名为 %1$s 的输出</string>
-    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – &lt;b>%2$s&lt;/b> 的输入</string>
-    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – &lt;b>%2$s&lt;/b> 的输出</string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b>（&lt;b>%2$s&lt;/b> 的输入）</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b>（&lt;b>%2$s&lt;/b> 的输出）</string>
     <string name="sg_rename_input">重命名输入</string>
     <string name="sg_rename_output">重命名输出</string>
     <string name="sg_remove_input">移除输入</string>

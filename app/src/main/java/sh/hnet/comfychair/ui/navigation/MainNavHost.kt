@@ -80,6 +80,7 @@ import sh.hnet.comfychair.ui.screens.SettingsRootScreen
 import sh.hnet.comfychair.ui.screens.TextToImageScreen
 import sh.hnet.comfychair.ui.screens.TextToVideoScreen
 import sh.hnet.comfychair.ui.screens.VideoToVideoScreen
+import sh.hnet.comfychair.ui.screens.LicenseSettingsScreen
 import sh.hnet.comfychair.ui.screens.WhatsNewSettingsScreen
 import sh.hnet.comfychair.ui.screens.WorkflowDetailPage
 import sh.hnet.comfychair.ui.screens.ServerImportScreen
@@ -399,10 +400,12 @@ fun MainNavHost(
                             composable(SettingsRoute.About.route) {
                                 AboutSettingsScreen(
                                     onNavigateBack = back,
-                                    onOpenWhatsNew = { navController.navigate(SettingsRoute.WhatsNew.route) }
+                                    onOpenWhatsNew = { navController.navigate(SettingsRoute.WhatsNew.route) },
+                                    onOpenLicense = { navController.navigate(SettingsRoute.License.route) }
                                 )
                             }
                             composable(SettingsRoute.WhatsNew.route) { WhatsNewSettingsScreen(back) }
+                            composable(SettingsRoute.License.route) { LicenseSettingsScreen(back) }
 
                             composable(MainRoute.ImageToVideo.route) {
                                 ImageToVideoScreen(

@@ -193,7 +193,7 @@
     <string name="title_confirm_clear_history">Verlauf des Servers leeren?</string>
     <string name="msg_confirm_clear_history">Alle Ergebnisse verschwinden aus dem Serververlauf und der Galerie. Die Dateien bleiben auf dem Datenträger des Servers.</string>
     <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
-    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="label_vram_of">VRAM (%1$s)</string>
     <string name="title_server_software">Software</string>
     <string name="label_operating_system">Betriebssystem</string>
     <string name="title_server_maintenance">Wartung</string>
@@ -336,8 +336,8 @@
         <item quantity="other">%d ausgewählt</item>
     </plurals>
     <plurals name="label_gallery_subtitle">
-        <item quantity="one">Serververlauf – %d Element</item>
-        <item quantity="other">Serververlauf – %d Elemente</item>
+        <item quantity="one">Serververlauf (%d Element)</item>
+        <item quantity="other">Serververlauf (%d Elemente)</item>
     </plurals>
     <string name="button_select_all">Alle auswählen</string>
     <string name="title_delete_selected">Vom Server löschen?</string>
@@ -458,7 +458,7 @@
     <string name="label_socket_input">Eingang</string>
     <string name="label_socket_output">Ausgang</string>
     <string name="button_reset_node">Knoten zurücksetzen</string>
-    <string name="label_value_changed">Geändert – Standard %1$s</string>
+    <string name="label_value_changed">Geändert (Standard: %1$s)</string>
     <string name="content_description_reset_value">%1$s auf %2$s zurücksetzen</string>
     <string name="title_node_values_linked">Verbunden</string>
     <string name="desc_node_values_linked">Ihre Werte kommen von anderen Knoten.</string>
@@ -481,6 +481,9 @@
     <string name="title_node_editor_rename">Knoten umbenennen</string>
     <string name="label_node_editor_rename">Node-Name</string>
     <string name="node_editor_bypass">Umgehen</string>
+    <!-- A bypassed node (spec §20): its badge in the title bar, its state after a dash -->
+    <string name="node_bypassed_badge">Umgangen</string>
+    <string name="node_bypassed_state">umgangen</string>
 
     <!-- Settings screen strings -->
     <string name="nav_server_settings">Server</string>
@@ -508,7 +511,7 @@
     <string name="msg_workflows_none_on">Der Bildschirm „%1$s“ hat keinen eingeschalteten Workflow und kann nicht generieren.</string>
     <string name="content_description_section_actions">%1$s. Abschnittsaktionen</string>
     <string name="msg_needs_server">Erfordert eine Serververbindung</string>
-    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">integriert</string>
     <string name="label_workflow_kind_yours">eigener</string>
     <string name="label_show_in_screens">In Generierungsbildschirmen anzeigen</string>
@@ -551,8 +554,8 @@
     <string name="error_workflow_export">Workflow konnte nicht exportiert werden</string>
     <string name="error_export_needs_definitions">Verbinde dich zuerst mit dem Server – das ComfyUI-Format übernimmt von ihm die Reihenfolge der Knotenwerte</string>
     <plurals name="msg_litegraph_conversion_notes">
-        <item quantity="one">Konvertierung abgeschlossen mit %d Hinweis</item>
-        <item quantity="other">Konvertierung abgeschlossen mit %d Hinweisen</item>
+        <item quantity="one">Konvertierung abgeschlossen (%d Hinweis)</item>
+        <item quantity="other">Konvertierung abgeschlossen (%d Hinweise)</item>
     </plurals>
 
     <!-- Content descriptions for accessibility -->
@@ -675,11 +678,11 @@
     <string name="label_editor_linking">%1$s verbinden</string>
     <string name="hint_editor_tap_input_or_value">Tippe auf einen markierten Eingang oder Wert</string>
     <string name="hint_editor_no_target">Nichts in diesem Workflow nimmt %1$s an</string>
-    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – von %2$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> (von %2$s)</string>
     <string name="menu_editor_connect">Verbinden</string>
     <string name="menu_editor_disconnect">Trennen</string>
-    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – nicht verbunden</string>
-    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – zu %2$s</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – &lt;i>nicht verbunden&lt;/i></string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> (zu %2$s)</string>
     <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b></string>
     <string name="menu_editor_add_node">Knoten hinzufügen</string>
     <string name="msg_editor_link_mapped_new_node">Nach dem Verbinden kommt &lt;b>%1$s&lt;/b> vom neuen Knoten, und das Feld &lt;b>%2$s&lt;/b> ändert den Wert nicht mehr.</string>
@@ -707,8 +710,8 @@
     <string name="button_copy_names">Namen kopieren</string>
     <string name="title_missing_on_server">Fehlt auf dem Server</string>
     <string name="msg_missing_fields_none">Der Bildschirm „%1$s“ braucht diese Felder, aber kein Knoten dieses Workflows liefert sie. Prüfe den Typ oder füge die Knoten in ComfyUI hinzu.</string>
-    <string name="label_copy_name">%1$s – Kopie</string>
-    <string name="label_copy_name_numbered">%1$s – Kopie %2$d</string>
+    <string name="label_copy_name">%1$s (Kopie)</string>
+    <string name="label_copy_name_numbered">%1$s (Kopie %2$d)</string>
     <string name="error_name_taken">Ein Workflow mit diesem Namen existiert bereits</string>
     <string name="msg_names_copied">Namen kopiert</string>
     <plurals name="msg_missing_nodes_count">
@@ -721,8 +724,8 @@
     <string name="button_clear_all_mapping">Alle löschen</string>
     <string name="label_field_n_of_m">Feld %1$d von %2$d</string>
     <string name="button_all_fields">Alle Felder</string>
-    <string name="hint_mapping_required">Tippe auf den Knoten, der es enthält – erforderlich</string>
-    <string name="hint_mapping_optional">Tippe auf den Knoten, der es enthält – optional</string>
+    <string name="hint_mapping_required">Tippe auf den Knoten, der es enthält (erforderlich)</string>
+    <string name="hint_mapping_optional">Tippe auf den Knoten, der es enthält (optional)</string>
     <string name="content_description_previous_field">Vorheriges Feld</string>
     <string name="content_description_next_field">Nächstes Feld</string>
     <string name="button_finish">Fertig</string>
@@ -775,6 +778,7 @@
     <string name="label_about_version">Version %1$s</string>
     <string name="title_about_license">Lizenz</string>
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="msg_license_english_only">Rechtsverbindlich ist nur der englische Originaltext.</string>
     <string name="title_about_source">Quellcode</string>
 
     <!-- Debug Logging strings -->
@@ -1047,9 +1051,9 @@
     <string name="label_field_type_text">Text</string>
     <string name="label_field_type_with_range">%1$s, %2$s</string>
     <string name="title_new_field">Neues Feld</string>
-    <string name="label_new_field_context">Aus &lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_new_field_context">Aus &lt;b>%1$s&lt;/b> in &lt;b>%2$s&lt;/b> (%3$s)</string>
     <string name="label_field_name">Name</string>
-    <string name="desc_field_name">Auf dem Generierungsbildschirm sichtbar – %1$d/%2$d</string>
+    <string name="desc_field_name">Auf dem Generierungsbildschirm sichtbar (%1$d/%2$d)</string>
     <string name="error_field_name_empty">Gib einen Namen ein</string>
     <string name="error_field_name_taken">%1$s ist bereits ein Feld dieses Workflows</string>
     <string name="button_add">Hinzufügen</string>
@@ -1070,8 +1074,8 @@
     <string name="hint_pick_value">Zulässige Werte sind hervorgehoben</string>
     <string name="content_description_cancel_new_field">Neues Feld abbrechen</string>
     <string name="button_add_value">Wert hinzufügen</string>
-    <string name="label_builtin_field_context">Integriertes Feld – &lt;b>%1$s&lt;/b></string>
-    <string name="desc_builtin_field_name">Integrierter Name: %1$s – %2$d/%3$d</string>
+    <string name="label_builtin_field_context">Integriertes Feld: &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Integrierter Name: %1$s (%2$d/%3$d)</string>
     <string name="content_description_use_builtin_name">Integrierten Namen verwenden: %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
@@ -1106,7 +1110,7 @@
     <string name="sg_hide_from_node">Am Knoten ausblenden</string>
     <string name="sg_move_up">Nach oben</string>
     <string name="sg_move_down">Nach unten</string>
-    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – aus &lt;b>%2$s&lt;/b></string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> (aus &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_make">Subgraph erstellen</string>
     <string name="sg_new_title">Neuer Subgraph</string>
     <string name="sg_new_nodes">Knoten: %1$d</string>
@@ -1123,8 +1127,8 @@
     <string name="sg_error_name_empty">Gib einen Namen ein</string>
     <string name="sg_error_input_taken">Es gibt bereits einen Eingang %1$s</string>
     <string name="sg_error_output_taken">Es gibt bereits einen Ausgang %1$s</string>
-    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – Eingang von &lt;b>%2$s&lt;/b></string>
-    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – Ausgang von &lt;b>%2$s&lt;/b></string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> (Eingang von &lt;b>%2$s&lt;/b>)</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> (Ausgang von &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_rename_input">Eingang umbenennen</string>
     <string name="sg_rename_output">Ausgang umbenennen</string>
     <string name="sg_remove_input">Eingang entfernen</string>

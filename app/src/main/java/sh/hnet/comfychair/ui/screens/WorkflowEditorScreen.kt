@@ -120,6 +120,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
@@ -849,6 +852,7 @@ fun WorkflowEditorScreen(
                             },
                             onOpenSubgraph = openSubgraph,
                             shownOnInstance = uiState.shownOnInstance,
+                            levelBypassed = uiState.subgraphPath.lastOrNull()?.inheritedMode == 4,
                             appearInPlace = levelChanges > 0 || uiState.subgraphPath.isNotEmpty(),
                             modifier = Modifier
                                 .fillMaxSize()
@@ -1587,6 +1591,7 @@ private fun NodeListSheet(
 ) {
     val openAction = stringResource(R.string.sg_open_action)
     val subgraphLabel = stringResource(R.string.sg_subgraph)
+    val bypassedState = stringResource(R.string.node_bypassed_state)
     val resources = LocalResources.current
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
@@ -1605,10 +1610,23 @@ private fun NodeListSheet(
                     onClick = { onPick(node) },
                     shapes = groupShapes(index, nodes.size),
                     colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    supportingContent = when {
-                        count != null -> ({ Text("$subgraphLabel (" + resources.getQuantityString(R.plurals.sg_nodes_count, count, count) + ")") })
-                        node.title != node.classType -> ({ Text(node.classType) })
-                        else -> null
+                    // The type (a subgraph with its node count in parentheses), a bypassed node's state after a dash in
+                    // italics (spec §20.4: TalkBack reads it with the node)
+                    supportingContent = run {
+                        val type = when {
+                            count != null -> "$subgraphLabel (" + resources.getQuantityString(R.plurals.sg_nodes_count, count, count) + ")"
+                            node.title != node.classType -> node.classType
+                            else -> null
+                        }
+                        if (type == null && !node.isBypassed) null else ({
+                            Text(buildAnnotatedString {
+                                type?.let { append(it) }
+                                if (node.isBypassed) {
+                                    if (type != null) append(" – ")
+                                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(bypassedState) }
+                                }
+                            })
+                        })
                     },
                     modifier = if (count != null) Modifier.semantics {
                         customActions = listOf(CustomAccessibilityAction(openAction) { onOpen(node); true })

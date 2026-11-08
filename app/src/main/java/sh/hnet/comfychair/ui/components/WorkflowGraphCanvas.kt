@@ -134,6 +134,7 @@ private data class CanvasColors(
     val linkedPill: Color,
     val onLinkedPill: Color,
     val primary: Color,
+    val outline: Color,
     val outlineVariant: Color,
     val errorContainer: Color,
     val onErrorContainer: Color,
@@ -183,6 +184,13 @@ private object NodeStyle {
     const val SELECTION_GAP = 4f
     const val CHANGED_DOT_RADIUS = 6f
     const val BADGE = 28f
+    // A bypassed node's badge chip (spec §20.1: 22 dp high, a 16 dp icon, 6 dp before it, 4 dp after, 9 dp at the end)
+    const val CHIP_HEIGHT = 44f
+    const val CHIP_ICON = 32f
+    const val CHIP_PADDING_START = 12f
+    const val CHIP_GAP = 8f
+    const val CHIP_PADDING_END = 18f
+    const val CHIP_TEXT = 22f
     const val GROUP_CORNER = 40f
     // A group's area is frosted glass: its colour at this opacity over the wires passing under it, blurred by this
     // radius in graph units
@@ -216,6 +224,8 @@ private class GraphPaints {
     val groupLabel = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = WorkflowLayoutEngine.GROUP_HEADER_HEIGHT; typeface = semiBold }
     val noteTitle = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.TITLE_TEXT; typeface = semiBold }
     val shadow = Paint(Paint.ANTI_ALIAS_FLAG)
+    // A bypassed node's badge (labelSmall, weight 600)
+    val badge = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = NodeStyle.CHIP_TEXT; typeface = semiBold }
     // Overview text: its size set when drawn (fixed on screen)
     val blockTitle = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = semiBold }
 }
@@ -379,7 +389,9 @@ fun WorkflowGraphCanvas(
     // What's there when the canvas first shows is drawn in place at once (a level entered or left: its own motion)
     appearInPlace: Boolean = false,
     // Inside a subgraph: the values its instance shows (node, input), marked on their rows (spec §19.3)
-    shownOnInstance: Set<Pair<String, String>> = emptySet()
+    shownOnInstance: Set<Pair<String, String>> = emptySet(),
+    // Inside a bypassed subgraph instance: every node looks switched off, without badges (spec §20, owner's choice)
+    levelBypassed: Boolean = false
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -461,6 +473,7 @@ fun WorkflowGraphCanvas(
             linkedPill = scheme.primaryContainer,
             onLinkedPill = scheme.onPrimaryContainer,
             primary = scheme.primary,
+            outline = scheme.outline,
             outlineVariant = scheme.outlineVariant,
             errorContainer = scheme.errorContainer,
             onErrorContainer = scheme.onErrorContainer,
@@ -523,6 +536,23 @@ fun WorkflowGraphCanvas(
         shown = rememberVectorPainter(Icons.Rounded.Visibility)
     )
     fun socketRadius(scale: Float) = (touchSlotRadiusPx / scale).coerceIn(slotHitRadius, 60f)
+
+    // Bypassed nodes look switched off (spec §20): how far each one is, 0 on to 1 off, faded when Bypass is toggled;
+    // what's bypassed when the canvas first shows is off at once
+    val bypassedLabel = stringResource(R.string.node_bypassed_badge)
+    val bypassedIds = graph.nodes.filter { it.isBypassed }.mapTo(HashSet()) { it.id }
+    val offStates = remember { mutableStateMapOf<String, Animatable<Float, AnimationVector1D>>() }
+    val offSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    LaunchedEffect(bypassedIds) {
+        (bypassedIds + offStates.keys).forEach { id ->
+            val target = if (id in bypassedIds) 1f else 0f
+            val state = offStates[id]
+            if (state == null) offStates[id] = Animatable(target)
+            else if (state.targetValue != target) launch { state.animateTo(target, offSpec) }
+        }
+    }
+    fun offOf(node: WorkflowNode): Float =
+        if (levelBypassed) 1f else offStates[node.id]?.value ?: if (node.isBypassed) 1f else 0f
 
     // Animation state for nodes (position + alpha)
     val animatedNodeStates = remember { mutableStateMapOf<String, AnimatedNodeState>() }
@@ -1675,17 +1705,23 @@ fun WorkflowGraphCanvas(
                                 mappedFields = graph.mappedFields,
                                 showChangedDot = showChangedDot,
                                 instance = instanceTexts[node.id],
-                                shownInputs = shownOnInstance.filter { it.first == node.id }.mapTo(HashSet()) { it.second }
+                                shownInputs = shownOnInstance.filter { it.first == node.id }.mapTo(HashSet()) { it.second },
+                                off = offOf(node),
+                                // The badge only for a node bypassed itself, not for one inside a bypassed instance
+                                bypassedLabel = bypassedLabel.takeIf { node.isBypassed }
                             )
                         }
                         if (spread > 0f) {
                             val (tint, titleColor) = titleBarColors(node, isMissing, colors)
+                            val off = offOf(node)
                             drawTitleSpread(
                                 left = node.x, top = node.y, width = node.width, height = node.height,
-                                title = node.title, tint = tint, titleColor = titleColor,
+                                title = node.title, tint = tint, titleColor = if (off > 0f) lerp(titleColor, colors.outline, off) else titleColor,
                                 spread = spread, overviewTitleSize = overviewTitleSize,
                                 colors = colors, paints = paints, alpha = alpha,
-                                icon = if (node.isSubgraphInstance) icons.subgraph else null
+                                icon = if (node.isSubgraphInstance) icons.subgraph else null,
+                                // A bypassed block: the icon at its end, no word (spec §20.2)
+                                trailingIcon = if (node.isBypassed) icons.bypassed else null
                             )
                             if (spread >= 1f && highlightState != NodeHighlightState.NONE) {
                                 drawBlockSelection(
@@ -1755,6 +1791,7 @@ fun WorkflowGraphCanvas(
                 if (nodeAlpha <= 0.01f) return@forEach
                 val scaleMultiplier = if (node.id == draggingNodeId) dragScale.value else 1f
                 val coveredTo = WorkflowLayoutEngine.NODE_HEADER_HEIGHT + (node.height - WorkflowLayoutEngine.NODE_HEADER_HEIGHT) * spread
+                val off = offOf(node)
 
                 node.outputs.forEachIndexed { outputIndex, output ->
                     if (WorkflowLayoutEngine.outputSlotY(node, outputIndex) < coveredTo) return@forEachIndexed
@@ -1772,7 +1809,7 @@ fun WorkflowGraphCanvas(
                     val add = SubgraphLevels.isPortNode(node) && SubgraphLevels.isAddSocket(output.name)
                     drawSocket(
                         center = position,
-                        color = if (isSource) colors.primary else if (add) colors.onSurfaceVariant else colors.slot(output.type),
+                        color = if (isSource) colors.primary else (if (add) colors.onSurfaceVariant else colors.slot(output.type)).switchedOff(off, colors),
                         connected = isSource || (node.id to outputIndex) in connectedOutputs,
                         colors = colors,
                         paints = paints,
@@ -1819,7 +1856,7 @@ fun WorkflowGraphCanvas(
                     val add = SubgraphLevels.isPortNode(node) && SubgraphLevels.isAddSocket(inputName)
                     drawSocket(
                         center = position,
-                        color = if (isSource) colors.primary else if (add) colors.onSurfaceVariant else typeColor,
+                        color = if (isSource) colors.primary else (if (add) colors.onSurfaceVariant else typeColor).switchedOff(off, colors),
                         connected = isSource || inputValue is InputValue.Connection,
                         colors = colors,
                         paints = paints,
@@ -1912,7 +1949,9 @@ private fun DrawScope.drawTitleSpread(
     paints: GraphPaints,
     alpha: Float,
     // Before the title, at its size (a subgraph instance's block)
-    icon: VectorPainter? = null
+    icon: VectorPainter? = null,
+    // At the block's end, at the title's size, in onSurfaceVariant (a bypassed node's block, spec §20.2)
+    trailingIcon: VectorPainter? = null
 ) {
     if (alpha <= 0.01f) return
     val header = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
@@ -1947,7 +1986,9 @@ private fun DrawScope.drawTitleSpread(
     val lineHeight = paint.fontSpacing
     val iconSize = if (icon != null) paint.textSize else 0f
     val iconSpace = if (icon != null) iconSize + paint.textSize * 0.4f else 0f
-    val textWidth = width - 2 * padding - iconSpace
+    val trailingSize = paint.textSize * 1.2f
+    val trailingSpace = if (trailingIcon != null) trailingSize + paint.textSize * 0.4f else 0f
+    val textWidth = width - 2 * padding - iconSpace - trailingSpace
     val lines = if (barHeight - 2 * padding >= 2 * lineHeight) {
         wrapTwoLines(title, textWidth, paint)
     } else {
@@ -1962,7 +2003,19 @@ private fun DrawScope.drawTitleSpread(
     lines.forEachIndexed { index, line ->
         drawContext.canvas.nativeCanvas.drawText(line, left + padding + iconSpace, paint.baselineFor(firstCenter + index * lineHeight), paint)
     }
+    if (trailingIcon != null) {
+        translate(left + width - padding - trailingSize, top + barHeight / 2 - trailingSize / 2) {
+            with(trailingIcon) { draw(Size(trailingSize, trailingSize), alpha = alpha, colorFilter = ColorFilter.tint(colors.onSurfaceVariant)) }
+        }
+    }
 }
+
+/**
+ * A colour of a switched-off node's content (spec §20, without transparency as the owner chose): text toward
+ * `outline`, closer to the body, [off] of the way; sockets and marks toward `outlineVariant`.
+ */
+private fun Color.switchedOff(off: Float, colors: CanvasColors, text: Boolean = false): Color =
+    if (off <= 0f) this else lerp(this, if (text) colors.outline else colors.outlineVariant, off)
 
 /** Selection of an overview block: as at full detail, at least 2 dp on screen; candidates dashed. */
 private fun DrawScope.drawBlockSelection(
@@ -2031,9 +2084,14 @@ private fun DrawScope.drawNode(
     // A subgraph instance: drawn as a frame around its body, with its Open button (spec §19.1)
     instance: InstanceText? = null,
     // Inside a subgraph: values its instance shows, marked after their names (spec §19.3)
-    shownInputs: Set<String> = emptySet()
+    shownInputs: Set<String> = emptySet(),
+    // How switched off its content looks (spec §20): 0 on, 1 bypassed; [bypassedLabel] its badge's word
+    off: Float = 0f,
+    bypassedLabel: String? = null
 ) {
     fun Color.faded() = copy(alpha = this.alpha * alpha)
+    fun Color.offText() = switchedOff(off, colors, text = true)
+    fun Color.offMark() = switchedOff(off, colors)
 
     val headerHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT
     val left = node.x
@@ -2045,11 +2103,11 @@ private fun DrawScope.drawNode(
     // A subgraph instance keeps its frame in every state (the badge tells it)
     val (titleBar, titleText, badge) = when {
         instance != null && node.isMuted -> Triple(colors.instanceFrame, colors.onInstanceFrame, icons.muted)
-        instance != null && node.isBypassed -> Triple(colors.instanceFrame, colors.onInstanceFrame, icons.bypassed)
+        instance != null && node.isBypassed -> Triple(colors.instanceFrame, colors.onInstanceFrame, null)
         instance != null -> Triple(colors.instanceFrame, colors.onInstanceFrame, null)
         isMissing -> Triple(colors.errorContainer, colors.onErrorContainer, icons.missing)
         node.isMuted -> Triple(colors.neutralTint, colors.onSurface, icons.muted)
-        node.isBypassed -> Triple(colors.neutralTint, colors.onSurface, icons.bypassed)
+        node.isBypassed -> Triple(colors.neutralTint, colors.onSurface, null)
         else -> Triple(colors.palette.titleTintOf(node) ?: colors.neutralTint, colors.onSurface, null)
     }
     val badgeColor = when {
@@ -2119,14 +2177,17 @@ private fun DrawScope.drawNode(
         }
     }
     val dotSpace = if (showChangedDot) 12f + 2 * NodeStyle.CHANGED_DOT_RADIUS else 0f
-    val badgeSpace = if (badge != null) NodeStyle.BADGE + 12f else 0f
-    val titlePaint = paints.title.apply { color = titleText.faded().toArgb() }
+    // A bypassed node's badge: a chip in the body's colour, at full strength (spec §20.1)
+    val chipPaint = paints.badge.apply { color = colors.onSurfaceVariant.faded().toArgb() }
+    val chipWidth = bypassedLabel?.let { NodeStyle.CHIP_PADDING_START + NodeStyle.CHIP_ICON + NodeStyle.CHIP_GAP + chipPaint.measureText(it) + NodeStyle.CHIP_PADDING_END }
+    val badgeSpace = (if (badge != null) NodeStyle.BADGE + 12f else 0f) + (chipWidth?.let { it + 12f } ?: 0f)
+    val titlePaint = paints.title.apply { color = titleText.offText().faded().toArgb() }
     val title = ellipsizeEnd(node.title, node.width - 2 * NodeStyle.TITLE_PADDING - iconSpace - dotSpace - badgeSpace, titlePaint)
     val nativeCanvas = drawContext.canvas.nativeCanvas
     nativeCanvas.drawText(title, left + NodeStyle.TITLE_PADDING + iconSpace, titlePaint.baselineFor(titleCenterY), titlePaint)
     if (showChangedDot) {
         drawCircle(
-            color = colors.primary.faded(),
+            color = colors.primary.offMark().faded(),
             radius = NodeStyle.CHANGED_DOT_RADIUS,
             center = Offset(
                 left + NodeStyle.TITLE_PADDING + iconSpace + titlePaint.measureText(title) + 12f + NodeStyle.CHANGED_DOT_RADIUS,
@@ -2140,6 +2201,26 @@ private fun DrawScope.drawNode(
                 draw(Size(NodeStyle.BADGE, NodeStyle.BADGE), alpha = alpha, colorFilter = ColorFilter.tint(badgeColor))
             }
         }
+    }
+    if (bypassedLabel != null && chipWidth != null) {
+        val chipLeft = right - NodeStyle.TITLE_PADDING - chipWidth
+        drawRoundRect(
+            color = colors.nodeBody.faded(),
+            topLeft = Offset(chipLeft, titleCenterY - NodeStyle.CHIP_HEIGHT / 2),
+            size = Size(chipWidth, NodeStyle.CHIP_HEIGHT),
+            cornerRadius = CornerRadius(NodeStyle.CHIP_HEIGHT / 2)
+        )
+        translate(chipLeft + NodeStyle.CHIP_PADDING_START, titleCenterY - NodeStyle.CHIP_ICON / 2) {
+            with(icons.bypassed) {
+                draw(Size(NodeStyle.CHIP_ICON, NodeStyle.CHIP_ICON), alpha = alpha, colorFilter = ColorFilter.tint(colors.onSurfaceVariant))
+            }
+        }
+        nativeCanvas.drawText(
+            bypassedLabel,
+            chipLeft + NodeStyle.CHIP_PADDING_START + NodeStyle.CHIP_ICON + NodeStyle.CHIP_GAP,
+            chipPaint.baselineFor(titleCenterY),
+            chipPaint
+        )
     }
 
     // Input rows: connection inputs as labels in their slot colour, widgets as a name and a value pill
@@ -2155,7 +2236,7 @@ private fun DrawScope.drawNode(
                 is InputValue.UnconnectedSlot -> colors.slot(value.slotType)
                 else -> inputWireColors[name] ?: colors.onSurfaceVariant
             }
-            labelPaint.color = (if (editable) colors.primary else slotColor).faded().toArgb()
+            labelPaint.color = (if (editable) colors.primary else slotColor).offText().faded().toArgb()
             // Half the width: an output's label may share the row
             val label = ellipsizeEnd(instance?.labels?.get(name) ?: Subgraphs.displayName(name), node.width / 2 - NodeStyle.ROW_PADDING, labelPaint)
             nativeCanvas.drawText(label, rowLeft, labelPaint.baselineFor(centerY), labelPaint)
@@ -2182,9 +2263,9 @@ private fun DrawScope.drawNode(
             pillLeft = rowRight - pillWidth
             val pillTop = centerY - NodeStyle.PILL_HEIGHT / 2
             val (container, content) = when {
-                linkedField != null -> colors.linkedPill to colors.onLinkedPill
-                isEdited -> colors.pill to colors.primary
-                else -> colors.pill to colors.onSurface
+                linkedField != null -> lerp(colors.linkedPill, colors.pill, off) to colors.onLinkedPill.offText()
+                isEdited -> colors.pill to colors.primary.offText()
+                else -> colors.pill to colors.onSurface.offText()
             }
             drawRoundRect(
                 color = container.faded(),
@@ -2205,7 +2286,7 @@ private fun DrawScope.drawNode(
             nativeCanvas.drawText(text, textLeft, pillPaint.baselineFor(centerY), pillPaint)
         }
 
-        labelPaint.color = (if (editable) colors.primary else colors.onSurfaceVariant).faded().toArgb()
+        labelPaint.color = (if (editable) colors.primary else colors.onSurfaceVariant).offText().faded().toArgb()
         // A value shown from inside a subgraph by its label (spec §19.1), else by its own name without its path
         val shown = name in shownInputs
         val markSpace = if (shown) NodeStyle.SHOWN_MARK + NodeStyle.PILL_ICON_GAP else 0f
@@ -2214,7 +2295,7 @@ private fun DrawScope.drawNode(
         if (shown) {
             translate(rowLeft + labelPaint.measureText(label) + NodeStyle.PILL_ICON_GAP, centerY - NodeStyle.SHOWN_MARK / 2) {
                 with(icons.shown) {
-                    draw(Size(NodeStyle.SHOWN_MARK, NodeStyle.SHOWN_MARK), alpha = alpha, colorFilter = ColorFilter.tint(colors.onSurfaceVariant))
+                    draw(Size(NodeStyle.SHOWN_MARK, NodeStyle.SHOWN_MARK), alpha = alpha, colorFilter = ColorFilter.tint(colors.onSurfaceVariant.offMark()))
                 }
             }
         }
@@ -2223,7 +2304,7 @@ private fun DrawScope.drawNode(
     // Output rows: labels at the end, in their slot colour, beside the connection inputs
     node.outputs.forEachIndexed { outputIndex, output ->
         val centerY = top + WorkflowLayoutEngine.outputSlotY(node, outputIndex)
-        val paint = paints.label.apply { color = colors.slot(output.type).faded().toArgb() }
+        val paint = paints.label.apply { color = colors.slot(output.type).offText().faded().toArgb() }
         val label = ellipsizeEnd(output.name, node.width / 2 - NodeStyle.ROW_PADDING, paint)
         nativeCanvas.drawText(label, rowRight - paint.measureText(label), paint.baselineFor(centerY), paint)
     }

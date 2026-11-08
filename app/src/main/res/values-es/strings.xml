@@ -197,7 +197,7 @@
     <string name="title_confirm_clear_history">¿Borrar el historial del servidor?</string>
     <string name="msg_confirm_clear_history">Todos los resultados desaparecen del historial del servidor y de la galería. Los archivos permanecen en el disco del servidor.</string>
     <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
-    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="label_vram_of">VRAM (%1$s)</string>
     <string name="title_server_software">Software</string>
     <string name="label_operating_system">Sistema operativo</string>
     <string name="title_server_maintenance">Mantenimiento</string>
@@ -327,9 +327,9 @@
         <item quantity="other">%d seleccionados</item>
     </plurals>
     <plurals name="label_gallery_subtitle">
-        <item quantity="one">Historial del servidor – %d elemento</item>
-        <item quantity="many">Historial del servidor – %d elementos</item>
-        <item quantity="other">Historial del servidor – %d elementos</item>
+        <item quantity="one">Historial del servidor (%d elemento)</item>
+        <item quantity="many">Historial del servidor (%d elementos)</item>
+        <item quantity="other">Historial del servidor (%d elementos)</item>
     </plurals>
     <string name="button_select_all">Seleccionar todo</string>
     <string name="title_delete_selected">¿Eliminar del servidor?</string>
@@ -456,7 +456,7 @@
     <string name="label_socket_input">Entrada</string>
     <string name="label_socket_output">Salida</string>
     <string name="button_reset_node">Restablecer nodo</string>
-    <string name="label_value_changed">Cambiado – por defecto %1$s</string>
+    <string name="label_value_changed">Cambiado (por defecto: %1$s)</string>
     <string name="content_description_reset_value">Restablecer %1$s a %2$s</string>
     <string name="title_node_values_linked">Conectadas</string>
     <string name="desc_node_values_linked">Sus valores vienen de otros nodos.</string>
@@ -480,6 +480,9 @@
     <string name="title_node_editor_rename">Renombrar nodo</string>
     <string name="label_node_editor_rename">Nombre del nodo</string>
     <string name="node_editor_bypass">Omitir</string>
+    <!-- A bypassed node (spec §20): its badge in the title bar, its state after a dash -->
+    <string name="node_bypassed_badge">Omitido</string>
+    <string name="node_bypassed_state">omitido</string>
 
     <!-- Settings screen strings -->
     <string name="nav_server_settings">Servidor</string>
@@ -507,7 +510,7 @@
     <string name="msg_workflows_none_on">La pantalla «%1$s» no tiene ningún workflow activado y no puede generar.</string>
     <string name="content_description_section_actions">%1$s. Acciones de la sección</string>
     <string name="msg_needs_server">Requiere conexión con el servidor</string>
-    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">integrado</string>
     <string name="label_workflow_kind_yours">tuyo</string>
     <string name="label_show_in_screens">Mostrar en las pantallas de generación</string>
@@ -550,9 +553,9 @@
     <string name="error_workflow_export">Error al exportar workflow</string>
     <string name="error_export_needs_definitions">Conéctate primero al servidor: el formato ComfyUI toma de él el orden de los valores de los nodos</string>
     <plurals name="msg_litegraph_conversion_notes">
-        <item quantity="one">Conversión completada con %d nota</item>
-        <item quantity="many">Conversión completada con %d notas</item>
-        <item quantity="other">Conversión completada con %d notas</item>
+        <item quantity="one">Conversión completada (%d nota)</item>
+        <item quantity="many">Conversión completada (%d notas)</item>
+        <item quantity="other">Conversión completada (%d notas)</item>
     </plurals>
 
     <!-- Content descriptions for accessibility -->
@@ -678,11 +681,11 @@
     <string name="label_editor_linking">Conectando %1$s</string>
     <string name="hint_editor_tap_input_or_value">Toca una entrada o un valor resaltados</string>
     <string name="hint_editor_no_target">Nada en este flujo de trabajo acepta %1$s</string>
-    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – desde %2$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> (desde %2$s)</string>
     <string name="menu_editor_connect">Conectar</string>
     <string name="menu_editor_disconnect">Desconectar</string>
-    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – sin conectar</string>
-    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – hacia %2$s</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – &lt;i>sin conectar&lt;/i></string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> (hacia %2$s)</string>
     <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> en &lt;b>%2$s&lt;/b></string>
     <string name="menu_editor_add_node">Añadir un nodo</string>
     <string name="msg_editor_link_mapped_new_node">Una vez conectado, &lt;b>%1$s&lt;/b> tomará su valor del nuevo nodo y el campo &lt;b>%2$s&lt;/b> dejará de cambiarlo.</string>
@@ -710,8 +713,8 @@
     <string name="button_copy_names">Copiar nombres</string>
     <string name="title_missing_on_server">Faltan en el servidor</string>
     <string name="msg_missing_fields_none">La pantalla «%1$s» necesita estos campos, pero ningún nodo de este workflow los proporciona. Revisa el tipo o añade los nodos en ComfyUI.</string>
-    <string name="label_copy_name">%1$s – copia</string>
-    <string name="label_copy_name_numbered">%1$s – copia %2$d</string>
+    <string name="label_copy_name">%1$s (copia)</string>
+    <string name="label_copy_name_numbered">%1$s (copia %2$d)</string>
     <string name="error_name_taken">Ya existe un workflow con este nombre</string>
     <string name="msg_names_copied">Nombres copiados</string>
     <plurals name="msg_missing_nodes_count">
@@ -725,8 +728,8 @@
     <string name="button_clear_all_mapping">Borrar todo</string>
     <string name="label_field_n_of_m">Campo %1$d de %2$d</string>
     <string name="button_all_fields">Todos los campos</string>
-    <string name="hint_mapping_required">Toca el nodo que lo contiene – obligatorio</string>
-    <string name="hint_mapping_optional">Toca el nodo que lo contiene – opcional</string>
+    <string name="hint_mapping_required">Toca el nodo que lo contiene (obligatorio)</string>
+    <string name="hint_mapping_optional">Toca el nodo que lo contiene (opcional)</string>
     <string name="content_description_previous_field">Campo anterior</string>
     <string name="content_description_next_field">Campo siguiente</string>
     <string name="button_finish">Finalizar</string>
@@ -795,6 +798,7 @@
     <string name="label_about_version">Versión %1$s</string>
     <string name="title_about_license">Licencia</string>
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="msg_license_english_only">Solo el texto original en inglés es jurídicamente vinculante.</string>
     <string name="title_about_source">Código fuente</string>
 
     <!-- Debug Logging strings -->
@@ -1076,9 +1080,9 @@
     <string name="label_field_type_text">texto</string>
     <string name="label_field_type_with_range">%1$s, %2$s</string>
     <string name="title_new_field">Campo nuevo</string>
-    <string name="label_new_field_context">Desde &lt;b>%1$s&lt;/b> en &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_new_field_context">Desde &lt;b>%1$s&lt;/b> en &lt;b>%2$s&lt;/b> (%3$s)</string>
     <string name="label_field_name">Nombre</string>
-    <string name="desc_field_name">Visible en la pantalla de generación – %1$d/%2$d</string>
+    <string name="desc_field_name">Visible en la pantalla de generación (%1$d/%2$d)</string>
     <string name="error_field_name_empty">Escribe un nombre</string>
     <string name="error_field_name_taken">%1$s ya es un campo de este flujo de trabajo</string>
     <string name="button_add">Añadir</string>
@@ -1099,8 +1103,8 @@
     <string name="hint_pick_value">Los valores admitidos están resaltados</string>
     <string name="content_description_cancel_new_field">Cancelar campo nuevo</string>
     <string name="button_add_value">Añadir un valor</string>
-    <string name="label_builtin_field_context">Campo integrado – &lt;b>%1$s&lt;/b></string>
-    <string name="desc_builtin_field_name">Nombre integrado: %1$s – %2$d/%3$d</string>
+    <string name="label_builtin_field_context">Campo integrado: &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Nombre integrado: %1$s (%2$d/%3$d)</string>
     <string name="content_description_use_builtin_name">Usar el nombre integrado: %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
@@ -1139,7 +1143,7 @@
     <string name="sg_hide_from_node">Ocultar del nodo</string>
     <string name="sg_move_up">Subir</string>
     <string name="sg_move_down">Bajar</string>
-    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – desde &lt;b>%2$s&lt;/b></string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> (desde &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_make">Crear subgrafo</string>
     <string name="sg_new_title">Nuevo subgrafo</string>
     <string name="sg_new_nodes">Nodos: %1$d</string>
@@ -1156,8 +1160,8 @@
     <string name="sg_error_name_empty">Escribe un nombre</string>
     <string name="sg_error_input_taken">Ya hay una entrada llamada %1$s</string>
     <string name="sg_error_output_taken">Ya hay una salida llamada %1$s</string>
-    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – entrada de &lt;b>%2$s&lt;/b></string>
-    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – salida de &lt;b>%2$s&lt;/b></string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> (entrada de &lt;b>%2$s&lt;/b>)</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> (salida de &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_rename_input">Cambiar nombre de la entrada</string>
     <string name="sg_rename_output">Cambiar nombre de la salida</string>
     <string name="sg_remove_input">Quitar entrada</string>

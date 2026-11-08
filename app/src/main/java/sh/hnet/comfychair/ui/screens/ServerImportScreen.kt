@@ -294,7 +294,7 @@ private fun ServerWorkflowRow(workflow: ServerWorkflow, index: Int, count: Int, 
         if (workflow.folder.isNotEmpty()) add(workflow.folder)
         if (workflow.modified > 0) add(formatModified(context, workflow.modified))
         if (workflow.isTooLarge) add(stringResource(R.string.label_server_workflow_too_large, Formatter.formatShortFileSize(context, workflow.size)))
-    }.joinToString(SEPARATOR)
+    }.joinToString(", ")
     val downloadingLabel = stringResource(R.string.content_description_downloading)
     SegmentedListItem(
         onClick = onOpen,

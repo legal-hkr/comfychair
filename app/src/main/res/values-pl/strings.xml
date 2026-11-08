@@ -201,7 +201,7 @@
     <string name="title_confirm_clear_history">Wyczyścić historię serwera?</string>
     <string name="msg_confirm_clear_history">Wszystkie wyniki znikną z historii serwera i z galerii. Pliki zostaną na dysku serwera.</string>
     <string name="label_memory_usage">%1$.1f / %2$.1f GB</string>
-    <string name="label_vram_of">VRAM – %1$s</string>
+    <string name="label_vram_of">VRAM (%1$s)</string>
     <string name="title_server_software">Oprogramowanie</string>
     <string name="label_operating_system">System operacyjny</string>
     <string name="title_server_maintenance">Konserwacja</string>
@@ -332,10 +332,10 @@
         <item quantity="other">Zaznaczono: %d</item>
     </plurals>
     <plurals name="label_gallery_subtitle">
-        <item quantity="one">Historia serwera – %d element</item>
-        <item quantity="few">Historia serwera – %d elementy</item>
-        <item quantity="many">Historia serwera – %d elementów</item>
-        <item quantity="other">Historia serwera – %d elementu</item>
+        <item quantity="one">Historia serwera (%d element)</item>
+        <item quantity="few">Historia serwera (%d elementy)</item>
+        <item quantity="many">Historia serwera (%d elementów)</item>
+        <item quantity="other">Historia serwera (%d elementu)</item>
     </plurals>
     <string name="button_select_all">Zaznacz wszystko</string>
     <string name="title_delete_selected">Usunąć z serwera?</string>
@@ -468,7 +468,7 @@
     <string name="label_socket_input">Wejście</string>
     <string name="label_socket_output">Wyjście</string>
     <string name="button_reset_node">Resetuj węzeł</string>
-    <string name="label_value_changed">Zmieniono – domyślnie %1$s</string>
+    <string name="label_value_changed">Zmieniono (domyślnie: %1$s)</string>
     <string name="content_description_reset_value">Przywróć %1$s do %2$s</string>
     <string name="title_node_values_linked">Połączone</string>
     <string name="desc_node_values_linked">Ich wartości przychodzą z innych węzłów.</string>
@@ -493,6 +493,9 @@
     <string name="title_node_editor_rename">Zmień nazwę węzła</string>
     <string name="label_node_editor_rename">Nazwa węzła</string>
     <string name="node_editor_bypass">Pomiń</string>
+    <!-- A bypassed node (spec §20): its badge in the title bar, its state after a dash -->
+    <string name="node_bypassed_badge">Pominięty</string>
+    <string name="node_bypassed_state">pominięty</string>
 
     <!-- Settings screen strings -->
     <string name="nav_server_settings">Serwer</string>
@@ -520,7 +523,7 @@
     <string name="msg_workflows_none_on">Ekran „%1$s” nie ma żadnego włączonego przepływu pracy i nie może generować.</string>
     <string name="content_description_section_actions">%1$s. Akcje sekcji</string>
     <string name="msg_needs_server">Wymaga połączenia z serwerem</string>
-    <string name="label_workflow_subtitle">%1$s – %2$s</string>
+    <string name="label_workflow_subtitle">%1$s (%2$s)</string>
     <string name="label_workflow_kind_builtin">wbudowany</string>
     <string name="label_workflow_kind_yours">twój</string>
     <string name="label_show_in_screens">Pokazuj na ekranach generowania</string>
@@ -563,10 +566,10 @@
     <string name="error_workflow_export">Nie udało się wyeksportować przepływu pracy</string>
     <string name="error_export_needs_definitions">Najpierw połącz się z serwerem – format ComfyUI bierze z niego kolejność wartości węzłów</string>
     <plurals name="msg_litegraph_conversion_notes">
-        <item quantity="one">Konwersja zakończona – %d uwaga</item>
-        <item quantity="few">Konwersja zakończona – %d uwagi</item>
-        <item quantity="many">Konwersja zakończona – %d uwag</item>
-        <item quantity="other">Konwersja zakończona – %d uwagi</item>
+        <item quantity="one">Konwersja zakończona (%d uwaga)</item>
+        <item quantity="few">Konwersja zakończona (%d uwagi)</item>
+        <item quantity="many">Konwersja zakończona (%d uwag)</item>
+        <item quantity="other">Konwersja zakończona (%d uwagi)</item>
     </plurals>
 
     <!-- Content descriptions for accessibility -->
@@ -695,11 +698,11 @@
     <string name="label_editor_linking">Podłączanie %1$s</string>
     <string name="hint_editor_tap_input_or_value">Dotknij podświetlonego wejścia lub wartości</string>
     <string name="hint_editor_no_target">Nic w tym przepływie nie przyjmuje %1$s</string>
-    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> – z %2$s</string>
+    <string name="label_editor_socket_menu_header">&lt;b>%1$s&lt;/b> (z %2$s)</string>
     <string name="menu_editor_connect">Połącz</string>
     <string name="menu_editor_disconnect">Rozłącz</string>
-    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – niepodłączone</string>
-    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> – do %2$s</string>
+    <string name="label_editor_socket_menu_free">&lt;b>%1$s&lt;/b> – &lt;i>niepodłączone&lt;/i></string>
+    <string name="label_editor_output_menu_header">&lt;b>%1$s&lt;/b> (do %2$s)</string>
     <string name="label_editor_socket_in">&lt;b>%1$s&lt;/b> w &lt;b>%2$s&lt;/b></string>
     <string name="menu_editor_add_node">Dodaj węzeł</string>
     <string name="msg_editor_link_mapped_new_node">Po podłączeniu wartość &lt;b>%1$s&lt;/b> przyjdzie z nowego węzła, a pole &lt;b>%2$s&lt;/b> przestanie ją zmieniać.</string>
@@ -727,8 +730,8 @@
     <string name="button_copy_names">Kopiuj nazwy</string>
     <string name="title_missing_on_server">Brakuje na serwerze</string>
     <string name="msg_missing_fields_none">Ekran „%1$s” wymaga tych pól, a żaden węzeł tego przepływu ich nie dostarcza. Sprawdź typ albo dodaj węzły w ComfyUI.</string>
-    <string name="label_copy_name">%1$s – kopia</string>
-    <string name="label_copy_name_numbered">%1$s – kopia %2$d</string>
+    <string name="label_copy_name">%1$s (kopia)</string>
+    <string name="label_copy_name_numbered">%1$s (kopia %2$d)</string>
     <string name="error_name_taken">Przepływ pracy o tej nazwie już istnieje</string>
     <string name="msg_names_copied">Skopiowano nazwy</string>
     <plurals name="msg_missing_nodes_count">
@@ -743,8 +746,8 @@
     <string name="button_clear_all_mapping">Wyczyść wszystko</string>
     <string name="label_field_n_of_m">Pole %1$d z %2$d</string>
     <string name="button_all_fields">Wszystkie pola</string>
-    <string name="hint_mapping_required">Dotknij węzła, który je zawiera – wymagane</string>
-    <string name="hint_mapping_optional">Dotknij węzła, który je zawiera – opcjonalne</string>
+    <string name="hint_mapping_required">Dotknij węzła, który je zawiera (wymagane)</string>
+    <string name="hint_mapping_optional">Dotknij węzła, który je zawiera (opcjonalne)</string>
     <string name="content_description_previous_field">Poprzednie pole</string>
     <string name="content_description_next_field">Następne pole</string>
     <string name="button_finish">Zakończ</string>
@@ -813,6 +816,7 @@
     <string name="label_about_version">Wersja %1$s</string>
     <string name="title_about_license">Licencja</string>
     <string name="label_about_license_name">GNU General Public License v3.0 (GPL-3.0)</string>
+    <string name="msg_license_english_only">Wiążący jest wyłącznie oryginalny tekst w języku angielskim.</string>
     <string name="title_about_source">Kod źródłowy</string>
 
     <!-- Debug Logging strings -->
@@ -1103,9 +1107,9 @@
     <string name="label_field_type_text">tekst</string>
     <string name="label_field_type_with_range">%1$s, %2$s</string>
     <string name="title_new_field">Nowe pole</string>
-    <string name="label_new_field_context">Z &lt;b>%1$s&lt;/b> w &lt;b>%2$s&lt;/b> – %3$s</string>
+    <string name="label_new_field_context">Z &lt;b>%1$s&lt;/b> w &lt;b>%2$s&lt;/b> (%3$s)</string>
     <string name="label_field_name">Nazwa</string>
-    <string name="desc_field_name">Widoczna na ekranie generowania – %1$d/%2$d</string>
+    <string name="desc_field_name">Widoczna na ekranie generowania (%1$d/%2$d)</string>
     <string name="error_field_name_empty">Wpisz nazwę</string>
     <string name="error_field_name_taken">Pole %1$s już jest w tym przepływie</string>
     <string name="button_add">Dodaj</string>
@@ -1126,8 +1130,8 @@
     <string name="hint_pick_value">Dopuszczalne wartości zostały podświetlone</string>
     <string name="content_description_cancel_new_field">Anuluj nowe pole</string>
     <string name="button_add_value">Dodaj wartość</string>
-    <string name="label_builtin_field_context">Pole wbudowane – &lt;b>%1$s&lt;/b></string>
-    <string name="desc_builtin_field_name">Nazwa wbudowana: %1$s – %2$d/%3$d</string>
+    <string name="label_builtin_field_context">Pole wbudowane: &lt;b>%1$s&lt;/b></string>
+    <string name="desc_builtin_field_name">Nazwa wbudowana: %1$s (%2$d/%3$d)</string>
     <string name="content_description_use_builtin_name">Przywróć nazwę wbudowaną: %1$s</string>
     <!-- A field and its value in a summary ("CFG: 7") -->
     <string name="label_name_value">%1$s: %2$s</string>
@@ -1170,7 +1174,7 @@
     <string name="sg_hide_from_node">Ukryj z węzła</string>
     <string name="sg_move_up">Przesuń w górę</string>
     <string name="sg_move_down">Przesuń w dół</string>
-    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – z &lt;b>%2$s&lt;/b></string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> (z &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_make">Utwórz podgraf</string>
     <string name="sg_new_title">Nowy podgraf</string>
     <string name="sg_new_nodes">Węzły: %1$d</string>
@@ -1187,8 +1191,8 @@
     <string name="sg_error_name_empty">Wpisz nazwę</string>
     <string name="sg_error_input_taken">Jest już wejście o nazwie %1$s</string>
     <string name="sg_error_output_taken">Jest już wyjście o nazwie %1$s</string>
-    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – wejście &lt;b>%2$s&lt;/b></string>
-    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – wyjście &lt;b>%2$s&lt;/b></string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> (wejście &lt;b>%2$s&lt;/b>)</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> (wyjście &lt;b>%2$s&lt;/b>)</string>
     <string name="sg_rename_input">Zmień nazwę wejścia</string>
     <string name="sg_rename_output">Zmień nazwę wyjścia</string>
     <string name="sg_remove_input">Usuń wejście</string>
