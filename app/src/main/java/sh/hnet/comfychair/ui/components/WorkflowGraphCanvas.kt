@@ -1552,11 +1552,16 @@ fun WorkflowGraphCanvas(
         }
         // Each wire's glass areas, by index. Clips are by single areas, each a rounded rectangle, which the renderer
         // clips on the GPU; a shape made of several (or what lies outside one) would be a mask drawn on the CPU
+        // A wire's end is in an area when its node belongs there or stands in it: groups' areas cover the nodes laid
+        // out among their members (nested groups), whose wires lie over that glass too
+        val areaBounds = groupAreas.map { (_, shape) -> shape.getBounds() }
+        fun inArea(nodeId: String, area: Int): Boolean {
+            if (nodeId in groupAreas[area].first) return true
+            val node = nodePositionsMap[nodeId] ?: return false
+            return areaBounds[area].contains(Offset(node.x + node.width / 2, node.y + node.height / 2))
+        }
         val underGlass: Map<WorkflowEdge, List<Int>> = wiresInOrder.mapNotNull { (edge, _) ->
-            val passed = groupAreas.indices.filter { i ->
-                val members = groupAreas[i].first
-                edge.sourceNodeId !in members && edge.targetNodeId !in members
-            }
+            val passed = groupAreas.indices.filter { i -> !inArea(edge.sourceNodeId, i) && !inArea(edge.targetNodeId, i) }
             if (passed.isEmpty()) null else edge to passed
         }.toMap()
         val anyUnderGlass = underGlass.isNotEmpty()
