@@ -16,6 +16,8 @@
 
     <device-transfer>
         <include domain="sharedpref" path="." />
+        <exclude domain="sharedpref" path="Credentials.xml" />
+        <!-- The credentials' old file (EncryptedSharedPreferences), until a start moves them over -->
         <exclude domain="sharedpref" path="CredentialPrefs.xml" />
     </device-transfer>
 </data-extraction-rules>

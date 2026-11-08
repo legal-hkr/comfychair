@@ -17,17 +17,11 @@ object PreferencesMaintenance {
 
     // SharedPreferences file names
     private const val PREFS_WORKFLOW_VALUES = "WorkflowValuesPrefs"
-    private const val PREFS_CREDENTIALS = "CredentialPrefs"
     private const val PREFS_TEXT_TO_IMAGE = "TextToImageFragmentPrefs"
     private const val PREFS_IMAGE_TO_IMAGE = "ImageToImageFragmentPrefs"
     private const val PREFS_TEXT_TO_VIDEO = "TextToVideoFragmentPrefs"
     private const val PREFS_IMAGE_TO_VIDEO = "ImageToVideoFragmentPrefs"
     private const val PREFS_VIDEO_TO_VIDEO = "VideoToVideoFragmentPrefs"
-
-    // Credential key prefixes
-    private const val KEY_USERNAME_PREFIX = "username_"
-    private const val KEY_PASSWORD_PREFIX = "password_"
-    private const val KEY_TOKEN_PREFIX = "token_"
 
     private const val PREFS_APP_SETTINGS = "AppSettings"
 
@@ -160,59 +154,9 @@ object PreferencesMaintenance {
         return keysToRemove.size
     }
 
-    /**
-     * Clean CredentialPrefs: remove credentials for deleted servers.
-     * Key format: {prefix}_{serverId} where prefix is username_, password_, or token_
-     *
-     * Note: CredentialPrefs may be encrypted, so we access it directly.
-     *
-     * @return Number of entries removed
-     */
-    private fun cleanCredentialPrefs(context: Context, validServerIds: Set<String>): Int {
-        // Use CredentialStorage's internal prefs access pattern
-        // We need to handle both encrypted and fallback prefs
-        val prefs = try {
-            val masterKey = androidx.security.crypto.MasterKey.Builder(context)
-                .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
-                .build()
-
-            androidx.security.crypto.EncryptedSharedPreferences.create(
-                context,
-                PREFS_CREDENTIALS,
-                masterKey,
-                androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: Exception) {
-            DebugLogger.w(TAG, "Using fallback prefs for credentials: ${Obfuscator.error(e)}")
-            context.getSharedPreferences(PREFS_CREDENTIALS, Context.MODE_PRIVATE)
-        }
-
-        val allKeys = prefs.all.keys.toList()
-        val keysToRemove = mutableListOf<String>()
-
-        for (key in allKeys) {
-            val serverId = when {
-                key.startsWith(KEY_USERNAME_PREFIX) -> key.removePrefix(KEY_USERNAME_PREFIX)
-                key.startsWith(KEY_PASSWORD_PREFIX) -> key.removePrefix(KEY_PASSWORD_PREFIX)
-                key.startsWith(KEY_TOKEN_PREFIX) -> key.removePrefix(KEY_TOKEN_PREFIX)
-                else -> continue
-            }
-
-            if (serverId !in validServerIds) {
-                keysToRemove.add(key)
-                DebugLogger.d(TAG, "Credentials: removing key for deleted server: $key")
-            }
-        }
-
-        if (keysToRemove.isNotEmpty()) {
-            val editor = prefs.edit()
-            keysToRemove.forEach { editor.remove(it) }
-            editor.apply()
-        }
-
-        return keysToRemove.size
-    }
+    /** Remove the credentials of deleted servers (all four kinds, [CredentialStorage]). */
+    private fun cleanCredentialPrefs(context: Context, validServerIds: Set<String>): Int =
+        CredentialStorage(context).deleteAllExcept(validServerIds)
 
     /**
      * Clean screen preferences (TTI, ITI, TTV, ITV): remove entries for deleted servers.
