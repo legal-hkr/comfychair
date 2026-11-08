@@ -19,6 +19,14 @@ object SubgraphLevels {
     private const val OUTPUTS_TYPE = "ComfyChair.SubgraphOutputs:"
     private const val MAX_DEPTH = 32
 
+    /**
+     * The add socket at the end of each strip (spec §19.5): the Inputs node's last output, the Outputs node's last input,
+     * of any type; a connection to it adds an input or output. Never written into a definition.
+     */
+    const val ADD_SOCKET = "\u0000add"
+
+    fun isAddSocket(name: String): Boolean = name == ADD_SOCKET
+
     fun isPortNode(node: WorkflowNode): Boolean = isPortType(node.classType)
     fun isPortType(classType: String): Boolean = classType.startsWith(INPUTS_TYPE) || classType.startsWith(OUTPUTS_TYPE)
     fun isInputsNode(node: WorkflowNode): Boolean = node.classType.startsWith(INPUTS_TYPE)
@@ -160,7 +168,8 @@ object SubgraphLevels {
             type to if (inputs) {
                 NodeTypeDefinition(
                     classType = type, category = Subgraphs.SUBGRAPH_CATEGORY, inputs = emptyList(),
-                    outputs = Subgraphs.portsOf(definitions, definitionId, "inputs").map { (name, slotType) -> OutputSlot(slotType, name) }
+                    outputs = Subgraphs.portsOf(definitions, definitionId, "inputs").map { (name, slotType) -> OutputSlot(slotType, name) } +
+                        OutputSlot("*", ADD_SOCKET)
                 )
             } else {
                 val keys = outputKeys(definition)
@@ -168,7 +177,7 @@ object SubgraphLevels {
                     classType = type, category = Subgraphs.SUBGRAPH_CATEGORY,
                     inputs = Subgraphs.portsOf(definitions, definitionId, "outputs").mapIndexed { index, (_, slotType) ->
                         InputDefinition(name = keys[index], type = slotType, isRequired = false, forceInput = true)
-                    },
+                    } + InputDefinition(name = ADD_SOCKET, type = "*", isRequired = false, forceInput = true),
                     outputs = emptyList()
                 )
             }
@@ -191,14 +200,33 @@ object SubgraphLevels {
             nodes.keys().asSequence().count { nodes.optJSONObject(it)?.optString("class_type") == definitionId }
         }
 
+    /** The title of the node a value an instance shows lies in ([key] a path into definition [definitionId]). */
+    fun innerNodeTitle(definitions: JSONObject, definitionId: String, key: String): String? {
+        var currentDefinition = definitionId
+        var rest = key
+        repeat(MAX_DEPTH) {
+            val node = definitions.optJSONObject(currentDefinition)?.optJSONObject("nodes")?.optJSONObject(rest.substringBefore('/')) ?: return null
+            val type = node.optString("class_type")
+            val after = rest.substringAfter('/')
+            if (definitions.has(type) && Subgraphs.isPromotedKey(after)) {
+                currentDefinition = type
+                rest = after
+            } else {
+                return node.optJSONObject("_meta")?.optString("title")?.takeIf { it.isNotEmpty() }
+                    ?: (if (definitions.has(type)) nameOf(definitions, type) else type)
+            }
+        }
+        return null
+    }
+
     /** A definition's name ([definitionId] when it has none). */
     fun nameOf(definitions: JSONObject, definitionId: String): String =
         definitions.optJSONObject(definitionId)?.optString("name")?.takeIf { it.isNotEmpty() } ?: definitionId
 
     /**
      * How the values an instance shows from inside are labelled (decided by the owner over spec §19.1): a primitive
-     * node's value by that node's title, any other by the input's name; labels that repeat get " – " and the node's
-     * title. [keys] are the instance's input keys; only paths get a label.
+     * node's value by that node's title, any other by the input's name; labels that repeat get the node's
+     * title in parentheses. [keys] are the instance's input keys; only paths get a label.
      */
     fun promotedLabels(definitions: JSONObject, definitionId: String, keys: Collection<String>): Map<String, String> {
         data class Inner(val key: String, val label: String, val nodeTitle: String)
@@ -224,6 +252,6 @@ object SubgraphLevels {
             null
         }
         val repeated = inner.groupBy { it.label }.filterValues { it.size > 1 }.keys
-        return inner.associate { it.key to if (it.label in repeated) "${it.label} – ${it.nodeTitle}" else it.label }
+        return inner.associate { it.key to if (it.label in repeated) "${it.label} (${it.nodeTitle})" else it.label }
     }
 }

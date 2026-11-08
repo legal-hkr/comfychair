@@ -655,13 +655,18 @@
     <string name="label_all_node_values">Alle Knotenwerte</string>
     <string name="desc_all_node_values">Werte, die oben fehlen</string>
     <string name="label_new_workflow">Neuer Workflow</string>
-    <string name="label_editor_mode_graph">Graph – nur lesen</string>
+    <string name="label_editor_mode_graph">Graph</string>
     <string name="label_editor_mode_node_values">Knotenwerte</string>
     <string name="label_editor_mode_editing">Bearbeitung</string>
-    <string name="label_editor_mode_editing_unsaved">Bearbeitung – nicht gespeichert</string>
-    <string name="label_editor_mode_placement">Bearbeitung – Anordnen</string>
+    <!-- The pill's line 2: a mode in bold, its state after a dash in italics, parameters in parentheses -->
+    <string name="label_editor_mode_import">Import</string>
+    <string name="label_editor_mode_saving">Speichern</string>
+    <string name="label_editor_state_read_only">nur lesen</string>
+    <string name="label_editor_state_unsaved">nicht gespeichert</string>
+    <string name="label_editor_state_placement">Anordnen</string>
+    <string name="label_editor_state_zoom_in">zum Verbinden heranzoomen</string>
+    <string name="label_editor_state_map_fields">Felder zuordnen</string>
     <string name="label_editor_zoom_in_to_connect">Zum Verbinden heranzoomen</string>
-    <string name="label_editor_mode_mapping">Import – Felder zuordnen</string>
     <string name="label_editor_connecting">Verbinde %1$s</string>
     <string name="hint_editor_tap_input">Tippe auf einen hervorgehobenen Eingang</string>
     <string name="hint_editor_tap_output">Tippe auf einen hervorgehobenen Ausgang</string>
@@ -683,10 +688,6 @@
     <string name="button_edit_structure">Struktur bearbeiten</string>
     <string name="content_description_clear_selection">Auswahl aufheben</string>
     <string name="content_description_zoom_level">Zoom %1$d Prozent, tippen für 100 Prozent</string>
-    <plurals name="label_editor_mode_node_values_changed">
-        <item quantity="one">Knotenwerte – %d geändert</item>
-        <item quantity="other">Knotenwerte – %d geändert</item>
-    </plurals>
     <string name="workflow_editor_zoom_in">Vergrößern</string>
     <string name="workflow_editor_zoom_out">Verkleinern</string>
     <string name="workflow_editor_reset_zoom">Graph an Bildschirm anpassen</string>
@@ -728,7 +729,6 @@
     <string name="msg_cancel_import">Der Workflow wird nicht hinzugefügt.</string>
     <string name="button_cancel_import">Import abbrechen</string>
     <string name="button_keep_mapping">Weiter zuordnen</string>
-    <string name="label_editor_mode_mapping_save">Speichern – Felder zuordnen</string>
     <string name="label_not_chosen">Noch nicht gewählt</string>
     <string name="section_necessary">Erforderlich</string>
     <string name="section_optional">Optional</string>
@@ -1079,9 +1079,10 @@
         <item quantity="one">%d Knoten</item>
         <item quantity="other">%d Knoten</item>
     </plurals>
-    <string name="sg_used_times">%1$d× verwendet</string>
-    <string name="sg_bypassed_suffix">umgangen</string>
-    <string name="sg_muted_suffix">stummgeschaltet</string>
+    <plurals name="sg_copies">
+        <item quantity="one">%d Kopie</item>
+        <item quantity="other">%d Kopien</item>
+    </plurals>
     <string name="sg_path_a11y">Pfad, %1$s. Doppeltippen, um eine Ebene zu wählen</string>
     <string name="sg_inputs">Eingänge</string>
     <string name="sg_outputs">Ausgänge</string>
@@ -1096,4 +1097,37 @@
     <string name="sg_back_announce">Zurück in %1$s</string>
     <string name="sg_open_action">Subgraph öffnen</string>
     <string name="sg_subgraph">Subgraph</string>
+    <!-- Editing subgraphs (spec §19.3–19.5) -->
+    <string name="sg_add_socket">hinzufügen</string>
+    <string name="sg_show_on">Auf &lt;b>%1$s&lt;/b> zeigen</string>
+    <string name="sg_hide_from">Auf &lt;b>%1$s&lt;/b> ausblenden</string>
+    <string name="sg_hide_from_node">Am Knoten ausblenden</string>
+    <string name="sg_move_up">Nach oben</string>
+    <string name="sg_move_down">Nach unten</string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – aus &lt;b>%2$s&lt;/b></string>
+    <string name="sg_make">Subgraph erstellen</string>
+    <string name="sg_new_title">Neuer Subgraph</string>
+    <string name="sg_new_nodes">Knoten: %1$d</string>
+    <string name="sg_new_inputs">Eingänge: %1$d</string>
+    <string name="sg_new_outputs">Ausgänge: %1$d</string>
+    <string name="sg_make_confirm">Erstellen</string>
+    <string name="sg_unpack">Entpacken</string>
+    <string name="sg_rename">Subgraph umbenennen</string>
+    <string name="sg_rename_this">Diesen Subgraph umbenennen</string>
+    <string name="sg_rename_used">Kopien: %1$d</string>
+    <string name="sg_own_title">Dieser Knoten hat einen eigenen Titel: &lt;b>%1$s&lt;/b>.</string>
+    <string name="sg_use_subgraph_name">Namen des Subgraphs verwenden</string>
+    <string name="sg_name">Name</string>
+    <string name="sg_name_count">%1$d/%2$d</string>
+    <string name="sg_error_name_empty">Gib einen Namen ein</string>
+    <string name="sg_error_input_taken">Es gibt bereits einen Eingang %1$s</string>
+    <string name="sg_error_output_taken">Es gibt bereits einen Ausgang %1$s</string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – Eingang von &lt;b>%2$s&lt;/b></string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – Ausgang von &lt;b>%2$s&lt;/b></string>
+    <string name="sg_rename_input">Eingang umbenennen</string>
+    <string name="sg_rename_output">Ausgang umbenennen</string>
+    <string name="sg_remove_input">Eingang entfernen</string>
+    <string name="sg_remove_output">Ausgang entfernen</string>
+    <string name="sg_connect_hint_inputs">Tippe auf einen hervorgehobenen Ausgang oder eine Hinzufügen-Buchse</string>
+    <string name="sg_connect_hint_outputs">Tippe auf einen hervorgehobenen Eingang oder eine Hinzufügen-Buchse</string>
 </resources>

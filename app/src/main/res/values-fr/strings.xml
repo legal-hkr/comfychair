@@ -658,13 +658,18 @@
     <string name="label_all_node_values">Toutes les valeurs des nœuds</string>
     <string name="desc_all_node_values">Valeurs absentes ci-dessus</string>
     <string name="label_new_workflow">Nouveau workflow</string>
-    <string name="label_editor_mode_graph">Graphe – lecture seule</string>
+    <string name="label_editor_mode_graph">Graphe</string>
     <string name="label_editor_mode_node_values">Valeurs des nœuds</string>
     <string name="label_editor_mode_editing">Modification</string>
-    <string name="label_editor_mode_editing_unsaved">Modification – non enregistrée</string>
-    <string name="label_editor_mode_placement">Modification – placement</string>
+    <!-- The pill's line 2: a mode in bold, its state after a dash in italics, parameters in parentheses -->
+    <string name="label_editor_mode_import">Import</string>
+    <string name="label_editor_mode_saving">Enregistrement</string>
+    <string name="label_editor_state_read_only">lecture seule</string>
+    <string name="label_editor_state_unsaved">non enregistrée</string>
+    <string name="label_editor_state_placement">placement</string>
+    <string name="label_editor_state_zoom_in">zoomez pour connecter</string>
+    <string name="label_editor_state_map_fields">associer les champs</string>
     <string name="label_editor_zoom_in_to_connect">Zoomez pour connecter</string>
-    <string name="label_editor_mode_mapping">Import – associer les champs</string>
     <string name="label_editor_connecting">Connexion %1$s</string>
     <string name="hint_editor_tap_input">Touchez une entrée en surbrillance</string>
     <string name="hint_editor_tap_output">Touchez une sortie en surbrillance</string>
@@ -686,11 +691,6 @@
     <string name="button_edit_structure">Modifier la structure</string>
     <string name="content_description_clear_selection">Effacer la sélection</string>
     <string name="content_description_zoom_level">Zoom %1$d pour cent, touchez pour 100 pour cent</string>
-    <plurals name="label_editor_mode_node_values_changed">
-        <item quantity="one">Valeurs des nœuds – %d modifiée</item>
-        <item quantity="many">Valeurs des nœuds – %d modifiées</item>
-        <item quantity="other">Valeurs des nœuds – %d modifiées</item>
-    </plurals>
     <string name="workflow_editor_zoom_in">Zoom avant</string>
     <string name="workflow_editor_zoom_out">Zoom arrière</string>
     <string name="workflow_editor_reset_zoom">Ajuster le graphe à l’écran</string>
@@ -733,7 +733,6 @@
     <string name="msg_cancel_import">Le workflow ne sera pas ajouté.</string>
     <string name="button_cancel_import">Annuler l’importation</string>
     <string name="button_keep_mapping">Continuer</string>
-    <string name="label_editor_mode_mapping_save">Enregistrement – associer les champs</string>
     <string name="label_not_chosen">Pas encore choisi</string>
     <string name="section_necessary">Nécessaire</string>
     <string name="section_optional">Optionnel</string>
@@ -1110,9 +1109,11 @@
         <item quantity="many">%d nœuds</item>
         <item quantity="other">%d nœuds</item>
     </plurals>
-    <string name="sg_used_times">utilisé %1$d×</string>
-    <string name="sg_bypassed_suffix">contourné</string>
-    <string name="sg_muted_suffix">désactivé</string>
+    <plurals name="sg_copies">
+        <item quantity="one">%d copie</item>
+        <item quantity="many">%d copies</item>
+        <item quantity="other">%d copies</item>
+    </plurals>
     <string name="sg_path_a11y">Chemin, %1$s. Appuyez deux fois pour choisir un niveau</string>
     <string name="sg_inputs">Entrées</string>
     <string name="sg_outputs">Sorties</string>
@@ -1129,4 +1130,37 @@
     <string name="sg_back_announce">De retour dans %1$s</string>
     <string name="sg_open_action">Ouvrir le sous-graphe</string>
     <string name="sg_subgraph">Sous-graphe</string>
+    <!-- Editing subgraphs (spec §19.3–19.5) -->
+    <string name="sg_add_socket">ajouter</string>
+    <string name="sg_show_on">Afficher sur &lt;b>%1$s&lt;/b></string>
+    <string name="sg_hide_from">Masquer de &lt;b>%1$s&lt;/b></string>
+    <string name="sg_hide_from_node">Masquer du nœud</string>
+    <string name="sg_move_up">Monter</string>
+    <string name="sg_move_down">Descendre</string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – depuis &lt;b>%2$s&lt;/b></string>
+    <string name="sg_make">Créer un sous-graphe</string>
+    <string name="sg_new_title">Nouveau sous-graphe</string>
+    <string name="sg_new_nodes">Nœuds : %1$d</string>
+    <string name="sg_new_inputs">Entrées : %1$d</string>
+    <string name="sg_new_outputs">Sorties : %1$d</string>
+    <string name="sg_make_confirm">Créer</string>
+    <string name="sg_unpack">Décompresser</string>
+    <string name="sg_rename">Renommer le sous-graphe</string>
+    <string name="sg_rename_this">Renommer ce sous-graphe</string>
+    <string name="sg_rename_used">Copies : %1$d</string>
+    <string name="sg_own_title">Ce nœud a son propre titre, &lt;b>%1$s&lt;/b>.</string>
+    <string name="sg_use_subgraph_name">Utiliser le nom du sous-graphe</string>
+    <string name="sg_name">Nom</string>
+    <string name="sg_name_count">%1$d/%2$d</string>
+    <string name="sg_error_name_empty">Saisissez un nom</string>
+    <string name="sg_error_input_taken">Une autre entrée s’appelle %1$s</string>
+    <string name="sg_error_output_taken">Une autre sortie s’appelle %1$s</string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – entrée de &lt;b>%2$s&lt;/b></string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – sortie de &lt;b>%2$s&lt;/b></string>
+    <string name="sg_rename_input">Renommer l’entrée</string>
+    <string name="sg_rename_output">Renommer la sortie</string>
+    <string name="sg_remove_input">Supprimer l’entrée</string>
+    <string name="sg_remove_output">Supprimer la sortie</string>
+    <string name="sg_connect_hint_inputs">Touchez une sortie mise en évidence ou une prise « ajouter »</string>
+    <string name="sg_connect_hint_outputs">Touchez une entrée mise en évidence ou une prise « ajouter »</string>
 </resources>

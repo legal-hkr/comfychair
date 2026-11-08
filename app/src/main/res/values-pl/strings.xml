@@ -675,13 +675,18 @@
     <string name="label_all_node_values">Wszystkie wartości węzłów</string>
     <string name="desc_all_node_values">Wartości, których nie ma wyżej</string>
     <string name="label_new_workflow">Nowy przepływ pracy</string>
-    <string name="label_editor_mode_graph">Graf – tylko do odczytu</string>
+    <string name="label_editor_mode_graph">Graf</string>
     <string name="label_editor_mode_node_values">Wartości węzłów</string>
     <string name="label_editor_mode_editing">Edycja</string>
-    <string name="label_editor_mode_editing_unsaved">Edycja – niezapisane zmiany</string>
-    <string name="label_editor_mode_placement">Edycja – rozmieszczanie</string>
+    <!-- The pill's line 2: a mode in bold, its state after a dash in italics, parameters in parentheses -->
+    <string name="label_editor_mode_import">Import</string>
+    <string name="label_editor_mode_saving">Zapis</string>
+    <string name="label_editor_state_read_only">tylko do odczytu</string>
+    <string name="label_editor_state_unsaved">niezapisane zmiany</string>
+    <string name="label_editor_state_placement">rozmieszczanie</string>
+    <string name="label_editor_state_zoom_in">przybliż, żeby łączyć</string>
+    <string name="label_editor_state_map_fields">przypisywanie pól</string>
     <string name="label_editor_zoom_in_to_connect">Przybliż, żeby łączyć</string>
-    <string name="label_editor_mode_mapping">Import – przypisywanie pól</string>
     <string name="label_editor_connecting">Łączenie: %1$s</string>
     <string name="hint_editor_tap_input">Dotknij podświetlonego wejścia</string>
     <string name="hint_editor_tap_output">Dotknij podświetlonego wyjścia</string>
@@ -703,12 +708,6 @@
     <string name="button_edit_structure">Edytuj strukturę</string>
     <string name="content_description_clear_selection">Wyczyść zaznaczenie</string>
     <string name="content_description_zoom_level">Powiększenie %1$d procent, dotknij, aby ustawić 100 procent</string>
-    <plurals name="label_editor_mode_node_values_changed">
-        <item quantity="one">Wartości węzłów – %d zmieniona</item>
-        <item quantity="few">Wartości węzłów – %d zmienione</item>
-        <item quantity="many">Wartości węzłów – %d zmienionych</item>
-        <item quantity="other">Wartości węzłów – %d zmienionej</item>
-    </plurals>
     <string name="workflow_editor_zoom_in">Powiększ</string>
     <string name="workflow_editor_zoom_out">Pomniejsz</string>
     <string name="workflow_editor_reset_zoom">Dopasuj graf do ekranu</string>
@@ -752,7 +751,6 @@
     <string name="msg_cancel_import">Przepływ pracy nie zostanie dodany.</string>
     <string name="button_cancel_import">Anuluj import</string>
     <string name="button_keep_mapping">Przypisuj dalej</string>
-    <string name="label_editor_mode_mapping_save">Zapis – przypisywanie pól</string>
     <string name="label_not_chosen">Jeszcze nie wybrano</string>
     <string name="section_necessary">Wymagane</string>
     <string name="section_optional">Opcjonalne</string>
@@ -1139,9 +1137,12 @@
         <item quantity="many">%d węzłów</item>
         <item quantity="other">%d węzła</item>
     </plurals>
-    <string name="sg_used_times">użyty %1$d×</string>
-    <string name="sg_bypassed_suffix">pominięty</string>
-    <string name="sg_muted_suffix">wyciszony</string>
+    <plurals name="sg_copies">
+        <item quantity="one">%d kopia</item>
+        <item quantity="few">%d kopie</item>
+        <item quantity="many">%d kopii</item>
+        <item quantity="other">%d kopii</item>
+    </plurals>
     <string name="sg_path_a11y">Ścieżka, %1$s. Dotknij dwukrotnie, by wybrać poziom</string>
     <string name="sg_inputs">Wejścia</string>
     <string name="sg_outputs">Wyjścia</string>
@@ -1160,4 +1161,37 @@
     <string name="sg_back_announce">Z powrotem: %1$s</string>
     <string name="sg_open_action">Otwórz podgraf</string>
     <string name="sg_subgraph">Podgraf</string>
+    <!-- Editing subgraphs (spec §19.3–19.5) -->
+    <string name="sg_add_socket">dodaj</string>
+    <string name="sg_show_on">Pokaż na &lt;b>%1$s&lt;/b></string>
+    <string name="sg_hide_from">Ukryj z &lt;b>%1$s&lt;/b></string>
+    <string name="sg_hide_from_node">Ukryj z węzła</string>
+    <string name="sg_move_up">Przesuń w górę</string>
+    <string name="sg_move_down">Przesuń w dół</string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – z &lt;b>%2$s&lt;/b></string>
+    <string name="sg_make">Utwórz podgraf</string>
+    <string name="sg_new_title">Nowy podgraf</string>
+    <string name="sg_new_nodes">Węzły: %1$d</string>
+    <string name="sg_new_inputs">Wejścia: %1$d</string>
+    <string name="sg_new_outputs">Wyjścia: %1$d</string>
+    <string name="sg_make_confirm">Utwórz</string>
+    <string name="sg_unpack">Rozpakuj</string>
+    <string name="sg_rename">Zmień nazwę podgrafu</string>
+    <string name="sg_rename_this">Zmień nazwę tego podgrafu</string>
+    <string name="sg_rename_used">Kopie: %1$d</string>
+    <string name="sg_own_title">Ten węzeł ma własny tytuł: &lt;b>%1$s&lt;/b>.</string>
+    <string name="sg_use_subgraph_name">Użyj nazwy podgrafu</string>
+    <string name="sg_name">Nazwa</string>
+    <string name="sg_name_count">%1$d/%2$d</string>
+    <string name="sg_error_name_empty">Wpisz nazwę</string>
+    <string name="sg_error_input_taken">Jest już wejście o nazwie %1$s</string>
+    <string name="sg_error_output_taken">Jest już wyjście o nazwie %1$s</string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – wejście &lt;b>%2$s&lt;/b></string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – wyjście &lt;b>%2$s&lt;/b></string>
+    <string name="sg_rename_input">Zmień nazwę wejścia</string>
+    <string name="sg_rename_output">Zmień nazwę wyjścia</string>
+    <string name="sg_remove_input">Usuń wejście</string>
+    <string name="sg_remove_output">Usuń wyjście</string>
+    <string name="sg_connect_hint_inputs">Dotknij podświetlonego wyjścia albo gniazda „dodaj”</string>
+    <string name="sg_connect_hint_outputs">Dotknij podświetlonego wejścia albo gniazda „dodaj”</string>
 </resources>

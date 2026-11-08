@@ -624,13 +624,18 @@
     <string name="label_all_node_values">所有节点值</string>
     <string name="desc_all_node_values">上方未显示的值</string>
     <string name="label_new_workflow">新工作流</string>
-    <string name="label_editor_mode_graph">图 – 只读</string>
+    <string name="label_editor_mode_graph">图</string>
     <string name="label_editor_mode_node_values">节点值</string>
     <string name="label_editor_mode_editing">编辑</string>
-    <string name="label_editor_mode_editing_unsaved">编辑 – 未保存的更改</string>
-    <string name="label_editor_mode_placement">编辑 – 摆放</string>
+    <!-- The pill's line 2: a mode in bold, its state after a dash in italics, parameters in parentheses -->
+    <string name="label_editor_mode_import">导入</string>
+    <string name="label_editor_mode_saving">保存</string>
+    <string name="label_editor_state_read_only">只读</string>
+    <string name="label_editor_state_unsaved">未保存的更改</string>
+    <string name="label_editor_state_placement">摆放</string>
+    <string name="label_editor_state_zoom_in">放大后才能连接</string>
+    <string name="label_editor_state_map_fields">映射字段</string>
     <string name="label_editor_zoom_in_to_connect">放大后才能连接</string>
-    <string name="label_editor_mode_mapping">导入 – 映射字段</string>
     <string name="label_editor_connecting">正在连接 %1$s</string>
     <string name="hint_editor_tap_input">点按高亮的输入</string>
     <string name="hint_editor_tap_output">点按高亮的输出</string>
@@ -652,9 +657,6 @@
     <string name="button_edit_structure">编辑结构</string>
     <string name="content_description_clear_selection">清除选择</string>
     <string name="content_description_zoom_level">缩放 %1$d%%，点按设为 100%%</string>
-    <plurals name="label_editor_mode_node_values_changed">
-        <item quantity="other">节点值 – 已更改 %d 项</item>
-    </plurals>
     <string name="workflow_editor_zoom_in">放大</string>
     <string name="workflow_editor_zoom_out">缩小</string>
     <string name="workflow_editor_reset_zoom">使图适应屏幕</string>
@@ -695,7 +697,6 @@
     <string name="msg_cancel_import">工作流将不会被添加。</string>
     <string name="button_cancel_import">取消导入</string>
     <string name="button_keep_mapping">继续映射</string>
-    <string name="label_editor_mode_mapping_save">保存 – 映射字段</string>
     <string name="label_not_chosen">尚未选择</string>
     <string name="section_necessary">必需</string>
     <string name="section_optional">可选</string>
@@ -1052,9 +1053,9 @@
     <plurals name="sg_nodes_count">
         <item quantity="other">%d 个节点</item>
     </plurals>
-    <string name="sg_used_times">使用 %1$d 次</string>
-    <string name="sg_bypassed_suffix">已跳过</string>
-    <string name="sg_muted_suffix">已静音</string>
+    <plurals name="sg_copies">
+        <item quantity="other">%d 个副本</item>
+    </plurals>
     <string name="sg_path_a11y">路径，%1$s。点按两次以选择层级</string>
     <string name="sg_inputs">输入</string>
     <string name="sg_outputs">输出</string>
@@ -1067,4 +1068,37 @@
     <string name="sg_back_announce">已返回 %1$s</string>
     <string name="sg_open_action">打开子图</string>
     <string name="sg_subgraph">子图</string>
+    <!-- Editing subgraphs (spec §19.3–19.5) -->
+    <string name="sg_add_socket">添加</string>
+    <string name="sg_show_on">在 &lt;b>%1$s&lt;/b> 上显示</string>
+    <string name="sg_hide_from">从 &lt;b>%1$s&lt;/b> 隐藏</string>
+    <string name="sg_hide_from_node">从节点隐藏</string>
+    <string name="sg_move_up">上移</string>
+    <string name="sg_move_down">下移</string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – 来自 &lt;b>%2$s&lt;/b></string>
+    <string name="sg_make">创建子图</string>
+    <string name="sg_new_title">新子图</string>
+    <string name="sg_new_nodes">节点：%1$d</string>
+    <string name="sg_new_inputs">输入：%1$d</string>
+    <string name="sg_new_outputs">输出：%1$d</string>
+    <string name="sg_make_confirm">创建</string>
+    <string name="sg_unpack">解包</string>
+    <string name="sg_rename">重命名子图</string>
+    <string name="sg_rename_this">重命名此子图</string>
+    <string name="sg_rename_used">副本：%1$d</string>
+    <string name="sg_own_title">此节点有自己的标题：&lt;b>%1$s&lt;/b>。</string>
+    <string name="sg_use_subgraph_name">使用子图名称</string>
+    <string name="sg_name">名称</string>
+    <string name="sg_name_count">%1$d/%2$d</string>
+    <string name="sg_error_name_empty">请输入名称</string>
+    <string name="sg_error_input_taken">已有名为 %1$s 的输入</string>
+    <string name="sg_error_output_taken">已有名为 %1$s 的输出</string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – &lt;b>%2$s&lt;/b> 的输入</string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – &lt;b>%2$s&lt;/b> 的输出</string>
+    <string name="sg_rename_input">重命名输入</string>
+    <string name="sg_rename_output">重命名输出</string>
+    <string name="sg_remove_input">移除输入</string>
+    <string name="sg_remove_output">移除输出</string>
+    <string name="sg_connect_hint_inputs">点按高亮的输出或“添加”插口</string>
+    <string name="sg_connect_hint_outputs">点按高亮的输入或“添加”插口</string>
 </resources>

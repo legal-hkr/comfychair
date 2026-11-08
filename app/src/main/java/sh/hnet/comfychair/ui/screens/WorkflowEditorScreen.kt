@@ -39,6 +39,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.AddLink
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.RemoveCircle
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.Cable
 import androidx.compose.material.icons.rounded.Edit
@@ -148,6 +153,9 @@ import sh.hnet.comfychair.ui.components.workflow.FieldMappingCard
 import sh.hnet.comfychair.ui.components.workflow.MissingFieldsDialog
 import sh.hnet.comfychair.ui.components.workflow.MissingNodesDialog
 import sh.hnet.comfychair.ui.components.workflow.NewFieldDialog
+import sh.hnet.comfychair.ui.components.workflow.NewSubgraphDialog
+import sh.hnet.comfychair.ui.components.workflow.RenameSubgraphDialog
+import sh.hnet.comfychair.ui.components.workflow.RenameSubgraphPortDialog
 import sh.hnet.comfychair.ui.components.workflow.WorkflowDetailsDialog
 import sh.hnet.comfychair.ui.components.workflow.fieldTypeDescription
 import sh.hnet.comfychair.util.ConnectionValidator
@@ -296,6 +304,11 @@ fun WorkflowEditorScreen(
     fun labelled(fields: List<FieldMappingState>) = fields.map { m ->
         customFieldNames[TemplateKeyRegistry.getPlaceholderForKey(m.field.fieldKey)]?.let { m.copy(field = m.field.copy(displayName = it)) } ?: m
     }
+    // Subgraphs (spec §19.4, §19.5): making one of the selection (its numbers), renaming one (definition, the instance
+    // whose own title may go), renaming one's input or output (input?, index)
+    var makeSubgraph by remember { mutableStateOf<Triple<Int, Int, Int>?>(null) }
+    var renameSubgraph by remember { mutableStateOf<Pair<String, String?>?>(null) }
+    var renamePort by remember { mutableStateOf<Pair<Boolean, Int>?>(null) }
     // Custom fields (spec §18): naming a new one, editing one, confirming a last value's removal
     var newFieldFor by remember { mutableStateOf<SlotPosition?>(null) }
     var editFieldId by remember { mutableStateOf<String?>(null) }
@@ -312,7 +325,8 @@ fun WorkflowEditorScreen(
             inputName = connection.sourceSlot.slotName.takeIf { connection.direction == ConnectionDirection.INPUT_TO_OUTPUT },
             noTargets = connection.validTargetSlots.isEmpty(),
             // Zoomed out, sockets can't be tapped: the connection waits until zoomed in
-            zoomInToConnect = detailLevel != GraphDetailLevel.FULL
+            zoomInToConnect = detailLevel != GraphDetailLevel.FULL,
+            toAddSocket = connection.validTargetSlots.any { SubgraphLevels.isAddSocket(it.slotName) }
         )
         mode == EditorMode.MAPPING -> EditorStatus.Mapping(import = uiState.isImportMapping)
         mode == EditorMode.EDIT -> EditorStatus.Editing(
@@ -585,7 +599,65 @@ fun WorkflowEditorScreen(
                     ) {
                         // A socket's menu, anchored at the socket
                         socketMenu?.let { slot ->
+                            // Subgraphs: a socket of a strip, a value shown on the instance entered through, a value
+                            // an instance shows from inside (spec §19.3, §19.5)
+                            val slotNode = uiState.graph?.nodes?.find { it.id == slot.nodeId }
+                            val onStrip = slotNode != null && SubgraphLevels.isPortNode(slotNode)
+                            val addSocket = onStrip && SubgraphLevels.isAddSocket(slot.slotName)
+                            // The Inputs strip's sockets are outputs of its node: the subgraph's inputs
+                            val portIsInput = slot.isOutput
+                            val portIndex = if (slot.isOutput) slot.outputIndex else slotNode?.inputs?.keys?.indexOf(slot.slotName) ?: -1
+                            val levelName = uiState.subgraphPath.lastOrNull()?.name.orEmpty()
+                            val slotValue = (slotNode?.inputs?.get(slot.slotName) as? InputValue.Literal)?.value
+                            val appFilled = slotValue?.let(TemplateKeyRegistry::isAppManagedValue) == true
+                            val shownValue = slotNode?.isSubgraphInstance == true && !slot.isOutput && Subgraphs.isPromotedKey(slot.slotName)
+                            val shownKeys = if (shownValue) slotNode.inputs.keys.filter(Subgraphs::isPromotedKey) else emptyList()
+                            val header = when {
+                                addSocket -> AnnotatedString(stringResource(R.string.sg_add_socket))
+                                onStrip -> boldNamesResource(if (portIsInput) R.string.sg_input_of else R.string.sg_output_of, slot.slotName, levelName)
+                                shownValue -> definitionsJson?.let { definitions ->
+                                    boldNamesResource(
+                                        R.string.sg_shown_from,
+                                        SubgraphLevels.promotedLabels(definitions, slotNode.classType, listOf(slot.slotName))[slot.slotName] ?: Subgraphs.displayName(slot.slotName),
+                                        SubgraphLevels.innerNodeTitle(definitions, slotNode.classType, slot.slotName).orEmpty()
+                                    )
+                                }
+                                else -> null
+                            }
+                            val shownItems = if (shownValue) listOf(
+                                    SocketMenuItem(R.string.sg_move_up, Icons.Rounded.ArrowUpward, enabled = shownKeys.firstOrNull() != slot.slotName) {
+                                        viewModel.moveShownValue(slot.nodeId, slot.slotName, up = true)
+                                    },
+                                    SocketMenuItem(R.string.sg_move_down, Icons.Rounded.ArrowDownward, enabled = shownKeys.lastOrNull() != slot.slotName) {
+                                        viewModel.moveShownValue(slot.nodeId, slot.slotName, up = false)
+                                    }
+                                ) + (if (!appFilled) listOf(SocketMenuItem(R.string.sg_hide_from_node, Icons.Rounded.VisibilityOff) {
+                                    viewModel.hideShownValue(slot.nodeId, slot.slotName)
+                                }) else emptyList())
+                            else emptyList()
+                            // A nested instance's shown value can be shown one level up too
+                            val subgraphItems = shownItems + when {
+                                onStrip && !addSocket -> listOf(SocketMenuItem(R.string.button_rename, Icons.Rounded.Edit) { renamePort = portIsInput to portIndex })
+                                uiState.subgraphPath.isNotEmpty() && !onStrip && !slot.isOutput && slotValue != null ->
+                                    if ((slot.nodeId to slot.slotName) in uiState.shownOnInstance) {
+                                        if (appFilled) emptyList() else listOf(SocketMenuItem(
+                                            R.string.sg_hide_from, Icons.Rounded.VisibilityOff, label = boldNamesResource(R.string.sg_hide_from, levelName)
+                                        ) { viewModel.hideFromInstance(slot.nodeId, slot.slotName) })
+                                    } else listOf(SocketMenuItem(
+                                        R.string.sg_show_on, Icons.Rounded.Visibility, label = boldNamesResource(R.string.sg_show_on, levelName)
+                                    ) { viewModel.showOnInstance(slot.nodeId, slot.slotName) })
+                                else -> emptyList()
+                            }
+                            val removeItems = if (onStrip && !addSocket) listOf(
+                                SocketMenuItem(if (portIsInput) R.string.sg_remove_input else R.string.sg_remove_output, Icons.Rounded.RemoveCircle) {
+                                    viewModel.removeSubgraphPort(portIsInput, portIndex)
+                                }
+                            ) else emptyList()
                             SocketMenu(
+                                header = header,
+                                subgraphItems = subgraphItems,
+                                removeItems = removeItems,
+                                addNode = !addSocket,
                                 slot = slot,
                                 graph = uiState.graph,
                                 anchor = IntOffset(
@@ -601,8 +673,9 @@ fun WorkflowEditorScreen(
                                     if (slot.isOutput) viewModel.disconnectOutput(slot.nodeId, slot.outputIndex)
                                     else viewModel.deleteConnection(slot.nodeId, slot.slotName)
                                 },
-                                linkable = slot.isOutput || uiState.graph?.nodes?.find { it.id == slot.nodeId }?.inputs?.get(slot.slotName) !is InputValue.Literal ||
-                                    slot.slotType?.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES,
+                                // A value an instance shows from inside isn't linked from outside (spec §19.3)
+                                linkable = !shownValue && (slot.isOutput || uiState.graph?.nodes?.find { it.id == slot.nodeId }?.inputs?.get(slot.slotName) !is InputValue.Literal ||
+                                    slot.slotType?.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES),
                                 fieldItems = fieldMenuItems(
                                     slot = slot,
                                     graph = uiState.graph,
@@ -774,6 +847,7 @@ fun WorkflowEditorScreen(
                                 viewModel.onTransform(scale, offset)
                             },
                             onOpenSubgraph = openSubgraph,
+                            shownOnInstance = uiState.shownOnInstance,
                             appearInPlace = levelChanges > 0 || uiState.subgraphPath.isNotEmpty(),
                             modifier = Modifier
                                 .fillMaxSize()
@@ -932,8 +1006,15 @@ fun WorkflowEditorScreen(
         }
         if (showNodeList) {
             NodeListSheet(
-                // A level's Inputs and Outputs strips aren't nodes
-                nodes = uiState.graph?.nodes.orEmpty().filterNot(SubgraphLevels::isPortNode),
+                // A level's Inputs and Outputs strips aren't nodes; in Edit structure they're listed for their sockets
+                nodes = uiState.graph?.nodes.orEmpty().mapNotNull { node ->
+                    when {
+                        !SubgraphLevels.isPortNode(node) -> node
+                        mode != EditorMode.EDIT -> null
+                        else -> stringResource(if (SubgraphLevels.isInputsNode(node)) R.string.sg_inputs else R.string.sg_outputs)
+                            .let { word -> node.copy(title = word, classType = word) }
+                    }
+                },
                 nodeCount = { node -> definitionsJson?.takeIf { node.isSubgraphInstance }?.let { SubgraphLevels.nodeCount(it, node.classType) } },
                 onOpen = { node ->
                     showNodeList = false
@@ -941,7 +1022,9 @@ fun WorkflowEditorScreen(
                 },
                 onPick = { node ->
                     showNodeList = false
-                    if (mode == EditorMode.EDIT) {
+                    if (uiState.graph?.nodes?.find { it.id == node.id }?.let(SubgraphLevels::isPortNode) == true) {
+                        socketListNodeId = node.id
+                    } else if (mode == EditorMode.EDIT) {
                         viewModel.clearSelection()
                         viewModel.toggleNodeSelection(node.id)
                     } else {
@@ -1041,7 +1124,8 @@ fun WorkflowEditorScreen(
                     },
                     onGroup = { viewModel.createGroupFromSelection() },
                     onUngroup = { viewModel.ungroupSelectedNode() },
-                    onRenameNode = uiState.selectedNodeIds.singleOrNull()?.takeIf { uiState.selectedNoteIds.isEmpty() }?.let { nodeId ->
+                    // A subgraph instance is renamed by its subgraph (spec §19.4.3)
+                    onRenameNode = uiState.selectedNodeIds.singleOrNull()?.takeIf { uiState.selectedNoteIds.isEmpty() && viewModel.selectedInstance() == null }?.let { nodeId ->
                         {
                             uiState.graph?.nodes?.find { it.id == nodeId }?.let { node ->
                                 renamingNodeId = nodeId
@@ -1071,6 +1155,10 @@ fun WorkflowEditorScreen(
                         }
                     },
                     onDelete = { viewModel.deleteSelectedNodes() },
+                    onMakeSubgraph = if (uiState.selectedNodeIds.isNotEmpty()) ({ makeSubgraph = viewModel.subgraphFromSelection() }) else null,
+                    onUnpackSubgraph = viewModel.selectedInstance()?.let { { viewModel.unpackSubgraph() } },
+                    onRenameSubgraph = viewModel.selectedInstance()?.let { instance -> { renameSubgraph = instance.classType to instance.id } },
+                    onRenameThisSubgraph = uiState.subgraphPath.lastOrNull()?.let { level -> { renameSubgraph = level.definitionId to null } },
                     onSave = { viewModel.showSaveDialog(context) }
                 ) else null,
                 onFinishMapping = if (mode == EditorMode.MAPPING) {
@@ -1301,6 +1389,47 @@ fun WorkflowEditorScreen(
             )
         }
 
+        // Subgraphs: make one of the selection, rename one, rename one's input or output
+        makeSubgraph?.let { (nodes, inputs, outputs) ->
+            NewSubgraphDialog(
+                nodes = nodes, inputs = inputs, outputs = outputs,
+                onMake = { name ->
+                    makeSubgraph = null
+                    viewModel.makeSubgraph(name)
+                },
+                onDismiss = { makeSubgraph = null }
+            )
+        }
+        renameSubgraph?.let { (definitionId, instanceId) ->
+            val name = viewModel.subgraphName(definitionId)
+            val ownTitle = instanceId?.let { id -> uiState.graph?.nodes?.find { it.id == id }?.title }?.takeIf { it != name }
+            RenameSubgraphDialog(
+                current = name,
+                usedCount = viewModel.subgraphUsage(definitionId),
+                ownTitle = ownTitle,
+                onRename = { new, dropOwnTitle ->
+                    renameSubgraph = null
+                    viewModel.renameSubgraph(definitionId, new, instanceId.takeIf { dropOwnTitle })
+                },
+                onDismiss = { renameSubgraph = null }
+            )
+        }
+        renamePort?.let { (input, index) ->
+            val names = viewModel.subgraphPortNames(input)
+            names.getOrNull(index)?.let { current ->
+                RenameSubgraphPortDialog(
+                    input = input,
+                    current = current,
+                    taken = names,
+                    onRename = { new ->
+                        renamePort = null
+                        viewModel.renameSubgraphPort(input, index, new)
+                    },
+                    onDismiss = { renamePort = null }
+                )
+            } ?: run { renamePort = null }
+        }
+
         // Rename node: an empty name goes back to the node's class name
         if (showRenameDialog) {
             val node = uiState.graph?.nodes?.find { it.id == renamingNodeId }
@@ -1462,7 +1591,7 @@ private fun NodeListSheet(
                     shapes = groupShapes(index, nodes.size),
                     colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                     supportingContent = when {
-                        count != null -> ({ Text("$subgraphLabel – " + resources.getQuantityString(R.plurals.sg_nodes_count, count, count)) })
+                        count != null -> ({ Text("$subgraphLabel (" + resources.getQuantityString(R.plurals.sg_nodes_count, count, count) + ")") })
                         node.title != node.classType -> ({ Text(node.classType) })
                         else -> null
                     },
@@ -1548,7 +1677,13 @@ private fun SocketMenu(
     linkable: Boolean = true,
     fieldItems: List<SocketMenuItem> = emptyList(),
     addToFields: List<Pair<String, String>> = emptyList(),
-    onAddToField: (fieldId: String) -> Unit = {}
+    onAddToField: (fieldId: String) -> Unit = {},
+    // Subgraphs (spec §19.3, §19.5): a header naming the socket otherwise, a group after the field items, items that
+    // remove in the last group (with Disconnect); [addNode] false: Connect only
+    header: AnnotatedString? = null,
+    subgraphItems: List<SocketMenuItem> = emptyList(),
+    removeItems: List<SocketMenuItem> = emptyList(),
+    addNode: Boolean = true
 ) {
     val node = graph?.nodes?.find { it.id == slot.nodeId }
     val link = node?.inputs?.get(slot.slotName) as? InputValue.Connection
@@ -1583,23 +1718,24 @@ private fun SocketMenu(
         // take a link: only its field items)
         if (linkable) {
             add(SocketMenuItem(R.string.menu_editor_connect, Icons.Rounded.Cable, action = onConnect))
-            add(SocketMenuItem(R.string.menu_editor_add_node, Icons.Rounded.AddCircleOutline, action = onAddNode))
+            if (addNode) add(SocketMenuItem(R.string.menu_editor_add_node, Icons.Rounded.AddCircleOutline, action = onAddNode))
         }
     }
     val fields = fieldItems + if (addToFields.isNotEmpty()) {
         listOf(SocketMenuItem(R.string.menu_editor_add_to_field, Icons.Rounded.AddLink, Icons.Rounded.ArrowRight, closesMenu = false) { addToOpen = true })
     } else emptyList()
-    val disconnect = if (connected) listOf(SocketMenuItem(R.string.menu_editor_disconnect, Icons.Rounded.LinkOff, action = onDisconnect)) else emptyList()
+    val disconnect = (if (connected) listOf(SocketMenuItem(R.string.menu_editor_disconnect, Icons.Rounded.LinkOff, action = onDisconnect)) else emptyList()) +
+        removeItems
     // Disconnect in a group of its own, apart from the actions that add a link (as Delete in the server menu); a
-    // value's field items between them
-    val groups = listOf(items, fields, disconnect).filter { it.isNotEmpty() }
+    // value's field items and subgraph items between them
+    val groups = listOf(items, fields, subgraphItems, disconnect).filter { it.isNotEmpty() }
     Box(Modifier.offset { anchor }) {
         DropdownMenuPopup(expanded = true, onDismissRequest = onDismiss) {
             groups.forEachIndexed { groupIndex, group ->
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, groups.size)) {
                     if (groupIndex == 0) {
                         Text(
-                            label,
+                            header ?: label,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
@@ -1607,10 +1743,11 @@ private fun SocketMenu(
                     }
                     group.forEachIndexed { index, item ->
                         DropdownMenuItem(
-                            text = { Text(stringResource(item.labelRes)) },
+                            text = { Text(item.label ?: AnnotatedString(stringResource(item.labelRes))) },
                             leadingIcon = { Icon(item.icon, contentDescription = null) },
                             trailingIcon = item.trailing?.let { { Icon(it, contentDescription = null) } },
                             shape = MenuDefaults.itemShape(index, group.size).shape,
+                            enabled = item.enabled,
                             onClick = {
                                 if (item.closesMenu) onDismiss()
                                 item.action()
@@ -1658,6 +1795,9 @@ private class SocketMenuItem(
     val icon: ImageVector,
     val trailing: ImageVector? = null,
     val closesMenu: Boolean = true,
+    // A label with names in it (bold), in place of [labelRes]'s text
+    val label: AnnotatedString? = null,
+    val enabled: Boolean = true,
     val action: () -> Unit
 )
 

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.ExtensionOff
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -200,6 +201,8 @@ private object NodeStyle {
     const val ICON_GAP = 12f
     // A level's port strips (spec §19.2.4): labels this far outside the strip
     const val STRIP_LABEL_GAP = 12f
+    // Inside a subgraph: the mark of a value its instance shows (13 dp)
+    const val SHOWN_MARK = 26f
 }
 
 /** Text paints, made once per canvas (drawing happens on the main thread only). */
@@ -227,7 +230,9 @@ private class GraphIcons(
     val subgraph: VectorPainter,
     val open: VectorPainter,
     val inputs: VectorPainter,
-    val outputs: VectorPainter
+    val outputs: VectorPainter,
+    // Inside a subgraph: a value its instance shows (spec §19.3)
+    val shown: VectorPainter
 )
 
 // Blur radius of the wires under a group's frosted area, in graph units
@@ -372,7 +377,9 @@ fun WorkflowGraphCanvas(
     // A subgraph instance's Open button was tapped (spec §19.1); null: no Open buttons (a preview)
     onOpenSubgraph: ((String) -> Unit)? = null,
     // What's there when the canvas first shows is drawn in place at once (a level entered or left: its own motion)
-    appearInPlace: Boolean = false
+    appearInPlace: Boolean = false,
+    // Inside a subgraph: the values its instance shows (node, input), marked on their rows (spec §19.3)
+    shownOnInstance: Set<Pair<String, String>> = emptySet()
 ) {
     // Use rememberUpdatedState to always have access to current values in the gesture handler
     val currentScaleState = rememberUpdatedState(scale)
@@ -479,6 +486,7 @@ fun WorkflowGraphCanvas(
     val openLabel = stringResource(R.string.sg_open)
     val inputsLabel = stringResource(R.string.sg_inputs)
     val outputsLabel = stringResource(R.string.sg_outputs)
+    val addLabel = stringResource(R.string.sg_add_socket)
     val definitionsJson = remember(graph.subgraphs) {
         graph.subgraphs?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
     }
@@ -511,7 +519,8 @@ fun WorkflowGraphCanvas(
         subgraph = rememberVectorPainter(Icons.Rounded.Layers),
         open = rememberVectorPainter(Icons.Rounded.ChevronRight),
         inputs = rememberVectorPainter(Icons.AutoMirrored.Rounded.Login),
-        outputs = rememberVectorPainter(Icons.AutoMirrored.Rounded.Logout)
+        outputs = rememberVectorPainter(Icons.AutoMirrored.Rounded.Logout),
+        shown = rememberVectorPainter(Icons.Rounded.Visibility)
     )
     fun socketRadius(scale: Float) = (touchSlotRadiusPx / scale).coerceIn(slotHitRadius, 60f)
 
@@ -1581,6 +1590,7 @@ fun WorkflowGraphCanvas(
                 drawPortStrip(
                     node = node,
                     word = if (inputs) inputsLabel else outputsLabel,
+                    addWord = addLabel,
                     socketTypes = types,
                     socketNames = if (inputs) node.outputs.map { it.name } else node.inputs.keys.toList(),
                     colors = colors, paints = paints, icons = icons, alpha = alpha,
@@ -1664,7 +1674,8 @@ fun WorkflowGraphCanvas(
                                 inputWireColors = inputWireColors[node.id] ?: emptyMap(),
                                 mappedFields = graph.mappedFields,
                                 showChangedDot = showChangedDot,
-                                instance = instanceTexts[node.id]
+                                instance = instanceTexts[node.id],
+                                shownInputs = shownOnInstance.filter { it.first == node.id }.mapTo(HashSet()) { it.second }
                             )
                         }
                         if (spread > 0f) {
@@ -1758,14 +1769,16 @@ fun WorkflowGraphCanvas(
                         connectionModeState.sourceSlot.outputIndex == outputIndex) ||
                         (longPressSourceSlot?.nodeId == node.id && longPressSourceSlot.isOutput &&
                             longPressSourceSlot.outputIndex == outputIndex)
+                    val add = SubgraphLevels.isPortNode(node) && SubgraphLevels.isAddSocket(output.name)
                     drawSocket(
                         center = position,
-                        color = if (isSource) colors.primary else colors.slot(output.type),
+                        color = if (isSource) colors.primary else if (add) colors.onSurfaceVariant else colors.slot(output.type),
                         connected = isSource || (node.id to outputIndex) in connectedOutputs,
                         colors = colors,
                         paints = paints,
                         alpha = nodeAlpha,
-                        scale = scaleMultiplier
+                        scale = scaleMultiplier,
+                        dashed = add
                     )
                 }
 
@@ -1803,14 +1816,16 @@ fun WorkflowGraphCanvas(
                         inputValue is InputValue.UnconnectedSlot -> colors.slot(inputValue.slotType)
                         else -> inputWireColors[node.id]?.get(inputName) ?: colors.onSurfaceVariant
                     }
+                    val add = SubgraphLevels.isPortNode(node) && SubgraphLevels.isAddSocket(inputName)
                     drawSocket(
                         center = position,
-                        color = if (isSource) colors.primary else typeColor,
+                        color = if (isSource) colors.primary else if (add) colors.onSurfaceVariant else typeColor,
                         connected = isSource || inputValue is InputValue.Connection,
                         colors = colors,
                         paints = paints,
                         alpha = nodeAlpha,
-                        scale = scaleMultiplier
+                        scale = scaleMultiplier,
+                        dashed = add
                     )
                 }
             }
@@ -2014,7 +2029,9 @@ private fun DrawScope.drawNode(
     // Node values: a dot after the title when a value differs from the workflow's
     showChangedDot: Boolean = false,
     // A subgraph instance: drawn as a frame around its body, with its Open button (spec §19.1)
-    instance: InstanceText? = null
+    instance: InstanceText? = null,
+    // Inside a subgraph: values its instance shows, marked after their names (spec §19.3)
+    shownInputs: Set<String> = emptySet()
 ) {
     fun Color.faded() = copy(alpha = this.alpha * alpha)
 
@@ -2190,8 +2207,17 @@ private fun DrawScope.drawNode(
 
         labelPaint.color = (if (editable) colors.primary else colors.onSurfaceVariant).faded().toArgb()
         // A value shown from inside a subgraph by its label (spec §19.1), else by its own name without its path
-        val label = ellipsizeEnd(instance?.labels?.get(name) ?: Subgraphs.displayName(name), pillLeft - rowLeft - 16f, labelPaint)
+        val shown = name in shownInputs
+        val markSpace = if (shown) NodeStyle.SHOWN_MARK + NodeStyle.PILL_ICON_GAP else 0f
+        val label = ellipsizeEnd(instance?.labels?.get(name) ?: Subgraphs.displayName(name), pillLeft - rowLeft - 16f - markSpace, labelPaint)
         nativeCanvas.drawText(label, rowLeft, labelPaint.baselineFor(centerY), labelPaint)
+        if (shown) {
+            translate(rowLeft + labelPaint.measureText(label) + NodeStyle.PILL_ICON_GAP, centerY - NodeStyle.SHOWN_MARK / 2) {
+                with(icons.shown) {
+                    draw(Size(NodeStyle.SHOWN_MARK, NodeStyle.SHOWN_MARK), alpha = alpha, colorFilter = ColorFilter.tint(colors.onSurfaceVariant))
+                }
+            }
+        }
     }
 
     // Output rows: labels at the end, in their slot colour, beside the connection inputs
@@ -2233,7 +2259,9 @@ private fun DrawScope.drawSocket(
     colors: CanvasColors,
     paints: GraphPaints,
     alpha: Float,
-    scale: Float = 1f
+    scale: Float = 1f,
+    // A strip's add socket: a dashed ring (spec §19.2.4)
+    dashed: Boolean = false
 ) {
     val radius = NodeStyle.SOCKET_RADIUS * scale
     val haloRadius = radius + NodeStyle.SOCKET_HALO * scale
@@ -2250,7 +2278,8 @@ private fun DrawScope.drawSocket(
     } else {
         val ring = NodeStyle.SOCKET_RING * scale
         drawCircle(color = colors.nodeBody.copy(alpha = alpha), radius = radius, center = center)
-        drawCircle(color = color.copy(alpha = alpha), radius = radius - ring / 2, center = center, style = Stroke(ring))
+        val dash = if (dashed) PathEffect.dashPathEffect(floatArrayOf(2.6f * ring, 1.6f * ring)) else null
+        drawCircle(color = color.copy(alpha = alpha), radius = radius - ring / 2, center = center, style = Stroke(ring, pathEffect = dash))
     }
 }
 
@@ -2735,8 +2764,8 @@ private fun openButtonBounds(node: WorkflowNode): androidx.compose.ui.geometry.R
 }
 
 /**
- * A subgraph instance's Open button: a filled tonal button with "Open – 12 nodes" (with the subgraph's name between
- * them when the instance's title differs) and a chevron, the count in a lighter colour.
+ * A subgraph instance's Open button: a filled tonal button with "Open (12 nodes)" ("Open Name (12 nodes)", the
+ * subgraph's name after a space, when the instance's title differs) and a chevron, the count in a lighter colour.
  */
 private fun DrawScope.drawOpenButton(
     node: WorkflowNode,
@@ -2756,15 +2785,15 @@ private fun DrawScope.drawOpenButton(
     )
     val strong = paints.labelStrong.apply { color = colors.onOpenButton.faded().toArgb() }
     val plain = paints.label.apply { color = colors.onSurfaceVariant.faded().toArgb() }
-    val separator = " – "
+    val count = " (${instance.count})"
     val available = bounds.width - 2 * NodeStyle.OPEN_BUTTON_PADDING - NodeStyle.ICON - NodeStyle.ICON_GAP
-    val fixed = strong.measureText(instance.open) + plain.measureText(separator + instance.count) +
-        (if (instance.name != null) plain.measureText(separator) else 0f)
+    val fixed = strong.measureText(instance.open) + plain.measureText(count) +
+        (if (instance.name != null) strong.measureText(" ") else 0f)
     val name = instance.name?.let { ellipsizeEnd(it, (available - fixed).coerceAtLeast(0f), strong) }?.takeIf { it.isNotEmpty() }
     val parts = buildList {
         add(instance.open to strong)
-        if (name != null) { add(separator to plain); add(name to strong) }
-        add(separator + instance.count to plain)
+        if (name != null) add(" $name" to strong)
+        add(count to plain)
     }
     val textWidth = parts.sumOf { (text, paint) -> paint.measureText(text).toDouble() }.toFloat()
     val contentWidth = minOf(textWidth, available) + NodeStyle.ICON_GAP + NodeStyle.ICON
@@ -2834,6 +2863,7 @@ private fun portStripBounds(node: WorkflowNode): androidx.compose.ui.geometry.Re
 private fun DrawScope.drawPortStrip(
     node: WorkflowNode,
     word: String,
+    addWord: String,
     socketTypes: List<String?>,
     socketNames: List<String>,
     colors: CanvasColors,
@@ -2867,8 +2897,14 @@ private fun DrawScope.drawPortStrip(
     drawOutside(word, capCenter, paints.labelStrong.apply { color = colors.onSurfaceVariant.copy(alpha = labelAlpha).toArgb() })
     socketNames.forEachIndexed { index, name ->
         if (spread > 0f && WorkflowLayoutEngine.rowCenterY(index) < coveredTo) return@forEachIndexed
-        val paint = paints.label.apply { color = colors.slot(socketTypes.getOrNull(index)).copy(alpha = labelAlpha).toArgb() }
-        drawOutside(name, node.y + WorkflowLayoutEngine.rowCenterY(index), paint)
+        val add = SubgraphLevels.isAddSocket(name)
+        // The add socket's word in italics, neutral
+        val paint = paints.label.apply {
+            color = (if (add) colors.onSurfaceVariant else colors.slot(socketTypes.getOrNull(index))).copy(alpha = labelAlpha).toArgb()
+            textSkewX = if (add) -0.25f else 0f
+        }
+        drawOutside(if (add) addWord else name, node.y + WorkflowLayoutEngine.rowCenterY(index), paint)
+        paint.textSkewX = 0f
     }
 }
 

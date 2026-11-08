@@ -117,9 +117,10 @@ class SubgraphLevelsTest {
             SubgraphLevels.portTypes(definitions(), nodes.keys().asSequence().map { nodes.getJSONObject(it).getString("class_type") }.toList())
         }
         val inputs = types.values.single { it.inputs.isEmpty() }
-        assertEquals(listOf("image", "radius"), inputs.outputs.map { it.name })
+        // The add socket last (spec §19.5)
+        assertEquals(listOf("image", "radius", SubgraphLevels.ADD_SOCKET), inputs.outputs.map { it.name })
         val outputs = types.values.single { it.outputs.isEmpty() }
-        assertEquals(listOf("IMAGE", "IMAGE_1"), outputs.inputs.map { it.name })
+        assertEquals(listOf("IMAGE", "IMAGE_1", SubgraphLevels.ADD_SOCKET), outputs.inputs.map { it.name })
         assertTrue(outputs.inputs.all { it.forceInput })
     }
 
@@ -133,8 +134,8 @@ class SubgraphLevelsTest {
         // A primitive by its title, another value by its name, a repeated one with its node's title
         val labels = SubgraphLevels.promotedLabels(definitions, "outer", listOf("13/value", "11/sigma", "12/21/sigma", "image"))
         assertEquals("Steps", labels["13/value"])
-        assertEquals("sigma – Blur", labels["11/sigma"])
-        assertEquals("sigma – Invert", labels["12/21/sigma"])
+        assertEquals("sigma (Blur)", labels["11/sigma"])
+        assertEquals("sigma (Invert)", labels["12/21/sigma"])
         assertFalse(labels.containsKey("image"))
     }
 

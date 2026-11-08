@@ -48,6 +48,7 @@ import sh.hnet.comfychair.workflow.NoteManager
 import sh.hnet.comfychair.workflow.OutputSlot
 import sh.hnet.comfychair.workflow.PendingMappedLink
 import sh.hnet.comfychair.workflow.SlotPosition
+import sh.hnet.comfychair.workflow.SubgraphEditing
 import sh.hnet.comfychair.workflow.SubgraphLevelInfo
 import sh.hnet.comfychair.workflow.SubgraphLevels
 import sh.hnet.comfychair.workflow.Subgraphs
@@ -2531,12 +2532,12 @@ class WorkflowEditorViewModel : ViewModel() {
         // Get output type from registry
         val outputType = nodeTypeRegistry.getOutputType(sourceNode.classType, outputSlot.outputIndex)
 
-        // Calculate all valid input slots
+        // Calculate all valid input slots (from a strip's add socket: the nodes inside only)
         val validInputs = calculateValidInputSlots(
             sourceNodeId = sourceNode.id,
             outputType = outputType,
             graph = graph
-        )
+        ).filterNot { slot -> SubgraphLevels.isAddSocket(outputSlot.slotName) && graph.nodes.any { it.id == slot.nodeId && SubgraphLevels.isPortNode(it) } }
 
         // Update the output slot with resolved type
         val resolvedOutputSlot = outputSlot.copy(slotType = outputType)
@@ -2566,12 +2567,12 @@ class WorkflowEditorViewModel : ViewModel() {
         val inputType = inputSlot.slotType
             ?: nodeTypeRegistry.getInputType(targetNode.classType, inputSlot.slotName)
 
-        // Calculate all valid output slots
+        // Calculate all valid output slots (from a strip's add socket: the nodes inside only)
         val validOutputs = calculateValidOutputSlots(
             targetNodeId = targetNode.id,
             inputType = inputType,
             graph = graph
-        )
+        ).filterNot { slot -> SubgraphLevels.isAddSocket(inputSlot.slotName) && graph.nodes.any { it.id == slot.nodeId && SubgraphLevels.isPortNode(it) } }
 
         // Update the input slot with resolved type
         val resolvedInputSlot = inputSlot.copy(slotType = inputType)
@@ -2599,7 +2600,6 @@ class WorkflowEditorViewModel : ViewModel() {
      * - INPUT_TO_OUTPUT: targetSlot is an output, sourceSlot is an input
      */
     fun connectToTarget(targetSlot: SlotPosition) {
-        val graph = mutableGraph ?: return
         val state = _uiState.value
         val connectionState = state.connectionModeState ?: return
 
@@ -2608,6 +2608,17 @@ class WorkflowEditorViewModel : ViewModel() {
             ConnectionDirection.OUTPUT_TO_INPUT -> connectionState.sourceSlot to targetSlot
             ConnectionDirection.INPUT_TO_OUTPUT -> targetSlot to connectionState.sourceSlot
         }
+        // A strip's add socket: a new input or output of the subgraph, linked (spec §19.5)
+        when {
+            outputSlot.nodeId == SubgraphLevels.INPUTS_ID && SubgraphLevels.isAddSocket(outputSlot.slotName) -> addSubgraphInput(inputSlot)
+            inputSlot.nodeId == SubgraphLevels.OUTPUTS_ID && SubgraphLevels.isAddSocket(inputSlot.slotName) -> addSubgraphOutput(outputSlot)
+            else -> link(outputSlot, inputSlot)
+        }
+    }
+
+    /** Link [outputSlot] to [inputSlot] (an input takes one link: one it had goes). */
+    private fun link(outputSlot: SlotPosition, inputSlot: SlotPosition) {
+        val graph = mutableGraph ?: return
 
         // Remove any existing edge to this input (inputs can only have one connection)
         graph.edges.removeAll { edge ->
@@ -3756,7 +3767,8 @@ class WorkflowEditorViewModel : ViewModel() {
     private class LevelFrame(
         val instanceId: String,
         val definitionId: String,
-        val parentGraph: WorkflowGraph,
+        // Changed while inside: the values its instance shows (spec §19.3), its instances' inputs and outputs (§19.5)
+        var parentGraph: WorkflowGraph,
         val parentEditing: Boolean,
         val parentBounds: GraphBounds,
         val parentScale: Float,
@@ -3866,8 +3878,8 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /** A subgraph's nodes as a graph ready to show, with its Outputs node's sockets in the outputs' order. */
-    private fun levelGraphOf(level: SubgraphLevels.Level, definitions: JSONObject, definitionId: String, from: WorkflowGraph): WorkflowGraph {
-        var graph = parser.parse(level.root.toString(), from.name, from.description)
+    private fun levelGraphOf(root: JSONObject, definitions: JSONObject, definitionId: String, from: WorkflowGraph): WorkflowGraph {
+        var graph = parser.parse(root.toString(), from.name, from.description)
         val outputs = Subgraphs.portsOf(definitions, definitionId, "outputs")
         val keys = definitions.optJSONObject(definitionId)?.let(SubgraphLevels::outputKeys).orEmpty()
         // The port nodes are the subgraph's own: named after it ("image – from image in Invert and upscale")
@@ -3876,9 +3888,9 @@ class WorkflowEditorViewModel : ViewModel() {
             nodes = graph.nodes.map { node ->
                 if (SubgraphLevels.isInputsNode(node)) return@map node.copy(title = name)
                 if (!SubgraphLevels.isOutputsNode(node)) return@map node
-                node.copy(title = name, inputs = keys.mapIndexed { index, key ->
+                node.copy(title = name, inputs = (keys.mapIndexed { index, key ->
                     key to (node.inputs[key] ?: InputValue.UnconnectedSlot(outputs.getOrNull(index)?.second ?: "*"))
-                }.toMap())
+                } + (SubgraphLevels.ADD_SOCKET to InputValue.UnconnectedSlot("*"))).toMap())
             },
             isManualPlacementMode = from.isManualPlacementMode,
             fieldLabels = from.fieldLabels
@@ -3956,7 +3968,7 @@ class WorkflowEditorViewModel : ViewModel() {
             parentFields = graph.customFields
         )
         levels.add(frame)
-        var levelGraph = levelGraphOf(level, definitions, instance.classType, graph)
+        var levelGraph = levelGraphOf(level.root, definitions, instance.classType, graph)
         levelGraph = levelGraph.copy(customFields = translateFields(graph.customFields) { id, input -> addressIn(frame, id, input) })
         mutableGraph = if (editing) MutableWorkflowGraph.fromImmutable(levelGraph) else null
         keptValues.clear()
@@ -3993,6 +4005,7 @@ class WorkflowEditorViewModel : ViewModel() {
             draggingNodeId = null,
             draggingNoteId = null,
             subgraphPath = subgraphPathInfo(definitions),
+            shownOnInstance = shownOnInstance(),
             canConfirmMapping = mapping?.allRequiredFieldsMapped ?: _uiState.value.canConfirmMapping
         )
         if (mapping != null) selectFieldForMapping(_uiState.value.selectedFieldKey)
@@ -4093,6 +4106,421 @@ class WorkflowEditorViewModel : ViewModel() {
             connectionModeState = null,
             subgraphPath = emptyList()
         )
+    }
+
+    // ===========================================
+    // Editing subgraphs (spec §19.3–19.5)
+    // ===========================================
+
+    /** Inside a subgraph: the values of this level its instance shows, by this level's addresses. */
+    private fun shownOnInstance(): Set<Pair<String, String>> {
+        val frame = levels.lastOrNull() ?: return emptySet()
+        val instance = frame.parentGraph.nodes.find { it.id == frame.instanceId } ?: return emptySet()
+        return instance.inputs.keys.filter(Subgraphs::isPromotedKey).map { addressIn(frame, frame.instanceId, it) }.toSet()
+    }
+
+    /** The instance this level was entered through, changed in the level above. */
+    private fun changeEnteredInstance(change: (WorkflowNode) -> WorkflowNode) {
+        val frame = levels.lastOrNull() ?: return
+        frame.parentGraph = frame.parentGraph.copy(nodes = frame.parentGraph.nodes.map { if (it.id == frame.instanceId) change(it) else it })
+        _uiState.value = _uiState.value.copy(shownOnInstance = shownOnInstance(), hasUnsavedChanges = true)
+    }
+
+    /** Inside a subgraph: show a value of this level on the instance entered through, last (spec §19.3). */
+    fun showOnInstance(nodeId: String, input: String) {
+        if (mutableGraph == null) return
+        val value = literalOf(nodeId, input) ?: return
+        changeEnteredInstance { instance -> instance.copy(inputs = sortInputsForLayout(instance.inputs + ("$nodeId/$input" to InputValue.Literal(value)))) }
+    }
+
+    /** Inside a subgraph: stop showing a value of this level on the instance entered through. */
+    fun hideFromInstance(nodeId: String, input: String) {
+        if (mutableGraph == null) return
+        changeEnteredInstance { instance -> instance.copy(inputs = instance.inputs - "$nodeId/$input") }
+    }
+
+    /** A value an instance shows from inside: up or down among those it shows (its order is the user's). */
+    fun moveShownValue(nodeId: String, key: String, up: Boolean) {
+        val graph = mutableGraph ?: return
+        val index = graph.nodes.indexOfFirst { it.id == nodeId }
+        if (index < 0) return
+        val node = graph.nodes[index]
+        val entries = node.inputs.entries.map { it.key to it.value }.toMutableList()
+        val shown = entries.indices.filter { Subgraphs.isPromotedKey(entries[it].first) }
+        val at = shown.indexOfFirst { entries[it].first == key }
+        val other = shown.getOrNull(if (up) at - 1 else at + 1) ?: return
+        if (at < 0) return
+        val here = shown[at]
+        entries[here] = entries[other].also { entries[other] = entries[here] }
+        graph.nodes[index] = node.copy(inputs = entries.toMap())
+        updateGraphState()
+        // The instance's type lists its shown values in their order too (the values sheet)
+        _uiState.value = _uiState.value.copy(nodeDefinitions = buildNodeDefinitionsMap(graph.toImmutable()), hasUnsavedChanges = true)
+    }
+
+    /** A value an instance shows from inside: not shown any more. */
+    fun hideShownValue(nodeId: String, key: String) {
+        val graph = mutableGraph ?: return
+        val index = graph.nodes.indexOfFirst { it.id == nodeId }
+        if (index < 0) return
+        graph.nodes[index] = graph.nodes[index].copy(inputs = graph.nodes[index].inputs - key)
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
+        relayoutGraph()
+    }
+
+    /**
+     * The shown level in its stored form: its nodes (instances' values taken into the definitions; inside a subgraph
+     * with its port nodes), groups and notes, and the definitions.
+     */
+    private fun storedLevel(graph: WorkflowGraph): Pair<JSONObject, JSONObject> {
+        if (levels.isEmpty()) {
+            val root = JSONObject(serializer.serializeWithWrapper(graph))
+            val definitions = root.optJSONObject(Subgraphs.KEY) ?: JSONObject()
+            root.remove(Subgraphs.KEY)
+            return root to definitions
+        }
+        val root = JSONObject(serializer.serializeWithWrapper(graph.copy(subgraphs = null, customFields = emptyList(), fieldLabels = emptyMap())))
+        val definitions = JSONObject(graph.subgraphs ?: "{}")
+        Subgraphs.absorb(JSONObject().put("nodes", root.getJSONObject("nodes")).put(Subgraphs.KEY, definitions), prune = false)
+        return root to definitions
+    }
+
+    /** The shown level again from its stored form [root] and [definitions], with [fields]; [selected] then selected. */
+    private fun rebuildLevel(root: JSONObject, definitions: JSONObject, fields: List<CustomField>, selected: Set<String>) {
+        val before = currentGraph() ?: return
+        root.put(Subgraphs.KEY, definitions)
+        val frame = levels.lastOrNull()
+        var graph = if (frame != null) {
+            levelGraphOf(root, definitions, frame.definitionId, before)
+        } else {
+            resolveEdgeTypes(layoutEngine.layoutGraph(populateNodeOutputs(parser.parse(root.toString(), before.name, before.description))))
+        }
+        graph = graph.copy(customFields = fields, fieldLabels = before.fieldLabels)
+        mutableGraph = MutableWorkflowGraph.fromImmutable(graph)
+        _uiState.value = _uiState.value.copy(
+            graph = graph,
+            graphBounds = layoutEngine.calculateBounds(graph),
+            nodeDefinitions = buildNodeDefinitionsMap(graph),
+            selectedNodeIds = selected,
+            selectedNoteIds = emptySet(),
+            hasUnsavedChanges = true,
+            subgraphPath = subgraphPathInfo(definitions),
+            shownOnInstance = shownOnInstance()
+        )
+        refitIfFollowing()
+    }
+
+    /** The selection's nodes that can go into a subgraph (not a level's port strips). */
+    private fun selectionForSubgraph(): Set<String> {
+        val graph = mutableGraph ?: return emptySet()
+        return _uiState.value.selectedNodeIds.filterTo(LinkedHashSet()) { id -> graph.nodes.any { it.id == id && !SubgraphLevels.isPortNode(it) } }
+    }
+
+    /** What Make a subgraph would do with the selection: (nodes, inputs, outputs), for its dialog. */
+    fun subgraphFromSelection(): Triple<Int, Int, Int> {
+        val graph = currentGraph() ?: return Triple(0, 0, 0)
+        val selected = selectionForSubgraph()
+        val (level, _) = storedLevel(graph)
+        val (inputs, outputs) = SubgraphEditing.crossingCounts(level.getJSONObject("nodes"), selected)
+        return Triple(selected.size, inputs, outputs)
+    }
+
+    /** Make a subgraph named [name] of the selected nodes and notes (spec §19.4.1). */
+    fun makeSubgraph(name: String) {
+        val graph = mutableGraph?.toImmutable() ?: return
+        val selected = selectionForSubgraph()
+        if (selected.isEmpty()) return
+        val (level, definitions) = storedLevel(graph)
+        val instanceId = generateUniqueNodeId()
+        // Values fields fill (built-in or custom) are shown on the instance, so the fields still reach them
+        val promote = graph.nodes.filter { it.id in selected }.flatMap { node ->
+            node.inputs.filter { (_, value) -> (value as? InputValue.Literal)?.value?.let(TemplateKeyRegistry::isAppManagedValue) == true }
+                .map { (key, _) -> node.id to key }
+        }.toSet()
+        val selectedNodes = graph.nodes.filter { it.id in selected }
+        val made = SubgraphEditing.make(
+            level = level,
+            definitions = definitions,
+            selected = selected,
+            selectedNotes = _uiState.value.selectedNoteIds,
+            name = name.trim().take(SubgraphEditing.MAX_NAME_LENGTH),
+            instanceId = instanceId,
+            kept = keptValues,
+            typeOf = { id, slot -> graph.nodes.find { it.id == id }?.outputs?.getOrNull(slot)?.type ?: "*" },
+            outputNameOf = { id, slot -> graph.nodes.find { it.id == id }?.outputs?.getOrNull(slot)?.name ?: "output" },
+            promote = promote,
+            position = if (graph.isManualPlacementMode) selectedNodes.minOf { it.x } to selectedNodes.minOf { it.y } else null
+        )
+        keptValues.keys.removeAll { it.first in selected }
+        val fields = graph.customFields.map { field ->
+            field.copy(targets = field.targets.map { if (it.nodeId in selected) FieldTarget(instanceId, "${it.nodeId}/${it.input}") else it })
+        }
+        DebugLogger.d(TAG, "makeSubgraph: ${selected.size} nodes")
+        rebuildLevel(made.level, made.definitions, fields, setOf(instanceId))
+    }
+
+    /** The selected subgraph instance, when the selection is one instance. */
+    fun selectedInstance(): WorkflowNode? {
+        val state = _uiState.value
+        if (state.selectedNoteIds.isNotEmpty()) return null
+        return state.selectedNodeIds.singleOrNull()?.let { id -> state.graph?.nodes?.find { it.id == id && it.isSubgraphInstance } }
+    }
+
+    /** Unpack the selected instance into its nodes (spec §19.4.2); they become the selection. */
+    fun unpackSubgraph() {
+        val graph = mutableGraph?.toImmutable() ?: return
+        val instance = selectedInstance() ?: return
+        val (level, definitions) = storedLevel(graph)
+        var noteId = graph.notes.maxOfOrNull { it.id } ?: 0
+        val unpacked = SubgraphEditing.unpack(
+            level = level,
+            definitions = definitions,
+            instanceId = instance.id,
+            newNodeId = ::generateUniqueNodeId,
+            newGroupId = { groupIdCounter++ },
+            newNoteId = { ++noteId },
+            offset = if (graph.isManualPlacementMode) instance.x to instance.y else null
+        ) ?: return
+        // Fields reaching values inside through the instance reach them directly now
+        val ports = definitions.optJSONObject(instance.classType)?.optJSONArray("inputs")
+        fun firstTarget(port: String): Pair<String, String>? {
+            if (ports == null) return null
+            for (i in 0 until ports.length()) {
+                val p = ports.optJSONObject(i) ?: continue
+                if (p.optString("name") != port) continue
+                val target = p.optJSONArray("targets")?.optJSONArray(0) ?: return null
+                return target.optString(0) to target.optString(1)
+            }
+            return null
+        }
+        val fields = graph.customFields.map { field ->
+            field.copy(targets = field.targets.mapNotNull { target ->
+                if (target.nodeId != instance.id) return@mapNotNull target
+                val (inner, input) = if (Subgraphs.isPromotedKey(target.input)) target.input.substringBefore('/') to target.input.substringAfter('/')
+                    else firstTarget(target.input) ?: return@mapNotNull null
+                unpacked.nodeIds[inner]?.let { FieldTarget(it, input) }
+            })
+        }.filter { it.targets.isNotEmpty() }
+        DebugLogger.d(TAG, "unpackSubgraph: ${unpacked.nodeIds.size} nodes")
+        rebuildLevel(unpacked.level, definitions, fields, unpacked.nodeIds.values.toSet())
+    }
+
+    /**
+     * Rename subgraph [definitionId] (every instance: those showing its name show the new one); [dropTitleOf] an
+     * instance whose own title goes (spec §19.4.3).
+     */
+    fun renameSubgraph(definitionId: String, name: String, dropTitleOf: String? = null) {
+        val graph = mutableGraph ?: return
+        val definitions = JSONObject(graph.subgraphs ?: return)
+        val definition = definitions.optJSONObject(definitionId) ?: return
+        val old = definition.optString("name")
+        val new = name.trim().take(SubgraphEditing.MAX_NAME_LENGTH)
+        if (new.isEmpty()) return
+        definition.put("name", new)
+        fun retitle(nodes: List<WorkflowNode>) = nodes.map { node ->
+            if (node.classType == definitionId && (node.title == old || node.id == dropTitleOf)) node.copy(title = new) else node
+        }
+        graph.subgraphs = definitions.toString()
+        graph.nodes.replaceAll { node -> retitle(listOf(node)).first() }
+        levels.forEach { frame -> frame.parentGraph = frame.parentGraph.copy(nodes = retitle(frame.parentGraph.nodes)) }
+        updateGraphState()
+        _uiState.value = _uiState.value.copy(hasUnsavedChanges = true, subgraphPath = subgraphPathInfo(definitions))
+    }
+
+    /** How many instances subgraph [definitionId] has in the whole workflow. */
+    fun subgraphUsage(definitionId: String): Int {
+        val graph = currentGraph() ?: return 0
+        val definitions = currentDefinitions(graph) ?: return 0
+        val topTypes = (levels.firstOrNull()?.parentGraph ?: graph).nodes.map { it.classType }
+        return SubgraphLevels.usageCount(definitions, topTypes, definitionId)
+    }
+
+    /** A subgraph's name (its ID when it has none). */
+    fun subgraphName(definitionId: String): String =
+        currentGraph()?.subgraphs?.let { SubgraphLevels.nameOf(JSONObject(it), definitionId) } ?: definitionId
+
+    // The subgraph's own inputs and outputs, edited inside it (spec §19.5)
+
+    /** The subgraph shown, its definitions as they are now. */
+    private fun shownDefinition(): Pair<JSONObject, JSONObject>? {
+        val frame = levels.lastOrNull() ?: return null
+        val definitions = JSONObject(mutableGraph?.subgraphs ?: return null)
+        return definitions to (definitions.optJSONObject(frame.definitionId) ?: return null)
+    }
+
+    /** The names a subgraph's inputs ([inputs]) or outputs have. */
+    fun subgraphPortNames(inputs: Boolean): List<String> {
+        val (_, definition) = shownDefinition() ?: return emptyList()
+        val ports = definition.optJSONArray(if (inputs) "inputs" else "outputs") ?: return emptyList()
+        return (0 until ports.length()).map { ports.optJSONObject(it)?.optString("name").orEmpty() }
+    }
+
+    /**
+     * After the shown subgraph's ports changed: [definitions] in the graph, the port nodes' sockets from them (the
+     * Outputs node's re-keyed from [oldOutputKeys]), laid out again for the strips' sizes.
+     */
+    private fun portsChanged(definitions: JSONObject, oldOutputKeys: List<String>? = null) {
+        val graph = mutableGraph ?: return
+        val frame = levels.lastOrNull() ?: return
+        graph.subgraphs = definitions.toString()
+        if (oldOutputKeys != null) {
+            val newKeys = definitions.optJSONObject(frame.definitionId)?.let(SubgraphLevels::outputKeys).orEmpty()
+            val rename = oldOutputKeys.zip(newKeys).toMap()
+            graph.edges.replaceAll { edge ->
+                if (edge.targetNodeId == SubgraphLevels.OUTPUTS_ID) rename[edge.targetInputName]?.let { edge.copy(targetInputName = it) } ?: edge else edge
+            }
+            val types = Subgraphs.portsOf(definitions, frame.definitionId, "outputs")
+            graph.nodes.replaceAll { node ->
+                if (!SubgraphLevels.isOutputsNode(node)) return@replaceAll node
+                val byOld = oldOutputKeys.zip(newKeys)
+                node.copy(inputs = (newKeys.mapIndexed { index, key ->
+                    val old = byOld.firstOrNull { it.second == key }?.first
+                    key to (old?.let { node.inputs[it] } ?: InputValue.UnconnectedSlot(types.getOrNull(index)?.second ?: "*"))
+                } + (SubgraphLevels.ADD_SOCKET to InputValue.UnconnectedSlot("*"))).toMap())
+            }
+        }
+        val populated = populateNodeOutputs(graph.toImmutable())
+        mutableGraph = MutableWorkflowGraph.fromImmutable(populated)
+        _uiState.value = _uiState.value.copy(
+            nodeDefinitions = buildNodeDefinitionsMap(populated),
+            hasUnsavedChanges = true,
+            subgraphPath = subgraphPathInfo(definitions)
+        )
+        relayoutGraph()
+    }
+
+    /** Instances of [definitionId] in the levels above, changed by [change] (their inputs, edges, links). */
+    private fun changeInstancesAbove(definitionId: String, change: (WorkflowGraph, Set<String>) -> WorkflowGraph) {
+        levels.forEach { frame ->
+            val instances = frame.parentGraph.nodes.filter { it.classType == definitionId }.map { it.id }.toSet()
+            if (instances.isNotEmpty()) frame.parentGraph = change(frame.parentGraph, instances)
+        }
+    }
+
+    private fun uniqueName(name: String, taken: Collection<String>): String {
+        val base = name.ifEmpty { "input" }.take(SubgraphEditing.MAX_NAME_LENGTH)
+        var candidate = base
+        var n = 1
+        while (candidate in taken) candidate = "${base}_${n++}"
+        return candidate
+    }
+
+    /** A new input of the shown subgraph, linked to [inputSlot] inside (the add socket on the Inputs strip). */
+    private fun addSubgraphInput(inputSlot: SlotPosition) {
+        val frame = levels.lastOrNull() ?: return
+        val (definitions, definition) = shownDefinition() ?: return
+        val node = mutableGraph?.nodes?.find { it.id == inputSlot.nodeId } ?: return
+        val type = inputSlot.slotType ?: nodeTypeRegistry.getInputType(node.classType, inputSlot.slotName) ?: "*"
+        val ports = definition.optJSONArray("inputs") ?: org.json.JSONArray().also { definition.put("inputs", it) }
+        val name = uniqueName(inputSlot.slotName.substringAfterLast('/'), subgraphPortNames(inputs = true))
+        ports.put(JSONObject().put("name", name).put("type", type).put("targets", org.json.JSONArray()))
+        // A value the instance showed is now its input's (spec §19.5)
+        val shownKey = "${inputSlot.nodeId}/${inputSlot.slotName}"
+        if (frame.parentGraph.nodes.find { it.id == frame.instanceId }?.inputs?.containsKey(shownKey) == true) {
+            changeEnteredInstance { instance -> instance.copy(inputs = instance.inputs - shownKey) }
+        }
+        portsChanged(definitions)
+        val index = ports.length() - 1
+        link(SlotPosition(SubgraphLevels.INPUTS_ID, name, isOutput = true, outputIndex = index, center = Offset.Zero, slotType = type), inputSlot)
+    }
+
+    /** A new output of the shown subgraph, fed by [outputSlot] inside (the add socket on the Outputs strip). */
+    private fun addSubgraphOutput(outputSlot: SlotPosition) {
+        val (definitions, definition) = shownDefinition() ?: return
+        val oldKeys = SubgraphLevels.outputKeys(definition)
+        val node = mutableGraph?.nodes?.find { it.id == outputSlot.nodeId } ?: return
+        val type = outputSlot.slotType ?: node.outputs.getOrNull(outputSlot.outputIndex)?.type ?: "*"
+        val ports = definition.optJSONArray("outputs") ?: org.json.JSONArray().also { definition.put("outputs", it) }
+        ports.put(JSONObject().put("name", uniqueName(node.outputs.getOrNull(outputSlot.outputIndex)?.name ?: outputSlot.slotName, subgraphPortNames(inputs = false))).put("type", type))
+        portsChanged(definitions, oldKeys)
+        val key = SubgraphLevels.outputKeys(definition).last()
+        link(outputSlot, SlotPosition(SubgraphLevels.OUTPUTS_ID, key, isOutput = false, center = Offset.Zero, slotType = type))
+    }
+
+    /** Rename input or output [index] of the shown subgraph (unique among its kind, checked by the dialog). */
+    fun renameSubgraphPort(input: Boolean, index: Int, name: String) {
+        val frame = levels.lastOrNull() ?: return
+        val (definitions, definition) = shownDefinition() ?: return
+        val port = definition.optJSONArray(if (input) "inputs" else "outputs")?.optJSONObject(index) ?: return
+        val old = port.optString("name")
+        val new = name.trim().take(SubgraphEditing.MAX_NAME_LENGTH)
+        if (new.isEmpty() || new == old) return
+        val oldKeys = SubgraphLevels.outputKeys(definition)
+        port.put("name", new)
+        if (input) {
+            SubgraphEditing.changeInputInDefinitions(definitions, frame.definitionId, old, new)
+            changeInstancesAbove(frame.definitionId) { graph, instances ->
+                graph.copy(
+                    nodes = graph.nodes.map { node ->
+                        if (node.id !in instances) node
+                        else node.copy(inputs = node.inputs.entries.associate { (key, value) -> (if (key == old) new else key) to value })
+                    },
+                    edges = graph.edges.map { edge -> if (edge.targetNodeId in instances && edge.targetInputName == old) edge.copy(targetInputName = new) else edge }
+                )
+            }
+            portsChanged(definitions)
+        } else {
+            portsChanged(definitions, oldKeys)
+        }
+    }
+
+    /** Remove input or output [index] of the shown subgraph: its links inside and outside go (spec §19.5). */
+    fun removeSubgraphPort(input: Boolean, index: Int) {
+        val frame = levels.lastOrNull() ?: return
+        val graph = mutableGraph ?: return
+        val (definitions, definition) = shownDefinition() ?: return
+        val ports = definition.optJSONArray(if (input) "inputs" else "outputs") ?: return
+        val port = ports.optJSONObject(index) ?: return
+        val oldKeys = SubgraphLevels.outputKeys(definition)
+        if (input) {
+            // Values it fed get their own values back; later inputs move up
+            graph.edges.filter { it.sourceNodeId == SubgraphLevels.INPUTS_ID && it.sourceOutputIndex == index }
+                .forEach { deleteConnection(it.targetNodeId, it.targetInputName) }
+            val current = mutableGraph ?: return
+            current.edges.replaceAll { edge ->
+                if (edge.sourceNodeId == SubgraphLevels.INPUTS_ID && edge.sourceOutputIndex > index) edge.copy(sourceOutputIndex = edge.sourceOutputIndex - 1) else edge
+            }
+            current.nodes.replaceAll { node ->
+                node.copy(inputs = node.inputs.mapValues { (_, value) ->
+                    if (value is InputValue.Connection && value.sourceNodeId == SubgraphLevels.INPUTS_ID && value.outputIndex > index) value.copy(outputIndex = value.outputIndex - 1) else value
+                })
+            }
+            ports.remove(index)
+            val name = port.optString("name")
+            SubgraphEditing.changeInputInDefinitions(definitions, frame.definitionId, name, null)
+            changeInstancesAbove(frame.definitionId) { above, instances ->
+                above.copy(
+                    nodes = above.nodes.map { node -> if (node.id in instances) node.copy(inputs = node.inputs - name) else node },
+                    edges = above.edges.filterNot { it.targetNodeId in instances && it.targetInputName == name }
+                )
+            }
+            portsChanged(definitions)
+        } else {
+            oldKeys.getOrNull(index)?.let { key -> if (graph.edges.any { it.targetNodeId == SubgraphLevels.OUTPUTS_ID && it.targetInputName == key }) deleteConnection(SubgraphLevels.OUTPUTS_ID, key) }
+            ports.remove(index)
+            SubgraphEditing.removeOutputInDefinitions(definitions, frame.definitionId, index)
+            changeInstancesAbove(frame.definitionId) { above, instances ->
+                fun moved(sourceId: String, slot: Int): Int? = when {
+                    sourceId !in instances -> slot
+                    slot == index -> null
+                    slot > index -> slot - 1
+                    else -> slot
+                }
+                above.copy(
+                    nodes = above.nodes.map { node ->
+                        node.copy(inputs = node.inputs.entries.associate { (key, value) ->
+                            key to if (value is InputValue.Connection) {
+                                moved(value.sourceNodeId, value.outputIndex)?.let { value.copy(outputIndex = it) }
+                                    ?: InputValue.UnconnectedSlot(nodeTypeRegistry.getInputType(node.classType, key) ?: "*")
+                            } else value
+                        })
+                    },
+                    edges = above.edges.mapNotNull { edge -> moved(edge.sourceNodeId, edge.sourceOutputIndex)?.let { edge.copy(sourceOutputIndex = it) } }
+                )
+            }
+            // The keys after it: the remaining outputs' keys, without the removed one's
+            portsChanged(definitions, oldKeys.filterIndexed { i, _ -> i != index })
+        }
     }
 
     /** The instances entered, from the top level (to come back to them after a mode change). */

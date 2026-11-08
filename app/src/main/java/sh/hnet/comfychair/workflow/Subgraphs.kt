@@ -372,7 +372,7 @@ object Subgraphs {
         val definitions = definitionsOf(copy) ?: return copy.also { it.remove(KEY) }
         val wrapped = copy.optJSONObject("nodes") != null
         val flat = JSONObject()
-        Level(definitions, nodesOf(copy), prefix = "", inheritedMode = 0, bindings = emptyMap(), definition = null, out = flat, depth = 0).emit()
+        Level(definitions, nodesOf(copy), prefix = "", inheritedMode = 0, binding = { null }, definition = null, out = flat, depth = 0).emit()
         if (wrapped) {
             copy.put("nodes", flat)
             copy.remove(KEY)
@@ -394,35 +394,76 @@ object Subgraphs {
 
     /**
      * One level being written into [out] ([nodes]: the top level, or a definition instantiated under [prefix]);
-     * [bindings] are what feeds the definition's inputs (by index).
+     * [binding] gives what feeds the definition's input of an index. Sources are found socket by socket, when asked:
+     * two instances may feed each other (a subgraph made of part of a chain) though no node feeds itself.
      */
     private class Level(
         private val definitions: JSONObject,
         private val nodes: JSONObject,
         private val prefix: String,
         private val inheritedMode: Int,
-        private val bindings: Map<Int, Source?>,
+        private val binding: (Int) -> Source?,
         private val definition: JSONObject?,
         private val out: JSONObject,
         private val depth: Int
     ) {
-        // Values fed by the definition's inputs: (node, input) -> source
-        private val fed = mutableMapOf<Pair<String, String>, Source>()
-        private val instanceOutputs = mutableMapOf<String, List<Source?>>()
+        // Values fed by the definition's inputs: (node, input) -> the input's index
+        private val fed = mutableMapOf<Pair<String, String>, Int>()
+        private val children = mutableMapOf<String, Level>()
+        private val bindings = mutableMapOf<Int, Source?>()
+        private val resolving = mutableSetOf<Int>()
 
         init {
             definition?.optJSONArray("inputs").objects().forEachIndexed { index, port ->
-                val source = bindings[index] ?: return@forEachIndexed
-                targetsOf(port).forEach { target -> fed[target] = source }
+                targetsOf(port).forEach { target -> fed[target] = index }
+            }
+        }
+
+        /** What feeds the definition's input [index] (once; a loop resolves to nothing). */
+        private fun bound(index: Int): Source? {
+            if (index in bindings) return bindings[index]
+            if (!resolving.add(index)) return null
+            return binding(index).also { bindings[index] = it; resolving.remove(index) }
+        }
+
+        /** The level of instance [id] of this level, made once. */
+        private fun child(id: String): Level? {
+            children[id]?.let { return it }
+            if (depth >= MAX_DEPTH) return null
+            val node = nodes.optJSONObject(id) ?: return null
+            val childDefinition = definitions.optJSONObject(node.optString("class_type")) ?: return null
+            val inputs = node.optJSONObject("inputs") ?: JSONObject()
+            val ports = childDefinition.optJSONArray("inputs").objects().map { it.optString("name") }
+            val mode = node.optInt("mode", 0).takeIf { it != 0 } ?: inheritedMode
+            return Level(
+                definitions, childDefinition.optJSONObject("nodes") ?: JSONObject(), "$prefix$id$ID_SEPARATOR", mode,
+                { index -> ports.getOrNull(index)?.let { name -> fed[id to name]?.let(::bound) ?: sourceOfValue(inputs.opt(name)) } },
+                childDefinition, out, depth + 1
+            ).also { children[id] = it }
+        }
+
+        private val resolvingOutputs = mutableSetOf<Int>()
+
+        /** What feeds the definition's output [index]. */
+        fun output(index: Int): Source? {
+            val port = definition?.optJSONArray("outputs")?.optJSONObject(index) ?: return null
+            if (!resolvingOutputs.add(index)) return null
+            return try {
+                when {
+                    port.optJSONArray("source") != null -> sourceOf(port.getJSONArray("source"))
+                    port.has("input") -> bound(port.optInt("input", -1))
+                    port.has("value") -> sourceOfValue(port.opt("value"))
+                    else -> null
+                }
+            } finally {
+                resolvingOutputs.remove(index)
             }
         }
 
         private fun sourceOf(link: JSONArray): Source? {
             val id = link.optString(0)
             val node = nodes.optJSONObject(id)
-            if (node != null && definitions.has(node.optString("class_type"))) {
-                return instance(id, node).getOrNull(link.optInt(1))
-            }
+            if (node != null && definitions.has(node.optString("class_type"))) return child(id)?.output(link.optInt(1))
             return Source.Link(prefix + id, link.optInt(1))
         }
 
@@ -430,25 +471,6 @@ object Subgraphs {
             value == null || value == JSONObject.NULL -> null
             isLink(value) -> sourceOf(value as JSONArray)
             else -> Source.Value(value)
-        }
-
-        /** An instance of this level: its definition's nodes written once; its outputs' sources. */
-        private fun instance(id: String, node: JSONObject): List<Source?> {
-            instanceOutputs[id]?.let { return it }
-            instanceOutputs[id] = emptyList()  // a loop through instances resolves to nothing
-            val child = definitions.optJSONObject(node.optString("class_type")) ?: return emptyList()
-            val inputs = node.optJSONObject("inputs") ?: JSONObject()
-            val childBindings = child.optJSONArray("inputs").objects().mapIndexed { index, port ->
-                val name = port.optString("name")
-                index to (fed[id to name] ?: sourceOfValue(inputs.opt(name)))
-            }.toMap()
-            val mode = node.optInt("mode", 0).takeIf { it != 0 } ?: inheritedMode
-            val outputs = Level(
-                definitions, child.optJSONObject("nodes") ?: JSONObject(), "$prefix$id$ID_SEPARATOR", mode,
-                childBindings, child, out, depth + 1
-            ).emit()
-            instanceOutputs[id] = outputs
-            return outputs
         }
 
         private fun JSONObject.putSource(key: String, source: Source?) {
@@ -459,16 +481,16 @@ object Subgraphs {
             }
         }
 
-        /** Write the level's nodes; returns what feeds the definition's outputs. */
-        fun emit(): List<Source?> {
+        /** Write the level's nodes, its instances' nodes too. */
+        fun emit() {
             if (depth > MAX_DEPTH) {
                 DebugLogger.w(TAG, "Subgraphs nested too deep, not flattened further")
-                return emptyList()
+                return
             }
             for (id in nodes.keys().asSequence().toList()) {
                 val node = nodes.optJSONObject(id) ?: continue
                 if (definitions.has(node.optString("class_type"))) {
-                    instance(id, node)
+                    child(id)?.emit()
                     continue
                 }
                 val inputs = JSONObject()
@@ -478,7 +500,8 @@ object Subgraphs {
                         if (isLink(value)) inputs.putSource(key, sourceOf(value as JSONArray)) else inputs.put(key, value)
                     }
                 }
-                fed.forEach { (target, source) -> if (target.first == id) inputs.putSource(target.second, source) }
+                // A value an unfed input leads to keeps its own
+                fed.forEach { (target, index) -> if (target.first == id) bound(index)?.let { inputs.putSource(target.second, it) } }
                 val flatNode = JSONObject(node.toString())
                 flatNode.put("inputs", inputs)
                 flatNode.remove(PROMOTED_KEY)
@@ -486,14 +509,6 @@ object Subgraphs {
                 if (mode != 0) flatNode.put("mode", mode)
                 out.put(prefix + id, flatNode)
             }
-            return definition?.optJSONArray("outputs").objects().map { port ->
-                when {
-                    port.optJSONArray("source") != null -> sourceOf(port.getJSONArray("source"))
-                    port.has("input") -> bindings[port.optInt("input", -1)]
-                    port.has("value") -> sourceOfValue(port.opt("value"))
-                    else -> null
-                }
-            } ?: emptyList()
         }
     }
 }

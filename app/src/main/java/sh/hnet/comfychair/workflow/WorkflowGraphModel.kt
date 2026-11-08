@@ -33,6 +33,35 @@ data class WorkflowNode(
     val isMuted: Boolean get() = mode == 2
     /** An instance of one of the workflow's subgraphs (spec §19.1) */
     val isSubgraphInstance: Boolean get() = category == NodeCategory.SUBGRAPH
+
+    // The inputs' order is the rows' order (and an instance's shown values keep it in `promoted`), so two nodes that
+    // differ only in it differ: map equality ignores order, and the editor's state would take a reordered node as the
+    // same one and drop the change
+    override fun equals(other: Any?): Boolean =
+        this === other || other is WorkflowNode &&
+            id == other.id && classType == other.classType && title == other.title && category == other.category &&
+            inputs == other.inputs && inputs.keys.toList() == other.inputs.keys.toList() &&
+            outputs == other.outputs && templateInputKeys == other.templateInputKeys && mode == other.mode &&
+            x == other.x && y == other.y && width == other.width && height == other.height &&
+            hasManualPosition == other.hasManualPosition
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + classType.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + category.hashCode()
+        result = 31 * result + inputs.keys.toList().hashCode()
+        result = 31 * result + inputs.hashCode()
+        result = 31 * result + outputs.hashCode()
+        result = 31 * result + templateInputKeys.hashCode()
+        result = 31 * result + mode
+        result = 31 * result + x.hashCode()
+        result = 31 * result + y.hashCode()
+        result = 31 * result + width.hashCode()
+        result = 31 * result + height.hashCode()
+        result = 31 * result + hasManualPosition.hashCode()
+        return result
+    }
 }
 
 /**
@@ -449,7 +478,9 @@ data class WorkflowEditorUiState(
     val showDisableManualPlacementConfirmation: Boolean = false,
 
     /** The subgraphs entered, from the top level down to the one shown; empty at the top level (spec §19.2) */
-    val subgraphPath: List<SubgraphLevelInfo> = emptyList()
+    val subgraphPath: List<SubgraphLevelInfo> = emptyList(),
+    /** Inside a subgraph: the values of this level the instance entered through shows (node, input; spec §19.3) */
+    val shownOnInstance: Set<Pair<String, String>> = emptySet()
 )
 
 /**

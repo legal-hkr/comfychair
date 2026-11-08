@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -149,14 +150,21 @@ fun NodeValuesSheetContent(
                     Text(node.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     // A subgraph instance by its subgraph's name (when its title differs) and the nodes inside, not its ID
                     val nodes = subgraph?.let { pluralStringResource(R.plurals.sg_nodes_count, it.nodeCount, it.nodeCount) }
-                    val typeParts = if (subgraph != null) listOfNotNull(subgraph.name, nodes) else listOf(node.classType)
                     val changedPart = if (changed > 0) pluralStringResource(R.plurals.label_node_changed_count, changed, changed) else null
+                    // The type (a subgraph's name in bold), its node count in parentheses, the state after a dash in italics
                     Text(
                         buildAnnotatedString {
-                            (typeParts + listOfNotNull(changedPart)).forEachIndexed { index, part ->
-                                if (index > 0) append(" – ")
-                                if (index == 0 && subgraph?.name != null) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part) }
-                                else append(part)
+                            when {
+                                subgraph?.name != null -> {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(subgraph.name) }
+                                    append(" ($nodes)")
+                                }
+                                nodes != null -> append(nodes)
+                                else -> append(node.classType)
+                            }
+                            if (changedPart != null) {
+                                append(" – ")
+                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(changedPart) }
                             }
                         },
                         style = MaterialTheme.typography.bodySmall,

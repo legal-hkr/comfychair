@@ -658,13 +658,18 @@
     <string name="label_all_node_values">Todos los valores de nodos</string>
     <string name="desc_all_node_values">Valores que no aparecen arriba</string>
     <string name="label_new_workflow">Nuevo flujo de trabajo</string>
-    <string name="label_editor_mode_graph">Grafo – solo lectura</string>
+    <string name="label_editor_mode_graph">Grafo</string>
     <string name="label_editor_mode_node_values">Valores de nodos</string>
     <string name="label_editor_mode_editing">Edición</string>
-    <string name="label_editor_mode_editing_unsaved">Edición – cambios sin guardar</string>
-    <string name="label_editor_mode_placement">Edición – colocación</string>
+    <!-- The pill's line 2: a mode in bold, its state after a dash in italics, parameters in parentheses -->
+    <string name="label_editor_mode_import">Importación</string>
+    <string name="label_editor_mode_saving">Guardar</string>
+    <string name="label_editor_state_read_only">solo lectura</string>
+    <string name="label_editor_state_unsaved">cambios sin guardar</string>
+    <string name="label_editor_state_placement">colocación</string>
+    <string name="label_editor_state_zoom_in">acerca para conectar</string>
+    <string name="label_editor_state_map_fields">asignar campos</string>
     <string name="label_editor_zoom_in_to_connect">Acerca para conectar</string>
-    <string name="label_editor_mode_mapping">Importación – asignar campos</string>
     <string name="label_editor_connecting">Conectando %1$s</string>
     <string name="hint_editor_tap_input">Toca una entrada resaltada</string>
     <string name="hint_editor_tap_output">Toca una salida resaltada</string>
@@ -686,11 +691,6 @@
     <string name="button_edit_structure">Editar estructura</string>
     <string name="content_description_clear_selection">Borrar selección</string>
     <string name="content_description_zoom_level">Zoom %1$d por ciento, toca para 100 por ciento</string>
-    <plurals name="label_editor_mode_node_values_changed">
-        <item quantity="one">Valores de nodos – %d cambiado</item>
-        <item quantity="many">Valores de nodos – %d cambiados</item>
-        <item quantity="other">Valores de nodos – %d cambiados</item>
-    </plurals>
     <string name="workflow_editor_zoom_in">Acercar</string>
     <string name="workflow_editor_zoom_out">Alejar</string>
     <string name="workflow_editor_reset_zoom">Ajustar el grafo a la pantalla</string>
@@ -733,7 +733,6 @@
     <string name="msg_cancel_import">El flujo de trabajo no se añadirá.</string>
     <string name="button_cancel_import">Cancelar importación</string>
     <string name="button_keep_mapping">Seguir asignando</string>
-    <string name="label_editor_mode_mapping_save">Guardar – asignar campos</string>
     <string name="label_not_chosen">Aún sin elegir</string>
     <string name="section_necessary">Necesario</string>
     <string name="section_optional">Opcional</string>
@@ -1110,9 +1109,11 @@
         <item quantity="many">%d nodos</item>
         <item quantity="other">%d nodos</item>
     </plurals>
-    <string name="sg_used_times">usado %1$d×</string>
-    <string name="sg_bypassed_suffix">omitido</string>
-    <string name="sg_muted_suffix">silenciado</string>
+    <plurals name="sg_copies">
+        <item quantity="one">%d copia</item>
+        <item quantity="many">%d copias</item>
+        <item quantity="other">%d copias</item>
+    </plurals>
     <string name="sg_path_a11y">Ruta, %1$s. Toca dos veces para elegir un nivel</string>
     <string name="sg_inputs">Entradas</string>
     <string name="sg_outputs">Salidas</string>
@@ -1129,4 +1130,37 @@
     <string name="sg_back_announce">De vuelta en %1$s</string>
     <string name="sg_open_action">Abrir subgrafo</string>
     <string name="sg_subgraph">Subgrafo</string>
+    <!-- Editing subgraphs (spec §19.3–19.5) -->
+    <string name="sg_add_socket">añadir</string>
+    <string name="sg_show_on">Mostrar en &lt;b>%1$s&lt;/b></string>
+    <string name="sg_hide_from">Ocultar de &lt;b>%1$s&lt;/b></string>
+    <string name="sg_hide_from_node">Ocultar del nodo</string>
+    <string name="sg_move_up">Subir</string>
+    <string name="sg_move_down">Bajar</string>
+    <string name="sg_shown_from">&lt;b>%1$s&lt;/b> – desde &lt;b>%2$s&lt;/b></string>
+    <string name="sg_make">Crear subgrafo</string>
+    <string name="sg_new_title">Nuevo subgrafo</string>
+    <string name="sg_new_nodes">Nodos: %1$d</string>
+    <string name="sg_new_inputs">Entradas: %1$d</string>
+    <string name="sg_new_outputs">Salidas: %1$d</string>
+    <string name="sg_make_confirm">Crear</string>
+    <string name="sg_unpack">Desempaquetar</string>
+    <string name="sg_rename">Cambiar nombre del subgrafo</string>
+    <string name="sg_rename_this">Cambiar nombre de este subgrafo</string>
+    <string name="sg_rename_used">Copias: %1$d</string>
+    <string name="sg_own_title">Este nodo tiene su propio título, &lt;b>%1$s&lt;/b>.</string>
+    <string name="sg_use_subgraph_name">Usar el nombre del subgrafo</string>
+    <string name="sg_name">Nombre</string>
+    <string name="sg_name_count">%1$d/%2$d</string>
+    <string name="sg_error_name_empty">Escribe un nombre</string>
+    <string name="sg_error_input_taken">Ya hay una entrada llamada %1$s</string>
+    <string name="sg_error_output_taken">Ya hay una salida llamada %1$s</string>
+    <string name="sg_input_of">&lt;b>%1$s&lt;/b> – entrada de &lt;b>%2$s&lt;/b></string>
+    <string name="sg_output_of">&lt;b>%1$s&lt;/b> – salida de &lt;b>%2$s&lt;/b></string>
+    <string name="sg_rename_input">Cambiar nombre de la entrada</string>
+    <string name="sg_rename_output">Cambiar nombre de la salida</string>
+    <string name="sg_remove_input">Quitar entrada</string>
+    <string name="sg_remove_output">Quitar salida</string>
+    <string name="sg_connect_hint_inputs">Toca una salida resaltada o una toma «añadir»</string>
+    <string name="sg_connect_hint_outputs">Toca una entrada resaltada o una toma «añadir»</string>
 </resources>
