@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -649,6 +650,9 @@ fun WorkflowGraphCanvas(
         }
     }
 
+    // Fade-outs of removed nodes, notes, groups and wires outlive the effects that start them
+    val fadeScope = rememberCoroutineScope()
+
     // Animate nodes when graph changes (position + fade in/out)
     LaunchedEffect(graph.nodes, justDroppedNodeId) {
         val currentNodeIds = graph.nodes.map { it.id }.toSet()
@@ -659,11 +663,13 @@ fun WorkflowGraphCanvas(
             if (nodeId !in currentNodeIds) {
                 val state = animatedNodeStates[nodeId] ?: return@forEach
                 if (!state.isFadingOut && state.nodeData != null) {
-                    // Start fade-out: mark as fading out and animate alpha to 0
-                    animatedNodeStates[nodeId] = state.copy(isFadingOut = true)
-                    launch {
+                    val fading = state.copy(isFadingOut = true)
+                    animatedNodeStates[nodeId] = fading
+                    // Not in this effect's scope: the graph changing again (a relayout) would cancel it half-way and
+                    // leave the removed one drawn for good; and one that came back meanwhile keeps its new state
+                    fadeScope.launch {
                         state.alpha.animateTo(0f, animationSpec)
-                        animatedNodeStates.remove(nodeId)
+                        if (animatedNodeStates[nodeId] === fading) animatedNodeStates.remove(nodeId)
                     }
                 }
             }
@@ -719,10 +725,13 @@ fun WorkflowGraphCanvas(
             if (noteId !in currentNoteIds) {
                 val state = animatedNoteStates[noteId] ?: return@forEach
                 if (!state.isFadingOut && state.noteData != null) {
-                    animatedNoteStates[noteId] = state.copy(isFadingOut = true)
-                    launch {
+                    val fading = state.copy(isFadingOut = true)
+                    animatedNoteStates[noteId] = fading
+                    // Not in this effect's scope: the graph changing again (a relayout) would cancel it half-way and
+                    // leave the removed one drawn for good; and one that came back meanwhile keeps its new state
+                    fadeScope.launch {
                         state.alpha.animateTo(0f, animationSpec)
-                        animatedNoteStates.remove(noteId)
+                        if (animatedNoteStates[noteId] === fading) animatedNoteStates.remove(noteId)
                     }
                 }
             }
@@ -776,10 +785,13 @@ fun WorkflowGraphCanvas(
             if (groupId !in currentGroupIds) {
                 val state = animatedGroupStates[groupId] ?: return@forEach
                 if (!state.isFadingOut && state.groupData != null) {
-                    animatedGroupStates[groupId] = state.copy(isFadingOut = true)
-                    launch {
+                    val fading = state.copy(isFadingOut = true)
+                    animatedGroupStates[groupId] = fading
+                    // Not in this effect's scope: the graph changing again (a relayout) would cancel it half-way and
+                    // leave the removed one drawn for good; and one that came back meanwhile keeps its new state
+                    fadeScope.launch {
                         state.alpha.animateTo(0f, animationSpec)
-                        animatedGroupStates.remove(groupId)
+                        if (animatedGroupStates[groupId] === fading) animatedGroupStates.remove(groupId)
                     }
                 }
             }
@@ -834,10 +846,13 @@ fun WorkflowGraphCanvas(
             if (edgeKey !in currentEdgeKeys) {
                 val state = animatedEdgeStates[edgeKey] ?: return@forEach
                 if (!state.isFadingOut && state.edgeData != null) {
-                    animatedEdgeStates[edgeKey] = state.copy(isFadingOut = true)
-                    launch {
+                    val fading = state.copy(isFadingOut = true)
+                    animatedEdgeStates[edgeKey] = fading
+                    // Not in this effect's scope: the graph changing again (a relayout) would cancel it half-way and
+                    // leave the removed one drawn for good; and one that came back meanwhile keeps its new state
+                    fadeScope.launch {
                         state.alpha.animateTo(0f, animationSpec)
-                        animatedEdgeStates.remove(edgeKey)
+                        if (animatedEdgeStates[edgeKey] === fading) animatedEdgeStates.remove(edgeKey)
                     }
                 }
             }

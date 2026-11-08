@@ -23,65 +23,49 @@ import sh.hnet.comfychair.workflow.WorkflowNode
  */
 object FieldMappingAnalyzer {
 
+    /** A field's candidates and the one chosen at first (-1 none), before display names (no Context needed). */
+    data class FieldAnalysis(
+        val fieldKey: String,
+        val isRequired: Boolean,
+        val candidates: List<FieldCandidate>,
+        val selectedIndex: Int
+    )
+
     /**
-     * Create field mapping state by analyzing graph nodes.
-     *
-     * @param context Context for string resources
-     * @param graph The workflow graph to analyze
-     * @param type The workflow type
-     * @param nodeTypeRegistry Registry for looking up node definitions
-     * @return Complete mapping state for the workflow
+     * Every field of [type], required ones first, with its candidates on [graph] (the nodes that run: a workflow with
+     * subgraphs flattened) and the one chosen at first. The single analysis for importing and for saving after
+     * editing.
+     */
+    fun analyze(graph: WorkflowGraph, type: WorkflowType, nodeTypeRegistry: NodeTypeRegistry): List<FieldAnalysis> {
+        val requiredKeys = TemplateKeyRegistry.getRequiredKeysForType(type)
+        // Optional keys, adjusted for workflow structure (BasicGuider)
+        val optionalKeys = getOptionalKeysFromGraph(type, graph)
+        // Prompts traced through the graph to the positive or negative input they feed
+        val promptMappings = createPromptFieldMappings(graph, nodeTypeRegistry)
+        return requiredKeys.map { it to true }.plus(optionalKeys.map { it to false }).map { (fieldKey, required) ->
+            val candidates = findCandidatesForField(fieldKey, graph, promptMappings, nodeTypeRegistry)
+            FieldAnalysis(fieldKey, required, candidates, autoSelectIndex(fieldKey, candidates))
+        }
+    }
+
+    /**
+     * Create field mapping state by analyzing graph nodes ([analyze]), with the fields' display names.
      */
     fun createFieldMappingState(
         context: Context,
         graph: WorkflowGraph,
         type: WorkflowType,
         nodeTypeRegistry: NodeTypeRegistry
-    ): WorkflowMappingState {
-        // Get strictly required keys for this workflow type
-        val strictlyRequiredKeys = TemplateKeyRegistry.getRequiredKeysForType(type)
-
-        // Get optional keys, adjusted for workflow structure (DualCLIPLoader, BasicGuider)
-        val optionalKeys = getOptionalKeysFromGraph(type, graph)
-
-        // Pre-compute prompt field mappings using graph tracing
-        val promptMappings = createPromptFieldMappings(graph, nodeTypeRegistry)
-
-        val fieldMappings = mutableListOf<FieldMappingState>()
-
-        // Process strictly required keys (isRequired = true)
-        for (fieldKey in strictlyRequiredKeys) {
-            val candidates = findCandidatesForField(fieldKey, graph, promptMappings, nodeTypeRegistry)
-            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired = true)
-
-            fieldMappings.add(
-                FieldMappingState(
-                    field = requiredField,
-                    candidates = candidates,
-                    selectedCandidateIndex = autoSelectIndex(fieldKey, candidates)
-                )
+    ): WorkflowMappingState = WorkflowMappingState(
+        workflowType = type,
+        fieldMappings = analyze(graph, type, nodeTypeRegistry).map { analysis ->
+            FieldMappingState(
+                field = FieldDisplayRegistry.createRequiredField(context, analysis.fieldKey, isRequired = analysis.isRequired),
+                candidates = analysis.candidates,
+                selectedCandidateIndex = analysis.selectedIndex
             )
         }
-
-        // Process optional keys (isRequired = false)
-        for (fieldKey in optionalKeys) {
-            val candidates = findCandidatesForField(fieldKey, graph, promptMappings, nodeTypeRegistry)
-            val requiredField = FieldDisplayRegistry.createRequiredField(context, fieldKey, isRequired = false)
-
-            fieldMappings.add(
-                FieldMappingState(
-                    field = requiredField,
-                    candidates = candidates,
-                    selectedCandidateIndex = autoSelectIndex(fieldKey, candidates)
-                )
-            )
-        }
-
-        return WorkflowMappingState(
-            workflowType = type,
-            fieldMappings = fieldMappings
-        )
-    }
+    )
 
     /**
      * A mapping found on the flat view of a workflow with subgraphs (where the nodes that run are), with its candidates

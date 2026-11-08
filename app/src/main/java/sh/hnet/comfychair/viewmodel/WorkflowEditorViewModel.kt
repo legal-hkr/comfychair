@@ -158,6 +158,8 @@ class WorkflowEditorViewModel : ViewModel() {
 
     // Original graph before editing (for discard/restore)
     private var originalGraph: WorkflowGraph? = null
+    // Node values changed as they were when editing began: Make a subgraph and Unpack move them with their nodes
+    private var originalEdits: Map<String, Map<String, Any>>? = null
     private var originalBounds: GraphBounds? = null
 
     // Guard against re-initialization (e.g., Activity recreation on theme change)
@@ -1257,6 +1259,12 @@ class WorkflowEditorViewModel : ViewModel() {
         if (result.isSuccess) {
             val savedWorkflow = result.getOrThrow()
             DebugLogger.i(TAG, "confirmMappingAndSave: Workflow saved successfully with id=${savedWorkflow.id}")
+            // Node values moved with their nodes (Make a subgraph, Unpack, a renamed subgraph input) are kept with
+            // the saved structure
+            if (state.editingWorkflowId != null && originalEdits != null && originalEdits != _uiState.value.nodeAttributeEdits) {
+                saveNodeAttributeEdits()
+            }
+            originalEdits = null
             // Return to view mode instead of exiting
             returnToViewMode(savedWorkflow.id, context)
             // Emit event to notify Activity (triggers list refresh in caller)
@@ -1983,6 +1991,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Save original state for restoration on discard
         originalGraph = graph
+        originalEdits = state.nodeAttributeEdits
         originalBounds = state.graphBounds
 
         // Initialize mutable graph
@@ -2010,13 +2019,16 @@ class WorkflowEditorViewModel : ViewModel() {
         // Restore original graph and bounds
         val restoredGraph = originalGraph
         val restoredBounds = originalBounds
+        val restoredEdits = originalEdits
 
         // Clear mutable state
         mutableGraph = null
         originalGraph = null
         originalBounds = null
+        originalEdits = null
 
         _uiState.value = _uiState.value.copy(
+            nodeAttributeEdits = restoredEdits ?: _uiState.value.nodeAttributeEdits,
             graph = restoredGraph ?: _uiState.value.graph,
             graphBounds = restoredBounds ?: _uiState.value.graphBounds,
             isEditMode = false,
@@ -4253,6 +4265,10 @@ class WorkflowEditorViewModel : ViewModel() {
         val fields = graph.customFields.map { field ->
             field.copy(targets = field.targets.map { if (it.nodeId in selected) FieldTarget(instanceId, "${it.nodeId}/${it.input}") else it })
         }
+        // Node values changed on them: the instance's, by their path inside (taken into the definition when used)
+        _uiState.value = _uiState.value.copy(nodeAttributeEdits = translateEdits(_uiState.value.nodeAttributeEdits) { id, input ->
+            if (id in selected) instanceId to "$id/$input" else id to input
+        })
         DebugLogger.d(TAG, "makeSubgraph: ${selected.size} nodes")
         rebuildLevel(made.level, made.definitions, fields, setOf(instanceId))
     }
@@ -4300,6 +4316,20 @@ class WorkflowEditorViewModel : ViewModel() {
                 inside.mapNotNull { (inner, input) -> unpacked.nodeIds[inner]?.let { FieldTarget(it, input) } }
             }.distinct())
         }.filter { it.targets.isNotEmpty() }
+        // Node values changed on the instance: on the nodes they were inside (a subgraph input's on every value it
+        // fed); a value inside a nested subgraph stays a path on that subgraph's new instance
+        val edits = mutableMapOf<String, MutableMap<String, Any>>()
+        _uiState.value.nodeAttributeEdits.forEach { (nodeId, values) ->
+            values.forEach { (input, value) ->
+                val moved = if (nodeId != instance.id) listOf(nodeId to input) else {
+                    val inside = if (Subgraphs.isPromotedKey(input)) listOf(input.substringBefore('/') to input.substringAfter('/'))
+                        else portTargets(input)
+                    inside.mapNotNull { (inner, key) -> unpacked.nodeIds[inner]?.let { it to key } }
+                }
+                moved.forEach { (id, key) -> edits.getOrPut(id) { mutableMapOf() }[key] = value }
+            }
+        }
+        _uiState.value = _uiState.value.copy(nodeAttributeEdits = edits)
         DebugLogger.d(TAG, "unpackSubgraph: ${unpacked.nodeIds.size} nodes")
         rebuildLevel(unpacked.level, definitions, fields, unpacked.nodeIds.values.toSet())
     }

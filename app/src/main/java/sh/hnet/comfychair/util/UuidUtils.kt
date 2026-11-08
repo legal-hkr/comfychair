@@ -32,14 +32,16 @@ object UuidUtils {
     }
 
     /**
-     * Generate a unique filename for image uploads to prevent race conditions
-     * when multiple jobs are queued rapidly. Uses timestamp for uniqueness.
+     * The name a source uploaded to the server's input folder gets: [prefix] and a hash of the exact [bytes], so the
+     * same content is the same file (uploaded once, issue #62) and different content never shares a name, however
+     * quickly jobs follow each other.
      *
-     * @param prefix The base name for the file (e.g., "editing_source", "itv_source")
      * @param extension The file extension without dot (default: "png")
-     * @return A unique filename like "editing_source_1704729600000.png"
+     * @return A name like "editing_source_3f2a…c41d.png"
      */
-    fun generateUniqueUploadFilename(prefix: String, extension: String = "png"): String {
-        return "${prefix}_${System.currentTimeMillis()}.${extension}"
+    fun contentUploadFilename(prefix: String, bytes: ByteArray, extension: String = "png"): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+        val hex = digest.take(16).joinToString("") { "%02x".format(it) }
+        return "${prefix}_$hex.$extension"
     }
 }

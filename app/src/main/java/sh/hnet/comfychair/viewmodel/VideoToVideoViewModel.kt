@@ -251,8 +251,9 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
                 suspendCoroutine { continuation ->
                     client.uploadImage(
                         videoBytes,
-                        UuidUtils.generateUniqueUploadFilename("v2v_source", extension),
-                        mimeType = mimeType
+                        UuidUtils.contentUploadFilename("v2v_source", videoBytes, extension),
+                        mimeType = mimeType,
+                        reuseExisting = true
                     ) { success, filename, _, failureType ->
                         continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
                     }

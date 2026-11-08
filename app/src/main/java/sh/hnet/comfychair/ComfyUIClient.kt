@@ -21,6 +21,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
@@ -1639,6 +1640,8 @@ class ComfyUIClient(
      * @param filename The desired filename for the uploaded image
      * @param subfolder The subfolder to upload to (default empty = root input folder)
      * @param overwrite Whether to overwrite existing file (default true)
+     * @param reuseExisting [filename] names the content ([UuidUtils.contentUploadFilename]): when the input folder
+     * already has it, it's used without transferring it again (issue #62); any other answer to that check uploads
      * @param callback Called with the result:
      *                 - success: true if uploaded successfully
      *                 - filename: The actual filename saved on the server
@@ -1652,14 +1655,53 @@ class ComfyUIClient(
         overwrite: Boolean = true,
         // ComfyUI's /upload/image takes any input file, a source video too (Video to Video)
         mimeType: String = "image/png",
+        reuseExisting: Boolean = false,
         callback: (success: Boolean, filename: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
     ) {
-        DebugLogger.i(TAG, "Uploading image: ${Obfuscator.filename(filename)} (${imageData.size} bytes)")
         val baseUrl = getBaseUrl() ?: run {
             DebugLogger.w(TAG, "Upload failed: no connection")
             callback(false, null, context?.getString(R.string.error_no_connection) ?: "No connection to server", ConnectionFailure.NETWORK)
             return
         }
+        if (!reuseExisting) {
+            transferInput(baseUrl, imageData, filename, subfolder, overwrite, mimeType, callback)
+            return
+        }
+        // The same content uploaded before: the server has it under the same name. Uploaded, it doesn't replace a
+        // file of that name (two jobs sending it at once; one may be running with it): the server's answer names it
+        val url = "$baseUrl/view".toHttpUrl().newBuilder()
+            .addQueryParameter("filename", filename)
+            .addQueryParameter("type", "input")
+            .addQueryParameter("subfolder", subfolder)
+            .build()
+        httpClient.newCall(Request.Builder().url(url).head().build()).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                transferInput(baseUrl, imageData, filename, subfolder, overwrite = false, mimeType, callback)
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.close()
+                if (response.code == 200) {
+                    DebugLogger.i(TAG, "Upload skipped: the server has this file (${imageData.size} bytes)")
+                    callback(true, filename, null, ConnectionFailure.NONE)
+                } else {
+                    transferInput(baseUrl, imageData, filename, subfolder, overwrite = false, mimeType, callback)
+                }
+            }
+        })
+    }
+
+    /** The upload itself ([uploadImage]). */
+    private fun transferInput(
+        baseUrl: String,
+        imageData: ByteArray,
+        filename: String,
+        subfolder: String,
+        overwrite: Boolean,
+        mimeType: String,
+        callback: (success: Boolean, filename: String?, errorMessage: String?, failureType: ConnectionFailure) -> Unit
+    ) {
+        DebugLogger.i(TAG, "Uploading image: ${Obfuscator.filename(filename)} (${imageData.size} bytes)")
 
         val url = "$baseUrl/upload/image"
 
