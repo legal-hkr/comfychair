@@ -76,9 +76,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.res.stringResource
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.workflow.SubgraphLevels
@@ -250,6 +250,8 @@ private class GraphIcons(
 
 // Blur radius of the wires under a group's frosted area, in graph units
 private const val GLASS_BLUR = 10f
+// The blurred wires are drawn at this fraction of the screen's resolution
+private const val GLASS_LAYER_SCALE = 2f
 
 /**
  * The soft shadow of elevation 1 (light theme: white nodes, sockets, notes and group labels on the light canvas), in
@@ -1475,12 +1477,33 @@ fun WorkflowGraphCanvas(
         // Build node positions map for edge drawing
         val nodePositionsMap = animatedNodes.associate { it.node.id to it.node }
 
+        // What lies on screen, in graph units, with room for outlines, badges and shadows: only that is drawn (a
+        // large graph zoomed in shows a few of its nodes)
+        val cullMargin = 120f + 48f * unitsPerDp
+        val visibleLeft = -offset.x / scale - cullMargin
+        val visibleTop = -offset.y / scale - cullMargin
+        val visibleRight = (size.width - offset.x) / scale + cullMargin
+        val visibleBottom = (size.height - offset.y) / scale + cullMargin
+        fun onScreen(x: Float, y: Float, width: Float, height: Float) =
+            x < visibleRight && x + width > visibleLeft && y < visibleBottom && y + height > visibleTop
+        // A wire lies within its two nodes' box, widened by how far its curve can swing sideways
+        fun wireOnScreen(edge: WorkflowEdge): Boolean {
+            val source = nodePositionsMap[edge.sourceNodeId] ?: return false
+            val target = nodePositionsMap[edge.targetNodeId] ?: return false
+            val left = minOf(source.x, target.x)
+            val right = maxOf(source.x + source.width, target.x + target.width)
+            val top = minOf(source.y, target.y)
+            val bottom = maxOf(source.y + source.height, target.y + target.height)
+            val swing = (right - left + bottom - top) * 0.4f + 100f
+            return onScreen(left - swing, top, right - left + 2 * swing, bottom - top)
+        }
+
         // Wires: those of focused nodes over the others, which recede
         val progress = focusProgress.value
         val (focusedEdges, otherEdges) = animatedEdges.partition { (edge, _) ->
             edge.sourceNodeId in shownFocus || edge.targetNodeId in shownFocus
         }
-        val wiresInOrder = (otherEdges + focusedEdges).filter { (_, alpha) -> alpha > 0.01f }
+        val wiresInOrder = (otherEdges + focusedEdges).filter { (edge, alpha) -> alpha > 0.01f && wireOnScreen(edge) }
         fun DrawScope.drawWireUnclipped(edge: WorkflowEdge, alpha: Float, before: WireEmphasis, after: WireEmphasis) {
             drawEdge(
                 edge = edge,
@@ -1507,7 +1530,9 @@ fun WorkflowGraphCanvas(
         // Each wire's part under frosted glass: the groups (and a level's port strips, of the same glass) it passes
         // through without reaching one of their members
         val portStrips = animatedNodes.filter { (node, alpha) -> alpha > 0.01f && SubgraphLevels.isPortNode(node) }
-        val groupAreas = animatedGroups.filter { (_, alpha) -> alpha > 0.01f }.map { (group, _) ->
+        val groupAreas = animatedGroups.filter { (group, alpha) ->
+            alpha > 0.01f && onScreen(group.x, group.y, group.width, group.height)
+        }.map { (group, _) ->
             group.group.memberNodeIds to Path().apply {
                 addRoundRect(
                     RoundRect(
@@ -1522,27 +1547,50 @@ fun WorkflowGraphCanvas(
                 addRoundRect(RoundRect(bounds, CornerRadius(bounds.width / 2)))
             }
         }
-        val underGlass: Map<WorkflowEdge, Path> = wiresInOrder.mapNotNull { (edge, _) ->
-            val passed = groupAreas.filter { (members, _) ->
+        // Each wire's glass areas, by index. Clips are by single areas, each a rounded rectangle, which the renderer
+        // clips on the GPU; a shape made of several (or what lies outside one) would be a mask drawn on the CPU
+        val underGlass: Map<WorkflowEdge, List<Int>> = wiresInOrder.mapNotNull { (edge, _) ->
+            val passed = groupAreas.indices.filter { i ->
+                val members = groupAreas[i].first
                 edge.sourceNodeId !in members && edge.targetNodeId !in members
             }
-            if (passed.isEmpty()) null else edge to Path().apply { passed.forEach { (_, area) -> addPath(area) } }
+            if (passed.isEmpty()) null else edge to passed
         }.toMap()
         val anyUnderGlass = underGlass.isNotEmpty()
+        // The wires in two layers, the focused nodes' over the others
+        val wireLayers = wiresInOrder.partition { (edge, _) ->
+            edge.sourceNodeId !in shownFocus && edge.targetNodeId !in shownFocus
+        }.toList()
+        // What lies outside the areas [areas] (from [from] on), one area at a time
+        fun DrawScope.outsideAreas(areas: List<Int>, from: Int = 0, block: DrawScope.() -> Unit) {
+            if (from == areas.size) block()
+            else clipPath(groupAreas[areas[from]].second, ClipOp.Difference) { outsideAreas(areas, from + 1, block) }
+        }
 
-        // Those parts, drawn on screen into a layer that blurs them (a frosted look, scaling with the zoom)
+        // Those parts, drawn on screen into a layer that blurs them (a frosted look, scaling with the zoom): each area
+        // with the wires passing under it. At half the screen's resolution (blurred, nothing tells it apart), so a
+        // quarter of the pixels to blur
         if (anyUnderGlass) {
-            glassLayer.record(this, layoutDirection, size.toIntSize()) {
+            val layerSize = IntSize(
+                (size.width / GLASS_LAYER_SCALE).toInt().coerceAtLeast(1),
+                (size.height / GLASS_LAYER_SCALE).toInt().coerceAtLeast(1)
+            )
+            glassLayer.record(this, layoutDirection, layerSize) {
                 withTransform({
+                    scale(1f / GLASS_LAYER_SCALE, 1f / GLASS_LAYER_SCALE, Offset.Zero)
                     translate(offset.x, offset.y)
                     scale(scale, scale, Offset.Zero)
                 }) {
-                    wiresInOrder.forEach { (edge, alpha) ->
-                        underGlass[edge]?.let { glass -> clipPath(glass) { drawWire(edge, alpha) } }
+                    groupAreas.forEachIndexed { area, (_, shape) ->
+                        clipPath(shape) {
+                            wireLayers.forEach { layer ->
+                                layer.forEach { (edge, alpha) -> if (underGlass[edge]?.contains(area) == true) drawWire(edge, alpha) }
+                            }
+                        }
                     }
                 }
             }
-            val blur = (GLASS_BLUR * scale).coerceAtLeast(0.5f)
+            val blur = (GLASS_BLUR * scale / GLASS_LAYER_SCALE).coerceAtLeast(0.5f)
             glassLayer.renderEffect = BlurEffect(blur, blur, TileMode.Decal)
         }
 
@@ -1611,13 +1659,17 @@ fun WorkflowGraphCanvas(
             withTransform({
                 scale(1f / scale, 1f / scale, Offset.Zero)
                 translate(-offset.x, -offset.y)
+                // Recorded at a lower resolution: drawn back at the screen's
+                scale(GLASS_LAYER_SCALE, GLASS_LAYER_SCALE, Offset.Zero)
             }) {
                 if (anyUnderGlass) drawLayer(glassLayer)
             }
 
             // Groups' areas: frosted glass over the wires passing under them; their labels go above the wires
             animatedGroups.forEach { (group, alpha) ->
-                if (alpha > 0.01f) drawGroupArea(group = group, colors = colors, paints = paints, alpha = alpha)
+                if (alpha > 0.01f && onScreen(group.x, group.y, group.width, group.height)) {
+                    drawGroupArea(group = group, colors = colors, paints = paints, alpha = alpha)
+                }
             }
 
             // A level's Inputs and Outputs strips, of the same glass; their own wires go over them
@@ -1638,9 +1690,11 @@ fun WorkflowGraphCanvas(
             }
 
             // The wires, sharp outside the groups they pass under (their own groups' wires stay above the glass)
-            wiresInOrder.forEach { (edge, alpha) ->
-                val glass = underGlass[edge]
-                if (glass == null) drawWire(edge, alpha) else clipPath(glass, ClipOp.Difference) { drawWire(edge, alpha) }
+            wireLayers.forEach { layer ->
+                layer.forEach { (edge, alpha) -> if (edge !in underGlass) drawWire(edge, alpha) }
+                // Wires under the same areas together, outside them
+                layer.filter { (edge, _) -> edge in underGlass }.groupBy { (edge, _) -> underGlass.getValue(edge) }
+                    .forEach { (areas, wires) -> outsideAreas(areas) { wires.forEach { (edge, alpha) -> drawWire(edge, alpha) } } }
             }
 
             // A port strip's icon, and toward the overview its block growing over its wires' ends, as a node's title
@@ -1657,14 +1711,16 @@ fun WorkflowGraphCanvas(
 
             // Groups' labels over the wires, so a wire never runs across one
             animatedGroups.forEach { (group, alpha) ->
-                if (alpha > 0.01f) drawGroupLabel(group = group, colors = colors, paints = paints, alpha = alpha, chipAlpha = 1f - spread)
+                if (alpha > 0.01f && onScreen(group.x, group.y, group.width, group.height)) {
+                    drawGroupLabel(group = group, colors = colors, paints = paints, alpha = alpha, chipAlpha = 1f - spread)
+                }
             }
 
             // Draw nodes with alpha - sort by ID for consistent z-order (higher IDs on top)
             val sortedAnimatedNodes = animatedNodes.sortedBy { it.node.id }
             sortedAnimatedNodes.forEach { (node, alpha) ->
-                // A level's port strips are drawn with the groups
-                if (alpha > 0.01f && !SubgraphLevels.isPortNode(node)) {
+                // A level's port strips are drawn with the groups; nodes off screen aren't drawn
+                if (alpha > 0.01f && !SubgraphLevels.isPortNode(node) && onScreen(node.x, node.y, node.width, node.height)) {
                     val highlightState = when {
                         // Mapping mode selection
                         isFieldMappingMode && node.id in mappingSelectedNodeIds -> NodeHighlightState.SELECTED
@@ -1751,6 +1807,8 @@ fun WorkflowGraphCanvas(
                     val originalNote = originalNotesById[note.id]
                     val heightBefore = originalNote?.height ?: 0f
                     val isSelected = note.id in selectedNoteIds
+                    // Off screen only measured (the layout needs its height; laid out once, so it's cheap)
+                    val shown = onScreen(note.x, note.y, note.width, maxOf(note.height, 1f))
 
                     // The note being dragged is drawn lifted
                     val noteScale = if (draggingNoteId == note.id) dragScale.value else 1f
@@ -1758,7 +1816,7 @@ fun WorkflowGraphCanvas(
                         scale(noteScale, noteScale, Offset(note.x + note.width / 2, note.y + note.height / 2))
                     }) {
                         // Full detail (which also measures the note's height) until its title bar has covered it
-                        if (spread < 1f) {
+                        if (spread < 1f || !shown) {
                             drawNote(
                                 note = note,
                                 colors = colors,
@@ -1767,10 +1825,11 @@ fun WorkflowGraphCanvas(
                                 isSelected = isSelected,
                                 textMeasurer = textMeasurer,
                                 density = density,
-                                noteLayouts = noteLayouts
+                                noteLayouts = noteLayouts,
+                                drawIt = shown
                             )
                         }
-                        if (spread > 0f) {
+                        if (spread > 0f && shown) {
                             drawTitleSpread(
                                 left = note.x, top = note.y, width = note.width, height = note.height,
                                 title = note.title, tint = colors.note, titleColor = colors.onNote,
@@ -1798,7 +1857,7 @@ fun WorkflowGraphCanvas(
             // title bar has covered are gone, so none in overview
             // (a level's port strips too: in the overview they're plain blocks)
             if (spread < 1f) animatedNodes.forEach { (node, nodeAlpha) ->
-                if (nodeAlpha <= 0.01f) return@forEach
+                if (nodeAlpha <= 0.01f || !onScreen(node.x, node.y, node.width, node.height)) return@forEach
                 val scaleMultiplier = if (node.id == draggingNodeId) dragScale.value else 1f
                 val coveredTo = WorkflowLayoutEngine.NODE_HEADER_HEIGHT + (node.height - WorkflowLayoutEngine.NODE_HEADER_HEIGHT) * spread
                 val off = offOf(node)
@@ -2527,7 +2586,9 @@ private fun DrawScope.drawNote(
     isSelected: Boolean = false,
     textMeasurer: TextMeasurer? = null,
     density: androidx.compose.ui.unit.Density? = null,
-    noteLayouts: NoteLayouts? = null
+    noteLayouts: NoteLayouts? = null,
+    // False: only measure the note (off screen), so the layout knows its height
+    drawIt: Boolean = true
 ) {
     // Helper to apply alpha to a color
     fun Color.withAlpha() = this.copy(alpha = this.alpha * alpha)
@@ -2568,6 +2629,8 @@ private fun DrawScope.drawNote(
             note.height = effectiveHeight
         }
     }
+
+    if (!drawIt) return
 
     // Single-colour sticky note background; at a node's level (in the light theme with a node's shadow)
     if (colors.isDark) {
