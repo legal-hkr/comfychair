@@ -22,9 +22,10 @@ object SubgraphEditing {
         if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
 
     private fun unique(name: String, taken: MutableSet<String>): String {
-        var candidate = name.ifEmpty { "input" }
+        val base = name.ifEmpty { "input" }
+        var candidate = base
         var n = 1
-        while (!taken.add(candidate)) candidate = "${name}_${n++}"
+        while (!taken.add(candidate)) candidate = "${base}_${n++}"
         return candidate
     }
 
@@ -288,12 +289,28 @@ object SubgraphEditing {
      */
     fun changeInputInDefinitions(definitions: JSONObject, definitionId: String, from: String, to: String?) {
         for (id in definitions.keys()) {
-            val nodes = definitions.optJSONObject(id)?.optJSONObject("nodes") ?: continue
-            for (instanceId in instancesIn(nodes, definitionId)) {
+            val definition = definitions.optJSONObject(id) ?: continue
+            val nodes = definition.optJSONObject("nodes") ?: continue
+            val instances = instancesIn(nodes, definitionId).toSet()
+            for (instanceId in instances) {
                 val inputs = nodes.getJSONObject(instanceId).optJSONObject("inputs") ?: continue
                 val value = inputs.opt(from) ?: continue
                 inputs.remove(from)
                 if (to != null) inputs.put(to, value)
+            }
+            if (instances.isEmpty()) continue
+            // That definition's own inputs feeding the instances by the input's name
+            definition.optJSONArray("inputs").objects().forEach { port ->
+                val targets = port.optJSONArray("targets") ?: return@forEach
+                val kept = JSONArray()
+                for (i in 0 until targets.length()) {
+                    val target = targets.optJSONArray(i) ?: continue
+                    when {
+                        target.optString(0) !in instances || target.optString(1) != from -> kept.put(target)
+                        to != null -> kept.put(JSONArray().put(target.optString(0)).put(to))
+                    }
+                }
+                port.put("targets", kept)
             }
         }
     }

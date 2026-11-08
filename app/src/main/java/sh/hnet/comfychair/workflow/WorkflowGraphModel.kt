@@ -336,13 +336,6 @@ enum class ConnectionDirection {
 }
 
 /**
- * State for tap-based connection mode.
- * Unified to handle both directions symmetrically:
- * - OUTPUT_TO_INPUT: tapping an output highlights valid inputs
- * - INPUT_TO_OUTPUT: tapping an input highlights valid outputs
- */
-@Stable
-/**
  * Picking a value on the graph for a custom field in Map fields (spec §18.3): [fieldId] null for a new field, else the
  * field getting another value; [targets] the values that can be picked.
  */
@@ -351,6 +344,13 @@ data class FieldPick(
     val targets: List<SlotPosition>
 )
 
+/**
+ * State for tap-based connection mode.
+ * Unified to handle both directions symmetrically:
+ * - OUTPUT_TO_INPUT: tapping an output highlights valid inputs
+ * - INPUT_TO_OUTPUT: tapping an input highlights valid outputs
+ */
+@Stable
 data class ConnectionModeState(
     val direction: ConnectionDirection,
     val sourceSlot: SlotPosition,

@@ -730,9 +730,10 @@ object WorkflowManager {
         fieldMappings: Map<String, Pair<String, String>>,  // fieldKey -> (nodeId, inputKey)
         customFields: List<CustomField>? = null  // made or changed while mapping; null keeps the file's
     ): Result<Workflow> {
-        // Parse JSON; mappings may name values an instance shows from its subgraph, so its values are exposed
+        // Parse JSON; mappings and custom fields may name values an instance shows from its subgraph (or doesn't show
+        // yet: promoted then), so its values are exposed
         val json = try {
-            exposedForMapping(jsonContent, fieldMappings.values)
+            exposedForMapping(jsonContent, fieldMappings.values + customFields.orEmpty().flatMap { field -> field.targets.map { it.nodeId to it.input } })
         } catch (e: Exception) {
             return Result.failure(Exception("Invalid JSON: ${e.message}"))
         }

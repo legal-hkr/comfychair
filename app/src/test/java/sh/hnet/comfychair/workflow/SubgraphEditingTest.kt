@@ -113,4 +113,22 @@ class SubgraphEditingTest {
         SubgraphEditing.changeInputInDefinitions(definitions, made.definitionId, "x", "y")
         assertTrue(definitions.has("outer"))
     }
+
+    @Test
+    fun `an input renamed follows in other definitions, their own inputs feeding instances by its name too`() {
+        val definitions = org.json.JSONObject(
+            """
+            {"inner": {"name": "Inner", "inputs": [{"name": "image", "type": "IMAGE", "targets": [["1", "image"]]}],
+                       "nodes": {"1": {"class_type": "Invert", "inputs": {}}}},
+             "outer": {"name": "Outer", "inputs": [{"name": "picture", "type": "IMAGE", "targets": [["7", "image"], ["8", "x"]]}],
+                       "nodes": {"7": {"class_type": "inner", "inputs": {}}, "8": {"class_type": "Blur", "inputs": {}}}}}
+            """
+        )
+        SubgraphEditing.changeInputInDefinitions(definitions, "inner", "image", "img")
+        val targets = definitions.getJSONObject("outer").getJSONArray("inputs").getJSONObject(0).getJSONArray("targets")
+        org.junit.Assert.assertEquals("[[\"7\",\"img\"],[\"8\",\"x\"]]", targets.toString())
+        // Removed: the target into the instance goes, the other stays
+        SubgraphEditing.changeInputInDefinitions(definitions, "inner", "img", null)
+        org.junit.Assert.assertEquals("[[\"8\",\"x\"]]", definitions.getJSONObject("outer").getJSONArray("inputs").getJSONObject(0).getJSONArray("targets").toString())
+    }
 }

@@ -73,7 +73,8 @@ class ComfyUiExporter(
         val outputPorts: List<JSONObject> = emptyList()
     ) {
         val nodes = source.optJSONObject("nodes") ?: JSONObject()
-        val positions = layout(source)
+        // A definition laid out with the definitions, so instances nested in it are drawn as instances
+        val positions = layout(if (isDefinition && definitions != null) JSONObject(source.toString()).put(Subgraphs.KEY, definitions) else source)
         val intIds = mutableMapOf<String, Int>()
         val noteIds = mutableMapOf<Int, Int>()
         val outNodes = mutableMapOf<String, JSONObject>()

@@ -465,7 +465,6 @@ class NodeTypeRegistry {
         )
     }
 
-    /** Whether an input's options ask the frontend for an upload button (image_upload, video_upload, file_upload…). */
     /** The "control after generate" flag: true, or the control's starting value ("fixed", as primitive nodes give it). */
     private fun JSONObject.hasControlAfterGenerate(): Boolean = when (val flag = opt("control_after_generate")) {
         is Boolean -> flag
@@ -476,6 +475,7 @@ class NodeTypeRegistry {
     private fun JSONObject.uploadKind(): String? =
         keys().asSequence().firstOrNull { it.endsWith("_upload") && optBoolean(it, false) }?.removeSuffix("_upload")
 
+    /** Whether an input's options ask the frontend for an upload button (image_upload, video_upload, file_upload…). */
     private fun JSONObject.hasUploadFlag(): Boolean =
         keys().asSequence().any { it.endsWith("_upload") && optBoolean(it, false) }
 

@@ -73,7 +73,7 @@ import sh.hnet.comfychair.workflow.workflowValueOf
  * Events emitted by the Workflow Editor
  */
 sealed class WorkflowEditorEvent {
-    /** [customFieldsJson]: the workflow's custom fields after mapping (made or changed during import), null for none */
+    /** [customFieldsJson]: the workflow's custom fields after mapping (made, changed or deleted during import; none is an empty list) */
     data class MappingConfirmed(val mappingsJson: String, val customFieldsJson: String? = null) : WorkflowEditorEvent()
     object MappingCancelled : WorkflowEditorEvent()
     data class WorkflowCreated(val workflowId: String) : WorkflowEditorEvent()
@@ -687,10 +687,8 @@ class WorkflowEditorViewModel : ViewModel() {
         val mappingsJson = getFinalMappingsJson()
         if (mappingsJson != null) {
             DebugLogger.d(TAG, "confirmMapping: Emitting MappingConfirmed event")
-            val customFields = mutableGraph?.customFields.orEmpty()
-            val customFieldsJson = if (customFields.isNotEmpty() || _uiState.value.graph?.customFields?.isNotEmpty() == true) {
-                CustomFields.toJson(customFields).toString()
-            } else null
+            // The fields as mapping left them, none included (null would keep the file's, deleted ones too)
+            val customFieldsJson = mutableGraph?.let { CustomFields.toJson(it.customFields).toString() }
             viewModelScope.launch {
                 _events.emit(WorkflowEditorEvent.MappingConfirmed(mappingsJson, customFieldsJson))
             }
@@ -4281,25 +4279,26 @@ class WorkflowEditorViewModel : ViewModel() {
             newNoteId = { ++noteId },
             offset = if (graph.isManualPlacementMode) instance.x to instance.y else null
         ) ?: return
-        // Fields reaching values inside through the instance reach them directly now
+        // Fields reaching values inside through the instance reach them directly now: a subgraph input's field every
+        // value that input fed
         val ports = definitions.optJSONObject(instance.classType)?.optJSONArray("inputs")
-        fun firstTarget(port: String): Pair<String, String>? {
-            if (ports == null) return null
+        fun portTargets(port: String): List<Pair<String, String>> {
+            if (ports == null) return emptyList()
             for (i in 0 until ports.length()) {
                 val p = ports.optJSONObject(i) ?: continue
                 if (p.optString("name") != port) continue
-                val target = p.optJSONArray("targets")?.optJSONArray(0) ?: return null
-                return target.optString(0) to target.optString(1)
+                val targets = p.optJSONArray("targets") ?: return emptyList()
+                return (0 until targets.length()).mapNotNull { j -> targets.optJSONArray(j)?.let { it.optString(0) to it.optString(1) } }
             }
-            return null
+            return emptyList()
         }
         val fields = graph.customFields.map { field ->
-            field.copy(targets = field.targets.mapNotNull { target ->
-                if (target.nodeId != instance.id) return@mapNotNull target
-                val (inner, input) = if (Subgraphs.isPromotedKey(target.input)) target.input.substringBefore('/') to target.input.substringAfter('/')
-                    else firstTarget(target.input) ?: return@mapNotNull null
-                unpacked.nodeIds[inner]?.let { FieldTarget(it, input) }
-            })
+            field.copy(targets = field.targets.flatMap { target ->
+                if (target.nodeId != instance.id) return@flatMap listOf(target)
+                val inside = if (Subgraphs.isPromotedKey(target.input)) listOf(target.input.substringBefore('/') to target.input.substringAfter('/'))
+                    else portTargets(target.input)
+                inside.mapNotNull { (inner, input) -> unpacked.nodeIds[inner]?.let { FieldTarget(it, input) } }
+            }.distinct())
         }.filter { it.targets.isNotEmpty() }
         DebugLogger.d(TAG, "unpackSubgraph: ${unpacked.nodeIds.size} nodes")
         rebuildLevel(unpacked.level, definitions, fields, unpacked.nodeIds.values.toSet())
@@ -4407,6 +4406,26 @@ class WorkflowEditorViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Custom fields and node values on an instance's input [old] of subgraph [definitionId], wherever the instance is
+     * (this level's addresses: one mark per level above), follow its new name.
+     */
+    private fun renameInstanceInput(definitionId: String, old: String, new: String) {
+        fun isInstance(nodeId: String): Boolean {
+            val depth = nodeId.takeWhile { it == '\u0000' }.length
+            val nodes = if (depth == 0) mutableGraph?.nodes.orEmpty() else levels.getOrNull(levels.size - depth)?.parentGraph?.nodes.orEmpty()
+            return nodes.any { it.id == nodeId.substring(depth) && it.classType == definitionId }
+        }
+        fun renamed(nodeId: String, input: String) = if (input == old && isInstance(nodeId)) new else input
+        mutableGraph?.let { graph ->
+            graph.customFields = graph.customFields.map { field ->
+                field.copy(targets = field.targets.map { target -> target.copy(input = renamed(target.nodeId, target.input)) })
+            }
+        }
+        val edits = _uiState.value.nodeAttributeEdits.mapValues { (nodeId, values) -> values.mapKeys { (input, _) -> renamed(nodeId, input) } }
+        _uiState.value = _uiState.value.copy(nodeAttributeEdits = edits)
+    }
+
     private fun uniqueName(name: String, taken: Collection<String>): String {
         val base = name.ifEmpty { "input" }.take(SubgraphEditing.MAX_NAME_LENGTH)
         var candidate = base
@@ -4459,6 +4478,7 @@ class WorkflowEditorViewModel : ViewModel() {
         port.put("name", new)
         if (input) {
             SubgraphEditing.changeInputInDefinitions(definitions, frame.definitionId, old, new)
+            renameInstanceInput(frame.definitionId, old, new)
             changeInstancesAbove(frame.definitionId) { graph, instances ->
                 graph.copy(
                     nodes = graph.nodes.map { node ->
