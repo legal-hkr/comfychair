@@ -607,6 +607,24 @@
     <string name="label_pip_source">Quelle</string>
     <string name="msg_results_appear_here">Hier erscheinen deine Ergebnisse</string>
     <string name="button_pick_source_image">Quellbild auswählen</string>
+    <!-- Source sheet (spec §21): From device, then the server's input files -->
+    <string name="source_sheet_title_image">Quellbild</string>
+    <string name="source_sheet_title_video">Quellvideo</string>
+    <plurals name="source_count_images">
+        <item quantity="one">%d Bild</item>
+        <item quantity="other">%d Bilder</item>
+    </plurals>
+    <plurals name="source_count_videos">
+        <item quantity="one">%d Video</item>
+        <item quantity="other">%d Videos</item>
+    </plurals>
+    <string name="source_offline">offline</string>
+    <string name="source_from_device">Vom Gerät</string>
+    <string name="source_empty_images">Noch keine Bilder auf dem Server</string>
+    <string name="source_empty_videos">Noch keine Videos auf dem Server</string>
+    <string name="source_offline_title">Die Dateien des Servers sind offline nicht verfügbar</string>
+    <string name="source_offline_body">Eine Datei vom Gerät lässt sich weiterhin wählen; sie wird beim Generieren hochgeladen.</string>
+    <string name="source_load_failed">Die Dateien des Servers konnten nicht geladen werden</string>
     <string name="button_pick_source_video">Quellvideo auswählen</string>
     <string name="content_description_replace_source">Quellbild ersetzen</string>
     <string name="content_description_replace_source_video">Quellvideo ersetzen</string>

@@ -62,6 +62,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 - **Progress**: A status card on the preview shows the step and elapsed time, with live preview images when the server sends them
 - **Results**: Jobs with several results get a pager with a thumbnail strip; videos play inline, muted, with a play/pause and time control and a sound toggle; one menu on the result saves, shares, shows details and sends it to another screen as its source: an image to edit or animate, a video to edit in Video to Video, or its last frame to animate on from where it ends
 - **Text to Image** and **Text to Video**: From a prompt, with High Noise / Low Noise UNET and LoRA selection for video
+- **Sources**: The source button opens a sheet: from the device, or an image or video already in the server's input folder (newest first, with thumbnails and video lengths), which is used without uploading it again; a source the server already has is never uploaded twice
 - **Image to Image**:
   - Two modes: **Editing** (transformation, with its own prompt and up to 2 reference images) and **Inpainting** (mask-based, with a mask editor with adjustable brush size and feathered edges)
   - The source and the result swap through a picture-in-picture thumbnail; the source has its own toolbar (replace, remove, mask tools)
@@ -73,7 +74,7 @@ ComfyChair provides a streamlined mobile interface for interacting with ComfyUI 
 ### Media
 
 - **Gallery**:
-  - All generated images and videos in an adaptive grid with a collapsing top bar and pull to refresh
+  - All generated images and videos in an adaptive grid with a collapsing top bar and pull to refresh; videos show their length
   - Select items with a long press for saving, sharing or deleting them together; the other results of the selected jobs are marked, as the server deletes whole jobs
 - **Media viewer**:
   - Opens out of the tile or preview and returns into it; swipe down or use predictive back to close

@@ -710,6 +710,24 @@
     <string name="label_pip_source">Source</string>
     <string name="msg_results_appear_here">Your results appear here</string>
     <string name="button_pick_source_image">Pick source image</string>
+    <!-- Source sheet (spec §21): From device, then the server's input files -->
+    <string name="source_sheet_title_image">Source image</string>
+    <string name="source_sheet_title_video">Source video</string>
+    <plurals name="source_count_images">
+        <item quantity="one">%d image</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <plurals name="source_count_videos">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d videos</item>
+    </plurals>
+    <string name="source_offline">offline</string>
+    <string name="source_from_device">From device</string>
+    <string name="source_empty_images">No images on the server yet</string>
+    <string name="source_empty_videos">No videos on the server yet</string>
+    <string name="source_offline_title">The server\'s files aren\'t available offline</string>
+    <string name="source_offline_body">A file from the device can still be picked; it\'s uploaded when generating.</string>
+    <string name="source_load_failed">Couldn\'t load the server\'s files</string>
     <string name="button_pick_source_video">Pick source video</string>
     <string name="content_description_replace_source">Replace source image</string>
     <string name="content_description_replace_source_video">Replace source video</string>

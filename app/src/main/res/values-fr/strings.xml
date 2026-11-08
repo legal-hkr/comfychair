@@ -607,6 +607,26 @@
     <string name="label_pip_source">Source</string>
     <string name="msg_results_appear_here">Vos résultats apparaîtront ici</string>
     <string name="button_pick_source_image">Choisir l\'image source</string>
+    <!-- Source sheet (spec §21): From device, then the server's input files -->
+    <string name="source_sheet_title_image">Image source</string>
+    <string name="source_sheet_title_video">Vidéo source</string>
+    <plurals name="source_count_images">
+        <item quantity="one">%d image</item>
+        <item quantity="many">%d d\'images</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <plurals name="source_count_videos">
+        <item quantity="one">%d vidéo</item>
+        <item quantity="many">%d de vidéos</item>
+        <item quantity="other">%d vidéos</item>
+    </plurals>
+    <string name="source_offline">hors ligne</string>
+    <string name="source_from_device">Depuis l\'appareil</string>
+    <string name="source_empty_images">Aucune image sur le serveur pour l\'instant</string>
+    <string name="source_empty_videos">Aucune vidéo sur le serveur pour l\'instant</string>
+    <string name="source_offline_title">Les fichiers du serveur ne sont pas disponibles hors ligne</string>
+    <string name="source_offline_body">Un fichier de l\'appareil peut toujours être choisi ; il est envoyé lors de la génération.</string>
+    <string name="source_load_failed">Impossible de charger les fichiers du serveur</string>
     <string name="button_pick_source_video">Choisir la vidéo source</string>
     <string name="content_description_replace_source">Remplacer l\'image source</string>
     <string name="content_description_replace_source_video">Remplacer la vidéo source</string>

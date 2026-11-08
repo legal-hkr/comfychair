@@ -1,8 +1,10 @@
 package sh.hnet.comfychair.ui.screens
 
+import androidx.compose.runtime.mutableIntStateOf
+import sh.hnet.comfychair.viewmodel.nameWhile
+import sh.hnet.comfychair.ui.components.generation.rememberSourcePickerState
+import sh.hnet.comfychair.ui.components.generation.SourceSheet
 import android.graphics.Bitmap
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -121,15 +123,41 @@ fun ImageToImageScreen(
     val showResults = !isThisScreenExecuting && uiState.generationOutputs.size > 1
     val isThisScreenQueued = !isThisScreenExecuting && queueState.hasWaitingJob(ownerId)
 
-    // Image picker launcher for source image
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            imageToImageViewModel.onSourceImageChange(context, it)
-            imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
-        }
+    // The source sheet (spec §21), for the source or a reference slot (0 source, 1 and 2 the slots)
+    val sourcePicker = rememberSourcePickerState()
+    var pickingFor by remember { mutableIntStateOf(0) }
+    fun pickSource(slot: Int) {
+        pickingFor = slot
+        sourcePicker.open()
     }
+    SourceSheet(
+        state = sourcePicker,
+        video = false,
+        current = when (pickingFor) {
+            1 -> uiState.reference1Server.nameWhile(uiState.referenceImage1)
+            2 -> uiState.reference2Server.nameWhile(uiState.referenceImage2)
+            else -> uiState.sourceServer.nameWhile(uiState.sourceImage)
+        },
+        onDevice = { uri ->
+            when (pickingFor) {
+                1 -> imageToImageViewModel.onReferenceImage1Change(context, uri)
+                2 -> imageToImageViewModel.onReferenceImage2Change(context, uri)
+                else -> {
+                    imageToImageViewModel.onSourceImageChange(context, uri)
+                    imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
+                }
+            }
+        },
+        onServer = { name ->
+            when (pickingFor) {
+                1, 2 -> imageToImageViewModel.onServerReferenceImage(pickingFor, context, name)
+                else -> {
+                    imageToImageViewModel.onServerSourceImage(context, name)
+                    imageToImageViewModel.onViewModeChange(ImageToImageViewMode.SOURCE)
+                }
+            }
+        }
+    )
 
     // UI composition
     // Opens the mask editor on the current source; its edits come back through the ViewModel
@@ -259,13 +287,13 @@ fun ImageToImageScreen(
                                 )
                             }
                         } else {
-                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
+                            EmptySourcePicker(onPick = { pickSource(0) })
                         }
                         // Tools appear once the swap animation is done
                         if (!inTransition) {
                             if (sourceImage != null) {
                                 SourceToolbar(
-                                    onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onReplace = { pickSource(0) },
                                     onRemove = imageToImageViewModel::clearSourceImage,
                                     maskTools = if (inpainting) MaskTools(
                                         hasMask = hasMask,
@@ -283,13 +311,13 @@ fun ImageToImageScreen(
                                         ReferenceSlot(
                                             image = uiState.referenceImage1,
                                             description = stringResource(R.string.content_description_reference_image_1),
-                                            onPick = { imageToImageViewModel.onReferenceImage1Change(context, it) },
+                                            onPick = { pickSource(1) },
                                             onClear = imageToImageViewModel::onClearReferenceImage1
                                         ).takeIf { uiState.capabilities.hasReferenceImage1 },
                                         ReferenceSlot(
                                             image = uiState.referenceImage2,
                                             description = stringResource(R.string.content_description_reference_image_2),
-                                            onPick = { imageToImageViewModel.onReferenceImage2Change(context, it) },
+                                            onPick = { pickSource(2) },
                                             onClear = imageToImageViewModel::onClearReferenceImage2
                                         ).takeIf { uiState.capabilities.hasReferenceImage2 }
                                     )

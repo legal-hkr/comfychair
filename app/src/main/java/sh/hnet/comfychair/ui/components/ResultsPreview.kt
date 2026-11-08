@@ -50,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -376,6 +377,25 @@ private fun ThumbnailPlaceholder(isVideo: Boolean, failed: Boolean) {
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+/**
+ * A video's length on its thumbnail ("0:05"), placed in a corner by the caller: the Gallery's tiles, the source sheet.
+ */
+@Composable
+fun DurationBadge(durationMs: Long, modifier: Modifier = Modifier) {
+    Box(
+        modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            formatPlaybackTime(durationMs, roundUp = true),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }

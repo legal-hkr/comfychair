@@ -607,6 +607,26 @@
     <string name="label_pip_source">Origen</string>
     <string name="msg_results_appear_here">Tus resultados aparecerán aquí</string>
     <string name="button_pick_source_image">Elegir imagen de origen</string>
+    <!-- Source sheet (spec §21): From device, then the server's input files -->
+    <string name="source_sheet_title_image">Imagen de origen</string>
+    <string name="source_sheet_title_video">Vídeo de origen</string>
+    <plurals name="source_count_images">
+        <item quantity="one">%d imagen</item>
+        <item quantity="many">%d de imágenes</item>
+        <item quantity="other">%d imágenes</item>
+    </plurals>
+    <plurals name="source_count_videos">
+        <item quantity="one">%d vídeo</item>
+        <item quantity="many">%d de vídeos</item>
+        <item quantity="other">%d vídeos</item>
+    </plurals>
+    <string name="source_offline">sin conexión</string>
+    <string name="source_from_device">Desde el dispositivo</string>
+    <string name="source_empty_images">Todavía no hay imágenes en el servidor</string>
+    <string name="source_empty_videos">Todavía no hay vídeos en el servidor</string>
+    <string name="source_offline_title">Los archivos del servidor no están disponibles sin conexión</string>
+    <string name="source_offline_body">Se puede elegir un archivo del dispositivo; se sube al generar.</string>
+    <string name="source_load_failed">No se pudieron cargar los archivos del servidor</string>
     <string name="button_pick_source_video">Elegir vídeo de origen</string>
     <string name="content_description_replace_source">Reemplazar imagen de origen</string>
     <string name="content_description_replace_source_video">Reemplazar vídeo de origen</string>

@@ -14,7 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -91,7 +90,7 @@ import sh.hnet.comfychair.cache.MediaCache
 import sh.hnet.comfychair.storage.AppSettings
 import sh.hnet.comfychair.ui.components.LocalAppSnackbarHostState
 import sh.hnet.comfychair.ui.components.LocalMediaViewer
-import sh.hnet.comfychair.ui.components.PlayBadge
+import sh.hnet.comfychair.ui.components.DurationBadge
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
 import sh.hnet.comfychair.ui.components.mediaOrigin
 import sh.hnet.comfychair.ui.components.mediaOriginKey
@@ -599,21 +598,18 @@ private fun GalleryTile(
                 }
             }
 
-            // Video indicator in the corner, scaled to the tile: a quarter of its width, with the
-            // icon and inset in the same proportions as on the results strip (70 % and 20 % of the badge)
-            if (item.isVideo && bitmap != null) {
+            // A video's length at the bottom end once its thumbnail is there (made from the file, which gives the
+            // length too); it marks the tile as a video
+            val durationMs = if (item.isVideo && bitmap != null) MediaCache.getVideoDurationMs(cacheKey) else null
+            if (durationMs != null) {
                 val videoDescription = stringResource(R.string.content_description_video)
-                BoxWithConstraints(Modifier.matchParentSize()) {
-                    val badgeSize = maxWidth * 0.25f
-                    PlayBadge(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(badgeSize * 0.2f)
-                            .semantics { contentDescription = videoDescription },
-                        size = badgeSize,
-                        iconSize = badgeSize * 0.7f
-                    )
-                }
+                DurationBadge(
+                    durationMs,
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .semantics { contentDescription = videoDescription }
+                )
             }
         }
     }

@@ -621,6 +621,28 @@
     <string name="label_pip_source">Źródło</string>
     <string name="msg_results_appear_here">Tu pojawią się wyniki</string>
     <string name="button_pick_source_image">Wybierz obraz źródłowy</string>
+    <!-- Source sheet (spec §21): From device, then the server's input files -->
+    <string name="source_sheet_title_image">Obraz źródłowy</string>
+    <string name="source_sheet_title_video">Wideo źródłowe</string>
+    <plurals name="source_count_images">
+        <item quantity="one">%d obraz</item>
+        <item quantity="few">%d obrazy</item>
+        <item quantity="many">%d obrazów</item>
+        <item quantity="other">%d obrazu</item>
+    </plurals>
+    <plurals name="source_count_videos">
+        <item quantity="one">%d film</item>
+        <item quantity="few">%d filmy</item>
+        <item quantity="many">%d filmów</item>
+        <item quantity="other">%d filmu</item>
+    </plurals>
+    <string name="source_offline">offline</string>
+    <string name="source_from_device">Z urządzenia</string>
+    <string name="source_empty_images">Na serwerze nie ma jeszcze obrazów</string>
+    <string name="source_empty_videos">Na serwerze nie ma jeszcze filmów</string>
+    <string name="source_offline_title">Pliki serwera są niedostępne offline</string>
+    <string name="source_offline_body">Plik z urządzenia można wybrać zawsze; zostanie wysłany przy generowaniu.</string>
+    <string name="source_load_failed">Nie udało się wczytać plików serwera</string>
     <string name="button_pick_source_video">Wybierz wideo źródłowe</string>
     <string name="content_description_replace_source">Zamień obraz źródłowy</string>
     <string name="content_description_replace_source_video">Zamień wideo źródłowe</string>

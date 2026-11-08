@@ -2,7 +2,6 @@ package sh.hnet.comfychair.viewmodel
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -14,11 +13,9 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
-import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.util.SeasonalPrompts
-import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.BaseVideoGenerationViewModel
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
@@ -46,6 +43,8 @@ data class ImageToVideoUiState(
     val availableWorkflows: List<WorkflowItem> = emptyList(),
     val viewMode: ImageToVideoViewMode = ImageToVideoViewMode.SOURCE,
     val sourceImage: Bitmap? = null,
+    // The server's input file the source is, while it is (spec §21: used by name)
+    val sourceServer: ServerSource? = null,
     val isUploading: Boolean = false
 ) : CommonGenerationState by params, VideoResultState by video
 
@@ -131,22 +130,20 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
     }
 
     // Source image
-    fun onSourceImageChange(context: Context, uri: Uri) {
+    fun onSourceImageChange(context: Context, uri: Uri) = setSource(context) { SourceUploads.decodeImage(context, uri) }
+
+    /** The source from the server's input folder: shown as any, used by name when generating (spec §21). */
+    fun onServerSourceImage(context: Context, name: String) = setSource(context, name) { SourceUploads.serverImage(name) }
+
+    private fun setSource(context: Context, serverName: String? = null, load: suspend () -> Bitmap?) {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-
-                if (bitmap != null) {
-                    // Store in cache (memory or disk based on mode)
-                    MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, context)
-
-                    _uiState.update { it.copy(sourceImage = bitmap) }
-                }
-            } catch (e: Exception) {
+            val bitmap = load() ?: run {
                 _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
+                return@launch
             }
+            // Store in cache (memory or disk based on mode)
+            MediaStateHolder.putBitmap(MediaStateHolder.MediaKey.ItvSource, bitmap, context)
+            _uiState.update { it.copy(sourceImage = bitmap, sourceServer = serverName?.let { name -> ServerSource(name, bitmap) }) }
         }
     }
 
@@ -178,45 +175,14 @@ class ImageToVideoViewModel : BaseVideoGenerationViewModel<ImageToVideoUiState>(
 
         _uiState.update { it.copy(isUploading = true) }
         return try {
-            // Convert bitmap to PNG byte array
-            // Ensure we have ARGB_8888 format for proper PNG encoding
-            val imageBytes = withContext(Dispatchers.IO) {
-                val bitmapToUpload = if (sourceImage.config != Bitmap.Config.ARGB_8888) {
-                    sourceImage.copy(Bitmap.Config.ARGB_8888, false)
-                } else {
-                    sourceImage
-                }
-                val outputStream = java.io.ByteArrayOutputStream()
-                bitmapToUpload.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                if (bitmapToUpload !== sourceImage) {
-                    bitmapToUpload.recycle()
-                }
-                outputStream.toByteArray()
-            }
-
-            // Upload to ComfyUI
-            data class UploadResult(val filename: String?, val failureType: ConnectionFailure)
-            val uploadResult: UploadResult = withContext(Dispatchers.IO) {
-                kotlin.coroutines.suspendCoroutine { continuation ->
-                    client.uploadImage(imageBytes, UuidUtils.contentUploadFilename("itv_source", imageBytes), reuseExisting = true) { success, filename, _, failureType ->
-                        continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
-                    }
-                }
-            }
-
-            if (uploadResult.filename == null) {
-                // Check for stall or auth failure - show dialog instead of toast
-                if (uploadResult.failureType == ConnectionFailure.STALLED ||
-                    uploadResult.failureType == ConnectionFailure.AUTHENTICATION) {
-                    applicationContext?.let { ctx ->
-                        ConnectionManager.showConnectionAlert(ctx, uploadResult.failureType)
-                    }
-                } else {
+            // By name when it's a server file, else uploaded (named by its content)
+            val uploaded = SourceUploads.image(client, "itv_source", sourceImage, state.sourceServer)
+            val uploadedFilename = uploaded.filename ?: run {
+                if (!SourceUploads.alertIfConnection(applicationContext, uploaded.failure)) {
                     _events.emit(GenerationScreenEvent.ShowToast(R.string.error_save_image))
                 }
                 return null
             }
-            val uploadedFilename = uploadResult.filename
 
             WorkflowManager.prepareWorkflow(p.selectedWorkflowId, withSubmittedSeed(p), WorkflowManager.WorkflowImages(source = uploadedFilename))
         } finally {

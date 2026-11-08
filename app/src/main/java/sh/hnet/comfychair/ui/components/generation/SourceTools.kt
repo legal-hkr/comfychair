@@ -1,9 +1,6 @@
 package sh.hnet.comfychair.ui.components.generation
 
 import android.graphics.Bitmap
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +28,9 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -227,7 +226,8 @@ fun EmptySourcePicker(onPick: () -> Unit, modifier: Modifier = Modifier, isVideo
 class ReferenceSlot(
     val image: Bitmap?,
     val description: String,
-    val onPick: (Uri) -> Unit,
+    // Opens the source sheet for this slot (spec §21)
+    val onPick: () -> Unit,
     val onClear: () -> Unit
 )
 
@@ -267,9 +267,9 @@ fun BoxScope.ReferenceSlots(slots: List<ReferenceSlot>) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReferenceSlotItem(slot: ReferenceSlot, number: Int) {
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let(slot.onPick) }
     var menuOpen by remember { mutableStateOf(false) }
     val image = remember(slot.image) { slot.image?.asImageBitmap() }
     val addLabel = stringResource(R.string.content_description_add_reference, number)
@@ -283,7 +283,7 @@ private fun ReferenceSlotItem(slot: ReferenceSlot, number: Int) {
                 .clip(ReferenceSlotShape)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(role = Role.Button, onClickLabel = if (image == null) addLabel else null) {
-                    if (image == null) launcher.launch("image/*") else menuOpen = true
+                    if (image == null) slot.onPick() else menuOpen = true
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -297,23 +297,27 @@ private fun ReferenceSlotItem(slot: ReferenceSlot, number: Int) {
                 )
             }
         }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.button_replace)) },
-                leadingIcon = { Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    launcher.launch("image/*")
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.button_remove)) },
-                leadingIcon = { Icon(Icons.Rounded.HideImage, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    slot.onClear()
-                }
-            )
+        DropdownMenuPopup(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.button_replace)) },
+                    leadingIcon = { Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = null) },
+                    shape = MenuDefaults.itemShape(0, 2).shape,
+                    onClick = {
+                        menuOpen = false
+                        slot.onPick()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.button_remove)) },
+                    leadingIcon = { Icon(Icons.Rounded.HideImage, contentDescription = null) },
+                    shape = MenuDefaults.itemShape(1, 2).shape,
+                    onClick = {
+                        menuOpen = false
+                        slot.onClear()
+                    }
+                )
+            }
         }
     }
 }

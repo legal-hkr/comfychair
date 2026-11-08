@@ -579,6 +579,22 @@
     <string name="label_pip_source">源图</string>
     <string name="msg_results_appear_here">生成结果将显示在这里</string>
     <string name="button_pick_source_image">选择源图像</string>
+    <!-- Source sheet (spec §21): From device, then the server's input files -->
+    <string name="source_sheet_title_image">源图像</string>
+    <string name="source_sheet_title_video">源视频</string>
+    <plurals name="source_count_images">
+        <item quantity="other">%d 张图像</item>
+    </plurals>
+    <plurals name="source_count_videos">
+        <item quantity="other">%d 个视频</item>
+    </plurals>
+    <string name="source_offline">离线</string>
+    <string name="source_from_device">从设备</string>
+    <string name="source_empty_images">服务器上还没有图像</string>
+    <string name="source_empty_videos">服务器上还没有视频</string>
+    <string name="source_offline_title">离线时无法使用服务器上的文件</string>
+    <string name="source_offline_body">仍可从设备选择文件，生成时会上传。</string>
+    <string name="source_load_failed">无法加载服务器上的文件</string>
     <string name="button_pick_source_video">选择源视频</string>
     <string name="content_description_replace_source">替换源图像</string>
     <string name="content_description_replace_source_video">替换源视频</string>

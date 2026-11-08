@@ -1,7 +1,8 @@
 package sh.hnet.comfychair.ui.screens
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import sh.hnet.comfychair.viewmodel.nameWhile
+import sh.hnet.comfychair.ui.components.generation.rememberSourcePickerState
+import sh.hnet.comfychair.ui.components.generation.SourceSheet
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -122,12 +123,21 @@ fun ImageToVideoScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            imageToVideoViewModel.onSourceImageChange(context, it)
+    // The source sheet (spec §21): from the device or the server's input folder
+    val sourcePicker = rememberSourcePickerState()
+    SourceSheet(
+        state = sourcePicker,
+        video = false,
+        current = uiState.sourceServer.nameWhile(uiState.sourceImage),
+        onDevice = { uri ->
+            imageToVideoViewModel.onSourceImageChange(context, uri)
+            imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.SOURCE)
+        },
+        onServer = { name ->
+            imageToVideoViewModel.onServerSourceImage(context, name)
             imageToVideoViewModel.onViewModeChange(ImageToVideoViewMode.SOURCE)
         }
-    }
+    )
 
     val mediaViewer = LocalMediaViewer.current
 
@@ -205,12 +215,12 @@ fun ImageToVideoScreen(
                             // Tools appear once the swap animation is done
                             if (!inTransition) {
                                 SourceToolbar(
-                                    onReplace = { imagePickerLauncher.launch("image/*") },
+                                    onReplace = sourcePicker::open,
                                     onRemove = imageToVideoViewModel::clearSourceImage
                                 )
                             }
                         } else {
-                            EmptySourcePicker(onPick = { imagePickerLauncher.launch("image/*") })
+                            EmptySourcePicker(onPick = sourcePicker::open)
                         }
                     },
                     // The video surface can't follow the swap animation, so a still stands in meanwhile

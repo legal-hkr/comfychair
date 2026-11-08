@@ -45,7 +45,9 @@ data class MediaCacheKey(
  */
 data class VideoDimensions(
     val width: Int,
-    val height: Int
+    val height: Int,
+    // The video's length, for the duration badge on its tile (Gallery, source sheet); null if the file doesn't say
+    val durationMs: Long? = null
 )
 
 /**
@@ -817,6 +819,9 @@ object MediaCache {
         return videoDimensionsCache[key.keyString]
     }
 
+    /** A video's length once its thumbnail was made ([fetchBitmap]), for its duration badge; null before or unknown. */
+    fun getVideoDurationMs(key: MediaCacheKey): Long? = videoDimensionsCache[key.keyString]?.durationMs
+
     /**
      * Get video URI for ExoPlayer playback.
      * In memory-first mode, returns an in-memory URI (see InMemoryVideo), nothing is written to disk.
@@ -1180,8 +1185,12 @@ object MediaCache {
                 ?: thumbnail?.width ?: 0
             val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
                 ?: thumbnail?.height ?: 0
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
             retriever.release()
-            Pair(VideoDimensions(width, height), thumbnail)
+            // Kept on every path that extracts (some callers only want the thumbnail)
+            val dimensions = VideoDimensions(width, height, durationMs)
+            videoDimensionsCache[keyStr] = dimensions
+            Pair(dimensions, thumbnail)
         } catch (_: Exception) {
             Pair(null, null)
         }

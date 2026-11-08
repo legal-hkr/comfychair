@@ -15,11 +15,9 @@ import sh.hnet.comfychair.R
 import sh.hnet.comfychair.WorkflowManager
 import sh.hnet.comfychair.WorkflowType
 import sh.hnet.comfychair.cache.MediaStateHolder
-import sh.hnet.comfychair.connection.ConnectionFailure
 import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.ui.components.config.CommonGenerationState
 import sh.hnet.comfychair.util.SeasonalPrompts
-import sh.hnet.comfychair.util.UuidUtils
 import sh.hnet.comfychair.util.VideoFrames
 import sh.hnet.comfychair.util.VideoUtils
 import sh.hnet.comfychair.viewmodel.base.BaseVideoGenerationViewModel
@@ -49,6 +47,8 @@ data class VideoToVideoUiState(
     val availableWorkflows: List<WorkflowItem> = emptyList(),
     val viewMode: VideoToVideoViewMode = VideoToVideoViewMode.SOURCE,
     val sourceVideoUri: Uri? = null,
+    // The server's input file the source is, while it is (spec §21: used by name)
+    val sourceServer: ServerSource? = null,
     val sourceFrame: Bitmap? = null,
     val isUploading: Boolean = false
 ) : CommonGenerationState by params, VideoResultState by video
@@ -190,6 +190,28 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
     }
 
     /**
+     * The source from the server's input folder (spec §21): read into RAM to show it (at most [MAX_SOURCE_BYTES]),
+     * used by name when generating, so nothing is uploaded.
+     */
+    fun onServerSourceVideo(context: Context, name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val bytes = SourceUploads.serverVideo(name) ?: run {
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_unreadable))
+                return@launch
+            }
+            if (bytes.size > MAX_SOURCE_BYTES) {
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_too_large))
+                return@launch
+            }
+            if (!setSource(context, bytes, name.substringAfterLast('.', "mp4").lowercase())) {
+                _events.emit(GenerationScreenEvent.ShowToast(R.string.error_source_video_unreadable))
+                return@launch
+            }
+            _uiState.update { it.copy(sourceServer = it.sourceVideoUri?.let { uri -> ServerSource(name, uri) }) }
+        }
+    }
+
+    /**
      * Use a generated video as the source video and show it. The caller has checked [MAX_SOURCE_BYTES].
      *
      * May run before the screen was first opened, i.e. before [initialize]: the context is then passed in so the
@@ -236,40 +258,25 @@ class VideoToVideoViewModel : BaseVideoGenerationViewModel<VideoToVideoUiState>(
 
         _uiState.update { it.copy(isUploading = true) }
         return try {
-            val videoBytes = withContext(Dispatchers.IO) {
-                MediaStateHolder.getVideoBytes(MediaStateHolder.MediaKey.V2vSource, context)
-            }
-            if (videoBytes == null) {
-                _events.emit(GenerationScreenEvent.ShowToast(R.string.msg_no_source_video))
-                return null
-            }
-            val extension = sourceExtension
-            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "video/mp4"
-
-            data class UploadResult(val filename: String?, val failureType: ConnectionFailure)
-            val uploadResult: UploadResult = withContext(Dispatchers.IO) {
-                suspendCoroutine { continuation ->
-                    client.uploadImage(
-                        videoBytes,
-                        UuidUtils.contentUploadFilename("v2v_source", videoBytes, extension),
-                        mimeType = mimeType,
-                        reuseExisting = true
-                    ) { success, filename, _, failureType ->
-                        continuation.resumeWith(Result.success(UploadResult(if (success) filename else null, failureType)))
+            // A server file by name (nothing read or uploaded), else the video uploaded, named by its content
+            val uploadedFilename = state.sourceServer.nameWhile(state.sourceVideoUri) ?: run {
+                val videoBytes = withContext(Dispatchers.IO) {
+                    MediaStateHolder.getVideoBytes(MediaStateHolder.MediaKey.V2vSource, context)
+                }
+                if (videoBytes == null) {
+                    _events.emit(GenerationScreenEvent.ShowToast(R.string.msg_no_source_video))
+                    return null
+                }
+                val extension = sourceExtension
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "video/mp4"
+                val uploaded = SourceUploads.bytes(client, "v2v_source", videoBytes, extension, mimeType)
+                uploaded.filename ?: run {
+                    // A stall or an authentication failure gets the connection dialog instead of a toast
+                    if (!SourceUploads.alertIfConnection(context, uploaded.failure)) {
+                        _events.emit(GenerationScreenEvent.ShowToast(R.string.error_upload_source_video))
                     }
+                    return null
                 }
-            }
-
-            val uploadedFilename = uploadResult.filename
-            if (uploadedFilename == null) {
-                // A stall or an authentication failure gets the connection dialog instead of a toast
-                if (uploadResult.failureType == ConnectionFailure.STALLED ||
-                    uploadResult.failureType == ConnectionFailure.AUTHENTICATION) {
-                    ConnectionManager.showConnectionAlert(context, uploadResult.failureType)
-                } else {
-                    _events.emit(GenerationScreenEvent.ShowToast(R.string.error_upload_source_video))
-                }
-                return null
             }
 
             WorkflowManager.prepareWorkflow(
