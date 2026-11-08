@@ -451,6 +451,8 @@ fun WorkflowGraphCanvas(
 
     // The wire shape chosen in Settings
     val edgeRouter = remember { RouterProvider.getActiveRouter(context) }
+    // Wires' shapes kept between frames (see WirePaths)
+    val wirePaths = remember(edgeRouter) { WirePaths() }
 
     // Track if note heights changed during drawing (triggers relayout)
     var noteHeightsChanged by remember { mutableStateOf(false) }
@@ -1515,7 +1517,8 @@ fun WorkflowGraphCanvas(
                 // Scaling with the zoom, but at least 1.5 dp on screen (focused 2.25 dp)
                 width = lerp(before.width, after.width, progress).let { maxOf(it, it * 0.375f * unitsPerDp) },
                 draggingNodeId = draggingNodeId,
-                dragScale = dragScale.value
+                dragScale = dragScale.value,
+                wirePaths = wirePaths
             )
         }
         fun DrawScope.drawWire(edge: WorkflowEdge, alpha: Float) {
@@ -2461,7 +2464,8 @@ private fun DrawScope.drawEdge(
     recede: Float = 0f,
     width: Float = 4f,
     draggingNodeId: String? = null,
-    dragScale: Float = 1f
+    dragScale: Float = 1f,
+    wirePaths: WirePaths? = null
 ) {
     val sourceNode = nodesById[edge.sourceNodeId] ?: return
     val targetNode = nodesById[edge.targetNodeId] ?: return
@@ -2476,16 +2480,36 @@ private fun DrawScope.drawEdge(
         draggingNodeId, dragScale
     )
     // A port strip is narrow glass: its wires don't swing back behind its centre line, where their sockets are
-    val path = router.computeRoute(
-        start, end,
-        backAtStart = !SubgraphLevels.isInputsNode(sourceNode),
-        backAtEnd = !SubgraphLevels.isOutputsNode(targetNode)
-    ).path
+    val backAtStart = !SubgraphLevels.isInputsNode(sourceNode)
+    val backAtEnd = !SubgraphLevels.isOutputsNode(targetNode)
+    val path = wirePaths?.get(router, start, end, backAtStart, backAtEnd)
+        ?: router.computeRoute(start, end, backAtStart, backAtEnd).path
 
     val color = lerp(colors.slot(edge.slotType), colors.outlineVariant, recede).copy(alpha = alpha)
     drawPath(path = path, color = color, style = Stroke(width = width, cap = StrokeCap.Round))
     drawCircle(color = color, radius = width, center = start)
     drawCircle(color = color, radius = width, center = end)
+}
+
+/**
+ * Wires' shapes kept between frames: the same path object for the same ends. The renderer prepares a thick smooth
+ * curve for the GPU once per path object, so a new one every frame (while panning and zooming nothing moves in graph
+ * units) is prepared again and again. Shapes of ends that changed (a node moved) are dropped once there are many.
+ */
+internal class WirePaths {
+    private data class Key(val start: Offset, val end: Offset, val backAtStart: Boolean, val backAtEnd: Boolean)
+    private val paths = HashMap<Key, Path>()
+
+    fun get(router: EdgeRouter, start: Offset, end: Offset, backAtStart: Boolean, backAtEnd: Boolean): Path {
+        if (paths.size > MAX_KEPT) paths.clear()
+        return paths.getOrPut(Key(start, end, backAtStart, backAtEnd)) {
+            router.computeRoute(start, end, backAtStart, backAtEnd).path
+        }
+    }
+
+    private companion object {
+        const val MAX_KEPT = 4000
+    }
 }
 
 /**
