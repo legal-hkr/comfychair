@@ -131,9 +131,7 @@
     <string name="label_queue_waiting_yours">等待中的任务（%1$d）</string>
     <string name="label_queue_position">%1$s（位置：%2$d）</string>
     <string name="label_queue_others">等待中的任务（其他客户端）</string>
-    <string name="label_queue_other_positions">位置：%1$s</string>
-    <string name="label_queue_other_count">任务：%1$d</string>
-    <string name="label_queue_content_hidden">不显示内容</string>
+    <string name="label_queue_other_position">位置：%1$d</string>
     <string name="content_description_move_job_to_front">将“%1$s”移到最前</string>
     <string name="content_description_remove_job">从队列中移除“%1$s”</string>
     <string name="button_clear_queue_confirm">清空队列</string>

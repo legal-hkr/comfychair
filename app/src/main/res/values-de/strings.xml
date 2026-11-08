@@ -131,9 +131,7 @@
     <string name="label_queue_waiting_yours">Wartende Aufträge (%1$d)</string>
     <string name="label_queue_position">%1$s (Platz: %2$d)</string>
     <string name="label_queue_others">Wartende Aufträge (anderer Client)</string>
-    <string name="label_queue_other_positions">Plätze: %1$s</string>
-    <string name="label_queue_other_count">Aufträge: %1$d</string>
-    <string name="label_queue_content_hidden">Inhalte werden nicht angezeigt</string>
+    <string name="label_queue_other_position">Position: %1$d</string>
     <string name="content_description_move_job_to_front">„%1$s“ nach vorne verschieben</string>
     <string name="content_description_remove_job">„%1$s“ aus der Warteschlange entfernen</string>
     <string name="button_clear_queue_confirm">Warteschlange leeren</string>

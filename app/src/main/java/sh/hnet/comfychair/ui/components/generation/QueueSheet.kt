@@ -176,12 +176,14 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
                 }
             }
 
+            // Other clients' jobs: each with its prompt, as the server shares it with every client; no actions (their
+            // work), and no progress (the server sends it only to the client that queued the job)
             if (runningOther.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.label_queue_running_other)) }
-                item {
+                items(runningOther, key = { "run-other-$it" }) { promptId ->
                     QueueRow(
-                        leading = { Icon(Icons.Rounded.Group, contentDescription = null) },
-                        headline = stringResource(R.string.label_queue_running_other_job),
+                        leading = { OtherClientIcon() },
+                        headline = otherJobTitle(current?.prompts?.get(promptId)),
                         supporting = { LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) }
                     )
                 }
@@ -225,17 +227,15 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
 
             if (waitingOther.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.label_queue_others)) }
-                item {
-                    val positions = waitingOther.mapNotNull { current?.positionOf(it) }.joinToString(", ")
+                items(waitingOther, key = { "wait-other-$it" }) { promptId ->
                     QueueRow(
-                        leading = { Icon(Icons.Rounded.Group, contentDescription = null) },
-                        headline = stringResource(R.string.label_queue_other_count, waitingOther.size),
-                        // Where they stand, and that their contents are never shown (privacy rules)
+                        leading = { OtherClientIcon() },
+                        headline = otherJobTitle(current?.prompts?.get(promptId)),
                         supporting = {
-                            Column {
-                                Text(stringResource(R.string.label_queue_other_positions, positions), style = MaterialTheme.typography.bodySmall)
-                                Text(stringResource(R.string.label_queue_content_hidden), style = MaterialTheme.typography.bodySmall)
-                            }
+                            Text(
+                                stringResource(R.string.label_queue_other_position, current?.positionOf(promptId) ?: 0),
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     )
                 }
@@ -299,6 +299,22 @@ private fun jobTitle(owner: OwnerInfo?, description: sh.hnet.comfychair.queue.Jo
     description != null && description.prompt.isNotBlank() -> description.prompt.lineSequence().first()
     owner != null -> stringResource(owner.nameRes)
     else -> stringResource(R.string.title_queue)
+}
+
+/** Another client's job by the first line of its prompt, or "Job" when none was found in its workflow. */
+@Composable
+private fun otherJobTitle(prompt: String?): String =
+    prompt?.lineSequence()?.firstOrNull()?.takeIf(String::isNotBlank) ?: stringResource(R.string.label_queue_running_other_job)
+
+/** Another client's job: the group icon where our jobs have their screen's. */
+@Composable
+private fun OtherClientIcon() {
+    Box(
+        Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Rounded.Group, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 @Composable

@@ -110,9 +110,7 @@
     <string name="label_queue_waiting_yours">Waiting jobs (%1$d)</string>
     <string name="label_queue_position">%1$s (position: %2$d)</string>
     <string name="label_queue_others">Waiting jobs (another client)</string>
-    <string name="label_queue_other_positions">Positions: %1$s</string>
-    <string name="label_queue_other_count">Jobs: %1$d</string>
-    <string name="label_queue_content_hidden">Contents aren\'t shown</string>
+    <string name="label_queue_other_position">Position: %1$d</string>
     <string name="content_description_move_job_to_front">Move “%1$s” to the front</string>
     <string name="content_description_remove_job">Remove “%1$s” from the queue</string>
     <string name="button_clear_queue_confirm">Clear queue</string>

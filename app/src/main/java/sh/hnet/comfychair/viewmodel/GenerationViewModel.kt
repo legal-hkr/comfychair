@@ -788,11 +788,14 @@ class GenerationViewModel : ViewModel() {
 
     // Queue sheet
 
-    /** The server queue as job ids, on the main thread; null if it couldn't be read. */
+    /** The server queue as job ids with their prompts (read here, off the main thread), on the main thread; null if it couldn't be read. */
     fun fetchQueueSnapshot(onResult: (QueueSnapshot?) -> Unit) {
         val client = comfyUIClient ?: return onResult(null)
         val mainHandler = Handler(Looper.getMainLooper())
-        client.fetchQueue { json -> mainHandler.post { onResult(json?.let { QueueSnapshot.parse(it) }) } }
+        client.fetchQueue { json ->
+            val snapshot = json?.let { QueueSnapshot.parseWithPrompts(it) }
+            mainHandler.post { onResult(snapshot) }
+        }
     }
 
     /**

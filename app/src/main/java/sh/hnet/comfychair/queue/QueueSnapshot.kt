@@ -2,15 +2,21 @@ package sh.hnet.comfychair.queue
 
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.hnet.comfychair.workflow.NodeTypeRegistry
 
 /**
  * The server queue as /queue returns it, reduced to job ids in order. The response also carries every job's full
- * workflow, other clients' prompts included; nothing of it is kept here, so it can't end up on screen or in a log.
+ * workflow; of it only the jobs' prompts are kept, for the queue sheet ([parseWithPrompts]), never logged.
  *
  * @param running Jobs running now (normally one)
  * @param pending Waiting jobs in the order they will run
+ * @param prompts Jobs' positive prompts, where found (only from [parseWithPrompts])
  */
-data class QueueSnapshot(val running: List<String>, val pending: List<String>) {
+data class QueueSnapshot(
+    val running: List<String>,
+    val pending: List<String>,
+    val prompts: Map<String, String> = emptyMap()
+) {
 
     /** Whether a job is still on the server: running or waiting. */
     operator fun contains(promptId: String): Boolean = promptId in running || promptId in pending
@@ -22,6 +28,21 @@ data class QueueSnapshot(val running: List<String>, val pending: List<String>) {
         /** Entries are `[number, prompt_id, prompt, extra_data, outputs…]`; the number orders the queue. */
         fun parse(queueJson: JSONObject): QueueSnapshot =
             QueueSnapshot(ids(queueJson.optJSONArray("queue_running")), ids(queueJson.optJSONArray("queue_pending")))
+
+        /** [parse] with every job's prompt ([JobPrompts]), for the queue sheet; off the main thread (it parses). */
+        fun parseWithPrompts(queueJson: JSONObject, registry: NodeTypeRegistry? = null): QueueSnapshot {
+            val prompts = mutableMapOf<String, String>()
+            for (key in listOf("queue_running", "queue_pending")) {
+                val entries = queueJson.optJSONArray(key) ?: continue
+                for (i in 0 until entries.length()) {
+                    val entry = entries.optJSONArray(i) ?: continue
+                    val id = entry.optString(1).takeIf { it.isNotEmpty() } ?: continue
+                    val workflow = entry.optJSONObject(2)
+                    (if (registry != null) JobPrompts.of(id, workflow, registry) else JobPrompts.of(id, workflow))?.let { prompts[id] = it }
+                }
+            }
+            return parse(queueJson).copy(prompts = prompts)
+        }
 
         private fun ids(entries: JSONArray?): List<String> {
             if (entries == null) return emptyList()

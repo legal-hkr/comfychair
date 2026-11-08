@@ -131,9 +131,7 @@
     <string name="label_queue_waiting_yours">Trabajos en espera (%1$d)</string>
     <string name="label_queue_position">%1$s (posición: %2$d)</string>
     <string name="label_queue_others">Trabajos en espera (otro cliente)</string>
-    <string name="label_queue_other_positions">Posiciones: %1$s</string>
-    <string name="label_queue_other_count">Trabajos: %1$d</string>
-    <string name="label_queue_content_hidden">El contenido no se muestra</string>
+    <string name="label_queue_other_position">Posición: %1$d</string>
     <string name="content_description_move_job_to_front">Mover «%1$s» al principio</string>
     <string name="content_description_remove_job">Quitar «%1$s» de la cola</string>
     <string name="button_clear_queue_confirm">Vaciar la cola</string>

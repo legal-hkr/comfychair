@@ -38,9 +38,9 @@ When you use ComfyChair, the app communicates directly with your configured Comf
 
 **This data is sent only to the server you configure.** ComfyChair does not route your data through any intermediary servers.
 
-### Other Users of Your Server
+### What Your Server Shares
 
-ComfyUI reports every client's queued jobs, including their prompts and workflows. ComfyChair shows other clients' jobs only as a count and their position in the queue; it never displays, stores or logs their contents.
+ComfyUI keeps one history, one input folder and one output folder for everyone who uses the server: they hold the work of every client, the web interface included, and ComfyUI shows them to any client that connects. ComfyChair shows what the server shares in the same way: the gallery shows the server's history, and the source picker of the generation screens lists the images and videos in the server's input folder, so a file already there can be used without uploading it again. ComfyUI also reports every client's queued jobs with their workflows; ComfyChair's queue shows other clients' jobs with their prompt and position, without letting you change them. None of this is sent anywhere else, and none of it is logged; it's kept on the device only as the "Media storage" setting allows.
 
 ## Third-Party Services
 

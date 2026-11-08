@@ -131,9 +131,7 @@
     <string name="label_queue_waiting_yours">Tâches en attente (%1$d)</string>
     <string name="label_queue_position">%1$s (position : %2$d)</string>
     <string name="label_queue_others">Tâches en attente (autre client)</string>
-    <string name="label_queue_other_positions">Positions : %1$s</string>
-    <string name="label_queue_other_count">Tâches : %1$d</string>
-    <string name="label_queue_content_hidden">Le contenu n\'est pas affiché</string>
+    <string name="label_queue_other_position">Position : %1$d</string>
     <string name="content_description_move_job_to_front">Placer « %1$s » en tête</string>
     <string name="content_description_remove_job">Retirer « %1$s » de la file</string>
     <string name="button_clear_queue_confirm">Vider la file</string>

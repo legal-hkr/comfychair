@@ -131,9 +131,7 @@
     <string name="label_queue_waiting_yours">Oczekujące zadania (%1$d)</string>
     <string name="label_queue_position">%1$s (pozycja: %2$d)</string>
     <string name="label_queue_others">Oczekujące zadania (inny klient)</string>
-    <string name="label_queue_other_positions">Pozycje: %1$s</string>
-    <string name="label_queue_other_count">Zadania: %1$d</string>
-    <string name="label_queue_content_hidden">Treść nie jest wyświetlana</string>
+    <string name="label_queue_other_position">Pozycja: %1$d</string>
     <string name="content_description_move_job_to_front">Przesuń „%1$s” na początek</string>
     <string name="content_description_remove_job">Usuń „%1$s” z kolejki</string>
     <string name="button_clear_queue_confirm">Wyczyść kolejkę</string>
