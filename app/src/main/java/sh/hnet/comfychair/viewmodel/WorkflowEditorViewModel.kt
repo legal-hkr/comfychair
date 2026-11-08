@@ -1773,9 +1773,10 @@ class WorkflowEditorViewModel : ViewModel() {
         val rawNoteHeight = WorkflowLayoutEngine.NODE_HEADER_HEIGHT + WorkflowLayoutEngine.NOTE_BODY_PADDING
         val noteHeight = WorkflowLayoutEngine.snapHeightToGrid(rawNoteHeight)
 
-        // Calculate view center in graph coordinates
-        val viewCenterX = (canvasWidth / 2 - state.offset.x) / state.scale
-        val viewCenterY = (canvasHeight / 2 - state.offset.y) / state.scale
+        // The middle of the free area (the canvas less what floats over it) in graph coordinates
+        val area = freeArea()
+        val viewCenterX = ((area.left + area.right) / 2 - state.offset.x) / state.scale
+        val viewCenterY = ((area.top + area.bottom) / 2 - state.offset.y) / state.scale
 
         // Calculate note position at view center, snapped to grid
         val noteX = viewCenterX - noteWidth / 2
@@ -2497,6 +2498,9 @@ class WorkflowEditorViewModel : ViewModel() {
             height = nodeHeight
         )
 
+        // The first node of an empty canvas is shown in the middle of the free area (the layout puts it at the origin)
+        val firstNode = graph.nodes.isEmpty()
+
         // Add to graph
         graph.nodes.add(newNode)
 
@@ -2520,6 +2524,21 @@ class WorkflowEditorViewModel : ViewModel() {
             // The whole graph's, not only the new node's: a map holding just the new type marked every other node
             // as missing from the server
             nodeDefinitions = buildNodeDefinitionsMap(layoutedGraph) + (nodeType.classType to nodeType)
+        )
+        if (firstNode) layoutedGraph.nodes.find { it.id == newNode.id }?.let(::centerOn)
+    }
+
+    /** Move the view, at its scale, so [node] stands in the middle of the free area. */
+    private fun centerOn(node: WorkflowNode) {
+        if (canvasWidth <= 0f || canvasHeight <= 0f) return
+        val area = freeArea()
+        val scale = _uiState.value.scale
+        viewFollowsLayout = false
+        _uiState.value = _uiState.value.copy(
+            offset = Offset(
+                (area.left + area.right) / 2 - (node.x + node.width / 2) * scale,
+                (area.top + area.bottom) / 2 - (node.y + node.height / 2) * scale
+            )
         )
     }
 
@@ -3672,8 +3691,7 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Add a new node in manual placement mode, positioned at the view center.
-     * Calculates view center from stored canvas dimensions and current transform.
+     * Add a new node in manual placement mode, in the middle of the free area of the view.
      */
     fun addNodeManual(nodeType: NodeTypeDefinition) {
         val graph = mutableGraph ?: return
@@ -3718,9 +3736,10 @@ class WorkflowEditorViewModel : ViewModel() {
         )
         val nodeHeight = WorkflowLayoutEngine.snapHeightToGrid(rawNodeHeight)
 
-        // Calculate view center in graph coordinates
-        val viewCenterX = (canvasWidth / 2 - state.offset.x) / state.scale
-        val viewCenterY = (canvasHeight / 2 - state.offset.y) / state.scale
+        // The middle of the free area (the canvas less what floats over it) in graph coordinates
+        val area = freeArea()
+        val viewCenterX = ((area.left + area.right) / 2 - state.offset.x) / state.scale
+        val viewCenterY = ((area.top + area.bottom) / 2 - state.offset.y) / state.scale
 
         // Calculate node position at view center, snapped to grid
         val nodeX = viewCenterX - nodeWidth / 2
