@@ -147,7 +147,7 @@ object FieldMappingAnalyzer {
      * Find candidates for a field in the graph.
      * Uses two detection strategies:
      * 1. Input-key-based: Look for nodes with matching input key names (fast path)
-     * 2. Output-type-based: For "image" field, look for nodes with IMAGE output + ENUM inputs (fallback)
+     * 2. For "image" only, when none: inputs with an image upload button on nodes with an IMAGE output
      *
      * @param fieldKey The field key to find candidates for
      * @param graph The workflow graph
@@ -198,14 +198,15 @@ object FieldMappingAnalyzer {
             }
         }
 
-        // Strategy 2 (fallback): For "image" field, find nodes with IMAGE output + ENUM inputs
-        // This works regardless of input key language (Chinese, etc.)
+        // Strategy 2 (fallback): For "image" field, the inputs with ComfyUI's image upload button on nodes with an
+        // IMAGE output, whatever their name (a custom loader's, in Chinese…); not any choice list (an API node's
+        // aspect ratio)
         if (directCandidates.isEmpty() && fieldKey == "image") {
             for (node in graph.nodes) {
                 if (node.outputs.any { it.type == "IMAGE" }) {
                     val definition = nodeTypeRegistry.getNodeDefinition(node.classType)
                     definition?.inputs
-                        ?.filter { it.type == "ENUM" && node.inputs.containsKey(it.name) }
+                        ?.filter { it.uploadKind == "image" && node.inputs.containsKey(it.name) }
                         ?.forEach { inputDef ->
                             val inputValue = node.inputs[inputDef.name]
                             val currentValue = when (inputValue) {
@@ -249,11 +250,12 @@ object FieldMappingAnalyzer {
         // Text input keys to look for (common English names)
         val textInputKeys = listOf("text", "prompt")
 
-        // Strategy 1: Find nodes with known text/prompt input keys
+        // Strategy 1: text encoders, nodes with a text or prompt input that make conditioning (by their outputs, or
+        // by name where the outputs aren't known); their prompt is traced to the input it feeds
         data class TextEncoderNode(val node: WorkflowNode, val inputKey: String)
         val textEncoderNodes = graph.nodes.mapNotNull { node ->
-            val matchingInputKey = textInputKeys.firstOrNull { node.inputs.containsKey(it) }
-            if (matchingInputKey != null) TextEncoderNode(node, matchingInputKey) else null
+            val matchingInputKey = textInputKeys.firstOrNull { node.inputs.containsKey(it) } ?: return@mapNotNull null
+            if (isTextEncoder(node)) TextEncoderNode(node, matchingInputKey) else null
         }
 
         // Strategy 2 (fallback): Find nodes with CONDITIONING output + STRING inputs
@@ -299,25 +301,71 @@ object FieldMappingAnalyzer {
             if (first) add(0, candidate) else add(candidate)
         }
 
-        // For each text encoder, trace its output to find if it connects to positive or negative
-        for ((node, inputKey) in allTextEncoderNodes) {
-            // Text linked from a primitive String node: offer that node, so the prompt reaches
-            // every encoder it feeds instead of replacing this encoder's link
-            val sourceNode = (node.inputs[inputKey] as? InputValue.Connection)?.let { nodesById[it.sourceNodeId] }
-            val sourceKey = sourceNode?.let { primitiveTextNodes[it.id] }
-            val candidate = if (sourceNode != null && sourceKey != null) {
-                candidateFor(sourceNode, sourceKey)
-            } else {
-                candidateFor(node, inputKey)
+        // The text an input gets: its own value, or when it's linked, the nearest sources up its text links (a
+        // primitive text node, a node's own text or prompt), nearest first: one "String (Multiline)" feeding several
+        // encoders, a user prompt passing a prompt enhancer's switch (whose system prompt lies further up). Mapping a
+        // linked input would replace the link
+        fun textSources(node: WorkflowNode, inputKey: String): List<FieldCandidate> {
+            val value = node.inputs[inputKey]
+            if (value !is InputValue.Connection) return listOf(candidateFor(node, inputKey))
+            val sources = mutableListOf<FieldCandidate>()
+            val visited = mutableSetOf(node.id)
+            var frontier = listOf(value)
+            repeat(MAX_TRACE_DEPTH) {
+                val next = mutableListOf<InputValue.Connection>()
+                for (link in frontier) {
+                    val source = nodesById[link.sourceNodeId] ?: continue
+                    if (!visited.add(source.id)) continue
+                    val outputType = source.outputs.getOrNull(link.outputIndex)?.type
+                    // A node passing on any type (a switch: "*", COMFY_MATCHTYPE_V3) passes text too
+                    val anyType = outputType == "*" || outputType?.startsWith("COMFY_MATCHTYPE") == true
+                    if (outputType != null && outputType != "STRING" && !anyType) continue
+                    primitiveTextNodes[source.id]?.let { sources.add(candidateFor(source, it)); continue }
+                    // Its own text: a text or prompt input, or a switch's text choice (on_false holding the prompt
+                    // when an enhancer is off); never a choice list or an instruction for an enhancer
+                    val definition = nodeTypeRegistry.getNodeDefinition(source.classType)
+                    val own = source.inputs.keys.filter { key ->
+                        val literal = source.inputs[key] as? InputValue.Literal ?: return@filter false
+                        if (literal.value !is String || isInstruction(key)) return@filter false
+                        // An input its known definition lacks (a dynamic combo's "resize_type.crop") isn't text
+                        val type = definition?.inputs?.find { it.name == key }?.type
+                        if (definition != null && type == null) return@filter false
+                        val textType = type == null || type == "STRING" || type == "*" || type.startsWith("COMFY_MATCHTYPE")
+                        textType && (key in textInputKeys || anyType)
+                    }
+                    if (own.isNotEmpty()) {
+                        own.forEach { sources.add(candidateFor(source, it)) }
+                        continue
+                    }
+                    next += source.inputs.filter { (key, _) -> !isInstruction(key) }.values.filterIsInstance<InputValue.Connection>()
+                }
+                if (next.isEmpty()) return sources
+                frontier = next
             }
+            return sources
+        }
 
-            // Determine if this node connects to positive or negative input
-            val connectionType = traceConditioningConnection(graph, node.id)
+        // An input whose sources can't be found (linked from a muted node, or from a generator without text of its
+        // own) is offered itself, as a last resort: a prompt field is required
+        fun textSourcesOrInput(node: WorkflowNode, inputKey: String) = textSources(node, inputKey).ifEmpty { listOf(candidateFor(node, inputKey)) }
 
-            when (connectionType) {
-                "positive" -> positiveTextCandidates.addUnique(candidate, first = true) // Traced match first
-                "negative" -> negativeTextCandidates.addUnique(candidate, first = true) // Traced match first
-                else -> {
+        // Prompts traced to a positive or negative input go first, the last encoder's first (a refiner's prompts
+        // come before the base's in the workflow), each encoder's sources nearest first; the rest after them
+        val tracedPositive = mutableListOf<FieldCandidate>()
+        val tracedNegative = mutableListOf<FieldCandidate>()
+        fun MutableList<FieldCandidate>.addFirst(sources: List<FieldCandidate>) {
+            val fresh = sources.filter { source -> none { it.nodeId == source.nodeId && it.inputKey == source.inputKey } }
+            addAll(0, fresh)
+        }
+        for ((node, inputKey) in allTextEncoderNodes) {
+            val sources = textSourcesOrInput(node, inputKey)
+            // An encoder taking both prompts (TextEncodeQwenImage21): its negative one
+            if (node.inputs.containsKey("negative_prompt")) tracedNegative.addFirst(textSourcesOrInput(node, "negative_prompt"))
+
+            when (traceConditioningConnection(graph, node.id)) {
+                "positive" -> tracedPositive.addFirst(sources)
+                "negative" -> tracedNegative.addFirst(sources)
+                else -> sources.forEach { candidate ->
                     // Unknown connection - use title-based classification
                     val titleLower = candidate.nodeName.lowercase()
                     when {
@@ -332,17 +380,38 @@ object FieldMappingAnalyzer {
                 }
             }
         }
+        positiveTextCandidates.addAll(0, tracedPositive.filter { t -> positiveTextCandidates.none { it.nodeId == t.nodeId && it.inputKey == t.inputKey } })
+        negativeTextCandidates.addAll(0, tracedNegative.filter { t -> negativeTextCandidates.none { it.nodeId == t.nodeId && it.inputKey == t.inputKey } })
 
         // Primitive String nodes not feeding a text encoder (e.g. prompts of API nodes without
         // CLIP encoding) as fallback candidates
+        // CLIP encoding) as fallback candidates: ones feeding a text input or nothing at all, never only an enhancer's
+        // instruction or inputs of other types (a switch's boolean)
+        val consumers = graph.edges.groupBy { it.sourceNodeId }
         for ((nodeId, inputKey) in primitiveTextNodes) {
             val node = nodesById[nodeId] ?: continue
             val alreadyOffered = (positiveTextCandidates + negativeTextCandidates).any { it.nodeId == nodeId }
-            if (alreadyOffered) continue
+            if (alreadyOffered || isInstruction(node.title)) continue
+            val feeds = consumers[nodeId].orEmpty()
+            val feedsText = feeds.any { edge ->
+                if (isInstruction(edge.targetInputName)) return@any false
+                val target = nodesById[edge.targetNodeId] ?: return@any true
+                val type = nodeTypeRegistry.getNodeDefinition(target.classType)?.inputs?.find { it.name == edge.targetInputName }?.type
+                type == null || type == "STRING" || type == "*" || type.startsWith("COMFY_MATCHTYPE")
+            }
+            if (feeds.isNotEmpty() && !feedsText) continue
             val candidate = candidateFor(node, inputKey)
             val titleLower = node.title.lowercase()
             if (!titleLower.contains("negative")) positiveTextCandidates.addUnique(candidate)
             if (!titleLower.contains("positive")) negativeTextCandidates.addUnique(candidate)
+        }
+
+        // A node generating from a prompt itself (an API node: no conditioning, its "prompt" a literal) as a fallback for
+        // the positive prompt; a text node's "text" isn't offered (string tools, notes)
+        for (node in graph.nodes) {
+            if (isTextEncoder(node) || node.inputs["prompt"] !is InputValue.Literal) continue
+            if (node.outputs.none { it.type == "IMAGE" || it.type == "VIDEO" || it.type == "LATENT" }) continue
+            positiveTextCandidates.addUnique(candidateFor(node, "prompt"))
         }
 
         return mapOf(
@@ -350,6 +419,17 @@ object FieldMappingAnalyzer {
             "negative_text" to negativeTextCandidates
         )
     }
+
+    /** An enhancer's instruction (TextGenerate's system_prompt), not the prompt it rewrites. */
+    private fun isInstruction(inputKey: String): Boolean = inputKey.contains("system", ignoreCase = true)
+
+    /**
+     * A text encoder: makes conditioning, by its outputs; by name only where they aren't known (a node missing on the
+     * server). A node making a prompt for one (Flux3LayoutPrompt: STRING) is a source of its text, not an encoder.
+     */
+    private fun isTextEncoder(node: WorkflowNode): Boolean =
+        if (node.outputs.isNotEmpty()) node.outputs.any { it.type == "CONDITIONING" }
+        else node.classType.contains("TextEncode", ignoreCase = true) || node.classType.contains("Prompt", ignoreCase = true)
 
     /**
      * Choose the auto-selected candidate index for a field.
@@ -377,29 +457,40 @@ object FieldMappingAnalyzer {
     }
 
     /**
-     * Trace a conditioning node's output to find what type of connection it has.
-     * Uses WorkflowGraph.edges to trace connections.
-     *
-     * This is classType-agnostic: it simply checks if the target input name
-     * indicates positive or negative conditioning, regardless of the target node type.
-     *
-     * @param graph The workflow graph
-     * @param conditioningNodeId ID of the conditioning node to trace from
-     * @return "positive", "negative", or null if no connection found
+     * Whether a text encoder's conditioning ends in a positive or a negative input: "positive", "negative", or null if
+     * it reaches neither. Follows the conditioning downstream through the nodes that pass it on (zeroing it, combining,
+     * guidance…) up to [MAX_TRACE_DEPTH] nodes away; any node's input named "positive" or "negative" ends a path (a node
+     * taking both passes each on as its own output, which a trace by node can't tell apart), and so
+     * does a "conditioning" input of a node that doesn't pass conditioning on (a guider, which has only the positive
+     * one). A "conditioning" input of a node that passes it on (ConditioningZeroOut, often the negative) says nothing
+     * by itself. An encoder reaching both is positive: Flux workflows feed the negative its zeroed copy.
      */
     fun traceConditioningConnection(graph: WorkflowGraph, conditioningNodeId: String): String? {
-        // Find edges originating from this conditioning node
-        val outgoingEdges = graph.edges.filter { it.sourceNodeId == conditioningNodeId }
-
-        for (edge in outgoingEdges) {
-            // Check target input name - works for any node type (KSampler, custom samplers, etc.)
-            when (edge.targetInputName.lowercase()) {
-                "positive" -> return "positive"
-                "negative" -> return "negative"
-                "conditioning" -> return "positive"  // Single conditioning input (like BasicGuider)
+        val edgesFrom = graph.edges.groupBy { it.sourceNodeId }
+        val nodesById = graph.nodes.associateBy { it.id }
+        val visited = mutableSetOf(conditioningNodeId)
+        var frontier = listOf(conditioningNodeId)
+        var negative = false
+        repeat(MAX_TRACE_DEPTH) {
+            val next = mutableListOf<String>()
+            for (nodeId in frontier) {
+                for (edge in edgesFrom[nodeId].orEmpty()) {
+                    val target = nodesById[edge.targetNodeId]
+                    val passesOn = target?.outputs?.any { it.type == "CONDITIONING" } == true
+                    when (edge.targetInputName.lowercase()) {
+                        "positive" -> return "positive"
+                        // Ends the path: a node taking both (WanImageToVideo) passes each on as its own output
+                        "negative" -> { negative = true; continue }
+                        "conditioning" -> if (!passesOn) return "positive"
+                    }
+                    if (passesOn && visited.add(edge.targetNodeId)) next.add(edge.targetNodeId)
+                }
             }
+            if (next.isEmpty()) return if (negative) "negative" else null
+            frontier = next
         }
-
-        return null
+        return if (negative) "negative" else null
     }
+
+    private const val MAX_TRACE_DEPTH = 6
 }
