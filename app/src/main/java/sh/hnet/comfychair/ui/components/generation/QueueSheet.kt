@@ -21,7 +21,6 @@ import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.VerticalAlignTop
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -29,7 +28,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -53,6 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
+import sh.hnet.comfychair.ui.components.settings.SettingsActionRow
+import sh.hnet.comfychair.ui.components.settings.SettingsGroup
 import sh.hnet.comfychair.queue.JobRegistry
 import sh.hnet.comfychair.queue.QueueSnapshot
 import sh.hnet.comfychair.ui.components.dialogs.ConfirmDialog
@@ -229,12 +229,13 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
                     val positions = waitingOther.mapNotNull { current?.positionOf(it) }.joinToString(", ")
                     QueueRow(
                         leading = { Icon(Icons.Rounded.Group, contentDescription = null) },
-                        headline = pluralStringResource(R.plurals.label_queue_other_jobs, waitingOther.size, waitingOther.size),
+                        headline = stringResource(R.string.label_queue_other_count, waitingOther.size),
+                        // Where they stand, and that their contents are never shown (privacy rules)
                         supporting = {
-                            Text(
-                                stringResource(R.string.label_queue_other_positions, positions),
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            Column {
+                                Text(stringResource(R.string.label_queue_other_positions, positions), style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.label_queue_content_hidden), style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     )
                 }
@@ -243,17 +244,17 @@ fun QueueSheet(generationViewModel: GenerationViewModel, onDismiss: () -> Unit) 
             if (current != null && current.pending.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(16.dp))
-                    OutlinedButton(
-                        onClick = { confirmClear = true },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        // Same height as the other full-width buttons (Log out, Add server)
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                    ) {
-                        Icon(Icons.Rounded.ClearAll, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text(stringResource(R.string.button_clear_queue_confirm))
+                    // Apart, at the end, confirmed: as Delete workflow on a workflow's page
+                    SettingsGroup {
+                        row { shapes ->
+                            SettingsActionRow(
+                                shapes = shapes,
+                                icon = Icons.Rounded.ClearAll,
+                                title = stringResource(R.string.button_clear_queue_confirm),
+                                destructive = true,
+                                onClick = { confirmClear = true }
+                            )
+                        }
                     }
                 }
             }
