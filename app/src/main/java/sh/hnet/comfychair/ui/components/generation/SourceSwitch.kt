@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.round
 import sh.hnet.comfychair.ui.navigation.OutputTab
 import androidx.compose.foundation.layout.Row
@@ -119,8 +120,8 @@ fun SourceSwitchPlaceholder(screen: MainRoute) {
 fun SourceSwitchOverlay(current: MainRoute?, anchors: SourceSwitchAnchors) {
     val motion = MaterialTheme.motionScheme
     var origin by remember { mutableStateOf(Offset.Zero) }
-    // A tab fading out keeps showing the screen it was on
-    val lastScreens = remember { mutableStateMapOf<OutputTab, MainRoute>() }
+    // A tab fading out keeps showing the screen it was on (a plain map: read in this composition, after the write)
+    val lastScreens = remember { HashMap<OutputTab, MainRoute>() }
     current?.outputTab?.let { lastScreens[it] = current }
     AnimatedContent(
         targetState = current?.outputTab,
@@ -131,10 +132,13 @@ fun SourceSwitchOverlay(current: MainRoute?, anchors: SourceSwitchAnchors) {
         label = "sourceSwitch"
     ) { tab ->
         val screen = tab?.let { lastScreens[it] }
-        val place = tab?.let { anchors.bounds[it] }
+        // Placed in the layout phase: the place moves while a tab's screen scales in, without recomposing
         Box(Modifier.fillMaxSize()) {
-            if (screen != null && place != null) {
-                SourceSwitch(screen, modifier = Modifier.offset { (place.topLeft - origin).round() })
+            if (screen != null && tab in anchors.bounds) {
+                SourceSwitch(screen, modifier = Modifier.offset {
+                    val place = anchors.bounds[tab] ?: return@offset IntOffset.Zero
+                    (place.topLeft - origin).round()
+                })
             }
         }
     }

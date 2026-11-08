@@ -1488,7 +1488,8 @@ fun WorkflowGraphCanvas(
         val visibleBottom = (size.height - offset.y) / scale + cullMargin
         fun onScreen(x: Float, y: Float, width: Float, height: Float) =
             x < visibleRight && x + width > visibleLeft && y < visibleBottom && y + height > visibleTop
-        // A wire lies within its two nodes' box, widened by how far its curve can swing sideways
+        // A wire lies within its two nodes' box, widened by how far its curve can swing (a wire going back swings out
+        // above or below too)
         fun wireOnScreen(edge: WorkflowEdge): Boolean {
             val source = nodePositionsMap[edge.sourceNodeId] ?: return false
             val target = nodePositionsMap[edge.targetNodeId] ?: return false
@@ -1497,7 +1498,7 @@ fun WorkflowGraphCanvas(
             val top = minOf(source.y, target.y)
             val bottom = maxOf(source.y + source.height, target.y + target.height)
             val swing = (right - left + bottom - top) * 0.4f + 100f
-            return onScreen(left - swing, top, right - left + 2 * swing, bottom - top)
+            return onScreen(left - swing, top - swing, right - left + 2 * swing, bottom - top + 2 * swing)
         }
 
         // Wires: those of focused nodes over the others, which recede
