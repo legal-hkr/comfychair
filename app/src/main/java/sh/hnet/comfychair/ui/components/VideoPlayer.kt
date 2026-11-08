@@ -321,7 +321,7 @@ fun VideoPlayer(
                     }
                     // Over the whole preview card (the video may be cropped to it): playback at the top end
                     if (showPlaybackStatus) {
-                        Box(Modifier.fillMaxSize()) { PreviewPlaybackControls() }
+                        Box(Modifier.fillMaxSize()) { PreviewPlaybackControls(videoUri, cachedDimensions?.durationMs) }
                     }
                 } else {
                     // Show placeholder until dimensions are extracted
@@ -357,10 +357,15 @@ fun VideoPlayer(
  * The preview's playback controls (spec §14.2, without its position line, which the preview had and dropped before): at
  * the top end one connected group – play/pause with the time, and the sound toggle (muted by default; hidden for a
  * video without sound, leaving the round chip). Theme colours only. The position is polled only while the video plays.
+ *
+ * The state is the shared player's, so a screen handing it to another (switching the source) briefly sees it loading:
+ * meanwhile the controls keep what they know of their own video ([videoUri]: its length, [knownDurationMs] from the
+ * cache before it played, and whether it has sound), and show loading only when it takes longer than
+ * [LOADING_SHOWN_AFTER_MS], so a quick handover doesn't flicker.
  */
 @kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BoxScope.PreviewPlaybackControls() {
+private fun BoxScope.PreviewPlaybackControls(videoUri: Uri?, knownDurationMs: Long?) {
     val state by SharedVideoPlayer.state.collectAsState()
     var positionMs by remember { mutableLongStateOf(0L) }
     LaunchedEffect(state.isPlaying, state.durationMs) {
@@ -369,11 +374,31 @@ private fun BoxScope.PreviewPlaybackControls() {
             if (state.isPlaying) delay(100)
         } while (state.isPlaying)
     }
-    val loading = state.isLoading
-    val durationMs = state.durationMs
-    val elapsed = formatPlaybackTime(positionMs)
+    // What this video showed once loaded
+    var ownDurationMs by remember(videoUri) { mutableStateOf(knownDurationMs) }
+    var ownHasAudio by remember(videoUri) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(state.isLoading, state.durationMs, state.hasAudio) {
+        if (!state.isLoading) {
+            state.durationMs?.let { ownDurationMs = it }
+            state.hasAudio?.let { ownHasAudio = it }
+        }
+    }
+    var loadingShown by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isLoading) {
+        if (state.isLoading) {
+            delay(LOADING_SHOWN_AFTER_MS)
+            loadingShown = true
+        } else {
+            loadingShown = false
+        }
+    }
+    val loading = loadingShown
+    val durationMs = if (state.isLoading) ownDurationMs else state.durationMs ?: ownDurationMs
+    val elapsed = formatPlaybackTime(if (state.isLoading) 0L else positionMs)
     val total = durationMs?.let { formatPlaybackTime(it, roundUp = true) } ?: UNKNOWN_DURATION
-    val withSound = state.hasAudio != false
+    val hasAudio = if (state.isLoading) ownHasAudio else state.hasAudio ?: ownHasAudio
+    // Hidden only once the video is known to have none
+    val withSound = hasAudio != false
 
     val playLabel = stringResource(if (state.isPlaying) R.string.content_description_pause_video else R.string.content_description_play_video)
     val positionText = stringResource(R.string.content_description_video_position, elapsed, total)
@@ -394,7 +419,7 @@ private fun BoxScope.PreviewPlaybackControls() {
         // Play/pause and the time: never shown as checked, only the icon changes
         ToggleButton(
             checked = false,
-            onCheckedChange = { SharedVideoPlayer.togglePlayback() },
+            onCheckedChange = { if (!state.isLoading) SharedVideoPlayer.togglePlayback() },
             enabled = !loading,
             shapes = if (withSound) ButtonGroupDefaults.connectedLeadingButtonShapes() else ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size),
             colors = restColors,
@@ -405,14 +430,14 @@ private fun BoxScope.PreviewPlaybackControls() {
                     contentDescription = if (loading) loadingLabel else playLabel
                     stateDescription = positionText
                     role = Role.Button
-                    if (!loading) onClick { SharedVideoPlayer.togglePlayback(); true }
+                    if (!loading) onClick { if (!state.isLoading) SharedVideoPlayer.togglePlayback(); true }
                 }
         ) {
             if (loading) {
                 LoadingIndicator(Modifier.size(18.dp))
             } else {
                 Icon(
-                    imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    imageVector = if (state.isPlaying && !state.isLoading) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -429,9 +454,9 @@ private fun BoxScope.PreviewPlaybackControls() {
             val soundState = stringResource(if (state.muted) R.string.video_sound_off else R.string.video_sound_on)
             ToggleButton(
                 checked = !state.muted,
-                onCheckedChange = { soundOn -> SharedVideoPlayer.setMuted(!soundOn) },
+                onCheckedChange = { soundOn -> if (!state.isLoading) SharedVideoPlayer.setMuted(!soundOn) },
                 // Until the tracks are known
-                enabled = !loading && state.hasAudio == true,
+                enabled = !loading && hasAudio == true,
                 shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
                 colors = restColors,
                 contentPadding = PaddingValues(0.dp),
@@ -452,6 +477,9 @@ private fun BoxScope.PreviewPlaybackControls() {
         }
     }
 }
+
+// A shorter load (a screen handing the shared player to another) keeps the controls as they were
+private const val LOADING_SHOWN_AFTER_MS = 300L
 
 /**
  * Playback time as m:ss, or h:mm:ss from an hour. The elapsed time is floored; a total is rounded up ([roundUp]), so a
