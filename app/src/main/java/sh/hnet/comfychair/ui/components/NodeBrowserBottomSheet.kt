@@ -1,5 +1,11 @@
 package sh.hnet.comfychair.ui.components
 
+import sh.hnet.comfychair.ui.components.settings.groupShapes
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.runtime.key
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.Role
@@ -47,7 +53,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,14 +64,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -75,7 +78,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
-import sh.hnet.comfychair.connection.ConnectionManager
 import sh.hnet.comfychair.storage.NodeBrowserPrefs
 import sh.hnet.comfychair.ui.components.shared.NoOverscrollContainer
 import sh.hnet.comfychair.ui.components.shared.SearchCountLine
@@ -84,7 +86,6 @@ import sh.hnet.comfychair.ui.components.shared.SearchField
 import sh.hnet.comfychair.ui.components.shared.SearchFilter
 import sh.hnet.comfychair.ui.components.shared.SearchFilterChips
 import sh.hnet.comfychair.ui.components.shared.highlighted
-import sh.hnet.comfychair.ui.components.shared.segmentedItemShape
 import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.GraphColors
 import sh.hnet.comfychair.workflow.NodeBrowserTree
@@ -96,6 +97,9 @@ private val LITERAL_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
 
 /** Check if a type is a connection type (not a literal) */
 private fun isConnectionType(type: String): Boolean = type.uppercase() !in LITERAL_TYPES
+
+// Room above the list's first row
+private val LIST_TOP_PADDING = 8.dp
 
 // Each level of the tree in from the one above, as the model picker's tree
 private val TREE_INDENT = 16.dp
@@ -116,8 +120,7 @@ private sealed interface BrowserRow {
  * The node browser (spec §22), a full-height sheet: the title with the view switch (tree or list), the search field on
  * the page, the held socket's filter under it, a count line while a query or the filter is on, then the list. The list
  * view: every node by name under its first letter. The tree view, the tree of categories (open folders scrolled out of
- * sight stay pinned at the top, root first): the nodes added
- * last (Recent), ComfyUI's own categories (Built-in, API nodes and the rest last) and the extension packs, each folder
+ * sight stay pinned at the top, root first): ComfyUI's own categories (Built-in, API nodes and the rest last) and the extension packs, each folder
  * with its node count, opening in place one per level. Searching, one flat list of matches, best first, the match in
  * bold. Tapping a node adds it (wired to the held socket when it came from one).
  *
@@ -135,7 +138,6 @@ fun NodeBrowserBottomSheet(
     filterToInputType: String? = null
 ) {
     val context = LocalContext.current
-    val serverId = ConnectionManager.currentServerId
     val search = rememberTextFieldState()
     val query = search.text.toString()
     val slotType = filterToOutputType ?: filterToInputType
@@ -152,10 +154,6 @@ fun NodeBrowserBottomSheet(
     val compatible = remember(allNodes, slotType) { if (slotType == null) allNodes else allNodes.filter(::fits) }
     val scope = if (filterOn) compatible else allNodes
     val tree = remember(scope) { NodeBrowserTree.build(scope) }
-    val recent = remember(scope) {
-        val byClass = scope.associateBy { it.classType }
-        NodeBrowserPrefs.recent(context, serverId).mapNotNull { byClass[it] }
-    }
     // Each node's texts normalized once: sorting and searching thousands of them must not redo it
     val index = remember(scope) { NodeBrowserTree.index(scope) }
     val results = remember(index, query) { NodeBrowserTree.search(index, query) }
@@ -169,18 +167,13 @@ fun NodeBrowserBottomSheet(
     }
     var scrollTo by remember { mutableStateOf<String?>(null) }
 
-    val sectionRecent = stringResource(R.string.node_section_recent)
     val sectionBuiltIn = stringResource(R.string.node_section_builtin)
     val sectionExtensions = stringResource(R.string.node_section_extensions)
-    val rows = remember(tree, recent, openKeys, searching, results, listView, index) {
+    val rows = remember(tree, openKeys, searching, results, listView, index) {
         buildList {
             if (searching) {
                 results.forEachIndexed { i, node -> add(BrowserRow.Node(node, 0, i, results.size, "found")) }
                 return@buildList
-            }
-            if (recent.isNotEmpty()) {
-                add(BrowserRow.Section(sectionRecent))
-                recent.forEachIndexed { i, node -> add(BrowserRow.Node(node, 0, i, recent.size, "recent")) }
             }
             if (listView) {
                 // Every node by name, under its first letter (anything not a letter under "#")
@@ -228,6 +221,7 @@ fun NodeBrowserBottomSheet(
     // A folder row's height with its gap, as laid out (the pinned rows stack by it)
     val density = LocalDensity.current
     var rowStep by remember { mutableIntStateOf(with(density) { 50.dp.roundToPx() }) }
+    val listTopPadding = with(density) { LIST_TOP_PADDING.roundToPx() }
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull { (it.key as? String)?.startsWith("folder_") == true }?.size }
             .collect { size -> if (size != null && size > 0) rowStep = size }
@@ -237,7 +231,9 @@ fun NodeBrowserBottomSheet(
         val key = scrollTo ?: return@LaunchedEffect
         val index = rows.indexOfFirst { it.key == "folder_$key" }
         val ancestors = openKeys.indexOf(key).coerceAtLeast(0)
-        if (index >= 0) listState.animateScrollToItem(index, -ancestors * rowStep)
+        // The list's own top padding already lies above the item scrolled to
+        val offset = if (ancestors == 0) 0 else -(ancestors * rowStep - listTopPadding)
+        if (index >= 0) listState.animateScrollToItem(index, offset)
         scrollTo = null
     }
     // The open folders whose rows went up under the top: kept there, one under another, root first
@@ -262,7 +258,6 @@ fun NodeBrowserBottomSheet(
     val notConnected = slotType?.let { stringResource(R.string.node_not_connected, it) }
 
     fun choose(node: NodeTypeDefinition) {
-        NodeBrowserPrefs.addRecent(context, serverId, node.classType)
         // The filter lifted: a node without a fitting socket is added on its own
         if (slotType != null && !fits(node)) Toast.makeText(context, notConnected, Toast.LENGTH_SHORT).show()
         onNodeTypeSelected(node)
@@ -338,7 +333,7 @@ fun NodeBrowserBottomSheet(
                 NoOverscrollContainer(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LIST_TOP_PADDING, bottom = 16.dp)
                     ) {
                         items(rows, key = { it.key }) { row ->
                             Box(Modifier.animateItem()) {
@@ -353,7 +348,7 @@ fun NodeBrowserBottomSheet(
                                         folder = row.folder,
                                         depth = row.depth,
                                         open = row.open,
-                                        shape = segmentedItemShape(row.index, row.size),
+                                        shapes = groupShapes(row.index, row.size),
                                         onClick = {
                                             openKeys = if (row.open) NodeBrowserTree.close(openKeys, row.folder)
                                             else NodeBrowserTree.open(openKeys, row.folder).also { scrollTo = row.folder.key }
@@ -363,7 +358,7 @@ fun NodeBrowserBottomSheet(
                                         nodeType = row.node,
                                         depth = row.depth,
                                         swatch = palette.categoryTint(nodeCategoryOf(row.node.classType)) ?: noSwatch,
-                                        shape = segmentedItemShape(row.index, row.size),
+                                        shapes = groupShapes(row.index, row.size),
                                         highlight = if (searching) query.trim() else null,
                                         onClick = { choose(row.node) }
                                     )
@@ -388,7 +383,7 @@ fun NodeBrowserBottomSheet(
                                 folder = row.folder,
                                 depth = row.depth,
                                 open = true,
-                                shape = segmentedItemShape(i, pinned.size),
+                                shapes = groupShapes(i, pinned.size),
                                 onClick = { openKeys = NodeBrowserTree.close(openKeys, row.folder) }
                             )
                             Spacer(Modifier.height(2.dp))
@@ -432,7 +427,7 @@ private fun ViewSwitch(listView: Boolean, onChange: (Boolean) -> Unit) {
  * holds and the arrow; open, on the secondary container.
  */
 @Composable
-private fun FolderRow(folder: NodeBrowserTree.Folder, depth: Int, open: Boolean, shape: Shape, onClick: () -> Unit) {
+private fun FolderRow(folder: NodeBrowserTree.Folder, depth: Int, open: Boolean, shapes: ListItemShapes, onClick: () -> Unit) {
     val name = when (folder.kind) {
         NodeBrowserTree.Kind.API -> stringResource(R.string.node_folder_api)
         NodeBrowserTree.Kind.OTHER -> stringResource(R.string.node_folder_other)
@@ -444,30 +439,37 @@ private fun FolderRow(folder: NodeBrowserTree.Folder, depth: Int, open: Boolean,
         open -> Icons.Rounded.FolderOpen
         else -> Icons.Rounded.Folder
     }
-    Surface(
+    SegmentedListItem(
         onClick = onClick,
-        shape = shape,
-        color = if (open) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
+        shapes = shapes,
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = if (open) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
+        ),
+        // The level's indent before the icon (the list item keeps its own padding)
+        leadingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (depth > 0) Spacer(Modifier.width(TREE_INDENT * depth))
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+            }
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    folder.count.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Icon(
+                    if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp + TREE_INDENT * depth, end = 12.dp, top = 12.dp, bottom = 12.dp)
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-            Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(start = 16.dp))
-            Text(
-                folder.count.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-            Icon(
-                if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(name)
     }
 }
 
@@ -481,7 +483,7 @@ private fun NodeTypeRow(
     nodeType: NodeTypeDefinition,
     depth: Int,
     swatch: Color,
-    shape: Shape,
+    shapes: ListItemShapes,
     highlight: String?,
     onClick: () -> Unit
 ) {
@@ -501,47 +503,42 @@ private fun NodeTypeRow(
         }
     }
     val description = nodeType.description
-    Surface(
+    SegmentedListItem(
         onClick = onClick,
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { if (!description.isNullOrBlank()) contentDescription = "$name, $description" }
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp + TREE_INDENT * depth, end = 16.dp, top = 12.dp, bottom = 12.dp)
-        ) {
-            Box(
-                Modifier
-                    .size(24.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(swatch)
-            )
-            Column(
-                Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
-                Text(highlighted(name, highlight), style = MaterialTheme.typography.bodyLarge)
-                Text(supporting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (name != nodeType.classType) {
-                    Text(
-                        nodeType.classType,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        shapes = shapes,
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.semantics { if (!description.isNullOrBlank()) contentDescription = "$name, $description" },
+        leadingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (depth > 0) Spacer(Modifier.width(TREE_INDENT * depth))
+                Box(
+                    Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(swatch)
+                )
             }
-            if (nodeType.isCustom) {
+        },
+        trailingContent = if (nodeType.isCustom) {
+            {
                 Icon(
                     Icons.Rounded.Extension,
                     contentDescription = stringResource(R.string.content_description_custom_node),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
-        }
+        } else null,
+        supportingContent = {
+            Column {
+                Text(supporting)
+                if (name != nodeType.classType) {
+                    Text(nodeType.classType, style = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace))
+                }
+            }
+        },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(highlighted(name, highlight))
     }
 }

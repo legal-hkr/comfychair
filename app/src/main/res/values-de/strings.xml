@@ -835,7 +835,6 @@
         <item quantity="one">%d Knoten durchsuchen</item>
         <item quantity="other">%d Knoten durchsuchen</item>
     </plurals>
-    <string name="node_section_recent">Zuletzt hinzugefügt</string>
     <string name="node_section_builtin">Integriert</string>
     <string name="node_section_extensions">Erweiterungen</string>
     <string name="node_folder_api">API-Knoten</string>

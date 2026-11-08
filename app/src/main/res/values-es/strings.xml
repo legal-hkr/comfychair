@@ -858,7 +858,6 @@
         <item quantity="many">Buscar en %d nodos</item>
         <item quantity="other">Buscar en %d nodos</item>
     </plurals>
-    <string name="node_section_recent">Añadidos recientemente</string>
     <string name="node_section_builtin">Integrados</string>
     <string name="node_section_extensions">Extensiones</string>
     <string name="node_folder_api">Nodos API</string>

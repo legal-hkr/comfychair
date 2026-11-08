@@ -879,7 +879,6 @@
         <item quantity="many">Szukaj wśród %d węzłów</item>
         <item quantity="other">Szukaj wśród %d węzła</item>
     </plurals>
-    <string name="node_section_recent">Ostatnio dodane</string>
     <string name="node_section_builtin">Wbudowane</string>
     <string name="node_section_extensions">Rozszerzenia</string>
     <string name="node_folder_api">Węzły API</string>

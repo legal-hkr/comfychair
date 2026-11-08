@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components.shared
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.buildAnnotatedString
@@ -248,7 +249,7 @@ fun SearchEmptyState(
         }
         if (liftLabel != null && onLift != null) {
             Spacer(Modifier.height(16.dp))
-            FilledTonalButton(onClick = onLift) {
+            FilledTonalButton(onClick = onLift, shapes = ButtonDefaults.shapes()) {
                 if (liftIcon != null) {
                     Icon(liftIcon, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.size(8.dp))

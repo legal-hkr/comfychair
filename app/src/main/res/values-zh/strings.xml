@@ -816,7 +816,6 @@
     <plurals name="node_search_hint">
         <item quantity="other">搜索 %d 个节点</item>
     </plurals>
-    <string name="node_section_recent">最近添加</string>
     <string name="node_section_builtin">内置</string>
     <string name="node_section_extensions">扩展</string>
     <string name="node_folder_api">API 节点</string>

@@ -858,7 +858,6 @@
         <item quantity="many">Rechercher parmi %d nœuds</item>
         <item quantity="other">Rechercher parmi %d nœuds</item>
     </plurals>
-    <string name="node_section_recent">Ajoutés récemment</string>
     <string name="node_section_builtin">Intégrés</string>
     <string name="node_section_extensions">Extensions</string>
     <string name="node_folder_api">Nœuds API</string>

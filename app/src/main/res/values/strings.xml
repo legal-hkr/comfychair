@@ -845,7 +845,6 @@
         <item quantity="one">Search %d node</item>
         <item quantity="other">Search %d nodes</item>
     </plurals>
-    <string name="node_section_recent">Recent</string>
     <string name="node_section_builtin">Built-in</string>
     <string name="node_section_extensions">Extensions</string>
     <string name="node_folder_api">API nodes</string>

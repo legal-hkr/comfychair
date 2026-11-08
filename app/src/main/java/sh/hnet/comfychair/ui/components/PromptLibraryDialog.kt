@@ -1,5 +1,9 @@
 package sh.hnet.comfychair.ui.components
 
+import sh.hnet.comfychair.ui.components.settings.groupShapes
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.ui.platform.LocalResources
 import sh.hnet.comfychair.ui.components.shared.highlighted
 import sh.hnet.comfychair.ui.components.shared.SearchFilterChips
@@ -13,7 +17,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,8 +69,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -185,7 +186,7 @@ fun PromptLibraryDialog(
                                 PresetRow(
                                     preset = preset,
                                     highlight = searchQuery.trim().ifEmpty { null },
-                                    shape = ListItemDefaults.segmentedShapes(index, presets.size).shape,
+                                    shapes = groupShapes(index, presets.size),
                                     onUse = {
                                         onPresetSelected(preset.id)
                                         onDismiss()
@@ -240,7 +241,7 @@ private fun LibraryEmptyState(filtering: Boolean, onSaveCurrent: (() -> Unit)?, 
         )
         if (!filtering && onSaveCurrent != null) {
             Spacer(Modifier.height(16.dp))
-            FilledTonalButton(onClick = onSaveCurrent) { Text(stringResource(R.string.button_save_current_prompt)) }
+            FilledTonalButton(onClick = onSaveCurrent, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.button_save_current_prompt)) }
         }
     }
 }
@@ -253,7 +254,7 @@ private fun LibraryEmptyState(filtering: Boolean, onSaveCurrent: (() -> Unit)?, 
 private fun PresetRow(
     preset: PromptPreset,
     highlight: String?,
-    shape: Shape,
+    shapes: ListItemShapes,
     onUse: () -> Unit,
     onToggleFavorite: () -> Unit,
     onEdit: () -> Unit,
@@ -263,28 +264,14 @@ private fun PresetRow(
     var showMenu by remember { mutableStateOf(false) }
     val menuLabel = stringResource(R.string.button_more_options)
     Box {
-        Surface(
-            shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .combinedClickable(onClick = onUse, onLongClick = { showMenu = true }, onLongClickLabel = menuLabel)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(highlighted(preset.name, highlight), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        preset.prompt,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+        SegmentedListItem(
+            onClick = onUse,
+            onLongClick = { showMenu = true },
+            onLongClickLabel = menuLabel,
+            shapes = shapes,
+            colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            supportingContent = { Text(preset.prompt, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            trailingContent = {
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         if (preset.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarOutline,
@@ -292,7 +279,10 @@ private fun PresetRow(
                         tint = if (preset.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
+            },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(highlighted(preset.name, highlight), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         DropdownMenuPopup(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
