@@ -1,6 +1,5 @@
 package sh.hnet.comfychair.viewmodel
 
-import sh.hnet.comfychair.util.ServerInputs
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -31,6 +30,7 @@ import sh.hnet.comfychair.util.GenerationOutput
 import sh.hnet.comfychair.util.GenerationOutputs
 import sh.hnet.comfychair.util.Obfuscator
 import sh.hnet.comfychair.util.SeasonalPrompts
+import sh.hnet.comfychair.util.ServerInputs
 import sh.hnet.comfychair.viewmodel.base.BaseGenerationViewModel
 import sh.hnet.comfychair.viewmodel.base.GenerationParams
 

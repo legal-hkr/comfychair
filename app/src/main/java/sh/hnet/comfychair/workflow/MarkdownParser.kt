@@ -85,7 +85,11 @@ object MarkdownParser {
         return blocks
     }
 
-    private data class RenderContext(val baseFontSize: TextUnit)
+    private class RenderContext(val baseFontSize: TextUnit) {
+        // Inside a paragraph already (a quote or a table in a list item): blocks run on in it, as paragraph styles
+        // must not overlap
+        var inParagraph = false
+    }
 
     private fun tableOf(table: TableBlock, context: RenderContext): Block.Table? {
         var alignments = emptyList<Alignment>()
@@ -120,8 +124,8 @@ object MarkdownParser {
     private fun AnnotatedString.Builder.renderNode(node: Node, context: RenderContext) {
         when (node) {
             is Document -> renderChildren(node, context)
-            is Paragraph -> paragraph { renderChildren(node, context) }
-            is Heading -> paragraph { styled(headingStyle(node.level, context)) { renderChildren(node, context) } }
+            is Paragraph -> paragraph(context) { renderChildren(node, context) }
+            is Heading -> paragraph(context) { styled(headingStyle(node.level, context)) { renderChildren(node, context) } }
             is Text -> append(node.literal)
             is SoftLineBreak -> append(" ")
             is HardLineBreak -> append("\n")
@@ -139,10 +143,10 @@ object MarkdownParser {
             // Nested in a list or a quote: monospaced text
             is FencedCodeBlock, is IndentedCodeBlock -> {
                 val literal = if (node is FencedCodeBlock) node.literal else (node as IndentedCodeBlock).literal
-                paragraph { styled(SpanStyle(fontFamily = FontFamily.Monospace)) { append(literal.trimEnd()) } }
+                paragraph(context) { styled(SpanStyle(fontFamily = FontFamily.Monospace)) { append(literal.trimEnd()) } }
             }
             is BlockQuote -> styled(SpanStyle(fontStyle = FontStyle.Italic)) { renderChildren(node, context) }
-            is ThematicBreak -> paragraph { append("———") }
+            is ThematicBreak -> paragraph(context) { append("———") }
             // No clickable links on the canvas: the link's text
             is Link -> renderChildren(node, context)
             is Image -> append("[${node.title ?: "image"}]")
@@ -156,9 +160,16 @@ object MarkdownParser {
      * lines around items).
      */
     private inline fun AnnotatedString.Builder.paragraph(
+        context: RenderContext,
         style: ParagraphStyle = ParagraphStyle(),
         block: AnnotatedString.Builder.() -> Unit
     ) {
+        // Within a paragraph, a block runs on after a space instead
+        if (context.inParagraph) {
+            append(" ")
+            block()
+            return
+        }
         pushStyle(style)
         block()
         pop()
@@ -192,21 +203,25 @@ object MarkdownParser {
                 var first = true
                 var child = item.firstChild
                 while (child != null) {
-                    if (child is BulletList || child is OrderedList) {
+                    if ((child is BulletList || child is OrderedList) && !context.inParagraph) {
                         renderList(child, context, depth + 1)
                     } else {
                         val marker = if (!first) "" else if (numbered) "$number. " else "• "
                         val hang = if (numbered) NUMBER_HANG else BULLET_HANG
                         val indent = LIST_INDENT + depth * LIST_LEVEL
-                        pushStyle(ParagraphStyle(textIndent = TextIndent(firstLine = indent.em, restLine = (indent + hang).em)))
-                        append(marker)
-                        when (child) {
-                            is Paragraph -> renderChildren(child, context)
-                            is FencedCodeBlock -> styled(SpanStyle(fontFamily = FontFamily.Monospace)) { append(child.literal.trimEnd()) }
-                            is IndentedCodeBlock -> styled(SpanStyle(fontFamily = FontFamily.Monospace)) { append(child.literal.trimEnd()) }
-                            else -> renderChildren(child, context)
+                        paragraph(context, ParagraphStyle(textIndent = TextIndent(firstLine = indent.em, restLine = (indent + hang).em))) {
+                            append(marker)
+                            // What the item holds stays in its paragraph
+                            val outer = context.inParagraph
+                            context.inParagraph = true
+                            when (child) {
+                                is Paragraph -> renderChildren(child, context)
+                                is FencedCodeBlock -> styled(SpanStyle(fontFamily = FontFamily.Monospace)) { append(child.literal.trimEnd()) }
+                                is IndentedCodeBlock -> styled(SpanStyle(fontFamily = FontFamily.Monospace)) { append(child.literal.trimEnd()) }
+                                else -> renderChildren(child, context)
+                            }
+                            context.inParagraph = outer
                         }
-                        pop()
                         first = false
                     }
                     child = child.next

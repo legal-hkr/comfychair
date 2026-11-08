@@ -103,4 +103,14 @@ class MarkdownListAndCodeTest {
         assertEquals(result.length, ranges.last().second)
         assertTrue(ranges.zipWithNext().all { (a, b) -> a.second == b.first })
     }
+
+    @Test
+    fun containersInListItemsDontNestParagraphs() {
+        // A quote (with its own list) inside a list item: its paragraphs run on in the item's, never overlapping
+        val result = text("- item\n\n  > quoted\n  >\n  > - inner\n- next")
+        val ranges = result.paragraphStyles.map { it.start to it.end }.sortedBy { it.first }
+        assertTrue(ranges.zipWithNext().all { (a, b) -> a.second <= b.first })
+        assertTrue(result.text.contains("quoted"))
+        assertTrue(result.text.contains("inner"))
+    }
 }
