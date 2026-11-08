@@ -79,7 +79,8 @@ fun MaskPreview(
         // Draw mask paths using native canvas for proper transformation
         if (sourceImage != null && imgRect.width > 0 && imgRect.height > 0) {
             val maskPaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.argb(180, 255, 0, 0) // Semi-transparent red
+                // Full red: the transparency is the layer's, as in the mask editor, so overlapping strokes don't add up
+                color = android.graphics.Color.argb(255, 255, 0, 0)
                 style = android.graphics.Paint.Style.STROKE
                 strokeJoin = android.graphics.Paint.Join.ROUND
                 strokeCap = android.graphics.Paint.Cap.ROUND
@@ -96,9 +97,11 @@ fun MaskPreview(
                 xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
             }
 
-            // Save layer for the mask overlay - this allows CLEAR mode to work
+            // Save layer for the mask overlay - this allows CLEAR mode to work; the whole mask composited back at
+            // one transparency
             val layerBounds = android.graphics.RectF(0f, 0f, size.width, size.height)
-            drawContext.canvas.nativeCanvas.saveLayer(layerBounds, null)
+            val layerPaint = android.graphics.Paint().apply { alpha = 180 }
+            drawContext.canvas.nativeCanvas.saveLayer(layerBounds, layerPaint)
 
             // Clip to canvas bounds
             drawContext.canvas.nativeCanvas.clipRect(0f, 0f, size.width, size.height)

@@ -41,6 +41,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -528,6 +529,21 @@ private fun BooleanEditor(
 }
 
 /**
+ * A number field's text as typed: kept while it means the value shown, so typing "1" for a value shown as 1.0 stays
+ * "1" (and "0." on the way to 0.5 stays), as in the options sheet; a different value replaces it (Reset, − and +).
+ */
+@Composable
+private fun rememberTypedNumber(value: String): MutableState<String> {
+    val text = remember { mutableStateOf(value) }
+    LaunchedEffect(value) {
+        val typed = text.value.trim().toBigDecimalOrNull()
+        val shown = value.trim().toBigDecimalOrNull()
+        if (typed == null || shown == null || typed.compareTo(shown) != 0) text.value = value
+    }
+    return text
+}
+
+/**
  * Editor for integer values.
  */
 @Composable
@@ -541,7 +557,7 @@ private fun IntEditor(
     onValueChange: (Number) -> Unit,
     context: android.content.Context
 ) {
-    var textValue by remember(value) { mutableStateOf(value) }
+    var textValue by rememberTypedNumber(value)
     val error = ValidationUtils.validateWholeNumber(textValue, context, min, max)
 
     // Construct range hint
@@ -585,7 +601,7 @@ private fun FloatEditor(
     onValueChange: (Float) -> Unit,
     context: android.content.Context
 ) {
-    var textValue by remember(value) { mutableStateOf(value) }
+    var textValue by rememberTypedNumber(value)
     val error = ValidationUtils.validateFloat(textValue, context, min?.toFloat(), max?.toFloat())
 
     // Construct range hint
