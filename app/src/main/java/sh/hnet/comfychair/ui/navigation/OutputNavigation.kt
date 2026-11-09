@@ -71,5 +71,16 @@ fun NavController.navigateToScreen(route: MainRoute) {
     navigate(route.route) { launchSingleTop = true }
 }
 
+/**
+ * Show [route] as when it was first opened, as tapping its selected tab does: it leaves the history with the pages
+ * opened from it (the Settings pages) and comes back fresh, at its top.
+ */
+fun NavController.reopenScreen(route: MainRoute) {
+    navigate(route.route) {
+        popUpTo(route.route) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
 /** Shows another generation screen; provided by the main navigation host for the source switch. */
 val LocalScreenNavigator = staticCompositionLocalOf<(MainRoute) -> Unit> { {} }

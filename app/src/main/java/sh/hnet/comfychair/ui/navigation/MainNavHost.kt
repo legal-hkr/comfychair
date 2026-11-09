@@ -231,6 +231,8 @@ fun MainNavHost(
         }
     }
     val transitions = rememberScreenTransitions()
+    // A screen shown anew has started its transition by the time its entry is current
+    LaunchedEffect(currentEntry?.id) { transitions.reopening = false }
     val snackbarHostState = remember { SnackbarHostState() }
     // Read when a result arrives, not when the collector started
     val shownScreen by rememberUpdatedState(currentScreen)
@@ -294,7 +296,11 @@ fun MainNavHost(
                                 lastImageRoute = mainRouteOf(lastImageRoute) ?: MainRoute.TextToImage,
                                 lastVideoRoute = mainRouteOf(lastVideoRoute) ?: MainRoute.TextToVideo,
                                 ownJobs = ownJobsPerTab,
-                                unseenResults = unseenResults.toSet()
+                                unseenResults = unseenResults.toSet(),
+                                onReopen = { route ->
+                                    transitions.reopening = true
+                                    navController.reopenScreen(route)
+                                }
                             )
                         }
                     },
@@ -455,7 +461,8 @@ fun MainNavHost(
  * Transitions between screens, timed by the theme's (standard) motion scheme:
  * - another tab: fade through (the old screen fades out quickly, the new one fades in growing slightly);
  * - another source in the same tab: a quick crossfade, as it's a choice within one place;
- * - Settings list and its pages: shared axis X (the page comes in from the end, and goes back there on Back).
+ * - Settings list and its pages: shared axis X (the page comes in from the end, and goes back there on Back);
+ * - a screen shown anew from its tab (tapped again): as another tab.
  */
 private class ScreenTransitions(
     private val fastFade: FiniteAnimationSpec<Float>,
@@ -466,7 +473,11 @@ private class ScreenTransitions(
 ) {
     private enum class Kind { TAB, SOURCE, AXIS }
 
+    /** A screen shown anew from its tab ([reopenScreen]): entered as from another tab; cleared once it's shown */
+    var reopening = false
+
     private fun kind(from: String?, to: String?): Kind {
+        if (reopening) return Kind.TAB
         val fromScreen = mainRouteOf(from)
         val toScreen = mainRouteOf(to)
         return when {

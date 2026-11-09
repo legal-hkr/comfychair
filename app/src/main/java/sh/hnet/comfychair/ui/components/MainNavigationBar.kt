@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import sh.hnet.comfychair.ui.navigation.sources
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
@@ -39,7 +40,9 @@ import sh.hnet.comfychair.ui.navigation.outputTab
 /**
  * Main navigation: Image, Video, Gallery and Settings, each with icon and label. Image and Video open the screen of
  * the source used last in that tab; the source switch on the screen picks another. Their badges count your jobs for
- * the tab, or show a dot while a result finished elsewhere waits to be seen.
+ * the tab, or show a dot while a result finished elsewhere waits to be seen. Gallery and Settings tapped again show
+ * anew, as when first opened ([onReopen]: Settings' list from any of its pages, both at their top); Image and Video go
+ * to their first source (Text), as their source switch does.
  *
  * @param lastImageRoute Screen the Image tab opens (the source used last)
  * @param lastVideoRoute Screen the Video tab opens
@@ -53,7 +56,9 @@ fun MainNavigationBar(
     lastImageRoute: MainRoute,
     lastVideoRoute: MainRoute,
     ownJobs: Map<OutputTab, Int>,
-    unseenResults: Set<OutputTab>
+    unseenResults: Set<OutputTab>,
+    /** Show a screen anew, as when first opened (its tab tapped again) */
+    onReopen: (MainRoute) -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = mainRouteOf(navBackStackEntry?.destination?.route)
@@ -67,7 +72,8 @@ fun MainNavigationBar(
             icon = Icons.Outlined.Image,
             badgeCount = ownJobs[OutputTab.IMAGE] ?: 0,
             badgeDot = OutputTab.IMAGE in unseenResults,
-            onClick = { navController.navigateToScreen(lastImageRoute) }
+            onClick = { navController.navigateToScreen(lastImageRoute) },
+            onReselect = { showFirstSource(navController, OutputTab.IMAGE, currentRoute) }
         )
         TabItem(
             selected = currentTab == OutputTab.VIDEO,
@@ -76,23 +82,32 @@ fun MainNavigationBar(
             icon = Icons.Outlined.Movie,
             badgeCount = ownJobs[OutputTab.VIDEO] ?: 0,
             badgeDot = OutputTab.VIDEO in unseenResults,
-            onClick = { navController.navigateToScreen(lastVideoRoute) }
+            onClick = { navController.navigateToScreen(lastVideoRoute) },
+            onReselect = { showFirstSource(navController, OutputTab.VIDEO, currentRoute) }
         )
         TabItem(
             selected = currentRoute == MainRoute.Gallery,
             label = stringResource(R.string.nav_gallery),
             selectedIcon = Icons.Filled.PhotoLibrary,
             icon = Icons.Outlined.PhotoLibrary,
-            onClick = { navController.navigateToScreen(MainRoute.Gallery) }
+            onClick = { navController.navigateToScreen(MainRoute.Gallery) },
+            onReselect = { onReopen(MainRoute.Gallery) }
         )
         TabItem(
             selected = isSettingsRoute(navBackStackEntry?.destination?.route),
             label = stringResource(R.string.action_settings),
             selectedIcon = Icons.Filled.Settings,
             icon = Icons.Outlined.Settings,
-            onClick = { navController.navigateToScreen(MainRoute.Settings) }
+            onClick = { navController.navigateToScreen(MainRoute.Settings) },
+            onReselect = { onReopen(MainRoute.Settings) }
         )
     }
+}
+
+/** A tab tapped again: its first source (Text), as the source switch shows it; nothing when that's already shown. */
+private fun showFirstSource(navController: NavController, tab: OutputTab, current: MainRoute?) {
+    val first = tab.sources.first().route
+    if (current != first) navController.navigateToScreen(first)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -104,6 +119,8 @@ private fun TabItem(
     icon: ImageVector,
     badgeCount: Int = 0,
     badgeDot: Boolean = false,
+    /** Tapped while selected */
+    onReselect: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val badgeDescription = when {
@@ -113,7 +130,7 @@ private fun TabItem(
     }
     ShortNavigationBarItem(
         selected = selected,
-        onClick = { if (!selected) onClick() },
+        onClick = { if (!selected) onClick() else onReselect?.invoke() },
         icon = {
             BadgedBox(
                 badge = {
