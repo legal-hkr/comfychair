@@ -1,5 +1,6 @@
 package sh.hnet.comfychair.ui.components
 
+import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.ui.components.settings.groupShapes
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LocalTextStyle
@@ -92,11 +93,6 @@ import sh.hnet.comfychair.workflow.NodeBrowserTree
 import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.nodeCategoryOf
 
-/** Literal types that are not connection types */
-private val LITERAL_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
-
-/** Check if a type is a connection type (not a literal) */
-private fun isConnectionType(type: String): Boolean = type.uppercase() !in LITERAL_TYPES
 
 // Room above the list's first row
 private val LIST_TOP_PADDING = 8.dp
@@ -126,6 +122,9 @@ private sealed interface BrowserRow {
  *
  * @param filterToOutputType Held output socket: nodes that take its type
  * @param filterToInputType Held input socket: nodes that give its type
+ * @param filterToOutputOptions The held output's options when it carries a list
+ * @param filterToInputList The held input when it is a list (what it takes: [ConnectionValidator.acceptsListLink])
+ * @param fromSubgraphInput The held output is a subgraph's input
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +134,10 @@ fun NodeBrowserBottomSheet(
     onNodeTypeSelected: (NodeTypeDefinition) -> Unit,
     onDismiss: () -> Unit,
     filterToOutputType: String? = null,
-    filterToInputType: String? = null
+    filterToInputType: String? = null,
+    filterToOutputOptions: List<String>? = null,
+    filterToInputList: InputDefinition? = null,
+    fromSubgraphInput: Boolean = false
 ) {
     val context = LocalContext.current
     val search = rememberTextFieldState()
@@ -147,8 +149,8 @@ fun NodeBrowserBottomSheet(
 
     val allNodes = remember(nodeTypesByCategory) { nodeTypesByCategory.values.flatten().distinctBy { it.classType } }
     fun fits(node: NodeTypeDefinition): Boolean = when {
-        filterToOutputType != null -> node.inputs.any { isConnectionType(it.type) && ConnectionValidator.isTypeCompatible(filterToOutputType, it.type) }
-        filterToInputType != null -> node.outputs.any { ConnectionValidator.isTypeCompatible(it.type, filterToInputType) }
+        filterToOutputType != null -> ConnectionValidator.inputsTaking(node, filterToOutputType, filterToOutputOptions, fromSubgraphInput).isNotEmpty()
+        filterToInputType != null -> ConnectionValidator.outputsFeeding(node, filterToInputType, filterToInputList).isNotEmpty()
         else -> true
     }
     val compatible = remember(allNodes, slotType) { if (slotType == null) allNodes else allNodes.filter(::fits) }

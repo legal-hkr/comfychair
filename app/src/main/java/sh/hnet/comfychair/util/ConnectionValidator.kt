@@ -1,5 +1,8 @@
 package sh.hnet.comfychair.util
 
+import sh.hnet.comfychair.workflow.SubgraphLevels
+import sh.hnet.comfychair.workflow.OutputSlot
+import sh.hnet.comfychair.workflow.NodeTypeDefinition
 import sh.hnet.comfychair.workflow.InputDefinition
 import sh.hnet.comfychair.workflow.LIST_OUTPUT_TYPE
 import androidx.compose.ui.geometry.Offset
@@ -32,7 +35,11 @@ object ConnectionValidator {
         graph: MutableWorkflowGraph,
         sourceNodeId: String,
         outputType: String?,
-        nodeTypeRegistry: NodeTypeRegistry
+        nodeTypeRegistry: NodeTypeRegistry,
+        /** The options the output carries when it is a list ([acceptsListLink]) */
+        outputOptions: List<String>? = null,
+        /** The output is a subgraph's input (the Inputs strip of a level) */
+        fromSubgraphInput: Boolean = false
     ): List<SlotPosition> {
         val validSlots = mutableListOf<SlotPosition>()
 
@@ -44,6 +51,24 @@ object ConnectionValidator {
             // Check each input on this node
             var inputIndex = 0
             for ((inputName, inputValue) in node.inputs) {
+                // A list, linked or not, takes what ComfyUI's server would take
+                val list = linkableList(nodeTypeRegistry.getNodeDefinition(node.classType), inputName)
+                if (list != null) {
+                    if (acceptsListLink(outputType, outputOptions, list, fromSubgraphInput)) {
+                        validSlots.add(
+                            SlotPosition(
+                                nodeId = node.id,
+                                slotName = inputName,
+                                isOutput = false,
+                                outputIndex = 0,
+                                center = Offset(node.x, node.y + WorkflowLayoutEngine.rowCenterY(inputIndex)),
+                                slotType = LIST_OUTPUT_TYPE
+                            )
+                        )
+                    }
+                    inputIndex++
+                    continue
+                }
                 // Only connection-type inputs can be connected
                 val isConnectionInput = inputValue is InputValue.Connection ||
                     inputValue is InputValue.UnconnectedSlot
@@ -106,7 +131,9 @@ object ConnectionValidator {
         graph: MutableWorkflowGraph,
         targetNodeId: String,
         inputType: String?,
-        nodeTypeRegistry: NodeTypeRegistry
+        nodeTypeRegistry: NodeTypeRegistry,
+        /** The input when it is a list: outputs are then checked by [acceptsListLink] */
+        listInput: InputDefinition? = null
     ): List<SlotPosition> {
         val validSlots = mutableListOf<SlotPosition>()
 
@@ -117,7 +144,10 @@ object ConnectionValidator {
 
             // Check each output on this node
             node.outputs.forEachIndexed { outputIndex, output ->
-                if (isTypeCompatible(output.type, inputType)) {
+                val fits = if (listInput != null) {
+                    acceptsListLink(output.type, output.options ?: nodeTypeRegistry.getOutputOptions(node.classType, outputIndex), listInput, SubgraphLevels.isPortNode(node))
+                } else isTypeCompatible(output.type, inputType)
+                if (fits) {
                     // Calculate output slot position (right side of node)
                     val slotY = node.y + WorkflowLayoutEngine.outputSlotY(node, outputIndex)
 
@@ -172,11 +202,56 @@ object ConnectionValidator {
     /** Value types (ComfyUI widgets) that can take a link of their own type instead of a typed value. */
     val LINKABLE_VALUE_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN")
 
-    /** The type of a value input that can take a link, or null (lists, connection types, unknown nodes). */
+    /**
+     * The socket type of a value input that can take a link: its own (INT, FLOAT, STRING, BOOLEAN), or COMBO for a
+     * list; null for connection types and unknown inputs. A value promoted from inside a subgraph is set, not linked (a
+     * link would go to the subgraph's input).
+     */
+    fun linkableValueType(definition: NodeTypeDefinition?, inputName: String): String? {
+        val input = definition?.inputs?.find { it.name == inputName } ?: return null
+        if (Subgraphs.isPromotedKey(inputName)) return null
+        if (takesListLink(input)) return LIST_OUTPUT_TYPE
+        return input.type.uppercase().takeIf { it in LINKABLE_VALUE_TYPES }
+    }
+
     fun linkableValueType(classType: String, inputName: String, nodeTypeRegistry: NodeTypeRegistry): String? =
-        nodeTypeRegistry.getNodeDefinition(classType)?.inputs?.find { it.name == inputName }?.type?.uppercase()
-            // A value promoted from inside a subgraph is set, not linked (a link would go to the subgraph's input)
-            ?.takeIf { it in LINKABLE_VALUE_TYPES && !Subgraphs.isPromotedKey(inputName) }
+        linkableValueType(nodeTypeRegistry.getNodeDefinition(classType), inputName)
+
+    /** [inputName] of [definition] when it is a list that can take a link (not a value promoted from inside). */
+    fun linkableList(definition: NodeTypeDefinition?, inputName: String): InputDefinition? =
+        definition?.inputs?.find { it.name == inputName }?.takeIf { takesListLink(it) && !Subgraphs.isPromotedKey(inputName) }
+
+    /** Socket types of value rows that can take a link: the value types and lists (COMBO). */
+    val LINKABLE_SLOT_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", LIST_OUTPUT_TYPE)
+
+    // Types a node's definition gives its values (widgets) rather than sockets
+    private val VALUE_TYPES = setOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM", LIST_OUTPUT_TYPE)
+
+    /** Whether an input of [type] is a socket rather than a value (ComfyUI's widget) on a new node. */
+    fun isConnectionType(type: String): Boolean = type.uppercase() !in VALUE_TYPES
+
+    /**
+     * The inputs of a node of [definition] that a link from an output of [outputType] (carrying [outputOptions] when it
+     * is a list) can go to, for a node added from that output: sockets of a compatible type, and lists that take it.
+     */
+    fun inputsTaking(
+        definition: NodeTypeDefinition,
+        outputType: String?,
+        outputOptions: List<String>?,
+        fromSubgraphInput: Boolean = false
+    ): List<InputDefinition> = definition.inputs.filter { input ->
+        if (isList(input)) acceptsListLink(outputType, outputOptions, input, fromSubgraphInput)
+        else (isConnectionType(input.type) || input.forceInput) && isTypeCompatible(outputType, input.type)
+    }
+
+    /**
+     * The outputs of a node of [definition] that can feed an input of [inputType] ([listInput]: that input when it is a
+     * list), for a node added to that input.
+     */
+    fun outputsFeeding(definition: NodeTypeDefinition, inputType: String?, listInput: InputDefinition?): List<OutputSlot> =
+        definition.outputs.filter { output ->
+            if (listInput != null) acceptsListLink(output.type, output.options, listInput) else isTypeCompatible(output.type, inputType)
+        }
 
     /**
      * Whether a value input of [valueType] takes a link from an output of [outputType]: the same type (INT and FLOAT

@@ -47,8 +47,17 @@ data class InputDefinition(
      * ComfyUI's server takes a link into it from any list, while a list declared by its options takes only the very
      * same options ([sh.hnet.comfychair.util.ConnectionValidator.acceptsListLink])
      */
-    val comboDeclared: Boolean = false
+    val comboDeclared: Boolean = false,
+    /**
+     * A list's options as the server gives them, when some aren't text (CreateVideo's bit_depth: "auto", 8, 10):
+     * [options] holds them as text to show, these are what a chosen option sends ([optionValue])
+     */
+    val optionValues: List<Any>? = null
 )
+
+/** The value to send for option [text] of a list: the option as the server gave it (a number stays a number). */
+fun InputDefinition.optionValue(text: String): Any =
+    optionValues?.getOrNull(options?.indexOf(text) ?: -1) ?: text
 
 /**
  * Whether ComfyUI's frontend shows this input as a widget, whose value is saved in a node's widgets_values: the value
@@ -272,7 +281,7 @@ class NodeTypeRegistry {
             for (i in 0 until outputArray.length()) {
                 // A list of options as the type: a list (COMBO) carrying these options
                 val options = (outputArray.opt(i) as? JSONArray)?.let { array ->
-                    val list = (0 until array.length()).mapNotNull { array.opt(it) as? String }
+                    val list = optionValuesOf(array).map { it.toString() }
                     optionListPool.getOrPut(list) { list }
                 }
                 val type = if (options != null) LIST_OUTPUT_TYPE else outputArray.optString(i, "UNKNOWN")
@@ -373,13 +382,8 @@ class NodeTypeRegistry {
                     if (firstElement == "COMBO" && optionsObj != null) {
                         val optionsArray = optionsObj.optJSONArray("options")
                         if (optionsArray != null) {
-                            val options = mutableListOf<String>()
-                            for (i in 0 until optionsArray.length()) {
-                                val opt = optionsArray.opt(i)
-                                if (opt is String) {
-                                    options.add(opt)
-                                }
-                            }
+                            val raw = optionValuesOf(optionsArray)
+                            val options = raw.map { it.toString() }
                             val default = optionsObj.opt("default")
                             val forceInput = optionsObj.optBoolean("forceInput", false)
                             val tooltip = (optionsObj.opt("tooltip") as? String)?.takeIf { it.isNotEmpty() }
@@ -396,6 +400,7 @@ class NodeTypeRegistry {
                                     tooltip = tooltip,
                                     multiselect = multiselect,
                                     comboDeclared = true,
+                                    optionValues = raw.takeIf { values -> values.any { it !is String } },
                                     socketless = optionsObj.optBoolean("socketless", false),
                                     controlAfterGenerate = optionsObj.hasControlAfterGenerate(),
                                     upload = optionsObj.hasUploadFlag(),
@@ -412,13 +417,8 @@ class NodeTypeRegistry {
                 }
                 is JSONArray -> {
                     // Enum/dropdown (old format): [["option1", "option2"], {...}]
-                    val options = mutableListOf<String>()
-                    for (i in 0 until firstElement.length()) {
-                        val opt = firstElement.opt(i)
-                        if (opt is String) {
-                            options.add(opt)
-                        }
-                    }
+                    val raw = optionValuesOf(firstElement)
+                    val options = raw.map { it.toString() }
                     val default = optionsObj?.opt("default")
                     val forceInput = optionsObj?.optBoolean("forceInput", false) ?: false
                     val tooltip = (optionsObj?.opt("tooltip") as? String)?.takeIf { it.isNotEmpty() }
@@ -430,6 +430,7 @@ class NodeTypeRegistry {
                             isRequired = isRequired,
                             default = default,
                             options = options,
+                            optionValues = raw.takeIf { values -> values.any { it !is String } },
                             forceInput = forceInput,
                             tooltip = tooltip,
                             socketless = optionsObj?.optBoolean("socketless", false) ?: false,
@@ -499,6 +500,10 @@ class NodeTypeRegistry {
             comboDeclared = type == LIST_OUTPUT_TYPE
         )
     }
+
+    /** A list's options as given: text, numbers or true/false (nulls and nested values left out). */
+    private fun optionValuesOf(array: JSONArray): List<Any> =
+        (0 until array.length()).mapNotNull { i -> array.opt(i)?.takeIf { it is String || it is Number || it is Boolean } }
 
     /** The "control after generate" flag: true, or the control's starting value ("fixed", as primitive nodes give it). */
     private fun JSONObject.hasControlAfterGenerate(): Boolean = when (val flag = opt("control_after_generate")) {

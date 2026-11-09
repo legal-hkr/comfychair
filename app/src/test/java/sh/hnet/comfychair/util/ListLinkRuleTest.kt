@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import sh.hnet.comfychair.workflow.LIST_OUTPUT_TYPE
 import sh.hnet.comfychair.workflow.NodeTypeRegistry
+import sh.hnet.comfychair.workflow.optionValue
 
 /**
  * Links into lists (COMBO), checked against what ComfyUI's server accepted and refused when probed (a live server,
@@ -122,6 +123,34 @@ class ListLinkRuleTest {
             assertFalse(accepts("KSamplerSelect", 0, node, name))
             assertFalse(accepts("ImpactSwitch", 1, node, name))
         }
+    }
+
+    @Test
+    fun `options that aren't text are shown as text and sent as given`() {
+        val bitDepth = input("CreateVideo", "bit_depth")
+        assertEquals(listOf("auto", "8", "10"), bitDepth.options)
+        assertEquals(8, bitDepth.optionValue("8"))
+        assertEquals("auto", bitDepth.optionValue("auto"))
+        // Lists of text only keep no separate values
+        assertNull(input("KSampler", "sampler_name").optionValues)
+        assertEquals("heun", input("KSampler", "sampler_name").optionValue("heun"))
+    }
+
+    @Test
+    fun `a node added from an output offers the inputs it can feed, lists among them`() {
+        val ksampler = registry.getNodeDefinition("KSampler")!!
+        val config = registry.getNodeDefinition("KSampler Config (rgthree)")!!
+        assertEquals(listOf("sampler_name"), ConnectionValidator.inputsTaking(ksampler, LIST_OUTPUT_TYPE, samplers, false).map { it.name })
+        // (the test's org.json keeps no key order: compared as sets)
+        assertEquals(setOf("sampler_name", "scheduler"), ConnectionValidator.inputsTaking(ksampler, "*", null).map { it.name }.toSet())
+        assertTrue(ConnectionValidator.inputsTaking(ksampler, "STRING", null).isEmpty())
+        // A node added to a list input: the outputs that list takes
+        assertEquals(listOf("SCHEDULER"), ConnectionValidator.outputsFeeding(config, LIST_OUTPUT_TYPE, input("KSampler", "scheduler")).map { it.name })
+        assertEquals(setOf("SAMPLER", "SCHEDULER"), ConnectionValidator.outputsFeeding(config, LIST_OUTPUT_TYPE, input("KSamplerSelect", "sampler_name")).map { it.name }.toSet())
+        // The socket a list row shows
+        assertEquals(LIST_OUTPUT_TYPE, ConnectionValidator.linkableValueType(ksampler, "sampler_name"))
+        assertEquals("INT", ConnectionValidator.linkableValueType(ksampler, "steps"))
+        assertNull(ConnectionValidator.linkableValueType(registry.getNodeDefinition("ImageCompare"), "mode"))
     }
 
     @Test

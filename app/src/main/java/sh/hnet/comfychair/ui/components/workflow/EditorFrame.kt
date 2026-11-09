@@ -86,7 +86,6 @@ import androidx.compose.ui.unit.dp
 import sh.hnet.comfychair.R
 import sh.hnet.comfychair.ui.components.shared.TooltipIconButton
 import sh.hnet.comfychair.ui.components.shared.rememberMenuScrollModifier
-import sh.hnet.comfychair.util.ConnectionValidator
 import sh.hnet.comfychair.workflow.SubgraphLevelInfo
 
 /*
@@ -126,7 +125,9 @@ sealed interface EditorStatus {
         val noTargets: Boolean = false,
         val zoomInToConnect: Boolean = false,
         /** Inside a subgraph: a strip's add socket takes it too (spec §19.5) */
-        val toAddSocket: Boolean = false
+        val toAddSocket: Boolean = false,
+        /** Value rows (numbers, text, lists) are among the targets */
+        val toValues: Boolean = false
     ) : EditorStatus
 }
 
@@ -342,7 +343,7 @@ private fun pillLines(workflowName: String, status: EditorStatus, level: Subgrap
             status.toAddSocket && status.fromOutput -> stringResource(R.string.sg_connect_hint_outputs)
             status.toAddSocket -> stringResource(R.string.sg_connect_hint_inputs)
             // An output a value can take: values are targets too
-            status.fromOutput && status.slotType.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES ->
+            status.fromOutput && status.toValues ->
                 stringResource(R.string.hint_editor_tap_input_or_value)
             status.fromOutput -> stringResource(R.string.hint_editor_tap_input)
             else -> stringResource(R.string.hint_editor_tap_output)

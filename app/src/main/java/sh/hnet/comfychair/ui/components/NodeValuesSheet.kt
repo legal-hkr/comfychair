@@ -2,6 +2,7 @@
 
 package sh.hnet.comfychair.ui.components
 
+import sh.hnet.comfychair.workflow.optionValue
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -332,7 +333,7 @@ private fun InputEditor(
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         tooltip = definition?.tooltip,
-                        onValueChange = { onValueChange(it) }
+                        onValueChange = { onValueChange(definition?.optionValue(it) ?: it) }
                     )
                 } else {
                     EnumEditor(
@@ -340,7 +341,7 @@ private fun InputEditor(
                         value = input.currentValue?.toString() ?: "",
                         options = options,
                         tooltip = definition?.tooltip,
-                        onValueChange = { onValueChange(it) }
+                        onValueChange = { onValueChange(definition?.optionValue(it) ?: it) }
                     )
                 }
             }

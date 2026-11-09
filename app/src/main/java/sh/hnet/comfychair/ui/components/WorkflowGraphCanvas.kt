@@ -2919,10 +2919,9 @@ private fun findInputSlotAt(
     return best
 }
 
-/** The type of a value row that can take a link (INT, FLOAT, STRING, BOOLEAN), or null. */
+/** The socket type of a value row that can take a link (INT, FLOAT, STRING, BOOLEAN; COMBO for a list), or null. */
 private fun linkableValueType(node: WorkflowNode, inputName: String, nodeDefinitions: Map<String, NodeTypeDefinition>): String? =
-    nodeDefinitions[node.classType]?.inputs?.find { it.name == inputName }?.type?.uppercase()
-        ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES && !Subgraphs.isPromotedKey(inputName) }
+    ConnectionValidator.linkableValueType(nodeDefinitions[node.classType], inputName)
 
 /**
  * The type of a value row that has a socket in Edit structure: one that can take a link, or a list (its socket opens

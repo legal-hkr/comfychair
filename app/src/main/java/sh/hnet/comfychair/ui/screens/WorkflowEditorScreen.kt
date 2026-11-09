@@ -330,7 +330,8 @@ fun WorkflowEditorScreen(
             noTargets = connection.validTargetSlots.isEmpty(),
             // Zoomed out, sockets can't be tapped: the connection waits until zoomed in
             zoomInToConnect = detailLevel != GraphDetailLevel.FULL,
-            toAddSocket = connection.validTargetSlots.any { SubgraphLevels.isAddSocket(it.slotName) }
+            toAddSocket = connection.validTargetSlots.any { SubgraphLevels.isAddSocket(it.slotName) },
+            toValues = connection.validTargetSlots.any { !it.isOutput && it.slotType?.uppercase() in ConnectionValidator.LINKABLE_SLOT_TYPES }
         )
         mode == EditorMode.MAPPING -> EditorStatus.Mapping(import = uiState.isImportMapping)
         mode == EditorMode.EDIT -> EditorStatus.Editing(
@@ -679,7 +680,7 @@ fun WorkflowEditorScreen(
                                 },
                                 // A value an instance shows from inside isn't linked from outside (spec §19.3)
                                 linkable = !shownValue && (slot.isOutput || uiState.graph?.nodes?.find { it.id == slot.nodeId }?.inputs?.get(slot.slotName) !is InputValue.Literal ||
-                                    slot.slotType?.uppercase() in ConnectionValidator.LINKABLE_VALUE_TYPES),
+                                    slot.slotType?.uppercase() in ConnectionValidator.LINKABLE_SLOT_TYPES),
                                 fieldItems = fieldMenuItems(
                                     slot = slot,
                                     graph = uiState.graph,
@@ -1229,7 +1230,10 @@ fun WorkflowEditorScreen(
                 },
                 // Filter based on direction: output->input or input->output
                 filterToOutputType = if (sourceSlot?.isOutput == true) sourceSlot.slotType else null,
-                filterToInputType = if (sourceSlot?.isOutput == false) sourceSlot.slotType else null
+                filterToInputType = if (sourceSlot?.isOutput == false) sourceSlot.slotType else null,
+                filterToOutputOptions = sourceSlot?.let(viewModel::heldSocketOptions),
+                filterToInputList = sourceSlot?.let(viewModel::heldSocketList),
+                fromSubgraphInput = sourceSlot?.let(viewModel::heldSocketIsSubgraphInput) == true
             )
         }
 
@@ -1679,8 +1683,7 @@ private fun socketsOf(node: WorkflowNode, definitions: Map<String, NodeTypeDefin
         val type = when (value) {
             is InputValue.UnconnectedSlot -> value.slotType
             is InputValue.Connection -> definitions[node.classType]?.inputs?.find { it.name == name }?.type
-            is InputValue.Literal -> definitions[node.classType]?.inputs?.find { it.name == name }?.type?.uppercase()
-                ?.takeIf { it in ConnectionValidator.LINKABLE_VALUE_TYPES } ?: return@mapNotNull null
+            is InputValue.Literal -> ConnectionValidator.linkableValueType(definitions[node.classType], name) ?: return@mapNotNull null
         }
         SlotPosition(node.id, name, isOutput = false, outputIndex = 0, center = Offset(node.x, node.y + WorkflowLayoutEngine.inputSlotY(node, name)), slotType = type)
     }

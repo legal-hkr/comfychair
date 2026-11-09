@@ -2447,7 +2447,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // First pass: add all literal (editable) inputs
         nodeType.inputs.forEach { inputDef ->
-            val isConnectionType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            val isConnectionType = ConnectionValidator.isConnectionType(inputDef.type)
 
             if (!isConnectionType && !inputDef.forceInput) {
                 // Literal input: add with default value
@@ -2457,7 +2457,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Second pass: add all connection-type inputs (slots)
         nodeType.inputs.forEach { inputDef ->
-            val isConnectionType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            val isConnectionType = ConnectionValidator.isConnectionType(inputDef.type)
 
             if (isConnectionType || inputDef.forceInput) {
                 // Connection-type input: add as unconnected slot
@@ -2562,10 +2562,13 @@ class WorkflowEditorViewModel : ViewModel() {
         val outputType = nodeTypeRegistry.getOutputType(sourceNode.classType, outputSlot.outputIndex)
 
         // Calculate all valid input slots (from a strip's add socket: the nodes inside only)
-        val validInputs = calculateValidInputSlots(
+        val validInputs = ConnectionValidator.calculateValidInputSlots(
+            graph = graph,
             sourceNodeId = sourceNode.id,
             outputType = outputType,
-            graph = graph
+            nodeTypeRegistry = nodeTypeRegistry,
+            outputOptions = outputOptionsOf(sourceNode, outputSlot.outputIndex),
+            fromSubgraphInput = SubgraphLevels.isPortNode(sourceNode)
         ).filterNot { slot -> SubgraphLevels.isAddSocket(outputSlot.slotName) && graph.nodes.any { it.id == slot.nodeId && SubgraphLevels.isPortNode(it) } }
 
         // Update the output slot with resolved type
@@ -2597,10 +2600,12 @@ class WorkflowEditorViewModel : ViewModel() {
             ?: nodeTypeRegistry.getInputType(targetNode.classType, inputSlot.slotName)
 
         // Calculate all valid output slots (from a strip's add socket: the nodes inside only)
-        val validOutputs = calculateValidOutputSlots(
+        val validOutputs = ConnectionValidator.calculateValidOutputSlots(
+            graph = graph,
             targetNodeId = targetNode.id,
             inputType = inputType,
-            graph = graph
+            nodeTypeRegistry = nodeTypeRegistry,
+            listInput = ConnectionValidator.linkableList(nodeTypeRegistry.getNodeDefinition(targetNode.classType), inputSlot.slotName)
         ).filterNot { slot -> SubgraphLevels.isAddSocket(inputSlot.slotName) && graph.nodes.any { it.id == slot.nodeId && SubgraphLevels.isPortNode(it) } }
 
         // Update the input slot with resolved type
@@ -2973,39 +2978,21 @@ class WorkflowEditorViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(pendingMappedLink = null)
     }
 
-    /**
-     * Calculate all valid input slots for a given output.
-     * Delegates to ConnectionValidator utility.
-     */
-    private fun calculateValidInputSlots(
-        sourceNodeId: String,
-        outputType: String?,
-        graph: MutableWorkflowGraph
-    ): List<SlotPosition> {
-        return ConnectionValidator.calculateValidInputSlots(
-            graph = graph,
-            sourceNodeId = sourceNodeId,
-            outputType = outputType,
-            nodeTypeRegistry = nodeTypeRegistry
-        )
-    }
+    /** The options output [outputIndex] of [node] carries when it is a list, else null. */
+    private fun outputOptionsOf(node: WorkflowNode, outputIndex: Int): List<String>? =
+        node.outputs.getOrNull(outputIndex)?.options ?: nodeTypeRegistry.getOutputOptions(node.classType, outputIndex)
 
-    /**
-     * Calculate all valid output slots for a given input.
-     * Delegates to ConnectionValidator utility.
-     */
-    private fun calculateValidOutputSlots(
-        targetNodeId: String,
-        inputType: String?,
-        graph: MutableWorkflowGraph
-    ): List<SlotPosition> {
-        return ConnectionValidator.calculateValidOutputSlots(
-            graph = graph,
-            targetNodeId = targetNodeId,
-            inputType = inputType,
-            nodeTypeRegistry = nodeTypeRegistry
-        )
-    }
+    /** The options the held output [slot] carries when it is a list (for a node added to it), else null. */
+    fun heldSocketOptions(slot: SlotPosition): List<String>? =
+        mutableGraph?.nodes?.find { it.id == slot.nodeId }?.takeIf { slot.isOutput }?.let { outputOptionsOf(it, slot.outputIndex) }
+
+    /** The held input [slot] when it is a list (for a node added to it), else null. */
+    fun heldSocketList(slot: SlotPosition): InputDefinition? = if (slot.isOutput) null else
+        mutableGraph?.nodes?.find { it.id == slot.nodeId }?.let { ConnectionValidator.linkableList(nodeTypeRegistry.getNodeDefinition(it.classType), slot.slotName) }
+
+    /** Whether the held socket [slot] is an output of a level's Inputs strip (a subgraph's input). */
+    fun heldSocketIsSubgraphInput(slot: SlotPosition): Boolean =
+        slot.isOutput && mutableGraph?.nodes?.find { it.id == slot.nodeId }?.let(SubgraphLevels::isPortNode) == true
 
     // ===========================================
     // Long-Press Connection Mode (Filtered Node Browser)
@@ -3051,11 +3038,8 @@ class WorkflowEditorViewModel : ViewModel() {
         val sourceSlot = _uiState.value.longPressSourceSlot ?: return
         val sourceType = sourceSlot.slotType ?: return
 
-        // Find compatible inputs (connection types only, not literals)
-        val compatibleInputs = nodeType.inputs.filter { input ->
-            isConnectionType(input.type) &&
-            ConnectionValidator.isTypeCompatible(sourceType, input.type)
-        }
+        // Inputs the held output can feed: sockets of its type, and lists that take it
+        val compatibleInputs = ConnectionValidator.inputsTaking(nodeType, sourceType, heldSocketOptions(sourceSlot), heldSocketIsSubgraphInput(sourceSlot))
 
         when (compatibleInputs.size) {
             0 -> addUnconnected(nodeType)
@@ -3099,10 +3083,8 @@ class WorkflowEditorViewModel : ViewModel() {
         val sourceSlot = _uiState.value.longPressSourceSlot ?: return
         val inputType = sourceSlot.slotType ?: return
 
-        // Find compatible outputs on the selected node
-        val compatibleOutputs = nodeType.outputs.filter { output ->
-            ConnectionValidator.isTypeCompatible(output.type, inputType)
-        }
+        // Outputs that can feed the held input (a list: what it takes)
+        val compatibleOutputs = ConnectionValidator.outputsFeeding(nodeType, inputType, heldSocketList(sourceSlot))
 
         when (compatibleOutputs.size) {
             0 -> addUnconnected(nodeType)
@@ -3155,7 +3137,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // First pass: add all literal (editable) inputs
         nodeType.inputs.forEach { inputDef ->
-            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            val isConnType = ConnectionValidator.isConnectionType(inputDef.type)
             if (!isConnType && !inputDef.forceInput) {
                 inputs[inputDef.name] = InputValue.Literal(inputDef.getEffectiveDefault())
             }
@@ -3163,7 +3145,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Second pass: add connection-type inputs (all unconnected)
         nodeType.inputs.forEach { inputDef ->
-            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            val isConnType = ConnectionValidator.isConnectionType(inputDef.type)
             if (isConnType || inputDef.forceInput) {
                 inputs[inputDef.name] = InputValue.UnconnectedSlot(inputDef.type)
             }
@@ -3299,16 +3281,16 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // First pass: add all literal (editable) inputs
         nodeType.inputs.forEach { inputDef ->
-            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
-            if (!isConnType && !inputDef.forceInput) {
+            val isConnType = ConnectionValidator.isConnectionType(inputDef.type)
+            if (!isConnType && !inputDef.forceInput && inputDef.name != targetInput.name) {
                 inputs[inputDef.name] = InputValue.Literal(inputDef.getEffectiveDefault())
             }
         }
 
-        // Second pass: add connection-type inputs
+        // Second pass: add connection-type inputs, and the value (a list) taking the link
         nodeType.inputs.forEach { inputDef ->
-            val isConnType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
-            if (isConnType || inputDef.forceInput) {
+            val isConnType = ConnectionValidator.isConnectionType(inputDef.type)
+            if (isConnType || inputDef.forceInput || inputDef.name == targetInput.name) {
                 // Check if this is the target input we're connecting to
                 if (inputDef.name == targetInput.name) {
                     // Set up as connected to the source slot
@@ -3409,13 +3391,6 @@ class WorkflowEditorViewModel : ViewModel() {
     }
 
     /**
-     * Check if an input type is a connection type (not a literal).
-     */
-    private fun isConnectionType(type: String): Boolean {
-        return type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
-    }
-
-    /**
      * Disconnect an input (Edit structure). A value in ComfyUI (INT, FLOAT, STRING, BOOLEAN, a list) becomes a value
      * row again, with the value it had before it was linked in this session, otherwise the node's default; a
      * connection-only input (MODEL, IMAGE…) stays as a free socket.
@@ -3433,11 +3408,21 @@ class WorkflowEditorViewModel : ViewModel() {
         val isValue = inputDef != null && !inputDef.forceInput && (type?.uppercase() in VALUE_INPUT_TYPES || inputDef.options != null)
         val restored = if (isValue) {
             val kept = keptValues.remove(nodeId to inputName)
-            InputValue.Literal(kept ?: inputDef?.default ?: defaultForType(type))
+            InputValue.Literal(kept ?: inputDef?.default ?: inputDef?.takeIf { it.options != null }?.getEffectiveDefault() ?: defaultForType(type))
         } else {
             InputValue.UnconnectedSlot(type ?: "*")
         }
-        graph.nodes[nodeIndex] = targetNode.copy(inputs = sortInputsForLayout(targetNode.inputs + (inputName to restored)))
+        val inputs = if (isValue) {
+            // The value row goes back to its place among the values, by the node's definition (linking moved it to
+            // the linked inputs, so it would otherwise come back last)
+            val order = nodeTypeRegistry.getNodeDefinition(targetNode.classType)?.inputs?.map { it.name }.orEmpty()
+            val rank = order.indexOf(inputName)
+            val others = targetNode.inputs.filterKeys { it != inputName }.entries.toList()
+            val at = others.indexOfFirst { (name, value) -> value is InputValue.Literal && order.indexOf(name) > rank }
+                .takeIf { rank >= 0 && it >= 0 } ?: others.size
+            (others.take(at).map { it.key to it.value } + (inputName to restored) + others.drop(at).map { it.key to it.value }).toMap()
+        } else targetNode.inputs + (inputName to restored)
+        graph.nodes[nodeIndex] = targetNode.copy(inputs = sortInputsForLayout(inputs))
 
         _uiState.value = _uiState.value.copy(hasUnsavedChanges = true)
         // A value row back: the node's rows change, sizes and positions follow
@@ -3703,7 +3688,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // First pass: add all literal (editable) inputs
         nodeType.inputs.forEach { inputDef ->
-            val isConnectionType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            val isConnectionType = ConnectionValidator.isConnectionType(inputDef.type)
 
             if (!isConnectionType && !inputDef.forceInput) {
                 inputs[inputDef.name] = InputValue.Literal(inputDef.getEffectiveDefault())
@@ -3712,7 +3697,7 @@ class WorkflowEditorViewModel : ViewModel() {
 
         // Second pass: add all connection-type inputs (slots)
         nodeType.inputs.forEach { inputDef ->
-            val isConnectionType = inputDef.type !in listOf("INT", "FLOAT", "STRING", "BOOLEAN", "ENUM")
+            val isConnectionType = ConnectionValidator.isConnectionType(inputDef.type)
 
             if (isConnectionType || inputDef.forceInput) {
                 inputs[inputDef.name] = InputValue.UnconnectedSlot(inputDef.type)
